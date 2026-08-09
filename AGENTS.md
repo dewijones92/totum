@@ -20,6 +20,8 @@ what's relevant.
    - [`docs/features/`](docs/features/_index.md) — one doc per feature (status, seam, files, tests).
    - [`docs/todos/`](docs/todos/_index.md) — the live backlog, one file per item.
    - [`docs/tests/`](docs/tests/_index.md) — testing strategy + coverage map.
+   - [`docs/features/command-line.md`](docs/features/command-line.md) — the desktop front end,
+     which shares the app's extraction stack and must not grow a second copy of it.
 
 ## Keep the docs current (part of "done")
 

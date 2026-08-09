@@ -337,3 +337,35 @@ def _classify(error):
     if isinstance(cause, (OSError, yt_dlp.utils.network_exceptions)):
         return "network"
     return "extractor"
+
+
+# --- command line -------------------------------------------------------------------------
+#
+# The SAME functions, reachable as a subprocess, so the desktop engine (:lib:ytdlp-process)
+# extracts exactly what the phone does — the android-client fallback, the JS-runtime handling
+# and the format shaping included. A second implementation of any of that would drift within
+# a week; this one cannot, because there is only one.
+#
+# Chaquopy imports this file as a module and never runs it, so the block is inert on Android.
+
+def _main(argv):
+    if not argv:
+        return json.dumps({"ok": False, "kind": "extractor", "detail": "no command given"})
+    command, args = argv[0], argv[1:]
+    if command == "versions":
+        return versions()
+    if command == "extract":
+        return extract(args[0])
+    if command == "search":
+        return search(args[0], int(args[1]))
+    if command == "channel":
+        return channel(args[0], int(args[1]))
+    return json.dumps({"ok": False, "kind": "extractor", "detail": "unknown command " + command})
+
+
+if __name__ == "__main__":
+    import sys
+
+    # Written to stdout as one line; yt-dlp's own chatter goes to stderr and is ignored, which
+    # is why the caller must not merge the two streams.
+    sys.stdout.write(_main(sys.argv[1:]))

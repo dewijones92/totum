@@ -1,4 +1,4 @@
-package com.dewijones92.totum.ytdlp.chaquopy
+package com.dewijones92.totum.ytdlp.bridge
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
@@ -27,7 +27,7 @@ import java.io.File
 
 private val json = Json { ignoreUnknownKeys = true }
 
-internal fun parseVersions(text: String): EngineVersions {
+public fun parseVersions(text: String): EngineVersions {
     val obj = json.parseToJsonElement(text).jsonObject
     return EngineVersions(
         ytDlp = obj.stringOrNull("yt_dlp") ?: "unknown",
@@ -44,7 +44,7 @@ internal fun parseVersions(text: String): EngineVersions {
  * that moves them must degrade to "age-restricted videos stopped working" — loudly, but only
  * for those videos.
  */
-internal fun parseSolvedN(text: String): Map<String, String> {
+public fun parseSolvedN(text: String): Map<String, String> {
     val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse {
         Diag.warn("resolve", "n solver returned unreadable JSON")
         return emptyMap()
@@ -57,7 +57,7 @@ internal fun parseSolvedN(text: String): Map<String, String> {
     return solved.mapNotNull { (key, value) -> value.jsonPrimitive.contentOrNull?.let { key to it } }.toMap()
 }
 
-internal fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
+public fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
     val obj = json.parseToJsonElement(text).jsonObject
     return if (obj.isOk()) {
         ExtractionResult.Success(obj.getValue("info").jsonObject.toMediaMetadata(url))
@@ -66,7 +66,7 @@ internal fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
     }
 }
 
-internal fun parseDownloadCompletion(url: HttpUrl, text: String, fileOf: (String) -> File): DownloadEvent {
+public fun parseDownloadCompletion(url: HttpUrl, text: String, fileOf: (String) -> File): DownloadEvent {
     val obj = json.parseToJsonElement(text).jsonObject
     if (!obj.isOk()) return DownloadEvent.Failed(obj.toFailure(url))
     val path = obj.stringOrNull("filepath")
@@ -129,7 +129,7 @@ private fun JsonObject.toMediaFormatOrNull(): MediaFormat? {
     )
 }
 
-internal fun parseChannel(url: HttpUrl, text: String): ChannelResult {
+public fun parseChannel(url: HttpUrl, text: String): ChannelResult {
     val obj = json.parseToJsonElement(text).jsonObject
     if (!obj.isOk()) {
         val detail = obj.stringOrNull("detail") ?: "unknown error"
@@ -145,7 +145,7 @@ internal fun parseChannel(url: HttpUrl, text: String): ChannelResult {
     )
 }
 
-internal fun parseSearch(text: String): VideoSearchResult {
+public fun parseSearch(text: String): VideoSearchResult {
     val obj = json.parseToJsonElement(text).jsonObject
     if (!obj.isOk()) {
         return VideoSearchResult.Failure(obj.stringOrNull("detail") ?: "unknown error")
@@ -170,7 +170,7 @@ private fun JsonObject.toSearchEntryOrNull(): VideoSearchEntry? {
     )
 }
 
-internal fun JsonObject.stringOrNull(key: String): String? =
+public fun JsonObject.stringOrNull(key: String): String? =
     this[key]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
 
 /** The array at [key], or empty — tolerant of a missing key AND of a present JSON `null` value. */

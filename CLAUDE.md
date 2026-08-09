@@ -49,14 +49,23 @@ change coverage → update `docs/tests/`. Bump each doc's `updated`.
   technical reason it cannot be one seam — and when that happens you must stop
   and surface the reason to Dewi for a decision, not silently build two paths.
   (Dewi, explicit, 2026-07-24.)
-- **Testing pyramid**: many fast unit tests; fewer integration tests; few instrumented/UI
-  tests. New behaviour lands with tests.
+- **Testing pyramid, every time**: many fast unit tests; fewer integration tests; few
+  instrumented/UI tests. New behaviour lands with tests, and a bug fix lands with a test
+  **written first and seen to fail against the old code** — otherwise it is a description of
+  the fix rather than a guard on it. Dewi has asked for this repeatedly; it is not optional.
+  Where several components answer one question, test the ANSWER end to end as well as each
+  part: on 2026-08-09 six green unit tests sat on top of a bug only the end-to-end test saw.
 - **Strictly DRY** — this matters a lot to Dewi. Knowledge lives in exactly one
   place: versions and SDK levels only in `gradle/libs.versions.toml`; Android
   build defaults (compileSdk/minSdk/Java level/lint policy) only in the root
   build's `androidDefaults`; shared code in a shared module (`:lib:common`),
   never copy-pasted. Before writing similar code twice, factor it — and if a
   duplication is ever deliberate, it must be recorded here with its reason.
+  **This applies across front ends too**, not only within the app: the CLI and the Android
+  app share one extraction stack, one bridge contract and one set of selection rules, and a
+  second copy of any of them is a defect. When you find one place with a rule, go and count
+  the others — on 2026-08-09 five separate pickers answered "which stream?" and four were
+  wrong, which is exactly what a shared seam prevents.
 - **SOLID**: small focused types, dependencies point inward.
 - **Maximum compile-time safety** (the brief's "dependent types" translated to Kotlin):
   sealed hierarchies, value classes over primitives, exhaustive `when`, no platform types

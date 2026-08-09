@@ -1,4 +1,4 @@
-package com.dewijones92.totum.ytdlp.chaquopy
+package com.dewijones92.totum.ytdlp.bridge
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.ytdlp.ChannelResult

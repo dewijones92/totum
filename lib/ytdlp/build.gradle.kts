@@ -12,6 +12,9 @@ kotlin {
 dependencies {
     api(project(":lib:common"))
     implementation(libs.kotlinx.coroutines.core)
+    // The bridge contract — the JSON shape totum_ytdlp.py speaks — lives here because BOTH
+    // engines speak it: the Android one over embedded CPython, the desktop one over a process.
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
