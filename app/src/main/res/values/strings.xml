@@ -331,6 +331,7 @@
     </plurals>
     <string name="quality">Quality</string>
     <string name="subtitles">Subtitles</string>
+    <string name="audio_track">Audio track</string>
     <string name="subtitles_off">Off</string>
     <string name="status_offline_audio">Audio saved offline</string>
     <string name="status_offline_video">Video saved offline</string>

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.video
 
+import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.history.PlayHistoryStore
@@ -44,6 +45,10 @@ class VideoPlaybackLauncher(
         val canListen: Boolean = false,
         /** True while playing audio-only ("Listen"); the toggle then offers "Watch". */
         val listening: Boolean = false,
+        /** Selectable audio tracks, best-first; empty when the video offers no choice. */
+        val audioTracks: List<AudioTrackTag> = emptyList(),
+        /** The track playing — null until one is chosen by hand, meaning "the preferred one". */
+        val audioLanguage: String? = null,
     )
 
     private val _quality = MutableStateFlow(QualityState())
@@ -51,6 +56,9 @@ class VideoPlaybackLauncher(
 
     /** The last resolved video, kept so a quality switch replays without re-extracting. */
     private var current: VideoResolver.Resolved? = null
+
+    /** Its watch URL, which is what the resolver is keyed by — needed to re-pick audio tracks. */
+    private var currentWatchUrl: HttpUrl? = null
 
     /** Plays an already-downloaded file — no re-resolution, and no quality choice (it's one merged file). */
     /** Drops any cached resolution for [watchUrl] — see [VideoResolver.forget]. */
@@ -60,6 +68,7 @@ class VideoPlaybackLauncher(
 
     fun playLocal(item: MediaItem, localPath: String) {
         current = null
+        currentWatchUrl = null
         _quality.value = QualityState()
         playback.play(item, localPath = localPath)
     }
@@ -88,6 +97,7 @@ class VideoPlaybackLauncher(
         // lost for good. See MediaItem.withStreamFrom.
         val resolved = extracted.copy(item = listing.withStreamFrom(extracted.item))
         current = resolved
+        currentWatchUrl = watchUrl
         // Record the play against the stable watch URL (streaming URLs expire), so
         // a history replay re-resolves through this same launcher.
         playHistory.record(
@@ -122,6 +132,19 @@ class VideoPlaybackLauncher(
             selectedId = selected,
             canListen = resolved.audioOnlyUrl != null,
             listening = false,
+            audioTracks = resolved.audioTracks,
+            audioLanguage = resolved.audioLanguage,
+        )
+        // The one line that says, after the fact, WHICH LANGUAGE was handed to the player. The
+        // resolve line could not: it named the audio-only pick while a muxed stream chosen by a
+        // different rule was what played (report 0.1.373, an English talk in German).
+        Diag.log(
+            "playback",
+            "${resolved.item.id.value} stream ${chosen?.label ?: "default"}" +
+                (chosen?.codec?.let { " $it" } ?: "") +
+                " audio ${(chosen?.audio ?: AudioTrackTag.Unknown).label}" +
+                (if (chosen?.audioUrl != null) " (merged)" else " (one stream)") +
+                "; ${resolved.audioTracks.size} track(s) offered",
         )
         if (chosen != null) {
             playback.play(
@@ -157,7 +180,38 @@ class VideoPlaybackLauncher(
             return
         }
         _quality.update { it.copy(selectedId = null, listening = true) }
+        Diag.log(
+            "playback",
+            "${resolved.item.id.value} listening — audio track ${resolved.audioLanguage ?: "preferred"}"
+        )
         playback.play(resolved.item.copy(mediaUrl = audio), skipSegments = resolved.skipSegments)
+    }
+
+    /**
+     * Switches the current video to another audio language, replaying from where it is.
+     *
+     * Every stream is re-picked for that language, not just the audio one: on YouTube's HLS
+     * manifest the language is baked into the muxed variant, so choosing a track that only
+     * swapped the merge partner would leave a muxed stream still speaking the old one.
+     *
+     * No-op — and said out loud — when nothing is playing or the video's formats are no longer
+     * held, because a silent no-op on a menu tap is indistinguishable from a broken menu.
+     */
+    suspend fun selectAudioTrack(languageCode: String) {
+        val watchUrl = currentWatchUrl ?: run {
+            Diag.log("playback", "no video is resolved; cannot switch to audio track $languageCode")
+            return
+        }
+        val listing = current?.item
+        val repicked = resolver.selectAudioLanguage(watchUrl, languageCode) ?: run {
+            Diag.log("playback", "audio track $languageCode not applied; keeping the current track")
+            return
+        }
+        // The listing's facts survive the re-pick exactly as they do a first resolve.
+        val resolved = if (listing == null) repicked else repicked.copy(item = listing.withStreamFrom(repicked.item))
+        current = resolved
+        Diag.log("playback", "${resolved.item.id.value} audio track -> $languageCode")
+        if (_quality.value.listening) listen() else playVideoQuality(resolved)
     }
 
     /** Leaves "Listen" (audio-only) and returns to watching the video, at the saved position. */

@@ -1,12 +1,16 @@
 package com.dewijones92.totum.video
 
+import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.StreamingData
+import com.dewijones92.totum.innertube.player.audioTag
 
 /**
  * A second opinion on what a video can stream, asked of YouTube directly.
@@ -141,36 +145,36 @@ class InnerTubePlayerStreams(
  * carries only a mime type), so a shared function would be a shared function with two
  * disjoint halves. What IS shared is [VideoQuality], which is the part that matters.
  */
-internal fun StreamingData.videoQualities(): List<VideoQuality> {
-    val audio = directlyPlayable
-        .filter { it.mimeType?.startsWith("audio/") == true }
-        .maxByOrNull { it.bitrate ?: 0 }
-        ?.url
+internal fun StreamingData.videoQualities(wanted: List<String> = emptyList()): List<VideoQuality> {
+    val audio = bestAudioFormat(wanted)
 
     return directlyPlayable
         .filter { it.height != null && it.mimeType?.startsWith("video/") == true }
         .groupBy { it.height!! }
         .mapNotNull { (height, atHeight) ->
             // A muxed stream needs no merge, so prefer it; otherwise pair video with the
-            // best audio, exactly as the yt-dlp path does.
-            val muxed = atHeight.firstOrNull { it.mimeType?.contains("mp4a") == true }
+            // best audio, exactly as the yt-dlp path does — language first, as it does.
+            val muxed = atHeight.filter { it.mimeType?.contains("mp4a") == true }.bestSounding(wanted)
             val chosen = muxed ?: atHeight.maxByOrNull { it.bitrate ?: 0 } ?: return@mapNotNull null
             val url = chosen.url ?: return@mapNotNull null
             when {
-                muxed != null -> VideoQuality("$height", "${height}p", height, url, audioUrl = null)
-                audio != null -> VideoQuality("$height", "${height}p", height, url, audio)
+                muxed != null -> quality(height, url, audioUrl = null, audio = muxed.audioTag)
+                audio != null -> quality(height, url, audio.url, audio.audioTag)
                 else -> null
             }
         }
         .sortedByDescending { it.height }
 }
 
+private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioTrackTag) =
+    VideoQuality("$height", "${height}p", height, url, audioUrl, audio = audio)
+
 /** Best audio-only stream, for "Listen" mode and as the merge partner for a video-only one. */
-internal fun StreamingData.bestAudioUrl(): HttpUrl? =
-    directlyPlayable
-        .filter { it.mimeType?.startsWith("audio/") == true }
-        .maxByOrNull { it.bitrate ?: 0 }
-        ?.url
+internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? =
+    bestAudioFormat(wanted)?.url
+
+private fun StreamingData.bestAudioFormat(wanted: List<String>): PlayableFormat? =
+    directlyPlayable.filter { it.mimeType?.startsWith("audio/") == true }.bestSounding(wanted)
 
 /**
  * The best single stream that carries picture AND sound, or null when every format is split.
@@ -179,8 +183,16 @@ internal fun StreamingData.bestAudioUrl(): HttpUrl? =
  * data-friendly, and the quality menu offers the higher merged ladders on demand. Choosing the
  * tallest format here instead would quietly make every play a merged 2160p one.
  */
-internal fun StreamingData.bestMuxedUrl(): HttpUrl? =
+internal fun StreamingData.bestMuxedUrl(wanted: List<String> = emptyList()): HttpUrl? =
     directlyPlayable
         .filter { it.mimeType?.startsWith("video/") == true && it.mimeType?.contains("mp4a") == true }
-        .maxByOrNull { it.height ?: 0 }
+        .bestSounding(wanted, tieBreak = compareBy { it.height ?: 0 })
         ?.url
+
+/** Language first, then [tieBreak] — the same rule the yt-dlp path uses. */
+private fun List<PlayableFormat>.bestSounding(
+    wanted: List<String>,
+    tieBreak: Comparator<PlayableFormat> = compareBy { it.bitrate ?: 0 },
+): PlayableFormat? = filter { it.url != null }.maxWithOrNull(
+    compareBy(audioLanguagePreference(wanted)) { format: PlayableFormat -> format.audioTag }.then(tieBreak),
+)

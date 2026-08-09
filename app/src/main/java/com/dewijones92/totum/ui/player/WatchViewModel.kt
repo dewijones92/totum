@@ -60,6 +60,11 @@ constructor(
 
     fun selectQuality(id: String): Unit = launcher.selectQuality(id)
 
+    /** Switches the current video's audio track — see [VideoPlaybackLauncher.selectAudioTrack]. */
+    fun selectAudioTrack(languageCode: String) {
+        viewModelScope.launch { launcher.selectAudioTrack(languageCode) }
+    }
+
     /** Switch the current video to audio-only ("Listen"). */
     /**
      * Switches to audio and makes that the mode, so the next item plays the same way —

@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.video.VideoQuality
 
 /** The current video's quality options and how to switch. */
@@ -35,6 +36,16 @@ data class QualityControl(
     val listening: Boolean = false,
     val onListen: () -> Unit = {},
     val onWatch: () -> Unit = {},
+    /**
+     * Selectable audio tracks, best-first; empty when the video offers no choice.
+     *
+     * Here rather than in its own bundle because this is already "the current video's stream
+     * choices", and a track switch re-picks the very streams [options] holds.
+     */
+    val audioTracks: List<AudioTrackTag> = emptyList(),
+    /** The track playing, or null for whichever language the app preferred. */
+    val audioLanguage: String? = null,
+    val onSelectAudioTrack: (String) -> Unit = {},
 ) {
     companion object {
         val None: QualityControl = QualityControl(emptyList(), null, {})

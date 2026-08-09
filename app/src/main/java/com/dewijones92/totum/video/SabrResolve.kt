@@ -3,9 +3,11 @@ package com.dewijones92.totum.video
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerDetails
 import com.dewijones92.totum.innertube.player.StreamingData
+import com.dewijones92.totum.innertube.player.audioTag
 import com.dewijones92.totum.sabr.SabrFormat
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
@@ -31,12 +33,18 @@ internal object SabrResolve {
         val audioUrl: HttpUrl,
     )
 
-    fun prepare(videoId: String, streaming: StreamingData, details: PlayerDetails?): Resolved? {
+    fun prepare(
+        videoId: String,
+        streaming: StreamingData,
+        details: PlayerDetails?,
+        /** Audio languages to prefer — see `AudioTrackTag`. */
+        wanted: List<String> = emptyList(),
+    ): Resolved? {
         val endpoint = streaming.serverAbrStreamingUrl?.value ?: return refuse(videoId, "no SABR endpoint")
         val config = streaming.ustreamerConfig ?: return refuse(videoId, "no ustreamer config")
         val known = details ?: return refuse(videoId, "no videoDetails")
 
-        val audio = streaming.formats.bestAudio() ?: return refuse(videoId, "no identifiable audio format")
+        val audio = streaming.formats.bestAudio(wanted) ?: return refuse(videoId, "no identifiable audio format")
         // Video works now. MEDIA parts are routed by the header id they CARRY rather than by
         // the last header seen — runs interleave, so the old attribution spliced one format's
         // bytes into another's and ExoPlayer reported "Invalid NAL length".
@@ -69,11 +77,18 @@ internal object SabrResolve {
      * name: probing every audio format on 2026-07-31, 139 answered `sabr.no_audio_selected`
      * while 140, 249, 251, 599 and 600 all served. A listed format is not necessarily an
      * obtainable one, and choosing purely by bitrate would pick a refused one soon enough.
+     *
+     * Language before bitrate, like every other picker. A real player response carried **22
+     * entries for one audio itag**, one per dubbed language, so bitrate alone names a language
+     * at random — which is how report 0.1.373 happened on the extraction path.
      */
-    private fun List<PlayableFormat>.bestAudio(): PlayableFormat? =
+    private fun List<PlayableFormat>.bestAudio(wanted: List<String>): PlayableFormat? =
         filter { it.mimeType?.startsWith("audio/") == true }
             .filter { it.lastModified != null && it.itag !in REFUSED_ITAGS }
-            .maxByOrNull { it.bitrate ?: 0 }
+            .maxWithOrNull(
+                compareBy(audioLanguagePreference(wanted)) { format: PlayableFormat -> format.audioTag }
+                    .thenBy { it.bitrate ?: 0 },
+            )
 
     /**
      * The best video SABR will actually serve, which is a narrower set than the one listed.

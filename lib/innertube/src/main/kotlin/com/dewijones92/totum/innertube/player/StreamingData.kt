@@ -1,5 +1,6 @@
 package com.dewijones92.totum.innertube.player
 
+import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 
@@ -78,6 +79,25 @@ public data class PlayableFormat(
      */
     val contentLength: Long? = null,
 )
+
+/**
+ * What this format's sound is, from `xtags` and from the URL, which says the same thing.
+ *
+ * Both are read because neither is always present: a SABR-only format carries `xtags` and no
+ * URL, and an HLS variant carries a URL that labels itself and often nothing else. Unknown for
+ * a video-only format, which claims nothing about audio it does not have.
+ */
+public val PlayableFormat.audioTag: AudioTrackTag
+    get() {
+        if (mimeType?.startsWith("video/") == true && mimeType.contains("mp4a") != true) return AudioTrackTag.Unknown
+        val tagged = AudioTrackTag.fromXtags(xtags)
+        val inUrl = AudioTrackTag.inUrl(url?.value)
+        return AudioTrackTag(
+            languageCode = tagged.languageCode ?: inUrl.languageCode,
+            original = tagged.original || inUrl.original,
+            dubbed = tagged.dubbed || inUrl.dubbed,
+        )
+    }
 
 public sealed interface PlayerResult {
     /**

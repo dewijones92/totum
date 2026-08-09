@@ -1,5 +1,6 @@
 package com.dewijones92.totum.video
 
+import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
@@ -13,7 +14,10 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
 import com.dewijones92.totum.ytdlp.ExtractionResult
+import com.dewijones92.totum.ytdlp.MediaMetadata
 import com.dewijones92.totum.ytdlp.YtDlpEngine
+import com.dewijones92.totum.ytdlp.audioTracks
+import com.dewijones92.totum.ytdlp.bestAudioUrl
 import com.dewijones92.totum.ytdlp.bestPlayableFormat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
@@ -54,6 +58,14 @@ class VideoResolver(
      * seek, so a part-watched video takes the slow path and keeps working.
      */
     private val resumePositionMs: suspend (MediaItemId) -> Long? = { null },
+    /**
+     * Audio languages to prefer, best first — the device's language in the app, empty in tests.
+     *
+     * Consulted by every stream picker. YouTube publishes automatic dubs alongside the original
+     * and offers them as ordinary formats, so without this the choice comes down to whichever
+     * happened to be tallest: report 0.1.373 watched an English conference talk in German.
+     */
+    private val preferredAudioLanguages: () -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     /**
@@ -68,7 +80,13 @@ class VideoResolver(
      * The single entry is also why the TTL stays short: a stale URL 403s, and
      * ExpiredStreamRecovery only re-resolves, so serving one from here would loop.
      */
-    private data class Cached(val resolved: Resolved, val at: Long)
+    private data class Cached(
+        val resolved: Resolved,
+        val at: Long,
+        /** Kept so switching audio track re-picks streams without paying for another extraction. */
+        val metadata: MediaMetadata? = null,
+        val sourceId: SourceId? = null,
+    )
 
     /**
      * Recently resolved videos, least-recently-resolved first, [CACHE_SIZE] at most.
@@ -107,6 +125,15 @@ class VideoResolver(
         /** YouTube watch-progress stats URLs (from yt-dlp's player response), null for non-YouTube. */
         /** Renderable caption tracks; empty when the video has none we can use. */
         val subtitles: List<SubtitleTrack> = emptyList(),
+        /**
+         * Selectable audio tracks, best-first; empty when the video offers no choice.
+         *
+         * Empty rather than one-entry for a single-track video, so the menu appears only where
+         * there is something to decide — which is the same rule the quality menu follows.
+         */
+        val audioTracks: List<AudioTrackTag> = emptyList(),
+        /** The language these streams were picked for, or null for "whatever was preferred". */
+        val audioLanguage: String? = null,
     )
 
     /**
@@ -208,9 +235,74 @@ class VideoResolver(
                 extractionSaidAgeRestricted = extraction.toString().contains("confirm your age", true),
             )
         }
+        val wanted = wantedAudio(chosen = null)
+        val resolved = pickStreams(metadata, sourceId, wanted, chosen = null) ?: return null
+        Vitals.add("resolve.successes")
+        Diag.log(
+            "resolve",
+            "${metadata.id} in ${now() - startedAt}ms for $asked — " +
+                "${resolved.qualities.size} qualities, ${metadata.subtitles.size} subtitle tracks, " +
+                "audioOnly=${resolved.audioOnlyUrl != null}" +
+                metadata.audioChoice(wanted, metadata.bestPlayableFormat(wanted)),
+        )
+        // Remembered on EVERY resolve, not only when prefetched: a replay, a seek that
+        // forces a re-resolve or a quality change all ask for the same video again, and each
+        // one used to pay the full extraction.
+        remember(watchUrl, resolved, metadata, sourceId)
+        return resolved
+    }
+
+    /**
+     * Re-picks every stream for [languageCode] — the audio-track menu's whole job.
+     *
+     * Off the cached metadata, so switching track costs nothing: the languages differ only in
+     * which of the formats already extracted gets chosen. Null when the video is not cached
+     * (it expired, or it came from a path that has no format list), and the caller leaves the
+     * current track alone rather than restarting playback for nothing.
+     */
+    suspend fun selectAudioLanguage(watchUrl: HttpUrl, languageCode: String): Resolved? {
+        val cached = cache[watchUrl]
+        val metadata = cached?.metadata ?: run {
+            Diag.log("resolve", "no formats held for ${watchUrl.value.takeLast(ID_CHARS)}; cannot switch audio track")
+            return null
+        }
+        val wanted = wantedAudio(chosen = languageCode)
+        val resolved = pickStreams(
+            metadata,
+            cached.sourceId ?: cached.resolved.item.sourceId,
+            wanted,
+            languageCode,
+            // Already known, and a second SponsorBlock lookup would buy nothing: the segments
+            // belong to the video, not to whichever language track you are listening to.
+            knownSegments = cached.resolved.skipSegments,
+        ) ?: return null
+        Diag.log(
+            "resolve",
+            "${metadata.id} re-picked for audio $languageCode — ${resolved.qualities.size} qualities" +
+                metadata.audioChoice(wanted, metadata.bestPlayableFormat(wanted)),
+        )
+        remember(watchUrl, resolved, metadata, cached.sourceId)
+        return resolved
+    }
+
+    /** The languages to prefer: an explicit [chosen] track, else whatever the app prefers. */
+    private fun wantedAudio(chosen: String?): List<String> =
+        chosen?.let(::listOf) ?: preferredAudioLanguages()
+
+    /**
+     * Everything that depends on which audio language you want, in one place — so an initial
+     * resolve and a track switch cannot pick by different rules.
+     */
+    private suspend fun pickStreams(
+        metadata: MediaMetadata,
+        sourceId: SourceId,
+        wanted: List<String>,
+        chosen: String?,
+        knownSegments: List<SkipSegment>? = null,
+    ): Resolved? {
         // Default stream stays the best muxed format (one stream, reliable, data-friendly);
         // the quality menu offers higher, merged qualities on demand.
-        val streamUrl = metadata.bestPlayableFormat()?.url?.let(HttpUrl::parse) ?: run {
+        val streamUrl = metadata.bestPlayableFormat(wanted)?.url?.let(HttpUrl::parse) ?: run {
             Vitals.add("resolve.noPlayableFormat")
             Diag.warn(
                 "resolve",
@@ -218,15 +310,7 @@ class VideoResolver(
             )
             return null
         }
-        val qualities = betterQualities(metadata.id, metadata.videoQualities(codecSupport))
-        Vitals.add("resolve.successes")
-        Diag.log(
-            "resolve",
-            "${metadata.id} in ${now() - startedAt}ms for $asked — " +
-                "${qualities.size} qualities, ${metadata.subtitles.size} subtitle tracks, " +
-                "audioOnly=${metadata.bestAudioUrl() != null}" + metadata.audioChoice(),
-        )
-        val resolved = Resolved(
+        return Resolved(
             item = MediaItem(
                 id = MediaItemId(metadata.id),
                 sourceId = sourceId,
@@ -243,16 +327,13 @@ class VideoResolver(
                     Chapter(start.seconds, title)
                 },
             ),
-            skipSegments = skipSegments.segmentsFor(metadata.id),
-            qualities = qualities,
-            audioOnlyUrl = metadata.bestAudioUrl(),
+            skipSegments = knownSegments ?: skipSegments.segmentsFor(metadata.id),
+            qualities = betterQualities(metadata.id, metadata.videoQualities(codecSupport, wanted)),
+            audioOnlyUrl = metadata.bestAudioUrl(wanted),
             subtitles = metadata.subtitles,
+            audioTracks = metadata.audioTracks(wanted),
+            audioLanguage = chosen,
         )
-        // Remembered on EVERY resolve, not only when prefetched: a replay, a seek that
-        // forces a re-resolve or a quality change all ask for the same video again, and each
-        // one used to pay the full extraction.
-        remember(watchUrl, resolved)
-        return resolved
     }
 
     /**
@@ -352,7 +433,8 @@ class VideoResolver(
         request: PlayerRequest,
         response: com.dewijones92.totum.innertube.player.PlayerResult.Success,
     ): Resolved? {
-        val streamUrl = response.streaming.bestMuxedUrl() ?: response.streaming.bestAudioUrl() ?: run {
+        val wanted = wantedAudio(chosen = null)
+        val streamUrl = response.streaming.bestMuxedUrl(wanted) ?: response.streaming.bestAudioUrl(wanted) ?: run {
             Diag.warn(
                 "resolve",
                 "${request.id} recovered but has no fetchable stream " +
@@ -366,7 +448,7 @@ class VideoResolver(
         // yt-dlp ladder, and this ladder IS YouTube's answer. Routing it through anyway fetched
         // the same player response a second time on every single play — caught by a test
         // asserting one fetch and seeing two.
-        val qualities = response.streaming.videoQualities()
+        val qualities = response.streaming.videoQualities(wanted)
         Vitals.add("resolve.successes")
         Diag.log(
             "resolve",
@@ -392,7 +474,7 @@ class VideoResolver(
             ),
             skipSegments = skipSegments.segmentsFor(request.id),
             qualities = qualities,
-            audioOnlyUrl = response.streaming.bestAudioUrl(),
+            audioOnlyUrl = response.streaming.bestAudioUrl(wanted),
             subtitles = response.subtitles,
         )
         remember(request.watchUrl, resolved)
@@ -437,8 +519,9 @@ class VideoResolver(
         val watchUrl = request.watchUrl
         val asked = request.asked
         val startedAt = request.startedAt
-        val prepared = SabrResolve.prepare(id, response.streaming, response.details) ?: return null
-        val qualities = response.streaming.videoQualities()
+        val wanted = wantedAudio(chosen = null)
+        val prepared = SabrResolve.prepare(id, response.streaming, response.details, wanted) ?: return null
+        val qualities = response.streaming.videoQualities(wanted)
         Vitals.add("resolve.sabrSuccesses")
         Diag.log(
             "resolve",
@@ -499,11 +582,17 @@ class VideoResolver(
     private fun fresh(watchUrl: HttpUrl): Resolved? =
         cache[watchUrl]?.takeIf { now() - it.at < CACHE_TTL_MS }?.resolved
 
-    private fun remember(watchUrl: HttpUrl, resolved: Resolved) {
+    private fun remember(
+        watchUrl: HttpUrl,
+        resolved: Resolved,
+        metadata: MediaMetadata? = null,
+        sourceId: SourceId? = null,
+    ) {
         // Re-inserting makes a re-resolved video the newest, so LinkedHashMap's insertion
         // order is a least-recently-resolved order and the first key is the one to drop.
+        val kept = metadata ?: cache[watchUrl]?.metadata
         cache.remove(watchUrl)
-        cache[watchUrl] = Cached(resolved, now())
+        cache[watchUrl] = Cached(resolved, now(), kept, sourceId ?: resolved.item.sourceId)
         while (cache.size > CACHE_SIZE) cache.remove(cache.keys.first())
     }
 

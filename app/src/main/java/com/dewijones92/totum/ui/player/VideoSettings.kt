@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.outlined.ClosedCaptionOff
 import androidx.compose.material.icons.outlined.HighQuality
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ internal fun rememberVideoSettings(
 internal fun VideoSettingsControls(settings: VideoSettings, modifier: Modifier = Modifier) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         SpeedMenu(settings)
+        if (settings.quality.audioTracks.size > 1) AudioTrackMenu(settings.quality)
         if (settings.subtitles.isNotEmpty()) SubtitleMenu(settings)
         if (settings.quality.options.size > 1) QualityMenu(settings.quality)
     }
@@ -107,6 +109,34 @@ private fun SubtitleMenu(settings: VideoSettings) {
                     settings.onSetSubtitleLanguage(track.languageCode)
                 },
                 trailingIcon = { SelectedMark(track.languageCode == settings.subtitleLanguage) },
+            )
+        }
+    }
+}
+
+/**
+ * The video's audio tracks — the original and any dubs — shown only where there is a choice.
+ *
+ * It exists because the app got the choice wrong: report 0.1.373 played an automatic German dub
+ * of an English talk, and there was no way to say otherwise. The default is fixed too, so this
+ * is the override rather than the fix.
+ */
+@Composable
+private fun AudioTrackMenu(quality: QualityControl) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }) {
+        Icon(Icons.Outlined.Translate, contentDescription = stringResource(R.string.audio_track))
+    }
+    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        quality.audioTracks.forEach { track ->
+            val code = track.languageCode ?: return@forEach
+            DropdownMenuItem(
+                text = { Text(track.label) },
+                onClick = {
+                    open = false
+                    quality.onSelectAudioTrack(code)
+                },
+                trailingIcon = { SelectedMark(code.equals(quality.audioLanguage, ignoreCase = true)) },
             )
         }
     }

@@ -1,7 +1,9 @@
 package com.dewijones92.totum.ytdlp
 
+import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
+import com.dewijones92.totum.common.audioLanguagePreference
 
 /** Result of asking the engine to extract [MediaMetadata] for a URL. */
 public sealed interface ExtractionResult {
@@ -104,12 +106,68 @@ public data class MediaFormat(
 }
 
 /**
- * The format to hand to a player: pre-muxed audio+video at the highest
- * resolution, else the best audio-only stream. Null when nothing is
- * directly streamable.
+ * The format to hand to a player: pre-muxed audio+video in the language you want at the
+ * highest resolution, else the best audio-only stream. Null when nothing is directly
+ * streamable.
+ *
+ * **Language before height, deliberately.** It used to be height alone, and on a video with
+ * dubs that picks whichever dub happens to be tallest — report 0.1.373 watched an English
+ * conference talk in automatic German because of this line.
  */
-public fun MediaMetadata.bestPlayableFormat(): MediaFormat? {
+public fun MediaMetadata.bestPlayableFormat(wanted: List<String> = emptyList()): MediaFormat? {
     val streamable = formats.filter { it.url != null }
-    return streamable.filter { it.hasVideo && it.hasAudio }.maxByOrNull { it.height ?: 0 }
-        ?: streamable.filter { it.isAudioOnly }.maxByOrNull { it.fileSizeBytes ?: 0 }
+    return streamable.filter { it.hasVideo && it.hasAudio }
+        .maxWithOrNull(byAudioThen(wanted, compareBy { it.height ?: 0 }))
+        ?: bestAudioFormat(wanted)
 }
+
+/**
+ * The best audio-only stream in the language you want, for merging or for "Listen".
+ *
+ * Size alone used to decide, so on any video whose dub is encoded larger than the original the
+ * app played a language nobody asked for.
+ */
+public fun MediaMetadata.bestAudioFormat(wanted: List<String> = emptyList()): MediaFormat? =
+    formats.filter { it.isAudioOnly && it.url != null }
+        .maxWithOrNull(byAudioThen(wanted, compareBy { it.fileSizeBytes ?: 0 }))
+
+/** The best audio-only stream's URL — see [bestAudioFormat]. */
+public fun MediaMetadata.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? =
+    bestAudioFormat(wanted)?.url?.let(HttpUrl::parse)
+
+/**
+ * The distinct audio tracks on offer, best-first — what an audio-track menu lists.
+ *
+ * Keyed by language, because that is what a person is choosing between; a video with four
+ * bitrates of one track offers one choice, not four. Empty when the video says nothing about
+ * any of its audio, so a menu with nothing to decide is never shown.
+ */
+public fun MediaMetadata.audioTracks(wanted: List<String> = emptyList()): List<AudioTrackTag> {
+    val tags = formats.filter { it.hasAudio && it.url != null }.map { it.audioTag }
+    if (tags.none { it.languageCode != null }) return emptyList()
+    return tags.filter { it.languageCode != null }
+        .distinctBy { it.languageCode!!.lowercase() }
+        .sortedWith(audioLanguagePreference(wanted).reversed())
+}
+
+/**
+ * What this format's sound is, from the extractor's fields and — where they say nothing —
+ * from the stream URL, which labels itself. See [AudioTrackTag.inUrl].
+ */
+public val MediaFormat.audioTag: AudioTrackTag
+    get() {
+        if (!hasAudio) return AudioTrackTag.Unknown
+        val declared = AudioTrackTag.inUrl(url)
+        return AudioTrackTag(
+            languageCode = language ?: declared.languageCode,
+            original = declared.original || (languagePreference ?: 0) >= ORIGINAL_LANGUAGE_PREFERENCE,
+            dubbed = declared.dubbed,
+        )
+    }
+
+/** Audio language first, [tieBreak] second — the order every stream picker uses. */
+private fun byAudioThen(wanted: List<String>, tieBreak: Comparator<MediaFormat>): Comparator<MediaFormat> =
+    compareBy(audioLanguagePreference(wanted)) { format: MediaFormat -> format.audioTag }.then(tieBreak)
+
+/** yt-dlp scores the uploader's own track 10 and everything else below it. */
+private const val ORIGINAL_LANGUAGE_PREFERENCE = 10

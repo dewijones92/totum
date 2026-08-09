@@ -2,6 +2,7 @@ package com.dewijones92.totum.di
 
 import android.content.Context
 import android.os.StatFs
+import androidx.core.os.LocaleListCompat
 import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.account.SharedPrefsTokenStore
 import com.dewijones92.totum.backup.BackupService
@@ -538,6 +539,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
             resumePositionMs = playbackProgressStore::resumePositionMs,
+            // The phone's own languages, best first. YouTube offers automatic dubs as ordinary
+            // formats, so without this the app plays whichever the extractor happened to list
+            // first — report 0.1.373 watched an English talk in German.
+            preferredAudioLanguages = ::deviceLanguages,
         )
     }
 
@@ -1155,3 +1160,15 @@ private fun DownloadState?.forDiagnostics(): String = when (this) {
 private const val DIAG_FAILURE_CHARS = 30
 
 private const val PERCENT = 100
+
+/**
+ * The phone's languages, best first — which audio track a video should play in.
+ *
+ * The whole locale list, not just the first: a phone set to English then Welsh should accept a
+ * Welsh original over a French dub. Region is dropped (`en-GB` becomes `en`) because YouTube
+ * labels its tracks by region and a track in `en-US` is still the English one.
+ */
+private fun deviceLanguages(): List<String> {
+    val locales = LocaleListCompat.getDefault()
+    return (0 until locales.size()).mapNotNull { locales[it]?.language?.ifBlank { null } }.distinct()
+}

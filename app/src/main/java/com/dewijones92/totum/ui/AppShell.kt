@@ -358,6 +358,9 @@ private fun qualityControl(
     listening = quality.listening,
     onListen = watchViewModel::listen,
     onWatch = watchViewModel::watch,
+    audioTracks = quality.audioTracks,
+    audioLanguage = quality.audioLanguage,
+    onSelectAudioTrack = watchViewModel::selectAudioTrack,
 )
 
 private fun playbackToggles(
