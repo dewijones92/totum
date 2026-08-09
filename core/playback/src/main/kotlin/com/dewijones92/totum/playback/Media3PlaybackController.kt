@@ -103,6 +103,9 @@ public class Media3PlaybackController(
     private var activePublishedText: String? = null
     private var activePublishedAt: Instant? = null
     private var subtitleLanguage: String? = null
+
+    /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
+    private var userSpeed: Float = SilenceRacer.NORMAL
     private var currentSourceId: SourceId? = null
     private var playGeneration = 0
     private var skipSilence = false
@@ -117,6 +120,10 @@ public class Media3PlaybackController(
             {
                 val connected = future.get()
                 controller = connected
+                // The stored rate, before anything is played. Without this the speed button reads
+                // 1x on a cold start until the first play() lands — the app appearing to have
+                // forgotten a setting it had not.
+                scope.launch { userSpeed = speedStore.speed().coerceIn(MIN_SPEED, MAX_SPEED) }
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
@@ -263,7 +270,10 @@ public class Media3PlaybackController(
                 currentSourceId = item.sourceId
                 ticksSinceSave = 0
                 controller.setMediaItem(media3Item, resumeMs)
-                controller.setPlaybackSpeed(speed.coerceIn(MIN_SPEED, MAX_SPEED))
+                // Re-applied on EVERY item, and told to the service too: the rate the user chose
+                // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).
+                applyUserSpeed(controller, speed)
+                applySubtitleLanguage(controller)
                 if (boost != volumeBoost) setVolumeBoost(boost)
                 controller.prepare()
                 controller.play()
@@ -307,10 +317,27 @@ public class Media3PlaybackController(
     override fun setSpeed(speed: Float) {
         val clamped = speed.coerceIn(MIN_SPEED, MAX_SPEED)
         withController {
-            it.setPlaybackSpeed(clamped)
+            applyUserSpeed(it, clamped)
             _state.value = it.currentPlaybackState()
         }
         scope.launch { speedStore.save(clamped) }
+    }
+
+    /**
+     * Sets the rate AND tells the service it was the user's.
+     *
+     * Both halves matter. The player's own rate is not a reliable record of what was asked for —
+     * skip-silence races through dead air by raising it — so the service used to guess, and
+     * ignored the guess while racing. A rate chosen during a silent stretch was therefore dropped
+     * on the floor, and speech puts silence between sentences every few seconds.
+     */
+    private fun applyUserSpeed(controller: MediaController, speed: Float) {
+        userSpeed = speed
+        controller.setPlaybackSpeed(speed)
+        controller.sendCustomCommand(
+            SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY),
+            bundleOf(EXTRA_USER_SPEED to speed),
+        )
     }
 
     override fun preloadNext(itemId: MediaItemId, url: HttpUrl) {
@@ -341,17 +368,28 @@ public class Media3PlaybackController(
     override fun setSubtitleLanguage(languageCode: String?) {
         subtitleLanguage = languageCode
         withController { controller ->
-            // Disabling the whole track type is what actually turns captions off: leaving
-            // it enabled with no preferred language lets the player fall back to a default
-            // track, so "off" would quietly still show something.
-            controller.trackSelectionParameters = controller.trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, languageCode == null)
-                .setPreferredTextLanguage(languageCode)
-                .build()
+            applySubtitleLanguage(controller)
             _state.value = controller.currentPlaybackState()
         }
         Diag.log("subtitles", "language -> ${languageCode ?: "off"}")
+    }
+
+    /**
+     * Disabling the whole track type is what actually turns captions off: leaving it enabled with
+     * no preferred language lets the player fall back to a default track, so "off" would quietly
+     * still show something.
+     *
+     * Re-applied on every item as well as on every change. Captions are a sitting-level choice,
+     * not a per-video one — Dewi, 2026-08-09: *"I want everything to be maintained going to the
+     * next video"* — and re-asserting it costs nothing, where relying on the player to carry
+     * selection parameters across a `setMediaItem` is relying on something nobody wrote down.
+     */
+    private fun applySubtitleLanguage(controller: MediaController) {
+        controller.trackSelectionParameters = controller.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, subtitleLanguage == null)
+            .setPreferredTextLanguage(subtitleLanguage)
+            .build()
     }
 
     override fun setSkipSilence(enabled: Boolean) {
@@ -448,7 +486,10 @@ public class Media3PlaybackController(
             isPlaying = isPlaying,
             positionMs = currentPosition.coerceAtLeast(0),
             durationMs = duration.takeIf { it > 0 },
-            speed = playbackParameters.speed,
+            // The rate the USER chose, not the player's current one: skip-silence races through
+            // dead air at up to 8x, and reporting that made the speed button flick to "4x" during
+            // every pause in speech — the app appearing to change a setting nobody touched.
+            speed = userSpeed,
             hasVideo = currentTracks.groups.any { it.type == C.TRACK_TYPE_VIDEO },
             videoAspectRatio = videoSize.takeIf { it.width > 0 && it.height > 0 }
                 ?.let { it.width * it.pixelWidthHeightRatio / it.height },

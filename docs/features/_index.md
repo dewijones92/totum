@@ -54,6 +54,7 @@ alone until they need more.
 | Quality + speed as an on-video overlay | ui | shipped | [video-settings-overlay.md](video-settings-overlay.md) |
 | Subtitles / captions (menu on the video, cues over the picture) | playback | shipped | [subtitles.md](subtitles.md) |
 | Audio tracks: the right language by default, and a menu to change it | playback | shipped | [audio-tracks.md](audio-tracks.md) |
+| Settings that stay put across the next video (speed, boost, captions, quality, track) | playback | shipped | [settings-that-stay-put.md](settings-that-stay-put.md) |
 | Picture-in-Picture (video keeps playing when you leave) | playback | shipped | [../todos/feature-gap-review.md](../todos/feature-gap-review.md) |
 | Offline library across both pillars (downloads carry their item) | downloads | shipped | [../todos/library-downloads-podcast-only.md](../todos/library-downloads-podcast-only.md) |
 | Loading feedback (global busy bar; "go to channel" 12.5s → 59ms) | ui | shipped | [loading-feedback.md](loading-feedback.md) |

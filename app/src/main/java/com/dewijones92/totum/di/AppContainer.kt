@@ -128,6 +128,7 @@ import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
+import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.WatchHistorySync
@@ -542,9 +543,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // The phone's own languages, best first. YouTube offers automatic dubs as ordinary
             // formats, so without this the app plays whichever the extractor happened to list
             // first — report 0.1.373 watched an English talk in German.
-            preferredAudioLanguages = ::deviceLanguages,
+            preferredAudioLanguages = streamChoices::preferredAudioLanguages,
         )
     }
+
+    /**
+     * ONE instance, shared by the resolver and the launcher. Two would be the bug it exists to
+     * fix: the audio half is applied while resolving and the quality half after, and they have to
+     * be talking about the same choice.
+     */
+    private val streamChoices by lazy { StreamChoices(::deviceLanguages) }
 
     override val sleepTimer: SleepTimer by lazy {
         SleepTimer(playbackController, applicationScope)
@@ -1051,6 +1059,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 val settings = appPreferences.settings.value
                 if (networkStatus.isMetered()) settings.cellularMaxHeight else settings.wifiMaxHeight
             },
+            choices = streamChoices,
         )
     }
 

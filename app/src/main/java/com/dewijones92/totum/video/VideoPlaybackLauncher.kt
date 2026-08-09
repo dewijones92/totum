@@ -36,6 +36,13 @@ class VideoPlaybackLauncher(
      * network). Consulted in exactly one place, so the mode covers every entry point.
      */
     private val audioPreferred: () -> Boolean = { false },
+    /**
+     * The quality and audio track the user picked by hand, carried to the next video.
+     *
+     * Shared with the resolver, which is where the audio half has to be applied — see
+     * [StreamChoices].
+     */
+    private val choices: StreamChoices = StreamChoices(),
 ) {
     /** The current video's quality options and which one is playing. */
     data class QualityState(
@@ -123,9 +130,10 @@ class VideoPlaybackLauncher(
 
     /** Plays [resolved] as video at the best allowed quality — the shared play/"Watch" path. */
     private fun playVideoQuality(resolved: VideoResolver.Resolved, startPositionMs: Long = 0) {
-        // Auto-pick the best quality within the network's cap; fall back to the
-        // reliable muxed default when nothing qualifies (or there are no ladders).
-        val chosen = resolved.qualities.filter { it.height <= preferredMaxHeight() }.maxByOrNull { it.height }
+        // The height you last picked by hand, within the network's cap; the best the cap allows
+        // if you have not picked one. Falls back to the reliable muxed default when nothing
+        // qualifies at all (or there are no ladders).
+        val chosen = choices.qualityFrom(resolved.qualities, preferredMaxHeight())
         val selected = chosen?.id ?: resolved.qualities.firstOrNull { it.videoUrl == resolved.item.mediaUrl }?.id
         _quality.value = QualityState(
             options = resolved.qualities,
@@ -203,6 +211,9 @@ class VideoPlaybackLauncher(
             return
         }
         val listing = current?.item
+        // Remembered BEFORE the re-pick, so the next video resolves in this language too — the
+        // resolver chooses streams before the launcher ever sees them.
+        choices.chooseAudio(languageCode)
         val repicked = resolver.selectAudioLanguage(watchUrl, languageCode) ?: run {
             Diag.log("playback", "audio track $languageCode not applied; keeping the current track")
             return
@@ -237,6 +248,8 @@ class VideoPlaybackLauncher(
     fun selectQuality(id: String) {
         val resolved = current ?: return
         val quality = resolved.qualities.firstOrNull { it.id == id } ?: return
+        // Remembered, so the next video in the queue opens at the height you asked for.
+        choices.chooseHeight(quality.height)
         _quality.update { it.copy(selectedId = id, listening = false) }
         playback.play(
             resolved.item.copy(mediaUrl = quality.videoUrl),

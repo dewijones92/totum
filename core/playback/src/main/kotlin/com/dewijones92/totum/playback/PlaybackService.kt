@@ -76,20 +76,13 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     private val booster = BoostingAudioProcessor()
 
-    /** The speed the user chose, restored when a silent stretch ends. */
-    private var userSpeed = 1f
-
-    /** True while we're racing through a silent stretch. */
-    private var inSilence = false
+    /** The rate the user chose and whether we are racing through silence — see [SilenceRacer]. */
+    private val racer = SilenceRacer()
 
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    /** Notices the user's own speed changes so a silent stretch restores the right rate. */
+    /** Follows the CONTENT, so the silence mechanism suits whatever is playing now. */
     private val speedWatcher = object : Player.Listener {
-        override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-            if (!inSilence) userSpeed = playbackParameters.speed
-        }
-
         /**
          * A queue mixes both kinds, so the mechanism has to follow the content — the same switch
          * means sample-removal for a podcast and a rate change for the video after it. Video size
@@ -263,6 +256,7 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_VOLUME_BOOST, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY))
                         .build(),
                 )
                 .build()
@@ -294,6 +288,10 @@ public class PlaybackService : MediaSessionService() {
                 )
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+            if (customCommand.customAction == ACTION_USER_SPEED) {
+                applyUserSpeed(args.getFloat(EXTRA_USER_SPEED, SilenceRacer.NORMAL))
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (customCommand.customAction == ACTION_SKIP_SILENCE) {
                 val enabled = args.getBoolean(EXTRA_SKIP_SILENCE_ENABLED)
                 Diag.log("playback", "skip-silence -> $enabled")
@@ -316,30 +314,18 @@ public class PlaybackService : MediaSessionService() {
         val target = player ?: return
         // Sample removal handles its own gaps entirely, so touching the rate as well would add
         // back the audible step this exists to avoid.
-        if (strategy == SilenceStrategy.REMOVE_SAMPLES) {
-            if (inSilence) {
-                inSilence = false
-                target.setPlaybackSpeed(userSpeed)
-            }
+        if (strategy == SilenceStrategy.REMOVE_SAMPLES || !skipSilenceEnabled) {
+            racer.stopRacing()?.let(target::setPlaybackSpeed)
             return
         }
-        if (!skipSilenceEnabled) {
-            if (inSilence) {
-                inSilence = false
-                target.setPlaybackSpeed(userSpeed)
-            }
-            return
-        }
-        if (silent == inSilence) return
-        inSilence = silent
-        val speed = if (silent) (userSpeed * SILENCE_SPEED_MULTIPLIER).coerceAtMost(MAX_SILENCE_SPEED) else userSpeed
+        val speed = racer.silence(silent) ?: return
         // Counted rather than logged per change. Speech enters silence every few seconds,
         // so a line per transition is not diagnostics — it is a flood that evicts them: a
         // real report from 0.1.170 was 59% skip-silence, leaving 16 minutes of history in
         // a buffer that should hold hours, right when a stall needed explaining.
         silenceChanges++
         if (silenceChanges == 1L || silenceChanges % SILENCE_LOG_EVERY == 0L) {
-            Diag.log("playback", "skip-silence change #$silenceChanges -> speed=$speed (user=$userSpeed)")
+            Diag.log("playback", "skip-silence change #$silenceChanges -> speed=$speed (user=${racer.userSpeed})")
         }
         target.setPlaybackSpeed(speed)
     }
@@ -373,9 +359,8 @@ public class PlaybackService : MediaSessionService() {
     private val applySilenceStrategy: () -> Unit = {
         val current = strategy
         silenceSkipper.setEnabled(current == SilenceStrategy.REMOVE_SAMPLES)
-        if (current != SilenceStrategy.SPEED_UP && inSilence) {
-            inSilence = false
-            player?.setPlaybackSpeed(userSpeed)
+        if (current != SilenceStrategy.SPEED_UP) {
+            racer.stopRacing()?.let { player?.setPlaybackSpeed(it) }
         }
         Diag.log("silence", "handling silence by $current")
     }
@@ -387,7 +372,23 @@ public class PlaybackService : MediaSessionService() {
 
     /** Turns the user's intent off cleanly, restoring their speed if we were racing. */
     private fun applyEffectiveSkipSilence() {
-        if (!skipSilenceEnabled && inSilence) onSilenceChanged(false)
+        if (!skipSilenceEnabled && racer.racing) onSilenceChanged(false)
+    }
+
+    /**
+     * The rate the user chose, told to us rather than guessed from the player.
+     *
+     * Sent on every play as well as on every change, so the rate survives moving to the next item
+     * in the queue — Dewi, 2026-08-09: *"I want everything to be maintained going to the next
+     * video"*. Applying it lands on the RACED rate when a silent stretch is in progress, so a
+     * change made mid-silence neither drops out of the race nor gets lost when it ends.
+     */
+    // A lambda property rather than a method, for the same reason as [applySilenceStrategy]: the
+    // class sits on detekt's function limit and this reads identically at its one call site.
+    private val applyUserSpeed: (Float) -> Unit = { speed ->
+        val apply = racer.userChose(speed)
+        Diag.log("playback", "user speed -> $speed (playing at $apply, racing=${racer.racing})")
+        player?.setPlaybackSpeed(apply)
     }
 
     /** Wires a Cast session in if Play Services + a receiver are reachable; otherwise stays fully local. */
@@ -470,12 +471,6 @@ public class PlaybackService : MediaSessionService() {
         const val SEEK_BACK_MS = 10_000L
         const val SEEK_FORWARD_MS = 30_000L
 
-        /** How much faster a silent stretch runs. High enough to feel skipped, low enough to stay smooth. */
-        const val SILENCE_SPEED_MULTIPLIER = 4f
-
-        /** Media3 clamps extreme rates and video decoders struggle past this. */
-        const val MAX_SILENCE_SPEED = 8f
-
         /** Silence transitions between logged lines, so the trail keeps room for stalls. */
         const val SILENCE_LOG_EVERY = 50L
     }
@@ -497,6 +492,13 @@ internal const val EXTRA_PRELOAD_URI: String = "uri"
 internal const val EXTRA_PRELOAD_ITEM_ID: String = "item_id"
 internal const val ACTION_VOLUME_BOOST: String = "com.dewijones92.totum.VOLUME_BOOST"
 internal const val EXTRA_VOLUME_BOOST_LEVEL: String = "boost_level"
+
+/**
+ * The rate the user chose. Told to the service rather than read off the player, because the
+ * player's rate is also whatever a silent stretch is currently racing at.
+ */
+internal const val ACTION_USER_SPEED: String = "com.dewijones92.totum.USER_SPEED"
+internal const val EXTRA_USER_SPEED: String = "user_speed"
 internal const val EXTRA_SKIP_SILENCE_ENABLED: String = "enabled"
 
 /**
