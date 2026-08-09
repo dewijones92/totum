@@ -25,27 +25,26 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * A brightness set by gesture survives going fullscreen — and coming back out.
+ * The brightness you set by swipe applies **in fullscreen and nowhere else**.
  *
- * Dewi, 2026-08-08: *"The brightness is turned up when I go into a video item, but then it's turned
- * down when I go into full screen video."* He had set a level by swipe earlier in the session, and
- * confirmed it is the **backlight** that changes and that it never comes back on leaving fullscreen.
+ * Dewi, 2026-08-09: *"The brightness needs to be only applied if the video has been played in full
+ * screen. Otherwise it needs to use my phone brightness … similar to PipePipe."*
  *
- * **Why this has to be an instrumented test and could not be a unit one.** The defect is not in any
- * decision the code makes — every individual step is right. It is in the ORDER Compose runs them.
- * Entering fullscreen swaps one whole subtree for another (`FullPlayer.kt`: fullscreen renders the
- * stage directly, windowed renders it deep inside the draggable content), so the outgoing stage is
- * disposed and a fresh one is created. The new one re-applied the remembered brightness during
- * *composition*; the old one released the window override in its `onDispose`, which runs in the
- * *effects* phase afterwards. Later wins, so the override was wiped at every transition and the
- * screen dropped back to system brightness for the rest of the session. Nothing about that is
- * visible in a `ShortArray`, a view model, or any single function — only in a real composition.
+ * The swipe was always fullscreen-only; applying its result was not. The windowed player sits on
+ * screen for most of the app's life — under the queue, the comments, the description — so a
+ * brightness set while watching leaked onto the whole app. Report 0.1.374 has it to the
+ * millisecond: `fullscreen active=false` at 18:51:39.009, then `stage on screen (1), window
+ * brightness 1.0` at 18:51:39.010.
  *
- * So the test drives the real `VideoStageWithControls` through the real subtree swap and asks the
- * real window what brightness it is showing.
+ * **Why this has to be an instrumented test.** The defect is not in any decision the code makes —
+ * every step is right on its own. It is in the ORDER Compose runs them. Toggling fullscreen swaps
+ * one whole subtree for another (`FullPlayer.kt`), so the outgoing stage is disposed and a fresh
+ * one created; the new one applies during *composition* and the old one releases in its
+ * `onDispose`, in the *effects* phase afterwards. Later wins. Nothing about that is visible in any
+ * single function — only in a real composition, asking a real window what it is showing.
  */
 @RunWith(AndroidJUnit4::class)
-class BrightnessSurvivesFullscreenTest {
+class BrightnessIsFullscreenOnlyTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
@@ -117,29 +116,53 @@ class BrightnessSurvivesFullscreenTest {
         )
     }
 
-    /** THE BUG. Going fullscreen must not throw away the brightness you set. */
+    /** THE BUG. A windowed player must leave the screen at the phone's own brightness. */
     @Test
-    fun theChosenBrightnessSurvivesEnteringFullscreen() {
+    fun theWindowedPlayerNeverOverridesTheScreen() {
         ChosenBrightness.choose(CHOSEN)
-        var fullscreen by mutableStateOf(false)
-        composeTestRule.setContent { Harness(fullscreen, player) }
-        composeTestRule.waitForIdle()
-        assertEquals("the windowed stage should already be showing it", CHOSEN, windowBrightness(), TOLERANCE)
-
-        fullscreen = true
+        composeTestRule.setContent { Harness(fullscreen = false, player = player) }
         composeTestRule.waitForIdle()
 
         assertEquals(
-            "fullscreen dropped the brightness back to the system's — the screen visibly dims",
-            CHOSEN,
+            "a brightness set while watching leaked onto the windowed player, and so onto the app",
+            FOLLOW_SYSTEM,
             windowBrightness(),
             TOLERANCE,
         )
     }
 
-    /** And coming back out must not throw it away either — Dewi: *"it stays dim"*. */
+    /** And in fullscreen it must actually be applied, or the swipe does nothing. */
     @Test
-    fun theChosenBrightnessSurvivesLeavingFullscreenAgain() {
+    fun fullscreenAppliesTheChosenBrightness() {
+        ChosenBrightness.choose(CHOSEN)
+        composeTestRule.setContent { Harness(fullscreen = true, player = player) }
+        composeTestRule.waitForIdle()
+
+        assertEquals(CHOSEN, windowBrightness(), TOLERANCE)
+    }
+
+    /** Leaving fullscreen hands the screen straight back to the phone. */
+    @Test
+    fun leavingFullscreenGivesTheScreenBack() {
+        ChosenBrightness.choose(CHOSEN)
+        var fullscreen by mutableStateOf(true)
+        composeTestRule.setContent { Harness(fullscreen, player) }
+        composeTestRule.waitForIdle()
+        assertEquals(CHOSEN, windowBrightness(), TOLERANCE)
+
+        fullscreen = false
+        composeTestRule.waitForIdle()
+
+        assertEquals(FOLLOW_SYSTEM, windowBrightness(), TOLERANCE)
+    }
+
+    /**
+     * The choice is REMEMBERED though — only the override is dropped. Going back into fullscreen
+     * returns to the brightness you were watching at, rather than making you set it again on every
+     * video in the queue.
+     */
+    @Test
+    fun goingBackIntoFullscreenRestoresIt() {
         ChosenBrightness.choose(CHOSEN)
         var fullscreen by mutableStateOf(true)
         composeTestRule.setContent { Harness(fullscreen, player) }
@@ -147,50 +170,53 @@ class BrightnessSurvivesFullscreenTest {
 
         fullscreen = false
         composeTestRule.waitForIdle()
+        fullscreen = true
+        composeTestRule.waitForIdle()
 
         assertEquals(CHOSEN, windowBrightness(), TOLERANCE)
     }
 
-    /** Several times over, since a queue of videos means many transitions in a sitting. */
+    /**
+     * Several times over, since a sitting means many transitions — and because this is where the
+     * ORDER bug lives. It has to be right whichever way round Compose runs the two lifecycles, so
+     * both directions are asserted on every pass rather than only the end state.
+     */
     @Test
-    fun itSurvivesRepeatedToggling() {
+    fun repeatedTogglingIsStableInBothDirections() {
         ChosenBrightness.choose(CHOSEN)
         var fullscreen by mutableStateOf(false)
         composeTestRule.setContent { Harness(fullscreen, player) }
 
-        repeat(TOGGLES) {
-            fullscreen = !fullscreen
+        repeat(TOGGLES) { pass ->
+            fullscreen = true
             composeTestRule.waitForIdle()
-            assertEquals("lost after ${it + 1} toggles", CHOSEN, windowBrightness(), TOLERANCE)
+            assertEquals("not applied on pass ${pass + 1}", CHOSEN, windowBrightness(), TOLERANCE)
+
+            fullscreen = false
+            composeTestRule.waitForIdle()
+            assertEquals("not released on pass ${pass + 1}", FOLLOW_SYSTEM, windowBrightness(), TOLERANCE)
         }
     }
 
     /**
-     * The other half of the contract, and the reason the release exists at all: when the video goes
-     * away entirely the window must go back to the system's brightness, or the queue and settings
-     * screens inherit a dimmed window. A fix that simply stopped releasing would pass every test
-     * above and break this one.
+     * The video going away entirely while fullscreen — the player closing, the queue emptying —
+     * must release it too. A fix that simply stopped releasing would pass the tests above.
      */
     @Test
     fun theOverrideIsReleasedWhenTheVideoGoesAwayCompletely() {
         ChosenBrightness.choose(CHOSEN)
         var showing by mutableStateOf(true)
-        composeTestRule.setContent { if (showing) Harness(fullscreen = false, player = player) else TotumTheme {} }
+        composeTestRule.setContent { if (showing) Harness(fullscreen = true, player = player) else TotumTheme {} }
         composeTestRule.waitForIdle()
         assertEquals(CHOSEN, windowBrightness(), TOLERANCE)
 
         showing = false
         composeTestRule.waitForIdle()
 
-        assertEquals(
-            "with no video on screen the window must follow the system again",
-            FOLLOW_SYSTEM,
-            windowBrightness(),
-            TOLERANCE,
-        )
+        assertEquals(FOLLOW_SYSTEM, windowBrightness(), TOLERANCE)
     }
 
-    /** With nothing chosen, the app must not touch the window at all. */
+    /** With nothing chosen, the app must not touch the window even in fullscreen. */
     @Test
     fun withNoChoiceTheWindowIsLeftAlone() {
         var fullscreen by mutableStateOf(false)

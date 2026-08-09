@@ -90,25 +90,39 @@ internal class VideoGestureState(
         }
     }
 
-    /** A stage appeared: the window shows a brightness chosen earlier this session, if there is one. */
+    /**
+     * A FULLSCREEN stage appeared: the window shows a brightness chosen earlier this session.
+     *
+     * Fullscreen only, because the windowed player is on screen beneath the queue, the comments
+     * and the description for most of the app's life — so a brightness applied there is a
+     * brightness applied to the whole app (Dewi, 2026-08-09).
+     */
     fun attach() {
-        val applied = ChosenBrightness.stageAppeared()
-        Diag.log("gesture", "stage on screen (${ChosenBrightness.stagesOnScreen}), window brightness $applied")
+        val applied = ChosenBrightness.fullscreenAppeared()
+        Diag.log(
+            "gesture",
+            "fullscreen stage on screen (${ChosenBrightness.fullscreenStagesOnScreen}), " +
+                "window brightness $applied",
+        )
         activity?.applyBrightness(applied)
     }
 
     /**
-     * A stage went away. The override survives while any other stage is still on screen — see
-     * [ChosenBrightness] for why that ordering matters — and is released once the last one goes,
-     * because a window left dimmed would silently darken the rest of the app.
+     * A fullscreen stage went away. The override survives while another fullscreen stage is still
+     * on screen — see [ChosenBrightness] for why that ordering matters — and is released once the
+     * last one goes, so leaving fullscreen hands the screen back to the phone's own brightness.
      *
-     * The user's CHOICE is deliberately not forgotten either way. This used to reset it, so a
-     * brightness set by gesture was lost at every track change: the app changing a setting nobody
-     * touched.
+     * The user's CHOICE is deliberately not forgotten either way, so going back into fullscreen
+     * returns to what they were watching at. This used to reset it, so a brightness set by gesture
+     * was lost at every track change: the app changing a setting nobody touched.
      */
     fun detach() {
-        val applied = ChosenBrightness.stageDisappeared()
-        Diag.log("gesture", "stage gone (${ChosenBrightness.stagesOnScreen} left), window brightness $applied")
+        val applied = ChosenBrightness.fullscreenDisappeared()
+        Diag.log(
+            "gesture",
+            "fullscreen stage gone (${ChosenBrightness.fullscreenStagesOnScreen} left), " +
+                "window brightness $applied",
+        )
         activity?.applyBrightness(applied)
     }
 
@@ -118,21 +132,23 @@ internal class VideoGestureState(
 }
 
 /**
- * The gesture state, plus the window brightness for as long as this stage is on screen.
+ * The gesture state, plus — while [fullscreen] — the window brightness this stage claims.
  *
  * Both halves in one call deliberately: the attach and the detach are a pair, and a caller that
  * remembered the state without registering it would leave the count short and silently lose the
  * user's brightness at the next transition.
+ *
+ * A windowed stage still gets the state (it draws the same readout) and claims nothing.
  */
 @Composable
-internal fun rememberVideoGestures(): VideoGestureState {
+internal fun rememberVideoGestures(fullscreen: Boolean): VideoGestureState {
     val context = LocalContext.current
     val activity = context.findActivity()
     val audio = context.getSystemService<AudioManager>()
     val state = remember(activity, audio) { VideoGestureState(activity, audio) }
-    DisposableEffect(state) {
-        state.attach()
-        onDispose { state.detach() }
+    DisposableEffect(state, fullscreen) {
+        if (fullscreen) state.attach()
+        onDispose { if (fullscreen) state.detach() }
     }
     return state
 }

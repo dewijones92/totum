@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.domain.MediaItem
@@ -69,6 +70,34 @@ import com.dewijones92.totum.ui.player.WatchViewModel.RepliesState
 import kotlinx.coroutines.delay
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+
+/**
+ * Leaves fullscreen once the player has settled on something with no picture — and not before.
+ *
+ * Only a video can be fullscreen, but "no video track" is also what the player reports for the
+ * whole gap between items, and for a stream that failed and is being re-resolved. Which of the
+ * three it is lives in [videoPresence]; this is only the waiting and the saying-so.
+ */
+@Composable
+private fun EndFullscreenOnceSettledOnAudio(
+    state: PlaybackState,
+    fullscreen: Boolean,
+    onLeave: () -> Unit,
+) {
+    val presence = state.videoPresence()
+    LaunchedEffect(presence) {
+        if (presence != VideoPresence.SETTLED_ON_AUDIO) {
+            // Said out loud: an unexplained "fullscreen active=false" in a report cannot be told
+            // apart from the user tapping the button, which is why the 0.1.374 diagnosis had to
+            // come from reading code rather than from the log.
+            if (fullscreen) Diag.log("fullscreen", "holding fullscreen — ${presence.describe(state)}")
+            return@LaunchedEffect
+        }
+        delay(NO_VIDEO_GRACE_MS)
+        if (fullscreen) Diag.log("fullscreen", "leaving fullscreen — ${presence.describe(state)}")
+        onLeave()
+    }
+}
 
 /**
  * Full "now playing" screen, opened from the mini player. Drives the one
@@ -105,23 +134,7 @@ fun FullPlayerOverlay(
     // `videoPlayer` is non-null only for a video; only a video can go fullscreen.
     val videoPlayer = player.takeIf { state.hasVideo }
 
-    /*
-     * Only a video can be fullscreen — but "no video" is also what the player reports for
-     * the whole gap between items, and that gap is long: it contains a yt-dlp resolve,
-     * measured at 3-11s. Exiting on `!hasVideo` alone dropped you out of fullscreen on
-     * every auto-advance, and a short timeout did not help — verified on device, where a
-     * 2s grace still lost fullscreen because the resolve outlasted it.
-     *
-     * So the test is whether playback has *settled* without video: an item still loading
-     * is buffering, an audio item that has actually started is not. The extra delay only
-     * covers the instant where READY lands before the track list does.
-     */
-    val settledWithoutVideo = !state.hasVideo && !state.isBuffering
-    LaunchedEffect(settledWithoutVideo) {
-        if (!settledWithoutVideo) return@LaunchedEffect
-        delay(NO_VIDEO_GRACE_MS)
-        fullscreen = false
-    }
+    EndFullscreenOnceSettledOnAudio(state, fullscreen) { fullscreen = false }
 
     // Back exits fullscreen first, then closes the player. Rendered in the
     // activity's own window (not a Dialog), so landscape rotation for fullscreen

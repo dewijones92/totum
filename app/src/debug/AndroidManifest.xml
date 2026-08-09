@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The host activity `createAndroidComposeRule<ComponentActivity>()` launches comes from
+  `ui-test-manifest` and handles no configuration changes, so anything that rotates the screen
+  destroys it and takes the test's composition with it — "No compose hierarchies found in the app",
+  which reads like the content was never set.
+
+  Entering fullscreen rotates (see FullscreenEffect), so a test that drives it needs the same
+  treatment the real MainActivity already gets in the main manifest. Same list, deliberately.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
+            tools:replace="android:configChanges" />
+    </application>
+</manifest>
