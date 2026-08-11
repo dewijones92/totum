@@ -8,6 +8,8 @@ import com.dewijones92.totum.innertube.browse.Continuations
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.SearchTarget
+import com.dewijones92.totum.innertube.feeds.FeedVideo
+import com.dewijones92.totum.innertube.feeds.LockupParser
 import kotlinx.serialization.json.Json
 
 /**
@@ -52,13 +54,31 @@ public class HttpYouTubeSearch(
             Diag.log("search", "signed-in search refused ($response); falling back to anonymous")
             return null
         }
-        val page = response.body.toPage(limit)
+        val page = response.body.toAccountPage(limit)
         if (page.items.isEmpty()) {
             Diag.log("search", "signed-in search parsed to nothing; falling back to anonymous")
             return null
         }
         Diag.log("search", "searched as the account — ${page.items.size} result(s), so it counts towards history")
         return SearchVideosResult.Success(page)
+    }
+
+    /**
+     * The signed-in response, which is a DIFFERENT SHAPE from the anonymous one.
+     *
+     * Measured against the live API on 2026-08-11 with a real token: the TV client answers
+     * `/search` with `lockupViewModel` tiles, not the classic `videoRenderer` the WEB client
+     * returns — which is why the first attempt at this parsed to nothing and fell back. The
+     * lockup shape is already parsed for the channel tabs, so this reuses that rather than
+     * growing a third search parser. The classic shape is tried as well, since one response
+     * carrying both is cheaper to allow than to find out about later.
+     */
+    private fun String.toAccountPage(limit: Int): Page<SearchedVideo> {
+        val lockups = LockupParser.videos(this)
+        if (lockups.items.isNotEmpty()) {
+            return Page(lockups.items.take(limit).map { it.asSearched() }, lockups.next)
+        }
+        return toPage(limit)
     }
 
     /**
@@ -73,3 +93,21 @@ public class HttpYouTubeSearch(
         return Page(videos, Continuations.find(root))
     }
 }
+
+/**
+ * A feed tile as a search result. The two types carry the same facts under different names —
+ * every field maps straight across, which is what makes reusing the lockup parser honest rather
+ * than a squeeze.
+ */
+private fun FeedVideo.asSearched(): SearchedVideo = SearchedVideo(
+    videoId = videoId,
+    title = title,
+    author = author,
+    publishedText = publishedText,
+    durationSeconds = durationSeconds,
+    thumbnailUrl = thumbnailUrl,
+    watchUrl = watchUrl,
+    viewsText = viewsText,
+    membersOnly = membersOnly,
+    channelId = channelId,
+)

@@ -1,0 +1,758 @@
+{
+ "contents": {
+  "sectionListRenderer": {
+   "contents": [
+    {
+     "shelfRenderer": {
+      "content": {
+       "horizontalListRenderer": {
+        "items": [
+         {
+          "lockupViewModel": {
+           "contentImage": {
+            "thumbnailViewModel": {
+             "image": {
+              "sources": [
+               {
+                "url": "https://i.ytimg.com/vi/oHRNrgDIJfo/hqdefault.jpg?sqp=-oaymwEVCMACELQBSFDyq4qpAwcVAACIQhgB&rs=AOn4CLBrSAiXj2iQX-SRXtKeC41r51pNbQ",
+                "width": 320,
+                "height": 180
+               }
+              ]
+             },
+             "overlays": [
+              {
+               "thumbnailBottomOverlayViewModel": {
+                "badges": [
+                 {
+                  "thumbnailBadgeViewModel": {
+                   "icon": {
+                    "sources": [
+                     {
+                      "clientResource": {
+                       "imageName": "AUDIO"
+                      }
+                     }
+                    ]
+                   },
+                   "text": "3:03",
+                   "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+                   "rendererContext": {
+                    "accessibilityContext": {
+                     "label": "3 minutes, 3 seconds"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             ],
+             "styling": {
+              "effects": {
+               "focusAppearance": "FOCUS_APPEARANCE_RING",
+               "hoverAppearance": "HOVER_APPEARANCE_RING"
+              }
+             }
+            }
+           },
+           "metadata": {
+            "lockupMetadataViewModel": {
+             "title": {
+              "content": "Nina Simone - Feeling Good (Official Video)"
+             },
+             "metadata": {
+              "contentMetadataViewModel": {
+               "metadataRows": [
+                {
+                 "metadataParts": [
+                  {
+                   "text": {
+                    "content": "Nina Simone"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "metadataParts": [
+                  {
+                   "text": {
+                    "content": "48M views"
+                   }
+                  },
+                  {
+                   "text": {
+                    "content": "5 years ago"
+                   },
+                   "accessibilityLabel": "5 years ago"
+                  }
+                 ],
+                 "badges": [
+                  {
+                   "badgeViewModel": {
+                    "badgeText": "CC",
+                    "badgeStyle": "BADGE_DEFAULT"
+                   }
+                  }
+                 ]
+                }
+               ],
+               "delimiter": " \u2022 "
+              }
+             },
+             "metadataStyling": {
+              "secondaryFontSize": "LOCKUP_METADATA_FONT_SIZE_SMALL"
+             }
+            }
+           },
+           "contentId": "oHRNrgDIJfo",
+           "contentType": "LOCKUP_CONTENT_TYPE_MUSIC",
+           "styling": {
+            "layout": "LOCKUP_LAYOUT_VERTICAL",
+            "contentImageAspectRatio": "LOCKUP_CONTENT_IMAGE_ASPECT_RATIO_WIDESCREEN"
+           },
+           "rendererContext": {
+            "loggingContext": {},
+            "commandContext": {
+             "onTap": {
+              "innertubeCommand": {
+               "clickTrackingParams": "CLwBEIW8AhgAIhMIvprEm7GZlgMVkUQdCR05szxKMgZzZWFyY2hSC25pbmEgc2ltb25lmgEDEPQkygEEpy1nAw==",
+               "watchEndpoint": {
+                "videoId": "oHRNrgDIJfo",
+                "playlistId": "RDoHRNrgDIJfo",
+                "params": "qgMLbmluYSBzaW1vbmW6AwoIwdfe6ciesswvugMLCKr8z6buldHE8gG6AwoI5ZTjgufoqO9HugMKCOqt9Kvdv8-fD7oDCwibysmfo7qyz68BugMLCIyF1Pi--sPg-gG6AwoI2tPLhJHrwpclugMLCPyN_M_2nOnWuQG6AwoI2MKr0Y7qpsJ5ugMLCLKKtLCs7N2PmgG6Aw8SDVJEaS1NOGdwVDFJRGe6AwoI3tTa-O22npBbugMLCPayou_p1riClwG6AwoI_9C9m4Kk45QvugMLCJiy7puSs9qpxgG6AwoI3qXR0IzN7PM6ugMKCICf3uHEioqMd7oDCwiGuYblvv3L5PUBugMKCPik9NnsnrXdY_IDBQ1knF09uAUB",
+                "playerParams": "ygULbmluYSBzaW1vbmWgBwE%3D",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "Gg1SRG9IUk5yZ0RJSmZv"
+                 }
+                },
+                "ustreamerConfig": "GgIIBQ==",
+                "watchEndpointSupportedOnesieConfig": {
+                 "html5PlaybackOnesieConfig": {
+                  "commonConfig": {
+                   "url": "https://rr1---sn-8vq54vox03-cgne.googlevideo.com/initplayback?source=youtube&oeis=1&c=TVHTML5&oad=3200&ovd=3200&oaad=3200&oavd=3200&ocs=700&oewis=1&oputc=1&olis=1&ofpcc=1&siu=1&msp=1&odepv=1&id=a0744dae00c825fa&ip=83.105.223.117&initcwndbps=3598750&mt=1786478719"
+                  }
+                 }
+                }
+               }
+              }
+             },
+             "onLongPress": {
+              "innertubeCommand": {
+               "clickTrackingParams": "CLwBEIW8AhgAIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+               "showMenuCommand": {
+                "contentId": "oHRNrgDIJfo",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/oHRNrgDIJfo/hqdefault.jpg?sqp=-oaymwEVCMACELQBSFDyq4qpAwcVAACIQhgB&rs=AOn4CLBrSAiXj2iQX-SRXtKeC41r51pNbQ",
+                   "width": 320,
+                   "height": 180
+                  }
+                 ]
+                },
+                "title": {
+                 "simpleText": "Nina Simone - Feeling Good (Official Video)"
+                },
+                "subtitle": {
+                 "simpleText": "Nina Simone"
+                },
+                "menu": {
+                 "menuRenderer": {
+                  "items": [
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Play"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CMEBEJr8BRgAIhMIvprEm7GZlgMVkUQdCR05szxKMgZzZWFyY2hSC25pbmEgc2ltb25lmgEDEPQkygEEpy1nAw==",
+                      "watchEndpoint": {
+                       "videoId": "oHRNrgDIJfo",
+                       "playlistId": "RDoHRNrgDIJfo",
+                       "params": "qgMLbmluYSBzaW1vbmW6AwoIwdfe6ciesswvugMLCKr8z6buldHE8gG6AwoI5ZTjgufoqO9HugMKCOqt9Kvdv8-fD7oDCwibysmfo7qyz68BugMLCIyF1Pi--sPg-gG6AwoI2tPLhJHrwpclugMLCPyN_M_2nOnWuQG6AwoI2MKr0Y7qpsJ5ugMLCLKKtLCs7N2PmgG6Aw8SDVJEaS1NOGdwVDFJRGe6AwoI3tTa-O22npBbugMLCPayou_p1riClwG6AwoI_9C9m4Kk45QvugMLCJiy7puSs9qpxgG6AwoI3qXR0IzN7PM6ugMKCICf3uHEioqMd7oDCwiGuYblvv3L5PUBugMKCPik9NnsnrXdY_IDBQ1knF09uAUB",
+                       "playerParams": "ygULbmluYSBzaW1vbmWgBwE%3D",
+                       "loggingContext": {
+                        "vssLoggingContext": {
+                         "serializedContextData": "Gg1SRG9IUk5yZ0RJSmZv"
+                        }
+                       },
+                       "ustreamerConfig": "GgIIBQ==",
+                       "watchEndpointSupportedOnesieConfig": {
+                        "html5PlaybackOnesieConfig": {
+                         "commonConfig": {
+                          "url": "https://rr1---sn-8vq54vox03-cgne.googlevideo.com/initplayback?source=youtube&oeis=1&c=TVHTML5&oad=3200&ovd=3200&oaad=3200&oavd=3200&ocs=700&oewis=1&oputc=1&olis=1&ofpcc=1&siu=1&msp=1&odepv=1&id=a0744dae00c825fa&ip=83.105.223.117&initcwndbps=3598750&mt=1786478719"
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuServiceItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Save to Watch later"
+                       }
+                      ]
+                     },
+                     "serviceEndpoint": {
+                      "clickTrackingParams": "CMABEMHKCBgBIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "playlistEditEndpoint": {
+                       "playlistId": "WL",
+                       "actions": [
+                        {
+                         "addedVideoId": "oHRNrgDIJfo",
+                         "action": "ACTION_ADD_VIDEO"
+                        }
+                       ]
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Save to playlist"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CL8BEPmcBBgCIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "addToPlaylistEndpoint": {
+                       "videoId": "oHRNrgDIJfo"
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Go to channel"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CL4BEPLICBgDIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "browseEndpoint": {
+                       "browseId": "UCFnB3WIiT8lFbxmrFbcJkVA"
+                      }
+                     }
+                    }
+                   }
+                  ],
+                  "accessibility": {
+                   "accessibilityData": {
+                    "label": "Action menu"
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         {
+          "lockupViewModel": {
+           "contentImage": {
+            "thumbnailViewModel": {
+             "image": {
+              "sources": [
+               {
+                "url": "https://i.ytimg.com/vi/L5jI9I03q8E/hqdefault.jpg?sqp=-oaymwEvCMACELQBSFDyq4qpAyEVAACIQhgB8AEB-AH-BIAC4AOKAgwIABABGGUgZShlMA8=&rs=AOn4CLAdNHWDSKDLz2mL36O8e8fecuUIZQ",
+                "width": 320,
+                "height": 180
+               }
+              ]
+             },
+             "overlays": [
+              {
+               "thumbnailBottomOverlayViewModel": {
+                "badges": [
+                 {
+                  "thumbnailBadgeViewModel": {
+                   "icon": {
+                    "sources": [
+                     {
+                      "clientResource": {
+                       "imageName": "AUDIO"
+                      }
+                     }
+                    ]
+                   },
+                   "text": "4:08",
+                   "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+                   "rendererContext": {
+                    "accessibilityContext": {
+                     "label": "4 minutes, 8 seconds"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             ],
+             "styling": {
+              "effects": {
+               "focusAppearance": "FOCUS_APPEARANCE_RING",
+               "hoverAppearance": "HOVER_APPEARANCE_RING"
+              }
+             }
+            }
+           },
+           "metadata": {
+            "lockupMetadataViewModel": {
+             "title": {
+              "content": "Ain't Got No, I Got Life - Nina Simone"
+             },
+             "metadata": {
+              "contentMetadataViewModel": {
+               "metadataRows": [
+                {
+                 "metadataParts": [
+                  {
+                   "text": {
+                    "content": "drMandinga"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "metadataParts": [
+                  {
+                   "text": {
+                    "content": "80M views"
+                   }
+                  },
+                  {
+                   "text": {
+                    "content": "16 years ago"
+                   },
+                   "accessibilityLabel": "16 years ago"
+                  }
+                 ]
+                }
+               ],
+               "delimiter": " \u2022 "
+              }
+             },
+             "metadataStyling": {
+              "secondaryFontSize": "LOCKUP_METADATA_FONT_SIZE_SMALL"
+             }
+            }
+           },
+           "contentId": "L5jI9I03q8E",
+           "contentType": "LOCKUP_CONTENT_TYPE_MUSIC",
+           "styling": {
+            "layout": "LOCKUP_LAYOUT_VERTICAL",
+            "contentImageAspectRatio": "LOCKUP_CONTENT_IMAGE_ASPECT_RATIO_WIDESCREEN"
+           },
+           "rendererContext": {
+            "loggingContext": {},
+            "commandContext": {
+             "onTap": {
+              "innertubeCommand": {
+               "clickTrackingParams": "CLYBEIW8AhgBIhMIvprEm7GZlgMVkUQdCR05szxKMgZzZWFyY2hSC25pbmEgc2ltb25lmgEDEPQkygEEpy1nAw==",
+               "watchEndpoint": {
+                "videoId": "L5jI9I03q8E",
+                "playlistId": "RDL5jI9I03q8E",
+                "params": "qgMLbmluYSBzaW1vbmW6AwsI-sughuC1k7qgAboDCwiq_M-m7pXRxPIBugMKCOWU44Ln6KjvR7oDCgjqrfSr3b_Pnw-6AwsIm8rJn6O6ss-vAboDCwiMhdT4vvrD4PoBugMKCNrTy4SR68KXJboDCwj8jfzP9pzp1rkBugMKCNjCq9GO6qbCeboDCwiyirSwrOzdj5oBugMPEg1SRGktTThncFQxSURnugMKCN7U2vjttp6QW7oDCwj2sqLv6da4gpcBugMKCP_QvZuCpOOUL7oDCwiYsu6bkrPaqcYBugMKCN6l0dCMzezzOroDCgiAn97hxIqKjHe6AwsIhrmG5b79y-T1AboDCgj4pPTZ7J613WPyAwUNZJxdPbgFAQ%3D%3D",
+                "playerParams": "ygULbmluYSBzaW1vbmWgBwHSBwkJyQsBhyohjO8%3D",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "Gg1SREw1akk5STAzcThF"
+                 }
+                },
+                "ustreamerConfig": "GgIIBQ==",
+                "watchEndpointSupportedOnesieConfig": {
+                 "html5PlaybackOnesieConfig": {
+                  "commonConfig": {
+                   "url": "https://rr1---sn-8vq54vox03-cgne.googlevideo.com/initplayback?source=youtube&oeis=1&c=TVHTML5&oad=3200&ovd=3200&oaad=3200&oavd=3200&ocs=700&oewis=1&oputc=1&olis=1&ofpcc=1&siu=1&msp=1&odepv=1&id=2f98c8f48d37abc1&ip=83.105.223.117&initcwndbps=3598750&mt=1786478719"
+                  }
+                 }
+                }
+               }
+              }
+             },
+             "onLongPress": {
+              "innertubeCommand": {
+               "clickTrackingParams": "CLYBEIW8AhgBIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+               "showMenuCommand": {
+                "contentId": "L5jI9I03q8E",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/L5jI9I03q8E/hqdefault.jpg?sqp=-oaymwEvCMACELQBSFDyq4qpAyEVAACIQhgB8AEB-AH-BIAC4AOKAgwIABABGGUgZShlMA8=&rs=AOn4CLAdNHWDSKDLz2mL36O8e8fecuUIZQ",
+                   "width": 320,
+                   "height": 180
+                  }
+                 ]
+                },
+                "title": {
+                 "simpleText": "Ain't Got No, I Got Life - Nina Simone"
+                },
+                "subtitle": {
+                 "simpleText": "drMandinga"
+                },
+                "menu": {
+                 "menuRenderer": {
+                  "items": [
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Play"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CLsBEJr8BRgAIhMIvprEm7GZlgMVkUQdCR05szxKMgZzZWFyY2hSC25pbmEgc2ltb25lmgEDEPQkygEEpy1nAw==",
+                      "watchEndpoint": {
+                       "videoId": "L5jI9I03q8E",
+                       "playlistId": "RDL5jI9I03q8E",
+                       "params": "qgMLbmluYSBzaW1vbmW6AwsI-sughuC1k7qgAboDCwiq_M-m7pXRxPIBugMKCOWU44Ln6KjvR7oDCgjqrfSr3b_Pnw-6AwsIm8rJn6O6ss-vAboDCwiMhdT4vvrD4PoBugMKCNrTy4SR68KXJboDCwj8jfzP9pzp1rkBugMKCNjCq9GO6qbCeboDCwiyirSwrOzdj5oBugMPEg1SRGktTThncFQxSURnugMKCN7U2vjttp6QW7oDCwj2sqLv6da4gpcBugMKCP_QvZuCpOOUL7oDCwiYsu6bkrPaqcYBugMKCN6l0dCMzezzOroDCgiAn97hxIqKjHe6AwsIhrmG5b79y-T1AboDCgj4pPTZ7J613WPyAwUNZJxdPbgFAQ%3D%3D",
+                       "playerParams": "ygULbmluYSBzaW1vbmWgBwE%3D",
+                       "loggingContext": {
+                        "vssLoggingContext": {
+                         "serializedContextData": "Gg1SREw1akk5STAzcThF"
+                        }
+                       },
+                       "ustreamerConfig": "GgIIBQ==",
+                       "watchEndpointSupportedOnesieConfig": {
+                        "html5PlaybackOnesieConfig": {
+                         "commonConfig": {
+                          "url": "https://rr1---sn-8vq54vox03-cgne.googlevideo.com/initplayback?source=youtube&oeis=1&c=TVHTML5&oad=3200&ovd=3200&oaad=3200&oavd=3200&ocs=700&oewis=1&oputc=1&olis=1&ofpcc=1&siu=1&msp=1&odepv=1&id=2f98c8f48d37abc1&ip=83.105.223.117&initcwndbps=3598750&mt=1786478719"
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuServiceItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Save to Watch later"
+                       }
+                      ]
+                     },
+                     "serviceEndpoint": {
+                      "clickTrackingParams": "CLoBEMHKCBgBIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "playlistEditEndpoint": {
+                       "playlistId": "WL",
+                       "actions": [
+                        {
+                         "addedVideoId": "L5jI9I03q8E",
+                         "action": "ACTION_ADD_VIDEO"
+                        }
+                       ]
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Save to playlist"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CLkBEPmcBBgCIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "addToPlaylistEndpoint": {
+                       "videoId": "L5jI9I03q8E"
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Go to channel"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CLgBEPLICBgDIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "browseEndpoint": {
+                       "browseId": "UCAPiuadzCGyvuo29EIh_W4g"
+                      }
+                     }
+                    }
+                   }
+                  ],
+                  "accessibility": {
+                   "accessibilityData": {
+                    "label": "Action menu"
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         {
+          "lockupViewModel": {
+           "contentImage": {
+            "thumbnailViewModel": {
+             "image": {
+              "sources": [
+               {
+                "url": "https://i.ytimg.com/vi/8olEruTT_io/hqdefault.jpg?sqp=-oaymwEvCMACELQBSFDyq4qpAyEVAACIQhgB8AEB-AH-CYAC0AWKAgwIABABGGUgSig9MA8=&rs=AOn4CLC7jSAgWjL6EvU8rZTaDQ24gBaJow",
+                "width": 320,
+                "height": 180
+               }
+              ]
+             },
+             "overlays": [
+              {
+               "thumbnailBottomOverlayViewModel": {
+                "badges": [
+                 {
+                  "thumbnailBadgeViewModel": {
+                   "text": "24:26",
+                   "badgeStyle": "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT",
+                   "rendererContext": {
+                    "accessibilityContext": {
+                     "label": "24 minutes, 26 seconds"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              }
+             ],
+             "styling": {
+              "effects": {
+               "focusAppearance": "FOCUS_APPEARANCE_RING",
+               "hoverAppearance": "HOVER_APPEARANCE_RING"
+              }
+             }
+            }
+           },
+           "metadata": {
+            "lockupMetadataViewModel": {
+             "title": {
+              "content": "Nina Simone on BBC HARDtalk, 1999"
+             },
+             "metadata": {
+              "contentMetadataViewModel": {
+               "metadataRows": [
+                {
+                 "metadataParts": [
+                  {
+                   "text": {
+                    "content": "BBC HARDtalk"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "metadataParts": [
+                  {
+                   "text": {
+                    "content": "1.5M views"
+                   }
+                  },
+                  {
+                   "text": {
+                    "content": "9 years ago"
+                   },
+                   "accessibilityLabel": "9 years ago"
+                  }
+                 ]
+                }
+               ],
+               "delimiter": " \u2022 "
+              }
+             },
+             "metadataStyling": {
+              "secondaryFontSize": "LOCKUP_METADATA_FONT_SIZE_SMALL"
+             }
+            }
+           },
+           "contentId": "8olEruTT_io",
+           "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+           "styling": {
+            "layout": "LOCKUP_LAYOUT_VERTICAL",
+            "contentImageAspectRatio": "LOCKUP_CONTENT_IMAGE_ASPECT_RATIO_WIDESCREEN"
+           },
+           "rendererContext": {
+            "loggingContext": {},
+            "commandContext": {
+             "onTap": {
+              "innertubeCommand": {
+               "clickTrackingParams": "CLABEKQwGAIiEwi-msSbsZmWAxWRRB0JHTmzPEoyBnNlYXJjaFILbmluYSBzaW1vbmWaAQMQ9CTKAQSnLWcD",
+               "watchEndpoint": {
+                "videoId": "8olEruTT_io",
+                "params": "qgMLbmluYSBzaW1vbmW6AwsI-sughuC1k7qgAboDCgjB197pyJ6yzC-6AwoI5ZTjgufoqO9HugMKCOqt9Kvdv8-fD7oDCwibysmfo7qyz68BugMLCIyF1Pi--sPg-gG6AwoI2tPLhJHrwpclugMLCPyN_M_2nOnWuQG6AwoI2MKr0Y7qpsJ5ugMLCLKKtLCs7N2PmgG6Aw8SDVJEaS1NOGdwVDFJRGe6AwoI3tTa-O22npBbugMLCPayou_p1riClwG6AwoI_9C9m4Kk45QvugMLCJiy7puSs9qpxgG6AwoI3qXR0IzN7PM6ugMKCICf3uHEioqMd7oDCwiGuYblvv3L5PUBugMKCPik9NnsnrXdY_IDBQ1knF09",
+                "playerParams": "ygULbmluYSBzaW1vbmXSBwkJyQsBhyohjO8%3D",
+                "ustreamerConfig": "GgIIBQ==",
+                "watchEndpointSupportedOnesieConfig": {
+                 "html5PlaybackOnesieConfig": {
+                  "commonConfig": {
+                   "url": "https://rr2---sn-8vq54vox03-cgne.googlevideo.com/initplayback?source=youtube&oeis=1&c=TVHTML5&oad=3200&ovd=3200&oaad=3200&oavd=3200&ocs=700&oewis=1&oputc=1&olis=1&ofpcc=1&siu=1&msp=1&odepv=1&id=f28944aee4d3fe2a&ip=83.105.223.117&initcwndbps=3598750&mt=1786478719"
+                  }
+                 }
+                }
+               }
+              }
+             },
+             "onLongPress": {
+              "innertubeCommand": {
+               "clickTrackingParams": "CLABEKQwGAIiEwi-msSbsZmWAxWRRB0JHTmzPErKAQSnLWcD",
+               "showMenuCommand": {
+                "contentId": "8olEruTT_io",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/8olEruTT_io/hqdefault.jpg?sqp=-oaymwEvCMACELQBSFDyq4qpAyEVAACIQhgB8AEB-AH-CYAC0AWKAgwIABABGGUgSig9MA8=&rs=AOn4CLC7jSAgWjL6EvU8rZTaDQ24gBaJow",
+                   "width": 320,
+                   "height": 180
+                  }
+                 ]
+                },
+                "title": {
+                 "simpleText": "Nina Simone on BBC HARDtalk, 1999"
+                },
+                "subtitle": {
+                 "simpleText": "BBC HARDtalk"
+                },
+                "menu": {
+                 "menuRenderer": {
+                  "items": [
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Play"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CLUBEJr8BRgAIhMIvprEm7GZlgMVkUQdCR05szxKMgZzZWFyY2hSC25pbmEgc2ltb25lmgEDEPQkygEEpy1nAw==",
+                      "watchEndpoint": {
+                       "videoId": "8olEruTT_io",
+                       "params": "qgMLbmluYSBzaW1vbmW6AwsI-sughuC1k7qgAboDCgjB197pyJ6yzC-6AwoI5ZTjgufoqO9HugMKCOqt9Kvdv8-fD7oDCwibysmfo7qyz68BugMLCIyF1Pi--sPg-gG6AwoI2tPLhJHrwpclugMLCPyN_M_2nOnWuQG6AwoI2MKr0Y7qpsJ5ugMLCLKKtLCs7N2PmgG6Aw8SDVJEaS1NOGdwVDFJRGe6AwoI3tTa-O22npBbugMLCPayou_p1riClwG6AwoI_9C9m4Kk45QvugMLCJiy7puSs9qpxgG6AwoI3qXR0IzN7PM6ugMKCICf3uHEioqMd7oDCwiGuYblvv3L5PUBugMKCPik9NnsnrXdY_IDBQ1knF09",
+                       "playerParams": "ygULbmluYSBzaW1vbmU%3D",
+                       "ustreamerConfig": "GgIIBQ==",
+                       "watchEndpointSupportedOnesieConfig": {
+                        "html5PlaybackOnesieConfig": {
+                         "commonConfig": {
+                          "url": "https://rr2---sn-8vq54vox03-cgne.googlevideo.com/initplayback?source=youtube&oeis=1&c=TVHTML5&oad=3200&ovd=3200&oaad=3200&oavd=3200&ocs=700&oewis=1&oputc=1&olis=1&ofpcc=1&siu=1&msp=1&odepv=1&id=f28944aee4d3fe2a&ip=83.105.223.117&initcwndbps=3598750&mt=1786478719"
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuServiceItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Save to Watch later"
+                       }
+                      ]
+                     },
+                     "serviceEndpoint": {
+                      "clickTrackingParams": "CLQBEMHKCBgBIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "playlistEditEndpoint": {
+                       "playlistId": "WL",
+                       "actions": [
+                        {
+                         "addedVideoId": "8olEruTT_io",
+                         "action": "ACTION_ADD_VIDEO"
+                        }
+                       ]
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Save to playlist"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CLMBEPmcBBgCIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "addToPlaylistEndpoint": {
+                       "videoId": "8olEruTT_io"
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "menuNavigationItemRenderer": {
+                     "text": {
+                      "runs": [
+                       {
+                        "text": "Go to channel"
+                       }
+                      ]
+                     },
+                     "navigationEndpoint": {
+                      "clickTrackingParams": "CLIBEPLICBgDIhMIvprEm7GZlgMVkUQdCR05szxKygEEpy1nAw==",
+                      "browseEndpoint": {
+                       "browseId": "UCN0VXYoN2ZdC7s8OFC_zHCg"
+                      }
+                     }
+                    }
+                   }
+                  ],
+                  "accessibility": {
+                   "accessibilityData": {
+                    "label": "Action menu"
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

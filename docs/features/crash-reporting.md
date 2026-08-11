@@ -254,6 +254,32 @@ not an error — so without that rule a wrong guess would silently empty the sea
 looks exactly like YouTube having nothing for you. Which path answered is **logged**, so the next
 report from his phone settles it instead of another guess.
 
-Not done, and stated rather than implied: **music search stays anonymous**, and YouTube Music's own
-listening history is untouched. `WEB_REMIX` is a web client and would need the same bearer
-cross-check to pass, which there is no reason to expect.
+**It works, and that was measured rather than hoped.** The first version parsed only the classic
+`videoRenderer` and fell back every time — seen on the emulator as `signed-in search parsed to
+nothing`. Probing the endpoint with a real token showed the TV client answers with
+`lockupViewModel` tiles instead, which **this repo already parses for the channel tabs**, so the
+authed path reuses `LockupParser` rather than growing a third search parser. On device now:
+
+```
+[search] searched as the account — 8 result(s), so it counts towards history
+[search] next page -> 8 returned, 16 total (more=true)
+```
+
+Paging is attributed too.
+
+### One place attaches the token (2026-08-11)
+
+Dewi: *"make sure we have as much as possible auth requests to YouTube. Maybe some global
+middleware"*. Every InnerTube request already passes through one `execute`, so the rule lives there,
+keyed on an `Identity` the call site names: **the token goes on every request whose declared client
+will accept one, and on no others.**
+
+Both halves are load-bearing. Forgetting it is a request that credits nobody — how watch history and
+search stayed anonymous for months. Attaching it wrongly is worse: InnerTube cross-checks the
+declared client against the headers and answers `HTTP 400`, so an over-eager middleware would break
+playback rather than degrade politely. Seven tests pin both directions.
+
+What still cannot be authenticated, stated rather than implied: **the streams client** (ANDROID
+refuses a bearer — the TV player calls exist for the cases that need an account), **comments**,
+**channel tabs**, and **music search**. `WEB_REMIX` is a web client, so YouTube Music's own
+listening history remains untouched.

@@ -454,10 +454,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     /**
-     * The account token for a search, or null to leave it anonymous.
+     * The account token for any request that can carry one, or null to leave it anonymous.
      *
-     * Null on any problem rather than propagating one: an expired refresh must cost a search
-     * nothing, and the anonymous path is right there.
+     * Null on any problem rather than propagating one: an expired refresh must cost a request
+     * nothing when there is an anonymous path right there.
      */
     private suspend fun searchToken() =
         (youTubeAccount.accessToken() as? AccessTokenResult.Available)?.token
@@ -1115,7 +1115,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    private val innerTubeClient by lazy { InnerTubeClient(httpClient) }
+    /**
+     * The token is supplied as a LAMBDA, not a value: the account is built later in this graph and
+     * a token expires anyway, so it is fetched per request. See `Identity` for where it is attached
+     * and, more importantly, where it must not be.
+     */
+    private val innerTubeClient by lazy { InnerTubeClient(httpClient, accountToken = ::searchToken) }
 
     override val youTubeFeeds: YouTubeFeeds by lazy {
         HttpYouTubeFeeds(youTubeAccount, innerTubeClient)

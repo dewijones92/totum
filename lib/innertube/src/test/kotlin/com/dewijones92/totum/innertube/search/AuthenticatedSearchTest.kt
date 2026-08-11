@@ -91,6 +91,33 @@ class AuthenticatedSearchTest {
         assertEquals(2, server.requestCount)
     }
 
+    /**
+     * The signed-in response is a DIFFERENT SHAPE, and this is the real one.
+     *
+     * `tv-search.json` was captured from the live API on 2026-08-11 with a real token: the TV
+     * client answers with `lockupViewModel` tiles, not the `videoRenderer` the WEB client returns.
+     * The first version of this feature parsed only the latter, so every signed-in search fell back
+     * — verified on the emulator, which is what sent me looking. The lockup shape is already parsed
+     * for the channel tabs, so this reuses that parser rather than growing a third one.
+     */
+    @Test
+    fun `the signed-in response is parsed in the shape the TV client actually sends`() = runBlocking {
+        server.enqueue(ok(res("search/tv-search.json")))
+
+        val result = search().searchVideos("nina simone", limit = 5)
+
+        val page = (result as SearchVideosResult.Success).page
+        assertTrue("nothing parsed out of a real TV response", page.items.isNotEmpty())
+        // The contract rather than a transcript of one capture: real ids, real titles, and no
+        // second request — the fallback did not have to save it.
+        assertTrue(
+            "not YouTube ids: ${page.items.map { it.videoId }}",
+            page.items.all { it.videoId.length == YOUTUBE_ID_CHARS },
+        )
+        assertTrue("a result with no title", page.items.all { it.title.isNotBlank() })
+        assertEquals("one request; no fallback needed", 1, server.requestCount)
+    }
+
     @Test
     fun `both failing is still a failure, not a silent empty list`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(400).body("nope").build())
@@ -113,6 +140,10 @@ class AuthenticatedSearchTest {
     private fun videos(result: SearchVideosResult): List<String> =
         (result as SearchVideosResult.Success).page.items.map { it.videoId }
 
+    private fun res(name: String): String =
+        checkNotNull(javaClass.classLoader?.getResourceAsStream(name)) { "fixture $name missing" }
+            .bufferedReader().readText()
+
     private fun ok(body: String) = MockResponse.Builder().code(200).body(body).build()
 
     /** The classic `videoRenderer` shape the WEB search returns, trimmed to what the parser reads. */
@@ -128,5 +159,6 @@ class AuthenticatedSearchTest {
 
     private companion object {
         val TOKEN = AccessToken("secret")
+        const val YOUTUBE_ID_CHARS = 11
     }
 }

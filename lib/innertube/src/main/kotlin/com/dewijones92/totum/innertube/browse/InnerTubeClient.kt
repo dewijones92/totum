@@ -38,10 +38,18 @@ public class InnerTubeClient(
     private val androidClientVersion: String = ANDROID_CLIENT_VERSION,
     private val musicSearchUrl: String = MUSIC_SEARCH_URL,
     private val musicClientVersion: String = MUSIC_CLIENT_VERSION,
+    /**
+     * The account's token, for every request whose client can carry one — see [Identity].
+     *
+     * The "global middleware" Dewi asked for on 2026-08-11, in the one place every request already
+     * passes through. Null (the default) leaves everything anonymous, which is what tests and a
+     * signed-out app want.
+     */
+    private val accountToken: suspend () -> AccessToken? = { null },
 ) {
 
     public suspend fun browse(target: BrowseTarget, accessToken: AccessToken): InnerTubeResponse =
-        execute(browseUrl, tvContext(target.fields()), accessToken)
+        execute(browseUrl, tvContext(target.fields()), Identity.TV, accessToken)
 
     /**
      * A video's streaming data, as the ANDROID client.
@@ -55,7 +63,7 @@ public class InnerTubeClient(
      * unless it can present a full session, which a bearer token alone is not.
      */
     public suspend fun player(videoId: String): InnerTubeResponse =
-        execute(playerUrl, androidContext(videoId), bearer = null)
+        execute(playerUrl, androidContext(videoId), Identity.ANDROID)
 
     /**
      * The player response as the SIGNED-IN account, which is the only way to reach an
@@ -108,6 +116,7 @@ public class InnerTubeClient(
             """"videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true,""" +
             """"playbackContext":{"contentPlaybackContext":""" +
             """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":$signatureTimestamp}}}""",
+        Identity.TV,
         accessToken,
         clientHeaders = mapOf(
             "X-Youtube-Client-Name" to TV_CLIENT_ID,
@@ -140,23 +149,24 @@ public class InnerTubeClient(
                     """"playbackContext":{"contentPlaybackContext":""" +
                     """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":$signatureTimestamp}} """,
             ),
+            Identity.TV,
             accessToken,
         )
 
     /** Watch-page data for a video (WEB client, no auth). */
     public suspend fun next(videoId: String): InnerTubeResponse =
-        execute(nextUrl, webContext(""" "videoId":"$videoId" """), bearer = null)
+        execute(nextUrl, webContext(""" "videoId":"$videoId" """), Identity.WEB)
 
     /** Browses public content (WEB client, no auth) — e.g. a channel's tabs. */
     public suspend fun browseWeb(target: BrowseTarget): InnerTubeResponse =
-        execute(browseUrl, webContext(target.fields()), bearer = null)
+        execute(browseUrl, webContext(target.fields()), Identity.WEB)
 
     /**
      * Public video search (WEB client, no auth). The WEB response carries each
      * result's upload date, which yt-dlp's flat `ytsearch` does not.
      */
     public suspend fun search(target: SearchTarget): InnerTubeResponse =
-        execute(searchUrl, webContext(target.fields()), bearer = null)
+        execute(searchUrl, webContext(target.fields()), Identity.WEB)
 
     /**
      * Public search, but AS THE ACCOUNT, so the query joins your search history and feeds the
@@ -174,6 +184,7 @@ public class InnerTubeClient(
         execute(
             searchUrl,
             tvContext(target.fields()),
+            Identity.TV,
             accessToken,
             clientHeaders = mapOf(
                 "X-Youtube-Client-Name" to TV_CLIENT_ID,
@@ -195,12 +206,12 @@ public class InnerTubeClient(
             is SearchTarget.Query -> target.fields() + ", \"params\":\"$MUSIC_SONGS_FILTER\""
             is SearchTarget.Continuation -> target.fields()
         }
-        return execute(musicSearchUrl, musicContext(fields), bearer = null, clientHeaders = MUSIC_HEADERS)
+        return execute(musicSearchUrl, musicContext(fields), Identity.MUSIC, clientHeaders = MUSIC_HEADERS)
     }
 
     /** Follows a continuation token (e.g. loading comments; WEB client, no auth). */
     public suspend fun nextContinuation(continuation: String): InnerTubeResponse =
-        execute(nextUrl, webContext(""" "continuation":"$continuation" """), bearer = null)
+        execute(nextUrl, webContext(""" "continuation":"$continuation" """), Identity.WEB)
 
     /**
      * Authenticated write action (like, subscribe, comment, …) as the TV
@@ -208,7 +219,7 @@ public class InnerTubeClient(
      * `"target":{"videoId":"…"}`).
      */
     public suspend fun action(url: String, fieldsJson: String, accessToken: AccessToken): InnerTubeResponse =
-        execute(url, tvContext(fieldsJson), accessToken)
+        execute(url, tvContext(fieldsJson), Identity.TV, accessToken)
 
     private fun tvContext(fields: String): String =
         """{"context":{"client":{"clientName":"TVHTML5","clientVersion":"$tvClientVersion"}},$fields}"""
@@ -231,10 +242,19 @@ public class InnerTubeClient(
     private fun clientContext(client: String, fields: String): String =
         """{"context":{"client":{$client}},$fields}"""
 
+    /**
+     * One place attaches the token, and only where the client can take one — see [Identity].
+     *
+     * [bearer] is an explicit token for the calls that already hold one (they fetch it themselves,
+     * often alongside a signature timestamp). Where it is null and the identity is a TV client, the
+     * account's own token is used if there is one, which is what makes a new TV call authenticated
+     * without anybody remembering to make it so.
+     */
     private suspend fun execute(
         url: String,
         jsonBody: String,
-        bearer: AccessToken?,
+        identity: Identity,
+        bearer: AccessToken? = null,
         /**
          * Client identity as HEADERS, not just in the body.
          *
@@ -245,14 +265,16 @@ public class InnerTubeClient(
          * authenticated request whose headers do not agree with its body.
          */
         clientHeaders: Map<String, String> = emptyMap(),
-    ): InnerTubeResponse =
-        withContext(Dispatchers.IO) {
+    ): InnerTubeResponse {
+        // The rule, applied once: a token only where the declared client will accept one.
+        val token = bearer ?: if (identity.acceptsBearer) accountToken() else null
+        return withContext(Dispatchers.IO) {
             val builder = Request.Builder()
                 .url(url)
                 .addHeader("Content-Type", "application/json")
                 .post(jsonBody.toRequestBody(JSON))
             clientHeaders.forEach { (name, value) -> builder.addHeader(name, value) }
-            if (bearer != null) builder.addHeader("Authorization", "Bearer ${bearer.value}")
+            if (token != null) builder.addHeader("Authorization", "Bearer ${token.value}")
             try {
                 client.newCall(builder.build()).execute().use { response ->
                     val body = response.body.string()
@@ -267,6 +289,7 @@ public class InnerTubeClient(
                 InnerTubeResponse.Failure(e.message ?: "network error")
             }
         }
+    }
 
     public companion object {
         private const val BASE: String = "https://www.youtube.com/youtubei/v1"
@@ -358,6 +381,36 @@ public sealed interface BrowseTarget {
  * [BrowseTarget] and for the same reason — a continuation already encodes what it
  * continues, so a query alongside it would be meaningless.
  */
+/**
+ * Which YouTube client a request declares itself as — and therefore whether it may carry the
+ * account's token.
+ *
+ * **Only the TV identities accept a bearer.** A bearer with an ANDROID, WEB or WEB_REMIX context is
+ * answered `HTTP 400`: InnerTube cross-checks the declared client against the
+ * `X-YouTube-Client-Name`/`-Version` headers and the user agent, and refuses an authenticated
+ * request whose headers and body disagree. That was measured twice the hard way — once on
+ * `ANDROID_VR`, once while making search attributed — so the rule lives here rather than in the
+ * memory of whoever adds the next endpoint.
+ *
+ * Dewi, 2026-08-11: *"make sure we have as much as possible auth requests to YouTube. Maybe some
+ * global middleware"*. This is that: [InnerTubeClient.execute] attaches the token to every request
+ * whose client can take one, so a new TV-client call is authenticated by default and a new WEB one
+ * cannot accidentally be.
+ */
+internal enum class Identity(val acceptsBearer: Boolean) {
+    /** The living-room app. The only family YouTube will authenticate. */
+    TV(acceptsBearer = true),
+
+    /** Public web endpoints — comments, channel tabs, the anonymous search. */
+    WEB(acceptsBearer = false),
+
+    /** The streams client. Refuses a bearer outright; use the TV player calls instead. */
+    ANDROID(acceptsBearer = false),
+
+    /** YouTube Music. A web client, so the same refusal applies. */
+    MUSIC(acceptsBearer = false),
+}
+
 public sealed interface SearchTarget {
     public data class Query(public val text: String) : SearchTarget
     public data class Continuation(public val token: String) : SearchTarget
