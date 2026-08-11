@@ -95,6 +95,7 @@ to do about it, which are different numbers whenever a silent stretch is in prog
 | Level | Where | What |
 |---|---|---|
 | unit | `core/playback/…/SilenceRacerTest` | 13 cases, including a rate chosen *during* a silence and 200 stretches in a row |
+| unit | `core/playback/…/ReportedSpeedTest` | that the two numbers differ while racing, and that the state mapping and the service still read the right one |
 | unit | `app/…/StreamChoicesTest` | the height rules, the cap beating the choice, the fallback both ways |
 | unit | `app/…/ChoicesSurviveTheNextVideoTest` | end to end through the launcher's real auto-advance path |
 
@@ -103,7 +104,12 @@ all four failed.
 
 ## Not covered
 
-- No test drives the **service** end of `ACTION_USER_SPEED` on a device; the racer's arithmetic is
-  covered, the session round trip is not.
+- **No test drives the session round trip on a device.** `ACTION_USER_SPEED` leaving the controller
+  and arriving at the service needs a real `MediaController`, a real service and a real silent
+  stretch; the racer's arithmetic is covered, and the two ends are guarded *at the source* by
+  `ReportedSpeedTest` — which fails if either reverts — but nothing proves the message actually
+  crosses. Asked directly whether this had pyramid tests (Dewi, 2026-08-11), the honest answer was
+  no, and three of those four guards were written afterwards. They fail against the old code; the
+  gap that remains is this one.
 - Captions surviving an item change is asserted by construction (re-applied every time) rather
   than by a test — it needs a real player with a caption track.
