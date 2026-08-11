@@ -84,6 +84,10 @@ class FakeAppContainer(
     override val torrentSearchSource: SearchSource? = null,
     override val homeTorrentServer: HomeTorrentServer? = null,
     override val videoSearchSource: SearchSource = YtDlpVideoSearchSource(ytDlpEngine),
+    // Empty rather than absent: previews and tests get the section, with nothing in it.
+    override val musicSearchSource: SearchSource = SearchSource { _, _, _ ->
+        SearchOutcome.Success(Page.last(emptyList()))
+    },
     override val searchHistoryStore: SearchHistoryStore = InMemorySearchHistoryStore(),
     override val playHistoryStore: PlayHistoryStore = InMemoryPlayHistoryStore(),
     override val playbackProgressStore: PlaybackProgressStore = NoOpPlaybackProgressStore,

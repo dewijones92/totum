@@ -61,6 +61,27 @@ public sealed interface SearchHit {
         public val indexer: String?,
     ) : SearchHit
 
+    /**
+     * A song from YouTube Music.
+     *
+     * **Not a fourth pillar**, for exactly the reason [Torrent] is not a third: a song's id is an
+     * ordinary YouTube `videoId`, so it plays, queues, downloads and goes offline through the
+     * machinery that already exists. What earns it its own variant is only what it KNOWS — an
+     * artist, an album and an exact duration, where a video knows an uploader and a view count —
+     * and a row that showed "Nina Simone" where the album should be would be a worse row.
+     */
+    public data class Song(
+        override val title: String,
+        override val subtitle: String?,
+        override val artworkUrl: HttpUrl?,
+        val watchUrl: HttpUrl,
+        val durationSeconds: Long?,
+        val artist: String?,
+        val album: String?,
+        /** "276M plays" as YouTube Music renders it; null when absent. */
+        val playsText: String? = null,
+    ) : SearchHit
+
     /** A subscribable podcast feed. */
     public data class Podcast(
         override val title: String,

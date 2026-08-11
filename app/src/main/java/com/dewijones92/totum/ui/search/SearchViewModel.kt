@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.append
 import com.dewijones92.totum.data.podcast.PodcastRepository
@@ -20,6 +21,7 @@ import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentEpisodes
 import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
@@ -63,8 +65,7 @@ class TorrentServices(val search: SearchSource, val server: HomeTorrentServer) {
 
 @Suppress("TooManyFunctions") // One method per user action on a screen with several sections.
 class SearchViewModel(
-    private val podcastSearch: SearchSource,
-    private val videoSearch: SearchSource,
+    private val sources: SearchSources,
     /** Null when no home server is configured — the section is then absent, not broken. */
     private val torrents: TorrentServices?,
     private val podcastRepository: PodcastRepository,
@@ -98,6 +99,7 @@ class SearchViewModel(
             val podcasts: SearchSection<List<SearchHit.Podcast>>,
             /** Carries its own continuation, so the section knows whether more exists. */
             val videos: SearchSection<Page<SearchHit.Video>>,
+            val songs: SearchSection<List<SearchHit.Song>> = SearchSection.Searching,
             /** [SearchSection.Absent] when no home server is set up, which is not a failure. */
             val torrents: SearchSection<List<SearchHit.Torrent>>,
             val loadingMore: Boolean = false,
@@ -106,7 +108,7 @@ class SearchViewModel(
 
             /** True while any section is still out — drives the one thin bar at the top. */
             val stillSearching: Boolean
-                get() = podcasts.isSearching || videos.isSearching || torrents.isSearching
+                get() = podcasts.isSearching || videos.isSearching || songs.isSearching || torrents.isSearching
         }
     }
 
@@ -208,6 +210,7 @@ class SearchViewModel(
             Results.Loaded(
                 podcasts = SearchSection.Searching,
                 videos = SearchSection.Searching,
+                songs = SearchSection.Searching,
                 // Absent, not Searching: with no home server there is no section to wait for.
                 torrents = if (torrents == null) SearchSection.Absent else SearchSection.Searching,
             ),
@@ -242,7 +245,7 @@ class SearchViewModel(
         launch {
             section<List<SearchHit.Podcast>>(
                 name = "podcasts",
-                run = { podcastSearch.search(query, RESULTS_PER_SECTION, after = null) },
+                run = { sources.podcasts.search(query, RESULTS_PER_SECTION, after = null) },
                 into = { loaded, s -> loaded.copy(podcasts = s) },
                 select = { it.page.items.filterIsInstance<SearchHit.Podcast>() },
             )
@@ -250,9 +253,17 @@ class SearchViewModel(
         launch {
             section<Page<SearchHit.Video>>(
                 name = "videos",
-                run = { videoSearch.search(query, RESULTS_PER_SECTION, after = null) },
+                run = { sources.videos.search(query, RESULTS_PER_SECTION, after = null) },
                 into = { loaded, s -> loaded.copy(videos = s) },
                 select = { it.page.videosOnly() },
+            )
+        }
+        launch {
+            section<List<SearchHit.Song>>(
+                name = "songs",
+                run = { sources.music.search(query, RESULTS_PER_SECTION, after = null) },
+                into = { loaded, s -> loaded.copy(songs = s) },
+                select = { it.page.items.filterIsInstance<SearchHit.Song>() },
             )
         }
         if (torrents != null) {
@@ -288,11 +299,22 @@ class SearchViewModel(
 
     /** Resolves the hit's stream (shared launcher) and hands it to the shared player. */
     fun playVideo(hit: SearchHit.Video) {
+        play(hit.watchUrl, hit.toMediaItem(AD_HOC_VIDEO_SOURCE))
+    }
+
+    /**
+     * A song plays down EXACTLY the same path as a video, because that is what it is: a YouTube
+     * video with music metadata. Anything else here would be a second playback route to keep in
+     * step with the first.
+     */
+    fun playSong(hit: SearchHit.Song) {
+        play(hit.watchUrl, hit.toMediaItem(AD_HOC_MUSIC_SOURCE))
+    }
+
+    private fun play(watchUrl: HttpUrl, item: MediaItem) {
         viewModelScope.launch {
-            playAttempt.value = PlayAttempt(resolving = hit.watchUrl.value)
-            val played = queue.playNow(
-                PlayableItem(hit.toMediaItem(AD_HOC_VIDEO_SOURCE), PlayHandle.Video(hit.watchUrl)),
-            )
+            playAttempt.value = PlayAttempt(resolving = watchUrl.value)
+            val played = queue.playNow(PlayableItem(item, PlayHandle.Video(watchUrl)))
             playAttempt.value = if (played) PlayAttempt() else PlayAttempt(failed = true)
         }
     }
@@ -345,7 +367,7 @@ class SearchViewModel(
         val query = activeQuery ?: return
         results.value = current.copy(loadingMore = true)
         viewModelScope.launch {
-            val outcome = videoSearch.search(query, RESULTS_PER_SECTION, token)
+            val outcome = sources.videos.search(query, RESULTS_PER_SECTION, token)
             // Re-read: a new query may have landed while this page was in flight, and
             // appending page two of the old search to it would be worse than dropping it.
             val latest = results.value as? Results.Loaded ?: return@launch
@@ -391,11 +413,21 @@ class SearchViewModel(
         /** Shared with the search row, which builds the same MediaItem for its actions. */
         internal val AD_HOC_VIDEO_SOURCE = SourceId("search:ad-hoc-video")
 
+        /**
+         * Its own source id, so history and play-state can tell a song apart from a video of the
+         * same thing. They ARE the same YouTube id, so the item id still matches — this only names
+         * where it came from.
+         */
+        internal val AD_HOC_MUSIC_SOURCE = SourceId("search:ad-hoc-song")
+
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 SearchViewModel(
-                    podcastSearch = container.podcastSearchSource,
-                    videoSearch = container.videoSearchSource,
+                    sources = SearchSources(
+                        podcasts = container.podcastSearchSource,
+                        videos = container.videoSearchSource,
+                        music = container.musicSearchSource,
+                    ),
                     torrents = TorrentServices.from(container),
                     podcastRepository = container.podcastRepository,
                     queue = container.playbackQueue,

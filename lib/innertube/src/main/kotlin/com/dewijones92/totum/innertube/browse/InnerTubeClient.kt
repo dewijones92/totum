@@ -36,6 +36,8 @@ public class InnerTubeClient(
     private val tvClientVersion: String = TV_CLIENT_VERSION,
     private val webClientVersion: String = WEB_CLIENT_VERSION,
     private val androidClientVersion: String = ANDROID_CLIENT_VERSION,
+    private val musicSearchUrl: String = MUSIC_SEARCH_URL,
+    private val musicClientVersion: String = MUSIC_CLIENT_VERSION,
 ) {
 
     public suspend fun browse(target: BrowseTarget, accessToken: AccessToken): InnerTubeResponse =
@@ -156,6 +158,23 @@ public class InnerTubeClient(
     public suspend fun search(target: SearchTarget): InnerTubeResponse =
         execute(searchUrl, webContext(target.fields()), bearer = null)
 
+    /**
+     * Song search on YouTube Music: the same InnerTube API, as the `WEB_REMIX` client.
+     *
+     * The songs FILTER is what makes this worth having. Verified live 2026-08-11: unfiltered, the
+     * music endpoint answers with a mixed bag — 4 videos, 3 albums, 3 artists, 3 playlists, 3
+     * podcasts and only 5 songs — while the filter returns twenty songs each with an artist, an
+     * album and an exact duration. A continuation carries the filter forward itself, so it is only
+     * sent with a fresh query.
+     */
+    public suspend fun searchMusic(target: SearchTarget): InnerTubeResponse {
+        val fields = when (target) {
+            is SearchTarget.Query -> target.fields() + ", \"params\":\"$MUSIC_SONGS_FILTER\""
+            is SearchTarget.Continuation -> target.fields()
+        }
+        return execute(musicSearchUrl, musicContext(fields), bearer = null, clientHeaders = MUSIC_HEADERS)
+    }
+
     /** Follows a continuation token (e.g. loading comments; WEB client, no auth). */
     public suspend fun nextContinuation(continuation: String): InnerTubeResponse =
         execute(nextUrl, webContext(""" "continuation":"$continuation" """), bearer = null)
@@ -175,6 +194,12 @@ public class InnerTubeClient(
         clientContext(
             """"clientName":"ANDROID","clientVersion":"$androidClientVersion","androidSdkVersion":34,"hl":"en"""",
             """"videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true""",
+        )
+
+    private fun musicContext(fields: String): String =
+        clientContext(
+            "\"clientName\":\"WEB_REMIX\",\"clientVersion\":\"$musicClientVersion\",\"hl\":\"en\",\"gl\":\"GB\"",
+            fields,
         )
 
     private fun webContext(field: String): String =
@@ -226,6 +251,31 @@ public class InnerTubeClient(
         public const val NEXT_URL: String = "$BASE/next?prettyPrint=false"
         public const val SEARCH_URL: String = "$BASE/search?prettyPrint=false"
         public const val PLAYER_URL: String = "$BASE/player?prettyPrint=false"
+
+        /**
+         * YouTube Music has its own host, and it matters: the `WEB_REMIX` client is only served
+         * music renderers there.
+         */
+        public const val MUSIC_SEARCH_URL: String = "https://music.youtube.com/youtubei/v1/search?prettyPrint=false"
+        public const val MUSIC_CLIENT_VERSION: String = "1.20240101.01.00"
+
+        /**
+         * "Songs only", as YouTube Music's own filter chip sends it.
+         *
+         * Opaque protobuf, so it is pinned rather than constructed, and verified live rather than
+         * copied: sent with the query it returns twenty songs, and omitted it returns a mixed bag
+         * that is mostly not music (see [searchMusic]).
+         */
+        internal const val MUSIC_SONGS_FILTER: String = "EgWKAQIIAWoKEAoQCRADEAQQBQ%3D%3D"
+
+        /**
+         * InnerTube cross-checks the declared client against these headers and rejects a request
+         * whose body and headers disagree — the lesson already paid for with `ANDROID_VR`.
+         */
+        private val MUSIC_HEADERS: Map<String, String> = mapOf(
+            "X-Youtube-Client-Name" to "67",
+            "X-Youtube-Client-Version" to MUSIC_CLIENT_VERSION,
+        )
 
         /** Matches yt-dlp's android client; YouTube rejects a stale one. */
         public const val ANDROID_CLIENT_VERSION: String = "20.10.38"

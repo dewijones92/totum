@@ -60,8 +60,19 @@ class SearchStreamsPerSectionTest {
     }
 
     private val videoGate = CompletableDeferred<SearchOutcome>()
+    private val musicGate = CompletableDeferred<SearchOutcome>()
     private val podcastGate = CompletableDeferred<SearchOutcome>()
     private val torrentGate = CompletableDeferred<SearchOutcome>()
+
+    private fun song(title: String) = SearchHit.Song(
+        title = title,
+        subtitle = "Nina Simone • I Put A Spell On You",
+        artworkUrl = null,
+        watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=${title.filter { it.isLetterOrDigit() }}"),
+        durationSeconds = 174,
+        artist = "Nina Simone",
+        album = "I Put A Spell On You",
+    )
 
     private fun video(id: String) = SearchHit.Video(
         title = "Video $id",
@@ -101,8 +112,11 @@ class SearchStreamsPerSectionTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun model(withHomeServer: Boolean = false) = SearchViewModel(
-        podcastSearch = SearchSource { _, _, _ -> podcastGate.await() },
-        videoSearch = SearchSource { _, _, _ -> videoGate.await() },
+        sources = SearchSources(
+            podcasts = SearchSource { _, _, _ -> podcastGate.await() },
+            videos = SearchSource { _, _, _ -> videoGate.await() },
+            music = SearchSource { _, _, _ -> musicGate.await() },
+        ),
         // No home server by default: the torrent section is then Absent, which one case asserts.
         torrents = if (!withHomeServer) {
             null
@@ -192,12 +206,14 @@ class SearchStreamsPerSectionTest {
         assertTrue((model.uiState.value.results as Results.Loaded).podcasts.isSearching)
 
         podcastGate.complete(page(podcast("A Feed")))
+        musicGate.complete(page(song("Feeling Good")))
         runCurrent()
 
         val results = model.uiState.value.results as Results.Loaded
         assertTrue("everything has answered", !results.stillSearching)
         assertEquals(1, results.videos.itemsOrNull?.items?.size)
         assertEquals(1, results.podcasts.itemsOrNull?.size)
+        assertEquals(1, results.songs.itemsOrNull?.size)
     }
 
     /** One source failing still must not hide another, which was true before and stays true. */

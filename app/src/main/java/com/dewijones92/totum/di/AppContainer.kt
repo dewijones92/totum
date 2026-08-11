@@ -37,6 +37,7 @@ import com.dewijones92.totum.data.podcast.DefaultPodcastRepository
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.search.FallbackSearchSource
+import com.dewijones92.totum.data.search.InnerTubeMusicSearchSource
 import com.dewijones92.totum.data.search.InnerTubeVideoSearchSource
 import com.dewijones92.totum.data.search.ItunesPodcastSearchSource
 import com.dewijones92.totum.data.search.SearchHistoryStore
@@ -89,6 +90,7 @@ import com.dewijones92.totum.innertube.feeds.HttpYouTubeFeeds
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 import com.dewijones92.totum.innertube.history.HttpYouTubeWatchHistory
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.HttpYouTubeMusicSearch
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -165,6 +167,9 @@ interface AppContainer {
     val playbackController: PlaybackController
     val podcastSearchSource: SearchSource
     val videoSearchSource: SearchSource
+
+    /** YouTube Music songs — the same seam, a different catalogue. */
+    val musicSearchSource: SearchSource
 
     /**
      * Torrents from the home server, or null when it has not been configured.
@@ -436,6 +441,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             primary = InnerTubeVideoSearchSource(HttpYouTubeSearch(innerTubeClient)),
             fallback = YtDlpVideoSearchSource(ytDlpEngine),
         )
+    }
+
+    /**
+     * No fallback, deliberately. yt-dlp has no music catalogue to fall back TO, and a section
+     * that says it failed is better than one quietly filled with ordinary video results.
+     */
+    override val musicSearchSource: SearchSource by lazy {
+        InnerTubeMusicSearchSource(HttpYouTubeMusicSearch(innerTubeClient))
     }
 
     override val searchHistoryStore: SearchHistoryStore by lazy {

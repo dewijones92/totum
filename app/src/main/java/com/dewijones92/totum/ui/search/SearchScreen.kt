@@ -94,6 +94,7 @@ fun SearchScreen(container: AppContainer, modifier: Modifier = Modifier) {
         onQueryChange = viewModel::onQueryChange,
         onSubscribe = viewModel::subscribe,
         onPlayVideo = viewModel::playVideo,
+        onPlaySong = viewModel::playSong,
         onPlayTorrent = viewModel::playTorrent,
         onRemoveHistory = viewModel::removeHistory,
         onClearHistory = viewModel::clearHistory,
@@ -115,6 +116,7 @@ internal fun SearchContent(
     onQueryChange: (String) -> Unit,
     onSubscribe: (SearchHit.Podcast) -> Unit,
     onPlayVideo: (SearchHit.Video) -> Unit,
+    onPlaySong: (SearchHit.Song) -> Unit,
     onPlayTorrent: (SearchHit.Torrent) -> Unit,
     onRemoveHistory: (String) -> Unit,
     onClearHistory: () -> Unit,
@@ -158,6 +160,7 @@ internal fun SearchContent(
                 state,
                 onSubscribe,
                 onPlayVideo,
+                onPlaySong,
                 onPlayTorrent,
                 actions,
                 onGoToChannel,
@@ -247,6 +250,7 @@ private fun ResultsList(
     state: UiState,
     onSubscribe: (SearchHit.Podcast) -> Unit,
     onPlayVideo: (SearchHit.Video) -> Unit,
+    onPlaySong: (SearchHit.Song) -> Unit,
     onPlayTorrent: (SearchHit.Torrent) -> Unit,
     actions: MediaItemActions,
     onGoToChannel: (MediaItem) -> Unit,
@@ -268,6 +272,14 @@ private fun ResultsList(
                 hit = hit,
                 subscribed = hit.feedUrl.value in state.subscribedFeeds,
                 onSubscribe = { onSubscribe(hit) },
+            )
+        }
+        hitSection({ stringResource(R.string.section_songs) }, results.songs) { hit: SearchHit.Song ->
+            SongHitRow(
+                hit = hit,
+                resolving = state.resolving == hit.watchUrl.value,
+                onPlay = { onPlaySong(hit) },
+                actions = actions,
             )
         }
         hitSection(
@@ -363,6 +375,39 @@ private fun VideoHitRow(
         onAddToPlaylist = { actions.addToPlaylist(item) },
         onPeek = { actions.peek(item) },
         onGoToSource = { onGoToChannel(item) },
+        trailing = { if (resolving) CircularProgressIndicator(modifier = Modifier.size(20.dp)) },
+        modifier = modifier,
+    )
+}
+
+/**
+ * A song row.
+ *
+ * The SAME [MediaItemRow] every other list uses, so a song gets the long-press menu, the play
+ * state and the offline indicator for free — the rule the unified-row test guards. Only the
+ * subtitle differs, because "artist • album" is what tells two recordings of one song apart and
+ * the shared formatter would render an upload date it does not have.
+ */
+@Composable
+private fun SongHitRow(
+    hit: SearchHit.Song,
+    resolving: Boolean,
+    onPlay: () -> Unit,
+    actions: MediaItemActions,
+    modifier: Modifier = Modifier,
+) {
+    val item = remember(hit) { hit.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) }
+    MediaItemRow(
+        item = item,
+        subtitle = hit.subtitle,
+        pillar = MediaKind.VIDEO,
+        onPlay = onPlay,
+        onDownload = {},
+        onDeleteDownload = {},
+        onPlayNext = { actions.playNext(item) },
+        onAddToQueue = { actions.addToQueue(item) },
+        onAddToPlaylist = { actions.addToPlaylist(item) },
+        onPeek = { actions.peek(item) },
         trailing = { if (resolving) CircularProgressIndicator(modifier = Modifier.size(20.dp)) },
         modifier = modifier,
     )

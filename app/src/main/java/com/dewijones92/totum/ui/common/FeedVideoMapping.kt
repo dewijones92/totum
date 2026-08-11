@@ -63,3 +63,23 @@ fun SearchHit.Video.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
     membersOnly = membersOnly,
     sourceUrl = channelUrl,
 )
+
+/**
+ * A song as a [MediaItem] — the same shape a video gets, which is what lets it queue and play
+ * through the one path.
+ *
+ * [SearchHit.Song.artist] becomes the author rather than the whole subtitle, because the subtitle
+ * carries "artist • album" for the row and an author of "Nina Simone • I Put A Spell On You" would
+ * read badly everywhere else the item appears — the queue, the notification, the lock screen.
+ */
+fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
+    id = MediaItemId(watchUrl.value),
+    sourceId = sourceId,
+    title = title,
+    publishedAt = null,
+    duration = durationSeconds?.takeIf { it > 0 }?.seconds,
+    author = artist,
+    thumbnailUrl = artworkUrl,
+    mediaUrl = watchUrl,
+    viewsText = playsText,
+)

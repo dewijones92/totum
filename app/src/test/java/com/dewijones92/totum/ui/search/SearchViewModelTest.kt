@@ -59,9 +59,9 @@ class SearchViewModelTest {
     private fun viewModel(
         podcastSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(listOf(podcastHit))) },
         videoSearch: SearchSource = YtDlpVideoSearchSource(engine),
+        musicSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
     ) = SearchViewModel(
-        podcastSearch = podcastSearch,
-        videoSearch = videoSearch,
+        sources = SearchSources(podcasts = podcastSearch, videos = videoSearch, music = musicSearch),
         // No home server in these tests: the section is simply absent, which is the common case.
         torrents = null,
         podcastRepository = repository,
