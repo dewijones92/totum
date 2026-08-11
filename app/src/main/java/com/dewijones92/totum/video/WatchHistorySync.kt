@@ -37,9 +37,16 @@ class WatchHistorySync(
 
             playback.state.collect { state ->
                 // Podcasts are not YouTube's business; a YouTube video is, picture or not.
-                if (state == null || state.kind != MediaKind.VIDEO) return@collect
+                if (state == null) return@collect
+                if (state.kind != MediaKind.VIDEO) {
+                    decline(state.itemId.value, "it is a ${state.kind}")
+                    return@collect
+                }
                 val lengthSec = (state.durationMs ?: 0L) / MILLIS_PER_SEC
-                if (lengthSec <= 0f) return@collect
+                if (lengthSec <= 0f) {
+                    decline(state.itemId.value, "no duration known yet")
+                    return@collect
+                }
 
                 val videoId = state.itemId.value
                 val positionSec = state.positionMs / MILLIS_PER_SEC
@@ -55,6 +62,12 @@ class WatchHistorySync(
                 if (finished) finishedVideoId = videoId
                 // Fire-and-forget so the 500ms state stream is never blocked on the network.
                 scope.launch {
+                    // Ensured HERE, not only where playback was started. Sessions used to be opened
+                    // in one place — the launcher's streaming path — so a queue item played from a
+                    // download never had one and every ping came back NoSession. Doing it where the
+                    // reporting happens means no caller can forget, and it is idempotent, so the
+                    // launcher's earlier (parallel with resolving) call is not wasted.
+                    if (firstForVideo) history.beginSession(videoId)
                     val result = history.reportProgress(videoId, positionSec, lengthSec, finished)
                     report(videoId, positionSec, finished, firstForVideo, result)
                 }
@@ -64,6 +77,22 @@ class WatchHistorySync(
 
     private var lastResult: WatchHistoryResult? = null
     private var routineReports = 0
+    private var declined: String? = null
+
+    /**
+     * Says when nothing will be reported, and why — once per item, not per state emission.
+     *
+     * Both of these used to be silent `return`s, and that silence is exactly why the pillar bug
+     * survived for weeks: a downloaded YouTube video was skipped as "a PODCAST" and no line
+     * anywhere said so. Once per item because the state stream ticks twice a second and a live
+     * stream never learns its duration, which would be a flood.
+     */
+    private fun decline(itemId: String, why: String) {
+        val note = "$itemId|$why"
+        if (declined == note) return
+        declined = note
+        Diag.log("yt-sync", "not reporting $itemId to YouTube: $why")
+    }
 
     /**
      * Says what changed, and counts what did not.

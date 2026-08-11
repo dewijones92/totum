@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -27,6 +28,18 @@ import org.junit.Test
 class WatchHistorySyncTest {
 
     private val playback = FakePlaybackController()
+
+    /**
+     * The breadcrumb trail is a global, so without this a test reads lines another test wrote —
+     * which is exactly what happened: two "no duration" lines, one of them from a case above.
+     */
+    @Before
+    fun clearTheTrail(): Unit = Breadcrumbs.clear()
+
+    private companion object {
+        /** Enough emissions to prove "once" is really once; the state stream ticks twice a second. */
+        const val TICKS = 5
+    }
     private val history = FakeYouTubeWatchHistory()
 
     /** A clock the test drives, so the report-interval logic is not wall-clock dependent. */
@@ -152,6 +165,66 @@ class WatchHistorySyncTest {
     }
 
     private fun syncLines() = Breadcrumbs.snapshot().count { it.tag == "yt-sync" }
+
+    /**
+     * THE BUG, at the sync's own door: a session is opened where the reporting happens.
+     *
+     * Sessions used to be opened only by the launcher's streaming path, so a queue item played
+     * from a download never had one and every ping came back NoSession.
+     */
+    @Test
+    fun `a session is opened for a video the launcher never announced`() = runTest {
+        sync()
+        runCurrent()
+
+        playback.emitState(state("fromDisk", kind = MediaKind.VIDEO, hasVideo = false))
+        runCurrent()
+
+        assertEquals(listOf("fromDisk"), history.sessions)
+        assertEquals(listOf("fromDisk"), history.reports.map { it.videoId })
+    }
+
+    @Test
+    fun `the session is opened once, not on every ping`() = runTest {
+        sync()
+        runCurrent()
+
+        repeat(TICKS) { tick ->
+            playback.emitState(state("v1", kind = MediaKind.VIDEO, hasVideo = false, positionMs = tick * 1_000L))
+            runCurrent()
+        }
+
+        assertEquals("one session per video, however many pings", listOf("v1"), history.sessions)
+    }
+
+    @Test
+    fun `a podcast says out loud that it is not being reported`() = runTest {
+        // Silent skips are why the pillar bug survived: a downloaded YouTube video was skipped as
+        // "a PODCAST" and no line anywhere said so.
+        sync()
+        runCurrent()
+
+        playback.emitState(state("ep1", kind = MediaKind.PODCAST, hasVideo = false))
+        runCurrent()
+
+        assertTrue(trail(), trail().contains("not reporting ep1 to YouTube: it is a PODCAST"))
+    }
+
+    @Test
+    fun `an item with no duration yet says so, once`() = runTest {
+        sync()
+        runCurrent()
+
+        repeat(TICKS) {
+            playback.emitState(state("live", kind = MediaKind.VIDEO, hasVideo = true, durationMs = null))
+            runCurrent()
+        }
+
+        val lines = Breadcrumbs.snapshot().count { it.message.contains("no duration known yet") }
+        assertEquals("a live stream ticks twice a second; one line is enough", 1, lines)
+    }
+
+    private fun trail(): String = Breadcrumbs.snapshot().joinToString("\n") { it.message }
 
     private fun state(
         id: String,

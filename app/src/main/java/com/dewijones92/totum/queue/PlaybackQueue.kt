@@ -9,7 +9,6 @@ import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
@@ -453,6 +452,21 @@ class PlaybackQueue(
      * file on the disk (Dewi, 2026-08-06). Whatever else changes, that asymmetry cannot come
      * back without deleting this call.
      */
+    /**
+     * The pillar is the ITEM's, never the presentation's.
+     *
+     * The two audio routes used to hand the player `MediaKind.PODCAST` — meaning "play this as
+     * audio", not "this is a podcast" — and everything downstream believed it. `WatchHistorySync`
+     * skips anything that is not a video, so **a YouTube video played from a downloaded file was
+     * invisible to Dewi's own account**, which with auto-download-audio on is most of his
+     * listening. Report 0.1.376 has it plainly: four plays, and only the streamed one reached
+     * YouTube. The pillar badge and the mini-player icon were wrong for the same reason.
+     *
+     * Listen-mode STREAMING was never affected — that goes through the launcher, which lets the
+     * `kind` parameter default to VIDEO. Only these two routes were wrong.
+     *
+     * Whether a picture is shown is `PlaybackState.hasVideo`'s business, and always was.
+     */
     private suspend fun route(queued: PlayableItem, startPositionMs: Long): Boolean {
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
@@ -476,7 +490,7 @@ class PlaybackQueue(
             is PlayRoute.AudioFile -> {
                 controller.play(
                     route.playable.item,
-                    MediaKind.PODCAST,
+                    queued.handle.pillar,
                     localPath = route.path,
                     startPositionMs = startPositionMs,
                 )
@@ -484,7 +498,7 @@ class PlaybackQueue(
             }
             is PlayRoute.VideoStream -> launcher.play(route.playable.item, route.watchUrl, startPositionMs)
             is PlayRoute.AudioStream -> {
-                controller.play(route.playable.item, MediaKind.PODCAST, startPositionMs = startPositionMs)
+                controller.play(route.playable.item, queued.handle.pillar, startPositionMs = startPositionMs)
                 true
             }
             is PlayRoute.Refused -> false

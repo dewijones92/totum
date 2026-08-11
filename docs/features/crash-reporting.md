@@ -209,3 +209,31 @@ Verified on device:
 ```
 
 with "Nothing new since the last check." shown on the row itself.
+
+## The pillar was lying, and the sync said nothing (2026-08-11)
+
+Dewi asked whether every YouTube interaction reaches his account, so the algorithm learns from what
+he actually listens to. It did not, and the diagnostics both proved it and explain why it took so
+long to notice.
+
+`PlaybackQueue.route()` handed the player `MediaKind.PODCAST` for its two audio routes — meaning
+"play this as audio", not "this is a podcast" — and `WatchHistorySync` skips anything that is not a
+video. So a YouTube video played from a downloaded file was never reported. Report 0.1.376: four
+plays in three minutes, and only the streamed one reached YouTube. `playing.kind = PODCAST` for a
+YouTube video is the whole diagnosis, sitting in the state block.
+
+**Both early exits were silent `return`s.** That is why weeks passed: the app decided not to tell
+YouTube about most of the listening, and no line anywhere said so. They now say which item and why,
+once per item rather than per emission — the state stream ticks twice a second and a live stream
+never learns its duration, which would be a flood.
+
+Two further lessons worth keeping:
+
+- **A session was opened in one place and needed in another.** `beginSession` was called only by
+  the launcher's streaming path, so a queue item played from disk had none and every ping would have
+  come back `NoSession` even after the pillar was fixed. It is now ensured where the reporting
+  happens, which no caller can forget.
+- **The scope of a claim needs checking against the code, not inferred from the shape of the bug.**
+  My first account of this said Listen-mode streaming was affected too. It was not: that path goes
+  through the launcher, which lets `kind` default to VIDEO. Writing the test is what found the
+  correction, before it reached a commit message.
