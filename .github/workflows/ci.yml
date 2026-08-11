@@ -104,6 +104,13 @@ jobs:
 
       # Always, not just on failure: a PASS that was really a skip looks identical otherwise,
       # and this suite's whole value is being believed about what it did.
+      - name: Summarise instrumented tests
+        if: always()
+        run: |
+          python3 tools/ci/test-summary.py "Instrumented tests (emulator)" \
+            app/build/outputs/androidTest-results core/database/build/outputs/androidTest-results \
+            core/playback/build/outputs/androidTest-results
+
       - name: Upload instrumented reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -138,6 +145,16 @@ jobs:
 
       - name: Unit tests
         run: ./gradlew test --no-daemon
+
+      # Reads the JUnit XML the tasks above already wrote and puts a table on the run page —
+      # every failure named, with its message, plus annotations. `if: always()` because the
+      # summary is worth most when something failed. See tools/ci/test-summary.py.
+      - name: Summarise unit tests
+        if: always()
+        run: |
+          python3 tools/ci/test_summary_test.py
+          python3 tools/ci/test-summary.py "Unit tests" \
+            $(ls -d */build/test-results */*/build/test-results 2>/dev/null)
 
       - name: Coverage gate (logic modules)
         run: ./gradlew koverVerify --no-daemon
@@ -228,6 +245,19 @@ jobs:
             --target "${GITHUB_SHA}" \
             --title "Totum main tip (0.1.${GITHUB_RUN_NUMBER})" \
             --notes-file release-notes.md
+
+      # Always, not only on failure: a passing run's HTML report is what answers "how long does
+      # this take now" and "did that flaky one skip", and downloading it later is impossible.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload reports on failure
         if: failure()

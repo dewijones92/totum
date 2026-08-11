@@ -347,3 +347,33 @@ Where the tiers landed for that fix, as a worked example of the pyramid:
 
 The live one runs only through the residential-egress tunnel, which is allowed to skip — so it
 adds proof but can never be the only proof. Both, not either.
+
+## Reading the results without downloading anything (2026-08-11)
+
+Dewi asked whether GitHub has a GUI for test pass/fail history. It does not: Actions shows ✅/❌
+per **job**, never per test, and does not parse JUnit XML at all. Ours was worse than it needed
+to be as well — unit-test HTML was uploaded only **on failure**, so a passing run left no way to
+ask "how long does this take now" or "did that flaky one skip again".
+
+Now every run's page carries a table: totals, and each failure named with its message, for unit
+tests and for the emulator job. Failures also become run annotations. `tools/ci/test-summary.py`
+reads the XML the test tasks already write — no third-party action, no extra token permissions,
+and nothing that can break because somebody re-tagged a release.
+
+Two details worth keeping:
+
+- **"No results" is reported explicitly**, and is the reason the script exists in this shape. A
+  test task that silently stopped running renders identically to a clean pass otherwise, which is
+  the worst possible green.
+- **It can never fail the build.** It exits 0 always; the test task is what decides. A summariser
+  that turns a green build red is a summariser people delete.
+
+It has its own tests (`tools/ci/test_summary_test.py`, run as part of the same CI step), and they
+earned it immediately: run as a step with the real `GITHUB_STEP_SUMMARY` set, they appended two
+bogus "No test results found" blocks to the actual job summary — the tests writing into the thing
+they were testing.
+
+**Still missing: history.** This is per-run. Trends across runs — pass rate, durations, which test
+fails intermittently — need the XML kept somewhere. The cheapest durable option is the Pi, which
+already runs the crashlog server with a SQLite index behind Google auth; that pattern would make
+"is `SearchSectionStatesTest` flaky?" answerable, which it currently is not.
