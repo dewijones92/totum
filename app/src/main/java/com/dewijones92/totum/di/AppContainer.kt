@@ -438,7 +438,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         // InnerTube first (it carries upload dates and needs no Python); the
         // engine's ytsearch stays as the fallback if YouTube's shape changes.
         FallbackSearchSource(
-            primary = InnerTubeVideoSearchSource(HttpYouTubeSearch(innerTubeClient)),
+            // Attributed to the account when signed in, so a search feeds the recommendations
+            // rather than crediting nobody; it falls back to the anonymous search on its own.
+            primary = InnerTubeVideoSearchSource(HttpYouTubeSearch(innerTubeClient, ::searchToken)),
             fallback = YtDlpVideoSearchSource(ytDlpEngine),
         )
     }
@@ -450,6 +452,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val musicSearchSource: SearchSource by lazy {
         InnerTubeMusicSearchSource(HttpYouTubeMusicSearch(innerTubeClient))
     }
+
+    /**
+     * The account token for a search, or null to leave it anonymous.
+     *
+     * Null on any problem rather than propagating one: an expired refresh must cost a search
+     * nothing, and the anonymous path is right there.
+     */
+    private suspend fun searchToken() =
+        (youTubeAccount.accessToken() as? AccessTokenResult.Available)?.token
 
     override val searchHistoryStore: SearchHistoryStore by lazy {
         SharedPrefsSearchHistoryStore(context)

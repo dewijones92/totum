@@ -237,3 +237,23 @@ Two further lessons worth keeping:
   My first account of this said Listen-mode streaming was affected too. It was not: that path goes
   through the launcher, which lets `kind` default to VIDEO. Writing the test is what found the
   correction, before it reached a commit message.
+
+### Searches are attributed too, safely (2026-08-11)
+
+Dewi: *"authed requests every if sensibly possible"*. Video search was anonymous, so none of it
+reached his account — and search history is a real algorithm input.
+
+A signed-in attempt now runs first, as the **TV client**, because that is the only identity
+InnerTube serves a bearer token to (a bearer with an ANDROID or WEB context is answered `HTTP 400`,
+the same lesson `playerDowngradedTv` already carries).
+
+**It can only ever add.** An authed attempt that fails *or parses to nothing* is discarded and the
+anonymous search runs instead. That second half is the important one: nobody can know from here
+whether the TV client answers `/search` with renderers this parser understands, and "no results" is
+not an error — so without that rule a wrong guess would silently empty the search screen, which
+looks exactly like YouTube having nothing for you. Which path answered is **logged**, so the next
+report from his phone settles it instead of another guess.
+
+Not done, and stated rather than implied: **music search stays anonymous**, and YouTube Music's own
+listening history is untouched. `WEB_REMIX` is a web client and would need the same bearer
+cross-check to pass, which there is no reason to expect.

@@ -159,6 +159,29 @@ public class InnerTubeClient(
         execute(searchUrl, webContext(target.fields()), bearer = null)
 
     /**
+     * Public search, but AS THE ACCOUNT, so the query joins your search history and feeds the
+     * recommendations that follow from it.
+     *
+     * The TV client, because only the TV identities accept a bearer token — a bearer with an
+     * ANDROID or WEB context is answered `HTTP 400`, InnerTube cross-checking the declared client
+     * against the headers. Same lesson `playerDowngradedTv` already carries.
+     *
+     * Whether the TV client answers search with renderers this app can parse is not something we
+     * can know from here, so nothing depends on it: the caller falls back to the anonymous WEB
+     * search when this returns nothing usable, and logs which one answered.
+     */
+    public suspend fun searchAsAccount(target: SearchTarget, accessToken: AccessToken): InnerTubeResponse =
+        execute(
+            searchUrl,
+            tvContext(target.fields()),
+            accessToken,
+            clientHeaders = mapOf(
+                "X-Youtube-Client-Name" to TV_CLIENT_ID,
+                "X-Youtube-Client-Version" to tvClientVersion,
+            ),
+        )
+
+    /**
      * Song search on YouTube Music: the same InnerTube API, as the `WEB_REMIX` client.
      *
      * The songs FILTER is what makes this worth having. Verified live 2026-08-11: unfiltered, the
