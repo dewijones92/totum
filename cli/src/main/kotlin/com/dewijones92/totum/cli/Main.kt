@@ -35,13 +35,17 @@ internal class Cli(
     private val out: (String) -> Unit = ::println,
     private val err: (String) -> Unit = System.err::println,
     private val launch: (List<String>) -> Int = ::runPlayer,
-    private val playerOnPath: (String) -> Boolean = ::isOnPath,
+    /** Whether a program is runnable. Used for the player AND by `doctor`, hence the plain name. */
+    private val onPath: (String) -> Boolean = ::isOnPath,
     private val wanted: List<String> = deviceLanguages(),
+    /** Whether the extractor is importable. Injected so `doctor` is testable without a Python. */
+    private val pythonHasYtDlp: () -> Boolean = ::ytDlpImports,
 ) {
 
     suspend fun run(command: Command): Int = when (command) {
         is Command.Help -> help(command.reason)
         is Command.Version -> version()
+        is Command.Doctor -> doctor()
         is Command.Search -> search(command)
         is Command.Resolve -> resolve(command)
         is Command.Play -> play(command)
@@ -50,8 +54,8 @@ internal class Cli(
     private suspend fun play(command: Command.Play): Int {
         val pick = pickFor(command.target, command.watch) ?: return FAILURE
         val player = choosePlayer() ?: return FAILURE
-        out("▶ ${pick.title}${pick.uploader?.let { " — $it" } ?: ""}")
-        out("  ${describe(pick)}")
+        out("> ${pick.title}${pick.uploader?.let { " - $it" } ?: ""}")
+        out("  ${pick.describe()}")
         // The picture is suppressed whenever you did not ask to watch, even when the only stream
         // on offer carries one. A 24/7 live stream publishes no audio-only format at all, so
         // "totum jazz live stream" would otherwise decode video nobody is looking at.
@@ -73,8 +77,8 @@ internal class Cli(
                     """"url":${pick.url.value.json()}}""",
             )
         } else {
-            out("${pick.title}${pick.uploader?.let { " — $it" } ?: ""}")
-            out(describe(pick))
+            out("${pick.title}${pick.uploader?.let { " - $it" } ?: ""}")
+            out(pick.describe())
             out(pick.url.value)
         }
         return OK
@@ -132,7 +136,7 @@ internal class Cli(
     /** `$TOTUM_PLAYER` if set, else the first known player on PATH. */
     private fun choosePlayer(): List<String>? {
         PlayerCommand.override(System.getenv("TOTUM_PLAYER"))?.let { return it }
-        val found = PlayerCommand.CANDIDATES.firstOrNull(playerOnPath)
+        val found = PlayerCommand.CANDIDATES.firstOrNull(onPath)
         if (found == null) {
             // Naming all three beats "no player found": the fix is one apt-get away and the user
             // should not have to read our source to learn which packages count.
@@ -142,27 +146,28 @@ internal class Cli(
         return found?.let(::listOf)
     }
 
-    private fun describe(pick: StreamPick): String = buildString {
-        append(if (pick.carriesVideo) "video stream" else "audio stream")
-        append(" · format ${pick.formatId}")
-        // Only when something is actually known: "Unknown" on every single-track video is noise
-        // that makes the one line worth reading harder to spot.
-        if (pick.audio.languageCode != null) append(" · ${pick.audio.label}")
-        if (pick.otherTracks.isNotEmpty()) {
-            append(" · also ${pick.otherTracks.joinToString(", ") { it.label }}")
-        }
-    }
-
     private fun help(reason: String?): Int {
         reason?.let(err)
         out(USAGE)
         return if (reason == null) OK else FAILURE
     }
 
+    /**
+     * Everything the machine needs, in one answer.
+     *
+     * Exits non-zero when something is missing, so `totum doctor && totum "jazz"` is a usable
+     * shape in a script and an install script can check its own work.
+     */
+    private fun doctor(): Int {
+        val found = Prerequisites.check(onPath = onPath, pythonHasYtDlp = pythonHasYtDlp)
+        Prerequisites.report(found).forEach(out)
+        return if (Prerequisites.ready(found)) OK else FAILURE
+    }
+
     private suspend fun version(): Int {
         val versions = runCatching { engine.versions() }.getOrNull()
         out("totum ${BuildInfo.VERSION}")
-        out("yt-dlp ${versions?.ytDlp ?: "not found"} · python ${versions?.python ?: "not found"}")
+        out("yt-dlp ${versions?.ytDlp ?: "not found"}, python ${versions?.python ?: "not found"}")
         return if (versions == null) FAILURE else OK
     }
 
@@ -178,12 +183,27 @@ private fun String?.json(): String =
 
 private fun ExtractionResult.Failure.describe(): String = when (this) {
     is ExtractionResult.Failure.UnsupportedUrl -> "no extractor recognises that URL"
-    is ExtractionResult.Failure.Network -> "network problem — $detail"
+    is ExtractionResult.Failure.Network -> "network problem - $detail"
     is ExtractionResult.Failure.Extractor -> detail
 }
 
 private fun runPlayer(command: List<String>): Int =
     ProcessBuilder(command).inheritIO().start().waitFor()
+
+/**
+ * Whether `python3` can import yt-dlp.
+ *
+ * Asked by running it, because a pip package can be installed and still not importable — a
+ * user-site install under a different interpreter is the common way that happens, and it is exactly
+ * the case a message about "install yt-dlp" would send somebody round in circles over.
+ */
+private fun ytDlpImports(): Boolean = runCatching {
+    ProcessBuilder(listOf("python3", "-c", "import yt_dlp"))
+        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        .redirectError(ProcessBuilder.Redirect.DISCARD)
+        .start()
+        .waitFor() == 0
+}.getOrDefault(false)
 
 private fun isOnPath(program: String): Boolean =
     System.getenv("PATH").orEmpty().split(':').any { java.io.File(it, program).canExecute() }
@@ -197,6 +217,7 @@ private val USAGE = """
       totum play <url|words> [--watch] --watch keeps the picture
       totum resolve <url|words> [--json]   print the stream, do not play it
       totum search <words> [--limit=N]     list what a phrase finds
+      totum doctor                     check this machine has what it needs
       totum version
 
     Environment:

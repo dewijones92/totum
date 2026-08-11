@@ -74,6 +74,11 @@ class CommandParsingTest {
     }
 
     @Test
+    fun `doctor is reachable`() {
+        assertTrue(parse(listOf("doctor")) is Command.Doctor)
+    }
+
+    @Test
     fun `help beats everything else, so it always works`() {
         assertTrue(parse(listOf("play", URL, "--help")) is Command.Help)
     }

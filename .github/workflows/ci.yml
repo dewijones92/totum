@@ -205,8 +205,12 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           ./gradlew :cli:installDist --no-daemon -PversionName="0.1.${GITHUB_RUN_NUMBER}"
+          # The installer travels INSIDE the archive as well as beside it, so an already-installed
+          # copy can upgrade itself without going back to the internet for a script.
+          cp tools/cli/install.sh cli/build/install/totum/install.sh
           tar -czf totum-cli.tar.gz -C cli/build/install totum
           sha256sum totum-cli.tar.gz > totum-cli.tar.gz.sha256
+          cp tools/cli/install.sh install.sh
 
       # A real tag per build, not a rolling one. Obtainium's default version string for a
       # GitHub source is the release TAG, so a permanently-fixed `latest` meant the
@@ -231,17 +235,22 @@ jobs:
             echo
             echo "**Android** - \`totum.apk\`, or add this repo to Obtainium."
             echo
-            echo "**Linux / macOS command line** - \`totum-cli.tar.gz\`:"
+            echo "**Linux / macOS command line** - one line, no sudo, nothing outside \$HOME:"
             echo
             echo '```'
-            echo "curl -L https://github.com/dewijones92/totum/releases/latest/download/totum-cli.tar.gz | tar xz"
-            echo "./totum/bin/totum \"jazz live stream\""
+            echo "curl -fsSL https://github.com/dewijones92/totum/releases/latest/download/install.sh | sh"
             echo '```'
             echo
-            echo "Needs Java 17+, \`python3\` with \`yt-dlp\` installed, and a player (\`mpv\`, \`vlc\` or \`ffplay\`)."
+            echo "It verifies the checksum, installs to \`~/.local/share/totum-cli\`, links \`~/.local/bin/totum\`,"
+            echo "and then runs \`totum doctor\` to tell you the exact command for anything missing."
+            echo
+            echo "Then: \`totum \"jazz live stream\"\`"
+            echo
+            echo "Needs Java 17+, \`python3\` with \`yt-dlp\`, and a player (\`mpv\`, \`vlc\` or \`ffplay\`)."
+            echo "\`totum doctor\` checks all of it. The raw archive is \`totum-cli.tar.gz\` if you prefer."
           } > release-notes.md
           gh release create "v0.1.${GITHUB_RUN_NUMBER}" \
-            totum.apk totum-mapping.txt totum-cli.tar.gz totum-cli.tar.gz.sha256 \
+            totum.apk totum-mapping.txt totum-cli.tar.gz totum-cli.tar.gz.sha256 install.sh \
             --target "${GITHUB_SHA}" \
             --title "Totum main tip (0.1.${GITHUB_RUN_NUMBER})" \
             --notes-file release-notes.md

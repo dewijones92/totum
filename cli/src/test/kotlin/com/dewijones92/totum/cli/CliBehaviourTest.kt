@@ -34,8 +34,9 @@ class CliBehaviourTest {
             launched += it
             Cli.OK
         },
-        playerOnPath = { it == "mpv" },
+        onPath = { it in setOf("mpv", "python3") },
         wanted = wanted,
+        pythonHasYtDlp = { true },
     )
 
     @Test
@@ -152,6 +153,30 @@ class CliBehaviourTest {
         val exit = cli(engine = Engine(hits = emptyList())).run(Command.Search("jazz", limit = 5))
 
         assertEquals(Cli.FAILURE, exit)
+    }
+
+    @Test
+    fun `doctor succeeds on a machine that has everything`() = runTest {
+        assertEquals(Cli.OK, cli().run(Command.Doctor))
+        assertTrue(printed.any { it.contains("Ready") })
+    }
+
+    @Test
+    fun `doctor FAILS when something is missing, so a script can act on it`() = runTest {
+        val broken = Cli(
+            engine = Engine(),
+            out = { printed += it },
+            err = { errors += it },
+            launch = {
+                launched += it
+                Cli.OK
+            },
+            onPath = { false },
+            pythonHasYtDlp = { false },
+        )
+
+        assertEquals(Cli.FAILURE, broken.run(Command.Doctor))
+        assertTrue(printed.any { it.contains("MISSING") })
     }
 
     @Test

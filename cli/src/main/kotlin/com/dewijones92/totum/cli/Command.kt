@@ -16,6 +16,9 @@ internal sealed interface Command {
 
     data class Help(val reason: String? = null) : Command
     data object Version : Command
+
+    /** Reports whether the machine has what this needs, and what to do if not. */
+    data object Doctor : Command
 }
 
 /** A URL to play, or words to search for. Told apart once, here. */
@@ -51,6 +54,7 @@ private fun command(words: List<String>, flags: Set<String>): Command {
             ?: Command.Help("search needs something to search for")
         "help" -> Command.Help()
         "version" -> Command.Version
+        "doctor" -> Command.Doctor
         // No sub-command: `totum <url>` and `totum jazz live stream` both mean play. The
         // shortest thing you can type should be the thing you do most.
         else -> words.play(flags, name)

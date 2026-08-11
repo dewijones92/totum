@@ -49,3 +49,17 @@ internal fun MediaMetadata.pick(wanted: List<String>, watch: Boolean): StreamPic
  */
 internal fun deviceLanguages(): List<String> =
     listOfNotNull(Locale.getDefault().language.ifBlank { null })
+
+/**
+ * The one line that says what is about to play, and why it was chosen.
+ *
+ * Beside the type rather than in the CLI, because it is a fact about the pick. The language is
+ * mentioned only when something is actually known — "Unknown" on every single-track video is noise
+ * that makes the line worth reading harder to spot.
+ */
+internal fun StreamPick.describe(): String = buildString {
+    append(if (carriesVideo) "video stream" else "audio stream")
+    append(", format $formatId")
+    if (audio.languageCode != null) append(", ${audio.label}")
+    if (otherTracks.isNotEmpty()) append("; also ${otherTracks.joinToString(", ") { it.label }}")
+}

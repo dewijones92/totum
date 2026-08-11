@@ -23,12 +23,49 @@ totum search <words> --limit=5  # list what a phrase finds
 ## Install
 
 ```
-curl -L https://github.com/dewijones92/totum/releases/latest/download/totum-cli.tar.gz | tar xz
-./totum/bin/totum "jazz live stream"
+curl -fsSL https://github.com/dewijones92/totum/releases/latest/download/install.sh | sh
 ```
+
+No sudo, nothing outside `$HOME`. It verifies the published sha256, unpacks into
+`~/.local/share/totum-cli`, links `~/.local/bin/totum`, warns if that is not on your PATH, and then
+runs `totum doctor` — which names anything missing **with the command to fix it**, rather than
+letting you find out at first use.
+
+Uninstalling is deleting those two paths. The raw archive is still published as
+`totum-cli.tar.gz` for anyone who would rather do it themselves.
 
 Same release as the APK, same version number, same commit — so the CLI and the phone are
 provably the same code. Needs Java 17+, `python3` with `yt-dlp`, and `mpv`, `vlc` or `ffplay`.
+
+### Two details in the installer that matter
+
+- **The whole script lives in a `main()` called on the last line.** Piping a download into a shell
+  runs whatever arrived, so a connection dropped halfway would otherwise execute *half* an
+  installer. This way a truncated file defines an incomplete function and runs nothing.
+- **A missing checksum is reported, not skipped silently.** A silent skip is indistinguishable from
+  a check that passed.
+
+Found by running it: `curl -fsSL … | sh` **exits 0 even when curl fails**, because the exit status
+is the shell's and the shell got no input. That is why the release notes fetch then run, rather
+than piping — and why the `main()` wrapper is there regardless.
+
+### `totum doctor`
+
+```
+ok    python3
+ok    yt-dlp
+ok    a media player
+
+Ready. Try: totum "jazz live stream"
+```
+
+Exits non-zero when something is missing, so `totum doctor && totum "…"` works in a script and the
+installer can check its own work. Its logic is a pure function over "what is present", so all
+eleven combinations are unit tests rather than something only visible on a broken machine.
+
+**Output is ASCII only.** An em dash and a `·` both render as `?` on a terminal without a UTF-8
+locale — seen while testing under `env -i`, which is exactly the stripped environment a container
+or a cron job runs in.
 
 ## Why it is in this repo
 
