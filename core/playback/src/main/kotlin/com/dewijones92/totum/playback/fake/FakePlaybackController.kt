@@ -67,8 +67,21 @@ public class FakePlaybackController : PlaybackController {
         _state.update { it?.copy(hasEnded = true, isPlaying = false) }
     }
 
-    public fun failStream(failure: StreamFailure) {
-        _streamFailures.tryEmit(failure)
+    /**
+     * Suspending, so the failure is genuinely delivered before the test looks at the result.
+     *
+     * It used to `tryEmit`, which put the value in a one-slot buffer that the collector never
+     * drained under a test dispatcher: a test could drive four failures, see no complaint, and
+     * conclude recovery had ignored them — when nothing had ever reached it. An empty capture is
+     * not evidence of an empty world, and a fake that drops the signal under test is the worst
+     * place to learn that.
+     */
+    public suspend fun failStream(failure: StreamFailure) {
+        // A failed stream is a STOPPED player, which the real controller reaches by going idle.
+        // Leaving isPlaying true here let a "has it recovered on its own?" check answer yes for a
+        // stream that had just died — the fake asserting the opposite of what it was modelling.
+        _state.update { it?.copy(isPlaying = false, isBuffering = false) }
+        _streamFailures.emit(failure)
     }
 
     /** No real player in the fake, so previews/tests show the audio layout. */

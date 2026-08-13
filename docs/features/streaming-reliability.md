@@ -3,7 +3,7 @@ title: Streaming reliability — chunked fetch, codec choice, expired-URL recove
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-06
+updated: 2026-08-13
 ---
 
 # Making video actually play
@@ -55,7 +55,7 @@ identical 403s** and two manual seeks trying to shake it loose.
 The queue has always held the stable watch URL rather than the signed one, so a fresh URL
 was one re-resolve away. Nothing asked for it.
 
-`Media3PlaybackController` now publishes a `StreamFailure`, and `ExpiredStreamRecovery`
+`Media3PlaybackController` now publishes a `StreamFailure`, and `StreamRecovery`
 (`:app`) replays the current item from where it stopped, through `PlaybackQueue`'s normal
 routing — which is what re-resolves. One seam, both pillars: podcast enclosures move and
 expire too.
@@ -68,6 +68,39 @@ and 5xx do not, because the content is gone or a fresh URL fails identically.
 **The retry budget is per stuck point, not per item.** Three attempts, but real progress
 since the last failure earns a fresh budget — a long listen legitimately crosses more than
 one lease. Without that, three expiries in one sitting would disable recovery for good.
+
+### A stuck point also ends when a human picks the item (0.1.383, 2026-08-13)
+
+Dewi: *"warfronts video not playing????? skipping to another 'rest is politics' video for
+some reason?????"*. The report answers it exactly, and the answer is three separate
+defects compounding around one genuinely bad URL.
+
+The video's signed **video track** 403'd from the first byte while its audio track was
+fine, across four independent fresh extractions. That much is YouTube's, not the app's —
+and recovery is built for it, and *worked*: attempt 2's fresh URL played the video
+normally at 21:03:28. What followed is all ours.
+
+1. **A waiting retry tore down the stream that had already recovered.** Attempt 3 armed a
+   4-second backoff at 21:03:28.467, 370ms before attempt 2's replay reached
+   `playing at 1ms`. It fired anyway at 21:03:32, forgot the good URL, re-resolved, and
+   restarted a healthy stream 8 seconds in — straight into a 403. Both guards now live
+   after the `delay`: if a fresh start has happened, or the item is playing again, the
+   attempt is dropped and (for the latter) the budget is handed back.
+2. **The budget was never reset when he chose the item himself.** After the give-up,
+   `attempts` stayed at 3 and `lastPositionMs` at 6063 — so both hand-taps that followed
+   hit `attempts >= maxAttempts` on their **first** error and skipped instantly. Two taps,
+   two `ERROR` lines, zero `re-resolving` lines between them, straight back to the next
+   video in the queue. That *is* the complaint. `PlaybackQueue` now publishes
+   `freshStarts` — every play that is somebody's intent, which is all of them except
+   recovery's own replay — and recovery starts over on each.
+3. **The dead URL stayed cached, so the tap was doomed before it began.** `forget()` was
+   only reached from `replayCurrent`, so `21:03:48.706 cache hit for ytZiDr1NLQc (play),
+   skipped extraction` handed back the address that had failed four times seconds earlier.
+   Recovery now forgets on *every* failure, before it decides whether to retry at all.
+
+Each fix carries a guard test proven to fail against the old code, plus
+`TappingAFailedItemAgainTest`, which wires the real queue to the real recovery — because
+all three parts were individually defensible and the answer was still wrong.
 
 ## Measured outcome
 
@@ -96,6 +129,14 @@ both ranged and unbounded, so the chunked probe is not the cause. Unreproduced; 
 rate-limiting after 24 resolves against a 58-item queue, but that is speculation. Recovery
 bounds it at three attempts instead of an infinite loop.
 
+**Still open, and it recurred on 0.1.383** — same shape, on `ytZiDr1NLQc`: the video track
+403'd at 0ms across four fresh extractions while the audio track loaded, and then a fifth
+resolve played it. So the URL is not permanently bad, which rules out the video itself and
+points at something per-request. What we now know that we did not before: it is
+**track-specific** (video 403s, audio does not) and **survives re-extraction**, so a
+retry ladder is the right shape of answer even though the cause is unidentified. The
+0.1.383 work was all about surviving it gracefully rather than diagnosing it.
+
 Separately: the app used to sit on an unplayable video rather than advancing. Raised with
 Dewi 2026-07-28, who said "maybe ok for now" — then fixed later the same day once it paired
 naturally with the download retry loop, since both were a permanent failure treated as
@@ -106,13 +147,22 @@ retryable. See [failure-handling.md](failure-handling.md).
 - `core/playback/…/ChunkedDataSource.kt` — the range-fetching wrapper
 - `core/playback/…/Media3PlaybackController.kt` — `looksExpired()`, `isExpiredStatus()`, `StreamFailure` emission
 - `core/playback/…/StreamFailure.kt`
-- `app/…/playback/ExpiredStreamRecovery.kt` — the retry budget
+- `app/…/playback/StreamRecovery.kt` — the retry budget, the fresh-start reset, the
+  post-backoff guards (named `ExpiredStreamRecovery` when this doc was written; it grew the
+  unreachable case and was renamed, and the doc had not kept up)
+- `app/…/queue/PlaybackQueue.kt` — `freshStarts`, and `forgetResolved` shared by the
+  failure path and the replay
 - `app/…/video/VideoCodecSupport.kt`, `VideoQuality.kt` — hardware-aware preference
 
 ## Tests
 
-- `ExpiredStreamRecoveryTest` — position, budget exhaustion, per-item budgets, progress
-  resetting the budget, a replay that cannot start
+- `StreamRecoveryTest` — position, budget exhaustion, per-item budgets, progress resetting
+  the budget, a replay that cannot start, and (0.1.383) a tap earning a whole new budget, a
+  waiting retry dropped once the item plays again or once something else starts, and every
+  failure forgetting its stream
+- `TappingAFailedItemAgainTest` — the queue and the recovery wired as `AppContainer` wires
+  them: the tap reaches recovery, a replay does not masquerade as one, and the dead address
+  is dropped on the failure rather than on the way into a retry
 - `ExpiredStatusTest` — which HTTP statuses earn a re-resolve
 
 **Not covered:** the cause-chain walk in `looksExpired()`. Building a Media3

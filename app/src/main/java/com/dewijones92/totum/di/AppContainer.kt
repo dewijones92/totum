@@ -717,6 +717,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             failures = playbackController.streamFailures,
             replay = playbackQueue::replayCurrent,
             moveOn = { playbackQueue.playNextInQueue() },
+            // Choosing something by hand is a new stuck point. Without this the budget carried
+            // over from the give-up, and report 0.1.383's two hand-taps of a failed video were
+            // each refused on their first error, with no retry and no re-resolve.
+            freshStarts = playbackQueue.freshStarts,
+            isPlaying = { id ->
+                playbackController.state.value?.let { it.itemId == id && it.isPlaying } == true
+            },
+            forgetResolved = playbackQueue::forgetResolved,
             // Started on the first failure, so the 20-25s extraction overlaps the retries
             // instead of following them. Report 0.1.277: 58s of silence, 28 of it after the app
             // had already given up on the dead stream.

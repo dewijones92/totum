@@ -30,6 +30,15 @@ class StreamRecoveryTest {
     /** Times the next item was resolved ahead — should be once per failing item, not per retry. */
     private var prefetched = 0
 
+    /** Plays the queue began that recovery did not ask for. */
+    private val freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = 8)
+
+    /** What the player says is playing right now, for the "did an earlier attempt work?" check. */
+    private var playingNow: MediaItemId? = null
+
+    /** Items whose cached resolution was dropped, in order. */
+    private val forgotten = mutableListOf<MediaItemId>()
+
     private fun TestScope.recovery(maxAttempts: Int = 3, backoffMs: Long = 0): StreamRecovery =
         StreamRecovery(
             failures = failures,
@@ -41,6 +50,9 @@ class StreamRecoveryTest {
                 movedOn++
                 true
             },
+            freshStarts = freshStarts,
+            isPlaying = { it == playingNow },
+            forgetResolved = { forgotten += it },
             prefetchNext = { prefetched++ },
             awaitNetwork = {
                 waitedForNetwork++
@@ -213,6 +225,134 @@ class StreamRecoveryTest {
 
         advanceTimeBy(4_001)
         assertEquals("and the third waits longer", 3, replayedFrom.size)
+    }
+
+    /**
+     * The bug Dewi hit in 0.1.383, in one test.
+     *
+     * A video's URL 403'd from the first byte, the budget was spent, and it was skipped —
+     * correctly. He then tapped it again and it jumped straight to the next video without
+     * trying once, because `attempts` was still at the limit and the position had not moved.
+     * Choosing something by hand has to mean starting over.
+     */
+    @Test
+    fun `tapping the item again gets a whole new budget, not an instant skip`() = runTest {
+        recovery(maxAttempts = 3)
+        runCurrent()
+        repeat(4) { failures.emit(expired("warfronts", at = 6_063)) }
+        runCurrent()
+        assertEquals("the budget is spent and it moves on", 1, movedOn)
+        replayedFrom.clear()
+
+        freshStarts.emit(MediaItemId("warfronts"))
+        runCurrent()
+        failures.emit(expired("warfronts", at = 6_063))
+        runCurrent()
+
+        assertEquals("a tap must be retried, not skipped on sight", listOf(6_063L), replayedFrom)
+        assertEquals("and it must not move on", 1, movedOn)
+    }
+
+    /**
+     * A retry that has already been beaten to it must not undo the win. In 0.1.383 attempt 3
+     * armed a 4s wait 370ms before attempt 2's replay started playing, then fired anyway: it
+     * re-resolved, restarted a healthy stream 8 seconds in, and got a 403 that skipped the item.
+     */
+    @Test
+    fun `a waiting retry is dropped once the item is playing again`() = runTest {
+        recovery(maxAttempts = 3, backoffMs = 2_000)
+        runCurrent()
+        failures.emit(expired("a", at = 0))
+        runCurrent()
+        assertEquals("the first attempt is immediate", 1, replayedFrom.size)
+
+        failures.emit(expired("a", at = 0)) // arms attempt 2 behind a 2s wait
+        runCurrent()
+        playingNow = MediaItemId("a") // ...and meanwhile the first attempt succeeded
+        advanceTimeBy(2_001)
+
+        assertEquals("must not restart a stream that is working", 1, replayedFrom.size)
+    }
+
+    /** And the budget it spent goes back, so a genuine later failure still gets rescued. */
+    @Test
+    fun `recovering on its own restores the budget`() = runTest {
+        recovery(maxAttempts = 3, backoffMs = 2_000)
+        runCurrent()
+        failures.emit(expired("a", at = 0))
+        runCurrent()
+        failures.emit(expired("a", at = 0)) // arms attempt 2 behind a 2s wait
+        runCurrent()
+        playingNow = MediaItemId("a") // ...which the first attempt makes moot
+        advanceTimeBy(2_001)
+        replayedFrom.clear()
+
+        playingNow = null
+        failures.emit(expired("a", at = 0))
+        runCurrent()
+
+        assertEquals("a fresh stuck point deserves a fresh attempt", listOf(0L), replayedFrom)
+    }
+
+    /**
+     * A dead signed URL is dead for everyone, so it must leave the cache the moment it fails —
+     * not only when recovery itself replays. Report 0.1.383 shows the hand-tap after the skip
+     * logging "cache hit … skipped extraction" against the address that had just failed
+     * four times, so it was hopeless before it started.
+     */
+    @Test
+    fun `a failed stream is forgotten on every failure, not just before a replay`() = runTest {
+        recovery(maxAttempts = 1)
+        runCurrent()
+        repeat(2) { failures.emit(expired("a", at = 500)) }
+        runCurrent()
+
+        assertEquals(
+            "the give-up failure must forget it too, or the next tap gets the dead URL",
+            listOf(MediaItemId("a"), MediaItemId("a")),
+            forgotten,
+        )
+    }
+
+    /**
+     * The wait for a network is the longest there is — a tunnel can last minutes — so it is the
+     * one most likely to be overtaken by the user picking something else in the meantime.
+     */
+    @Test
+    fun `a retry waiting for the network is abandoned when something else starts`() = runTest {
+        recovery()
+        runCurrent()
+        failures.emit(unreachable(at = 517_805))
+        runCurrent()
+        assertEquals("it should be waiting on the network", 1, waitedForNetwork)
+
+        freshStarts.emit(MediaItemId("b"))
+        runCurrent()
+        networkBack.complete(Unit)
+        runCurrent()
+
+        assertEquals(
+            "coming out of a tunnel must not yank the user off what they just started",
+            emptyList<Long>(),
+            replayedFrom,
+        )
+    }
+
+    /** A tap on something else during a backoff must not drag the old item's retry onto it. */
+    @Test
+    fun `a retry waiting out its backoff is abandoned when something else starts`() = runTest {
+        recovery(maxAttempts = 3, backoffMs = 2_000)
+        runCurrent()
+        failures.emit(expired("a", at = 500))
+        runCurrent()
+        failures.emit(expired("a", at = 500)) // arms attempt 2 behind a 2s wait
+        runCurrent()
+        replayedFrom.clear()
+
+        freshStarts.emit(MediaItemId("b"))
+        advanceTimeBy(2_001)
+
+        assertEquals("the pending retry would replay 'b' from 'a's position", emptyList<Long>(), replayedFrom)
     }
 
     private fun expired(id: String, at: Long) =

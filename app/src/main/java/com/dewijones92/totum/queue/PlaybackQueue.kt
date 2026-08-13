@@ -17,8 +17,11 @@ import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
@@ -123,6 +126,21 @@ class PlaybackQueue(
      * is the cursor" are different questions and now have different answers.
      */
     val nowPlaying: StateFlow<PlayableItem?> = _nowPlaying.asStateFlow()
+
+    private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
+
+    /**
+     * Every play that was somebody's *intent* — a tap, an auto-advance, a peek — as opposed to
+     * recovery replaying what is already current after a stream died.
+     *
+     * The distinction exists for one consumer, `StreamRecovery`, and one bug. Its retry budget is
+     * per stuck point, and with no way to hear about a new start it kept counting: in report
+     * 0.1.383 a video was correctly skipped after three failed recoveries, and the two hand-taps
+     * that followed were then refused instantly — same item, same position, budget already spent
+     * — so the app jumped to the next video without trying once. Emitted from [play], the single
+     * place playback starts, so nothing can begin without saying so.
+     */
+    val freshStarts: SharedFlow<MediaItemId> = _freshStarts.asSharedFlow()
 
     /**
      * Whether anything has changed the queue yet. Loading is suspending, so the user
@@ -422,7 +440,7 @@ class PlaybackQueue(
         // the same dead URL again: a real report (0.1.277) shows three "recoveries" eight
         // seconds apart, each logging "cache hit … skipped extraction", after which a perfectly
         // playable video was skipped as broken.
-        (entry.item.handle as? PlayHandle.Video)?.let { launcher.forgetResolved(it.watchUrl) }
+        forgetResolved(entry.item.item.id)
         // And for everything that is NOT a video, ask its source to get ready again — which for a
         // torrent means telling the home server to restart the remux behind its audio stream.
         //
@@ -433,13 +451,47 @@ class PlaybackQueue(
         // is to try. Found by writing the stall tests on 2026-08-03, not by a report.
         runCatching { refresh(entry.item) }
             .onFailure { Diag.warn("playback", "could not refresh ${entry.item.item.id.value} before replaying", it) }
-        return play(entry.item, positionMs)
+        return play(entry.item, positionMs, retry = true)
     }
 
-    /** Plays [queued]; returns whether it actually started. */
-    private suspend fun play(queued: PlayableItem, startPositionMs: Long = 0): Boolean {
+    /**
+     * Drops any cached resolution for [itemId], so the next play of it must resolve afresh.
+     *
+     * Called by recovery the moment a stream fails, not just when it replays. A signed URL that
+     * has 403'd is dead for everyone, and leaving it in the cache is what made the hand-taps in
+     * report 0.1.383 hopeless: `cache hit for ytZiDr1NLQc (play), skipped extraction` handed back
+     * the address that had failed four times seconds earlier.
+     *
+     * Only a video has a resolution to forget; anything else re-requests its source through
+     * [refresh], which belongs to an actual replay rather than to every failure — restarting a
+     * torrent's remux on the home server is not free.
+     */
+    fun forgetResolved(itemId: MediaItemId) {
+        val handle = entryFor(itemId)?.handle as? PlayHandle.Video ?: return
+        launcher.forgetResolved(handle.watchUrl)
+    }
+
+    /** The queued (or peeked) item with this id, if the queue still knows about it. */
+    private fun entryFor(itemId: MediaItemId): PlayableItem? =
+        _nowPlaying.value?.takeIf { it.item.id == itemId }
+            ?: _state.value.entries.firstOrNull { it.item.item.id == itemId }?.item
+
+    /**
+     * Plays [queued]; returns whether it actually started.
+     *
+     * [retry] marks recovery replaying what is already current, which is the one start that is
+     * NOT a new intent — everything else announces itself on [freshStarts] so recovery's retry
+     * budget starts over. Getting that backwards would make recovery reset its own budget on
+     * every attempt and retry a dead item forever.
+     */
+    private suspend fun play(
+        queued: PlayableItem,
+        startPositionMs: Long = 0,
+        retry: Boolean = false,
+    ): Boolean {
         // Recorded before routing, so a peek and a queued play are equally "playing".
         _nowPlaying.value = queued
+        if (!retry) _freshStarts.tryEmit(queued.item.id)
         return route(queued, startPositionMs)
     }
 
@@ -610,3 +662,6 @@ private fun QueueSnapshot.removingAt(index: Int): QueueSnapshot {
  */
 private const val REPEAT_WINDOW_MS = 400L
 private const val TITLE_CHARS = 60
+
+/** Room for a burst of starts, so a play is never dropped because nobody has collected yet. */
+private const val FRESH_START_BUFFER = 8
