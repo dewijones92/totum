@@ -44,6 +44,11 @@ import kotlinx.coroutines.launch
  *
  * @param replay plays the current item from a position, returning whether it started.
  * @param moveOn starts the next queue entry, for when re-resolving has stopped helping.
+ * @param playWithoutTheStream plays the current item from a copy on the disk, tried BEFORE moving
+ *   on. An audio-only download does not stand in while you are watching a working stream — Dewi's
+ *   call — but once the stream has failed every retry there is no working stream to prefer, and
+ *   report 0.1.383 skipped past a video whose audio was already downloaded. Returns false when
+ *   there is nothing on the disk, which is when moving on is the right answer.
  * @param freshStarts every play the queue began that recovery did not ask for — a tap, an
  *   auto-advance, a peek. Each one is a new stuck point: the budget resets and any retry still
  *   waiting out its backoff is abandoned.
@@ -67,6 +72,7 @@ internal class StreamRecovery(
     private val failures: Flow<StreamFailure>,
     private val replay: suspend (Long) -> Boolean,
     private val moveOn: suspend () -> Boolean,
+    private val playWithoutTheStream: suspend (Long) -> Boolean = { false },
     private val freshStarts: Flow<MediaItemId> = emptyFlow(),
     private val isPlaying: (MediaItemId) -> Boolean = { false },
     private val forgetResolved: (MediaItemId) -> Unit = {},
@@ -132,7 +138,17 @@ internal class StreamRecovery(
             // genuinely gone would be the same infinite loop wearing a different hat. But
             // giving up on the whole queue is not: a real report had the player dead on one
             // item with 58 more behind it, going nowhere. So move on, and say so.
-            Diag.warn("playback", "stream still failing after $attempts recoveries; skipping it")
+            Diag.warn("playback", "stream still failing after $attempts recoveries; giving up on the stream")
+            // Before abandoning the item, ask whether it is already on the disk. The rule that an
+            // audio-only copy must not silently replace a video you are watching assumes a working
+            // stream to prefer; once there is not one, the choice is audio or nothing, and report
+            // 0.1.383 had the audio sitting downloaded through three failed attempts and a skip.
+            if (playWithoutTheStream(failure.positionMs)) {
+                Diag.log("playback", "playing ${failure.itemId.value} from the copy on disk instead")
+                attempts = 0
+                return
+            }
+            Diag.warn("playback", "nothing on disk for ${failure.itemId.value} either; skipping it")
             if (!moveOn()) {
                 Diag.warn("playback", "nothing left in the queue to move on to")
             }

@@ -713,10 +713,22 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             prefetch = prefetchOne,
             scope = applicationScope,
         ).start()
+        startStreamRecovery(prefetchOne)
+        DiagnosticsUploader(context, httpClient, applicationScope).uploadPending()
+        // Kept current so [diagnosticState] can answer "was it downloaded?" without blocking.
+        downloadManager.observeDownloads()
+            .onEach { latestDownloadStates = it }
+            .launchIn(applicationScope)
+    }
+
+    /** Everything that gets a dead stream playing again, wired in one place. */
+    private fun startStreamRecovery(prefetchOne: suspend (PlayableItem) -> Unit) {
         StreamRecovery(
             failures = playbackController.streamFailures,
             replay = playbackQueue::replayCurrent,
             moveOn = { playbackQueue.playNextInQueue() },
+            // The last thing to try before abandoning the item: the copy already on the disk.
+            playWithoutTheStream = playbackQueue::playCurrentWithoutItsStream,
             // Choosing something by hand is a new stuck point. Without this the budget carried
             // over from the give-up, and report 0.1.383's two hand-taps of a failed video were
             // each refused on their first error, with no retry and no re-resolve.
@@ -732,11 +744,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             awaitNetwork = networkStatus::awaitOnline,
             scope = applicationScope,
         ).start()
-        DiagnosticsUploader(context, httpClient, applicationScope).uploadPending()
-        // Kept current so [diagnosticState] can answer "was it downloaded?" without blocking.
-        downloadManager.observeDownloads()
-            .onEach { latestDownloadStates = it }
-            .launchIn(applicationScope)
     }
 
     /**

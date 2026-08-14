@@ -488,11 +488,28 @@ class PlaybackQueue(
         queued: PlayableItem,
         startPositionMs: Long = 0,
         retry: Boolean = false,
+        streamRefused: Boolean = false,
     ): Boolean {
         // Recorded before routing, so a peek and a queued play are equally "playing".
         _nowPlaying.value = queued
         if (!retry) _freshStarts.tryEmit(queued.item.id)
-        return route(queued, startPositionMs)
+        return route(queued, startPositionMs, streamRefused)
+    }
+
+    /**
+     * Plays whatever is current WITHOUT its stream — the last thing to try before giving up on an
+     * item and moving on.
+     *
+     * Recovery calls this once its retries are spent. Everything else about routing is unchanged;
+     * the single difference is that an audio-only copy of a video is now allowed to stand in,
+     * because the alternative is no longer "watch it properly" but "do not play it at all".
+     * See [routeNow]'s `streamRefused`.
+     *
+     * Returns false when there is nothing on the disk either, which is when moving on is right.
+     */
+    suspend fun playCurrentWithoutItsStream(positionMs: Long): Boolean {
+        val entry = _state.value.current ?: return false
+        return play(entry.item, positionMs, retry = true, streamRefused = true)
     }
 
     /**
@@ -519,20 +536,29 @@ class PlaybackQueue(
      *
      * Whether a picture is shown is `PlaybackState.hasVideo`'s business, and always was.
      */
-    private suspend fun route(queued: PlayableItem, startPositionMs: Long): Boolean {
+    private suspend fun route(
+        queued: PlayableItem,
+        startPositionMs: Long,
+        streamRefused: Boolean = false,
+    ): Boolean {
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
         val audioNow = audioPreferred()
-        val route = queued.routeNow(onDisk, offline = offlineNow, audioPreferred = audioNow)
+        val route = queued.routeNow(
+            onDisk,
+            offline = offlineNow,
+            audioPreferred = audioNow,
+            streamRefused = streamRefused,
+        )
         // The decision AND its inputs, because a report can only ever answer the question it
         // was given the numbers for. "Skipped" with no copy and "skipped" with a copy it chose
         // not to use are the same line otherwise, and telling them apart is the whole diagnosis.
         Diag.log(
             "playback",
             "route ${queued.item.id.value} -> ${route.describe()} " +
-                "[handle=${queued.handle.javaClass.simpleName} " +
+                "[handle=${queued.handle.label} " +
                 "copy=${onDisk?.let { if (it.audioOnly) "audio-only" else "full" } ?: "none"} " +
-                "offline=$offlineNow listen=$audioNow]",
+                "offline=$offlineNow listen=$audioNow streamRefused=$streamRefused]",
         )
         return when (route) {
             is PlayRoute.VideoFile -> {
@@ -567,6 +593,7 @@ private fun PlayRoute.describe(): String = when (this) {
     is PlayRoute.Refused -> when (reason) {
         Refusal.NothingToPlay -> "refused: there is nothing to play"
         Refusal.NotOnThisDevice -> "refused: not downloaded and there is no network"
+        Refusal.StreamWillNotPlay -> "refused: the stream will not play and there is no copy on disk"
     }
 }
 

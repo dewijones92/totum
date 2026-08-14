@@ -39,6 +39,10 @@ class StreamRecoveryTest {
     /** Items whose cached resolution was dropped, in order. */
     private val forgotten = mutableListOf<MediaItemId>()
 
+    /** Whether the current item has a copy on disk, and the positions it was played from. */
+    private var diskHasIt = false
+    private val playedFromDisk = mutableListOf<Long>()
+
     private fun TestScope.recovery(maxAttempts: Int = 3, backoffMs: Long = 0): StreamRecovery =
         StreamRecovery(
             failures = failures,
@@ -49,6 +53,10 @@ class StreamRecoveryTest {
             moveOn = {
                 movedOn++
                 true
+            },
+            playWithoutTheStream = { at ->
+                if (diskHasIt) playedFromDisk += at
+                diskHasIt
             },
             freshStarts = freshStarts,
             isPlaying = { it == playingNow },
@@ -336,6 +344,54 @@ class StreamRecoveryTest {
             emptyList<Long>(),
             replayedFrom,
         )
+    }
+
+    /**
+     * Before abandoning an item, look on the disk.
+     *
+     * An audio-only download does not stand in while you are watching a working stream — Dewi's
+     * call, 2026-08-06 — but once the stream has failed every retry there is no working stream to
+     * prefer. Report 0.1.383 skipped past the WarFronts video three times with its audio already
+     * downloaded (`copy=audio-only`, 29 of 29 queue items ready).
+     */
+    @Test
+    fun `it plays the copy on disk before giving up on the item`() = runTest {
+        diskHasIt = true
+        recovery(maxAttempts = 1)
+        runCurrent()
+        repeat(2) { failures.emit(expired("a", at = 6_063)) }
+        runCurrent()
+
+        assertEquals("it should have played from the disk", listOf(6_063L), playedFromDisk)
+        assertEquals("and must NOT have skipped the item", 0, movedOn)
+    }
+
+    /** With nothing on the disk, moving on is right — the queue must not be left stuck. */
+    @Test
+    fun `with nothing on disk it still moves on`() = runTest {
+        diskHasIt = false
+        recovery(maxAttempts = 1)
+        runCurrent()
+        repeat(2) { failures.emit(expired("a", at = 500)) }
+        runCurrent()
+
+        assertEquals(1, movedOn)
+    }
+
+    /** Playing from disk ends the stuck point, so a later failure is rescued rather than skipped. */
+    @Test
+    fun `falling back to the disk restores the budget`() = runTest {
+        diskHasIt = true
+        recovery(maxAttempts = 1)
+        runCurrent()
+        repeat(2) { failures.emit(expired("a", at = 6_063)) }
+        runCurrent()
+        replayedFrom.clear()
+
+        failures.emit(expired("a", at = 6_063))
+        runCurrent()
+
+        assertEquals(listOf(6_063L), replayedFrom)
     }
 
     /** A tap on something else during a backoff must not drag the old item's retry onto it. */

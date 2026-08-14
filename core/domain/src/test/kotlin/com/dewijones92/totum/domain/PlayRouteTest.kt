@@ -194,4 +194,71 @@ class PlayRouteTest {
 
         assertEquals(video().playedFromDisk(audioCopy), record.offline)
     }
+    // ---- When the stream itself will not play (added 2026-08-14, report 0.1.383) ----
+
+    /**
+     * THE case. An audio-only copy does not stand in while you are *watching*, because a working
+     * stream is the better answer — but once the stream has failed every retry the comparison is
+     * no longer "audio or video", it is "audio or nothing".
+     *
+     * Report 0.1.383: the WarFronts video was downloaded audio-only (`copy=audio-only`, all 29
+     * queue items ready), its stream 403'd from the first byte, and the app skipped past it to the
+     * next video three times without ever reaching for the file.
+     */
+    @Test
+    fun `once the stream is refused, an audio-only copy of a video does stand in`() {
+        val route = video().routeNow(
+            audioCopy,
+            offline = false,
+            audioPreferred = false,
+            streamRefused = true,
+        )
+
+        assertEquals(PlayRoute.AudioFile(video().playedFromDisk(audioCopy), audioCopy.path), route)
+    }
+
+    /** And with nothing on the disk there is genuinely nothing left — which is when to move on. */
+    @Test
+    fun `a refused stream with no copy is refused, not retried`() {
+        val route = video().routeNow(null, offline = false, audioPreferred = false, streamRefused = true)
+
+        assertEquals(PlayRoute.Refused(Refusal.StreamWillNotPlay), route)
+    }
+
+    /**
+     * The rule it must not undo: with the stream working, watching still wins. Otherwise every
+     * video in a queue that auto-downloads audio would quietly lose its picture.
+     */
+    @Test
+    fun `while the stream is fine, an audio-only copy still does not stand in`() {
+        val route = video().routeNow(audioCopy, offline = false, audioPreferred = false)
+
+        assertEquals(PlayRoute.VideoStream(video(), watchUrl), route)
+    }
+
+    /** A full copy was always preferred, and a refusal does not change that. */
+    @Test
+    fun `a refused stream still plays a full copy as video`() {
+        val route = video().routeNow(fullCopy, offline = false, audioPreferred = false, streamRefused = true)
+
+        assertEquals(PlayRoute.VideoFile(video().playedFromDisk(fullCopy), fullCopy.path), route)
+    }
+
+    /** Both pillars, one seam: a podcast with its enclosure downloaded behaves the same way. */
+    @Test
+    fun `a refused podcast stream plays its downloaded file`() {
+        val route = podcast().routeNow(audioCopy, offline = false, audioPreferred = false, streamRefused = true)
+
+        assertEquals(PlayRoute.AudioFile(podcast().playedFromDisk(audioCopy), audioCopy.path), route)
+    }
+
+    /** Nothing to play beats the stream refusal, because it is true whatever the network did. */
+    @Test
+    fun `an item with no stream and no copy still reports nothing to play`() {
+        val nothing = PlayableItem(item(mediaUrl = null), PlayHandle.Podcast())
+
+        val route = nothing.routeNow(null, offline = false, audioPreferred = false, streamRefused = true)
+
+        assertEquals(PlayRoute.Refused(Refusal.NothingToPlay), route)
+    }
 }

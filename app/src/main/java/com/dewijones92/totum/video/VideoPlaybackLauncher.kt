@@ -67,6 +67,19 @@ class VideoPlaybackLauncher(
     /** Its watch URL, which is what the resolver is keyed by — needed to re-pick audio tracks. */
     private var currentWatchUrl: HttpUrl? = null
 
+    /**
+     * Which play request is the current one. Only the newest may actually start playback.
+     *
+     * An extraction takes 5–11 seconds on a real phone, and taps arrive during it. The resolver
+     * already de-duplicates the *extraction* — a second caller joins the first rather than
+     * running it again — but every joined caller then went on to play. Report 0.1.383: three
+     * taps four seconds apart while an 11-second extraction ran, and when it landed the same
+     * video was handed to the player **three times in 81ms**, with three `beginSession` calls to
+     * YouTube. A tap on a *different* video during a resolve is the worse version of the same
+     * thing: the older request would start playing over the newer one.
+     */
+    private var latestRequest = 0L
+
     /** Plays an already-downloaded file — no re-resolution, and no quality choice (it's one merged file). */
     /** Drops any cached resolution for [watchUrl] — see [VideoResolver.forget]. */
     fun forgetResolved(watchUrl: HttpUrl) {
@@ -94,9 +107,21 @@ class VideoPlaybackLauncher(
      * video can't be resolved (private, removed, geo-blocked, …).
      */
     suspend fun play(listing: MediaItem, watchUrl: HttpUrl, startPositionMs: Long = 0): Boolean {
+        val request = ++latestRequest
         // `asked` names WHO wanted this, because a report showed one video extracted four
         // times in thirty seconds and the log could not say by whom.
         val extracted = resolver.resolve(watchUrl, listing.sourceId, asked = "play") ?: return false
+        if (request != latestRequest) {
+            // True rather than false: something IS playing, just not this. Returning false makes
+            // an auto-advance treat the item as unplayable and skip to the NEXT one, which would
+            // have it fighting whatever the user just chose.
+            Diag.log(
+                "playback",
+                "dropping the play of ${listing.id.value} — ${latestRequest - request} newer " +
+                    "request(s) arrived while it resolved",
+            )
+            return true
+        }
         // The listing's facts kept, ONCE, here — so every path below (a quality switch, Listen
         // mode, a stall replay) carries the view count and publication date without knowing it
         // has to. A resolution has nothing to say about either, and all three resolver paths

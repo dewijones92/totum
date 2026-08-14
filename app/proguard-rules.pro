@@ -14,3 +14,18 @@
 # rename keeps the file name itself obfuscated, which is the standard trade.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Keep the NAMES of exception classes, for the same reason and a worse one.
+#
+# Report 0.1.383 carried `wv1: Response code: 403` and `ob1: Source error` — those are Media3's
+# InvalidResponseCodeException and ExoPlaybackException, and the trail was readable only because
+# their messages happened to say enough. Three places print an exception's class name: Diag's
+# error suffix, `playback.lastLoadError`, and the crash report's `exception` / `causeException`.
+#
+# The last of those is the serious one. The crashlog server's web index **groups by exception**,
+# and an R8 name is only stable within one build — so the same fault reported from two versions
+# lands in two groups with names that mean nothing, which is precisely the "group by version
+# before counting" trap wearing a different hat.
+#
+# Names only, not members: nothing here is about reflection, so the size cost is a string table.
+-keepnames class * extends java.lang.Throwable

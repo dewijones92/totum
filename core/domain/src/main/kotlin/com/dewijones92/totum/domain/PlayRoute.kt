@@ -20,6 +20,13 @@ public enum class Refusal {
 
     /** Playable, but only over a network there isn't one of. */
     NotOnThisDevice,
+
+    /**
+     * There is a network and a stream address, and the stream itself will not play — asked for
+     * after recovery has exhausted its retries, when the only remaining question is whether
+     * anything on the disk can stand in.
+     */
+    StreamWillNotPlay,
 }
 
 /**
@@ -79,12 +86,13 @@ public fun PlayableItem.routeNow(
     onDisk: LocalCopy?,
     offline: Boolean,
     audioPreferred: Boolean,
+    streamRefused: Boolean = false,
 ): PlayRoute {
     // A handle may already point at a file (Library plays these); the store answers for
     // everything else, because a handle is fixed when the item is queued and the download
     // finishes long afterwards.
     val copy = handle.ownCopy() ?: onDisk
-    val usable = copy?.takeIf { it.isWorthPlaying(handle.pillar, offline, audioPreferred) }
+    val usable = copy?.takeIf { it.isWorthPlaying(handle.pillar, offline, audioPreferred, streamRefused) }
     val audioUrl = (handle as? PlayHandle.Podcast)?.audioUrl?.takeIf { audioPreferred }
     val hasStream = handle is PlayHandle.Video || item.mediaUrl != null || audioUrl != null
     return when {
@@ -99,6 +107,9 @@ public fun PlayableItem.routeNow(
         // is the more useful thing to be told.
         !hasStream -> PlayRoute.Refused(Refusal.NothingToPlay)
         offline -> PlayRoute.Refused(Refusal.NotOnThisDevice)
+        // Asking again for a stream that has just been given up on would loop. Reaching here
+        // means there was no copy worth playing either, so there is genuinely nothing left.
+        streamRefused -> PlayRoute.Refused(Refusal.StreamWillNotPlay)
         handle is PlayHandle.Video -> PlayRoute.VideoStream(this, handle.watchUrl)
         audioUrl != null -> PlayRoute.AudioStream(copy(item = item.copy(mediaUrl = audioUrl)), viaAudioOnlyUrl = true)
         else -> PlayRoute.AudioStream(this, viaAudioOnlyUrl = false)
@@ -136,9 +147,17 @@ private fun PlayHandle.ownCopy(): LocalCopy? = when (this) {
  * audio-only copy of a *video* while you are actually watching: playing that would silently
  * take the picture away, so we stream instead and keep the file for the plane. Dewi's call,
  * 2026-08-06, on "prefer local always, or only when offline?".
+ *
+ * [streamRefused] is the case where that exception stops applying, added 2026-08-14. The rule is
+ * about not *silently* dropping the picture when a perfectly good stream exists — but once the
+ * stream has failed every retry, the choice is not "audio or video", it is "audio or nothing", and
+ * skipping to the next item is the worse answer. Report 0.1.383: an audio copy of the WarFronts
+ * video was on the disk (`copy=audio-only`, 29 of 29 queue items downloaded) through three failed
+ * attempts, and the app never once reached for it.
  */
 private fun LocalCopy.isWorthPlaying(
     pillar: MediaKind,
     offline: Boolean,
     audioPreferred: Boolean,
-): Boolean = !audioOnly || pillar == MediaKind.PODCAST || audioPreferred || offline
+    streamRefused: Boolean,
+): Boolean = !audioOnly || pillar == MediaKind.PODCAST || audioPreferred || offline || streamRefused

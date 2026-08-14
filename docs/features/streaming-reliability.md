@@ -102,6 +102,34 @@ Each fix carries a guard test proven to fail against the old code, plus
 `TappingAFailedItemAgainTest`, which wires the real queue to the real recovery — because
 all three parts were individually defensible and the answer was still wrong.
 
+### The audio was on the disk the whole time (2026-08-14)
+
+A fourth thing the same report showed, raised with Dewi and settled by him: the WarFronts video was
+**already downloaded audio-only** (`copy=audio-only`, all 29 queue items ready), and the app skipped
+past it three times without reaching for the file.
+
+That was `routeNow` behaving as designed — an audio-only copy does not silently take the picture
+away while you are watching. The rule assumes a working stream to prefer, though, and once every
+retry has failed the comparison is no longer "audio or video" but **"audio or nothing"**, where
+skipping is the worse answer. So `routeNow` gained `streamRefused`, which is the fourth reason an
+audio-only copy is worth playing, alongside offline / Listen mode / it being a podcast — one seam,
+both pillars, and the watching rule untouched while the stream is fine.
+
+Recovery asks for it *after* its budget is spent and *before* it moves on. Reaching that state with
+nothing on the disk is a new `Refusal.StreamWillNotPlay`, which is when moving on is right.
+
+### Only the newest play wins (2026-08-14)
+
+An extraction is 5–11 seconds on a phone and taps arrive during it. The resolver already
+de-duplicates the *extraction* — a second caller joins the first — but every joined caller then went
+on to play: three taps four seconds apart produced the same video handed to the player **three times
+in 81ms**, with three `beginSession` calls to YouTube. `VideoPlaybackLauncher` now stamps each
+request and only the newest may start playback.
+
+A superseded request returns `true`, not `false`. False would make an auto-advance treat the item as
+unplayable and skip to the *next* one, so it would fight whatever the user had just chosen — worse
+than the duplicate it replaced.
+
 ## Measured outcome
 
 Emulator, the video that previously stalled every seven seconds:

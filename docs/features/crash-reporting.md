@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-08-01
+updated: 2026-08-14
 ---
 
 # Crash reporting
@@ -283,3 +283,54 @@ What still cannot be authenticated, stated rather than implied: **the streams cl
 refuses a bearer — the TV player calls exist for the cases that need an account), **comments**,
 **channel tabs**, and **music search**. `WEB_REMIX` is a web client, so YouTube Music's own
 listening history remains untouched.
+
+## Reading the report itself was the bug (0.1.383, 2026-08-14)
+
+Dewi, having had the WarFronts diagnosis: *"any weird stuff in the diags i sent you??"*. Six
+things, and three of them were the instrumentation lying rather than the app misbehaving. Worth
+recording as a class, because every one of them reads perfectly in a **debug** build or in a
+**short** session, which is why they survived.
+
+### R8 renames the things we print
+
+Every route line in the release report read `handle=wr3`. `PlaybackQueue` used
+`javaClass.simpleName`, and R8 renames `PlayHandle.Video`. The field says which route an item
+took — the exact thing that hid the watch-history bug three days earlier — and it was noise.
+`PlayHandle.label` is now a literal per case, exhaustive so a new handle cannot be added without
+one, and verified **in the minified APK** rather than assumed: `Video`, `LocalVideo`, `Podcast`
+and `PodcastFile` are all present as strings in `classes.dex`.
+
+The same fault, worse, in three more places: `wv1: Response code: 403` and `ob1: Source error` are
+Media3's `InvalidResponseCodeException` and `ExoPlaybackException`. Those names reach `Diag`'s
+error suffix, `playback.lastLoadError`, and the crash report's `exception` / `causeException` —
+**and the crashlog server's web index groups by exception name.** An R8 name is stable only within
+one build, so the same fault from two versions lands in two groups with names that mean nothing.
+`-keepnames class * extends java.lang.Throwable` fixes all four at once; `mapping.txt` confirms
+both classes now map to themselves.
+
+### A per-item measurement that never resets is not a measurement
+
+`PlaybackAnalytics` had no `onMediaItemTransition`, so `inFlight`, `loadedTo` and `outstanding`
+accumulated for the whole session. Thirteen transitions in ninety-six seconds gave
+`18 load(s) in flight, oldest 84804ms` — six of them the same `startedAt` values across four
+different videos, because a load issued against a source the player has since released can never
+complete, cancel or fail.
+
+The costly one is `loaded to: track--1=3657572ms` against a **24-minute** video. `loadedTo` is
+keyed by track name alone and only ever moves forward, so once anything reached 61 minutes the
+figure was pinned at the session maximum. That is the number separating *starved* (nothing
+buffered — network or URL) from *stuck* (data in hand, still frozen — decoder), and it was
+answering "plenty buffered" unconditionally. Its own file already carried two comments about this
+exact class of leak (0.1.306, 0.1.359) — both fixed for *cancellation*, neither for transitions.
+
+`onLoadError` also decremented the count without publishing it, alone among the three terminal
+outcomes — so the figure was stale-high in exactly the sessions it exists for.
+
+### The rule
+
+**A diagnostic is code, and it fails the same ways code does.** Ask of each one: does it survive
+minification, does it reset when the thing it describes is replaced, and is it published on every
+path that changes it? All three failures here answer "no" silently and produce a plausible number,
+which is worse than producing none. `AnalyticsResetPerItemTest` (instrumented — `LoadEventInfo`
+needs an `android.net.Uri`) and `PlayHandleLabelTest` pin them; both were watched failing first,
+the analytics one reporting `audio=3657572ms` for a ten-second item.

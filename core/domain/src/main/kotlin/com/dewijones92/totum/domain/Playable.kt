@@ -26,6 +26,23 @@ public sealed interface PlayHandle {
     ) : PlayHandle
 
     /**
+     * What to call this handle in a log line.
+     *
+     * A literal per case rather than `javaClass.simpleName`, because R8 renames the classes and
+     * a **release** build printed `handle=wr3`. Report 0.1.383 has it on every route line, and it
+     * reads perfectly in debug — which is why it shipped. The field says which route an item
+     * took, so it is one of the few worth having at all; an unreadable one is worse than none.
+     *
+     * Exhaustive on purpose: a new handle cannot be added without giving it a name.
+     */
+    public val label: String
+        get() = when (this) {
+            is Video -> "Video"
+            is LocalVideo -> "LocalVideo"
+            is Podcast -> if (localPath != null) "PodcastFile" else "Podcast"
+        }
+
+    /**
      * This handle plus any route [newer] knows about that this one does not.
      *
      * Re-queueing something can only ever ADD a way to reach it, never take one away. That

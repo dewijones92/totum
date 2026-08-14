@@ -56,7 +56,7 @@ class AccountViewModel(
                 _state.value = event.toUiState()
                 // As soon as sign-in lands, load the live subscriptions so the
                 // rest of the app reflects it without a restart.
-                if (event is DeviceLoginEvent.Succeeded) accountSubscriptions.refresh()
+                if (event is DeviceLoginEvent.Succeeded) accountSubscriptions.refresh(force = true)
             }
         }
     }
@@ -73,7 +73,7 @@ class AccountViewModel(
             account.signOut()
             _state.value = UiState.SignedOut
             // Clear the live subscription list (and the feed) app-wide.
-            accountSubscriptions.refresh()
+            accountSubscriptions.refresh(force = true)
         }
     }
 

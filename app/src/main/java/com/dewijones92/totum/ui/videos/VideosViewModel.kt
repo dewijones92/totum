@@ -239,8 +239,9 @@ class VideosViewModel(
                 FeedState(selected = choice, loading = false, videos = videos, next = result.page.next)
             }
             FeedResult.SignedOut -> {
-                // Token died mid-session — re-check, which clears signedIn app-wide.
-                accountSubscriptions.refresh()
+                // Token died mid-session — re-check, which clears signedIn app-wide. Only the
+                // boolean is wanted here; refreshing fetched 1,594 channels to learn it.
+                accountSubscriptions.recheckSignedIn()
                 FeedState()
             }
             is FeedResult.Failure -> FeedState(choice, loading = false, error = true)
@@ -260,7 +261,9 @@ class VideosViewModel(
         if (refreshing.value) return
         viewModelScope.launch {
             refreshing.value = true
-            accountSubscriptions.refresh()
+            // Pull-to-refresh means "get me the current truth", so the freshness window
+            // does not apply.
+            accountSubscriptions.refresh(force = true)
             when (val choice = feedState.value.selected) {
                 is FeedChoice.Account -> refreshAccountFeed(choice.feed)
                 is FeedChoice.Group -> feedState.update {
@@ -286,7 +289,7 @@ class VideosViewModel(
                 // no longer see.
                 feedState.update { it.copy(videos = items, error = false, next = result.page.next) }
             }
-            FeedResult.SignedOut -> accountSubscriptions.refresh()
+            FeedResult.SignedOut -> accountSubscriptions.recheckSignedIn()
             is FeedResult.Failure -> Unit // keep what's shown
         }
     }
@@ -318,7 +321,7 @@ class VideosViewModel(
                     )
                 }
                 FeedResult.SignedOut -> {
-                    accountSubscriptions.refresh()
+                    accountSubscriptions.recheckSignedIn()
                     feedState.value = FeedState()
                 }
                 // A failed page keeps the token, so scrolling again retries rather than

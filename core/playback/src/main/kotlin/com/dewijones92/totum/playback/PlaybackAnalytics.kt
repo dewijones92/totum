@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import androidx.media3.common.C
 import androidx.media3.common.Format
+import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -198,6 +199,11 @@ internal class PlaybackAnalytics : AnalyticsListener {
         wasCanceled: Boolean,
     ) {
         outstanding = (outstanding - 1).coerceAtLeast(0)
+        // Published here as well as in the complete and cancel paths. It was the one terminal
+        // outcome that decremented the counter without saying so, which left the figure in a
+        // report stale-high whenever errors were what was happening — the exact sessions the
+        // number exists for. 26 load errors in report 0.1.383.
+        Vitals.set("playback.loadsOutstanding", outstanding.toString())
         forget(loadEventInfo.loadTaskId)
         Vitals.add("playback.loadErrors")
         Vitals.set("playback.lastLoadError", "${mediaLoadData.trackName()}: ${error.javaClass.simpleName}")
@@ -207,6 +213,36 @@ internal class PlaybackAnalytics : AnalyticsListener {
                 "after ${loadEventInfo.loadDurationMs}ms — ${loadEventInfo.uri}",
             error,
         )
+    }
+
+    /**
+     * A new item starts with a clean slate, because none of this survives the old one.
+     *
+     * Everything here describes ONE item's loading, and nothing was clearing it. Report 0.1.383,
+     * thirteen transitions in ninety-six seconds, shows both halves of the damage:
+     *
+     *  - `18 load(s) in flight, oldest 84804ms` — the same six `startedAt` values across four
+     *    different videos. A load issued against a source the player has since released cannot
+     *    complete, cancel or fail, so its entry stayed for ever and the count only climbed.
+     *  - `loaded to: track--1=3657572ms` on a **24-minute** video. `loadedTo` is keyed by track
+     *    name alone and only ever moves forward, so once any item reached 61 minutes the figure
+     *    was pinned at the session maximum forever.
+     *
+     * That second one is the number that separates *starved* (nothing buffered — a network or URL
+     * problem) from *stuck* (seconds in hand and still frozen — a decoder problem), which is the
+     * question this listener exists to answer. It was answering "plenty buffered" unconditionally.
+     *
+     * The rolling throughput samples are deliberately NOT cleared: they describe the connection,
+     * which does not change because the video did, and a fresh item would otherwise report no
+     * bandwidth at all for its first few chunks.
+     */
+    override fun onMediaItemTransition(eventTime: AnalyticsListener.EventTime, mediaItem: MediaItem?, reason: Int) {
+        inFlight.clear()
+        loadedTo.clear()
+        outstanding = 0
+        Vitals.set("playback.loadsOutstanding", "0")
+        Vitals.set("playback.loadedTo", "nothing yet")
+        publishInFlight()
     }
 
     /** Dropped frames separate "the network starved" from "the device could not keep up". */
