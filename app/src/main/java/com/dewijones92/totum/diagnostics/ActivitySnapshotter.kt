@@ -23,6 +23,13 @@ import kotlinx.coroutines.launch
  *
  * Silent when nothing is happening, so an idle app in the background writes nothing and
  * the retention window is spent on the parts that matter.
+ *
+ * And silent when nothing has CHANGED, which is a different thing and cost 13% of a real report.
+ * Report 0.1.385 carried 52 byte-identical lines — 28 of `at 3033844ms (stopped)` and 24 of
+ * `at 1441250ms (stopped)` — because a paused player produces an identical description every
+ * thirty seconds forever. Half that report's four-hundred-entry buffer was heartbeats. A repeat
+ * is counted and stated once when it ends, per the counted-never-silent rule the rest of the
+ * trail follows: "nothing has changed" is worth knowing, and worth exactly one line.
  */
 internal class ActivitySnapshotter(
     private val playback: PlaybackController,
@@ -42,9 +49,38 @@ internal class ActivitySnapshotter(
         }
     }
 
+    private var lastLine: String? = null
+    private var repeats = 0
+
     private suspend fun snapshot() {
-        val line = describe() ?: return
+        val line = describe() ?: run {
+            flushRepeats()
+            lastLine = null
+            return
+        }
+        if (line == lastLine) {
+            repeats++
+            return
+        }
+        flushRepeats()
+        lastLine = line
         Diag.log("snapshot", line)
+    }
+
+    /**
+     * Says how long the unchanged stretch lasted, once, when something finally changes.
+     *
+     * Dropping repeats silently would be the opposite mistake: a player frozen at one position for
+     * twenty minutes is a finding, and it would look identical to a gap in the trail. The duration
+     * is spelled out rather than left as a count, because "×40" means nothing without the interval.
+     */
+    private fun flushRepeats() {
+        if (repeats == 0) return
+        Diag.log(
+            "snapshot",
+            "...and unchanged for the next $repeats snapshot(s), ${repeats * intervalMs / MILLIS_PER_SEC}s",
+        )
+        repeats = 0
     }
 
     /** Null when there is nothing worth recording, which keeps an idle app quiet. */
@@ -87,5 +123,6 @@ internal class ActivitySnapshotter(
         const val MAX_LISTED_DOWNLOADS = 3
         const val PERCENT = 100
         const val BYTES_PER_MB = 1024 * 1024
+        const val MILLIS_PER_SEC = 1_000
     }
 }

@@ -12,11 +12,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -29,12 +31,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
+import com.dewijones92.totum.diagnostics.diagnosticsNote
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
 
@@ -241,16 +246,26 @@ private fun ViewDiagnosticsRow(onOpen: () -> Unit) {
 
 @Composable
 private fun DiagnosticsRow(container: AppContainer) {
-    var sent by remember { mutableStateOf(false) }
-    val note = stringResource(R.string.settings_diagnostics_note)
+    var sent by rememberSaveable { mutableStateOf(false) }
+    var asking by rememberSaveable { mutableStateOf(false) }
+    val fallback = stringResource(R.string.settings_diagnostics_note)
+
+    if (asking) {
+        DiagnosticsNoteDialog(
+            onDismiss = { asking = false },
+            onSend = { typed ->
+                container.sendDiagnostics(diagnosticsNote(typed, fallback))
+                asking = false
+                sent = true
+            },
+        )
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !sent) {
-                container.sendDiagnostics(note)
-                sent = true
-            }
+            .clickable(enabled = !sent) { asking = true }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Column(Modifier.weight(1f)) {
@@ -267,6 +282,51 @@ private fun DiagnosticsRow(container: AppContainer) {
             )
         }
     }
+}
+
+/**
+ * Asks what went wrong before sending, because the reader's problem is knowing WHICH of four
+ * hundred events to look at.
+ *
+ * Sending is never blocked on it — an empty box still sends, and that is deliberate: the worst
+ * outcome here is a report that does not get sent because writing a description felt like work.
+ * See [diagnosticsNote].
+ */
+@Composable
+private fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String) -> Unit) {
+    var typed by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_diagnostics_note_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.settings_diagnostics_note_supporting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it.take(NOTE_MAX_CHARS) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .testTag("diagnostics-note"),
+                    placeholder = { Text(stringResource(R.string.settings_diagnostics_note_hint)) },
+                    minLines = 3,
+                    maxLines = 6,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSend(typed) }) {
+                Text(stringResource(R.string.settings_diagnostics_send))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -83,6 +84,26 @@ class DiagnosticsContentTest {
             "the queue's per-item download states must name the item",
             state!!.getString("downloads.queueStates").contains("an item to report on"),
         )
+    }
+
+    /**
+     * The note reaches the report, which is the whole point of asking for one.
+     *
+     * Dewi, 2026-08-15: he wanted a box to type what went wrong into, because a report is four
+     * hundred events and the sentence "warfronts video not playing, skipping to another Rest Is
+     * Politics video" is what made 0.1.383 diagnosable. A box that types into nothing would be
+     * indistinguishable from one that works, right up until the report that needed it.
+     */
+    @Test
+    fun `what the user typed reaches the report`() {
+        val typed = "tapped the WarFronts video and it jumped to another one"
+        val before = DiagnosticsStore.pending(context).toSet()
+
+        container.sendDiagnostics(diagnosticsNote(typed, "Sent by hand from Settings"))
+
+        val written = DiagnosticsStore.pending(context).firstOrNull { it !in before }
+        assertTrue("no report was written at all", written != null)
+        assertEquals(typed, JSONObject(written!!.readText()).optString("note"))
     }
 
     private companion object {

@@ -175,6 +175,9 @@
     <string name="settings_diagnostics_sent">Diagnostics sent</string>
     <string name="settings_diagnostics_summary">Sends the recent event log and app state so a problem can be diagnosed.</string>
     <string name="settings_diagnostics_note">Sent by hand from Settings</string>
+    <string name="settings_diagnostics_note_title">What went wrong?</string>
+    <string name="settings_diagnostics_note_supporting">A line about what you were doing helps pinpoint the moment in the report. Optional — you can send without it.</string>
+    <string name="settings_diagnostics_note_hint">e.g. tapped the WarFronts video and it jumped to another one</string>
     <string name="settings_auto_download">Download queued audio</string>
     <string name="settings_auto_download_summary">Keeps everything in the queue listenable offline.</string>
     <string name="settings_auto_download_wifi">Wi-Fi only</string>

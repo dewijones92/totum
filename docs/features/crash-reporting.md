@@ -334,3 +334,41 @@ path that changes it? All three failures here answer "no" silently and produce a
 which is worse than producing none. `AnalyticsResetPerItemTest` (instrumented — `LoadEventInfo`
 needs an `android.net.Uri`) and `PlayHandleLabelTest` pin them; both were watched failing first,
 the analytics one reporting `audio=3657572ms` for a ten-second item.
+
+## Saying what went wrong, in your own words (2026-08-15)
+
+Dewi: *"it would be good to have a free-form text box where I can just tell you a bit more context
+about the diagnostics, like the problem I faced in the UX"*. **Send diagnostics** now opens a box
+first; what you type becomes the report's `note`.
+
+The field always existed and always said `Sent by hand from Settings`, which the `kind` field
+already implies — so every hand-sent report arrived with no statement of what it was about. That is
+a bigger gap than it sounds, because a report is four hundred events and the reader's whole problem
+is knowing **which moment to look at**. On 0.1.383 the sentence *"warfronts video not playing,
+skipping to another Rest Is Politics video"* is what made `21:03:48` the interesting timestamp;
+without it the trail reads as a video that failed and was skipped, which is the app working
+correctly. Six words turned an ambiguous trail into a three-defect diagnosis.
+
+Sending is never blocked on writing one — an empty box still sends, deliberately, because the worst
+outcome is a report that never arrives because describing it felt like work. `diagnosticsNote` is
+pure and holds the rules (trim, blank falls back, bounded at 2000 chars since the note is uploaded).
+
+Three levels of test, because each covers a different way this can be broken: `DiagnosticsNoteTest`
+for the rules, `DiagnosticsContentTest` for the note reaching the report JSON, and
+`DiagnosticsNoteBoxTest` driving the real dialog — a box wired to nothing looks exactly like one
+that works until the report that needed it, and that test was watched failing against a Send button
+that ignored the typed text.
+
+## A heartbeat that repeats itself is not a heartbeat (0.1.385, 2026-08-15)
+
+The same report that confirmed the fixes above carried **52 byte-identical snapshot lines** — 28 of
+`at 3033844ms (stopped)` and 24 of `at 1441250ms (stopped)` — because a paused player produces an
+identical description every thirty seconds for as long as it stays paused. Half of that four-hundred
+entry buffer (202 lines) was snapshot and memory heartbeats.
+
+`ActivitySnapshotter` was already silent when nothing was *happening*. It is now also quiet when
+nothing has *changed*, which is a different thing: a repeat is counted and the stretch stated once
+when it ends — `...and unchanged for the next 12 snapshot(s), 360s`. Dropping repeats silently would
+be the opposite mistake, since a player frozen at one position for twenty minutes is a finding and
+would otherwise be indistinguishable from a gap in the trail. The duration is spelled out rather
+than left as a bare count, because "×12" means nothing without the interval.
