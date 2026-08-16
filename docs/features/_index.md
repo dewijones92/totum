@@ -49,6 +49,7 @@ alone until they need more.
 | Crash + diagnostics reporting (verbose reports to the Pi) | infrastructure | shipped | [crash-reporting.md](crash-reporting.md) |
 | Row status (pillar / played / offline on every row) | ui | shipped | [row-status.md](row-status.md) |
 | Feed pagination (account feeds + channel tabs) | video | shipped | [feed-pagination.md](feed-pagination.md) |
+| Shorts and live streams listed with the videos, tagged | video | shipped | [shorts-in-the-feed.md](shorts-in-the-feed.md) |
 | Brand: Totum name, palette and icon | branding | shipped | [brand.md](brand.md) |
 | Download notifications (progress / done / failed, aggregated) | downloads | shipped | [download-notifications.md](download-notifications.md) |
 | Quality + speed as an on-video overlay | ui | shipped | [video-settings-overlay.md](video-settings-overlay.md) |
