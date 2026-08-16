@@ -36,6 +36,15 @@ internal object VideoTileParser {
         collectVideoTiles(root) { tile ->
             tile.toFeedVideo()?.let { videos.putIfAbsent(it.videoId, it) }
         }
+        // A Shorts SHELF, when YouTube sends one. This is how SmartTube gets Shorts into a TV
+        // feed (`BrowseService2.getShortsTV` reads the same subscriptions response and pulls the
+        // shelf out of it) — the tiles above and the shelf are different shapes in the same body.
+        //
+        // Measured against Dewi's own account on 2026-08-16: a 3.6 MB subscriptions response with
+        // 45 tiles and NO shelf, which is SmartTube's open bug #4278 rather than anything of ours.
+        // Kept anyway because it costs one walk of a tree already parsed, and it is the difference
+        // between Shorts appearing the day YouTube starts sending the shelf and nobody noticing.
+        LockupParser.shortsIn(root).forEach { videos.putIfAbsent(it.videoId, it) }
         // No token means the last page. A response that parsed but yielded no tiles is
         // also the end, whatever it claims, or "load more" would spin forever.
         val items = videos.values.toList()
@@ -145,14 +154,33 @@ internal object VideoTileParser {
             ?: (command["reelWatchEndpoint"] as? JsonObject)?.stringAt("videoId")
     }
 
-    /** First metadata line's text is the channel/author. */
-    private fun JsonObject.authorLine(): String? {
-        val firstLine = (this["lines"] as? JsonArray)?.firstOrNull() as? JsonObject ?: return null
-        val items = ((firstLine["lineRenderer"] as? JsonObject)?.get("items") as? JsonArray) ?: return null
-        val text = ((items.firstOrNull() as? JsonObject)?.get("lineItemRenderer") as? JsonObject)
-            ?.get("text") as? JsonObject ?: return null
-        return text.readText()?.ifBlank { null }
-    }
+    /**
+     * The channel: the first metadata line that is neither a view count nor a date.
+     *
+     * By SHAPE, like every other field here — it used to take line ZERO by position, and was the
+     * one field in this parser that still did. On a third of the rows in Dewi's own subscriptions
+     * feed (23 of 55, measured 2026-08-16) that first line is the view count, so the channel name
+     * came out as "760K views" and the row then read `📺 760K views / 👁️ 760K views`.
+     *
+     * It had been that way for a long time and was invisible while the three facts shared one
+     * truncating line; giving each its own line put it on screen. `LockupParser` already excluded
+     * the two by shape, so this is the same rule, not a new one.
+     */
+    private fun JsonObject.authorLine(): String? =
+        metadataLine { it.couldBeAChannelName() }
+
+    /**
+     * Whether a metadata line could be a channel at all: not a view count, not a date, and not
+     * punctuation.
+     *
+     * The last clause is not hypothetical. The first version of this excluded only views and
+     * dates, and the very next run on Dewi's feed showed `📺 ·` — YouTube renders the separator
+     * between metadata lines as its own line item, and a bare "·" is neither a view count nor a
+     * date. Requiring one letter or digit is what makes "is this a name" a question about the
+     * text rather than about what it is not.
+     */
+    private fun String.couldBeAChannelName(): Boolean =
+        !looksLikeViews() && !looksLikePublished() && any { it.isLetterOrDigit() }
 
     /** Duration lives in the thumbnail's time-status overlay, as "m:ss"/"h:mm:ss". */
     private fun JsonObject.durationSeconds(): Long? {

@@ -47,11 +47,23 @@ internal object LockupParser {
 
     fun shorts(body: String): Page<FeedVideo> {
         val root = parseOrNull(body) ?: return Page.empty()
+        val items = shortsIn(root)
+        return root.pageOf(items)
+    }
+
+    /**
+     * The Shorts tiles anywhere under an ALREADY-PARSED response.
+     *
+     * Split out so a caller that has parsed the tree for its own reasons can look for a Shorts
+     * shelf without paying to parse it again — a TV subscriptions response is 3.6 MB, and doing
+     * that twice to find a shelf that is usually absent would be a real cost for nothing.
+     */
+    fun shortsIn(root: JsonElement): List<FeedVideo> {
         val out = LinkedHashMap<String, FeedVideo>()
         collect(root, "shortsLockupViewModel") { short ->
             short.toShort()?.let { out.putIfAbsent(it.videoId, it) }
         }
-        return root.pageOf(out.values.toList())
+        return out.values.toList()
     }
 
     fun playlists(body: String): Page<Playlist> {
@@ -118,12 +130,18 @@ internal object LockupParser {
         return FeedVideo(
             videoId = videoId,
             title = title,
+            // The author is the CALLER's to fill in: a Shorts tile carries none, and the only
+            // request that returns these is for one channel, so whoever asked already knows.
             author = null,
             durationSeconds = null,
             thumbnailUrl = (this["thumbnailViewModel"] as? JsonObject)?.bestThumbnailUrlFromImage(),
             watchUrl = watchUrl,
             kind = FeedVideo.Kind.SHORT,
             publishedText = null,
+            // "3.8K views", already in the shape every other row uses. Without it a Short in a
+            // feed of videos has nothing under its title at all, which reads as broken rather
+            // than as brief.
+            viewsText = (overlay?.get("secondaryText") as? JsonObject)?.stringAt("content"),
         )
     }
 

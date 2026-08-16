@@ -94,4 +94,23 @@ class LockupParserTest {
         assertTrue("VL-prefixed browse ids", playlists.all { it.browseId.startsWith("VL") })
         assertTrue("titles present", playlists.all { it.title.isNotBlank() })
     }
+
+    /**
+     * The view count a Shorts tile does carry, in `overlayMetadata.secondaryText`.
+     *
+     * Added 2026-08-16 so a Short listed among videos reads like every other row. Without it a
+     * Short has no author, no date and no views, so the whole fact block under its title is empty
+     * and the row looks broken rather than brief.
+     */
+    @Test
+    fun `a channel Shorts tile carries its view count`() {
+        val shorts = LockupParser.shorts(fixture("channel_shorts_web_sample.json")).items
+
+        val withViews = shorts.filter { !it.viewsText.isNullOrBlank() }
+        assertTrue("no Short carried a view count, got: ${shorts.take(3).map { it.viewsText }}", withViews.isNotEmpty())
+        assertTrue(
+            "a view count should read like YouTube writes it, got: ${withViews.first().viewsText}",
+            withViews.first().viewsText!!.contains("view", ignoreCase = true),
+        )
+    }
 }

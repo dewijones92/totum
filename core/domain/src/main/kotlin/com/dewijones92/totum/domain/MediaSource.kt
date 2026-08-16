@@ -49,7 +49,18 @@ public sealed interface MediaSource {
  * like this drifts in the first place.
  */
 public val MediaSource.VideoChannel.youTubeChannelId: String?
-    get() = channelUrl.value
+    get() = channelUrl.youTubeChannelId
+
+/**
+ * The same rule, on the URL itself — for the callers that hold one without a [MediaSource] around
+ * it, such as a feed item's `sourceUrl`.
+ *
+ * Here rather than at those call sites, because the whole point of this property is that the rule
+ * lives in one place: it replaced the same `substringAfterLast` copy-pasted into three files, and
+ * a fourth copy taking a URL would be the same drift starting again.
+ */
+public val HttpUrl.youTubeChannelId: String?
+    get() = value
         .substringAfterLast("/channel/", "")
         // Only the id segment: the three copied versions of this took everything after
         // "/channel/", so a perfectly ordinary "/channel/UC…/videos" or "?view=0" yielded an id

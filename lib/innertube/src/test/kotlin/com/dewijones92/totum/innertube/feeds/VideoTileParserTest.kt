@@ -158,4 +158,137 @@ class VideoTileParserTest {
         val video = (VideoTileParser.parse(body) as FeedResult.Success).page.items.single()
         assertEquals(FeedVideo.Kind.LIVE, video.kind)
     }
+    // ---- a Shorts shelf, when YouTube sends one (2026-08-16) ----------------------------------
+
+    /**
+     * SmartTube gets Shorts into a TV feed by reading a Shorts SHELF out of the very same
+     * subscriptions response (`BrowseService2.getShortsTV`), because the tiles and the shelf are
+     * different shapes in one body. This does the same.
+     *
+     * **The body here is hand-built, and that is worth stating.** Every real subscriptions
+     * response captured from Dewi's account contains no shelf at all — 3.6 MB, 45 tiles, nothing —
+     * which is SmartTube's own open bug #4278, so there is nothing to capture. The shape is taken
+     * from the channel Shorts tab, where `shortsLockupViewModel` IS real and is covered against a
+     * live fixture by `LockupParserTest`. This test pins the wiring: that the walk happens over a
+     * TV feed body at all, and that a shelved Short lands in the same list as the tiles.
+     */
+    private val shelfBody = """
+        {"contents":{"tvBrowseRenderer":{"content":{"tvSurfaceContentRenderer":{"content":{
+          "sectionListRenderer":{"contents":[
+            {"shelfRenderer":{"content":{"horizontalListRenderer":{"items":[
+              {"shortsLockupViewModel":{
+                "onTap":{"innertubeCommand":{"reelWatchEndpoint":{"videoId":"shortaaaaaa"}}},
+                "overlayMetadata":{"primaryText":{"content":"A shelved Short"},
+                                   "secondaryText":{"content":"12K views"}}}}
+            ]}}}}
+          ]}}}}}}}
+    """.trimIndent()
+
+    @Test
+    fun `a shorts shelf in a TV feed is collected alongside the tiles`() {
+        val items = (VideoTileParser.parse(shelfBody) as FeedResult.Success).page.items
+
+        assertEquals(listOf("shortaaaaaa"), items.map { it.videoId })
+        assertEquals(FeedVideo.Kind.SHORT, items.first().kind)
+    }
+
+    /** Tagged and readable: it arrives with the view count, like every other row in the feed. */
+    @Test
+    fun `a shelved short keeps its title and view count`() {
+        val short = (VideoTileParser.parse(shelfBody) as FeedResult.Success).page.items.first()
+
+        assertEquals("A shelved Short", short.title)
+        assertEquals("12K views", short.viewsText)
+    }
+
+    /**
+     * And the real feed is unchanged by looking. Today's responses have no shelf, so the walk must
+     * cost the tile list nothing — a regression here would be Shorts support breaking the feed.
+     */
+    @Test
+    fun `looking for a shelf does not disturb a feed that has none`() {
+        assertTrue("the sample feed should still parse its tiles", parsed().isNotEmpty())
+        assertTrue("no Shorts should be invented", parsed().none { it.kind == FeedVideo.Kind.SHORT })
+    }
+    // ---- the channel line is matched by shape, not by position (2026-08-16) -------------------
+
+    /**
+     * A tile whose FIRST metadata line is the view count.
+     *
+     * Hand-built, and worth saying so: 23 of 55 rows in Dewi's subscriptions feed showed this on
+     * 2026-08-16, but the tiles on page ONE of that response all happen to lead with the channel,
+     * so there was nothing to capture without paging deeper than a fixture wants to go. The shape
+     * is a real `tileMetadataRenderer` with its lines in the order that breaks it.
+     */
+    private val viewsFirstBody = """
+        {"contents":{"tvBrowseRenderer":{"content":{"tvSurfaceContentRenderer":{"content":{
+          "sectionListRenderer":{"contents":[{"shelfRenderer":{"content":{"horizontalListRenderer":{"items":[
+            {"tileRenderer":{
+              "contentType":"TILE_CONTENT_TYPE_VIDEO",
+              "onSelectCommand":{"watchEndpoint":{"videoId":"aaaaaaaaaaa"}},
+              "metadata":{"tileMetadataRenderer":{
+                "title":{"simpleText":"An older upload"},
+                "lines":[
+                  {"lineRenderer":{"items":[
+                    {"lineItemRenderer":{"text":{"simpleText":"760K views"}}},
+                    {"lineItemRenderer":{"text":{"simpleText":" · "}}}
+                  ]}},
+                  {"lineRenderer":{"items":[{"lineItemRenderer":{"text":{"simpleText":"A Real Channel"}}}]}},
+                  {"lineRenderer":{"items":[{"lineItemRenderer":{"text":{"simpleText":"7 years ago"}}}]}}
+                ]}}}}
+          ]}}}}]}}}}}}}
+    """.trimIndent()
+
+    @Test
+    fun `the channel is not the view count, even when the view count comes first`() {
+        val item = (VideoTileParser.parse(viewsFirstBody) as FeedResult.Success).page.items.single()
+
+        assertEquals("A Real Channel", item.author)
+    }
+
+    /** And the other two are still read correctly from the same tile. */
+    @Test
+    fun `views and date are unaffected by the reordering`() {
+        val item = (VideoTileParser.parse(viewsFirstBody) as FeedResult.Success).page.items.single()
+
+        assertEquals("760K views", item.viewsText)
+        assertEquals("7 years ago", item.publishedText)
+    }
+
+    /** The ordinary order still works — the fix must not trade one arrangement for another. */
+    @Test
+    fun `a tile that leads with the channel still reads it`() {
+        assertTrue("the sample feed should still name its channels", parsed().all { !it.author.isNullOrBlank() })
+        assertTrue("and never as a view count", parsed().none { it.author == it.viewsText })
+    }
+
+    /**
+     * A separator is not a channel name.
+     *
+     * The first version of the shape match excluded only view counts and dates, and the very next
+     * run on Dewi's feed showed `📺 ·` — YouTube renders the "·" between metadata items as its own
+     * line item. Caught by looking at the screen; the scan that had just reported "0 wrong" was
+     * only ever looking for view counts, which is a lesson about checking the thing rather than
+     * the previous failure.
+     */
+    @Test
+    fun `a separator is never mistaken for the channel`() {
+        val item = (VideoTileParser.parse(viewsFirstBody) as FeedResult.Success).page.items.single()
+
+        assertEquals("A Real Channel", item.author)
+    }
+
+    /** Nothing usable at all is null, not a stray glyph — the row then shows no channel line. */
+    @Test
+    fun `a tile with only a view count and a separator has no author`() {
+        val body = viewsFirstBody
+            .replace(
+                """{"lineRenderer":{"items":[{"lineItemRenderer":{"text":{"simpleText":"A Real Channel"}}}]}},""",
+                ""
+            )
+
+        val item = (VideoTileParser.parse(body) as FeedResult.Success).page.items.single()
+
+        assertNull(item.author)
+    }
 }

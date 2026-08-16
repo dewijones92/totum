@@ -23,6 +23,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.interleaveShorts
 import com.dewijones92.totum.domain.videoFileOrNull
 import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.innertube.feeds.FeedResult
@@ -33,6 +34,8 @@ import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.SubscriptionShorts
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,6 +56,12 @@ class VideosViewModel(
     private val youtube: YouTubeAccountServices,
     private val groups: GroupServices,
     private val feedCache: FeedCache = NoOpFeedCache,
+    /**
+     * Fetches the Shorts belonging to the channels a feed page showed, so Shorts appear in the
+     * feed rather than behind their own button. Null disables it, which is what previews and the
+     * feed tests want — the feed's own behaviour must not depend on a second network call.
+     */
+    private val subscriptionShorts: SubscriptionShorts? = null,
 ) : TrackedViewModel("videos") {
 
     data class UiState(
@@ -236,6 +245,10 @@ class VideosViewModel(
                 // cache with nothing — the launch after an offline start would then be blank
                 // again, which is the bug this exists to fix.
                 feedCache.save(choice.cacheKey(), videos)
+                // AFTER the state is returned, never before: Shorts are N extra requests and the
+                // feed must appear at the speed it appears today. They are threaded in when they
+                // land. Dewi's call when choosing between "all at once, slower" and this.
+                fetchShortsFor(choice, videos)
                 FeedState(selected = choice, loading = false, videos = videos, next = result.page.next)
             }
             FeedResult.SignedOut -> {
@@ -246,6 +259,37 @@ class VideosViewModel(
             }
             is FeedResult.Failure -> FeedState(choice, loading = false, error = true)
         }
+
+    /**
+     * Asks the page's channels for their Shorts and threads them in when they arrive.
+     *
+     * A separate coroutine so nothing waits on it, and keyed on the feed that asked: switching
+     * tabs while it is in flight must not drop a dozen Shorts into a feed they do not belong to.
+     */
+    private fun fetchShortsFor(choice: FeedChoice.Account, videos: List<MediaItem>) {
+        val shorts = subscriptionShorts ?: return
+        shortsJob?.cancel()
+        shortsJob = viewModelScope.launch {
+            val fetched = runCatching { shorts.forFeed(videos) }.getOrElse {
+                Diag.warn("shorts", "could not fetch Shorts for ${choice.describe()}", it)
+                return@launch
+            }
+            if (fetched.isEmpty()) return@launch
+            feedState.update { state ->
+                // Only if the user is still looking at the feed that asked. Otherwise the Shorts
+                // belong to a list nobody is showing any more.
+                if (state.selected != choice) {
+                    Diag.log("shorts", "dropping ${fetched.size} Short(s) — the feed changed while they loaded")
+                    state
+                } else {
+                    Diag.log("shorts", "threading ${fetched.size} Short(s) into ${choice.describe()}")
+                    state.copy(videos = interleaveShorts(state.videos, fetched))
+                }
+            }
+        }
+    }
+
+    private var shortsJob: Job? = null
 
     private fun FeedChoice.describe(): String = when (this) {
         is FeedChoice.Account -> feed.name
@@ -419,6 +463,7 @@ class VideosViewModel(
                     ),
                     groups = GroupServices(container.sourceGroupStore, container.groupFeed),
                     feedCache = container.feedCache,
+                    subscriptionShorts = SubscriptionShorts(container.youTubeChannel),
                 )
             }
         }
