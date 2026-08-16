@@ -6,6 +6,7 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.fake.FakePlaybackController
@@ -67,7 +68,7 @@ class ShortsReelAdvanceTest {
             scope = scope,
         ).start()
         composeTestRule.setContent {
-            TotumTheme { ShortsReelScreen(container, shorts, onBack = {}) }
+            TotumTheme { ShortsReelScreen(container, ReelStart(shorts, 0), onBack = {}) }
         }
         composeTestRule.waitForIdle()
     }
