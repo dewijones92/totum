@@ -35,9 +35,9 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
-import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
@@ -79,7 +79,7 @@ import kotlinx.coroutines.launch
 fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
     var selected by rememberSaveable { mutableStateOf(TopLevelDestination.Videos) }
     var showFullPlayer by rememberSaveable { mutableStateOf(false) }
-    var shortsReel by remember { mutableStateOf<List<MediaItem>?>(null) }
+    var shortsReel by remember { mutableStateOf<ReelStart?>(null) }
     // "Go to channel" works from ANY row because the shell hosts the destination once.
     var shellChannel by remember { mutableStateOf<MediaSource.VideoChannel?>(null) }
     val playbackState by container.playbackController.state.collectAsStateWithLifecycle()
@@ -132,9 +132,7 @@ fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
 
                 // The Shorts reel is a full-screen overlay (above the nav + mini player),
                 // so vertical swipes page between shorts without the app chrome in the way.
-                shortsReel?.let { shorts ->
-                    ShortsReelScreen(container, shorts, onBack = { shortsReel = null })
-                }
+                shortsReel?.let { ShortsReelScreen(container, it, onBack = { shortsReel = null }) }
                 // Same as the Videos tab's overlays: back should close the channel, not quit.
                 BackHandler(enabled = shellChannel != null) { shellChannel = null }
                 shellChannel?.let { channel ->
@@ -401,7 +399,7 @@ private fun AppShellPreview() {
 private fun TopLevelContent(
     container: AppContainer,
     selected: TopLevelDestination,
-    onOpenShorts: (List<MediaItem>) -> Unit,
+    onOpenShorts: (ReelStart) -> Unit,
     modifier: Modifier,
 ) {
     val stateHolder = rememberSaveableStateHolder()
@@ -425,7 +423,7 @@ private fun TopLevelContent(
 private fun Destination(
     container: AppContainer,
     destination: TopLevelDestination,
-    onOpenShorts: (List<MediaItem>) -> Unit,
+    onOpenShorts: (ReelStart) -> Unit,
 ) {
     when (destination) {
         TopLevelDestination.Videos -> VideosScreen(container, onOpenShorts = onOpenShorts)

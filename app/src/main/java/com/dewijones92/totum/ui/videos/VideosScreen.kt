@@ -50,7 +50,9 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.domain.filteredBy
+import com.dewijones92.totum.domain.shortsReelFrom
 import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
@@ -77,7 +79,7 @@ import com.dewijones92.totum.ui.playlist.PlaylistsListScreen
 fun VideosScreen(
     container: AppContainer,
     modifier: Modifier = Modifier,
-    onOpenShorts: (List<MediaItem>) -> Unit = {},
+    onOpenShorts: (ReelStart) -> Unit = {},
 ) {
     val viewModel: VideosViewModel = viewModel(factory = VideosViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -115,7 +117,16 @@ fun VideosScreen(
                 actions = actions,
                 onSubscribe = viewModel::subscribe,
                 onDialogClosed = viewModel::resetSubscribing,
-                onPlay = viewModel::play,
+                // A Short opens the reel; everything else plays as it always did. The reel is a
+                // presentation over the SAME player and queue — see `shortsReelFrom` — so this is
+                // a different look at one seam, not a second way to play something.
+                onPlay = { item ->
+                    if (item.contentKind == MediaContentKind.SHORT) {
+                        onOpenShorts(shortsReelFrom(state.videos, item))
+                    } else {
+                        viewModel.play(item)
+                    }
+                },
                 onDownload = viewModel::download,
                 onDeleteDownload = viewModel::deleteDownload,
                 onSelectFeed = viewModel::select,
@@ -127,7 +138,7 @@ fun VideosScreen(
                     }
                 },
                 onOpenPlaylists = { nav.showPlaylists = true },
-                onOpenShorts = { onOpenShorts(state.videos.filter { it.contentKind == MediaContentKind.SHORT }) },
+                onOpenShorts = { onOpenShorts(ReelStart.allShortsIn(state.videos)) },
                 onOpenNotifications = { nav.showNotifications = true },
                 onRefresh = viewModel::refresh,
                 onSetSort = viewModel::setSort,

@@ -90,15 +90,40 @@ items as its own line item and a "·" is neither a view count nor a date. **Caug
 a screenshot** — the scan that had just reported "0 wrong" was still only looking for view counts,
 which is the difference between checking the thing and checking the previous failure.
 
+## Tapping one opens the reel (2026-08-16)
+
+Dewi, on whether a Short should open the vertical reel: *"open in a reel sorta view but keep
+unified???? i dunno"*.
+
+**The two are not in tension, and that is the answer.** `ShortsReelScreen` already plays through the
+one shared `PlaybackController` and the one `PlaybackQueue` — its own header says so: *"Uses the same
+playback session as everything else, so closing the reel keeps it playing in the mini player."* It is
+a **presentation**, exactly as `FullPlayer` shows a video surface for a video and artwork for a
+podcast from a single seam. So a Short can look like a Short without the app growing a second way to
+play anything.
+
+Tapping a Short in the feed now opens the reel rather than the ordinary player. `shortsReelFrom`
+(`:core:domain`, pure) decides what it contains: **every Short in that feed, in feed order, opened on
+the one you touched**. The whole list rather than "from here on", because the Shorts you just
+scrolled past are the ones you are most likely to swipe back to — `ReelStart.index` is what puts you
+on the right page. A Short that is not in the list (a stale row, a filtered view) opens as a reel of
+one rather than refusing.
+
+Everything else in the feed plays exactly as before.
+
 ## Verified
 
 On the emulator, against his account, after the change: **18 SHORT badges, 11 LIVE badges, 29 channel
 lines and not one of them a view count or a stray glyph.**
 
+Tapping one: `[queue] play-all(19)` — the feed's 19 Shorts became the reel — then
+`video size=608x1080`, playing full-screen and vertical.
+
 ## Files
 
 - `app/…/video/SubscriptionShorts.kt` — asks the page's channels
 - `core/domain/…/FeedWithShorts.kt` — `interleaveShorts`, the spacing rule
+- `core/domain/…/ReelStart.kt` — `shortsReelFrom`: what a tapped Short opens, and where
 - `lib/innertube/…/VideoTileParser.kt` — the shelf read, and the shape-matched channel line
 - `lib/innertube/…/LockupParser.kt` — `shortsIn`, and a Short's view count
 
@@ -109,6 +134,8 @@ lines and not one of them a view count or a stray glyph.**
   failing without costing the rest
 - `ShortsReachTheFeedTest` — the ViewModel actually calling both, tagged, and **the videos on screen
   before the Shorts request finishes**
+- `ShortsReelTest` — the reel holds every Short in feed order, opens on the tapped one, keeps the
+  ones above it, excludes videos, and survives a Short that is not in the list
 - `VideoTileParserTest` / `LockupParserTest` — the shelf, the view count, and the channel line that
   is neither a view count nor a separator
 

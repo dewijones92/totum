@@ -46,6 +46,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.PlaybackMode
@@ -63,10 +64,16 @@ import com.dewijones92.totum.video.VideoPlaybackLauncher
 @Composable
 fun ShortsReelScreen(
     container: AppContainer,
-    shorts: List<MediaItem>,
+    /**
+     * The Shorts to page through AND which one to open on — together, because they are one answer.
+     * Tapping a Short in the feed opens the reel THERE, with the ones above it still behind you,
+     * rather than the reel pretending your feed started at the item you touched.
+     */
+    reel: ReelStart,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val shorts = reel.shorts
     BackHandler(onBack = onBack)
     if (shorts.isEmpty()) {
         ShortsEmpty(onBack, modifier)
@@ -85,7 +92,8 @@ fun ShortsReelScreen(
         if (audioMode) Toast.makeText(context, kept, Toast.LENGTH_SHORT).show()
     }
     val state by playback.state.collectAsStateWithLifecycle()
-    val pager = rememberPagerState(pageCount = { shorts.size })
+    val openOn = reel.index.coerceIn(0, (shorts.size - 1).coerceAtLeast(0))
+    val pager = rememberPagerState(initialPage = openOn) { shorts.size }
 
     ReelQueueBinding(shorts, state, pager, queue, launcher, runTitle = shortsRun)
 
