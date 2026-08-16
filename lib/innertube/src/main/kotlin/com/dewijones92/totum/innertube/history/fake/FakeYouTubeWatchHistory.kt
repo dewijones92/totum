@@ -1,5 +1,6 @@
 package com.dewijones92.totum.innertube.history.fake
 
+import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.history.WatchHistoryResult
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 
@@ -31,5 +32,21 @@ public class FakeYouTubeWatchHistory(
     ): WatchHistoryResult {
         reports += Report(videoId, positionSec, lengthSec, finished)
         return result
+    }
+
+    /** What YouTube "knows", for tests driving the inbound half. */
+    public var watched: Map<String, AccountProgress> = emptyMap()
+
+    /** How many times it was asked — the inbound read is cached, and that has to be provable. */
+    public var watchedCalls: Int = 0
+        private set
+
+    /** Makes the inbound read fail, so a test can prove the fall-back to the local position. */
+    public var failWatched: Boolean = false
+
+    override suspend fun watchedPositions(): Map<String, AccountProgress> {
+        watchedCalls++
+        if (failWatched) error("no network")
+        return watched
     }
 }

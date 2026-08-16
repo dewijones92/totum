@@ -4,8 +4,11 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
+import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.feeds.AccountProgress
+import com.dewijones92.totum.innertube.feeds.VideoTileParser
 import com.dewijones92.totum.innertube.player.PlaybackTracking
 import com.dewijones92.totum.innertube.player.PlaybackTrackingParser
 import com.dewijones92.totum.innertube.player.SignatureTimestampSource
@@ -45,6 +48,30 @@ public class HttpYouTubeWatchHistory(
         val cpn: String,
         var recordCreated: Boolean = false,
     )
+
+    /**
+     * The account's recent history, as watched percentages. TV identity, so [InnerTubeClient]
+     * attaches the token itself — the inbound half is authenticated for the same reason the
+     * outbound half is, and by the same rule.
+     *
+     * Every failure is an empty map rather than an exception: falling back to what this device
+     * remembers is always a safe answer, and an item resuming from the local position is a far
+     * smaller problem than a screen that will not open.
+     */
+    override suspend fun watchedPositions(): Map<String, AccountProgress> {
+        val token = (account.accessToken() as? AccessTokenResult.Available)?.token ?: run {
+            Diag.log("yt-sync", "not reading watched positions: signed out")
+            return emptyMap()
+        }
+        val response = runCatching { innerTube.browse(BrowseTarget.Id(HISTORY_BROWSE_ID), token) }.getOrNull()
+        val body = (response as? InnerTubeResponse.Success)?.body ?: run {
+            Diag.warn("yt-sync", "could not read watched positions: $response")
+            return emptyMap()
+        }
+        return VideoTileParser.watchedPositions(body).also {
+            Diag.log("yt-sync", "YouTube knows a watched position for ${it.size} recent video(s)")
+        }
+    }
 
     private val sessions = mutableMapOf<String, Session>()
 
@@ -124,6 +151,9 @@ public class HttpYouTubeWatchHistory(
         }
 
     private companion object {
+        /** YouTube's own id for the account's watch history. */
+        const val HISTORY_BROWSE_ID = "FEhistory"
+
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_FORBIDDEN = 403
     }

@@ -1,5 +1,7 @@
 package com.dewijones92.totum.innertube.history
 
+import com.dewijones92.totum.innertube.feeds.AccountProgress
+
 /**
  * Reports video watch-progress to YouTube's servers (History + cross-device
  * resume) using YouTube's own stats pings — the account-side counterpart to the
@@ -31,6 +33,22 @@ public interface YouTubeWatchHistory {
         lengthSec: Float,
         finished: Boolean,
     ): WatchHistoryResult
+
+    /**
+     * How far the ACCOUNT has watched each video in its recent history — the inbound half, so an
+     * item watched on another device resumes here.
+     *
+     * Keyed by video id. YouTube gives back a **whole-number percentage** — `percentDurationWatched`
+     * on a history tile's resume overlay — which the parser turns into a position using the duration
+     * from the same tile. Measured 2026-08-16: the app reported 789.873s of a 1:44:13 video and this
+     * came back as 13, so on a long video a percent is about a minute. [AccountProgress] carries the
+     * duration for exactly that reason, and `resumeFrom` in `:core:domain` is the one place that
+     * decides what a number that coarse is allowed to override.
+     *
+     * Empty when signed out or when the request fails: resuming from what this device knows is
+     * always a safe answer, so an inbound failure must never be louder than that.
+     */
+    public suspend fun watchedPositions(): Map<String, AccountProgress>
 }
 
 /** Outcome of a progress report; expected failures are values. */

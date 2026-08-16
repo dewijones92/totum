@@ -291,4 +291,55 @@ class VideoTileParserTest {
 
         assertNull(item.author)
     }
+    // ---- watched positions, for the inbound half of progress sync (2026-08-16) ---------------
+
+    private fun historyFixture(): String =
+        checkNotNull(javaClass.getResourceAsStream("/history_tv_sample.json")) { "fixture missing" }
+            .bufferedReader().readText()
+
+    /**
+     * Captured from Dewi's own account, and the numbers in it are the ones that proved the
+     * outbound half works: the app reported `caVJh4jrOxE` at 789.873s, and this history came back
+     * holding 13% of a 1:44:13 video — 789/6253 = 12.6%.
+     */
+    @Test
+    fun `a watched position is read out of the real history response`() {
+        val watched = VideoTileParser.watchedPositions(historyFixture())
+
+        val partWatched = watched.getValue("caVJh4jrOxE")
+        assertEquals("1:44:13 in millis", 6_253_000L, partWatched.durationMs)
+        // 13% of 6,253,000ms. The app had reported 789,873ms, which is what YouTube rounded to 13.
+        assertEquals(812_890L, partWatched.positionMs)
+    }
+
+    /** A finished video comes back at its full duration, not at some fraction of it. */
+    @Test
+    fun `a finished video reads as fully watched`() {
+        val watched = VideoTileParser.watchedPositions(historyFixture())
+
+        val finished = watched.getValue("Y3foPc3FvVM")
+        assertEquals(finished.durationMs, finished.positionMs)
+    }
+
+    /** Several videos in one response, each with its own position — one request answers for all. */
+    @Test
+    fun `every watched video in the response is read`() {
+        val watched = VideoTileParser.watchedPositions(historyFixture())
+
+        assertEquals(
+            setOf("caVJh4jrOxE", "XNRmWRA1dHg", "Y3foPc3FvVM", "62HSUsS0ypo"),
+            watched.keys,
+        )
+    }
+
+    /** An ordinary feed has no resume overlays, so it yields no positions rather than zeroes. */
+    @Test
+    fun `a feed with nothing watched yields no positions`() {
+        assertEquals(emptyMap<String, AccountProgress>(), VideoTileParser.watchedPositions(fixture()))
+    }
+
+    @Test
+    fun `unparseable json yields no positions rather than throwing`() {
+        assertEquals(emptyMap<String, AccountProgress>(), VideoTileParser.watchedPositions("not json"))
+    }
 }

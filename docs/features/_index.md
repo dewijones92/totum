@@ -50,6 +50,7 @@ alone until they need more.
 | Row status (pillar / played / offline on every row) | ui | shipped | [row-status.md](row-status.md) |
 | Feed pagination (account feeds + channel tabs) | video | shipped | [feed-pagination.md](feed-pagination.md) |
 | Shorts and live streams listed with the videos, tagged | video | shipped | [shorts-in-the-feed.md](shorts-in-the-feed.md) |
+| Two-way progress sync with YouTube (resume across devices) | video | shipped | [progress-sync.md](progress-sync.md) |
 | Brand: Totum name, palette and icon | branding | shipped | [brand.md](brand.md) |
 | Download notifications (progress / done / failed, aggregated) | downloads | shipped | [download-notifications.md](download-notifications.md) |
 | Quality + speed as an on-video overlay | ui | shipped | [video-settings-overlay.md](video-settings-overlay.md) |

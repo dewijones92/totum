@@ -51,6 +51,46 @@ internal object VideoTileParser {
         return FeedResult.Success(Page(items, Continuations.find(root).takeIf { items.isNotEmpty() }))
     }
 
+    /**
+     * How far the account has watched each video in a TV feed, as a whole-number PERCENT.
+     *
+     * Here rather than in a parser of its own because this file already owns how to read a TV
+     * tile — the id and the thumbnail overlays are the same two places an ordinary tile is read
+     * from, and a second walker would be a second thing to fix when YouTube reshuffles them.
+     *
+     * A percent is all YouTube offers: `percentDurationWatched` on the resume overlay. Measured
+     * against Dewi's account 2026-08-16 — the app reported 789.873s of a 1:44:13 video and this
+     * came back 13, which is 12.6% rounded. `resumeFrom` in `:core:domain` is the one place that
+     * decides what a number that coarse is allowed to do.
+     */
+    fun watchedPositions(body: String): Map<String, AccountProgress> {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() ?: return emptyMap()
+        val out = LinkedHashMap<String, AccountProgress>()
+        collectVideoTiles(root) { tile ->
+            val id = tile.watchVideoId() ?: tile.stringAt("contentId")
+            val percent = tile.watchedPercent()
+            // The tile carries the duration too, in the very overlay beside the resume bar — which
+            // is why the percentage is turned into a POSITION here. Everywhere else would have to
+            // go and find a duration for an id, and the only caller that has one to hand is the
+            // controller, which would mean a cycle back through the queue to reach it.
+            val durationMs = tile.durationSeconds()?.times(MILLIS_PER_SECOND)
+            if (id != null && percent != null && durationMs != null) {
+                out.putIfAbsent(id, AccountProgress(durationMs * percent / PERCENT, durationMs))
+            }
+        }
+        return out
+    }
+
+    /** The resume overlay's percentage, when the tile carries one (i.e. it has been watched). */
+    private fun JsonObject.watchedPercent(): Int? {
+        val overlays = ((this["header"] as? JsonObject)?.get("tileHeaderRenderer") as? JsonObject)
+            ?.get("thumbnailOverlays") as? JsonArray ?: return null
+        return overlays.firstNotNullOfOrNull { overlay ->
+            ((overlay as? JsonObject)?.get("thumbnailOverlayResumePlaybackRenderer") as? JsonObject)
+                ?.get("percentDurationWatched")?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+        }
+    }
+
     private fun collectVideoTiles(node: JsonElement, onTile: (JsonObject) -> Unit) {
         when (node) {
             is JsonObject -> {
@@ -200,7 +240,21 @@ internal object VideoTileParser {
             ?.let { it["thumbnails"] as? JsonArray } ?: return null
         return (thumbnails.lastOrNull() as? JsonObject)?.stringAt("url")?.let(HttpUrl::parse)
     }
+
+    private const val PERCENT = 100
+    private const val MILLIS_PER_SECOND = 1_000L
 }
+
+/**
+ * How far the ACCOUNT has watched a video, and how long that video is.
+ *
+ * A position rather than the percentage YouTube actually returns, because the tile carrying the
+ * percentage carries the duration beside it — so this is the one place where both numbers exist and
+ * the multiplication is honest. The duration travels with it because the position's PRECISION
+ * depends on it: a whole-number percent of a 1:44:13 video is only good to about a minute, which is
+ * what `resumeFrom` in `:core:domain` needs to know before letting it override anything.
+ */
+public data class AccountProgress(public val positionMs: Long, public val durationMs: Long)
 
 private fun JsonObject.readText(): String? {
     stringAt("simpleText")?.let { return it }

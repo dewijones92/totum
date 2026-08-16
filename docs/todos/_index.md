@@ -27,7 +27,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [autoplay-next-guaranteed](autoplay-next-guaranteed.md) | playback | medium | shipped |
 | [volume-boost-normalize](volume-boost-normalize.md) | playback | medium | shipped |
 | [subtitles-captions](subtitles-captions.md) | playback | medium | shipped (video; podcast transcripts open) |
-| [youtube-progress-two-way-sync](youtube-progress-two-way-sync.md) | video | medium | refining |
+| [youtube-progress-two-way-sync](youtube-progress-two-way-sync.md) | video | medium | **shipped** → [features/progress-sync.md](../features/progress-sync.md) |
 | [ui-polish](ui-polish.md) | ui | medium | quality/speed overlay shipped; wider sweep open |
 | [rebrand](rebrand.md) | branding | medium | shipped as **Totum** |
 | [crash-reporting](crash-reporting.md) | infrastructure | high | shipped (verbose reports live on the Pi) |

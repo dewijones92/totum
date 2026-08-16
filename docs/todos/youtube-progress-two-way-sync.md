@@ -1,11 +1,11 @@
 ---
 title: Is play progress two-way synced with YouTube?
 kind: todo
-status: refining
+status: shipped
 area: video
 priority: medium
 requested: 2026-07-25
-updated: 2026-07-25
+updated: 2026-08-16
 ---
 
 # Two-way progress sync with YouTube

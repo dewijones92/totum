@@ -126,6 +126,7 @@ import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
@@ -374,11 +375,29 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         RoomPlaybackProgressStore(database.playbackProgressDao())
     }
 
+    /**
+     * The local store, plus YouTube's opinion about where a video was left.
+     *
+     * A decorator rather than a second lookup at the call site: `Media3PlaybackController` asks one
+     * thing where an item resumes, and that stays true. Podcasts fall straight through — YouTube has
+     * no position for them, so the rule returns the local answer untouched.
+     */
+    private val resumePositions: PlaybackProgressStore by lazy {
+        val account = AccountResumePositions(
+            local = playbackProgressStore::resumePositionMs,
+            history = youTubeWatchHistory,
+        )
+        object : PlaybackProgressStore by playbackProgressStore {
+            override suspend fun resumePositionMs(itemId: MediaItemId): Long? =
+                account.resumePositionMs(itemId)
+        }
+    }
+
     override val playbackController: PlaybackController by lazy {
         Media3PlaybackController(
             context,
             applicationScope,
-            playbackProgressStore,
+            resumePositions,
             SharedPrefsPlaybackSpeedStore(context),
             SharedPrefsVolumeBoostStore(context),
             // Podcasts play straight through the controller (their enclosure URL is
