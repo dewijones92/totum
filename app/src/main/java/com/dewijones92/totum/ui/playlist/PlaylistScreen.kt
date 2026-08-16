@@ -78,7 +78,7 @@ fun PlaylistScreen(
                         items(state.videos, key = { it.id.value }) { video ->
                             MediaItemRow(
                                 item = video,
-                                subtitleLines = mediaItemFacts(video),
+                                subtitleLines = mediaItemFacts(video, MediaKind.VIDEO),
                                 downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                                 pillar = MediaKind.VIDEO,
                                 onPlay = { viewModel.play(video) },

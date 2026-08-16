@@ -97,7 +97,7 @@ fun PodcastFeedScreen(
                     items(episodes, key = { it.id.value }) { episode ->
                         MediaItemRow(
                             item = episode,
-                            subtitleLines = mediaItemFacts(episode),
+                            subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST),
                             downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                             pillar = MediaKind.PODCAST,
                             onPlay = { viewModel.play(episode) },

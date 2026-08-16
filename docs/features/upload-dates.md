@@ -45,6 +45,34 @@ His layout call, asked and answered rather than assumed: channel, views and date
 line; duration stays on the thumbnail; and it applies to **both pillars**, so a podcast episode
 shows two lines rather than three because it has no view count.
 
+### An emoji on each line (2026-08-15)
+
+Dewi: *"can we put in emojis? Views has an eyes emoji prefix to it … I love emojis. I'm gonna give
+you a bit of creative freedom with that."*
+
+They earn their place beyond decoration, which is the test applied to each one: three stacked grey
+lines of similar length are hard to tell apart at a glance, and a leading glyph says *which* fact a
+line is before you read it.
+
+| | Fact | Why |
+|---|---|---|
+| 📺 / 🎙️ | The maker | A TV for a channel, a mic for a podcast — so a mixed list says which of the two a row is |
+| 👁️ | Views | Dewi named this one |
+| 📅 | Published | Dewi named this one |
+| 💾 | Size on disk | The Library's extra line |
+| ⚠️ | Not playable | A queue row that will be passed over |
+| 🎵 | Songs | The search page's YouTube Music section |
+
+`FactEmoji` holds them, so nothing can disagree about which glyph means what, and the pairing is
+unit-tested. The maker's badge takes the **passed** pillar, never `MediaItem.pillar` — every caller
+already knows it exactly (it hands the same value to `MediaItemRow` on the next line), and that
+property is documented as a guess for items with no handle yet. Re-deriving it here would put back
+the second rule a Shorts URL once fell down the gap between.
+
+Where they were deliberately NOT added: the bottom navigation and the status chips, which already
+carry icons, and the empty states, which already carry a large illustration. A second signal for
+the same thing is noise, not emphasis.
+
 Two smaller rules sit behind it, both now unit-tested:
 
 - **`mediaDateText`** prefers the source's own relative wording ("2 days ago") over a formatted

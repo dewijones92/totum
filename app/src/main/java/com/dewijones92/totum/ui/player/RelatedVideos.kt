@@ -50,7 +50,7 @@ internal fun RelatedSection(
                     related.videos.forEach { video ->
                         MediaItemRow(
                             item = video,
-                            subtitleLines = mediaItemFacts(video),
+                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO),
                             pillar = MediaKind.VIDEO,
                             onPlay = { onPlayRelated(video) },
                             onDownload = { },

@@ -40,16 +40,16 @@ class FactsOnSeparateLinesTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun video(author: String = CHANNEL) = MediaItem(
+    private fun video(author: String = CHANNEL_NAME) = MediaItem(
         id = MediaItemId("ytZiDr1NLQc"),
         sourceId = SourceId("youtube"),
         title = "What Will Russia's Fall Offensive Look Like?",
         publishedAt = null,
-        publishedText = DATE,
+        publishedText = DATE_TEXT,
         duration = 24.minutes,
         author = author,
         thumbnailUrl = HttpUrl.of("https://example.test/thumb.jpg"),
-        viewsText = VIEWS,
+        viewsText = VIEWS_TEXT,
     )
 
     private fun row(item: MediaItem = video()) {
@@ -59,7 +59,7 @@ class FactsOnSeparateLinesTest {
                     item {
                         MediaItemRow(
                             item = item,
-                            subtitleLines = mediaItemFacts(item),
+                            subtitleLines = mediaItemFacts(item, MediaKind.VIDEO),
                             pillar = MediaKind.VIDEO,
                             onPlay = {},
                             onDownload = {},
@@ -137,10 +137,10 @@ class FactsOnSeparateLinesTest {
     private fun playing() = PlaybackState(
         itemId = MediaItemId("ytZiDr1NLQc"),
         title = "What Will Russia's Fall Offensive Look Like?",
-        artist = CHANNEL,
+        artist = CHANNEL_NAME,
         artworkUrl = null,
-        viewsText = VIEWS,
-        publishedText = DATE,
+        viewsText = VIEWS_TEXT,
+        publishedText = DATE_TEXT,
         isPlaying = true,
         positionMs = 0,
         durationMs = 1_447_200,
@@ -148,8 +148,15 @@ class FactsOnSeparateLinesTest {
     )
 
     private companion object {
-        const val CHANNEL = "WarFronts"
-        const val VIEWS = "1.2M views"
-        const val DATE = "2 days ago"
+        // The raw values the item carries...
+        const val CHANNEL_NAME = "WarFronts"
+        const val VIEWS_TEXT = "1.2M views"
+        const val DATE_TEXT = "2 days ago"
+
+        // ...and what should actually be on the screen. Asserting the bare words would pass whether
+        // or not the emoji Dewi asked for ever made it there.
+        const val CHANNEL = "📺 $CHANNEL_NAME"
+        const val VIEWS = "👁️ $VIEWS_TEXT"
+        const val DATE = "📅 $DATE_TEXT"
     }
 }

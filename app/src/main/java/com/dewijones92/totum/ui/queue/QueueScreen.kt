@@ -50,6 +50,7 @@ import com.dewijones92.totum.domain.unavailableOfflineNow
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
+import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.ReorderState
@@ -233,9 +234,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                 // It REPLACES the facts rather than joining them: "this will be skipped" is the
                 // only thing worth reading on a row you cannot play.
                 subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
-                    listOf(stringResource(R.string.queue_unavailable_offline))
+                    listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
                 } else {
-                    mediaItemFacts(media)
+                    mediaItemFacts(media, entry.item.handle.pillar)
                 },
                 downloadState = downloadState,
                 pillar = entry.item.handle.pillar,

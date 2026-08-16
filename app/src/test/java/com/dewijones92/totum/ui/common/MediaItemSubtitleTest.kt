@@ -1,7 +1,9 @@
 package com.dewijones92.totum.ui.common
 
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.formatViewCount
 import org.junit.Assert.assertEquals
@@ -48,9 +50,23 @@ class MediaItemSubtitleTest {
         viewsText = viewsText,
     )
 
+    private fun podcastEpisode() = MediaItem(
+        id = MediaItemId("ep"),
+        sourceId = SourceId("feed"),
+        title = "an episode",
+        publishedAt = null,
+        publishedText = "2 days ago",
+        duration = null,
+        author = "Novara Media",
+        mediaUrl = HttpUrl.of("https://example.test/ep.mp3"),
+    )
+
     @Test
     fun `a video gives channel then views then date, each its own line`() {
-        assertEquals(listOf("Novara Media", "1.2M views", "2 days ago"), mediaItemFacts(video()))
+        assertEquals(
+            listOf("📺 Novara Media", "👁️ 1.2M views", "📅 2 days ago"),
+            mediaItemFacts(video(), MediaKind.VIDEO)
+        )
     }
 
     /**
@@ -59,7 +75,7 @@ class MediaItemSubtitleTest {
      */
     @Test
     fun `the facts are separate entries, not one line with separators`() {
-        val facts = mediaItemFacts(video())
+        val facts = mediaItemFacts(video(), MediaKind.VIDEO)
 
         assertEquals(3, facts.size)
         assertTrue("no entry may carry a separator: $facts", facts.none { it.contains(" · ") })
@@ -71,27 +87,76 @@ class MediaItemSubtitleTest {
      */
     @Test
     fun `duration is not one of the lines`() {
-        assertTrue(mediaItemFacts(video()).none { it.contains(":") })
+        assertTrue(mediaItemFacts(video(), MediaKind.VIDEO).none { it.contains(":") })
+    }
+
+    // ---- the emoji labels ------------------------------------------------------------------------
+
+    /**
+     * Dewi, 2026-08-15: *"can we put in emojis? Views has an eyes emoji prefix to it … I love
+     * emojis."* They earn their place beyond decoration: three stacked grey lines of similar length
+     * are hard to tell apart at a glance, and a leading glyph says which fact a line is before you
+     * read it.
+     */
+    @Test
+    fun `each fact is labelled with its own emoji`() {
+        val facts = mediaItemFacts(video(), MediaKind.VIDEO)
+
+        assertTrue("views should be eyes: $facts", facts.any { it.startsWith("${FactEmoji.VIEWS} ") })
+        assertTrue("the date should be a calendar: $facts", facts.any { it.startsWith("${FactEmoji.PUBLISHED} ") })
+    }
+
+    /** No two facts share a glyph, or the labelling tells you nothing. */
+    @Test
+    fun `no two facts wear the same emoji`() {
+        val emojis = mediaItemFacts(video(), MediaKind.VIDEO).map { it.substringBefore(' ') }
+
+        assertEquals(emojis.toString(), emojis.size, emojis.toSet().size)
+    }
+
+    /**
+     * The maker's badge follows the PILLAR, read from the one place that answers "is this a video".
+     * A mixed list — search, library, queue — then says which of the two things a row is without a
+     * second rule for it.
+     */
+    @Test
+    fun `a podcast episodes maker gets a microphone and a videos gets a screen`() {
+        assertTrue(mediaItemFacts(video(), MediaKind.VIDEO).first().startsWith(FactEmoji.CHANNEL))
+        assertTrue(mediaItemFacts(podcastEpisode(), MediaKind.PODCAST).first().startsWith(FactEmoji.PODCAST))
+    }
+
+    /** An emoji must never appear on its own — a label with nothing to label is noise. */
+    @Test
+    fun `a missing fact does not leave a bare emoji`() {
+        val facts = mediaItemFacts(video(author = null, viewsText = null, publishedText = null), MediaKind.VIDEO)
+
+        assertEquals(emptyList<String>(), facts)
     }
 
     /** A podcast episode has no view count and must not leave a blank line where one would be. */
     @Test
     fun `a missing view count leaves no empty line`() {
-        assertEquals(listOf("Novara Media", "2 days ago"), mediaItemFacts(video(viewsText = null)))
+        assertEquals(
+            listOf("📺 Novara Media", "📅 2 days ago"),
+            mediaItemFacts(video(viewsText = null), MediaKind.VIDEO)
+        )
     }
 
     @Test
     fun `a video with nothing to say has no lines at all`() {
         assertEquals(
             emptyList<String>(),
-            mediaItemFacts(video(author = null, viewsText = null, publishedText = null)),
+            mediaItemFacts(video(author = null, viewsText = null, publishedText = null), MediaKind.VIDEO),
         )
     }
 
     /** A source that says "" rather than null must not become a blank line either. */
     @Test
     fun `a blank fact is dropped rather than rendered as an empty line`() {
-        assertEquals(listOf("Novara Media", "2 days ago"), mediaItemFacts(video(viewsText = "   ")))
+        assertEquals(
+            listOf("📺 Novara Media", "📅 2 days ago"),
+            mediaItemFacts(video(viewsText = "   "), MediaKind.VIDEO)
+        )
     }
 
     // ---- the date rule ---------------------------------------------------------------------------
@@ -129,8 +194,8 @@ class MediaItemSubtitleTest {
     @Test
     fun `a counted and a quoted view figure render the same way`() {
         assertEquals(
-            mediaItemFacts(video(viewsText = "1.2M views")),
-            mediaItemFacts(video(viewsText = formatViewCount(1_234_567))),
+            mediaItemFacts(video(viewsText = "1.2M views"), MediaKind.VIDEO),
+            mediaItemFacts(video(viewsText = formatViewCount(1_234_567)), MediaKind.VIDEO),
         )
     }
 
@@ -152,7 +217,7 @@ class MediaItemSubtitleTest {
     @Test
     fun `the video page gets the same facts, on their own lines, without the repeated author`() {
         assertEquals(
-            listOf("1.2M views", "2 days ago"),
+            listOf("👁️ 1.2M views", "📅 2 days ago"),
             mediaFacts(author = null, dateText = mediaDateText("2 days ago", null), viewsText = "1.2M views"),
         )
     }

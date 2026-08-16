@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaKind
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -26,8 +27,43 @@ import kotlin.time.Duration
  * Duration is deliberately NOT here — it rides on the thumbnail corner, where nothing can truncate
  * it and it costs no vertical space. His call when choosing this layout.
  */
-fun mediaItemFacts(item: MediaItem): List<String> =
-    mediaFacts(item.author, mediaDateText(item.publishedText, item.publishedAt), item.viewsText)
+fun mediaItemFacts(item: MediaItem, pillar: MediaKind): List<String> = mediaFacts(
+    author = item.author,
+    dateText = mediaDateText(item.publishedText, item.publishedAt),
+    viewsText = item.viewsText,
+    // Which badge the maker gets. [pillar] is PASSED, not inferred from the URL — every caller
+    // already knows it exactly (it hands the same value to `MediaItemRow` on the next line), and
+    // `MediaItem.pillar` is documented as a guess for items that have no handle yet. Re-deriving
+    // it here would put back the second rule that a Shorts URL once fell down the gap between.
+    authorEmoji = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL,
+)
+
+/**
+ * The emoji that labels each kind of fact, defined once so nothing can disagree about which glyph
+ * means what.
+ *
+ * Dewi, 2026-08-15: *"can we put in emojis? Views has an eyes emoji prefix to it … I love emojis."*
+ * They earn their place beyond decoration: three stacked grey lines of similar length are hard to
+ * tell apart at a glance, and a leading glyph says WHICH fact a line is before you read it.
+ */
+object FactEmoji {
+    /** The maker — a TV for a channel, a mic for a podcast, so a mixed list tells you which. */
+    const val CHANNEL: String = "📺"
+    const val PODCAST: String = "🎙️"
+
+    /** The two Dewi named himself. */
+    const val VIEWS: String = "👁️"
+    const val PUBLISHED: String = "📅"
+
+    /** What a downloaded copy costs on the disk — the Library's extra line. */
+    const val ON_DISK: String = "💾"
+
+    /** A queue row that cannot be played right now. */
+    const val UNAVAILABLE: String = "⚠️"
+
+    /** YouTube Music, which is its own kind of hit on the search page. */
+    const val SONG: String = "🎵"
+}
 
 /**
  * When a thing was published, as a list says it.
@@ -53,8 +89,23 @@ fun mediaDateText(publishedText: String?, publishedAt: Instant?): String? =
  * Blanks are dropped rather than rendered as empty lines: a podcast episode has no view count and
  * must not leave a gap where one would be.
  */
-fun mediaFacts(author: String?, dateText: String?, viewsText: String? = null): List<String> =
-    listOfNotNull(author, viewsText, dateText).filter { it.isNotBlank() }
+fun mediaFacts(
+    author: String?,
+    dateText: String?,
+    viewsText: String? = null,
+    authorEmoji: String = FactEmoji.CHANNEL,
+): List<String> = listOfNotNull(
+    author.labelled(authorEmoji),
+    viewsText.labelled(FactEmoji.VIEWS),
+    dateText.labelled(FactEmoji.PUBLISHED),
+)
+
+/**
+ * A fact with its emoji, or null when there is no fact. Applied here rather than at each `Text`, so
+ * the pairing is unit-testable and every surface reads the same.
+ */
+private fun String?.labelled(emoji: String): String? =
+    this?.takeIf { it.isNotBlank() }?.let { "$emoji $it" }
 
 /**
  * "12:34" / "1:02:45" — how every player writes a length, and short enough to sit on a

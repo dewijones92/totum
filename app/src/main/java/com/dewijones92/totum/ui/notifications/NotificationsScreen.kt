@@ -72,7 +72,7 @@ fun NotificationsScreen(
                         }
                         MediaItemRow(
                             item = upload.item,
-                            subtitleLines = mediaItemFacts(upload.item),
+                            subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO),
                             pillar = MediaKind.VIDEO,
                             onPlay = { viewModel.play(upload.item) },
                             onDownload = {},

@@ -52,7 +52,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                     items(items, key = { it.item.id.value }) { entry ->
                         MediaItemRow(
                             item = entry.item,
-                            subtitleLines = mediaItemFacts(entry.item),
+                            subtitleLines = mediaItemFacts(entry.item, entry.handle.pillar),
                             downloadState = downloadStates[entry.item.id] ?: DownloadState.NotDownloaded,
                             pillar = entry.handle.pillar,
                             onPlay = { viewModel.play(entry) },

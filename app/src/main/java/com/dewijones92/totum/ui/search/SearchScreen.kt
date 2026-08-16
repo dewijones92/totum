@@ -55,6 +55,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -244,6 +245,15 @@ private fun SearchHistory(
     }
 }
 
+/**
+ * A section heading with the emoji for the kind of thing under it.
+ *
+ * A search page is the one screen that mixes all three pillars, so the glyph says what a block IS
+ * before you read its heading — and it is the same glyph the rows in that block wear.
+ */
+@Composable
+private fun labelled(emoji: String, titleRes: Int): String = "$emoji " + stringResource(titleRes)
+
 @Composable
 private fun ResultsList(
     results: Results.Loaded,
@@ -267,14 +277,16 @@ private fun ResultsList(
     )
     LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
         torrentSection(results, onPlayTorrent)
-        hitSection({ stringResource(R.string.destination_podcasts) }, results.podcasts) { hit: SearchHit.Podcast ->
+        hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
+                hit: SearchHit.Podcast ->
             PodcastHitRow(
                 hit = hit,
                 subscribed = hit.feedUrl.value in state.subscribedFeeds,
                 onSubscribe = { onSubscribe(hit) },
             )
         }
-        hitSection({ stringResource(R.string.section_songs) }, results.songs) { hit: SearchHit.Song ->
+        hitSection({ labelled(FactEmoji.SONG, R.string.section_songs) }, results.songs) {
+                hit: SearchHit.Song ->
             SongHitRow(
                 hit = hit,
                 resolving = state.resolving == hit.watchUrl.value,
@@ -283,7 +295,7 @@ private fun ResultsList(
             )
         }
         hitSection(
-            { stringResource(R.string.destination_videos) },
+            { labelled(FactEmoji.CHANNEL, R.string.destination_videos) },
             results.videos.map { page -> page.items },
         ) { hit: SearchHit.Video ->
             VideoHitRow(
@@ -365,7 +377,7 @@ private fun VideoHitRow(
         item = item,
         // The hit is already a MediaItem here, so it reads through the one shared
         // formatter rather than assembling a second, subtly different subtitle.
-        subtitleLines = mediaItemFacts(item),
+        subtitleLines = mediaItemFacts(item, MediaKind.VIDEO),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
         onDownload = {},

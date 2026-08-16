@@ -17,6 +17,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.formatViewCount
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import org.junit.Assert.assertEquals
@@ -64,7 +65,7 @@ class ScrolledRowMetadataTest {
                     items(List(ITEMS) { video(it) }, key = { it.id.value }) { item ->
                         MediaItemRow(
                             item = item,
-                            subtitleLines = mediaItemFacts(item),
+                            subtitleLines = mediaItemFacts(item, MediaKind.VIDEO),
                             pillar = MediaKind.VIDEO,
                             onPlay = {},
                             onDownload = {},
@@ -127,10 +128,10 @@ class ScrolledRowMetadataTest {
     }
 
     /** The row's own view-count line — unique per row, so a recycled row cannot fake it. */
-    private fun viewsOf(index: Int): String = formatViewCount(index * VIEWS_PER_ITEM.toLong())
+    private fun viewsOf(index: Int): String = "${FactEmoji.VIEWS} ${formatViewCount(index * VIEWS_PER_ITEM.toLong())}"
 
     /** And its date line, likewise unique per row. */
-    private fun dateOf(index: Int): String = "$index days ago"
+    private fun dateOf(index: Int): String = "${FactEmoji.PUBLISHED} $index days ago"
 
     private companion object {
         const val ITEMS = 80

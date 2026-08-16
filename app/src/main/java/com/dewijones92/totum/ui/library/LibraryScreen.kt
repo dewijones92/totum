@@ -49,6 +49,7 @@ import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BuildInfoFooter
+import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
@@ -184,7 +185,8 @@ internal fun LibraryContent(
                         // tell you which download is the one worth deleting. Its own line, like
                         // every other fact — it used to be glued onto the end of the subtitle,
                         // which is precisely where an ellipsis reached it first.
-                        subtitleLines = mediaItemFacts(entry.item) + formatBytes(entry.sizeBytes),
+                        subtitleLines = mediaItemFacts(entry.item, entry.media.pillar) +
+                            "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}",
                         downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
                         pillar = entry.media.pillar,
                         onPlay = { onPlay(entry) },
