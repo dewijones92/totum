@@ -66,7 +66,7 @@ import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.notifications.NotificationsScreen
 import com.dewijones92.totum.ui.notifications.NotificationsViewModel
@@ -376,7 +376,7 @@ private fun ChannelsAndVideos(
                 items(shown, key = { it.id.value }) { video ->
                     MediaItemRow(
                         item = video,
-                        subtitle = mediaItemSubtitle(video),
+                        subtitleLines = mediaItemFacts(video),
                         downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                         pillar = MediaKind.VIDEO,
                         onPlay = { onPlay(video) },

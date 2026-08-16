@@ -14,12 +14,17 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /**
- * The line under every video title, everywhere: "author · views · date".
+ * The facts under every video title, everywhere — channel, views, date, **one per line**.
  *
  * Dewi, 2026-08-06: *"i want things like videoviews, datestuff, datepublished always visible
- * whenever videos are listed"*. Every list already routes through this one function, and so — as of
- * the same day — does the video page, so this is the single place that decides what those facts look
- * like anywhere in the app.
+ * whenever videos are listed"*. They were listed, and then they were not visible: all three shared
+ * one line capped at `maxLines = 1`, so a real phone replaced the tail with an ellipsis. Dewi again,
+ * 2026-08-15: *"the view count and the date published sometimes gets hidden, there's like a 3-dot
+ * thing. I want them each to be on a separate line."* So this returns the parts, in order, and
+ * whoever renders puts one on each line.
+ *
+ * Every list routes through here and so does the video page, which is what stops the page drifting
+ * from the row that led to it.
  *
  * Testable on the JVM only because `@Composable` came off both functions: neither ever called
  * anything composable, and the annotation was the only thing holding the app's most-seen piece of
@@ -44,29 +49,49 @@ class MediaItemSubtitleTest {
     )
 
     @Test
-    fun `a video shows author then views then date, in that order`() {
-        assertEquals("Novara Media · 1.2M views · 2 days ago", mediaItemSubtitle(video()))
+    fun `a video gives channel then views then date, each its own line`() {
+        assertEquals(listOf("Novara Media", "1.2M views", "2 days ago"), mediaItemFacts(video()))
     }
 
     /**
-     * Order is not cosmetic: this line is the part that truncates, so the least essential fact goes
-     * last. Duration is deliberately absent — it rides on the thumbnail where an ellipsis cannot
-     * reach it.
+     * Separate entries, not one string with separators — the whole point. Joining them is what put
+     * three facts on a line that could only show one and a bit of the next.
      */
     @Test
-    fun `views come before the date so a truncation loses the date first`() {
-        val subtitle = mediaItemSubtitle(video())!!
-        assertTrue(subtitle.indexOf("1.2M views") < subtitle.indexOf("2 days ago"))
+    fun `the facts are separate entries, not one line with separators`() {
+        val facts = mediaItemFacts(video())
+
+        assertEquals(3, facts.size)
+        assertTrue("no entry may carry a separator: $facts", facts.none { it.contains(" · ") })
+    }
+
+    /**
+     * Duration is deliberately absent — it rides on the thumbnail corner, where nothing truncates it
+     * and it costs no vertical space. Dewi's call when choosing this layout, 2026-08-15.
+     */
+    @Test
+    fun `duration is not one of the lines`() {
+        assertTrue(mediaItemFacts(video()).none { it.contains(":") })
+    }
+
+    /** A podcast episode has no view count and must not leave a blank line where one would be. */
+    @Test
+    fun `a missing view count leaves no empty line`() {
+        assertEquals(listOf("Novara Media", "2 days ago"), mediaItemFacts(video(viewsText = null)))
     }
 
     @Test
-    fun `a missing view count leaves no empty separator`() {
-        assertEquals("Novara Media · 2 days ago", mediaItemSubtitle(video(viewsText = null)))
+    fun `a video with nothing to say has no lines at all`() {
+        assertEquals(
+            emptyList<String>(),
+            mediaItemFacts(video(author = null, viewsText = null, publishedText = null)),
+        )
     }
 
+    /** A source that says "" rather than null must not become a blank line either. */
     @Test
-    fun `a video with nothing to say has no subtitle at all rather than a blank line`() {
-        assertNull(mediaItemSubtitle(video(author = null, viewsText = null, publishedText = null)))
+    fun `a blank fact is dropped rather than rendered as an empty line`() {
+        assertEquals(listOf("Novara Media", "2 days ago"), mediaItemFacts(video(viewsText = "   ")))
     }
 
     // ---- the date rule ---------------------------------------------------------------------------
@@ -104,8 +129,8 @@ class MediaItemSubtitleTest {
     @Test
     fun `a counted and a quoted view figure render the same way`() {
         assertEquals(
-            mediaItemSubtitle(video(viewsText = "1.2M views")),
-            mediaItemSubtitle(video(viewsText = formatViewCount(1_234_567))),
+            mediaItemFacts(video(viewsText = "1.2M views")),
+            mediaItemFacts(video(viewsText = formatViewCount(1_234_567))),
         )
     }
 
@@ -125,15 +150,18 @@ class MediaItemSubtitleTest {
      * call.
      */
     @Test
-    fun `the video page line is the same facts without the repeated author`() {
+    fun `the video page gets the same facts, on their own lines, without the repeated author`() {
         assertEquals(
-            "1.2M views · 2 days ago",
-            mediaSubtitle(author = null, dateText = mediaDateText("2 days ago", null), viewsText = "1.2M views"),
+            listOf("1.2M views", "2 days ago"),
+            mediaFacts(author = null, dateText = mediaDateText("2 days ago", null), viewsText = "1.2M views"),
         )
     }
 
     @Test
     fun `the video page shows nothing when the source said nothing`() {
-        assertNull(mediaSubtitle(author = null, dateText = mediaDateText(null, null), viewsText = null))
+        assertEquals(
+            emptyList<String>(),
+            mediaFacts(author = null, dateText = mediaDateText(null, null), viewsText = null),
+        )
     }
 }

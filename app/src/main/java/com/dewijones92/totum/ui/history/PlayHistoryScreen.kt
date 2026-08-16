@@ -27,7 +27,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
 /** Recently-played history across both pillars: tap to replay, or clear all. */
@@ -52,7 +52,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                     items(items, key = { it.item.id.value }) { entry ->
                         MediaItemRow(
                             item = entry.item,
-                            subtitle = mediaItemSubtitle(entry.item),
+                            subtitleLines = mediaItemFacts(entry.item),
                             downloadState = downloadStates[entry.item.id] ?: DownloadState.NotDownloaded,
                             pillar = entry.handle.pillar,
                             onPlay = { viewModel.play(entry) },

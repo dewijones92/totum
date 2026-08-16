@@ -69,7 +69,7 @@ class MediaItemRowKeepsActionsTest {
                     item {
                         MediaItemRow(
                             item = item,
-                            subtitle = "Novara Media · 1.2M views · 2 days ago",
+                            subtitleLines = listOf("Novara Media", "1.2M views", "2 days ago"),
                             pillar = MediaKind.VIDEO,
                             onPlay = { played += "play" },
                             onDownload = {},

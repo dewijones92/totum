@@ -37,7 +37,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 
 /** One local playlist: Play all, play from an item, remove items, rename/delete. */
 @Composable
@@ -111,7 +111,7 @@ private fun PlaylistBody(
             val media = playlistItem.item
             MediaItemRow(
                 item = media,
-                subtitle = mediaItemSubtitle(media),
+                subtitleLines = mediaItemFacts(media),
                 downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
                 pillar = playlistItem.handle.pillar,
                 onPlay = { viewModel.playFrom(playlistItem) },

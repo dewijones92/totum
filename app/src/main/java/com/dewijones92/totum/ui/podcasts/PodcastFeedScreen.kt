@@ -28,7 +28,7 @@ import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SourceHeader
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 
 /**
@@ -97,7 +97,7 @@ fun PodcastFeedScreen(
                     items(episodes, key = { it.id.value }) { episode ->
                         MediaItemRow(
                             item = episode,
-                            subtitle = mediaItemSubtitle(episode),
+                            subtitleLines = mediaItemFacts(episode),
                             downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                             pillar = MediaKind.PODCAST,
                             onPlay = { viewModel.play(episode) },

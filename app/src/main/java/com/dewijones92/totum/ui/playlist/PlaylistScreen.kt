@@ -31,7 +31,7 @@ import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 
 /** A playlist's videos, played/downloaded through the same shared row as everywhere else. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +78,7 @@ fun PlaylistScreen(
                         items(state.videos, key = { it.id.value }) { video ->
                             MediaItemRow(
                                 item = video,
-                                subtitle = mediaItemSubtitle(video),
+                                subtitleLines = mediaItemFacts(video),
                                 downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                                 pillar = MediaKind.VIDEO,
                                 onPlay = { viewModel.play(video) },

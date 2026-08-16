@@ -60,7 +60,7 @@ import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.VideoChannelSaver
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
@@ -365,7 +365,7 @@ private fun VideoHitRow(
         item = item,
         // The hit is already a MediaItem here, so it reads through the one shared
         // formatter rather than assembling a second, subtly different subtitle.
-        subtitle = mediaItemSubtitle(item),
+        subtitleLines = mediaItemFacts(item),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
         onDownload = {},
@@ -399,7 +399,7 @@ private fun SongHitRow(
     val item = remember(hit) { hit.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) }
     MediaItemRow(
         item = item,
-        subtitle = hit.subtitle,
+        subtitleLines = listOfNotNull(hit.subtitle),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
         onDownload = {},

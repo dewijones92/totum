@@ -47,7 +47,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SourceHeader
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.group.GroupPicker
 import com.dewijones92.totum.ui.channel.ChannelViewModel.Tab as ChannelTab
 
@@ -229,7 +229,7 @@ private fun MediaItemTab(
             items(tab.items, key = { it.id.value }) { video ->
                 MediaItemRow(
                     item = video,
-                    subtitle = mediaItemSubtitle(video),
+                    subtitleLines = mediaItemFacts(video),
                     downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
                     pillar = MediaKind.VIDEO,
                     onPlay = { onPlay(video) },

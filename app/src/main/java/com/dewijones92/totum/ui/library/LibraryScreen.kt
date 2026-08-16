@@ -53,7 +53,7 @@ import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.TrackPlace
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
@@ -181,9 +181,10 @@ internal fun LibraryContent(
                     MediaItemRow(
                         item = entry.item,
                         // The size sits with the item it belongs to; a total alone cannot
-                        // tell you which download is the one worth deleting.
-                        subtitle = listOfNotNull(mediaItemSubtitle(entry.item), formatBytes(entry.sizeBytes))
-                            .joinToString("  ·  "),
+                        // tell you which download is the one worth deleting. Its own line, like
+                        // every other fact — it used to be glued onto the end of the subtitle,
+                        // which is precisely where an ellipsis reached it first.
+                        subtitleLines = mediaItemFacts(entry.item) + formatBytes(entry.sizeBytes),
                         downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
                         pillar = entry.media.pillar,
                         onPlay = { onPlay(entry) },

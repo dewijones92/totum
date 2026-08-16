@@ -71,7 +71,15 @@ private val THUMBNAIL_HEIGHT = 68.dp
 @Composable
 fun MediaItemRow(
     item: MediaItem,
-    subtitle: String?,
+    /**
+     * The facts under the title, **one line each** — see [mediaItemFacts].
+     *
+     * A list rather than a string because a single line capped at `maxLines = 1` is what made the
+     * view count and the date disappear behind an ellipsis on a real phone (Dewi, 2026-08-15).
+     * Callers with something extra to say (a file size, an offline warning) append it as another
+     * line rather than splicing it into a sentence that then truncates.
+     */
+    subtitleLines: List<String>,
     pillar: MediaKind,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
@@ -144,7 +152,7 @@ fun MediaItemRow(
     ) {
         ThumbnailWithProgress(item, playState)
         Spacer(Modifier.width(14.dp))
-        TitleAndSubtitle(item, subtitle, pillar, playState, downloadState, Modifier.weight(1f))
+        TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, Modifier.weight(1f))
         if (hasMenu) {
             IconButton(onClick = { showSheet = true }) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
@@ -192,7 +200,7 @@ private fun ThumbnailWithProgress(item: MediaItem, playState: PlayState) {
 @Composable
 private fun TitleAndSubtitle(
     item: MediaItem,
-    subtitle: String?,
+    subtitleLines: List<String>,
     pillar: MediaKind,
     playState: PlayState,
     downloadState: DownloadState,
@@ -212,9 +220,12 @@ private fun TitleAndSubtitle(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.alpha(playedTitleAlpha(playState)),
         )
-        subtitle?.let {
+        // One Text per fact. Each still caps at one line, but a line now holds ONE fact, so an
+        // ellipsis can only ever shorten a long channel name — it can no longer swallow the view
+        // count or the date, which is what it was doing when all three shared a line.
+        subtitleLines.forEach { fact ->
             Text(
-                text = it,
+                text = fact,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

@@ -18,7 +18,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.formatViewCount
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -64,7 +64,7 @@ class ScrolledRowMetadataTest {
                     items(List(ITEMS) { video(it) }, key = { it.id.value }) { item ->
                         MediaItemRow(
                             item = item,
-                            subtitle = mediaItemSubtitle(item),
+                            subtitleLines = mediaItemFacts(item),
                             pillar = MediaKind.VIDEO,
                             onPlay = {},
                             onDownload = {},
@@ -83,8 +83,11 @@ class ScrolledRowMetadataTest {
         composeTestRule.onNodeWithTag(LIST).performScrollToIndex(DEEP_INDEX)
         composeTestRule.waitForIdle()
 
-        val expected = mediaItemSubtitleOf(DEEP_INDEX)
-        composeTestRule.onNodeWithText(expected, substring = true).assertIsDisplayed()
+        // Each fact is its own node now, so each is asserted on its own — which is a stronger
+        // check than the joined string was: that one passed as long as the START of the line was
+        // present, which is exactly the half that never went missing.
+        composeTestRule.onNodeWithText(viewsOf(DEEP_INDEX)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(dateOf(DEEP_INDEX)).assertIsDisplayed()
     }
 
     /** The very last row too — the end of a list is where an off-by-one in keying shows up. */
@@ -95,7 +98,8 @@ class ScrolledRowMetadataTest {
         composeTestRule.onNodeWithTag(LIST).performScrollToIndex(ITEMS - 1)
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText(mediaItemSubtitleOf(ITEMS - 1), substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText(viewsOf(ITEMS - 1)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(dateOf(ITEMS - 1)).assertIsDisplayed()
     }
 
     /**
@@ -113,18 +117,20 @@ class ScrolledRowMetadataTest {
         composeTestRule.onNodeWithTag(LIST).performScrollToIndex(0)
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText(mediaItemSubtitleOf(1), substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText(viewsOf(1)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(dateOf(1)).assertIsDisplayed()
         assertEquals(
             "a recycled row is showing a different item's numbers",
             0,
-            composeTestRule.onAllNodesWithText(mediaItemSubtitleOf(DEEP_INDEX), substring = true)
-                .fetchSemanticsNodes().size,
+            composeTestRule.onAllNodesWithText(viewsOf(DEEP_INDEX)).fetchSemanticsNodes().size,
         )
     }
 
-    /** The subtitle the row is expected to render, built by the same function the row uses. */
-    private fun mediaItemSubtitleOf(index: Int): String =
-        "A Channel · ${formatViewCount(index * VIEWS_PER_ITEM.toLong())} · $index days ago"
+    /** The row's own view-count line — unique per row, so a recycled row cannot fake it. */
+    private fun viewsOf(index: Int): String = formatViewCount(index * VIEWS_PER_ITEM.toLong())
+
+    /** And its date line, likewise unique per row. */
+    private fun dateOf(index: Int): String = "$index days ago"
 
     private companion object {
         const val ITEMS = 80

@@ -53,7 +53,7 @@ import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.ReorderState
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberReorderState
 import com.dewijones92.totum.ui.common.reorderable
 import kotlinx.coroutines.launch
@@ -230,10 +230,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
             MediaItemRow(
                 item = media,
                 // Says why a row will be passed over, rather than leaving it to be discovered.
-                subtitle = if (unavailableOfflineNow(downloadState, availability.offline)) {
-                    stringResource(R.string.queue_unavailable_offline)
+                // It REPLACES the facts rather than joining them: "this will be skipped" is the
+                // only thing worth reading on a row you cannot play.
+                subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
+                    listOf(stringResource(R.string.queue_unavailable_offline))
                 } else {
-                    mediaItemSubtitle(media)
+                    mediaItemFacts(media)
                 },
                 downloadState = downloadState,
                 pillar = entry.item.handle.pillar,

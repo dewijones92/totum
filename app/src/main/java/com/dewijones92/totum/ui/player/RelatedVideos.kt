@@ -13,7 +13,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.player.WatchViewModel.RelatedState
 
 /**
@@ -50,7 +50,7 @@ internal fun RelatedSection(
                     related.videos.forEach { video ->
                         MediaItemRow(
                             item = video,
-                            subtitle = mediaItemSubtitle(video),
+                            subtitleLines = mediaItemFacts(video),
                             pillar = MediaKind.VIDEO,
                             onPlay = { onPlayRelated(video) },
                             onDownload = { },

@@ -11,13 +11,23 @@ import java.time.format.FormatStyle
 import kotlin.time.Duration
 
 /**
- * The one-line "author · views · date" summary shown under a media title.
+ * The facts shown under a media title, **one per line**, in reading order: channel, views, date.
  *
- * Duration is deliberately NOT here — it rides on the thumbnail, where an ellipsis cannot
- * reach it. This line is the part that may truncate, so the least essential facts go last.
+ * A list, not a joined string, and that is the whole point. They used to be one line —
+ * `author · views · date` — capped at `maxLines = 1`, so on a real phone the tail was replaced by
+ * an ellipsis and the view count or the date simply vanished. Dewi, 2026-08-15: *"the view count
+ * and the date published on YouTube videos sometimes gets hidden, there's like a 3-dot thing. I
+ * want them each to be on a separate line."*
+ *
+ * Returning the parts rather than a rendered line is what lets one seam serve both the row and the
+ * video page, which is the other half of what he asked for. Whoever renders decides how; only this
+ * decides *what* and *in what order*.
+ *
+ * Duration is deliberately NOT here — it rides on the thumbnail corner, where nothing can truncate
+ * it and it costs no vertical space. His call when choosing this layout.
  */
-fun mediaItemSubtitle(item: MediaItem): String? =
-    mediaSubtitle(item.author, mediaDateText(item.publishedText, item.publishedAt), item.viewsText)
+fun mediaItemFacts(item: MediaItem): List<String> =
+    mediaFacts(item.author, mediaDateText(item.publishedText, item.publishedAt), item.viewsText)
 
 /**
  * When a thing was published, as a list says it.
@@ -26,7 +36,7 @@ fun mediaItemSubtitle(item: MediaItem): String? =
  * the source's own relative wording ("2 days ago") over a formatted absolute date, because that is
  * what YouTube gives and re-deriving "2 days ago" from a timestamp would drift from the site.
  *
- * Deliberately NOT `@Composable` — nor is [mediaSubtitle] any more, though both used to be. Neither
+ * Deliberately NOT `@Composable` — nor is [mediaFacts] any more, though both used to be. Neither
  * ever called anything composable, and the annotation was the only thing keeping the rule that
  * decides what appears under every video title out of reach of a JVM unit test.
  */
@@ -36,12 +46,15 @@ fun mediaDateText(publishedText: String?, publishedAt: Instant?): String? =
     }
 
 /**
- * The one place that formats "author · views · date". Takes the parts rather than a
- * [MediaItem] so search hits — which aren't media items yet — read identically to every
- * other list instead of composing their own subtitle.
+ * The one place that decides which facts appear under a title and in what order. Takes the parts
+ * rather than a [MediaItem] so search hits — which aren't media items yet — read identically to
+ * every other list instead of composing their own.
+ *
+ * Blanks are dropped rather than rendered as empty lines: a podcast episode has no view count and
+ * must not leave a gap where one would be.
  */
-fun mediaSubtitle(author: String?, dateText: String?, viewsText: String? = null): String? =
-    listOfNotNull(author, viewsText, dateText).joinToString(" · ").ifBlank { null }
+fun mediaFacts(author: String?, dateText: String?, viewsText: String? = null): List<String> =
+    listOfNotNull(author, viewsText, dateText).filter { it.isNotBlank() }
 
 /**
  * "12:34" / "1:02:45" — how every player writes a length, and short enough to sit on a

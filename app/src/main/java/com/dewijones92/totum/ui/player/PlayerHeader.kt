@@ -26,7 +26,7 @@ import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
 import com.dewijones92.totum.ui.common.PillarBadge
 import com.dewijones92.totum.ui.common.mediaDateText
-import com.dewijones92.totum.ui.common.mediaSubtitle
+import com.dewijones92.totum.ui.common.mediaFacts
 import kotlin.time.Duration
 
 /**
@@ -124,24 +124,32 @@ internal fun SecondaryControls(
 }
 
 /**
- * "1.2M views · 2 days ago" — the same facts every list shows under a title.
+ * The channel's facts on the video page — views and date, **one per line**.
  *
- * Formatted by the same function the rows use, so the page cannot drift from the row that led to it.
+ * Built by the same function the rows use, so the page cannot drift from the row that led to it,
+ * and laid out the same way for the same reason: Dewi asked for one fact per line in lists *and*
+ * "also visible within the video page itself" (2026-08-15).
+ *
  * The author is omitted rather than repeated: it is the line directly above this one.
- *
- * Dewi, 2026-08-06: *"this additional detail must appear within video page also"*.
  */
 @Composable
 internal fun ViewsAndDate(state: PlaybackState) {
-    val line = mediaSubtitle(
+    val facts = mediaFacts(
         author = null,
         dateText = mediaDateText(state.publishedText, state.publishedAt),
         viewsText = state.viewsText,
-    ) ?: return
-    Text(
-        text = line,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp).testTag(PLAYER_METADATA_TAG),
     )
+    if (facts.isEmpty()) return
+    // The tag stays on the CONTAINER, so a test asserting the page's metadata finds one node
+    // whose text is all of it — splitting it across children would quietly break that assertion
+    // into "no node" rather than into a visible failure.
+    Column(modifier = Modifier.padding(top = 4.dp).testTag(PLAYER_METADATA_TAG)) {
+        facts.forEach { fact ->
+            Text(
+                text = fact,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

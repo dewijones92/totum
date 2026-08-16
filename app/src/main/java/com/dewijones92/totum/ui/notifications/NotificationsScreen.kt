@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 
 /**
  * New uploads from your subscriptions since you last looked — the stand-in for
@@ -72,7 +72,7 @@ fun NotificationsScreen(
                         }
                         MediaItemRow(
                             item = upload.item,
-                            subtitle = mediaItemSubtitle(upload.item),
+                            subtitleLines = mediaItemFacts(upload.item),
                             pillar = MediaKind.VIDEO,
                             onPlay = { viewModel.play(upload.item) },
                             onDownload = {},

@@ -55,7 +55,7 @@ import com.dewijones92.totum.ui.common.PodcastFeedSaver
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
-import com.dewijones92.totum.ui.common.mediaItemSubtitle
+import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
@@ -219,7 +219,7 @@ private fun SubscriptionsAndEpisodes(
         items(state.episodes, key = { it.id.value }) { episode ->
             MediaItemRow(
                 item = episode,
-                subtitle = mediaItemSubtitle(episode),
+                subtitleLines = mediaItemFacts(episode),
                 downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                 pillar = MediaKind.PODCAST,
                 onPlay = { onPlayEpisode(episode) },
