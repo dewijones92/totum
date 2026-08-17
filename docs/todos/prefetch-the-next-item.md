@@ -3,8 +3,8 @@ title: Preload the next item's first 30 seconds
 kind: todo
 area: playback
 priority: medium
-status: done — readiness and byte preload both shipped, Wi-Fi only
-updated: 2026-08-04
+status: done — readiness and byte preload both shipped, Wi-Fi only; the video nomination was wrong until 2026-08-17
+updated: 2026-08-17
 ---
 
 # Preload the next item's first 30 seconds
@@ -142,7 +142,37 @@ better than nothing.
 All three pillars now preload, and every nomination goes through one `nominatePreload`, so the Wi-Fi
 gate cannot be bypassed by a future caller.
 
+### It nominated the wrong stream for two weeks (0.1.390, 2026-08-17)
+
+The paragraph above says it "nominates the stream the CURRENT mode will actually play". It did not,
+and the app had been saying so all along:
+
+```
+20:25:34.723 preload held a different stream of ng2Tsa5KE_A than the one that played,
+             so the preload was wasted
+```
+
+`preloadsWasted = 12` out of twelve nominations in one 44-minute session — every preload thrown
+away, roughly 30 seconds of 1080p fetched and dropped per track change. 0.1.359 had already recorded
+the same thing as "itag 18 held, itag 399 played".
+
+`readyAgain` nominated `resolved.item.mediaUrl`; `playVideoQuality` plays
+`choices.qualityFrom(resolved.qualities, cap)?.videoUrl`. Two rules for one question, and they only
+agree on a video with no quality ladder — which is almost none of them. The Listen-mode half was
+right, which is why reading the code satisfied everyone: the branch that mattered looked correct
+and the branch it fell through to did not.
+
+`VideoPlaybackLauncher.urlThatWouldPlay` is now the single answer and the preloader asks for it.
+`ThePreloadIsTheStreamThatPlaysTest` asserts the nomination against what the controller is actually
+handed, across no cap / a network cap / a hand-picked height / listening.
+
+**And the test that should have caught it was part of the problem.** `PreloadOnWifiOnlyTest`
+reimplemented the rule as a third copy in order to stay a pure unit test, and the copy pinned the
+wrong answer — so four green tests certified the bug. Those cases are gone; the rule is tested where
+it lives. Reimplementing a rule in a test cannot catch the rule being wrong, only make it feel
+covered.
+
 ### Still worth doing
 
-Nothing outstanding on this item. The natural follow-on is measuring what it actually saves at a
-track change on a device — the mechanism is proven, the felt improvement is not.
+Measuring what it actually saves at a track change on a device — the mechanism is proven, the felt
+improvement is not, and until 2026-08-17 it was saving nothing at all on video.

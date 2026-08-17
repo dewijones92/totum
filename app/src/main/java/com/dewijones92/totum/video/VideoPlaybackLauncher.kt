@@ -24,6 +24,12 @@ import java.util.concurrent.atomic.AtomicLong
  * Videos feed, Search, a channel page — uses this, so the resolve-then-play
  * decision and quality switching live once.
  */
+// The count is this class's legitimate surface: play / play-local / describe, the mode and quality
+// and audio-track switches, and the two small queries the queue and the preloader ask it. Splitting
+// it would put the "which stream plays" decision somewhere other than the class that plays it, which
+// is the duplication `urlThatWouldPlay` exists to remove. The cap deliberately does not move into
+// StreamChoices: that class documents itself as what the USER chose, not what the network allows.
+@Suppress("TooManyFunctions")
 class VideoPlaybackLauncher(
     private val resolver: VideoResolver,
     private val playback: PlaybackController,
@@ -177,15 +183,40 @@ class VideoPlaybackLauncher(
     private val VideoResolver.Resolved.isOneStream: Boolean
         get() = audioOnlyUrl == null && qualities.isEmpty()
 
+    /**
+     * The height you last picked by hand, within the network's cap; the best the cap allows if you
+     * have not picked one. ONE call site for the ladder, so [urlThatWouldPlay] cannot drift from
+     * what [playVideoQuality] does.
+     */
+    private fun chosenQuality(resolved: VideoResolver.Resolved): VideoQuality? =
+        choices.qualityFrom(resolved.qualities, preferredMaxHeight())
+
+    /**
+     * The stream [resolved] would be played from if it were played right now.
+     *
+     * Exists for the preloader, which has to hold the bytes the player will ask for and was
+     * guessing: it nominated `resolved.item.mediaUrl` while this class plays the ladder's pick, so
+     * on any video with a ladder the two disagreed and the preload was thrown away. Report 0.1.390
+     * counted `preloadsWasted = 12` out of twelve — around 30 seconds of 1080p fetched and dropped
+     * per item — and 0.1.359 had already logged the mismatch as "itag 18 held, itag 399 played"
+     * without it being read as a bug.
+     *
+     * A `null` means the resolution produced nothing playable, so there is nothing to hold.
+     */
+    fun urlThatWouldPlay(resolved: VideoResolver.Resolved): HttpUrl? = when {
+        // The cheap stream when listening: an audio-only track is a fraction of the video's size,
+        // and holding the picture for a mode that will not show it spends the data twice over.
+        audioPreferred() && resolved.audioOnlyUrl != null -> resolved.audioOnlyUrl
+        else -> chosenQuality(resolved)?.videoUrl ?: resolved.item.mediaUrl
+    }
+
     /** Plays [resolved] as video at the best allowed quality — the shared play/"Watch" path. */
     private fun playVideoQuality(resolved: VideoResolver.Resolved, startPositionMs: Long = 0) {
         // Every hand-off to the player claims the newest play, so "Watch" and a quality change
         // supersede a resolve still in flight just as a fresh tap does.
         beginPlay()
-        // The height you last picked by hand, within the network's cap; the best the cap allows
-        // if you have not picked one. Falls back to the reliable muxed default when nothing
-        // qualifies at all (or there are no ladders).
-        val chosen = choices.qualityFrom(resolved.qualities, preferredMaxHeight())
+        // Falls back to the reliable muxed default when nothing qualifies (or there are no ladders).
+        val chosen = chosenQuality(resolved)
         val selected = chosen?.id ?: resolved.qualities.firstOrNull { it.videoUrl == resolved.item.mediaUrl }?.id
         _quality.value = QualityState(
             options = resolved.qualities,

@@ -70,6 +70,12 @@ instead).
 - **kotlinx JSON present-null gotcha:** `obj["k"]?.jsonArray` throws on a JSON
   `null`; always `(obj["k"] as? JsonArray)`. Cover parser paths with a
   null/missing-key fixture.
+- **Never reimplement the rule in the test.** Copying a decision into a test so it can stay a
+  pure unit test makes a second implementation, and it is the *copy* that gets asserted. On
+  2026-08-17 `PreloadOnWifiOnlyTest` held its own version of "which stream will play", pinned the
+  wrong answer, and four green tests certified a bug the app had been logging on every item for two
+  weeks (`preloadsWasted = 12` of 12). If the real rule needs Android to reach, extract it as a pure
+  function and test *that* — do not retype it.
 
 ## Adversarial audit
 
@@ -177,6 +183,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A 403 on a URL whose lease is still good is a refusal, not an expiry, and gets one retry rather than three | `StreamLeaseVerdictTest`, `ARefusedStreamStopsRetryingTest` | every commit |
 | A download that fails is tried again by itself, without waiting for the queue to change | `AFailedDownloadIsTriedAgainTest` | every commit |
 | "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
+| The stream held for the next item is the stream that then plays — not a second guess at it | `ThePreloadIsTheStreamThatPlaysTest` | every commit |
 | The subscription list is not fetched twice in a session | `SubscriptionsFetchedOnceTest` | every commit |
 | A report's own numbers survive minification and reset per item | `PlayHandleLabelTest`, `AnalyticsResetPerItemTest` | every commit (the second on the emulator) |
 | What you type into "Send diagnostics" reaches the report | `DiagnosticsNoteTest`, `DiagnosticsContentTest`, `DiagnosticsNoteBoxTest` | every commit |

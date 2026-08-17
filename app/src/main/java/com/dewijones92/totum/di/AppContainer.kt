@@ -1044,17 +1044,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // HERE, on the far side of the resolution, rather than in preloadBytesOf with the rest.
             is PlayHandle.Video -> videoResolver.prefetch(handle.watchUrl, item.item.sourceId)
                 ?.let { resolved ->
-                    // The cheap stream when listening: an audio-only track is a fraction of the
-                    // video's size, and preloading the picture for a mode that will not show it
-                    // would spend the data twice over.
-                    nominatePreload(
-                        item.item.id,
-                        if (audioPlaybackPreferred()) {
-                            resolved.audioOnlyUrl ?: resolved.item.mediaUrl
-                        } else {
-                            resolved.item.mediaUrl
-                        },
-                    )
+                    // ASKED, not guessed. This used to pick a stream by its own rule and disagreed
+                    // with the launcher's on every video with a quality ladder, so the bytes were
+                    // held and then thrown away — twelve nominations, twelve wasted, in 0.1.390.
+                    nominatePreload(item.item.id, videoPlaybackLauncher.urlThatWouldPlay(resolved))
                 }
             is PlayHandle.LocalVideo -> Unit
             is PlayHandle.Podcast -> handle.audioUrl?.let { homeTorrentServer?.warmAudio(it) }

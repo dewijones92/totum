@@ -99,50 +99,18 @@ class PreloadOnWifiOnlyTest {
     }
 
     /**
-     * A resolved video nominates the stream the CURRENT mode will actually play.
+     * Which stream a RESOLVED video nominates is deliberately not tested here any more.
      *
-     * Preloading the picture while listening spends the data twice over: an audio-only track is a
-     * fraction of the size, and the video bytes would never be shown. This mirrors the choice
-     * `AppContainer.readyAgain` makes on the far side of a resolution — the one place a video's
-     * stream URL exists at all, since it does not until it resolves.
+     * It used to be, as a third hand-written copy of the rule — and the copy pinned the wrong
+     * answer. It asserted the nomination was `resolved.item.mediaUrl`, while the launcher plays the
+     * quality ladder's pick, so every one of these tests passed while the app threw away every
+     * preload it made (`preloadsWasted = 12` of 12, report 0.1.390). Reimplementing a rule in a test
+     * cannot catch the rule being wrong; it can only make being wrong feel covered.
+     *
+     * `VideoPlaybackLauncher.urlThatWouldPlay` is now the single answer, and
+     * `ThePreloadIsTheStreamThatPlaysTest` asserts the nomination against what the controller is
+     * actually handed — end to end, through the real resolver and launcher.
      */
-    private fun nominateResolved(streamUrl: HttpUrl?, audioOnlyUrl: HttpUrl?, listening: Boolean) {
-        val url = if (listening) audioOnlyUrl ?: streamUrl else streamUrl
-        url?.let { controller.preloadNext(MediaItemId("nominated"), it) }
-    }
-
-    private val videoStream = HttpUrl.of("https://googlevideo.test/videoplayback?itag=22")
-    private val videoAudio = HttpUrl.of("https://googlevideo.test/videoplayback?itag=140")
-
-    @Test
-    fun `watching preloads the video stream`() {
-        nominateResolved(videoStream, videoAudio, listening = false)
-
-        assertEquals(listOf(videoStream), controller.preloaded)
-    }
-
-    @Test
-    fun `listening preloads the audio-only stream`() {
-        nominateResolved(videoStream, videoAudio, listening = true)
-
-        assertEquals(listOf(videoAudio), controller.preloaded)
-    }
-
-    /** Some videos have no separate audio track; the muxed stream is still better than nothing. */
-    @Test
-    fun `listening falls back to the full stream when there is no audio-only one`() {
-        nominateResolved(videoStream, audioOnlyUrl = null, listening = true)
-
-        assertEquals(listOf(videoStream), controller.preloaded)
-    }
-
-    @Test
-    fun `a resolution that produced no stream nominates nothing`() {
-        nominateResolved(streamUrl = null, audioOnlyUrl = null, listening = false)
-
-        assertEquals(emptyList<HttpUrl>(), controller.preloaded)
-    }
-
     @Test
     fun `an item with no URL at all is not preloaded`() {
         preload(item(PlayHandle.Podcast(), mediaUrl = null), metered = false)
