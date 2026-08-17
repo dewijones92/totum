@@ -74,8 +74,30 @@ class MeteredAudioSwitchDeviceTest {
             queue.clear()
             controller.player?.stop()
             controller.player?.clearMediaItems()
+            awaitRearmed()
         }
         Breadcrumbs.clear()
+    }
+
+    /**
+     * Waits until the switch's metered accumulator has certainly been zeroed.
+     *
+     * `MeteredAudioSwitch` samples every 5s and only resets `meteredForMs` on a tick that SEES an
+     * unmetered network — so the previous test, which deliberately banks past the 15-second hold,
+     * leaves the accumulator full until such a tick lands. Without this, `a momentary drop onto
+     * mobile data changes nothing` puts its 6-second blip on top of 15 seconds already banked, the
+     * switch fires immediately, and the test fails having proved nothing about hysteresis. It passed
+     * in isolation and failed after its sibling, on 2026-08-17.
+     *
+     * Both exits establish the precondition: either the re-arm breadcrumb arrives, or a full
+     * sampling interval has passed with the network unmetered, which zeroes it by definition. The
+     * breadcrumb only appears when there WAS accumulation, so waiting for it unconditionally would
+     * hang whenever this test class runs on its own.
+     */
+    private suspend fun awaitRearmed() {
+        withTimeoutOrNull(REARM_TIMEOUT_MS) {
+            while (Breadcrumbs.snapshot().none { "the switch is re-armed" in it.message }) delay(POLL_MS)
+        }
     }
 
     @After
@@ -176,6 +198,9 @@ class MeteredAudioSwitchDeviceTest {
 
         /** Comfortably under the hold, so it is a blip by definition. */
         const val BLIP_MS = 6_000L
+
+        /** One 5-second sampling interval plus margin — see [awaitRearmed]. */
+        const val REARM_TIMEOUT_MS = 7_000L
         const val SETTLE_MS = 25_000L
         const val POLL_MS = 250L
     }

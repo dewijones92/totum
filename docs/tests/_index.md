@@ -76,6 +76,13 @@ instead).
   wrong answer, and four green tests certified a bug the app had been logging on every item for two
   weeks (`preloadsWasted = 12` of 12). If the real rule needs Android to reach, extract it as a pure
   function and test *that* — do not retype it.
+- **Passes alone, fails in the suite ⇒ shared SAMPLED state, and confirm before calling it flaky.**
+  `MeteredAudioSwitchDeviceTest`'s blip case failed only after its sibling (2026-08-17). `@Before`
+  reset the visible setting, but `MeteredAudioSwitch` accumulates metered time on a **5-second
+  sampler** and zeroes it only on a tick that *observes* an unmetered network — so the sibling's
+  deliberately-banked 15 seconds carried, and the 6-second blip fired instantly. Running the class
+  in isolation (green, 2/2, 70 seconds) is what told ordering apart from a real regression. The fix
+  establishes the precondition (`awaitRearmed()`) rather than loosening the assertion.
 
 ## Adversarial audit
 
