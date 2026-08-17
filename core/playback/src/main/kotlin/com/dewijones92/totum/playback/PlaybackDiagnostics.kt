@@ -93,6 +93,12 @@ internal class PlaybackDiagnostics(
      *
      * A count of buffering milliseconds cannot tell those apart, which is why that report could
      * only be diagnosed by reading code.
+     *
+     * The judgement itself is [loadStopIsAFault], and it was wrong for a month: it asked whether
+     * the buffer had reached `MIN_BUFFER_MS`, which is the level below which loading *resumes*
+     * rather than a level meaning anything is wrong — and `PLAYBACK_BYTES` puts 30 seconds out of
+     * reach for a 1080p AV1 stream anyway. So every ordinary pause was reported as a lost tail: 33
+     * of the 400 events in 0.1.390, all false, with `loadsStoppedShort = 92` measuring nothing.
      */
     override fun onIsLoadingChanged(isLoading: Boolean) {
         if (isLoading) return
@@ -102,8 +108,15 @@ internal class PlaybackDiagnostics(
         val unfetched = current.duration.takeIf { it > 0 }?.minus(buffered)
         // Stopping because the buffer is FULL is the load control doing its job, and it happens
         // constantly — counted, never a line each, because the report buffer is bounded and a
-        // chatty log destroys the history it is meant to preserve.
-        if (ahead > BufferBudget.MIN_BUFFER_MS || unfetched == null || unfetched <= SHORT_OF_THE_END_MS) {
+        // chatty log destroys the history it is meant to preserve. The gauge is what the 33 lines
+        // were actually worth saying: how low the buffer settles when loading stops. One number
+        // instead of a line each, and it is what would have shown the byte ceiling binding at ~25s
+        // against a 30s target without anyone reading the code.
+        if (ahead < leastAheadAtLoadStop) {
+            leastAheadAtLoadStop = ahead
+            Vitals.set("playback.leastAheadAtLoadStop", "${ahead}ms")
+        }
+        if (!loadStopIsAFault(ahead, unfetched, isStalled = stalledSince != null)) {
             Vitals.add("playback.loadPauses")
             return
         }
@@ -114,6 +127,9 @@ internal class PlaybackDiagnostics(
         )
         Vitals.add("playback.loadsStoppedShort")
     }
+
+    /** The lowest `ahead` any load stop has been seen at, for the gauge above. */
+    private var leastAheadAtLoadStop = Long.MAX_VALUE
 
     /**
      * Times each stall rather than just noting it. A duration is what distinguishes a
@@ -271,13 +287,38 @@ internal class PlaybackDiagnostics(
          * tracks and starts reading as something being broken. It is a label, not a threshold
          * anything acts on — every handover is timed either way.
          */
-        /** Below this much left unfetched, the player is simply at the end of the item. */
-        const val SHORT_OF_THE_END_MS = 5_000L
-
         const val SLOW_HANDOVER_MS = 3_000L
         const val PERCENT = 100
     }
 }
+
+/**
+ * Whether a load that has just stopped left the item's tail genuinely unreachable.
+ *
+ * Pure and top-level so the judgement is unit-testable: reaching it through the listener needs a
+ * Media3 `Player`, and the thresholds are the part that was wrong. See [LoadStopIsAFaultTest] for
+ * the 33 false lines this replaces and the one real case it must keep catching.
+ *
+ * [isStalled] is the discriminator, not the buffer level. Loading stops constantly on a healthy
+ * stream — the byte ceiling or the duration target is reached, the buffer drains, it resumes — and
+ * with minutes of a long item still unfetched every one of those looks identical to a lost tail.
+ * What is not ordinary is stopping while playback cannot continue, or stopping with so little ahead
+ * that it is one hiccup from the same thing.
+ */
+internal fun loadStopIsAFault(aheadMs: Long, unfetchedMs: Long?, isStalled: Boolean): Boolean {
+    if (unfetchedMs == null || unfetchedMs <= SHORT_OF_THE_END_MS) return false
+    return isStalled || aheadMs <= TOO_LITTLE_AHEAD_MS
+}
+
+/** Below this much left unfetched, the player is simply at the end of the item. */
+private const val SHORT_OF_THE_END_MS = 5_000L
+
+/**
+ * A buffer this thin is a stall waiting to happen, so a load stopping here is worth a line even
+ * while playback is still going. Deliberately far below `BufferBudget.MIN_BUFFER_MS`, which is a
+ * "resume loading" level and says nothing about health — using it as one is the bug this fixes.
+ */
+private const val TOO_LITTLE_AHEAD_MS = 1_000L
 
 /**
  * How long the oldest in-flight load has been running, computed HERE rather than stored.

@@ -3,7 +3,7 @@ title: Streaming reliability — chunked fetch, codec choice, expired-URL recove
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-13
+updated: 2026-08-17
 ---
 
 # Making video actually play
@@ -130,6 +130,96 @@ A superseded request returns `true`, not `false`. False would make an auto-advan
 unplayable and skip to the *next* one, so it would fight whatever the user had just chosen — worse
 than the duplicate it replaced.
 
+### A 403 is not always an expiry, and calling it one cost 40 seconds a go (0.1.390, 2026-08-17)
+
+Dewi, on three reports in one evening: *"buffering???? weird stuff??"*, *"more buffering"*. The
+numbers agreed with him — `bufferingMs = 60290`, `abandonedBufferingMs = 44574`, 31 stalls in 44
+minutes — and **all** of the abandoned time was recovery spinning on a diagnosis that was wrong.
+
+The URL that failed at 19:31:02 BST:
+
+```
+…/videoplayback?expire=1787013060&ei=ZFODaqi5D82KoccP9pC4sA8&itag=140&c=ANDROID_VR&…
+```
+
+`expire=1787013060` is **00:31:00Z the next morning — nearly six hours away**. The lease was fine.
+`isExpiredStatus` maps every 403 to `Expired`, so recovery believed a fresh URL would fix it and
+spent its full budget finding out otherwise: `expire=…066`, then `…073`, then `…081`, each newly
+signed, each refused within 150ms, each costing 12–18 seconds of Python extraction. Then it gave up
+and reached for the disk — where the audio had been the whole time.
+
+So the split is now on the timestamp the URL carries, not on the status code:
+
+| | Meaning | Budget |
+|---|---|---|
+| `Expired` | 403/410 and the lease has run out (or there is no lease to read) | 3 attempts |
+| `Rejected` | 403/410 and the lease is still in the future — the stream is being refused | 1 attempt |
+
+One attempt is kept for `Rejected` because a single bad CDN node is real and a fresh URL can land
+elsewhere. What is gone is arguing with a client YouTube is turning away. 0.1.170's overnight pause
+is a genuine expiry and keeps its three.
+
+The trail said the wrong thing too, which is how this survived: every retry line read
+`"re-resolving expired stream"` regardless, so the report asserted the false diagnosis fourteen
+times. It now names the reason, the budget, and — at the point of judgement — the **inputs**: the
+status, the seconds of lease remaining, and the client that signed the address.
+
+**The root cause is still unidentified, and now instrumented rather than guessed at.** Every refused
+URL in 0.1.390 was `c=ANDROID_VR` (one of yt-dlp's own default clients, not one we ask for), and
+every refusal was on a range request deep into the item — 1689219ms of 2260648ms on a resume, then
+1800024ms. That pairing is a plausible cause and no more than that, so rather than reaching for
+`player_client=-android_vr` on a hunch, `playback.refusedBy.<CLIENT>` counts refusals per client and
+the next report decides. See also the `youtube-android-client-first-megabyte` note.
+
+### A stale resolve took playback off the disk and back onto a 403 (0.1.390)
+
+The single worst thing in the same report, and the direct answer to "more buffering":
+
+```
+20:56:17.066 queue play-at-4 "Discoveries That Confirmed Ancient Folklore"   (watching)
+20:56:17.075 route -> streaming the video                                     resolve begins
+20:56:19.351 settings playbackMode -> AUDIO
+20:56:19.359 route -> the downloaded audio at /data/…/3138547848.media
+20:56:19.868 ready after 464ms — playing                                      ✅ from disk
+20:56:29.286 engine extract … in 12210ms                                      the OLD resolve lands
+20:56:29.548 listening — audio track preferred
+20:56:29.548 play … from https://…googlevideo.com/videoplayback?…             ❌ file dropped
+20:56:32.857 gave up buffering after 3308ms — it never recovered
+```
+
+"Only the newest play wins" was already in place and *held* — but it counted only the launcher's own
+plays. A route to a file goes straight to `PlaybackController.play`, so it never claimed the token,
+and a twelve-second extraction that was twelve seconds stale on arrival still believed it was the
+newest thing anybody wanted.
+
+`beginPlay()` is now public and `PlaybackQueue.route` claims it for **every** route before choosing
+one, passing the token into `launcher.play`. Every other hand-off to the player claims it too
+(`playLocal`, `listen`, `playVideoQuality`), so switching to Listen by hand or changing quality also
+supersedes a resolve in flight — and `selectAudioTrack`, which re-extracts and so waits just as
+long, checks the token after its re-pick.
+
+### "The tail is not coming" was crying wolf 33 times a report (0.1.390)
+
+8% of a bounded 400-event buffer, and not one of them a fault:
+
+```
+20:18:24 stopped loading at 1830782ms with only 27484ms buffered ahead and 402334ms never fetched
+20:18:30 stopped loading at 1836696ms with only 23370ms buffered ahead and 400534ms never fetched
+```
+
+Twenty-five seconds buffered, playback healthy, recurring every few seconds as the buffer drained
+and refilled. The test compared `ahead` against `BufferBudget.MIN_BUFFER_MS` — which is the level
+*below which loading resumes*, not a level that means anything is wrong — and `PLAYBACK_BYTES` puts
+30 seconds out of reach for a 1080p AV1 stream anyway, so the buffer settles just under the target
+and every ordinary pause looked like a lost tail. `loadsStoppedShort = 92` was therefore a number
+measuring nothing.
+
+`loadStopIsAFault` now asks the question that distinguishes 0.1.359's real case (70ms buffered,
+stalled, 35 seconds unfetched): did the stop leave playback **unable to carry on** — stalled, or
+under a second ahead? What the 33 lines were worth saying is kept as one gauge,
+`playback.leastAheadAtLoadStop`, which is what would have shown the byte ceiling binding at ~25s
+against a 30s target without anyone reading the code.
+
 ## Measured outcome
 
 Emulator, the video that previously stalled every seven seconds:
@@ -173,7 +263,11 @@ retryable. See [failure-handling.md](failure-handling.md).
 ## Files
 
 - `core/playback/…/ChunkedDataSource.kt` — the range-fetching wrapper
-- `core/playback/…/Media3PlaybackController.kt` — `looksExpired()`, `isExpiredStatus()`, `StreamFailure` emission
+- `core/playback/…/Media3PlaybackController.kt` — `deadAddressReason()`, `leaseVerdict()`,
+  `leaseSecondsLeft()`, `streamClient()`, `isExpiredStatus()`, `StreamFailure` emission
+- `core/playback/…/PlaybackDiagnostics.kt` — `loadStopIsAFault()` and the
+  `playback.leastAheadAtLoadStop` gauge
+- `app/…/video/VideoPlaybackLauncher.kt` — `beginPlay()`, and the token check after every resolve
 - `core/playback/…/StreamFailure.kt`
 - `app/…/playback/StreamRecovery.kt` — the retry budget, the fresh-start reset, the
   post-backoff guards (named `ExpiredStreamRecovery` when this doc was written; it grew the
@@ -192,10 +286,17 @@ retryable. See [failure-handling.md](failure-handling.md).
   them: the tap reaches recovery, a replay does not masquerade as one, and the dead address
   is dropped on the failure rather than on the way into a retry
 - `ExpiredStatusTest` — which HTTP statuses earn a re-resolve
+- `StreamLeaseVerdictTest` — expiry vs refusal read off the URL's own `expire`, on the real
+  parameters from 0.1.390, plus the signing client
+- `ARefusedStreamStopsRetryingTest` — a refusal gets one attempt and then the disk; an expiry keeps
+  its three; progress since the last refusal earns a fresh one
+- `LoadStopIsAFaultTest` — the 33 false lines from 0.1.390 and the one real case from 0.1.359
+- `AStaleResolveDoesNotClobberPlaybackTest` — the queue, launcher, resolver and controller wired
+  together: a file that has started playing survives a resolve landing ten seconds late
 
-**Not covered:** the cause-chain walk in `looksExpired()`. Building a Media3
+**Not covered:** the cause-chain walk in `deadAddressReason()`. Building a Media3
 `InvalidResponseCodeException` needs an `android.net.Uri`, which a JVM test cannot make, so
-the status codes are tested and the walk is not.
+the status codes, the lease judgement and the client parse are tested and the walk is not.
 
 ---
 

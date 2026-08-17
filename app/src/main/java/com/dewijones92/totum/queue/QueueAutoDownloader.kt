@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.isPermanent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -46,6 +47,8 @@ class QueueAutoDownloader(
     private val maxAttempts: Int = MAX_ATTEMPTS,
     /** How long one download may hold the queue before the next starts anyway. */
     private val settleTimeoutMs: Long = SETTLE_TIMEOUT_MS,
+    /** Multiplied by the retry number, so the second waits twice as long as the first. */
+    private val retryBackoffMs: Long = RETRY_BACKOFF_MS,
 ) {
     /**
      * Transient attempts per item this session, so a flaky connection gets a few more goes
@@ -64,22 +67,51 @@ class QueueAutoDownloader(
         }
     }
 
+    /**
+     * Fetches one entry, and keeps going while a failure is worth another attempt.
+     *
+     * The loop is the point. The retry budget was here from the start and there was nothing to
+     * spend it: the only thing that ever re-examined a failure was the next `queue.collect`
+     * emission, so a download that failed sat failed until the queue itself changed. Report
+     * 0.1.390 — Dewi's *"downloading delayed????"* — is that exactly: the tennis podcast 403'd at
+     * 20:58:31, and the attempt that worked came at 20:58:37 only because he happened to reorder
+     * an entry. Nothing else would have asked again this session.
+     */
     private suspend fun download(entry: QueueEntry, states: Map<*, DownloadState>) {
         val item = entry.item.item
-        val skip = skipReason(entry, states[item.id])
-        if (skip != null) {
-            // Said ONCE per item, not on every queue change. Three permanently-failed
-            // members-only videos repeated their reason on every pass and took 14% of a
-            // 387-event report (0.1.229) saying nothing new — and the report buffer is
-            // bounded, so noise like that is evidence thrown away.
-            if (skip.isNotEmpty() && explained.add(entry.item.item.id)) {
-                Diag.log("download", "not fetching \"${item.title}\": $skip")
+        var state = states[item.id]
+        while (true) {
+            val skip = skipReason(entry, state)
+            if (skip != null) {
+                // Said ONCE per item, not on every queue change. Three permanently-failed
+                // members-only videos repeated their reason on every pass and took 14% of a
+                // 387-event report (0.1.229) saying nothing new — and the report buffer is
+                // bounded, so noise like that is evidence thrown away.
+                if (skip.isNotEmpty() && explained.add(item.id)) {
+                    Diag.log("download", "not fetching \"${item.title}\": $skip")
+                }
+                return
             }
-            return
+            // Reaching here with a failure in hand means skipReason has just decided this one is
+            // worth another go, and counted it. The retry number and the reason both go in the
+            // trail, because "it downloaded" and "it downloaded on the third go, 30 seconds late"
+            // are otherwise the same line — and the delay was the whole complaint.
+            (state as? DownloadState.Failed)?.let { failure ->
+                val retry = attempts.getOrDefault(item.id, 1)
+                Diag.warn(
+                    "download",
+                    "retrying \"${item.title}\" (retry $retry of $maxAttempts) " +
+                        "after ${failure.reason.take(REASON_CHARS)}",
+                )
+                // A retry with no gap is not a retry: a signed URL that has just answered 403
+                // answers 403 again immediately. His successful attempt came six seconds later.
+                delay(retryBackoffMs * retry)
+            }
+            // The whole entry, handle included, so the video route gets its watch URL.
+            downloads.download(entry.item, audioOnly = true)
+            state = awaitSettled(item.id) ?: return
+            if (state !is DownloadState.Failed) return
         }
-        // The whole entry, handle included, so the video route gets its watch URL.
-        downloads.download(entry.item, audioOnly = true)
-        awaitSettled(item.id)
     }
 
     /**
@@ -94,7 +126,7 @@ class QueueAutoDownloader(
      * Only the AUTOMATIC path waits. A download somebody asked for by tapping still starts
      * immediately rather than queueing behind seventy of these.
      */
-    private suspend fun awaitSettled(id: MediaItemId) {
+    private suspend fun awaitSettled(id: MediaItemId): DownloadState? {
         val settled = withTimeoutOrNull(settleTimeoutMs) {
             downloads.observeDownloads().first { states -> states[id] !is DownloadState.Downloading }
         }
@@ -105,6 +137,9 @@ class QueueAutoDownloader(
             // the unbounded parallelism this replaced. Move on and say so.
             Diag.warn("download", "gave up waiting for $id after ${settleTimeoutMs}ms; moving on")
         }
+        // Null means "I do not know how it ended", which is not the same as a failure and must
+        // never be retried on: a wedged download retried is two wedged downloads.
+        return settled?.get(id)
     }
 
     /** Items whose skip reason has already been logged; it does not change between passes. */
@@ -159,7 +194,18 @@ class QueueAutoDownloader(
          */
         const val SETTLE_TIMEOUT_MS = 10 * 60 * 1000L
 
-        /** Extractor errors are long; this is enough to recognise one in the trail. */
-        const val REASON_CHARS = 80
+        /**
+         * Long enough for the retry to have a real chance, short enough that a failing item does
+         * not hold a long queue for minutes. Multiplied by the retry number: 5s, then 10s, 15s.
+         * His successful retry landed six seconds after the 403.
+         */
+        const val RETRY_BACKOFF_MS = 5_000L
+
+        /**
+         * Extractor errors are long; this is enough to recognise one in the trail — and enough to
+         * keep the status code, which is the part that says whether asking again can help.
+         * `Network(detail=ERROR: unable to download video data: HTTP Error 403: Forbidden)` is 78.
+         */
+        const val REASON_CHARS = 120
     }
 }

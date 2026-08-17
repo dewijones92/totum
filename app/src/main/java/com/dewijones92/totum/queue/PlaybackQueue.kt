@@ -541,6 +541,11 @@ class PlaybackQueue(
         startPositionMs: Long,
         streamRefused: Boolean = false,
     ): Boolean {
+        // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
+        // controller directly, so without claiming it here a streaming resolve still in flight
+        // would land later and take playback back to the network — which is exactly what report
+        // 0.1.390 did, ten seconds after the downloaded audio had started playing.
+        val request = launcher.beginPlay()
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
         val audioNow = audioPreferred()
@@ -574,7 +579,8 @@ class PlaybackQueue(
                 )
                 true
             }
-            is PlayRoute.VideoStream -> launcher.play(route.playable.item, route.watchUrl, startPositionMs)
+            is PlayRoute.VideoStream ->
+                launcher.play(route.playable.item, route.watchUrl, startPositionMs, request)
             is PlayRoute.AudioStream -> {
                 controller.play(route.playable.item, queued.handle.pillar, startPositionMs = startPositionMs)
                 true

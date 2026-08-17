@@ -14,6 +14,7 @@ import com.dewijones92.totum.playback.PlaybackController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * The one place a video goes from "a watch URL" to "playing", and the owner of
@@ -77,16 +78,31 @@ class VideoPlaybackLauncher(
      * video was handed to the player **three times in 81ms**, with three `beginSession` calls to
      * YouTube. A tap on a *different* video during a resolve is the worse version of the same
      * thing: the older request would start playing over the newer one.
+     *
+     * Atomic because [beginPlay] is now called by the queue as well, from its own coroutine.
      */
-    private var latestRequest = 0L
+    private val latestRequest = AtomicLong()
 
-    /** Plays an already-downloaded file — no re-resolution, and no quality choice (it's one merged file). */
+    /**
+     * Claims the newest play, returning the token to hand back to [play].
+     *
+     * Public because the counter has to cover **every** route, not just this class's. A play that
+     * reaches a downloaded file goes straight to the controller and never touches the launcher, so
+     * while the counter was private a route to disk left an older streaming resolve believing it
+     * was still wanted. Report 0.1.390: a twelve-second extraction landed ten seconds after the
+     * same item had started playing from `/data/…/3138547848.media`, dropped the file, streamed a
+     * URL that answered 403, and cost 41 seconds of buffering nobody could have escaped.
+     */
+    fun beginPlay(): Long = latestRequest.incrementAndGet()
+
     /** Drops any cached resolution for [watchUrl] — see [VideoResolver.forget]. */
     fun forgetResolved(watchUrl: HttpUrl) {
         resolver.forget(watchUrl)
     }
 
+    /** Plays an already-downloaded file — no re-resolution, and no quality choice (it's one merged file). */
     fun playLocal(item: MediaItem, localPath: String) {
+        beginPlay()
         current = null
         currentWatchUrl = null
         _quality.value = QualityState()
@@ -105,19 +121,27 @@ class VideoPlaybackLauncher(
      * Resolves [watchUrl] to a playable stream (with its skip segments and
      * quality ladder) and plays the default quality. Returns false when the
      * video can't be resolved (private, removed, geo-blocked, …).
+     *
+     * [request] is the caller's claim on being the newest play, from [beginPlay]. Pass it when
+     * the caller may reach the player by some *other* route as well — the queue does — so that
+     * route also supersedes a resolve still in flight here. Defaulted for callers that cannot.
      */
-    suspend fun play(listing: MediaItem, watchUrl: HttpUrl, startPositionMs: Long = 0): Boolean {
-        val request = ++latestRequest
+    suspend fun play(
+        listing: MediaItem,
+        watchUrl: HttpUrl,
+        startPositionMs: Long = 0,
+        request: Long = beginPlay(),
+    ): Boolean {
         // `asked` names WHO wanted this, because a report showed one video extracted four
         // times in thirty seconds and the log could not say by whom.
         val extracted = resolver.resolve(watchUrl, listing.sourceId, asked = "play") ?: return false
-        if (request != latestRequest) {
+        if (request != latestRequest.get()) {
             // True rather than false: something IS playing, just not this. Returning false makes
             // an auto-advance treat the item as unplayable and skip to the NEXT one, which would
             // have it fighting whatever the user just chose.
             Diag.log(
                 "playback",
-                "dropping the play of ${listing.id.value} — ${latestRequest - request} newer " +
+                "dropping the play of ${listing.id.value} — ${latestRequest.get() - request} newer " +
                     "request(s) arrived while it resolved",
             )
             return true
@@ -155,6 +179,9 @@ class VideoPlaybackLauncher(
 
     /** Plays [resolved] as video at the best allowed quality — the shared play/"Watch" path. */
     private fun playVideoQuality(resolved: VideoResolver.Resolved, startPositionMs: Long = 0) {
+        // Every hand-off to the player claims the newest play, so "Watch" and a quality change
+        // supersede a resolve still in flight just as a fresh tap does.
+        beginPlay()
         // The height you last picked by hand, within the network's cap; the best the cap allows
         // if you have not picked one. Falls back to the reliable muxed default when nothing
         // qualifies at all (or there are no ladders).
@@ -212,6 +239,9 @@ class VideoPlaybackLauncher(
             Diag.log("playback", "${resolved.item.id.value} has no audio-only stream; cannot listen")
             return
         }
+        // Claimed like any other play: switching to Listen by hand has to supersede a resolve
+        // still in flight, or that resolve lands seconds later and puts the picture back.
+        beginPlay()
         _quality.update { it.copy(selectedId = null, listening = true) }
         Diag.log(
             "playback",
@@ -231,6 +261,7 @@ class VideoPlaybackLauncher(
      * held, because a silent no-op on a menu tap is indistinguishable from a broken menu.
      */
     suspend fun selectAudioTrack(languageCode: String) {
+        val request = beginPlay()
         val watchUrl = currentWatchUrl ?: run {
             Diag.log("playback", "no video is resolved; cannot switch to audio track $languageCode")
             return
@@ -241,6 +272,11 @@ class VideoPlaybackLauncher(
         choices.chooseAudio(languageCode)
         val repicked = resolver.selectAudioLanguage(watchUrl, languageCode) ?: run {
             Diag.log("playback", "audio track $languageCode not applied; keeping the current track")
+            return
+        }
+        if (request != latestRequest.get()) {
+            // Re-picking a language re-extracts, so this waits as long as a first resolve does.
+            Diag.log("playback", "dropping the $languageCode switch — something newer started while it re-picked")
             return
         }
         // The listing's facts survive the re-pick exactly as they do a first resolve.

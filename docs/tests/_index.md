@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-08-15
+updated: 2026-08-17
 ---
 
 # Testing
@@ -173,6 +173,10 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A video whose stream keeps failing is retried afresh when you tap it again, rather than skipped on sight | `StreamRecoveryTest`, `TappingAFailedItemAgainTest` | every commit |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |
+| A resolve that lands late cannot take playback off a file it has already started — whatever route the newer play took | `AStaleResolveDoesNotClobberPlaybackTest` | every commit |
+| A 403 on a URL whose lease is still good is a refusal, not an expiry, and gets one retry rather than three | `StreamLeaseVerdictTest`, `ARefusedStreamStopsRetryingTest` | every commit |
+| A download that fails is tried again by itself, without waiting for the queue to change | `AFailedDownloadIsTriedAgainTest` | every commit |
+| "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
 | The subscription list is not fetched twice in a session | `SubscriptionsFetchedOnceTest` | every commit |
 | A report's own numbers survive minification and reset per item | `PlayHandleLabelTest`, `AnalyticsResetPerItemTest` | every commit (the second on the emulator) |
 | What you type into "Send diagnostics" reaches the report | `DiagnosticsNoteTest`, `DiagnosticsContentTest`, `DiagnosticsNoteBoxTest` | every commit |

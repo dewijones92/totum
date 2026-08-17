@@ -133,7 +133,8 @@ internal class StreamRecovery(
             scope.launch { runCatching { prefetchNext() } }
         }
 
-        if (attempts >= maxAttempts) {
+        val budget = failure.budget()
+        if (attempts >= budget) {
             // Giving up on THIS item is the point — re-resolving forever against something
             // genuinely gone would be the same infinite loop wearing a different hat. But
             // giving up on the whole queue is not: a real report had the player dead on one
@@ -165,7 +166,14 @@ internal class StreamRecovery(
             // likely to be overtaken by the user picking something else.
             if (overtaken(failure, generationAtFailure)) return
         } else {
-            Diag.log("playback", "re-resolving expired stream (attempt $attempts) from ${failure.positionMs}ms")
+            // The reason and the budget, not the word "expired". Every one of these lines used to
+            // say "expired" whatever had happened, including fourteen times in 0.1.390 for URLs
+            // with six hours of lease left — so the trail asserted the diagnosis that was wrong.
+            Diag.log(
+                "playback",
+                "re-resolving after ${failure.reason} (attempt $attempts of $budget) " +
+                    "from ${failure.positionMs}ms",
+            )
         }
         // A retry with no gap is not a retry. Measured on the emulator 2026-07-31 with
         // packets dropped while Android still reported a validated network: the whole
@@ -219,8 +227,27 @@ internal class StreamRecovery(
     private fun StreamFailure.shouldResetBudget(): Boolean =
         itemId != lastItem || positionMs > lastPositionMs + PROGRESS_MS
 
+    /**
+     * How many re-resolves this kind of failure is worth.
+     *
+     * A [StreamFailure.Reason.Rejected] gets ONE, because the URL's own lease says the address is
+     * alive and being turned away — and a newly-signed one is turned away identically. Report
+     * 0.1.390 proved it three times over: `expire` 1787013066, then …073, then …081, each freshly
+     * signed and each 403 within 150ms, at 12–18 seconds of extraction apiece. The one attempt is
+     * kept because a single bad CDN node is real and a fresh URL can land elsewhere; the other two
+     * only delayed reaching the audio that was already on the disk.
+     *
+     * An [StreamFailure.Reason.Expired] keeps the full budget — 0.1.170, paused overnight and
+     * resumed in the morning, is genuinely fixed by a fresh URL.
+     */
+    private fun StreamFailure.budget(): Int =
+        if (reason == StreamFailure.Reason.Rejected) REFUSED_MAX_ATTEMPTS else maxAttempts
+
     private companion object {
         const val MAX_ATTEMPTS = 3
+
+        /** One, so a bad CDN node is covered and a refusing client is not argued with. */
+        const val REFUSED_MAX_ATTEMPTS = 1
 
         /** Multiplied by the attempt number, so the second waits 2s and the third 4s. */
         const val BACKOFF_MS = 2_000L

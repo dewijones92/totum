@@ -3,7 +3,7 @@ title: Permanent vs transient failure, and playback that goes nowhere
 kind: feature
 status: shipped
 area: playback
-updated: 2026-07-31
+updated: 2026-08-17
 ---
 
 # Knowing when to stop asking
@@ -30,6 +30,36 @@ says nothing about the content. Transient failures get a bounded three attempts 
 session, not persisted: a fresh launch is a fair reason to try again, and a permanent
 failure is refused on its reason regardless of any counter.
 
+### The budget had nothing to spend it (0.1.390, 2026-08-17)
+
+Dewi: *"downloading delayed????"* — the tennis podcast. His phone:
+
+```
+20:58:28.723 download start audioOnly=true Cincinnati - Will beaten Djokovic contend…
+20:58:31.462 download failed …: Network(detail=ERROR: unable to download video data:
+                                 HTTP Error 403: Forbidden)
+20:58:37.549 queue move 1->0                     ← he happened to reorder the queue
+20:58:37.578 download start audioOnly=true Cincinnati - Will beaten Djokovic contend…
+20:58:49.830 download done                       ← the very next attempt worked
+```
+
+Everything above this line was right: 403 is not a permanent marker, so three transient
+attempts were available. What was missing is anything to *use* them. The class was driven
+entirely by `queue.collect`, so a failure could only be reconsidered when the queue itself
+changed — and what got the tennis podcast downloaded, six seconds later, was Dewi dragging an
+entry. Left alone it would have sat failed until the next launch, which from the outside is a
+download that silently never happens.
+
+`download()` is now a loop: fetch, wait for it to settle, and if it settled `Failed`, ask
+`skipReason` — the same single place that already decides — whether it is worth another go, then
+wait `5s × the retry number` and go round. Sequential still, so the retries do not compete with
+playback for the connection, and bounded by the same budget. A settle that *times out* returns null
+and is never retried on: a wedged download retried is two wedged downloads.
+
+The retry says which retry it is and what it is recovering from, because "it downloaded" and "it
+downloaded on the third go, thirty seconds late" were otherwise the same line — and the delay was
+the whole complaint.
+
 ## Playback
 
 The expired-stream recovery stopped after three re-resolves — right for the item, wrong for
@@ -50,7 +80,8 @@ to fetch yet) stay silent, so the trail keeps only what would otherwise be myste
 ## Files
 
 - `core/domain/…/DownloadState.kt` — `isPermanent` and the marker list
-- `app/…/queue/QueueAutoDownloader.kt` — `skipReason`, `failureSkip`, the attempt budget
+- `app/…/queue/QueueAutoDownloader.kt` — `skipReason`, `failureSkip`, the attempt budget, and the
+  retry loop that finally spends it
 - `app/…/playback/ExpiredStreamRecovery.kt` — `moveOn` when the budget is spent
 
 ## Tests
@@ -60,6 +91,12 @@ and unknown reasons staying retryable), `QueueAutoDownloaderTest` (+3: permanent
 retried, transient retried, transient bounded), `ExpiredStreamRecoveryTest` (+2: moves on
 once spent, does *not* move on while attempts remain — the second matters more, since an
 over-eager skip would look like the bug being fixed).
+
+`AFailedDownloadIsTriedAgainTest` (7 cases, 2026-08-17) covers the moment the others could not: a
+download that fails *during* a pass. Its fake fails the first N attempts on each item and then
+succeeds, which is what a refused stream URL actually does. Four of the seven failed against the old
+code; the three that passed are the ones worth keeping honest — a success is not followed by another
+attempt, a permanent failure gets none, and the item behind it is still fetched.
 
 Found while writing those: `FakeDownloadManager.emit` fires an event but does **not** touch
 the observable state map, so a test driving a consumer of `observeDownloads()` could not see

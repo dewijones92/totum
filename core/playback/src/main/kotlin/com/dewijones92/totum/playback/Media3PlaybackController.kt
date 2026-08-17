@@ -530,36 +530,105 @@ public class Media3PlaybackController(
 }
 
 /**
- * Whether a failure is the kind a freshly-resolved URL fixes.
+ * Whether a failure is the kind a freshly-resolved URL might fix, and which kind it is — null
+ * when the status says nothing about the address.
  *
  * Matched on the cause chain rather than the top-level error code, because the code is not
  * reliable: the real report carried ERROR_CODE_IO_UNSPECIFIED even though the cause was a
  * plain 403.
+ *
+ * The URL is carried out of the exception because a 403 alone cannot say whether the lease ran
+ * out or the stream is being refused, and those need opposite amounts of patience. See
+ * [leaseVerdict], which holds the judgement in a form a JVM test can reach.
  */
 @UnstableApi
-internal fun PlaybackException.looksExpired(): Boolean {
+internal fun PlaybackException.deadAddressReason(nowEpochSeconds: Long): StreamFailure.Reason? {
     var cause: Throwable? = this
     while (cause != null) {
-        val code = (cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (code != null && isExpiredStatus(code)) return true
+        val http = cause as? HttpDataSource.InvalidResponseCodeException
+        if (http != null && isExpiredStatus(http.responseCode)) {
+            val url = http.dataSpec.uri.toString()
+            val verdict = leaseVerdict(url, nowEpochSeconds)
+            // The INPUTS, not only the verdict. "Expired" appeared 14 times in one report and there
+            // was no way to tell from it that every one of those URLs had six hours left to run.
+            //
+            // The CLIENT is here because it is the open question a refusal raises and nothing could
+            // answer it: 0.1.390's refused URLs were all `c=ANDROID_VR`, which is one of yt-dlp's
+            // own defaults, and every refusal was on a range deep into the item (1689219ms of
+            // 2260648ms, then 1800024ms). Whether that pairing is the cause is not something this
+            // app can decide from here, so it is counted per client and left for the next report
+            // to settle rather than guessed at with a flag.
+            val client = streamClient(url)
+            val lease = leaseSecondsLeft(url, nowEpochSeconds)?.let { "${it}s of its lease left" }
+                ?: "no lease to read"
+            Vitals.add("playback.refusedBy.$client")
+            Diag.log(
+                "playback",
+                "HTTP ${http.responseCode} from client $client on a stream with $lease -> $verdict",
+            )
+            return verdict
+        }
         cause = cause.cause
     }
-    return false
+    return null
 }
 
 /**
  * What, if anything, could still get this playing again — null when nothing could.
  *
- * Expiry is checked first because a 403 arrives as an [HttpDataSource] failure too, and
- * "the lease ran out" deserves an immediate fresh URL rather than a wait for a network
- * that is already there.
+ * The address is judged first because a 403 arrives as an [HttpDataSource] failure too, and a dead
+ * or refused address deserves an answer of its own rather than a wait for a network that is
+ * already there.
  */
 @UnstableApi
-internal fun PlaybackException.recoverableReason(): StreamFailure.Reason? = when {
-    looksExpired() -> StreamFailure.Reason.Expired
-    isUnreachable() -> StreamFailure.Reason.Unreachable
-    else -> null
+internal fun PlaybackException.recoverableReason(
+    nowEpochSeconds: Long = System.currentTimeMillis() / MILLIS_PER_SECOND,
+): StreamFailure.Reason? = when (val address = deadAddressReason(nowEpochSeconds)) {
+    null -> if (isUnreachable()) StreamFailure.Reason.Unreachable else null
+    else -> address
 }
+
+private const val MILLIS_PER_SECOND = 1_000L
+
+/** How long the URL's own lease has left, negative once it is past; null when it carries none. */
+internal fun leaseSecondsLeft(url: String, nowEpochSeconds: Long): Long? =
+    LEASE.find(url)?.groupValues?.get(1)?.toLongOrNull()?.minus(nowEpochSeconds)
+
+/**
+ * Which YouTube client signed this address, from the `c=` it carries — `none` when it carries no
+ * such parameter, which is every URL that is not googlevideo's.
+ *
+ * Worth naming because a refusal is a fact about the *client*, not about the video: yt-dlp asks
+ * several and hands back whichever offered the best format, so two plays of the same item can be
+ * signed by different clients and behave differently. Nothing in a report could previously say
+ * which, and the URL is truncated in the trail well before `c=`.
+ */
+internal fun streamClient(url: String): String =
+    CLIENT.find(url)?.groupValues?.get(1) ?: "none"
+
+private val CLIENT = Regex("""[?&]c=([A-Za-z0-9_]+)""")
+
+/**
+ * Whether a 403/410 means the lease ran out or the stream is being refused.
+ *
+ * Every googlevideo address carries the epoch second it dies at, in `expire`, so this is readable
+ * rather than guessable — and it was being read backwards. Report 0.1.390: a 403 at 18:31Z on a
+ * URL stamped `expire=1787013060`, which is 00:31Z the following morning. Nearly six hours of
+ * lease left, called an expiry, and three re-resolves spent on it at 12–18 seconds each.
+ *
+ * Split out from the cause-chain walk above for the same reason [isExpiredStatus] is: building a
+ * Media3 exception needs an `android.net.Uri`, which a JVM test cannot make, and this is the part
+ * with the judgement in it. [StreamFailure.Reason.Expired] is the fallback throughout — a URL with
+ * no lease to read (a podcast enclosure, the home torrent server) keeps the behaviour it has always
+ * had, and one wasted retry is the cheaper of the two mistakes.
+ */
+internal fun leaseVerdict(url: String, nowEpochSeconds: Long): StreamFailure.Reason {
+    val left = leaseSecondsLeft(url, nowEpochSeconds) ?: return StreamFailure.Reason.Expired
+    return if (left <= 0) StreamFailure.Reason.Expired else StreamFailure.Reason.Rejected
+}
+
+/** Anchored on the parameter boundary, so `expires_in` is not mistaken for the lease. */
+private val LEASE = Regex("""[?&]expire=(\d+)""")
 
 /**
  * Whether the failure was the connection itself rather than the content.

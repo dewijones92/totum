@@ -31,6 +31,18 @@ public data class StreamFailure(
         Expired,
 
         /**
+         * A 403 on an address whose own lease is still hours from running out — so the stream is
+         * being turned away, not timing out, and a newly-signed URL is turned away identically.
+         *
+         * Told apart from [Expired] by reading the `expire` the URL carries (see `leaseVerdict`).
+         * They arrive as the same status code and need opposite amounts of patience: report
+         * 0.1.390 spent three re-resolves at 12–18 seconds of extraction each on URLs that were
+         * valid for another six hours and refused within 150ms every time, while the item's audio
+         * sat downloaded on the disk. One attempt covers a bad CDN node; the rest was silence.
+         */
+        Rejected,
+
+        /**
          * The connection failed — no route, DNS, reset, timeout. The player lands in IDLE
          * and, on its own, stays there **forever**: measured 2026-07-31 by black-holing
          * HTTPS mid-playback and then restoring it, the player sat at the same millisecond

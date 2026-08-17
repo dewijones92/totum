@@ -133,7 +133,7 @@ class TappingAFailedItemAgainTest {
 
         assertTrue(
             "the replay happened, so this test is testing something — trail was:\n${trail()}",
-            trail().contains("re-resolving expired stream (attempt 1)"),
+            trail().contains("re-resolving after Expired (attempt 1 of 3)"),
         )
         assertEquals(
             "a replay must not announce itself as a fresh start — trail was:\n${trail()}",
@@ -161,7 +161,7 @@ class TappingAFailedItemAgainTest {
 
         val lines = trail().lines()
         val forgotten = lines.indexOfFirst { it.contains("forgot the cached URL for $BROKEN_ID") }
-        val decidedToRetry = lines.indexOfFirst { it.contains("re-resolving expired stream") }
+        val decidedToRetry = lines.indexOfFirst { it.contains("re-resolving after") }
         assertTrue("the failed URL must leave the cache — trail was:\n${trail()}", forgotten >= 0)
         assertTrue(
             "it must be forgotten on the FAILURE, not on the way into a retry — trail was:\n${trail()}",
