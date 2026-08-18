@@ -79,7 +79,13 @@ class SabrCarriesAWholeStreamTest {
     private val transport = SabrTransport { url, body ->
         okHttpSabrTransport(http).post(url, body).also { response ->
             UmpReader.read(response).parts.forEach { seen += it.name }
-            if (UmpReader.read(response).parts.any { it.name == "SABR_ERROR" }) lastResponse = response
+            // Kept when the RESPONSE is a refusal, judged by the same rule the app uses -- not by
+            // matching a part NAME. It matched the literal "SABR_ERROR", which moved from id 42 to 44
+            // when the part table was regenerated from the proto, and 44 appears in neither of this
+            // repo's captured refusals. So the failure message this wrapper exists for printed
+            // `refusal=parts=[] itags=[] reasons=[] protection=none` in exactly the case it is for.
+            // A diagnostic keyed on a name is a diagnostic that a rename silently empties.
+            if (ResponseSummary.refusalIn(response) != null) lastResponse = response
         }
     }
 

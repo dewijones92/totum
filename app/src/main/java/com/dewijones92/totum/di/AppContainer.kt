@@ -522,6 +522,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                         sponsorBlockCategories = appPreferences.settings.value.skipCategories.mapTo(
                             mutableSetOf()
                         ) { it.id },
+                        // The SAME preference playback resolves with. Without it, choosing German and
+                        // downloading gave the English original -- and a downloaded file is precisely
+                        // the one you cannot re-pick a track for.
+                        preferredAudioLanguages = streamChoices::preferredAudioLanguages,
                     ),
                     secondary = PlayerBackedDownloadStrategy(
                         // The SAME resolution playback uses, so anything watchable is fetchable.

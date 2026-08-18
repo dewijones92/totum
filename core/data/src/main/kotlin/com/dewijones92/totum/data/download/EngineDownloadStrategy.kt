@@ -23,6 +23,15 @@ import java.io.File
 public class EngineDownloadStrategy(
     private val engine: YtDlpEngine,
     private val sponsorBlockCategories: Set<String> = emptySet(),
+    /**
+     * Audio languages to prefer, best first — the same preference playback uses.
+     *
+     * It was missing entirely, so choosing German and DOWNLOADING gave you the English original, with
+     * no track menu offline to correct it with. This is the PRIMARY video strategy, so the language work
+     * done on the resolve path did not reach the case where it matters most: a downloaded file is the
+     * one you cannot re-pick a track for.
+     */
+    private val preferredAudioLanguages: () -> List<String> = { emptyList() },
 ) : DownloadStrategy {
 
     override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> = flow {
@@ -39,7 +48,7 @@ public class EngineDownloadStrategy(
             val request = DownloadRequest(
                 url = url,
                 targetDirectory = work,
-                formatId = if (audioOnly) BEST_AUDIO else BEST_MERGED,
+                formatId = selectorFor(audioOnly),
                 sponsorBlockCategories = sponsorBlockCategories,
             )
             engine.download(request).collect { event ->
@@ -68,6 +77,20 @@ public class EngineDownloadStrategy(
         // trip DownloadState's total >= downloaded invariant.
         val total = event.totalBytes?.takeIf { it >= event.bytesDownloaded }
         return DownloadState.Downloading(event.bytesDownloaded, total)
+    }
+
+    /**
+     * The yt-dlp selector, preferring the wanted audio language and falling back to the plain one.
+     *
+     * `[language^=de]` matches `de`, `de-DE` and the dubbed variants alike, and the `/` alternative means
+     * a video with no such track still downloads rather than failing -- the fallback IS the point,
+     * because most videos have exactly one audio track and must be unaffected.
+     */
+    private fun selectorFor(audioOnly: Boolean): String {
+        val base = if (audioOnly) BEST_AUDIO else BEST_MERGED
+        val wanted = preferredAudioLanguages().firstOrNull()?.takeIf { it.isNotBlank() } ?: return base
+        val language = wanted.substringBefore('-')
+        return if (audioOnly) "ba[language^=$language]/$base" else "bv*+ba[language^=$language]/$base"
     }
 
     public companion object {
