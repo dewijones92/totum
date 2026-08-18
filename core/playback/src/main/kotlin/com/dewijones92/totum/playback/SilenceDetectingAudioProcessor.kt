@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
@@ -35,11 +36,34 @@ internal class SilenceDetectingAudioProcessor(
     private var lastPeak = 0
     private var silenceCount = 0L
 
+    /**
+     * Channels per frame, so every one of them is listened to.
+     *
+     * `isQuiet` walked the buffer with a 64-byte stride. A frame of 16-bit stereo is 4 bytes and 64 is a
+     * multiple of 4, so every sampled offset was `position() mod 4` -- channel 0, always. A left channel
+     * below the threshold latched silence whatever the right channel was doing, and at ~-30 dBFS that
+     * covers hard-panned dialogue or one dead mic channel, not just digital silence.
+     */
+    private var channels = 1
+
+    /**
+     * Whether the buffers can be read as 16-bit samples at all.
+     *
+     * The comment below has always claimed anything else "passes through unexamined", and only the log
+     * did: `queueInput` called `getShort` unconditionally, and meaningless numbers below the threshold
+     * latch silence. The sibling `BoostingAudioProcessor` really does guard, and its KDoc says the two
+     * behave the same way.
+     */
+    private var readable = true
+
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        channels = inputAudioFormat.channelCount.coerceAtLeast(1)
+        readable = inputAudioFormat.encoding == C.ENCODING_PCM_16BIT
         Diag.log(
             "silence",
             "configured enc=${inputAudioFormat.encoding} " +
-                "rate=${inputAudioFormat.sampleRate} ch=${inputAudioFormat.channelCount}",
+                "rate=${inputAudioFormat.sampleRate} ch=${inputAudioFormat.channelCount}" +
+                if (readable) "" else " — not 16-bit PCM, so silence will not be judged",
         )
         // 16-bit PCM is what the sink hands us after decoding; anything else passes
         // through unexamined rather than being misread as silence.
@@ -49,6 +73,13 @@ internal class SilenceDetectingAudioProcessor(
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
         if (remaining == 0) return
+        if (!readable) {
+            // Passed through without a verdict, as the configure comment has always claimed.
+            val untouched = replaceOutputBuffer(remaining)
+            untouched.put(inputBuffer)
+            untouched.flip()
+            return
+        }
         val quiet = inputBuffer.isQuiet()
 
         // Entering silence needs a few consecutive quiet buffers so a momentary dip
@@ -98,13 +129,20 @@ internal class SilenceDetectingAudioProcessor(
         try {
             var index = position()
             val end = limit()
-            // Sampling rather than reading every frame: a buffer is thousands of
-            // samples and loudness doesn't hide between them.
+            // Sampling FRAMES rather than bytes, and every channel within the sampled frame. Striding by
+            // bytes only ever read channel 0 on stereo, because the stride and the frame size share a
+            // factor -- see [channels].
+            val frameBytes = channels * BYTES_PER_SAMPLE
+            val stride = (STRIDE_BYTES / frameBytes).coerceAtLeast(1) * frameBytes
             var peak = 0
-            while (index + 1 < end) {
-                val sample = abs(getShort(index).toInt())
-                if (sample > peak) peak = sample
-                index += STRIDE_BYTES
+            while (index + frameBytes <= end) {
+                for (channel in 0 until channels) {
+                    val at = index + channel * BYTES_PER_SAMPLE
+                    if (at + BYTES_PER_SAMPLE > end) break
+                    val sample = abs(getShort(at).toInt())
+                    if (sample > peak) peak = sample
+                }
+                index += stride
             }
             lastPeak = peak
             return peak <= SILENCE_THRESHOLD
@@ -121,6 +159,9 @@ internal class SilenceDetectingAudioProcessor(
          * well above the theoretical noise floor.
          */
         const val SILENCE_THRESHOLD = 1024
+
+        /** One 16-bit sample. */
+        const val BYTES_PER_SAMPLE = 2
 
         /** How often a repeat silence entry is logged, so the event trail stays useful. */
         const val SILENCE_LOG_EVERY = 50L
