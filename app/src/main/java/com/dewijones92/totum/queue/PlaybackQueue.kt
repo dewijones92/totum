@@ -538,6 +538,14 @@ class PlaybackQueue(
      */
     suspend fun playCurrentOverSabr(positionMs: Long): Boolean {
         val entry = _state.value.current ?: return false
+        // Offline FIRST, and cheaply. SABR is a network route, so with no network it cannot succeed —
+        // and this rung sits in the give-up ladder, which offline IS the path to "step over this and
+        // play the next one". A doomed /player request in the middle of that delays the skip: adding
+        // the rung turned OfflineQueuePlaybackTest red with "still on never-downloaded after 20000ms".
+        if (offline()) {
+            Diag.log("playback", "no SABR rescue for ${entry.item.item.id.value}: offline, so it cannot serve")
+            return false
+        }
         val handle = entry.item.handle
         if (handle !is PlayHandle.Video) {
             Diag.log("playback", "no SABR rescue for a ${handle.pillar} item — SABR is a YouTube protocol")

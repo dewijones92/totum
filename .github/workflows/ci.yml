@@ -108,8 +108,7 @@ jobs:
             # shell, so `LIVE=$(...)` on a previous line is gone by the next — which is exactly what
             # happened: the log read `excluding live tests: ` with an empty value and nothing was
             # excluded. `[[:space:]]` rather than `\s`, which is a GNU extension and not POSIX ERE.
-            test -n "$(grep -vE '^[[:space:]]*(#|$)' tools/ci/live-instrumented-tests.txt)" || { echo "live list parsed EMPTY — refusing to run with no exclusions"; exit 1; }
-            ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.notClass="$(grep -vE '^[[:space:]]*(#|$)' tools/ci/live-instrumented-tests.txt | paste -sd,)"
+            sh -c 'L=$(grep -vE "^[[:space:]]*(#|\$)" tools/ci/live-instrumented-tests.txt | paste -sd,); test -n "$L" || { echo "live list parsed EMPTY - refusing to run with no exclusions"; exit 1; }; echo "excluding live tests: $L"; ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.notClass="$L"' 
             tools/ci/live-test-via-home.sh
 
 
