@@ -83,9 +83,16 @@ class LiveStreamPlaysToItsEndTest {
             while (controller.state.value?.isPlaying != true) delay(POLL_MS)
             true
         } ?: false
-        assumeTrue(
-            "YouTube did not serve this machine a playable stream — commonly a datacentre IP being " +
-                "bot-checked, which is an environment condition and not this defect",
+        // ASSERTED, not assumed. This line used to read `assumeTrue("… an environment condition and
+        // not this defect")`, and on 2026-08-17 it hit the real thing: YouTube had stopped serving
+        // the app's streams entirely, this test met that exactly, reported a SKIP, and CI published a
+        // build in which nothing could be played. Dewi found out by using the app. The excuse was
+        // fair when a datacentre IP was the likely cause; the tunnel this runs through removes that
+        // cause, so what is left is the defect.
+        assertTrue(
+            "YouTube did not serve this machine a playable stream. Running through the home " +
+                "connection, that is the app being refused — the thing a user experiences as " +
+                "\"nothing plays\" — and not an environment quirk.",
             started,
         )
 

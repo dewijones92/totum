@@ -28,6 +28,13 @@ public class VideoPlaybackAbrRequest(
     private val audio: SabrFormat? = null,
     private val video: SabrFormat? = null,
     private val tracks: SabrTracks = SabrTracks.AUDIO_AND_VIDEO,
+    /**
+     * What the client already holds. Empty means "nothing yet", and is sent as nothing at all.
+     *
+     * The other half of what the server decides from — see [BufferedRange]. Without it the answers
+     * repeat the same segments for ever, whatever [playerTimeMs] says.
+     */
+    private val bufferedRanges: List<BufferedRange> = emptyList(),
 ) {
     public fun encode(): ByteArray {
         val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
@@ -37,12 +44,14 @@ public class VideoPlaybackAbrRequest(
         // these are what the server actually honoured.
         audio?.let { body += Protobuf.bytes(FIELD_PREFERRED_AUDIO, it.encode()) }
         video?.let { body += Protobuf.bytes(FIELD_PREFERRED_VIDEO, it.encode()) }
+        bufferedRanges.forEach { body += Protobuf.bytes(FIELD_BUFFERED_RANGES, it.encode()) }
         body += Protobuf.bytes(FIELD_USTREAMER_CONFIG, ustreamerConfig)
         return body
     }
 
     private companion object {
         const val FIELD_CLIENT_ABR_STATE = 1
+        const val FIELD_BUFFERED_RANGES = 3
         const val FIELD_USTREAMER_CONFIG = 5
         const val FIELD_PREFERRED_AUDIO = 16
         const val FIELD_PREFERRED_VIDEO = 17

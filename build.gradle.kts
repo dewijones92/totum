@@ -41,6 +41,20 @@ val androidDefaults: com.android.build.api.dsl.CommonExtension.() -> Unit = {
   lint.lintPolicy()
 }
 
+/**
+ * Live tests — the ones that talk to real YouTube — are excluded from the ordinary `test` task and
+ * run only when `totum.liveTests` is set.
+ *
+ * They belong in a separate phase for one reason and it is not speed: a GitHub runner is a
+ * datacentre IP that YouTube bot-checks, so running them there would fail for the environment rather
+ * than for the code. CI runs them through Dewi's home connection instead
+ * (`tools/ci/live-test-via-home.sh`), where a failure means what it says.
+ *
+ * Marked by PACKAGE (`…video.live`) rather than by a name convention, so a new one cannot join the
+ * default task by being called something slightly different.
+ */
+val liveTestsRequested = providers.gradleProperty("totum.liveTests").isPresent
+
 // Every module gets the same static-analysis gate; adding a module adds its gate.
 subprojects {
   apply(plugin = "io.gitlab.arturbosch.detekt")
@@ -62,6 +76,20 @@ subprojects {
 
   dependencies {
     add("detektPlugins", detektFormatting)
+  }
+
+  // Applied to every module's JVM test tasks, so a live test added anywhere is excluded by the
+  // same rule rather than by remembering to configure its module.
+  tasks.withType<Test>().configureEach {
+    if (liveTestsRequested) {
+      filter { includeTestsMatching("com.dewijones92.totum.*.live.*") }
+    } else {
+      filter {
+        excludeTestsMatching("com.dewijones92.totum.*.live.*")
+        // A module with no other tests would otherwise fail with "no tests found".
+        isFailOnNoMatchingTests = false
+      }
+    }
   }
 
   plugins.withId("com.android.application") {

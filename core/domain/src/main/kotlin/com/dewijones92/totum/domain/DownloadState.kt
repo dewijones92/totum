@@ -61,6 +61,52 @@ public val DownloadState.Failed.isPermanent: Boolean
     get() = reason.lowercase().let { text -> PERMANENT_MARKERS.any { it in text } }
 
 /**
+ * Whether the fetch reached YouTube and was **turned away** — so a different route could still get
+ * the bytes.
+ *
+ * A third class alongside permanent and transient, because neither of those routes it correctly and
+ * getting it wrong costs the whole download. Called transient, it is retried against the route that
+ * just refused it, which can never work. Called permanent, the item is abandoned even though the app
+ * can plainly fetch it another way.
+ *
+ * This is what broke everything on 2026-08-18: YouTube stopped serving the URLs yt-dlp can obtain
+ * past the first megabyte, so every video download 403'd. `FallbackDownloadStrategy` held a working
+ * second route the entire time and its `shouldFallBack = { it.isPermanent }` never once fired —
+ * Dewi: *"cant play anything that i havent already downloaded"*.
+ *
+ * 404 is deliberately excluded: the bytes are gone rather than withheld, so a second route finds
+ * nothing there either and trying costs a whole extra fetch to learn it.
+ */
+public val DownloadState.Failed.isRefusal: Boolean
+    get() = reason.lowercase().let { text -> REFUSAL_MARKERS.any { it in text } }
+
+/**
+ * How a refusal reads, across the routes that can report one — yt-dlp's wording and a bare HTTP
+ * status both appear in the wild.
+ */
+private val REFUSAL_MARKERS = listOf(
+    "403",
+    "forbidden",
+    "410",
+    ": gone",
+)
+
+/**
+ * Whether a failed fetch is worth trying by a **different route**.
+ *
+ * The one rule, named and unit-tested, rather than a lambda inlined at the wiring — because it was
+ * exactly that lambda (`shouldFallBack = { it.isPermanent }`) which silently withheld a working
+ * route for every 403 on 2026-08-18. A rule with a name and a test can be wrong once; a rule spelled
+ * out at the call site is wrong until somebody re-reads the call site.
+ *
+ * Two reasons qualify, for opposite causes: [isPermanent] means *this account or route* can never
+ * have it (members-only, age-gated) and another route holding credentials might; [isRefusal] means
+ * the route was turned away for the bytes themselves and another route asks differently.
+ */
+public val DownloadState.Failed.deservesAnotherRoute: Boolean
+    get() = isPermanent || isRefusal
+
+/**
  * Phrases meaning "asking again cannot help", as the extractor words them.
  *
  * Mostly "this content is not available to you". Age-gating is here because it needs a

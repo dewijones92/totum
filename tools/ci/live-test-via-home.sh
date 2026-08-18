@@ -13,10 +13,16 @@
 # INSIDE that action's script, because it kills the emulator the moment the script returns.
 #
 # Exit codes are deliberate:
-#   0  ran, or was skipped because the tunnel could not come up (a home connection is not a
-#      build dependency, and CI should not claim the app is broken because a router rebooted)
-#   1  ONLY when the peer can still reach the LAN — the entire risk of doing this at all, so it
-#      fails loudly rather than quietly proceeding
+#   0  the live tests RAN and passed, or the tunnel could not come up at all (a home connection is
+#      not a build dependency, and CI should not claim the app is broken because a router rebooted)
+#   1  the live tests ran and FAILED, or the peer can still reach the LAN
+#
+# A test FAILURE fails this script. That is a deliberate change of 2026-08-18, and it is the whole
+# lesson of that day: YouTube stopped serving the app's streams, `LiveStreamPlaysToItsEndTest` hit
+# exactly that, its own `assumeTrue` called it "an environment condition and not this defect", this
+# script printed "test SKIPPED", and CI went green while nothing in the app would play. Dewi found
+# out by using it. "YouTube refused us" was true as an excuse in August and is now the defect
+# itself, so it has to be able to turn the build red.
 set -uo pipefail
 
 if [ -z "${WG_CI_CONF:-}" ]; then
@@ -72,16 +78,33 @@ echo "[live-test] LAN unreachable from the CI peer, as intended"
 # `initializationError` — a real red build caused entirely by asking the wrong module.
 ./gradlew :app:connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.class=com.dewijones92.totum.sabr.SabrPlaybackTest,com.dewijones92.totum.playback.LiveDownloadedVideoOfflineTest,com.dewijones92.totum.playback.LiveSabrDownloadTest,com.dewijones92.totum.playback.LiveStreamPlaysToItsEndTest
 
-# Say whether it actually RAN or merely skipped. Without this the log shows "Finished 1 tests"
-# and "BUILD SUCCESSFUL" either way, so the one question this whole tunnel exists to answer —
-# did YouTube serve us? — could not be answered from the log at all.
+INSTRUMENTED_STATUS=$?
+
+# The FAST live tests: plain JVM, no emulator, seconds rather than minutes. These are the ones that
+# fetch real bytes and insist on getting most of a real stream — the guard that was missing when
+# YouTube capped every stream at its first megabyte and the suite stayed green.
+echo "[live-test] running the JVM live tests (real bytes, real YouTube)"
+./gradlew test -Ptotum.liveTests --no-daemon
+JVM_STATUS=$?
+
+# Say whether they actually RAN or merely skipped. Without this the log shows "BUILD SUCCESSFUL"
+# either way, so the one question this whole tunnel exists to answer — did YouTube serve us? —
+# could not be answered from the log at all.
 # One XML per DEVICE, not per class — "TEST-<avd>-_app-.xml" — so match any of them rather
 # than a filename carrying the class, which found nothing and said so.
 RESULTS=$(find app/build/outputs/androidTest-results -name 'TEST-*.xml' 2>/dev/null | head -1)
 if [ -z "$RESULTS" ]; then
-  echo "[live-test] no result file found — cannot say whether the test ran"
+  echo "[live-test] no instrumented result file found — cannot say whether those ran"
 elif grep -q '<skipped' "$RESULTS"; then
-  echo "[live-test] test SKIPPED — YouTube refused us even from the residential IP"
+  echo "[live-test] an instrumented live test SKIPPED — YouTube declined to serve this run"
 else
-  echo "[live-test] test RAN for real against live YouTube over the home connection"
+  echo "[live-test] the instrumented live tests RAN for real against live YouTube"
 fi
+
+if [ "$INSTRUMENTED_STATUS" -ne 0 ] || [ "$JVM_STATUS" -ne 0 ]; then
+  echo "[live-test] FAILED against live YouTube (instrumented=$INSTRUMENTED_STATUS jvm=$JVM_STATUS)."
+  echo "[live-test] This means the app cannot fetch what it needs RIGHT NOW. It is not a flake to"
+  echo "[live-test] wave through: on 2026-08-18 exactly this was reported as a skip and shipped."
+  exit 1
+fi
+echo "[live-test] live YouTube served us, and the app could use what it sent"

@@ -72,7 +72,7 @@ import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.domain.isPermanent
+import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
@@ -533,10 +533,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                         },
                         http = HttpDownloadStrategy(transferClient),
                     ),
-                    // Only a refusal an account could fix is worth a second attempt. A transient
-                    // failure is already retried by the caller, and asking twice for a video that
-                    // has been deleted just doubles the cost of the same answer.
-                    shouldFallBack = { it.isPermanent },
+                    // The named domain rule, not a lambda spelled out here. This used to read
+                    // `{ it.isPermanent }`, which withheld the second route from every 403 — and on
+                    // 2026-08-18, when YouTube stopped serving yt-dlp's URLs at all, that meant a
+                    // working route sat unreachable while nothing in the app could be downloaded.
+                    shouldFallBack = { it.deservesAnotherRoute },
                 ),
                 podcast = HttpDownloadStrategy(transferClient),
             ),

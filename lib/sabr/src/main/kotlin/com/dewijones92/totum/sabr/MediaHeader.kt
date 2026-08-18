@@ -30,6 +30,16 @@ public data class MediaHeader(
     public val isInitSegment: Boolean,
     /** How many bytes this run declares. */
     public val contentLength: Long?,
+    /**
+     * Which segment of the format this run is, so a request can tell the server which segments it
+     * already holds. Without it a `BufferedRange` cannot be built and the server re-sends from the
+     * start of whatever segment covers the claimed time — measured 2026-08-18 as 52% of every byte
+     * fetched being discarded, and a stream that could not get past ~800KB of a 31MB file.
+     */
+    public val sequenceNumber: Int?,
+    /** Where this run sits in MEDIA time, which beats deriving a position from byte ratios. */
+    public val startMs: Long?,
+    public val durationMs: Long?,
 ) {
     public companion object {
 
@@ -46,6 +56,9 @@ public data class MediaHeader(
                 startBytes = fields.numberAt(FIELD_START_BYTES) ?: 0,
                 isInitSegment = fields.numberAt(FIELD_IS_INIT_SEGMENT) == 1L,
                 contentLength = fields.numberAt(FIELD_CONTENT_LENGTH),
+                sequenceNumber = fields.numberAt(FIELD_SEQUENCE_NUMBER)?.toInt(),
+                startMs = fields.numberAt(FIELD_START_MS),
+                durationMs = fields.numberAt(FIELD_DURATION_MS),
             )
         }
 
@@ -55,6 +68,9 @@ public data class MediaHeader(
         private const val FIELD_LAST_MODIFIED = 4
         private const val FIELD_START_BYTES = 6
         private const val FIELD_IS_INIT_SEGMENT = 8
+        private const val FIELD_SEQUENCE_NUMBER = 9
+        private const val FIELD_START_MS = 11
+        private const val FIELD_DURATION_MS = 12
         private const val FIELD_CONTENT_LENGTH = 14
     }
 }
