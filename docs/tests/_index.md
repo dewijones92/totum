@@ -439,6 +439,39 @@ what quality YouTube would serve today versus what we ask for. Run 2026-08-18, l
 [sabr] confirmed still refused: itag 401 2160p60 served 0KB. Our caps remain correct.
 ```
 
+## Two ways a live test measured the environment instead of the app (2026-08-18)
+
+`PlaysAcrossContentTypesTest` reported `sound=YES picture=no` for two fixtures and a bare
+`UNEXPLAINED: sound=NO` for the live stream. Neither was true of the app. Both were the test.
+
+**1. Forward motion is not playback.** Liveness was `positionMs > from + 1500`. A live stream's
+position is an offset into a window that *slides*, so when the manifest expired and re-resolved the
+position went from 14120ms to **11523ms** — backwards — and the test called a stream it could see
+playing "silent". The measure is absolute movement, not increase. Any assertion of the form
+`value > previous` on a quantity that can legitimately fall is measuring VOD-ness, not liveness.
+
+**2. "No picture" has three causes and only one is ours.** The emulator's Wi-Fi reported METERED, so
+`MeteredAudioSwitch` — working exactly as designed — dropped the picture about five seconds into every
+item, racing the picture measurement and making the column move run to run while nothing changed.
+Separately, YouTube refused the 19-second clip's video stream (403 from `ANDROID_VR` with 21577s of
+lease left) and the rescue ladder kept the sound, which is also correct. So the report now names the
+cause instead of printing a boolean:
+
+| Reported as | What happened | Whose fault |
+|---|---|---|
+| `downgraded` | mobile data held, the app dropped the picture on purpose | nobody — a feature |
+| `rescued` | YouTube refused the video stream, the app kept the sound | YouTube, handled |
+| `no` | absent and nothing explains it | **ours** |
+
+A data-saving feature working perfectly must never read as a missing picture; reading it that way
+would have sent the next session hunting a video bug that does not exist. Unmeter an emulator with
+`adb shell cmd netpolicy set metered-network '"AndroidWifi"' false`.
+
+The general lesson, and the reason this sits next to the assert-ours-report-theirs rule: **a test
+whose result is dominated by an environment condition it does not control or state is not evidence.**
+It was reported as "sound and picture verified across four content types", and one of those columns
+was really measuring the emulator's metered flag.
+
 ## Reading the results without downloading anything (2026-08-11)
 
 Dewi asked whether GitHub has a GUI for test pass/fail history. It does not: Actions shows ✅/❌

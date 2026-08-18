@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import kotlin.math.abs
 
 /**
  * **Sound must work on everything.** The picture is reported, not required.
@@ -132,11 +133,16 @@ class PlaysAcrossContentTypesTest {
             while (controller.state.value?.isPlaying != true) delay(POLL_MS)
             true
         } ?: false
-        // Position ADVANCING, not merely "isPlaying". A player reporting playing while stuck at one
+        // Position MOVING, not merely "isPlaying": a player reporting playing while stuck at one
         // millisecond is exactly what a refused stream looks like from the outside.
+        //
+        // MOVING, though — not increasing. This asked for `position > from + 1500` and called the live
+        // stream silent on 2026-08-18 when the logs showed it playing perfectly: a live position is an
+        // offset into a window that slides, so a re-resolve mid-play moved it from 14120ms to 11523ms.
+        // Backwards. An assertion that only accepts forward motion measures VOD-ness, not playback.
         val from = controller.state.value?.positionMs ?: 0
         val advanced = playing && withTimeoutOrNull(ADVANCE_TIMEOUT_MS) {
-            while ((controller.state.value?.positionMs ?: 0) < from + ADVANCE_MS) delay(POLL_MS)
+            while (abs((controller.state.value?.positionMs ?: 0) - from) < ADVANCE_MS) delay(POLL_MS)
             true
         } ?: false
 
@@ -148,12 +154,50 @@ class PlaysAcrossContentTypesTest {
                 while (controller.state.value?.hasVideo != true) delay(POLL_MS)
                 true
             } ?: false
-            return "sound=YES picture=${if (picture) "yes" else "no"}"
+            return "sound=YES picture=${describePicture(picture)}"
         }
         val trail = lastTrail()
         if (trail.contains("refused")) return "sound=NO — YouTube served nothing fetchable\n    $trail"
         return "$UNEXPLAINED sound=NO and nothing explains it\n    $trail"
     }
+
+    /**
+     * What the absent picture MEANS — because on a metered connection the app removes it on purpose.
+     *
+     * `MeteredAudioSwitch` re-plays the current item as audio once mobile data has held for its
+     * hold-off, and it overrides `PlaybackMode.VIDEO` rather than deferring to it. On an emulator
+     * whose Wi-Fi reports metered, its timer has long since elapsed, so it fires within about five
+     * seconds of EVERY item starting to show video — which is a race against this very measurement
+     * and is exactly why the picture column moved run to run on 2026-08-18 while nothing changed.
+     *
+     * Reported rather than asserted, and named rather than left as a bare "no": a data-saving
+     * feature working correctly must never read as a missing picture. If it says `downgraded` the
+     * device is metered — `adb shell cmd netpolicy set metered-network '"AndroidWifi"' false`.
+     *
+     * "No picture" has THREE distinct causes and only the last is ours, which is the whole reason
+     * this function exists rather than a boolean:
+     *
+     * | Reported as | What happened | Whose fault |
+     * |---|---|---|
+     * | `downgraded` | mobile data held, so the app dropped the picture on purpose | nobody — a feature |
+     * | `rescued` | YouTube refused the video stream, so the app kept the sound | YouTube, handled |
+     * | `no` | the picture is absent and nothing explains it | **ours** |
+     *
+     * `rescued` was reported as a bare `no` on 2026-08-18 for a clip that plainly has a picture, and
+     * the trail showed the rescue ladder working perfectly: 403 from ANDROID_VR with 21577s of lease
+     * left, one retry, then "keeping the sound without the picture". Reading that as a missing picture
+     * would have sent the next session hunting a video bug that does not exist.
+     */
+    private fun describePicture(picture: Boolean): String = when {
+        picture -> "yes"
+        breadcrumbSays("switching to audio only") ->
+            "downgraded by the app's own data saver (this device reports METERED) — not a finding"
+        breadcrumbSays("keeping the sound") ->
+            "rescued — YouTube refused the video stream and the app kept the sound"
+        else -> "no"
+    }
+
+    private fun breadcrumbSays(phrase: String) = Breadcrumbs.snapshot().any { phrase in it.message }
 
     private fun lastTrail() = Breadcrumbs.snapshot().takeLast(TRAIL_LINES)
         .filter { "route" in it.message || "stream " in it.message || "sound" in it.message }
