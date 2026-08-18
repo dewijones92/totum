@@ -23,17 +23,35 @@ public object ResponseSummary {
      */
     public fun refusalIn(response: ByteArray): String? {
         val parts = UmpReader.read(response).parts
-        val refused = parts.any { it.type in REFUSAL_PARTS }
+        val refused = parts.any { it.type in REFUSAL_PARTS } || attestationRequired(parts)
         return if (refused) of(response) else null
     }
 
-    /** Part types that mean the server is declining rather than simply having nothing to send. */
+    /**
+     * Part types that mean the server is declining rather than simply having nothing to send.
+     *
+     * Two of the four used to be misidentified ids -- `NEXT_REQUEST_POLICY` (on nearly every response) and
+     * `FORMAT_INITIALIZATION_METADATA` (one per format) -- so this reported a refusal on healthy fetches
+     * while the real refusal went unreported. See [UmpPart].
+     *
+     * `STREAM_PROTECTION_STATUS` is deliberately NOT in here: it appears on ordinary responses too and only
+     * means a refusal when its status says attestation is required, which [attestationRequired] judges.
+     */
     private val REFUSAL_PARTS = setOf(
-        UmpPart.STREAM_PROTECTION_STATUS,
         UmpPart.SABR_ERROR,
         UmpPart.RELOAD_PLAYER_RESPONSE,
-        UmpPart.SABR_CONTEXT_UPDATE,
     )
+
+    /**
+     * Whether the response demands attestation — `StreamProtectionStatus.status == 3`.
+     *
+     * The one datum that proves the attestation wall, and it never reached a report before: the part was
+     * being read at the wrong id, so what got decoded was `NextRequestPolicy`'s backoff milliseconds. That
+     * is the "field 1 reads 9000 then 8000" puzzle this file used to record as an unexplained oddity.
+     */
+    private fun attestationRequired(parts: List<UmpReader.Part>): Boolean =
+        parts.filter { it.type == UmpPart.STREAM_PROTECTION_STATUS }
+            .any { Protobuf.read(it.payload).numberAt(STATUS_FIELD) == ATTESTATION_REQUIRED }
 
     public fun of(response: ByteArray): String {
         val parts = UmpReader.read(response).parts
@@ -47,22 +65,29 @@ public object ResponseSummary {
     }
 
     /**
-     * Every numeric field of `STREAM_PROTECTION_STATUS`, verbatim.
+     * Every numeric field of `STREAM_PROTECTION_STATUS`, verbatim, with the status named.
      *
-     * Deliberately NOT interpreted. Field 1 was assumed to be the status enum (1 ok, 2 pending,
-     * 3 required) and on the wire it reads 9000 then 8000 — millisecond-looking values, so that
-     * assumption was simply wrong, and a log that translated it would have stated a confident
-     * falsehood. The part's presence with no media alongside it is the finding; naming which
-     * field means what can wait until something has actually decoded it.
+     * The old note here said field 1 "reads 9000 then 8000, so that assumption was simply wrong" and left
+     * the fields uninterpreted as a result. The assumption was right and the ID was wrong: this was
+     * decoding `NextRequestPolicy`, whose fields are backoff milliseconds. Read at the correct id (58),
+     * field 1 IS the status enum -- 1 ok, 2 pending, 3 attestation required.
      */
     private fun protectionStatus(parts: List<UmpReader.Part>): String {
         val payload = parts.lastOrNull { it.type == UmpPart.STREAM_PROTECTION_STATUS }?.payload
             ?: return "none"
-        val fields = Protobuf.read(payload).keys.sorted()
-            .mapNotNull { field -> Protobuf.read(payload).numberAt(field)?.let { "$field=$it" } }
+        val read = Protobuf.read(payload)
+        val fields = read.keys.sorted().mapNotNull { field ->
+            // The status field is NAMED, because it is the one datum that proves the attestation wall and
+            // "1=3" tells a reader nothing months later.
+            read.numberAt(field)?.let { if (field == STATUS_FIELD) "status=$it" else "$field=$it" }
+        }
         return fields.joinToString(",").ifEmpty { "no numeric fields" }
     }
 
     private val PRINTABLE = 32..126
     private const val REASON_CHARS = 60
+
+    /** `StreamProtectionStatus.status`, and the value that means the wall is up. */
+    private const val STATUS_FIELD = 1
+    private const val ATTESTATION_REQUIRED = 3L
 }

@@ -103,15 +103,23 @@ class UmpReaderTest {
         assertEquals(emptyList<UmpReader.Part>(), UmpReader.read(ByteArray(0)).parts)
     }
 
-    /** The real first probe's answer, which is how the missing config field was found. */
+    /**
+     * The real first probe's answer, which is how the missing config field was found.
+     *
+     * Part **44** — and this test used to assert that id was `RELOAD_PLAYER_RESPONSE`, because the
+     * hand-written part table said so. Checked against `UMPPartId` in `LuanRT/googlevideo`, 44 is
+     * `SABR_ERROR` and `RELOAD_PLAYER_RESPONSE` is 46. The wire byte is unchanged; only the name was
+     * wrong, and this test was pinning the wrong name. Both are refusals, so nothing about the original
+     * diagnosis changes — see [UmpPart].
+     */
     @Test
-    fun `a malformed-config refusal reads as a RELOAD_PLAYER_RESPONSE`() {
+    fun `a malformed-config refusal reads as a SABR_ERROR`() {
         val reason = "sabr.malformed_config".toByteArray()
         val body = varint(44, reason.size + 2, 0x0A, reason.size) + reason
 
         val part = UmpReader.read(body).parts.single()
 
-        assertEquals(UmpPart.RELOAD_PLAYER_RESPONSE, part.type)
+        assertEquals(UmpPart.SABR_ERROR, part.type)
         assertTrue("sabr.malformed_config" in String(part.payload))
     }
 }

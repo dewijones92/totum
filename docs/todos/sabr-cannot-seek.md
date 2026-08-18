@@ -71,9 +71,11 @@ not verified is worth nothing** — the second run asking for 407499ms is what m
 
 ## Where to look next
 
-1. **NOT the `SABR_SEEK` part** — correcting a lead written earlier in the same session. UMP is the
-   **server→client** framing, so `UmpPart.SABR_SEEK` (43) is YouTube telling *us* it has repositioned; it
-   is not something a client can send. A seek must therefore be expressed in the REQUEST, in
+1. **NOT the `SABR_SEEK` part** — correcting a lead written earlier in the same session, and then the
+   correction itself. UMP is the **server→client** framing, so `SABR_SEEK` is YouTube telling *us* it has
+   repositioned; it is not something a client can send. And the id was wrong too: the hand-written table
+   called 43 `SABR_SEEK`, but per `UMPPartId` 43 is `SABR_REDIRECT` and `SABR_SEEK` is **45**. The table
+   has since been regenerated from the proto — 10 of its 16 entries were wrong. A seek must therefore be expressed in the REQUEST, in
    `VideoPlaybackAbrRequest`/`ClientAbrState` fields we do not populate yet. Worth diffing our request
    against `LuanRT/googlevideo`'s protos for what a real player sends alongside `player_time_ms`.
 

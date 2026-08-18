@@ -376,3 +376,28 @@ the wiring, so the rule is visible and unit-testable instead of resting on a lam
 Proven on device, 2026-08-18: the 19-second clip went from `picture=rescued` (sound only) to
 `picture=yes`, with SABR fetching the whole stream —
 `itag 133 ended at 433081 — 433081B of 433081B (100%) over 3 fetches`.
+
+## The UMP part table was wrong in 10 of 16 entries (2026-08-18)
+
+`UmpPart`'s ids were written by hand and checked against nothing. Regenerated from `UMPPartId` in
+`LuanRT/googlevideo`'s `protos/video_streaming/ump_part_id.proto`, ten of the sixteen were wrong.
+
+The six that were right happened to be the ones that drive behaviour — `MEDIA_HEADER`, `MEDIA`,
+`MEDIA_END`, the onesie pair, `LIVE_METADATA` — which is exactly why nothing ever played wrongly, and why
+it survived. Everything it broke was diagnostic, in both directions at once:
+
+* `NEXT_REQUEST_POLICY` (35) was labelled `STREAM_PROTECTION_STATUS` and is present on essentially every
+  response, so `fetch #N was refused` was logged at WARN on healthy fetches — directly under the line
+  saying how many bytes had just been kept. This repo's own evidence shows it: `301126B response, 256607B
+  kept` immediately followed by `was refused`.
+* The REAL `STREAM_PROTECTION_STATUS` is **58**, which the old table called `LAWNMOWER_POLICY` and left out
+  of `REFUSAL_PARTS` entirely — so a genuine attestation refusal produced no refusal line at all.
+* It also explains a false conclusion recorded in `ResponseSummary`: field 1 "reads 9000 then 8000, so that
+  assumption was simply wrong". The assumption was right and the id was wrong — it was decoding
+  `NextRequestPolicy`'s backoff milliseconds. At id 58, field 1 IS the status enum, and `status=3` (the one
+  datum that proves the attestation wall) now reaches a report for the first time.
+
+⚠️ **Reading older reports:** part names from before 2026-08-18 use the old, wrong labels. A report saying
+`STREAM_PROTECTION_STATUS` almost certainly means `NEXT_REQUEST_POLICY`, and `SABR_ERROR` means
+`FORMAT_INITIALIZATION_METADATA`. `ARefusalIsNotEveryResponseTest` pins both directions so this cannot
+regress: a healthy media response is not a refusal, and attestation-required is.
