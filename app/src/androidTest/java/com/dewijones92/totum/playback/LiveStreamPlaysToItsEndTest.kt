@@ -4,6 +4,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.TotumApplication
+import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -86,13 +87,19 @@ class LiveStreamPlaysToItsEndTest {
         // ASSERTED, not assumed. This line used to read `assumeTrue("… an environment condition and
         // not this defect")`, and on 2026-08-17 it hit the real thing: YouTube had stopped serving
         // the app's streams entirely, this test met that exactly, reported a SKIP, and CI published a
-        // build in which nothing could be played. Dewi found out by using the app. The excuse was
-        // fair when a datacentre IP was the likely cause; the tunnel this runs through removes that
-        // cause, so what is left is the defect.
+        // build in which nothing could be played. Dewi found out by using the app.
+        //
+        // But the message that replaced it named a CAUSE it had not established — "YouTube did not
+        // serve this machine a playable stream" — and then said so in CI on a run where the same test
+        // had passed on a warm emulator twenty minutes earlier through the same connection. A cold
+        // emulator resolving with QuickJS can spend most of this budget on the `n` solve alone. So it
+        // states what was OBSERVED and hands over the trail, which is the only thing that can tell a
+        // refusal from a slow start.
         assertTrue(
-            "YouTube did not serve this machine a playable stream. Running through the home " +
-                "connection, that is the app being refused — the thing a user experiences as " +
-                "\"nothing plays\" — and not an environment quirk.",
+            "nothing was playing after ${START_TIMEOUT_MS}ms. That is either YouTube refusing this " +
+                "client or a resolve too slow to finish in time, and the difference is in the trail " +
+                "below — a `resolve … for play` line means we got a stream and the wait was ours; a " +
+                "refusal or no resolve line at all means we did not. Trail:\n" + trail(),
             started,
         )
 
@@ -132,12 +139,19 @@ class LiveStreamPlaysToItsEndTest {
         PlayHandle.Video(watchUrl),
     )
 
+    /** The app's own breadcrumbs, so a failure carries its evidence instead of a guess. */
+    private fun trail(): String =
+        Breadcrumbs.snapshot().takeLast(TRAIL_LINES).joinToString("\n") { "${it.tag}: ${it.message}" }
+
     private companion object {
         /** "Me at the zoo" — 19 seconds, the oldest video on the site, unlikely to move. */
         const val VIDEO_ID = "jNQXAC9IVRw"
 
         /** Close enough to the end that the tail is the only thing left to fetch. */
         const val FROM_THE_END_MS = 6_000L
+
+        /** Enough to see the resolve and the first loads, without pasting a whole session. */
+        const val TRAIL_LINES = 25
 
         /** A yt-dlp extraction on an emulator is slow; this is generous and finite. */
         const val START_TIMEOUT_MS = 120_000L

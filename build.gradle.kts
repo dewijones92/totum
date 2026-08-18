@@ -81,14 +81,17 @@ subprojects {
   // Applied to every module's JVM test tasks, so a live test added anywhere is excluded by the
   // same rule rather than by remembering to configure its module.
   tasks.withType<Test>().configureEach {
-    if (liveTestsRequested) {
-      filter { includeTestsMatching("com.dewijones92.totum.*.live.*") }
-    } else {
-      filter {
+    filter {
+      if (liveTestsRequested) {
+        includeTestsMatching("com.dewijones92.totum.*.live.*")
+      } else {
         excludeTestsMatching("com.dewijones92.totum.*.live.*")
-        // A module with no other tests would otherwise fail with "no tests found".
-        isFailOnNoMatchingTests = false
       }
+      // BOTH branches. Most modules hold no live tests at all, so in the live phase their filter
+      // matches nothing — and Gradle treats that as a failure. It killed `:core:domain:test` in CI
+      // before `:app`'s live tests ran at all, so the one test the phase exists for never executed
+      // and the red build blamed something else entirely.
+      isFailOnNoMatchingTests = false
     }
   }
 

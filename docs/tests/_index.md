@@ -201,6 +201,8 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A download that fails is tried again by itself, without waiting for the queue to change | `AFailedDownloadIsTriedAgainTest` | every commit |
 | "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
 | The stream held for the next item is the stream that then plays — not a second guess at it | `ThePreloadIsTheStreamThatPlaysTest` | every commit |
+| Seeking an HOUR into a 97-minute video plays on from there | `SeekDeepIntoALongVideoTest` | live phase — the sharpest test of the 2026-08-18 cap: ~30MB in, 30x past the ceiling, and it asserts playback CONTINUES rather than merely arriving |
+| The phone's own QuickJS produces a URL with a deciphered `n` | `DurableUrlsOnDeviceTest` | live phase — a fix measured with node on a laptop would otherwise be a no-op on the device with a green JVM suite |
 | SABR carries MOST of a real stream, not just its first minute | `SabrCarriesAWholeStreamTest` | live phase, via the home connection — allowed to FAIL CI |
 | The claimed SABR position never outruns the bytes in hand | `ClaimedTimeFollowsTheBytesTest` | every commit |
 | A few empty SABR answers spread over a long stream do not end it | `EmptyRunsDoNotEndTheStreamTest` | every commit |
