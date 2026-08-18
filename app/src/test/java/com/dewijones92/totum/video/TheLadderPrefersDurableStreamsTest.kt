@@ -2,6 +2,7 @@ package com.dewijones92.totum.video
 
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -107,6 +108,65 @@ class TheLadderPrefersDurableStreamsTest {
         )
 
         assertTrue(meta.videoQualities(VideoCodecSupport.Permissive).any { it.height == 1080 })
+    }
+
+    /**
+     * 4K, and the trade-off durability creates: it now outranks the HARDWARE-codec preference.
+     *
+     * Worth pinning deliberately rather than discovering. Undecodable codecs are still filtered out
+     * entirely (`canDecode`), so nothing unplayable is ever offered — but among codecs the device CAN
+     * decode, the hardware-friendly one used to win and now a durable software one beats it. That is
+     * the right way round: a hardware stream refused after its first megabyte plays for a minute, and a
+     * software one plays to the end. It is a judgement though, and if 4K software decode ever proves
+     * worse than a minute of hardware, this is the test to change and the reason to change it.
+     */
+    @Test
+    fun `at 4K a durable stream beats a hardware-friendlier capped one`() {
+        val meta = metadata(
+            video(401, 2160, "$HOST?itag=401&c=ANDROID_VR"),
+            video(315, 2160, "$HOST?itag=315&n=solved"),
+            audio(140, "$HOST?itag=140&n=solved"),
+        )
+
+        val chosen = meta.videoQualities(VideoCodecSupport.Permissive).single { it.height == 2160 }
+        assertTrue(
+            "4K offered a capped stream: ${chosen.videoUrl.value}",
+            "n=solved" in chosen.videoUrl.value,
+        )
+    }
+
+    /** And nothing undecodable is offered, durable or not — that filter still comes first. */
+    @Test
+    fun `a durable stream in a codec the device cannot decode is still not offered`() {
+        val meta = metadata(
+            video(401, 2160, "$HOST?itag=401&n=solved"),
+            video(137, 1080, "$HOST?itag=137&c=ANDROID_VR", muxed = true),
+            audio(140, "$HOST?itag=140&n=solved"),
+        )
+        val noneAt2160 = VideoCodecSupport { _, _, height -> (height ?: 0) < 2160 }
+
+        val heights = meta.videoQualities(noneAt2160).map { it.height }
+        assertTrue("an undecodable 4K stream must not be offered just because it is durable", 2160 !in heights)
+    }
+
+    /** The full ladder survives: every height the device can decode is still on offer. */
+    @Test
+    fun `a range of resolutions is still offered`() {
+        val meta = metadata(
+            video(160, 144, "$HOST?itag=160&n=a"),
+            video(133, 240, "$HOST?itag=133&n=b"),
+            video(134, 360, "$HOST?itag=134&n=c"),
+            video(135, 480, "$HOST?itag=135&n=d"),
+            video(136, 720, "$HOST?itag=136&n=e"),
+            video(137, 1080, "$HOST?itag=137&n=f"),
+            video(315, 2160, "$HOST?itag=315&n=g"),
+            audio(140, "$HOST?itag=140&n=h"),
+        )
+
+        assertEquals(
+            listOf(2160, 1080, 720, 480, 360, 240, 144),
+            meta.videoQualities(VideoCodecSupport.Permissive).map { it.height },
+        )
     }
 
     private companion object {

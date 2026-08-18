@@ -60,7 +60,15 @@ public fun parseSolvedN(text: String): Map<String, String> {
 public fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
     val obj = json.parseToJsonElement(text).jsonObject
     return if (obj.isOk()) {
-        ExtractionResult.Success(obj.getValue("info").jsonObject.toMediaMetadata(url))
+        ExtractionResult.Success(
+            obj.getValue("info").jsonObject.toMediaMetadata(url),
+            // yt-dlp's own account of anything it lost. These used to be suppressed by `no_warnings`,
+            // and they are the only place a SUCCESSFUL extraction says it came back degraded — "formats
+            // have been skipped as they are missing a URL … SABR-only streaming experiment" is the
+            // sentence that explained a whole day. Inline because this file is at its function limit and
+            // one list access does not earn a name.
+            (obj["notes"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
+        )
     } else {
         obj.toFailure(url)
     }

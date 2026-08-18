@@ -113,15 +113,55 @@ def _js_runtimes():
 # playback never waits behind one, and that is as far as it goes.
 
 
+class _CollectingLogger:
+    """Keeps yt-dlp's own warnings so the app can log them, instead of throwing them away.
+
+    `no_warnings: True` silenced exactly the messages that explain a degraded extraction. yt-dlp says
+    things like "No supported JavaScript runtime could be found" or names a client it gave up on, and
+    with them suppressed a resolve that quietly lost every durable format looked identical to a healthy
+    one. Measured 2026-08-18: the same video extracted 33 durable audio formats on one run and none at
+    all on the next, and there was nothing anywhere to say why.
+
+    Bounded, because a report buffer is bounded: the interesting messages come at the start.
+    """
+
+    MAX_KEPT = 12
+
+    def __init__(self):
+        self.messages = []
+
+    def _keep(self, kind, message):
+        if len(self.messages) < self.MAX_KEPT:
+            self.messages.append(f"{kind}: {message}"[:300])
+
+    def debug(self, message):
+        # yt-dlp routes ordinary output through debug() with a "[debug] " prefix; only keep the rest.
+        if not message.startswith("[debug]"):
+            self._keep("info", message)
+
+    def info(self, message):
+        self._keep("info", message)
+
+    def warning(self, message):
+        self._keep("warning", message)
+
+    def error(self, message):
+        self._keep("error", message)
+
+
 def extract(url):
     # No watch-progress tracking is captured here, deliberately. yt-dlp runs
     # unauthenticated, so the tracking URLs in its player response address an
     # anonymous session: pinging them returns 204 and credits nobody. Measured
     # 2026-07-31 — a full playback left the account's history byte-identical. The
     # app now fetches its own via an authenticated InnerTube call instead.
+    logger = _CollectingLogger()
     options = {
         "quiet": True,
-        "no_warnings": True,
+        # NOT no_warnings. The warnings are the only account of WHY an extraction came back degraded,
+        # and a degraded extraction is the difference between a stream that plays and one that stops a
+        # megabyte in. Collected rather than printed, so the app decides what to do with them.
+        "logger": logger,
         "skip_download": True,
         "extractor_args": PLAYER_CLIENTS,
         "js_runtimes": _js_runtimes(),
@@ -129,7 +169,7 @@ def extract(url):
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-            return json.dumps({"ok": True, "info": info})
+            return json.dumps({"ok": True, "info": info, "notes": logger.messages})
     except yt_dlp.utils.DownloadError as e:
         return json.dumps({"ok": False, "kind": _classify(e), "detail": str(e)})
 

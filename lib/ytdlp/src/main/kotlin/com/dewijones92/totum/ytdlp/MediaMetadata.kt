@@ -8,7 +8,19 @@ import com.dewijones92.totum.common.audioLanguagePreference
 /** Result of asking the engine to extract [MediaMetadata] for a URL. */
 public sealed interface ExtractionResult {
 
-    public data class Success(val metadata: MediaMetadata) : ExtractionResult
+    /**
+     * [notes] is yt-dlp's own account of anything it lost on the way — a JavaScript runtime it could
+     * not find, a client it gave up on. Empty for a clean extraction, and defaulted so no caller has
+     * to care.
+     *
+     * It exists because a SUCCESSFUL extraction can be badly degraded and say nothing: on 2026-08-18
+     * one device run produced 33 durable formats and the next produced none, and the difference was
+     * invisible. See `_CollectingLogger` in `totum_ytdlp.py`.
+     */
+    public data class Success(
+        val metadata: MediaMetadata,
+        val notes: List<String> = emptyList(),
+    ) : ExtractionResult
 
     /** Expected, recoverable failures — modelled as values, not exceptions. */
     public sealed interface Failure : ExtractionResult {

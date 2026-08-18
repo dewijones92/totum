@@ -182,6 +182,55 @@ a SABR session that serves in full, the fix is small and the seam already exists
 tested here — the emulator's token was not readable and a JVM test has no account — so it is written
 down rather than guessed at. **Test it on a signed-in device before building anything on it.**
 
+## Measured across content types on the emulator (2026-08-18)
+
+`PlaysAcrossContentTypesTest` plays four shapes in VIDEO mode with auto-download disabled, and asserts
+the one thing the app can promise: **the position advances** — sound, not merely `isPlaying`, since a
+player stuck at one millisecond reports playing.
+
+| Content | Sound | Picture | What happened |
+|---|---|---|---|
+| 19-second clip (`jNQXAC9IVRw`) | ✅ | ✗ | only 144p/240p on offer and the 240p stream was refused, so the sound fallback carried it |
+| 97-minute VOD (`uSMGENDH_QI`) | ✅ | ✅ | 480p vp9 merged, `hasVideo=true`, from the start |
+| Ms Rachel, made-for-kids (`gngPQ771Ahk`) | ✅ | ✗ | went to audio; kids content has been served degraded since 2026-07-30 |
+| Live stream (`YDvsBbKfLPA`) | ✅ | ✅ | 480p avc1 single stream, `hasVideo=true` |
+
+**There is no systemic picture bug** — the VOD and the live stream kept theirs in the same run, so
+whether a picture survives is a property of what YouTube serves for that video, not of the app's mode
+handling.
+
+Two measurement traps had to be removed before this table meant anything, both of which produced a
+confident "no picture" that was false:
+
+- **`hasVideo` was sampled, not awaited.** It comes from the decoder's track list, which arrives after
+  playback starts, so a plain muxed clip read as having no picture.
+- **The queue auto-downloads what you enqueue.** `playNow` adds the item, the queue fetches its audio,
+  and once a stream is refused `routeNow` rightly prefers that fresh local copy — so "no picture" meant
+  "we had a download". Correct behaviour, useless as evidence. The test disables auto-download and
+  restores the setting afterwards.
+
+## yt-dlp says it in words, and we were silencing it
+
+The bridge set `no_warnings: True`, so the one account of a degraded extraction was thrown away. With a
+collecting logger in its place, the device says:
+
+```
+warning: Some android client https formats have been skipped as they are missing a URL.
+         YouTube may have enabled the SABR-only streaming experiment for the current session.
+         See https://github.com/yt-dlp/yt-dlp/issues/12482
+info:    [jsc:quickjs] Solving JS challenges using quickjs
+```
+
+Two things settled at once. **QuickJS is working** — it is solving the challenges, so the missing durable
+video is not our runtime failing. And the cause is YouTube's **SABR-only experiment, enabled per
+session**, which strips URLs from formats. That is why the same video produced 33 durable audio formats
+on one run of this emulator and none on the next, and why an assertion that durable formats exist went
+red having passed twice.
+
+`ExtractionResult.Success` now carries those notes and the engine logs them, so a report from Dewi's
+phone can say whether a silent item was YouTube withholding or us breaking. It is the difference between
+a diagnosis and a guess, and it cost a day to be without it.
+
 ## What a test may assert, and what only a canary can
 
 Worth stating plainly, because getting it wrong nearly recreated the original failure. The first version
