@@ -161,6 +161,21 @@ public data class PlaybackState(
     /** True while the player is buffering (loading/re-buffering) — drives a spinner. */
     val isBuffering: Boolean = false,
     /**
+     * Whether playback is INTENDED — the player's own `playWhenReady`, not whether it is moving.
+     *
+     * Distinct from [isPlaying], which is false for a genuine stall AND for a pause, and therefore
+     * cannot tell them apart. That mattered: [StallWatchdog] gated only on [isBuffering], and pausing
+     * does not leave the buffering state (verified in Media3 1.10.1 — pausing calls no `setState`, and
+     * the only exit from BUFFERING never consults `playWhenReady`; ExoPlayer's own stuck detector gates
+     * itself on `shouldPlayWhenReady` for exactly this reason). So a pause during a starved buffer —
+     * headphones out, audio focus lost, a lock-screen tap — looked identical to a stall, and 20 seconds
+     * later the watchdog re-prepared and PLAYED, out of the phone's speaker.
+     *
+     * `PlaybackDiagnostics` already reached past this seam to the raw `Player` for the same
+     * discriminator; now there is one answer to "is this paused?".
+     */
+    val wantsToPlay: Boolean = false,
+    /**
      * How far media has been loaded ahead, in ms of playback. Defaults to [positionMs] —
      * i.e. nothing buffered — so a source that cannot report it is never mistaken for one
      * holding data.

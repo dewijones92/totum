@@ -142,11 +142,48 @@ class StallWatchdogTest {
 
     /** A paused player has a frozen position too, and is not stuck. */
     @Test
-    fun `a paused player is not a stall`() = runTest {
+    fun `a not-buffering player is not a stall`() = runTest {
         watchdog()
         states.value = state(REPORTED_POSITION, buffering = false)
         advanceTimeBy(600_000)
 
+        assertEquals(0, advanced)
+    }
+
+    /**
+     * A PAUSED player is not a stall — and pausing does NOT leave the buffering state.
+     *
+     * The case this file claimed to cover and did not: it encoded "paused" as `buffering = false`, which
+     * asserts the gate back at itself. Verified in Media3 1.10.1: pausing calls no `setState`, and the
+     * only exit from BUFFERING never consults `playWhenReady` — ExoPlayer's own stuck detector gates
+     * itself on `shouldPlayWhenReady` for precisely this reason.
+     *
+     * So a pause during a starved buffer — headphones out (becoming-noisy), audio focus lost, a
+     * lock-screen or Bluetooth tap — was byte-identical to a stall, and twenty seconds later the watchdog
+     * re-prepared and PLAYED. The app un-pausing itself, out of the phone's speaker, up to the rescue
+     * limit, then skipping the item.
+     *
+     * Gating on `isPlaying` would NOT do: it is false for every genuine stall too, so that would disable
+     * the watchdog entirely. Intent is the discriminator.
+     */
+    @Test
+    fun `a paused player that is still buffering is not a stall`() = runTest {
+        watchdog()
+        states.value = state(REPORTED_POSITION, buffering = true, wantsToPlay = false)
+        advanceTimeBy(600_000)
+
+        assertEquals("a paused player must not be rescued", emptyList<Long>(), replayedAt)
+        assertEquals("nor advanced past", 0, advanced)
+    }
+
+    /** And the end-of-item variant, which takes the skip branch rather than the replay one. */
+    @Test
+    fun `a paused player near the end is not skipped either`() = runTest {
+        watchdog()
+        states.value = state(REPORTED_DURATION - 1_000, buffering = true, wantsToPlay = false)
+        advanceTimeBy(600_000)
+
+        assertEquals(emptyList<Long>(), replayedAt)
         assertEquals(0, advanced)
     }
 
@@ -298,6 +335,15 @@ class StallWatchdogTest {
         buffering: Boolean,
         id: String = "vid",
         durationMs: Long? = REPORTED_DURATION,
+        /**
+         * Whether playback is INTENDED. Defaults true, because every existing case here describes a
+         * player that is trying to play and cannot — which is what a stall is.
+         *
+         * It had to be added: `isPlaying` was hardcoded false for all twenty cases and there was no
+         * `wantsToPlay` at all, so "paused" and "stalled" were the same state and the suite could not
+         * express the difference it claimed to test.
+         */
+        wantsToPlay: Boolean = true,
     ) = PlaybackState(
         itemId = MediaItemId(id),
         title = id,
@@ -309,6 +355,7 @@ class StallWatchdogTest {
         durationMs = durationMs,
         speed = 1f,
         isBuffering = buffering,
+        wantsToPlay = wantsToPlay,
     )
 
     private companion object {

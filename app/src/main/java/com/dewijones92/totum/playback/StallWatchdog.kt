@@ -125,7 +125,15 @@ internal class StallWatchdog(
     private suspend fun check(state: PlaybackState?) {
         // A paused player has a frozen position too, and is not stuck — only a player that
         // is trying to load something can be.
-        if (state == null || !state.isBuffering) {
+        // INTENT, not motion. `isPlaying` is false for a genuine stall too, so gating on it would
+        // disable the watchdog; `wantsToPlay` is the player's own playWhenReady and is the only thing
+        // that separates "trying and failing" from "paused". Pausing does NOT leave the buffering state
+        // (Media3 1.10.1: pausing calls no setState, and the only exit from BUFFERING never consults
+        // playWhenReady -- ExoPlayer's own stuck detector gates itself on shouldPlayWhenReady for the
+        // same reason), so without this a pause during a starved buffer -- headphones out, audio focus
+        // lost, a lock-screen tap -- was byte-identical to a stall, and twenty seconds later the app
+        // re-prepared and PLAYED itself out of the phone's speaker.
+        if (state == null || !state.isStalling()) {
             stuckItem = null
             return
         }
@@ -162,6 +170,25 @@ internal class StallWatchdog(
     }
 
     /** Bookkeeping for a player that has moved — which is also how a rescue is judged to have worked. */
+    /**
+     * Whether this state is a STALL rather than a pause.
+     *
+     * `isPlaying` is false for both, so it cannot separate them; intent can. Pausing does not leave the
+     * buffering state (Media3 1.10.1: pausing calls no `setState`, and the only exit from BUFFERING never
+     * consults `playWhenReady` — ExoPlayer's own stuck detector gates itself on `shouldPlayWhenReady` for
+     * exactly this reason). Without the intent check, a pause during a starved buffer — headphones out,
+     * audio focus lost, a lock-screen tap — was byte-identical to a stall, and twenty seconds later this
+     * watchdog re-prepared and played the item out of the phone's speaker.
+     */
+    private fun PlaybackState.isStalling(): Boolean {
+        if (!isBuffering) return false
+        if (wantsToPlay) return true
+        if (stuckItem != null) {
+            Diag.log("playback", "buffering but PAUSED — not a stall, so there is nothing to rescue")
+        }
+        return false
+    }
+
     private fun noteProgress(state: PlaybackState) {
         // A stall that recovers is the only evidence there will ever be for how long a
         // NORMAL re-buffer lasts, which is what the STALL_MS threshold is guessing at.
