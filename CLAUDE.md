@@ -95,6 +95,11 @@ python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run befor
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
 ```
 
+Run `tools/ci/install-hooks.sh` once per clone (`core.hooksPath -> .githooks`) and preflight then runs
+on every `git push` automatically. The hook is deliberately **only** the sub-second checks: one that ran
+the Gradle gate would be disabled within a day, and a disabled hook protects nothing. `--no-verify`
+bypasses it.
+
 **`preflight.py` is part of the gate, not an extra.** Dewi, 2026-08-18: *"shift left to catch stuff
 faster"*. Two red builds that day were both invisible to `detekt lint test koverVerify`, because neither
 was about Kotlin: a live test missing from the CI exclusion list, and a shell variable that does not
