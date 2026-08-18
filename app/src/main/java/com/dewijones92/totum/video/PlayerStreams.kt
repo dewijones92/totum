@@ -70,6 +70,22 @@ class InnerTubePlayerStreams(
      * spot. Null leaves URLs untouched, which is what tests and previews want.
      */
     private val solveN: (suspend (StreamingData) -> StreamingData)? = null,
+    /**
+     * Whether to ask the ACCOUNT first rather than only as a rescue.
+     *
+     * The account path is a signed-in **TV** client, which is exactly what SmartTube is — and SmartTube
+     * plays these videos in full from the same broadband on which this app cannot. Dewi, 2026-08-18:
+     * *"they work great in smarttube"*. So the configuration that works is not a mystery to be
+     * discovered; it is one we already implement and never reach.
+     *
+     * Never reached because the rescue only fired when the anonymous call was **refused**, and it is
+     * not: it succeeds, hands back formats, and YouTube's SABR-only experiment then strips the video
+     * URLs from them. A success that is useless does not look like a failure to a gate written for
+     * failures — the fourth instance of that shape found today, and the one that matters most.
+     *
+     * Defaulted false so nothing changes for a signed-out app, previews, or existing tests.
+     */
+    private val preferAccount: () -> Boolean = { false },
 ) : PlayerStreams {
 
     /** What the signed-in retry needs: a token, and the timestamp streams are signed against. */
@@ -78,21 +94,50 @@ class InnerTubePlayerStreams(
     }
 
     override suspend fun playerFor(videoId: String): PlayerResult.Success? {
+        signedInFirst(videoId)?.let { return it }
         val anonymous = anonymousPlayer(videoId)
         (anonymous as? PlayerResult.Success)?.let { return it }
         // Only now, because the signed-in call costs a token refresh and a second round trip, and
         // the overwhelming majority of videos never need it.
         val signedIn = account?.playerFor(videoId) as? PlayerResult.Success ?: return null
         Diag.log("resolve", "$videoId needed the signed-in account — age-restricted, most likely")
-        // The two responses hold different halves of one video and neither is enough alone: the
-        // signed-in TV client supplies streams and NO readable metadata, while the anonymous
-        // refusal we just got supplies the title, author and length and no streams. Joining them
-        // is what makes an age-restricted video showable as well as playable.
+        return signedIn.describedByTheRefusal(videoId, anonymous)
+    }
+
+    /**
+     * The signed-in response, borrowing the anonymous refusal's metadata when it has none of its own.
+     *
+     * The two hold different halves of one video and neither is enough alone: the signed-in TV client
+     * supplies streams and NO readable metadata, while the refusal supplies title, author and length and
+     * no streams. Joining them is what makes an age-restricted video showable as well as playable.
+     */
+    private fun PlayerResult.Success.describedByTheRefusal(
+        videoId: String,
+        anonymous: PlayerResult?,
+    ): PlayerResult.Success {
         val describedBy = (anonymous as? PlayerResult.Unplayable)?.details
-        if (signedIn.details == null && describedBy != null) {
-            Diag.log("resolve", "$videoId described by the refused anonymous response: \"${describedBy.title}\"")
-            return signedIn.copy(details = describedBy)
-        }
+        if (details != null || describedBy == null) return this
+        Diag.log("resolve", "$videoId described by the refused anonymous response: \"${describedBy.title}\"")
+        return copy(details = describedBy)
+    }
+
+    /**
+     * The signed-in TV client's answer, when we should be asking it first — null otherwise.
+     *
+     * Falls through to anonymous rather than failing if it gives nothing, because a token can expire
+     * between the check and the call.
+     */
+    private suspend fun signedInFirst(videoId: String): PlayerResult.Success? {
+        if (!preferAccount() || account == null) return null
+        val signedIn = account.playerFor(videoId) as? PlayerResult.Success
+        Diag.log(
+            "resolve",
+            if (signedIn != null) {
+                "$videoId resolved as the signed-in TV client"
+            } else {
+                "$videoId: the signed-in client gave nothing; trying anonymously"
+            },
+        )
         return signedIn
     }
 

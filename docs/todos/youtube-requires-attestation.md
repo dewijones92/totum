@@ -168,7 +168,48 @@ playback: playing at 11ms
 
 Full live set on `totum-api35`: **5 tests, 0 failures, 0 skipped.**
 
-## The full fix, and why it is not built
+## The plan to get the picture back, and why SmartTube is the proof
+
+Dewi, 2026-08-18: *"you plan to get this all working??? they work great in smarttube"*. Fair, and it is
+the most useful constraint in this document: **a client on the same broadband, on the same account,
+plays these videos in full.** So the working configuration is not something to discover — it is
+something this app already half-implements and never reaches.
+
+SmartTube is a **signed-in TV client playing over SABR**. Both halves exist here:
+
+1. **The signed-in TV `/player` call** — `InnerTubePlayerStreams`' account path. Its own comment records
+   the decisive measurement: the *current* TV client "withholds all but ONE stream (SABR)" while the
+   *downgraded* one returns seven direct URLs. That one SABR stream is exactly what SmartTube consumes.
+   The code prefers the downgraded client to avoid watching an age-restricted video at 360p — sound
+   reasoning for the case it was written for, and it routes around the very thing now needed.
+2. **A SABR reader** — `:lib:sabr`, which parses UMP, attributes runs by header id, and (since today)
+   tracks its claimed position honestly, refills its empty-response budget, and sends `buffered_ranges`.
+
+### The steps
+
+1. **Ask the account first when signed in.** Done — `preferAccount` on `InnerTubePlayerStreams`, wired
+   to `accountSubscriptions.signedIn`. A no-op signed out, so nothing changes for anyone until there is
+   an account. This is the gate that never fired: it rescued only a *refused* anonymous call, and the
+   anonymous call succeeds and is then stripped of its video URLs.
+2. **Prefer the CURRENT TV client, not the downgraded one, when the goal is SABR.** Not done, and not to
+   be done blind: it is the difference between seven direct URLs and one SABR stream, and getting it
+   wrong regresses age-restricted playback to 360p. It needs measuring against a signed-in session.
+3. **Play that stream over SABR** — `sabrEnabled` already routes there, and the label's "stops after
+   about a minute" was the runaway claim and the lifetime empty-budget, both fixed today.
+4. **Verify at breadth**, with the tests that now exist: hour-deep seek, Ms Rachel, live, 4K, subtitles.
+
+### The one thing blocking it
+
+**A signed-in emulator, which needs a human to approve one device code.** Google refuses an automated
+browser outright — *"Couldn't sign you in. This browser or app may not be secure."* — which is
+self-consistent, since the TV device-code flow exists precisely because Google blocks embedded logins.
+Attempted from a copy of the signed-in automation profile: the profile was signed in to Google, the
+code was accepted, and it died at the account chooser because that account showed as signed out.
+
+So step 2 is measurable the moment somebody types a code, and guessing at it beforehand is how the two
+disproved theories of this morning were born.
+
+## The full fix if the above fails, and why it is not built
 
 **A PO token.** yt-dlp reaches them through an external provider; SmartTube runs the attestation
 itself. The app already bundles QuickJS, so running BotGuard is not obviously out of reach — but it
@@ -194,6 +235,17 @@ player stuck at one millisecond reports playing.
 | 97-minute VOD (`uSMGENDH_QI`) | ✅ | ✅ | 480p vp9 merged, `hasVideo=true`, from the start |
 | Ms Rachel, made-for-kids (`gngPQ771Ahk`) | ✅ | ✗ | went to audio; kids content has been served degraded since 2026-07-30 |
 | Live stream (`YDvsBbKfLPA`) | ✅ | ✅ | 480p avc1 single stream, `hasVideo=true` |
+
+**Sound is not guaranteed either, and that correction matters.** A later run had the 97-minute VOD go
+completely silent: `route -> refused: the stream will not play and there is no copy on disk`. In a
+SABR-only session YouTube strips the direct URLs **including the audio-only one**, so there is no stream
+AND nothing for the sound-only fallback to reach. The earlier "sound on all four" was true of that run,
+not a promise. Both live tests now count silence against the app only when nothing explains it — a
+`refused` route is YouTube declining, and asserting otherwise would be the same
+test-someone-else's-policy mistake for the fourth time.
+
+That is also the strongest argument for the SmartTube path below: in exactly those sessions, SABR is
+what YouTube IS offering.
 
 **There is no systemic picture bug** — the VOD and the live stream kept theirs in the same run, so
 whether a picture survives is a property of what YouTube serves for that video, not of the app's mode

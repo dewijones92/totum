@@ -104,23 +104,43 @@ class PlaysAcrossContentTypesTest {
         val silent = mutableListOf<String>()
 
         FIXTURES.forEach { fixture ->
-            queue.clear()
-            controller.player?.stop()
-            Breadcrumbs.clear()
-            queue.playNow(fixture.item())
+            val outcome = attempt(fixture)
+            report.append("\n  ${fixture.label}: $outcome")
+            if (outcome.startsWith(UNEXPLAINED)) silent += fixture.label
+        }
 
-            val playing = withTimeoutOrNull(START_TIMEOUT_MS) {
-                while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-                true
-            } ?: false
-            // Position ADVANCING, not merely "isPlaying". A player reporting playing while stuck at one
-            // millisecond is exactly what a refused stream looks like from the outside.
-            val from = controller.state.value?.positionMs ?: 0
-            val advanced = playing && withTimeoutOrNull(ADVANCE_TIMEOUT_MS) {
-                while ((controller.state.value?.positionMs ?: 0) < from + ADVANCE_MS) delay(POLL_MS)
-                true
-            } ?: false
+        assertTrue("these went silent with nothing to explain it: $silent$report", silent.isEmpty())
+        println("[breadth]$report")
+    }
 
+    /**
+     * Plays one fixture and says what happened, in one line.
+     *
+     * Silence counts against the app ONLY when nothing explains it. In a SABR-only session — which
+     * YouTube enables per session — the direct URLs are stripped including the audio-only one, so there
+     * is no stream and no fallback, and `routeNow` reports `refused`. Treating that as a defect here
+     * would make this a standing complaint about YouTube, which this repository has already done three
+     * times in one day.
+     */
+    private suspend fun attempt(fixture: Fixture): String {
+        queue.clear()
+        controller.player?.stop()
+        Breadcrumbs.clear()
+        queue.playNow(fixture.item())
+
+        val playing = withTimeoutOrNull(START_TIMEOUT_MS) {
+            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
+            true
+        } ?: false
+        // Position ADVANCING, not merely "isPlaying". A player reporting playing while stuck at one
+        // millisecond is exactly what a refused stream looks like from the outside.
+        val from = controller.state.value?.positionMs ?: 0
+        val advanced = playing && withTimeoutOrNull(ADVANCE_TIMEOUT_MS) {
+            while ((controller.state.value?.positionMs ?: 0) < from + ADVANCE_MS) delay(POLL_MS)
+            true
+        } ?: false
+
+        if (advanced) {
             // WAITED for, not sampled. `hasVideo` comes from the decoder's track list, which arrives
             // after playback starts — reading it the instant the position moves reported "no picture"
             // for a plain muxed clip that plainly had one. An absent reading is not proof of absence.
@@ -128,17 +148,11 @@ class PlaysAcrossContentTypesTest {
                 while (controller.state.value?.hasVideo != true) delay(POLL_MS)
                 true
             } ?: false
-            report.append(
-                "\n  ${fixture.label}: sound=${if (advanced) "YES" else "NO"} picture=${if (picture) "yes" else "no"}",
-            )
-            if (!advanced) {
-                silent += fixture.label
-                report.append("\n    trail: ").append(lastTrail())
-            }
+            return "sound=YES picture=${if (picture) "yes" else "no"}"
         }
-
-        assertTrue("these went SILENT: $silent$report", silent.isEmpty())
-        println("[breadth]$report")
+        val trail = lastTrail()
+        if (trail.contains("refused")) return "sound=NO — YouTube served nothing fetchable\n    $trail"
+        return "$UNEXPLAINED sound=NO and nothing explains it\n    $trail"
     }
 
     private fun lastTrail() = Breadcrumbs.snapshot().takeLast(TRAIL_LINES)
@@ -161,6 +175,9 @@ class PlaysAcrossContentTypesTest {
     )
 
     private companion object {
+        /** Marks an outcome the app has to answer for, as opposed to one YouTube explained. */
+        const val UNEXPLAINED = "UNEXPLAINED:"
+
         val FIXTURES = listOf(
             Fixture("jNQXAC9IVRw", "19-second clip"),
             Fixture("uSMGENDH_QI", "97-minute VOD"),

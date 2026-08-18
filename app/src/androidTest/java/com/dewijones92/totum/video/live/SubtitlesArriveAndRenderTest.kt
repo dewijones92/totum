@@ -90,12 +90,30 @@ class SubtitlesArriveAndRenderTest {
             while (controller.state.value?.isPlaying != true) delay(POLL_MS)
             true
         } ?: false
-        assertTrue("nothing played, so there is nothing to caption. Trail:\n${trail()}", playing)
+        // Nothing played at all: in a SABR-only session YouTube strips the direct URLs INCLUDING the
+        // audio-only one, so there is no stream and no fallback either, and the item is genuinely
+        // unplayable. That is policy, not a caption bug, and it is the trail that tells them apart —
+        // a `refused` route means YouTube offered nothing fetchable.
+        if (!playing || servedNothing()) {
+            assertTrue(
+                "nothing played AND nothing explains it — that is ours. Trail:\n${trail()}",
+                servedNothing(),
+            )
+            println("[subtitles] no caption assertions: YouTube served no fetchable stream this session")
+            return@runBlocking
+        }
 
         val tracks = withTimeoutOrNull(TRACKS_TIMEOUT_MS) {
             while (controller.state.value?.subtitles.isNullOrEmpty()) delay(POLL_MS)
             controller.state.value?.subtitles
         }.orEmpty()
+        // Checked again here, because playback can START and then be refused a second later — which is
+        // what happened on 2026-08-18: `isPlaying` went true, the route then reported `refused`, and the
+        // absent captions were blamed on the caption path.
+        if (tracks.isEmpty() && servedNothing()) {
+            println("[subtitles] no caption assertions: the stream was refused after starting")
+            return@runBlocking
+        }
         assertTrue(
             "no subtitle track reached the player. The resolve log says how many were extracted; if it " +
                 "says several then they were lost between the resolver and the session. Trail:\n${trail()}",
@@ -128,6 +146,15 @@ class SubtitlesArriveAndRenderTest {
         ),
         handle = PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$VIDEO_ID")),
     )
+
+    /**
+     * Whether YouTube gave us nothing fetchable this session — the one outcome that is not ours.
+     *
+     * In a SABR-only session the direct URLs are stripped INCLUDING the audio-only one, so there is no
+     * stream, no sound-only fallback, and `routeNow` says `refused`. Captions cannot be judged on an
+     * item that never really played.
+     */
+    private fun servedNothing() = trail().contains("refused")
 
     private fun trail() = Breadcrumbs.snapshot().takeLast(TRAIL_LINES)
         .filter { "subtitle" in it.message || "resolve" in it.tag || "route" in it.message }

@@ -581,6 +581,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                         streaming.withSolvedN({ _, _ -> emptyMap() }, "")
                     }
                 },
+                // Signed in, ask the account FIRST. Its client is a TV one, which is what SmartTube is
+                // — and SmartTube plays these videos in full on the same broadband where this app
+                // cannot. The path existed and was unreachable: it only fired when the anonymous call
+                // was refused, and the anonymous call succeeds and is then stripped of its video URLs by
+                // YouTube's SABR-only experiment. A useless success is not a failure to a gate written
+                // for failures.
+                preferAccount = { accountSubscriptions.signedIn.value },
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
             resumePositionMs = playbackProgressStore::resumePositionMs,
