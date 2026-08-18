@@ -516,7 +516,22 @@ class PlaybackQueue(
      * sound is silence.
      */
     fun playCurrentWithoutThePicture(positionMs: Long): Boolean {
-        val kept = launcher.listenIfPossible(positionMs)
+        val entry = _state.value.current ?: return false
+        // The PILLAR, like both neighbours in this ladder already check. Without it the rung asked the
+        // launcher for a fallback while the launcher still held the last VIDEO it resolved -- a podcast
+        // never goes through the launcher at all -- so a failing episode was "rescued" with a
+        // completely different item's soundtrack, at the episode's position, and `attempts` reset so it
+        // was never abandoned. Found by a podcast audit, 2026-08-18.
+        if (entry.item.handle !is PlayHandle.Video) {
+            Diag.log(
+                "playback",
+                "no sound-only rescue for ${entry.item.item.id.value}: a " +
+                    "${entry.item.handle.pillar} item has no picture to lose, and the launcher holds a " +
+                    "different item's streams",
+            )
+            return false
+        }
+        val kept = launcher.listenIfPossible(entry.item.item.id, positionMs)
         Diag.log(
             "playback",
             if (kept) {

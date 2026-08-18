@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
@@ -194,7 +195,14 @@ class VideoPlaybackLauncher(
         watchHistory.beginSession(resolved.item.id.value)
         // One place decides audio vs video, so the mode holds no matter which screen
         // started playback. A one-off "watch this" is expressed by [watch].
-        if (audioPreferred() && resolved.audioOnlyUrl != null) listen() else playVideoQuality(resolved, startPositionMs)
+        // startPositionMs on BOTH branches. The audio branch dropped it, so a rescue that asked to
+        // resume an hour in restarted from zero whenever the mode was audio -- which every diagnostics
+        // report from Dewi's phone says it is.
+        if (audioPreferred() && resolved.audioOnlyUrl != null) {
+            listen(startPositionMs)
+        } else {
+            playVideoQuality(resolved, startPositionMs)
+        }
         return true
     }
 
@@ -298,8 +306,21 @@ class VideoPlaybackLauncher(
      * fall back to and the item has to be abandoned, and a `Unit`-returning [listen] cannot tell the
      * two apart. Same call, same rules — this only reports the outcome.
      */
-    fun listenIfPossible(fromMs: Long): Boolean {
-        if (current?.audioOnlyUrl == null) return false
+    fun listenIfPossible(expected: MediaItemId, fromMs: Long): Boolean {
+        val resolved = current ?: return false
+        // WHOSE audio. `current` is the last video this launcher resolved and is cleared only by
+        // playLocal, so after a podcast play it still holds the video before it. Asking only "is there
+        // an audio-only URL" therefore answered yes for the WRONG item, and the caller played it. The
+        // pillar guard in PlaybackQueue catches the known route; this catches every future one.
+        if (resolved.item.id != expected) {
+            Diag.log(
+                "playback",
+                "not listening: asked for ${expected.value} but the launcher holds " +
+                    "${resolved.item.id.value}, so there is no audio-only stream for the right item",
+            )
+            return false
+        }
+        if (resolved.audioOnlyUrl == null) return false
         listen(fromMs)
         return true
     }

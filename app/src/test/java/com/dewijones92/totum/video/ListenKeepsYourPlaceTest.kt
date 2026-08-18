@@ -86,7 +86,7 @@ class ListenKeepsYourPlaceTest {
     fun `listening from a position starts there`() = runTest {
         launcher.play(listing, HttpUrl.of("https://www.youtube.com/watch?v=$VIDEO"))
 
-        launcher.listenIfPossible(fromMs = AN_HOUR_IN)
+        launcher.listenIfPossible(MediaItemId(VIDEO), fromMs = AN_HOUR_IN)
 
         assertEquals(AUDIO_URL, controller.lastItem?.mediaUrl?.value)
         assertEquals("it must resume where the picture died", AN_HOUR_IN, controller.lastStartPositionMs)
@@ -120,7 +120,7 @@ class ListenKeepsYourPlaceTest {
 
         assertTrue(
             "nothing to listen to should be reported, not silently ignored",
-            !soloLauncher.listenIfPossible(AN_HOUR_IN)
+            !soloLauncher.listenIfPossible(MediaItemId(VIDEO), AN_HOUR_IN)
         )
     }
 
