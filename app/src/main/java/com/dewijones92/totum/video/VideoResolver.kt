@@ -503,7 +503,7 @@ class VideoResolver(
             Diag.warn("resolve", "$id could not be rescued over SABR: no player response")
             return null
         }
-        return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, "rescue", now()), response)
+        return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, "rescue", now()), response, cache = false)
     }
 
     private suspend fun overSabr(
@@ -538,6 +538,19 @@ class VideoResolver(
     private suspend fun overSabrFrom(
         request: PlayerRequest,
         response: com.dewijones92.totum.innertube.player.PlayerResult.Success,
+        /**
+         * Whether to CACHE the result under the ordinary key.
+         *
+         * False for a rescue, and that is not a preference. `extractAndCache` checks the cache BEFORE
+         * `overSabr()`, so a cached rescue walks past both of that path's guards -- the `sabrPlayback`
+         * setting and the `resumeAt > 0` refusal that exists because a resume is a seek and SABR cannot
+         * seek yet. A part-watched re-tap then resumes into a cold mid-stream SABR open, which serves
+         * nothing at all, and the item stalls. It also loses the quality menu (`qualities` is empty over
+         * SABR) and the audio-track menu (no metadata is remembered), while logging only the ordinary
+         * "cache hit ... skipped extraction". `resolveAsRescue`'s KDoc promised this and nothing enforced
+         * it.
+         */
+        cache: Boolean = true,
     ): Resolved? {
         val id = request.id
         val sourceId = request.sourceId
@@ -579,7 +592,11 @@ class VideoResolver(
             audioOnlyUrl = prepared.audioUrl,
             subtitles = response.subtitles,
         )
-        remember(watchUrl, resolved)
+        if (cache) {
+            remember(watchUrl, resolved)
+        } else {
+            Diag.log("resolve", "$id resolved over SABR as a rescue — deliberately NOT cached")
+        }
         return resolved
     }
 
