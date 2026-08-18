@@ -325,7 +325,17 @@ class VideoPlaybackLauncher(
         return true
     }
 
-    fun listen(fromMs: Long = playback.state.value?.positionMs ?: 0) {
+    /**
+     * Where playback has got to — the position every switch must resume from.
+     *
+     * ONE definition, because there were four callers and only `listen` passed anything: `selectQuality`
+     * called `play` with no start position, and `watch` and `selectAudioTrack` both took
+     * `playVideoQuality`'s default of 0. So nudging the quality 40 minutes into something started it
+     * again. Named rather than repeated inline so a fifth switch cannot quietly omit it.
+     */
+    private fun whereWeAre(): Long = playback.state.value?.positionMs ?: 0
+
+    fun listen(fromMs: Long = whereWeAre()) {
         val resolved = current ?: return
         val audio = resolved.audioOnlyUrl ?: run {
             // Said out loud rather than returning silently: "listen mode is a bit weird with
@@ -385,7 +395,10 @@ class VideoPlaybackLauncher(
         val resolved = if (listing == null) repicked else repicked.copy(item = listing.withStreamFrom(repicked.item))
         current = resolved
         Diag.log("playback", "${resolved.item.id.value} audio track -> $languageCode")
-        if (_quality.value.listening) listen() else playVideoQuality(resolved)
+        // From where you are, on both branches: switching language mid-video is exactly when a restart
+        // is most annoying, because you switched BECAUSE you were listening to it.
+        val at = whereWeAre()
+        if (_quality.value.listening) listen(at) else playVideoQuality(resolved, at)
     }
 
     /** Whether an address carries a solved `n`, in either of the two spellings YouTube uses. */
@@ -404,7 +417,7 @@ class VideoPlaybackLauncher(
             Diag.log("playback", "${resolved.item.id.value} has one stream; staying where it is")
             return
         }
-        playVideoQuality(resolved)
+        playVideoQuality(resolved, whereWeAre())
     }
 
     /**
@@ -422,6 +435,7 @@ class VideoPlaybackLauncher(
             resolved.item.copy(mediaUrl = quality.videoUrl),
             skipSegments = resolved.skipSegments,
             audioUrl = quality.audioUrl,
+            startPositionMs = whereWeAre(),
         )
     }
 }
