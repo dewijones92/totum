@@ -328,7 +328,7 @@ class VideoResolver(
                 },
             ),
             skipSegments = knownSegments ?: skipSegments.segmentsFor(metadata.id),
-            qualities = betterQualities(metadata.id, metadata.videoQualities(codecSupport, wanted)),
+            qualities = betterQualities(metadata.id, metadata.videoQualities(codecSupport, wanted), wanted),
             audioOnlyUrl = metadata.bestAudioUrl(wanted),
             subtitles = metadata.subtitles,
             audioTracks = metadata.audioTracks(wanted),
@@ -351,7 +351,20 @@ class VideoResolver(
      * age gates, region locks, signature ciphers, non-YouTube sources — so it stays the
      * primary and this is the second opinion, asked when the first is visibly poor.
      */
-    private suspend fun betterQualities(id: String, qualities: List<VideoQuality>): List<VideoQuality> {
+    private suspend fun betterQualities(
+        id: String,
+        qualities: List<VideoQuality>,
+        /**
+         * Audio languages to prefer, passed THROUGH to the replacement ladder.
+         *
+         * It was missing, and `streams.videoQualities()` was called with no argument while every sibling
+         * call passes one -- an oversight rather than a decision: this function landed 2026-07-30 and the
+         * audio-language rule was 2026-08-09. A real player response carries one audio format per dubbed
+         * language for the same itag, so with no preference the pick is arbitrary. That is report 0.1.373
+         * -- an English talk playing in German -- arriving by a second route.
+         */
+        wanted: List<String>,
+    ): List<VideoQuality> {
         val fallback = playerStreams ?: return qualities.also { reportIfDegraded(id, it) }
         val best = qualities.maxOfOrNull { it.height } ?: 0
         if (qualities.size > 1 || best > DEGRADED_HEIGHT) return qualities
@@ -362,7 +375,7 @@ class VideoResolver(
         // has already succeeded. Caught here after a test proved it could.
         val streams = runCatching { fallback.playerFor(id) }.getOrNull()?.streaming
             ?: return qualities.also { reportIfDegraded(id, it) }
-        val better = streams.videoQualities()
+        val better = streams.videoQualities(wanted)
         val betterBest = better.maxOfOrNull { it.height } ?: 0
         if (betterBest <= best) {
             Diag.log("resolve", "$id: the direct ask offered no better (${betterBest}p) — keeping yt-dlp's")
