@@ -349,7 +349,7 @@ class PlaybackQueue(
             // fix above: it also covers a duplicate that predates the de-duplication work.
             if (entry.item.item.id == playingId) {
                 Diag.log("queue", "skipping index $index \"$title\" — it is what just played")
-            } else if (playAt(index)) {
+            } else if (playAt(index, rollBackOnRefusal = true)) {
                 // The SUCCESS says what it advanced to, not just that it did. Only the refusals
                 // said anything, so a report of a queue advancing wrongly showed "advance=true"
                 // and nothing about which of sixty items it had landed on.
@@ -396,11 +396,39 @@ class PlaybackQueue(
             ?.takeIf { it >= 0 }
             ?: snapshot.currentIndex
 
-    /** Moves the cursor to [index] and plays it; false when out of range or unplayable. */
-    private suspend fun playAt(index: Int): Boolean {
+    /**
+     * Moves the cursor to [index] and plays it; false when out of range or unplayable.
+     *
+     * ROLLS BACK on refusal. The cursor moved first and nothing put it back, and since [mutate] is what
+     * triggers `store.save`, a failed advance PERSISTED the move. Over a mostly-unstreamed queue the
+     * advance loop walks every remaining entry, so one auto-advance offline parked the cursor on the
+     * last item: `upNext` then reads empty, every later advance says "nothing after cursor N", and a
+     * 97-item queue looks finished even after the network returns — across a restart, because it was
+     * saved. Offline is the ordinary trigger, since `routeNow` refuses everything with no copy on disk.
+     *
+     * The cursor is restored rather than left alone up front, because `play` -> `route` reads
+     * `_state.value.current` to decide what to play, so the move has to happen before the attempt.
+     */
+    private suspend fun playAt(index: Int, rollBackOnRefusal: Boolean = false): Boolean {
         val entry = _state.value.entries.getOrNull(index) ?: return false
+        val cursorBefore = _state.value.currentIndex
+        val playingBefore = _nowPlaying.value
         mutate("play-at-$index") { it.copy(currentIndex = index) }
-        return play(entry.item)
+        if (play(entry.item)) return true
+        // ONLY for the automatic advance, which is why the caller has to ask. An explicit tap must
+        // leave the item it chose as current even when it will not play, because that is what the
+        // recovery ladder acts on -- rolling THAT back stops a refused item from ever being rescued,
+        // and broke the SABR-rescue-offline test the moment it was applied everywhere.
+        if (rollBackOnRefusal && cursorBefore != index) {
+            Diag.log(
+                "queue",
+                "index $index would not play — putting the cursor back to $cursorBefore and " +
+                    "\"${playingBefore?.item?.title?.take(TITLE_CHARS) ?: "nothing"}\" back as playing",
+            )
+            mutate("play-at-$index-rolled-back") { it.copy(currentIndex = cursorBefore) }
+            _nowPlaying.value = playingBefore
+        }
+        return false
     }
 
     /**
