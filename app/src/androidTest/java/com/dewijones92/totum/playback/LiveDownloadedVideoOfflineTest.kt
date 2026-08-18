@@ -4,6 +4,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.TotumApplication
+import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
@@ -103,6 +104,19 @@ class LiveDownloadedVideoOfflineTest {
 
             goOffline()
             assertEquals("the radios did not actually go off", false, hasNetwork())
+            // And wait for the APP to notice, which is a separate fact. `ConnectivityManager`
+            // delivers its callback asynchronously, so the radios can be off while the container
+            // still reports online — and `routeNow` asked while it did would stream instead of using
+            // the file, failing this test for a reason that is purely a race. Seen on 2026-08-18: it
+            // passed in isolation and failed after another live test, playing `itag=303` from the
+            // network with the radios provably down.
+            assertTrue(
+                "the app never noticed the network had gone",
+                withTimeoutOrNull(OFFLINE_NOTICED_TIMEOUT_MS) {
+                    while (!container.isOffline()) delay(POLL_MS)
+                    true
+                } ?: false,
+            )
 
             queue.playNow(video)
             assertTrue(
@@ -110,8 +124,11 @@ class LiveDownloadedVideoOfflineTest {
                 awaitPlaying(),
             )
             assertTrue(
-                "it must play the file yt-dlp produced. It played from \"${lastSource()}\" — with " +
-                    "no network that can only be the wrong source, which is the reported bug",
+                "it must play the file yt-dlp produced ($path). It played from \"${lastSource()}\". " +
+                    "At this moment: app-offline=${container.isOffline()} device-network=${hasNetwork()} " +
+                    "route trail:\n" + Breadcrumbs.snapshot().takeLast(TRAIL_LINES)
+                        .filter { "route" in it.message || "play " in it.message }
+                        .joinToString("\n") { it.message.take(TRAIL_CHARS) },
                 lastSource()?.contains(path) == true,
             )
             assertTrue(
@@ -172,6 +189,12 @@ class LiveDownloadedVideoOfflineTest {
         /** Python start, extraction and a real fetch, on an emulator. */
         const val DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000L
         const val START_TIMEOUT_MS = 30_000L
+
+        /** ConnectivityManager's callback is asynchronous; this is generous and finite. */
+        const val OFFLINE_NOTICED_TIMEOUT_MS = 20_000L
+        const val TRAIL_LINES = 40
+        const val TRAIL_CHARS = 200
+
         const val PROGRESS_MS = 1_000L
         const val POLL_MS = 200L
     }

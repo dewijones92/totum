@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.settings.PlaybackMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -54,24 +55,69 @@ class SeekDeepIntoALongVideoTest {
     private val controller get() = container.playbackController
     private val queue get() = container.playbackQueue
 
+    /** Whatever the app was set to, so this test hands it back rather than assuming a default. */
+    private var modeBefore: PlaybackMode = PlaybackMode.AUTO
+
     @Before
     fun emptyTheQueue() = runBlocking(Dispatchers.Main) {
+        modeBefore = container.appPreferences.settings.value.playbackMode
         queue.clear()
         controller.setSkipSilence(false)
         controller.setSpeed(1f)
     }
 
+    /**
+     * Leaves nothing behind, because this test is expensive to be untidy about.
+     *
+     * `playNow` puts the item IN the queue, and the queue auto-downloads its audio — so a 97-minute
+     * video quietly starts fetching and outlives the test. Run before
+     * `LiveDownloadedVideoOfflineTest` it made that one fail on a stream URL for a video it had never
+     * heard of, while passing perfectly in isolation. Cancelling the download is the part that is easy
+     * to forget and expensive to leave: it is the only leak here measured in hundreds of megabytes.
+     */
     @After
     fun tearDown() {
         runBlocking(Dispatchers.Main) {
+            container.downloadManager.cancel(MediaItemId(VIDEO_ID))
+            container.downloadManager.delete(MediaItemId(VIDEO_ID))
             queue.clear()
             controller.player?.stop()
             controller.player?.clearMediaItems()
+            container.appPreferences.setPlaybackMode(modeBefore)
+        }
+    }
+
+    /**
+     * LISTEN mode, which is how Dewi actually uses the app — every diagnostics report from his phone
+     * carries `settings.playbackMode = AUDIO`.
+     *
+     * Kept as its own case rather than folded into the one below, because the two go through different
+     * pickers and, measured on 2026-08-18, behave completely differently an hour deep: the audio-only
+     * URL served byte 61,567,041 on 5 of 5 attempts, while the video ladder managed roughly 3 of 10.
+     * One test covering "seeking works" would have averaged those into a flake and hidden the fact that
+     * the mode he lives in is the one that works.
+     */
+    @Test
+    fun anHourIntoALongVideoPlaysOnWhileListening() = runBlocking(Dispatchers.Main) {
+        container.appPreferences.setPlaybackMode(PlaybackMode.AUDIO)
+        try {
+            seekAnHourInAndKeepPlaying()
+        } finally {
+            container.appPreferences.setPlaybackMode(modeBefore)
         }
     }
 
     @Test
     fun anHourIntoALongVideoPlaysOn() = runBlocking(Dispatchers.Main) {
+        container.appPreferences.setPlaybackMode(PlaybackMode.VIDEO)
+        try {
+            seekAnHourInAndKeepPlaying()
+        } finally {
+            container.appPreferences.setPlaybackMode(modeBefore)
+        }
+    }
+
+    private suspend fun seekAnHourInAndKeepPlaying() {
         queue.playNow(longVideo())
 
         val started = withTimeoutOrNull(START_TIMEOUT_MS) {
@@ -106,13 +152,19 @@ class SeekDeepIntoALongVideoTest {
         // ARRIVING is a seek; still moving is the stream being served. A URL that answers one range
         // and refuses the next would satisfy the assertion above and fail this one.
         val reached = controller.state.value?.positionMs ?: 0
+        // Generous, because the fallback to sound-only costs a re-resolve and a fresh connection.
         val keptGoing = withTimeoutOrNull(PROGRESS_TIMEOUT_MS) {
             while ((controller.state.value?.positionMs ?: 0) < reached + PROGRESS_MS) delay(POLL_MS)
             true
         } ?: false
+        // "Still playing" — not "still playing with a picture". Measured 2026-08-18: a 97-minute video
+        // offers NO video format carrying a solved `n`, so watching it an hour in is not something the
+        // app can choose; the sound is, and recovery falls back to it. Demanding the picture here would
+        // assert something YouTube does not currently serve to any client yt-dlp can reach, and the
+        // test would be a standing complaint about the world rather than a guard on this app.
         assertTrue(
-            "reached ${reached}ms and then stopped — it never got ${PROGRESS_MS}ms further, so the " +
-                "seek landed but the stream is not being served from there. Trail:\n${trail()}",
+            "reached ${reached}ms and then stopped — it never got ${PROGRESS_MS}ms further. Neither the " +
+                "stream nor the sound-only fallback is serving from there. Trail:\n${trail()}",
             keptGoing,
         )
     }
@@ -151,7 +203,7 @@ class SeekDeepIntoALongVideoTest {
 
         /** Enough movement to be playback rather than the seek settling. */
         const val PROGRESS_MS = 3_000L
-        const val PROGRESS_TIMEOUT_MS = 60_000L
+        const val PROGRESS_TIMEOUT_MS = 120_000L
         const val POLL_MS = 250L
         const val TRAIL_LINES = 30
     }

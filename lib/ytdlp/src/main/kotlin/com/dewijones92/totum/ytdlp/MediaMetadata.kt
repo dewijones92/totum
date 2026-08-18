@@ -186,13 +186,22 @@ private fun byAudioThen(wanted: List<String>, tieBreak: Comparator<MediaFormat>)
  * language, and unfetchable. A URL with no `n` at all (a podcast enclosure, a torrent) is simply not
  * YouTube's and loses nothing by this, since it is only ever compared against its own kind.
  *
- * Anchored on the parameter boundary so `ns=` and `sn=`, which appear on the very URLs that fail, are
- * not mistaken for it.
+ * Two spellings, because YouTube uses both. A `videoplayback` URL carries `&n=…` in its query; an HLS
+ * **manifest** states its parameters in the PATH — `/n/bZpK0XmcfCLCdg/` — and the app plays those: a
+ * real resolve chose `format 96-18` from `manifest.googlevideo.com/api/manifest/hls_playlist/…`. A
+ * query-only check called every manifest undurable and ranked it below a capped stream that merely
+ * looked conventional.
+ *
+ * Both forms are anchored on a boundary, because `ns=` and `sn=` (query) and `/ns/` (path) ride on the
+ * very URLs that fail and would otherwise be read as a solved `n`.
  */
-private val MediaFormat.isDurable: Boolean
-    get() = url?.let { DECIPHERED_N.containsMatchIn(it) } == true
+public val MediaFormat.isDurable: Boolean
+    get() = url?.let { address -> DECIPHERED_N.any { it.containsMatchIn(address) } } == true
 
-private val DECIPHERED_N = Regex("""[?&]n=[^&]+""")
+private val DECIPHERED_N = listOf(
+    Regex("""[?&]n=[^&]+"""),
+    Regex("""/n/[^/?&]+"""),
+)
 
 /** yt-dlp scores the uploader's own track 10 and everything else below it. */
 private const val ORIGINAL_LANGUAGE_PREFERENCE = 10

@@ -8,6 +8,7 @@ import com.dewijones92.totum.ytdlp.MediaMetadata
 import com.dewijones92.totum.ytdlp.audioTag
 import com.dewijones92.totum.ytdlp.audioTracks
 import com.dewijones92.totum.ytdlp.bestAudioFormat
+import com.dewijones92.totum.ytdlp.isDurable
 
 /**
  * One selectable streaming quality for a video. [videoUrl] is either a muxed
@@ -88,9 +89,20 @@ public fun MediaMetadata.videoQualities(
         .filter { support.canDecode(it.videoCodec, it.width, it.height) }
         .groupBy { it.height!! }
         .mapNotNull { (height, atHeight) ->
-            val decodable = atHeight.sortedBy {
-                it.videoCodec.codecPreference(support.isHardware(it.videoCodec, it.width, it.height))
-            }
+            // DURABLE first, then codec. A stream whose URL has not been through the `n` solve is
+            // refused past roughly its first megabyte, so preferring one on codec grounds offers a
+            // height that plays for a minute and then stops. Fixing this in `bestAudioFormat` alone
+            // fixed listening and left watching broken: seeking an hour into a 97-minute video failed
+            // three times running while the audio path served the same byte offset happily, because
+            // the ladder is a second picker answering the same question. See `MediaFormat.isDurable`.
+            val decodable = atHeight.sortedWith(
+                compareByDescending<MediaFormat> { it.isDurable }
+                    .thenBy {
+                        it.videoCodec.codecPreference(
+                            support.isHardware(it.videoCodec, it.width, it.height),
+                        )
+                    },
+            )
             // Stable sort, so among equally-good sound the codec order above survives.
             val muxed = decodable.filter { it.hasAudio }
                 .sortedWith(compareByDescending(byAudio) { it.audioTag })

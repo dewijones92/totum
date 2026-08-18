@@ -235,7 +235,14 @@ class VideoPlaybackLauncher(
                 (chosen?.codec?.let { " $it" } ?: "") +
                 " audio ${(chosen?.audio ?: AudioTrackTag.Unknown).label}" +
                 (if (chosen?.audioUrl != null) " (merged)" else " (one stream)") +
-                "; ${resolved.audioTracks.size} track(s) offered",
+                "; ${resolved.audioTracks.size} track(s) offered" +
+                // Whether the URLs about to play have been through the `n` solve. Without this a
+                // report cannot tell "it stopped a minute in" apart from "it was never going to
+                // play past a minute", and those have completely different fixes. YouTube's
+                // enforcement is inconsistent — the same video serves a deep range on one resolve
+                // and refuses it on the next — so the only way to know which happened on his phone
+                // is to record what we were handed. See MediaFormat.isDurable.
+                " [durable video=${chosen?.videoUrl?.solvedN()} audio=${chosen?.audioUrl?.solvedN()}]",
         )
         if (chosen != null) {
             playback.play(
@@ -261,7 +268,20 @@ class VideoPlaybackLauncher(
      * shows artwork) and far less data is used. Replays from the saved position.
      * No-op if nothing is resolved or there's no audio-only stream.
      */
-    fun listen() {
+    /**
+     * Switches to the sound alone and says whether it could.
+     *
+     * Recovery needs the ANSWER, not just the attempt: with no audio-only stream there is nothing to
+     * fall back to and the item has to be abandoned, and a `Unit`-returning [listen] cannot tell the
+     * two apart. Same call, same rules — this only reports the outcome.
+     */
+    fun listenIfPossible(fromMs: Long): Boolean {
+        if (current?.audioOnlyUrl == null) return false
+        listen(fromMs)
+        return true
+    }
+
+    fun listen(fromMs: Long = playback.state.value?.positionMs ?: 0) {
         val resolved = current ?: return
         val audio = resolved.audioOnlyUrl ?: run {
             // Said out loud rather than returning silently: "listen mode is a bit weird with
@@ -278,7 +298,14 @@ class VideoPlaybackLauncher(
             "playback",
             "${resolved.item.id.value} listening — audio track ${resolved.audioLanguage ?: "preferred"}"
         )
-        playback.play(resolved.item.copy(mediaUrl = audio), skipSegments = resolved.skipSegments)
+        // FROM WHERE YOU WERE. This passed no start position and began again at zero, while the
+        // doc above claimed it replayed from the saved position — mild when toggling Listen on a
+        // short video, and the reason a rescue of an hour-deep seek threw the hour away.
+        playback.play(
+            resolved.item.copy(mediaUrl = audio),
+            skipSegments = resolved.skipSegments,
+            startPositionMs = fromMs,
+        )
     }
 
     /**
@@ -317,6 +344,10 @@ class VideoPlaybackLauncher(
         if (_quality.value.listening) listen() else playVideoQuality(resolved)
     }
 
+    /** Whether an address carries a solved `n`, in either of the two spellings YouTube uses. */
+    private fun HttpUrl.solvedN(): Boolean =
+        SOLVED_N.any { it.containsMatchIn(value) }
+
     /** Leaves "Listen" (audio-only) and returns to watching the video, at the saved position. */
     fun watch() {
         val resolved = current ?: return
@@ -350,3 +381,11 @@ class VideoPlaybackLauncher(
         )
     }
 }
+
+/**
+ * The two spellings of a solved `n`: a query parameter on a `videoplayback` URL, a path segment on an
+ * HLS manifest. Duplicated from `MediaFormat.isDurable` deliberately — that one judges a FORMAT before
+ * a quality is chosen, this one describes the URL actually handed to the player, and they are checked
+ * at different moments for different reasons. If a third caller appears, factor it.
+ */
+private val SOLVED_N = listOf(Regex("""[?&]n=[^&]+"""), Regex("""/n/[^/?&]+"""))

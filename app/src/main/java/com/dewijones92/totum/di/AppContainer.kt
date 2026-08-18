@@ -749,6 +749,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             moveOn = { playbackQueue.playNextInQueue() },
             // The last thing to try before abandoning the item: the copy already on the disk.
             playWithoutTheStream = playbackQueue::playCurrentWithoutItsStream,
+            // The sound without the picture, tried after the disk and before giving up. There is no
+            // durable VIDEO stream to be had for a long video — see StreamRecovery's parameter doc —
+            // so this is the difference between losing the picture and losing the item.
+            playWithoutThePicture = { at -> playbackQueue.playCurrentWithoutThePicture(at) },
             // Choosing something by hand is a new stuck point. Without this the budget carried
             // over from the give-up, and report 0.1.383's two hand-taps of a failed video were
             // each refused on their first error, with no retry and no re-resolve.

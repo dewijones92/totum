@@ -507,6 +507,28 @@ class PlaybackQueue(
      *
      * Returns false when there is nothing on the disk either, which is when moving on is right.
      */
+    /**
+     * Keeps the current item playing as SOUND when its picture cannot be served.
+     *
+     * The last rung before an item is abandoned. Measured 2026-08-18: a 97-minute video offered 19
+     * video formats and not one carried a solved `n`, while 73 of its 77 audio formats did — so
+     * watching it past the first megabyte is not a choice the app can make, and the alternative to
+     * sound is silence.
+     */
+    fun playCurrentWithoutThePicture(positionMs: Long): Boolean {
+        val kept = launcher.listenIfPossible(positionMs)
+        Diag.log(
+            "playback",
+            if (kept) {
+                "keeping the sound without the picture from ${positionMs}ms — " +
+                    "the video stream will not serve"
+            } else {
+                "no audio-only stream to fall back to; the picture was all there was"
+            },
+        )
+        return kept
+    }
+
     suspend fun playCurrentWithoutItsStream(positionMs: Long): Boolean {
         val entry = _state.value.current ?: return false
         return play(entry.item, positionMs, retry = true, streamRefused = true)

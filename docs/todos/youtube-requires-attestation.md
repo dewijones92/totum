@@ -127,6 +127,47 @@ question.
 will remain unplayable until the real fix lands. `sR1s-pxRktU` and `ttiLcMUQq80` were durable;
 `ng2Tsa5KE_A` was not.
 
+## Watching a long video: there is nothing durable to choose, so it keeps the sound
+
+The durable-stream preference fixed **listening** and left **watching** broken, and the reason is not
+a bug we can pick our way out of. Measured on NASA's 97-minute "Cosmic Dawn", across every client
+yt-dlp can reach:
+
+```
+VIDEO formats with a URL: 19    all ANDROID_VR, durable: 0
+AUDIO formats with a URL: 77    73 durable (WEB_EMBEDDED_PLAYER)
+```
+
+**No video format carries a solved `n`.** YouTube serves video only over SABR to the clients that
+would attest, so the quality ladder has nothing durable to offer and an hour-deep seek while watching
+cannot be made to work by choosing better. It failed roughly 7 times in 10 while the audio-only URL
+served the same byte offset 5 times out of 5.
+
+So recovery gained a rung: **keep the sound when the picture is refused.** After a copy on disk (no
+data, cannot stall) and before abandoning the item. It is the streaming twin of the download rule Dewi
+settled on 2026-08-14 — once every retry has failed the choice is "audio or nothing", and skipping is
+the worse answer.
+
+That exposed a real pre-existing bug on the way. `listen()` passed no start position, so it began again
+at zero while its own documentation claimed it "replays from the saved position". Mild when toggling
+Listen on a short video; fatal here, because the rescue of an hour-deep seek threw the hour away:
+
+```
+playback: keeping the sound without the picture — the video stream will not serve
+playback: ready after 395ms at 10ms
+playback: playing at 11ms
+```
+
+### Measured on the emulator, hour deep into a 97-minute video
+
+| State | Video mode | Listen mode |
+|---|---|---|
+| Before any of this | 0 / 3 | — |
+| Durable preference only | ~3 / 10 | 4 / 4 |
+| **+ sound fallback that keeps its place** | **4 / 4** | **4 / 4** |
+
+Full live set on `totum-api35`: **5 tests, 0 failures, 0 skipped.**
+
 ## The full fix, and why it is not built
 
 **A PO token.** yt-dlp reaches them through an external provider; SmartTube runs the attestation

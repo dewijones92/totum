@@ -108,7 +108,47 @@ class DurableStreamsWinTest {
         assertEquals("0", meta.bestAudioFormat()?.formatId)
     }
 
+    /**
+     * An HLS manifest states its parameters in the PATH, not the query — `/n/bZpK0XmcfCLCdg/` — and the
+     * app plays these: a real resolve on 2026-08-18 chose `format 96-18`, whose URL is
+     * `manifest.googlevideo.com/api/manifest/hls_playlist/…`. A query-only check calls those undurable
+     * and ranks them below a capped stream that merely looks conventional, which is the opposite of
+     * what is wanted.
+     */
+    @Test
+    fun `a manifest URL carrying n in its path counts as durable`() {
+        val meta = metadata(
+            audio(251, size = 32_000_000, url = "$HOST?itag=251&c=ANDROID_VR"),
+            audio(96, size = 8_000_000, url = "$MANIFEST/n/bZpK0XmcfCLCdg/itag/96/source/youtube"),
+        )
+
+        assertEquals("96", meta.bestAudioFormat()?.formatId)
+    }
+
+    /** And a manifest with no `n` anywhere is still undurable — the path form is not a free pass. */
+    @Test
+    fun `a manifest URL without an n is not durable`() {
+        val meta = metadata(
+            audio(251, size = 8_000_000, url = "$HOST?itag=251&n=solved"),
+            audio(96, size = 32_000_000, url = "$MANIFEST/itag/96/source/youtube"),
+        )
+
+        assertEquals("251", meta.bestAudioFormat()?.formatId)
+    }
+
+    /** `ns` appears as a PATH segment on these URLs too, and is not the parameter we mean. */
+    @Test
+    fun `a path segment named ns is not mistaken for n`() {
+        val meta = metadata(
+            audio(96, size = 32_000_000, url = "$MANIFEST/ns/MyGDS2XrEARHHWp/itag/96"),
+            audio(251, size = 8_000_000, url = "$HOST?itag=251&n=solved"),
+        )
+
+        assertEquals("251", meta.bestAudioFormat()?.formatId)
+    }
+
     private companion object {
         const val HOST = "https://rr1---sn-abc.googlevideo.com/videoplayback"
+        const val MANIFEST = "https://manifest.googlevideo.com/api/manifest/hls_playlist"
     }
 }

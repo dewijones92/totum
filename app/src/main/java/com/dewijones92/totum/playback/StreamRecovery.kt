@@ -73,6 +73,21 @@ internal class StreamRecovery(
     private val replay: suspend (Long) -> Boolean,
     private val moveOn: suspend () -> Boolean,
     private val playWithoutTheStream: suspend (Long) -> Boolean = { false },
+    /**
+     * Plays the current item's SOUND without its picture, from a position — the last rung before the
+     * item is abandoned.
+     *
+     * Measured 2026-08-18 on a 97-minute video, across every client yt-dlp can reach: 19 video formats
+     * with a URL, **none** carrying a solved `n`, against 77 audio formats of which 73 do. YouTube
+     * serves video only over SABR to the clients that would attest, so watching a long video past its
+     * first megabyte cannot be fixed by choosing better — there is nothing better to choose. Seeking an
+     * hour in failed about seven times in ten while the audio-only URL served the same offset 5 of 5.
+     *
+     * Losing the picture is a poor outcome; silence is a broken app, and this is a listening app. The
+     * streaming twin of the download rule Dewi settled on 2026-08-14: once the stream has failed every
+     * retry the choice is "audio or nothing", and skipping is the worse answer.
+     */
+    private val playWithoutThePicture: suspend (Long) -> Boolean = { false },
     private val freshStarts: Flow<MediaItemId> = emptyFlow(),
     private val isPlaying: (MediaItemId) -> Boolean = { false },
     private val forgetResolved: (MediaItemId) -> Unit = {},
@@ -135,24 +150,7 @@ internal class StreamRecovery(
 
         val budget = failure.budget()
         if (attempts >= budget) {
-            // Giving up on THIS item is the point — re-resolving forever against something
-            // genuinely gone would be the same infinite loop wearing a different hat. But
-            // giving up on the whole queue is not: a real report had the player dead on one
-            // item with 58 more behind it, going nowhere. So move on, and say so.
-            Diag.warn("playback", "stream still failing after $attempts recoveries; giving up on the stream")
-            // Before abandoning the item, ask whether it is already on the disk. The rule that an
-            // audio-only copy must not silently replace a video you are watching assumes a working
-            // stream to prefer; once there is not one, the choice is audio or nothing, and report
-            // 0.1.383 had the audio sitting downloaded through three failed attempts and a skip.
-            if (playWithoutTheStream(failure.positionMs)) {
-                Diag.log("playback", "playing ${failure.itemId.value} from the copy on disk instead")
-                attempts = 0
-                return
-            }
-            Diag.warn("playback", "nothing on disk for ${failure.itemId.value} either; skipping it")
-            if (!moveOn()) {
-                Diag.warn("playback", "nothing left in the queue to move on to")
-            }
+            giveUpOnTheStream(failure, attempts)
             return
         }
         attempts++
@@ -189,6 +187,48 @@ internal class StreamRecovery(
         if (!replay(failure.positionMs)) {
             Diag.warn("playback", "could not replay after ${failure.reason} — nothing current, or it would not resolve")
         }
+    }
+
+    /**
+     * What to do once re-resolving has stopped helping: the rungs below a working stream, best first.
+     *
+     * Its own function because it is a distinct decision from "should I retry", and because [recover]
+     * had reached the length where the two read as one thing. The ORDER is the substance: a copy on the
+     * disk costs no data and cannot stall, the sound without the picture keeps the item playing, and
+     * moving on is what is left.
+     */
+    private suspend fun giveUpOnTheStream(failure: StreamFailure, spent: Int) {
+        // Giving up on THIS item is the point — re-resolving forever against something
+        // genuinely gone would be the same infinite loop wearing a different hat. But
+        // giving up on the whole queue is not: a real report had the player dead on one
+        // item with 58 more behind it, going nowhere. So move on, and say so.
+        Diag.warn("playback", "stream still failing after $spent recoveries; giving up on the stream")
+        // Before abandoning the item, ask whether it is already on the disk. The rule that an
+        // audio-only copy must not silently replace a video you are watching assumes a working
+        // stream to prefer; once there is not one, the choice is audio or nothing, and report
+        // 0.1.383 had the audio sitting downloaded through three failed attempts and a skip.
+        if (playWithoutTheStream(failure.positionMs)) {
+            Diag.log("playback", "playing ${failure.itemId.value} from the copy on disk instead")
+            attempts = 0
+            return
+        }
+        // The sound, if the picture is all that was refused. Tried AFTER the disk (a copy costs no
+        // data and cannot stall) and BEFORE moving on, because a video playing as audio is still
+        // the thing the person asked for.
+        if (playWithoutThePicture(failure.positionMs)) {
+            Diag.warn(
+                "playback",
+                "keeping the sound for ${failure.itemId.value} without its picture — the video " +
+                    "stream was refused and no copy is on disk",
+            )
+            attempts = 0
+            return
+        }
+        Diag.warn("playback", "nothing on disk for ${failure.itemId.value} either; skipping it")
+        if (!moveOn()) {
+            Diag.warn("playback", "nothing left in the queue to move on to")
+        }
+        return
     }
 
     /**
