@@ -1,0 +1,20 @@
+# Instrumented tests that need real YouTube over a residential connection.
+#
+# THE ONE list. It used to be enumerated twice — as `notClass` in ci.yml and as `class` in
+# live-test-via-home.sh — so adding a live test meant remembering two files, neither near the test.
+# On 2026-08-18 FourKActuallyPlaysTest was added to neither, ran against CI's datacentre IP, and
+# turned main red. `tools/ci/check-live-tests-registered.py` now fails the build if a test under
+# app/src/androidTest/**/video/live/ is missing from here, so forgetting is caught rather than shipped.
+#
+# Excluding by package instead was tried and is WRONG: AndroidJUnitRunner INTERSECTS `package=` with
+# `class=` rather than unioning them, so `package=…video.live` plus the older classes ran ONE test and
+# silently skipped the rest — a green build with no live coverage at all.
+com.dewijones92.totum.sabr.SabrPlaybackTest
+com.dewijones92.totum.playback.LiveDownloadedVideoOfflineTest
+com.dewijones92.totum.playback.LiveSabrDownloadTest
+com.dewijones92.totum.playback.LiveStreamPlaysToItsEndTest
+com.dewijones92.totum.video.live.DurableUrlsOnDeviceTest
+com.dewijones92.totum.video.live.SeekDeepIntoALongVideoTest
+com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest
+com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
+com.dewijones92.totum.video.live.FourKActuallyPlaysTest

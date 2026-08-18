@@ -16,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -78,6 +79,22 @@ class FourKActuallyPlaysTest {
 
     @Test
     fun askingForFourKGetsMoreThanTheDefaultCap() = runBlocking(Dispatchers.Main) {
+        // What YouTube OFFERS this machine, before asserting anything about what we pick. Skipped
+        // otherwise, and that is not fussiness: the first version asserted the pick exceeded 1080p
+        // unconditionally, ran in the ordinary CI job against a datacentre IP where nothing above 1080p
+        // is served, and turned main red — asserting someone else's policy for the fifth time in a day.
+        // Our contract is "if it is offered, ask for it", which is exactly what this makes testable.
+        val offered = container.videoResolver
+            .resolve(HttpUrl.of(WATCH + FOUR_K_SIXTY), SourceId("youtube"), asked = "test")
+            ?.qualities.orEmpty()
+        val tallest = offered.maxOfOrNull { it.height } ?: 0
+        println("[4k] YouTube offered this machine up to ${tallest}p (${offered.size} rungs)")
+        assumeTrue(
+            "YouTube offered nothing above ${DEFAULT_CAP}p here (tallest ${tallest}p), so there is no " +
+                "4K to ask for and nothing about OUR behaviour to measure",
+            tallest > DEFAULT_CAP,
+        )
+
         queue.playNow(item())
 
         val playing = awaitPlaying()

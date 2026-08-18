@@ -76,7 +76,13 @@ echo "[live-test] LAN unreachable from the CI peer, as intended"
 # :app only. A bare `connectedDebugAndroidTest` runs every module, and :core:database has no
 # class by this name, so the filter matches nothing there and the runner reports
 # `initializationError` — a real red build caused entirely by asking the wrong module.
-./gradlew :app:connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.class=com.dewijones92.totum.sabr.SabrPlaybackTest,com.dewijones92.totum.playback.LiveDownloadedVideoOfflineTest,com.dewijones92.totum.playback.LiveSabrDownloadTest,com.dewijones92.totum.playback.LiveStreamPlaysToItsEndTest,com.dewijones92.totum.video.live.DurableUrlsOnDeviceTest,com.dewijones92.totum.video.live.SeekDeepIntoALongVideoTest,com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest,com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
+# The same ONE list ci.yml excludes, so a test cannot be skipped there and unrun here.
+# NOT `package=` plus `class=`: AndroidJUnitRunner INTERSECTS those rather than unioning them, and the
+# combination ran a single test while silently skipping the rest — green, with no live coverage.
+LIVE=$(grep -vE '^\s*(#|$)' "$(dirname "$0")/live-instrumented-tests.txt" | paste -sd,)
+echo "running live instrumented tests: $LIVE"
+./gradlew :app:connectedDebugAndroidTest --no-daemon \
+  -Pandroid.testInstrumentationRunnerArguments.class="$LIVE"
 
 INSTRUMENTED_STATUS=$?
 

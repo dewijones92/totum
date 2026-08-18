@@ -98,7 +98,16 @@ jobs:
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
-            ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.notClass=com.dewijones92.totum.sabr.SabrPlaybackTest,com.dewijones92.totum.playback.LiveDownloadedVideoOfflineTest,com.dewijones92.totum.playback.LiveSabrDownloadTest,com.dewijones92.totum.playback.LiveStreamPlaysToItsEndTest,com.dewijones92.totum.video.live.DurableUrlsOnDeviceTest,com.dewijones92.totum.video.live.SeekDeepIntoALongVideoTest,com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest,com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
+            # The live list comes from ONE file, read by this job (to exclude them) and by
+            # live-test-via-home.sh (to run them). It was enumerated in both places, so adding a live
+            # test meant remembering two files neither of which is near the test — and on 2026-08-18
+            # FourKActuallyPlaysTest was added to neither, ran against CI's datacentre IP, and turned
+            # main red. check-live-tests-registered.py now fails the build rather than letting that
+            # happen again.
+            LIVE=$(grep -vE '^\s*(#|$)' tools/ci/live-instrumented-tests.txt | paste -sd,)
+            echo "excluding live tests: $LIVE"
+            ./gradlew connectedDebugAndroidTest --no-daemon \
+              -Pandroid.testInstrumentationRunnerArguments.notClass="$LIVE"
             tools/ci/live-test-via-home.sh
 
 
@@ -136,6 +145,11 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+
+      # Before the slow gates: it costs milliseconds and catches the mistake that turned main red on
+      # 2026-08-18 — a live test added to neither CI list, so it ran against a datacentre IP.
+      - name: Live instrumented tests are registered
+        run: python3 tools/ci/check-live-tests-registered.py
 
       - name: Static analysis (detekt)
         run: ./gradlew detekt --no-daemon
