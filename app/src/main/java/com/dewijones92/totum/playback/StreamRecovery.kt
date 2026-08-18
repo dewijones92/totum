@@ -88,6 +88,23 @@ internal class StreamRecovery(
      * retry the choice is "audio or nothing", and skipping is the worse answer.
      */
     private val playWithoutThePicture: suspend (Long) -> Boolean = { false },
+    /**
+     * Plays the current item over SABR — YouTube's own streaming protocol — keeping the picture when
+     * the ordinary stream URLs have been refused.
+     *
+     * The app has carried a complete SABR client since July and it was switched OFF, behind an
+     * experimental setting defaulting to false, while the failure it solves happened for real: a 403
+     * from `ANDROID_VR` on a URL with 21577s of lease left, one retry, then the picture given up. A
+     * working route behind a gate the real failure never opens, for the fourth time in one day.
+     *
+     * It stays off as the PRIMARY route, deliberately: SABR caps at 1080p30 and cannot seek, which is
+     * a poor default for every video. As a rescue it costs nothing when the ordinary route works, and
+     * a capped picture beats no picture — the only comparison that matters this far down the ladder.
+     *
+     * Returns false when SABR cannot serve this item — a format it refuses, no endpoint, no config.
+     * Whether it is even OFFERED is decided here, by position: see [SABR_START_WINDOW_MS].
+     */
+    private val playOverSabr: suspend (Long) -> Boolean = { false },
     private val freshStarts: Flow<MediaItemId> = emptyFlow(),
     private val isPlaying: (MediaItemId) -> Boolean = { false },
     private val forgetResolved: (MediaItemId) -> Unit = {},
@@ -212,6 +229,29 @@ internal class StreamRecovery(
             attempts = 0
             return
         }
+        // The protocol YouTube is actually serving, before the picture is given up for good. Below
+        // the disk (which is full quality and free) and above the sound (which loses the picture).
+        //
+        // Only near the start. SABR asks for a media TIME and cannot yet begin at an arbitrary
+        // offset, so hour-deep it would either fail slowly or — far worse — "succeed" from the top
+        // and throw away someone's place, which is the exact harm `listen()` did before it was
+        // given the position. The guard lives HERE rather than in the wiring so the rule is visible
+        // at the decision and provable by a test, instead of resting on a lambda's good manners.
+        if (failure.positionMs > SABR_START_WINDOW_MS) {
+            Diag.log(
+                "playback",
+                "not trying SABR for ${failure.itemId.value} at ${failure.positionMs}ms — " +
+                    "it cannot start mid-item, and restarting would lose your place",
+            )
+        } else if (playOverSabr(failure.positionMs)) {
+            Diag.warn(
+                "playback",
+                "playing ${failure.itemId.value} over SABR instead — the ordinary stream was refused, " +
+                    "so the picture is capped at 1080p30 rather than lost",
+            )
+            attempts = 0
+            return
+        }
         // The sound, if the picture is all that was refused. Tried AFTER the disk (a copy costs no
         // data and cannot stall) and BEFORE moving on, because a video playing as audio is still
         // the thing the person asked for.
@@ -294,5 +334,13 @@ internal class StreamRecovery(
 
         /** Playback this much further on means the previous re-resolve worked. */
         const val PROGRESS_MS = 30_000L
+
+        /**
+         * How far in SABR is still worth trying. Generous enough to cover a failure during the
+         * opening seconds — which is when a refusal almost always lands, the first megabyte being
+         * exactly what an unattested client is given — and short enough that no real listening
+         * position is ever restarted from zero.
+         */
+        const val SABR_START_WINDOW_MS = 10_000L
     }
 }

@@ -481,6 +481,31 @@ class VideoResolver(
         return resolved
     }
 
+    /**
+     * Resolves over SABR **as a rescue**, ignoring the experimental setting.
+     *
+     * The setting governs whether SABR is the PRIMARY route, which it should not be by default: it
+     * caps the picture at 1080p30 and cannot seek. This entry is for the other situation entirely —
+     * the ordinary stream URLs have been refused and the choice is a capped picture or none. See
+     * `StreamRecovery.playOverSabr`.
+     *
+     * Nothing is cached: a rescue result is the answer to "what can play right now", and caching it
+     * would quietly turn the next ordinary play of the same item into the capped route.
+     */
+    suspend fun resolveAsRescue(watchUrl: HttpUrl, sourceId: SourceId): Resolved? {
+        val id = watchUrl.youTubeVideoId() ?: return null
+        val fast = playerStreams ?: run {
+            Diag.log("resolve", "$id cannot be rescued over SABR: there is no player-response client")
+            return null
+        }
+        Diag.log("resolve", "$id trying SABR as a rescue — the ordinary streams were refused")
+        val response = runCatching { fast.playerFor(id) }.getOrNull() ?: run {
+            Diag.warn("resolve", "$id could not be rescued over SABR: no player response")
+            return null
+        }
+        return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, "rescue", now()), response)
+    }
+
     private suspend fun overSabr(
         watchUrl: HttpUrl,
         sourceId: SourceId,

@@ -529,6 +529,33 @@ class PlaybackQueue(
         return kept
     }
 
+    /**
+     * Plays the current item over SABR, keeping the picture the ordinary streams refused.
+     *
+     * Video only: SABR is a YouTube protocol, so a podcast has nothing to rescue this way and says so
+     * rather than failing quietly. Returns false whenever there is no SABR answer, which is the ladder's
+     * cue to keep walking down to the sound.
+     */
+    suspend fun playCurrentOverSabr(positionMs: Long): Boolean {
+        val entry = _state.value.current ?: return false
+        val handle = entry.item.handle
+        if (handle !is PlayHandle.Video) {
+            Diag.log("playback", "no SABR rescue for a ${handle.pillar} item — SABR is a YouTube protocol")
+            return false
+        }
+        val rescued = launcher.playAsRescue(entry.item.item, handle.watchUrl, positionMs)
+        Diag.log(
+            "playback",
+            if (rescued) {
+                "rescued ${entry.item.item.id.value} over SABR from ${positionMs}ms — " +
+                    "the picture is capped at 1080p30 but present"
+            } else {
+                "SABR could not rescue ${entry.item.item.id.value} either"
+            },
+        )
+        return rescued
+    }
+
     suspend fun playCurrentWithoutItsStream(positionMs: Long): Boolean {
         val entry = _state.value.current ?: return false
         return play(entry.item, positionMs, retry = true, streamRefused = true)

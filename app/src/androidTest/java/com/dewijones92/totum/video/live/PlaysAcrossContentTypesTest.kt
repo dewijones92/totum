@@ -124,6 +124,12 @@ class PlaysAcrossContentTypesTest {
      * times in one day.
      */
     private suspend fun attempt(fixture: Fixture): String {
+        // Re-declared per fixture, not once per test. `MeteredAudioSwitch` PERSISTS its decision
+        // (`setPlaybackMode(AUDIO)`), so one metered moment during fixture two silently makes every
+        // later fixture audio-only — which read as "no picture" for three items on 2026-08-18 when the
+        // app was behaving perfectly. A precondition that can be changed by the thing under test has to
+        // be restated for each measurement.
+        container.appPreferences.setPlaybackMode(PlaybackMode.VIDEO)
         queue.clear()
         controller.player?.stop()
         Breadcrumbs.clear()
@@ -190,6 +196,11 @@ class PlaysAcrossContentTypesTest {
      */
     private fun describePicture(picture: Boolean): String = when {
         picture -> "yes"
+        // The persisted MODE, not just this fixture's breadcrumbs: `attempt` clears the trail per
+        // fixture, so a downgrade decided while the previous item played left no trace here and got
+        // reported as a bare "no" — the one label that means "ours".
+        container.appPreferences.settings.value.playbackMode == PlaybackMode.AUDIO ->
+            "audio-only because the mode is AUDIO — the app's data saver switched it, not a finding"
         breadcrumbSays("switching to audio only") ->
             "downgraded by the app's own data saver (this device reports METERED) — not a finding"
         breadcrumbSays("keeping the sound") ->

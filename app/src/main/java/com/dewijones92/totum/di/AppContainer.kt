@@ -760,6 +760,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // durable VIDEO stream to be had for a long video — see StreamRecovery's parameter doc —
             // so this is the difference between losing the picture and losing the item.
             playWithoutThePicture = { at -> playbackQueue.playCurrentWithoutThePicture(at) },
+            // The rung that keeps the picture. Deliberately NOT gated on the sabrPlayback setting:
+            // that setting decides whether SABR is the primary route (it should not be — 1080p30, no
+            // seeking), while this is the last chance to show a picture at all.
+            playOverSabr = { at -> playbackQueue.playCurrentOverSabr(at) },
             // Choosing something by hand is a new stuck point. Without this the budget carried
             // over from the give-up, and report 0.1.383's two hand-taps of a failed video were
             // each refused on their first error, with no retry and no re-resolve.

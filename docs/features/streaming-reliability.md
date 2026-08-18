@@ -3,7 +3,7 @@ title: Streaming reliability — chunked fetch, codec choice, expired-URL recove
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Making video actually play
@@ -339,3 +339,40 @@ are the part worth testing and the data source could not be tested at all withou
 them — reverting each and re-running the flow against a real YouTube stream still plays to the end.
 They are fixed on their own merits. See `../todos/stalls-near-the-end-of-an-item.md` for the evidence
 and for where the cause is now being looked for.
+
+## The rescue ladder, and why SABR sits in it (2026-08-18)
+
+When a stream fails every retry, the app degrades rather than skipping. The ORDER is the substance:
+
+| Rung | Why here | Cost |
+|---|---|---|
+| a copy on the disk | no data, cannot stall | none — full quality |
+| **SABR** | a picture over the protocol YouTube is actually serving | capped at 1080p30, start-of-item only |
+| the sound without the picture | keeps the item playing when even SABR will not | the picture |
+| move on | nothing left to try | the item |
+
+SABR was **switched off** until today, behind an experimental setting defaulting to false, while the
+failure it exists to solve happened for real on the emulator:
+
+```
+SABR-only streaming experiment ... formats missing a URL
+HTTP 403 from client ANDROID_VR on a stream with 21593s of its lease left -> Rejected
+stream still failing after 1 recoveries; giving up on the stream
+route -> refused ... keeping the sound without the picture from 0ms
+```
+
+A complete, tested route sitting behind a gate the real failure never opens — the fourth instance of
+that shape in one day, and the most expensive, because here the gate was simply an off switch.
+
+The setting stays off for the PRIMARY route on purpose: SABR caps the picture at 1080p30 and cannot
+seek, which is a poor default for every video. As a rescue it costs nothing when the ordinary route
+works, and a capped picture beats no picture — the only comparison that matters this far down.
+
+Offered only within `SABR_START_WINDOW_MS` (10s) of the item's start, because SABR asks for a media
+TIME and cannot yet begin at an arbitrary offset. Hour-deep it would either fail slowly or, far worse,
+"succeed" from the top and throw away someone's place. The guard is at the decision site rather than in
+the wiring, so the rule is visible and unit-testable instead of resting on a lambda's good manners.
+
+Proven on device, 2026-08-18: the 19-second clip went from `picture=rescued` (sound only) to
+`picture=yes`, with SABR fetching the whole stream —
+`itag 133 ended at 433081 — 433081B of 433081B (100%) over 3 fetches`.

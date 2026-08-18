@@ -137,10 +137,33 @@ class VideoPlaybackLauncher(
         watchUrl: HttpUrl,
         startPositionMs: Long = 0,
         request: Long = beginPlay(),
-    ): Boolean {
+    ): Boolean = play(listing, watchUrl, startPositionMs, request) {
         // `asked` names WHO wanted this, because a report showed one video extracted four
         // times in thirty seconds and the log could not say by whom.
-        val extracted = resolver.resolve(watchUrl, listing.sourceId, asked = "play") ?: return false
+        resolver.resolve(watchUrl, listing.sourceId, asked = "play")
+    }
+
+    /**
+     * Plays [listing] using SABR, for when its ordinary stream URLs have been refused.
+     *
+     * The same play as any other — same claim on the newest request, same history, same watch-session
+     * bookkeeping — differing only in HOW it resolves. Sharing one body rather than growing a second
+     * play path is the point: a rescue that skipped the bookkeeping would leave the picture working and
+     * the history, tracking and quality state quietly wrong.
+     */
+    suspend fun playAsRescue(listing: MediaItem, watchUrl: HttpUrl, startPositionMs: Long = 0): Boolean =
+        play(listing, watchUrl, startPositionMs, beginPlay()) {
+            resolver.resolveAsRescue(watchUrl, listing.sourceId)
+        }
+
+    private suspend fun play(
+        listing: MediaItem,
+        watchUrl: HttpUrl,
+        startPositionMs: Long,
+        request: Long,
+        resolve: suspend () -> VideoResolver.Resolved?,
+    ): Boolean {
+        val extracted = resolve() ?: return false
         if (request != latestRequest.get()) {
             // True rather than false: something IS playing, just not this. Returning false makes
             // an auto-advance treat the item as unplayable and skip to the NEXT one, which would
