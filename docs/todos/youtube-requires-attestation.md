@@ -100,6 +100,18 @@ best durable: itag 140-0, 35644394 bytes
   a 2MB chunk (what ChunkedDataSource asks for) 206
 ```
 
+**Proven on the device, and that mattered.** The measurements above were taken on a laptop using
+**node**; the app ships **QuickJS**, a different engine on a different architecture, and a fix that
+only works with node would have been a no-op on the phone with a green JVM suite —
+`DurableUrlsOnDeviceTest` runs the real interpreter on a real device and asserts a deciphered `n` comes
+back. It passes.
+
+It also cost an hour of false alarm worth recording: written first in `:lib:ytdlp-chaquopy`, it failed
+saying QuickJS had produced nothing, which read as "the fix does not work on the phone". It was the
+test that was wrong. `libqjs.so` is bundled in **`:app`'s** `jniLibs`, so that module's own test APK
+cannot contain it — the runtime was absent and yt-dlp fell back to the client with no `n` to solve. A
+test in the wrong module measures a different app.
+
 **Still partial.** One of the three videos tried was refused even via `web_embedded`, so some items
 will remain unplayable until the real fix lands. `sR1s-pxRktU` and `ttiLcMUQq80` were durable;
 `ng2Tsa5KE_A` was not.
