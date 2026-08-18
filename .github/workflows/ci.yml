@@ -150,8 +150,11 @@ jobs:
 
       # Before the slow gates: it costs milliseconds and catches the mistake that turned main red on
       # 2026-08-18 — a live test added to neither CI list, so it ran against a datacentre IP.
-      - name: Live instrumented tests are registered
-        run: python3 tools/ci/check-live-tests-registered.py
+      # Everything the Gradle gate cannot see: the workflow's own shell, the live-test list, and the
+      # emulator-runner's one-shell-per-line rule. Two red builds on 2026-08-18 were both invisible to
+      # detekt/lint/test because neither was about Kotlin. Runs first because it takes under a second.
+      - name: Preflight (workflow + CI lists)
+        run: python3 tools/ci/preflight.py
 
       - name: Static analysis (detekt)
         run: ./gradlew detekt --no-daemon

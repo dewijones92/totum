@@ -90,9 +90,17 @@ change coverage → update `docs/tests/`. Bump each doc's `updated`.
 
 ```bash
 ./gradlew assembleDebug          # build debug APK
+python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run before every push
 ./gradlew detekt lint test koverVerify assembleDebugAndroidTest   # the full local gate (matches CI)
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
 ```
+
+**`preflight.py` is part of the gate, not an extra.** Dewi, 2026-08-18: *"shift left to catch stuff
+faster"*. Two red builds that day were both invisible to `detekt lint test koverVerify`, because neither
+was about Kotlin: a live test missing from the CI exclusion list, and a shell variable that does not
+survive `android-emulator-runner` (it runs **each line** of `script:` in its own shell). Each cost an
+eleven-minute round trip to learn something a local check answers in under a second. Preflight is
+verified against all three known failure modes — see its docstring.
 
 On-device testing matters: the podcast RSS bug (Android's Expat parser rejecting
 `DocumentBuilder` bean-property toggles) passed every JVM test and only surfaced
