@@ -27,6 +27,9 @@ public fun interface SabrTransport {
  * further on than the last, and the wall clock of the media — not our byte count — is what
  * moves.
  */
+// One protocol conversation, and splitting it would separate the state each step mutates from the step
+// that mutates it — which is how the run-attribution bug got in.
+@Suppress("TooManyFunctions")
 public class SabrStream(
     private val url: String,
     private val ustreamerConfig: ByteArray,
@@ -104,6 +107,7 @@ public class SabrStream(
      * whole megabytes to satisfy an arbitrary request length.
      */
     public suspend fun read(from: Long): ByteArray {
+        aimAtByte(from)
         served = from
         reads++
         var attempts = 0
@@ -162,6 +166,40 @@ public class SabrStream(
      * "nothing" at the join and a fetch would be spent re-asking for bytes already in hand —
      * and a stream can be declared finished while its next bytes are sitting in the map.
      */
+    /**
+     * Points the conversation at [from] when it is somewhere we have not been streaming toward.
+     *
+     * A units mismatch, fixed by the translation that already existed. ExoPlayer opens a track at a
+     * BYTE offset; a SABR request asks for a media TIME. Nothing converted between them, so a resume
+     * that opened a video track ~41MB in still asked for `player_time_ms = 0`, got the start of the
+     * file, discarded every byte as already-passed, and the video track died at 16% while the audio
+     * played on — a video with no picture (measured 2026-07-31). It is why SABR is confined to the
+     * first ten seconds of an item.
+     *
+     * Only for a jump, never for sequential reading: [advanceClaimedTime] follows the bytes actually
+     * held, which is more truthful than a ratio, and re-estimating per read could move the claim
+     * BACKWARDS mid-stream. The server reads that as a seek and re-sends everything, which is the
+     * 52%-wasted-bytes problem that sending buffered ranges exists to prevent.
+     *
+     * The estimate assumes a roughly constant bitrate, so it is good for audio and approximate for
+     * video. That is fine: the response names the segments it really sent, and the stream then holds
+     * real ranges instead of the guess. Landing near the target and correcting beats landing at zero
+     * and never arriving.
+     */
+    private fun aimAtByte(from: Long) {
+        if (from <= 0 || chunks.isNotEmpty() || fetches > 0) return
+        val target = segmentsHeld.timeOfByte(from, totalBytes, durationMs) ?: run {
+            Diag.log(
+                "sabr",
+                "itag ${format.itag} opening at ${from}B but its length or duration is unknown, so the " +
+                    "time cannot be estimated — asking from the start, which will not reach $from",
+            )
+            return
+        }
+        Diag.log("sabr", "itag ${format.itag} opening ${from}B in — asking from ${target}ms")
+        playerTimeMs = target
+    }
+
     private fun contiguousFrom(from: Long): ByteArray? {
         if (chunks[from] == null) return null
         var at = from

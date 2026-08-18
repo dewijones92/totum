@@ -18,6 +18,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
@@ -79,6 +80,86 @@ class SabrServesWhatWeChooseTest {
             "SABR served no video for a format our own picker chose. Our caps let it through and " +
                 "YouTube then refused it, so the caps in SabrResolve no longer match reality.",
             session.video == null || video > ENOUGH_BYTES,
+        )
+    }
+
+    /**
+     * Can SABR be opened PART-WAY through, live?
+     *
+     * This is the one limitation that keeps SABR out of the app's ordinary path: it is offered only
+     * within the first ten seconds of an item, because a mid-item open used to ask for `player_time_ms
+     * = 0`, receive the start of the file, discard every byte as already-passed, and kill the track.
+     * `SabrStream.aimAtByte` now translates the byte offset into a media time.
+     *
+     * **Asserts ours, reports theirs.** What we own is the REQUEST: it must ask for the media time that
+     * corresponds to the byte offset. Whether YouTube then serves a cold mid-stream position is its
+     * decision, and measured 2026-08-18 it does not — it answers four ~1KB control responses carrying no
+     * media at all:
+     *
+     * ```
+     * mediaTime=407499ms  ← the aim is right, halfway through an ~815s stream
+     * fetches=4 served=0B discarded=8152B (100% wasted) segments=0[]
+     * ```
+     *
+     * So `aimAtByte` is **necessary but not sufficient**, and this test records that honestly rather than
+     * going red for an unimplemented capability. A cold jump probably needs more of the protocol — the
+     * `SABR_SEEK` part, or session continuity from earlier fetches that a fresh stream has not built.
+     * Until then SABR stays a start-of-item route. See `docs/todos/sabr-cannot-seek.md`.
+     */
+    @Test
+    fun sabrCanBeOpenedPartWayThrough() = runBlocking {
+        val parsed = playerResponse(FOUR_K_SIXTY)
+        assertTrue(
+            "SabrResolve refused to build a session; its reasons are logged by SabrResolve.refuse",
+            SabrResolve.prepare(FOUR_K_SIXTY, parsed.streaming, parsed.details) != null,
+        )
+        val session = SabrSessions.of(FOUR_K_SIXTY)!!
+        val audio = session.audio!!
+        val length = audio.contentLength
+        assumeTrue("this format did not state a length, so there is no offset to aim at", length != null)
+
+        val target = length!! / 2
+        val sizes = mutableListOf<Int>()
+        val watched = SabrTransport { url, body -> transport.post(url, body).also { sizes += it.size } }
+        val watchedStream = SabrStream(
+            url = session.streamingUrl,
+            ustreamerConfig = session.ustreamerConfig,
+            format = audio,
+            kind = SabrTrackKind.AUDIO,
+            transport = watched,
+            totalBytes = length,
+            durationMs = session.durationMs,
+        )
+        val got = runCatching { watchedStream.read(target) }.getOrDefault(ByteArray(0))
+
+        // The RESPONSE sizes as well as the answer, because "the server sent nothing" and "the server
+        // sent plenty but not at the byte we asked for" are completely different problems and the empty
+        // return value alone cannot tell them apart.
+        println(
+            "[sabr] opened ${target}B into a ${length}B stream and got ${got.size / KB}KB; " +
+                "server responses were ${sizes.map { it / KB }}KB",
+        )
+        val progress = watchedStream.describeProgress()
+        println("[sabr] $progress")
+
+        // OURS: the request asked for the right point in the media, not the start.
+        val askedMs = ASKED_TIME.find(progress)?.groupValues?.get(1)?.toLongOrNull() ?: 0
+        val expectedMs = (session.durationMs ?: 0) / 2
+        assertTrue(
+            "the stream asked for ${askedMs}ms when opening halfway into a ${length}B stream. It should " +
+                "aim near ${expectedMs}ms; asking for the start is the units bug aimAtByte exists to fix.",
+            askedMs > expectedMs / 2,
+        )
+        // THEIRS: whether YouTube serves it. Reported, because a red build for a capability we have not
+        // built teaches everyone to ignore red.
+        println(
+            if (got.isEmpty()) {
+                "[sabr] YouTube served NO media for a cold open at ${target}B — SABR remains " +
+                    "start-of-item only. See docs/todos/sabr-cannot-seek.md."
+            } else {
+                "[sabr] SABR SERVED A COLD MID-STREAM OPEN (${got.size / KB}KB) — seeking may now be " +
+                    "possible; revisit the 10s window in StreamRecovery."
+            },
         )
     }
 
@@ -147,6 +228,10 @@ class SabrServesWhatWeChooseTest {
         const val ENOUGH_BYTES = 10L * 1024
         const val KB = 1024
         const val CALL_TIMEOUT_SECONDS = 60L
+
+        /** Pulls `mediaTime=NNNms` out of the stream's own progress line. */
+        val ASKED_TIME = Regex("""mediaTime=(\d+)ms""")
+
         val PROTOBUF = "application/x-protobuf".toMediaType()
     }
 }
