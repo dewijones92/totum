@@ -127,6 +127,21 @@ class PlaybackQueue(
      */
     val nowPlaying: StateFlow<PlayableItem?> = _nowPlaying.asStateFlow()
 
+    /**
+     * The item the RUNGS act on — what is playing, falling back to the cursor.
+     *
+     * Every recovery rung used to read `_state.value.current`, which is the CURSOR, and the cursor is
+     * -1 for a peek by design (see [nowPlaying], and `peek`'s own "cursor cleared by design"). So all
+     * four rungs answered "nothing is playing" for any peeked item and the entire ladder was dead for a
+     * first-class action — long-press → Peek, on Videos, Search and Podcasts rows. The pillar guard
+     * added on 2026-08-18 asked the cursor too, closing the last rung that still happened to work.
+     *
+     * This is the third time this queue has confused the two questions; the other two are recorded on
+     * [nowPlaying] and on `advanceFrom`. Hence one named accessor rather than four call sites.
+     */
+    private val playingNow: PlayableItem?
+        get() = _nowPlaying.value ?: _state.value.current?.item
+
     private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
 
     /**
@@ -462,13 +477,13 @@ class PlaybackQueue(
      * signed one that died.
      */
     suspend fun replayCurrent(positionMs: Long): Boolean {
-        val entry = _state.value.current ?: return false
+        val item = playingNow ?: return false
         // Recovery is the only caller, and it exists to get a FRESH stream — so the cached
         // resolution has to go first. Without this the replay hits the resolver cache and asks
         // the same dead URL again: a real report (0.1.277) shows three "recoveries" eight
         // seconds apart, each logging "cache hit … skipped extraction", after which a perfectly
         // playable video was skipped as broken.
-        forgetResolved(entry.item.item.id)
+        forgetResolved(item.item.id)
         // And for everything that is NOT a video, ask its source to get ready again — which for a
         // torrent means telling the home server to restart the remux behind its audio stream.
         //
@@ -477,9 +492,9 @@ class PlaybackQueue(
         // re-requested the identical address. A fresh connection sometimes helps; a source that has
         // been asked to produce the stream again helps more, and it is the only second thing there
         // is to try. Found by writing the stall tests on 2026-08-03, not by a report.
-        runCatching { refresh(entry.item) }
-            .onFailure { Diag.warn("playback", "could not refresh ${entry.item.item.id.value} before replaying", it) }
-        return play(entry.item, positionMs, retry = true)
+        runCatching { refresh(item) }
+            .onFailure { Diag.warn("playback", "could not refresh ${item.item.id.value} before replaying", it) }
+        return play(item, positionMs, retry = true)
     }
 
     /**
@@ -517,11 +532,12 @@ class PlaybackQueue(
         startPositionMs: Long = 0,
         retry: Boolean = false,
         streamRefused: Boolean = false,
+        forceAudio: Boolean = false,
     ): Boolean {
         // Recorded before routing, so a peek and a queued play are equally "playing".
         _nowPlaying.value = queued
         if (!retry) _freshStarts.tryEmit(queued.item.id)
-        return route(queued, startPositionMs, streamRefused)
+        return route(queued, startPositionMs, streamRefused, forceAudio)
     }
 
     /**
@@ -543,23 +559,45 @@ class PlaybackQueue(
      * watching it past the first megabyte is not a choice the app can make, and the alternative to
      * sound is silence.
      */
-    fun playCurrentWithoutThePicture(positionMs: Long): Boolean {
-        val entry = _state.value.current ?: return false
+    suspend fun playCurrentWithoutThePicture(positionMs: Long): Boolean {
+        val item = playingNow ?: return false
         // The PILLAR, like both neighbours in this ladder already check. Without it the rung asked the
         // launcher for a fallback while the launcher still held the last VIDEO it resolved -- a podcast
         // never goes through the launcher at all -- so a failing episode was "rescued" with a
         // completely different item's soundtrack, at the episode's position, and `attempts` reset so it
         // was never abandoned. Found by a podcast audit, 2026-08-18.
-        if (entry.item.handle !is PlayHandle.Video) {
+        // Whether the ITEM has a soundtrack to fall back to -- not which pillar it belongs to. A
+        // TORRENT is a PlayHandle.Podcast and DOES have a picture, and carries a purpose-built
+        // audio-only stream (15.2 MB/min against 2.1). Guarding on the pillar refused the one
+        // podcast-pillar item this rung could actually rescue, and logged "a PODCAST item has no
+        // picture to lose" while its audioUrl sat right there -- two situations, one false line.
+        val handle = item.handle
+        if (handle is PlayHandle.Podcast) {
+            val audioOnly = handle.audioUrl
+            if (audioOnly == null) {
+                Diag.log(
+                    "playback",
+                    "no sound-only rescue for ${item.item.id.value}: it is already audio, so there is " +
+                        "no picture to drop",
+                )
+                return false
+            }
+            Diag.log("playback", "keeping the sound for ${item.item.id.value} from its audio-only stream")
+            // streamRefused stays FALSE on purpose. `routeNow` refuses outright when it is set --
+            // rightly, since asking again for the stream that just died would loop -- but the
+            // audio-only URL is a DIFFERENT address, which is the entire point of this rung. The
+            // `rescues` cap is what bounds it if that one fails too.
+            return play(item, positionMs, retry = true, forceAudio = true)
+        }
+        if (handle !is PlayHandle.Video) {
             Diag.log(
                 "playback",
-                "no sound-only rescue for ${entry.item.item.id.value}: a " +
-                    "${entry.item.handle.pillar} item has no picture to lose, and the launcher holds a " +
-                    "different item's streams",
+                "no sound-only rescue for ${item.item.id.value}: a ${handle.pillar} item played from " +
+                    "${handle::class.simpleName} has no separate soundtrack to fall back to",
             )
             return false
         }
-        val kept = launcher.listenIfPossible(entry.item.item.id, positionMs)
+        val kept = launcher.listenIfPossible(item.item.id, positionMs)
         Diag.log(
             "playback",
             if (kept) {
@@ -580,36 +618,36 @@ class PlaybackQueue(
      * cue to keep walking down to the sound.
      */
     suspend fun playCurrentOverSabr(positionMs: Long): Boolean {
-        val entry = _state.value.current ?: return false
+        val item = playingNow ?: return false
         // Offline FIRST, and cheaply. SABR is a network route, so with no network it cannot succeed —
         // and this rung sits in the give-up ladder, which offline IS the path to "step over this and
         // play the next one". A doomed /player request in the middle of that delays the skip: adding
         // the rung turned OfflineQueuePlaybackTest red with "still on never-downloaded after 20000ms".
         if (offline()) {
-            Diag.log("playback", "no SABR rescue for ${entry.item.item.id.value}: offline, so it cannot serve")
+            Diag.log("playback", "no SABR rescue for ${item.item.id.value}: offline, so it cannot serve")
             return false
         }
-        val handle = entry.item.handle
+        val handle = item.handle
         if (handle !is PlayHandle.Video) {
             Diag.log("playback", "no SABR rescue for a ${handle.pillar} item — SABR is a YouTube protocol")
             return false
         }
-        val rescued = launcher.playAsRescue(entry.item.item, handle.watchUrl, positionMs)
+        val rescued = launcher.playAsRescue(item.item, handle.watchUrl, positionMs)
         Diag.log(
             "playback",
             if (rescued) {
-                "rescued ${entry.item.item.id.value} over SABR from ${positionMs}ms — " +
+                "rescued ${item.item.id.value} over SABR from ${positionMs}ms — " +
                     "the picture is capped at 1080p30 but present"
             } else {
-                "SABR could not rescue ${entry.item.item.id.value} either"
+                "SABR could not rescue ${item.item.id.value} either"
             },
         )
         return rescued
     }
 
     suspend fun playCurrentWithoutItsStream(positionMs: Long): Boolean {
-        val entry = _state.value.current ?: return false
-        return play(entry.item, positionMs, retry = true, streamRefused = true)
+        val item = playingNow ?: return false
+        return play(item, positionMs, retry = true, streamRefused = true)
     }
 
     /**
@@ -640,6 +678,8 @@ class PlaybackQueue(
         queued: PlayableItem,
         startPositionMs: Long,
         streamRefused: Boolean = false,
+        /** Forces the audio-only route, for the rescue rung that IS "play this without its picture". */
+        forceAudio: Boolean = false,
     ): Boolean {
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
         // controller directly, so without claiming it here a streaming resolve still in flight
@@ -648,7 +688,7 @@ class PlaybackQueue(
         val request = launcher.beginPlay()
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
-        val audioNow = audioPreferred()
+        val audioNow = forceAudio || audioPreferred()
         val route = queued.routeNow(
             onDisk,
             offline = offlineNow,

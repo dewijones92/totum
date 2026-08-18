@@ -159,6 +159,79 @@ class TheSoundRungPlaysTheFailINGItemTest {
     }
 
     /**
+     * A TORRENT has a picture to lose, and its own audio-only stream to fall back to.
+     *
+     * It is a `PlayHandle.Podcast` — the pillar-shaped guard refused it — but it is one file carrying
+     * both tracks, and the home server can remux the sound out: 2.1 MB/min against 15.2. So the rung
+     * that exists to keep the sound is exactly the rung it wants, and the pillar was the wrong question.
+     *
+     * The old guard also logged "a PODCAST item has no picture to lose" while `handle.audioUrl` sat
+     * right there — one line asserting something false about two different situations.
+     */
+    @Test
+    fun `a torrent falls back to its own audio-only stream`() = runTest {
+        val torrent = PlayableItem(
+            item = MediaItem(
+                id = MediaItemId("torrent-1"),
+                sourceId = SourceId("torrents"),
+                title = "an episode from the home server",
+                publishedAt = null,
+                duration = null,
+                mediaUrl = HttpUrl.of(TORRENT_VIDEO),
+            ),
+            handle = PlayHandle.Podcast(audioUrl = HttpUrl.of(TORRENT_AUDIO)),
+        )
+        queue.playNow(torrent)
+        advanceUntilIdle()
+
+        val kept = queue.playCurrentWithoutThePicture(positionMs = 60_000)
+        advanceUntilIdle()
+
+        assertEquals("a torrent has a picture to lose and a soundtrack to keep", true, kept)
+        assertEquals(TORRENT_AUDIO, controller.lastItem?.mediaUrl?.value)
+    }
+
+    /** A plain podcast enclosure is already sound — there is nothing to drop, and it says so. */
+    @Test
+    fun `a plain enclosure has no picture to drop`() = runTest {
+        queue.playNow(episode())
+        advanceUntilIdle()
+
+        assertEquals(false, queue.playCurrentWithoutThePicture(positionMs = 60_000))
+    }
+
+    /**
+     * A PEEKED video must still be rescuable — the cursor is -1 for a peek, by design.
+     *
+     * `peek()` sets `currentIndex = NOTHING_PLAYING` deliberately, and `QueueSnapshot.current` is
+     * `entries.getOrNull(-1)` — null. So a rung that asks the CURSOR what is playing answers "nothing"
+     * for every peeked item, and the whole recovery ladder is dead for one of the app's first-class
+     * actions (long-press → Peek, on Videos, Search and Podcasts rows).
+     *
+     * This repo has been burned by that exact confusion twice and wrote it down at `nowPlaying`'s KDoc:
+     * *"the cursor answers where are we in the queue, which is -1 for a peek... 'what is playing' and
+     * 'where is the cursor' are different questions"*. The pillar guard added on 2026-08-18 asked the
+     * cursor anyway, and so closed the last rung that still worked for peeks.
+     */
+    @Test
+    fun `a peeked video can still be rescued`() = runTest {
+        queue.peek(video())
+        advanceUntilIdle()
+        assertEquals("precondition: a peek leaves the cursor at -1", -1, queue.state.value.currentIndex)
+
+        val kept = queue.playCurrentWithoutThePicture(positionMs = 120_000)
+        advanceUntilIdle()
+
+        assertEquals(
+            "a peeked video has a picture to lose like any other; the cursor being -1 is not an answer " +
+                "about what is playing",
+            true,
+            kept,
+        )
+        assertEquals(VIDEO_AUDIO_URL, controller.lastItem?.mediaUrl?.value)
+    }
+
+    /**
      * The launcher's own guard, pinned separately.
      *
      * The two guards are defence in depth, and either one alone makes the queue-level test above pass —
@@ -186,5 +259,7 @@ class TheSoundRungPlaysTheFailINGItemTest {
         const val WATCH = "https://www.youtube.com/watch?v=$VIDEO_ID"
         const val ENCLOSURE = "https://feed.test/ep1.mp3"
         const val VIDEO_AUDIO_URL = "https://x.test/a?n=solved"
+        const val TORRENT_VIDEO = "http://pi.test/stream/torrent-1"
+        const val TORRENT_AUDIO = "http://pi.test/audio/torrent-1"
     }
 }
