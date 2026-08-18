@@ -30,6 +30,15 @@ public class HttpDownloadStrategy(private val client: OkHttpClient) : DownloadSt
                     emit(DownloadState.Failed("HTTP ${response.code}"))
                     return@flow
                 }
+                val type = response.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase()
+                if (type != null && type in CANNOT_BE_MEDIA) {
+                    // Removed like the IOException branch does. The caller creates the target before
+                    // handing it over, so leaving it behind would leave a zero-length file where a
+                    // downloaded episode is meant to be.
+                    target.delete()
+                    emit(DownloadState.Failed("the server sent $type, which is not media"))
+                    return@flow
+                }
                 val body = response.body
                 val total = body.contentLength().takeIf { it > 0 }
                 var downloaded = 0L
@@ -60,5 +69,30 @@ public class HttpDownloadStrategy(private val client: OkHttpClient) : DownloadSt
     private companion object {
         const val BUFFER_BYTES = 64 * 1024
         const val EMIT_EVERY_BYTES = 256 * 1024L
+
+        /**
+         * Content types that certainly are not an episode, so a 200 carrying one is a failure.
+         *
+         * A REJECT list, not an allow-list, and that direction is the whole design. Real enclosures
+         * carry `audio/mpeg`, `audio/mp4`, `video/mp4` and very commonly `application/octet-stream`, and
+         * plenty of servers state nothing at all — so allow-listing "media" would break working feeds,
+         * which is a worse failure than the one this fixes. Only the types that cannot possibly play are
+         * named.
+         *
+         * Without this, a moved feed's HTML page, a paywall interstitial or a CDN error page was written
+         * to disk and recorded `Downloaded`. That is not merely a bad file: `routeNow` then prefers the
+         * copy on disk, Media3 throws `UnrecognizedInputFormatException` (an `IOException`, so recovery
+         * calls it `Unreachable`), the retries replay the same file, `playWithoutTheStream` re-routes to
+         * it, returns true and resets the budget — so the item never plays AND the queue never advances
+         * past it, behind a green tick. Only deleting the download escapes.
+         */
+        val CANNOT_BE_MEDIA: Set<String> = setOf(
+            "text/html",
+            "application/xhtml+xml",
+            "text/xml",
+            "application/xml",
+            "application/rss+xml",
+            "application/json",
+        )
     }
 }
