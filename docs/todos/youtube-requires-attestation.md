@@ -393,3 +393,19 @@ behind YouTube refusing the stream.
 **Open for Dewi:** whether to raise the Wi-Fi default to 2160. Deliberately not changed: a 1080p phone
 screen gains nothing from 4K and spends roughly four times the data getting there, and today it would
 not sustain anyway.
+
+## Correction: what the extraction notes actually contain (2026-08-18, later)
+
+An earlier section here recorded the expected note set as one `warning:` plus one `[jsc:…]` line and no
+`[youtube] Downloading …` lines. That was wrong, and it described the bug rather than the behaviour.
+
+yt-dlp's `YoutubeDL.to_screen` routes **every** routine progress line through `logger.debug()` **without**
+a `[debug] ` prefix (the `quiet` check sits on the line below the early return), while `write_debug`
+returns early unless `verbose` is set, which extraction never sets. So the collector's "drop anything
+prefixed `[debug]`" filter excluded nothing and kept precisely what it claimed to drop: nine notes on a
+healthy extraction, two of them real, and a ~1KB WARN on every single resolve.
+
+`notes` now carries **warnings and errors only**, with a counted trailer so a truncation cannot be
+silent, and `lib/ytdlp-chaquopy/src/test/python/totum_ytdlp_test.py` pins it against the real transcript.
+A healthy extraction now produces **no notes at all**, which is what makes the line meaningful when one
+does appear.

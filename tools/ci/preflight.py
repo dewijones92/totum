@@ -17,6 +17,7 @@ Checks, cheapest first:
    line. This is the bug class, not just the instance: the pattern is correct in an ordinary `run:` block
    and silently wrong here.
 5. Every `script:`/`run:` block is valid POSIX shell (`sh -n`).
+6. The plain-Python test suites pass — no Gradle task knows they exist.
 """
 import pathlib
 import re
@@ -97,6 +98,34 @@ def check_no_cross_line_variables(workflow: dict) -> int:
     return problems
 
 
+PYTHON_TESTS = [
+    "tools/ci/youtube_canary_test.py",
+    "lib/ytdlp-chaquopy/src/test/python/totum_ytdlp_test.py",
+]
+
+
+def check_python_tests() -> int:
+    """Runs the plain-Python suites, which no Gradle task knows about.
+
+    The yt-dlp bridge's note collector is plain Python and had NO test, which is how a filter that was
+    exactly backwards shipped: it kept every routine progress line and logged a ~1KB WARN on every
+    resolve, flooding a bounded report buffer. Sub-second, so it belongs here rather than in the gate.
+    """
+    problems = 0
+    for relative in PYTHON_TESTS:
+        path = ROOT / relative
+        if not path.exists():
+            problems += fail(f"{relative} is listed here but does not exist")
+            continue
+        result = subprocess.run([sys.executable, str(path)], cwd=ROOT, capture_output=True, text=True)
+        if result.returncode != 0:
+            problems += fail(f"{relative} failed:\n{result.stdout.strip()}\n{result.stderr.strip()}")
+        else:
+            ran = [line for line in result.stderr.splitlines() if line.startswith("Ran ")]
+            print(f"  ok: {relative} — {ran[0] if ran else 'passed'}")
+    return problems
+
+
 def check_shell_syntax(workflow: dict) -> int:
     problems = 0
     for step in steps(workflow):
@@ -132,6 +161,7 @@ def main() -> int:
     else:
         print("  ok: all live instrumented tests are registered")
     problems += check_live_list_expands()
+    problems += check_python_tests()
     problems += check_no_cross_line_variables(workflow)
     problems += check_shell_syntax(workflow)
     if problems:

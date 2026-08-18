@@ -114,7 +114,7 @@ def _js_runtimes():
 
 
 class _CollectingLogger:
-    """Keeps yt-dlp's own warnings so the app can log them, instead of throwing them away.
+    """Keeps yt-dlp's WARNINGS so the app can log them, instead of throwing them away.
 
     `no_warnings: True` silenced exactly the messages that explain a degraded extraction. yt-dlp says
     things like "No supported JavaScript runtime could be found" or names a client it gave up on, and
@@ -122,25 +122,45 @@ class _CollectingLogger:
     one. Measured 2026-08-18: the same video extracted 33 durable audio formats on one run and none at
     all on the next, and there was nothing anywhere to say why.
 
-    Bounded, because a report buffer is bounded: the interesting messages come at the start.
+    WARNINGS AND ERRORS ONLY, and the first version got this exactly backwards. It kept anything from
+    `debug()` that lacked a "[debug] " prefix, believing that prefix marked routine output. In yt-dlp
+    2026.07.04 `YoutubeDL.to_screen` begins `if self.params.get('logger'): self.params['logger'].debug(...)
+    ; return` -- so EVERY routine progress line ("Downloading webpage", "Downloading player abc-main")
+    arrives here unprefixed, while `write_debug` returns early unless `verbose` is set, which extraction
+    never sets. The filter therefore excluded nothing and kept precisely what its comment claimed to drop:
+    a healthy extraction produced nine notes, of which two were real warnings, and the app logged a ~1KB
+    WARN on every single resolve -- flooding a bounded report buffer and making a healthy extraction
+    indistinguishable from a degraded one, on the one line meant to explain a degraded extraction.
+
+    Bounded, because a report buffer is bounded -- and the drop is COUNTED, so a truncation can never be
+    silent.
     """
 
     MAX_KEPT = 12
 
     def __init__(self):
         self.messages = []
+        self.dropped = 0
 
     def _keep(self, kind, message):
         if len(self.messages) < self.MAX_KEPT:
             self.messages.append(f"{kind}: {message}"[:300])
+        else:
+            self.dropped += 1
+
+    def notes(self):
+        """The kept messages, with a count of anything that did not fit."""
+        if not self.dropped:
+            return list(self.messages)
+        return list(self.messages) + [f"warning: and {self.dropped} more not kept"]
 
     def debug(self, message):
-        # yt-dlp routes ordinary output through debug() with a "[debug] " prefix; only keep the rest.
-        if not message.startswith("[debug]"):
-            self._keep("info", message)
+        # Routine progress. Dropped on purpose: see the class docstring -- this is where yt-dlp sends
+        # every "Downloading ..." line, and keeping them is what flooded the report.
+        pass
 
     def info(self, message):
-        self._keep("info", message)
+        pass
 
     def warning(self, message):
         self._keep("warning", message)
@@ -169,7 +189,7 @@ def extract(url):
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-            return json.dumps({"ok": True, "info": info, "notes": logger.messages})
+            return json.dumps({"ok": True, "info": info, "notes": logger.notes()})
     except yt_dlp.utils.DownloadError as e:
         return json.dumps({"ok": False, "kind": _classify(e), "detail": str(e)})
 
