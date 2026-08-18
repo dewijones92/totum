@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.DeviceRadios.goOnline
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -57,8 +58,26 @@ class LiveStreamPlaysToItsEndTest {
 
     private val watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=$VIDEO_ID")
 
+    /**
+     * Establishes what this test needs, because another live test leaves the opposite.
+     *
+     * `LiveDownloadedVideoOfflineTest` uses the SAME video id, turns the radios off, and leaves a
+     * downloaded copy behind. Run before this one, both bite: the stream fails `Unreachable` at 0ms,
+     * recovery correctly falls back to that leftover file, and a test about STREAMING to the end
+     * quietly stops testing streaming. Seen in CI on 2026-08-18 — it passed locally and failed there
+     * purely on run order.
+     *
+     * So: radios on, wait for the app to actually believe it (ConnectivityManager's callback is
+     * asynchronous), and delete any copy of the fixture so nothing can stand in for the stream.
+     */
     @Before
     fun emptyTheQueue() = runBlocking(Dispatchers.Main) {
+        goOnline()
+        withTimeoutOrNull(NETWORK_BACK_TIMEOUT_MS) {
+            while (container.isOffline()) delay(POLL_MS)
+            true
+        }
+        container.downloadManager.delete(MediaItemId(VIDEO_ID))
         queue.clear()
         // Sample removal on a short clip can consume the whole thing, which reads as "never played".
         controller.setSkipSilence(false)
@@ -149,6 +168,9 @@ class LiveStreamPlaysToItsEndTest {
 
         /** Close enough to the end that the tail is the only thing left to fetch. */
         const val FROM_THE_END_MS = 6_000L
+
+        /** ConnectivityManager's callback is asynchronous; generous and finite. */
+        const val NETWORK_BACK_TIMEOUT_MS = 20_000L
 
         /** Enough to see the resolve and the first loads, without pasting a whole session. */
         const val TRAIL_LINES = 25
