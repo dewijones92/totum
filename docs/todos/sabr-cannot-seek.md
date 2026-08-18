@@ -65,8 +65,16 @@ not verified is worth nothing** — the second run asking for 407499ms is what m
 
 ## Where to look next
 
-1. **The `SABR_SEEK` part.** It appears in real responses (`UmpPart.SABR_SEEK`) and is presumably how a
-   seek is meant to be expressed. Nothing sends it. This is now the leading candidate.
+1. **NOT the `SABR_SEEK` part** — correcting a lead written earlier in the same session. UMP is the
+   **server→client** framing, so `UmpPart.SABR_SEEK` (43) is YouTube telling *us* it has repositioned; it
+   is not something a client can send. A seek must therefore be expressed in the REQUEST, in
+   `VideoPlaybackAbrRequest`/`ClientAbrState` fields we do not populate yet. Worth diffing our request
+   against `LuanRT/googlevideo`'s protos for what a real player sends alongside `player_time_ms`.
+
+   Separately, and possibly a real bug of its own: we **ignore** `SABR_SEEK` when it arrives. It was
+   present in the cold-open response, and a server that says "I have repositioned to X" while we assume
+   the bytes belong at our requested offset is exactly the mis-attribution that produced "Invalid NAL
+   length" once already.
 2. **A byte↔time reconciliation layer.** Even when the server serves the right media time, the run it
    returns starts at whatever byte that time maps to — not necessarily the byte ExoPlayer asked for. A
    ratio estimate cannot be byte-exact, so `SabrDataSource` would need to present a virtual byte space
