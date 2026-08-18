@@ -10,9 +10,23 @@ his headphones in.
 So this runs on a clock, from his own home connection (a datacentre IP gets bot-checked and would
 report a failure that is really an environment), and it reports **state changes** rather than results:
 
-    working -> broken   the app has just stopped being able to stream. Act.
-    broken  -> working  it has recovered, or a fix landed. Also act — probably to stop working around it.
+    open   -> capped    YouTube has started capping unattested clients. Expect the app to need a
+                        workaround, and expect long videos to lose their picture.
+    capped -> open      it has RELAXED. The `n`-solve preference and the sound-only fallback may no
+                        longer be needed — worth simplifying rather than carrying forever.
     no change           silent. A watcher that shouts every hour is a watcher that gets muted.
+
+**It measures YouTube's POLICY, not whether the app works**, and the names say so. It probes with a
+plain `yt-dlp -f bestaudio`, which has no JavaScript runtime here and therefore only ever obtains the
+UNATTESTED (`c=ANDROID_VR`) URLs — exactly the ones subject to the cap. The app deliberately does
+better: it runs QuickJS and prefers a URL carrying a solved `n`, which is why the app can be perfectly
+healthy while this reports `capped`.
+
+The first version called those two states "working" and "broken", and on 2026-08-18 it duly announced
+"Totum/YouTube BROKEN" on a day the app had just been fixed. A monitor whose wording implies the wrong
+subject is worse than none: it teaches you to distrust something that is fine. Watching the app's OWN
+path would need a JavaScript runtime on the Pi (no `quickjs` package exists here and `nodejs` is 184MB
+installed) — a deliberate choice, not something to slip in.
 
 It deliberately does NOT reuse the app's own live test. That test needs a JDK the Pi does not have,
 and more importantly the two are asking different questions: the test asks "does our code work", this
@@ -86,7 +100,7 @@ def deep_fetch_status(url: str) -> int | None:
 
 
 def verdict() -> tuple[str, str]:
-    """One of working / broken / unknown, with a sentence saying how it was decided."""
+    """One of open / capped / unknown, with a sentence saying how it was decided."""
     url = audio_url(VIDEO_ID)
     if url is None:
         return "unknown", "no audio URL could be obtained, so nothing was measured"
@@ -94,8 +108,8 @@ def verdict() -> tuple[str, str]:
     if status is None:
         return "unknown", "the deep range request could not be made at all"
     if status in (200, 206):
-        return "working", f"a 1MB range at {DEEP_OFFSET // (1024 * 1024)}MB returned {status}"
-    return "broken", f"a 1MB range at {DEEP_OFFSET // (1024 * 1024)}MB returned {status}"
+        return "open", f"an unattested 1MB range at {DEEP_OFFSET // (1024 * 1024)}MB returned {status}"
+    return "capped", f"an unattested 1MB range at {DEEP_OFFSET // (1024 * 1024)}MB returned {status}"
 
 
 def notify(webhook: str | None, text: str) -> None:
@@ -145,8 +159,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if now != was:
         state_file.write_text(now)
-        arrow = "RECOVERED" if now == "working" else "BROKEN"
-        notify(args.webhook, f"Totum/YouTube {arrow}: {why} (was {was}). Video {VIDEO_ID}.")
+        headline = (
+            "YouTube has RELAXED — unattested clients are served in full again. The app's `n`-solve "
+            "preference and sound-only fallback may no longer be needed."
+            if now == "open"
+            else "YouTube is CAPPING unattested clients. The app works around this; long videos will "
+            "lose their picture. This is not a fault in the app."
+        )
+        notify(args.webhook, f"Totum/YouTube policy {was} -> {now}: {headline} ({why}) Video {VIDEO_ID}.")
         return 0
 
     if args.always_report:

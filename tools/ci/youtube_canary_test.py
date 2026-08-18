@@ -4,6 +4,9 @@
 The canary's whole value is that it is believed, so the two ways it could quietly lie are pinned
 here:
 
+* **Naming the wrong subject.** The states are `open` / `capped` and describe YOUTUBE'S POLICY, not
+  whether the app works — it probes without a JavaScript runtime, so it only ever sees the unattested
+  URLs. The first version said "working"/"broken" and announced "BROKEN" on the day the app was fixed.
 * **Reporting a change that did not happen.** A network hiccup on the Pi returns "unknown", and if
   that were recorded as a state it would fire a BROKEN alert on every blip — which is how a channel
   earns being muted, and then the one real alert lands in a muted channel.
@@ -31,19 +34,19 @@ class VerdictTest(unittest.TestCase):
              mock.patch.object(canary, "deep_fetch_status", return_value=status):
             return canary.verdict()[0]
 
-    def test_a_partial_content_response_is_working(self):
-        self.assertEqual("working", self._verdict("https://x.test/a", 206))
+    def test_a_partial_content_response_means_open(self):
+        self.assertEqual("open", self._verdict("https://x.test/a", 206))
 
-    def test_a_plain_ok_is_working_too(self):
+    def test_a_plain_ok_means_open_too(self):
         """Some hosts answer 200 to a range request. The bytes arrived either way."""
-        self.assertEqual("working", self._verdict("https://x.test/a", 200))
+        self.assertEqual("open", self._verdict("https://x.test/a", 200))
 
-    def test_a_forbidden_deep_range_is_broken(self):
+    def test_a_forbidden_deep_range_means_capped(self):
         """THE case: 403 deep into the file is the 2026-08-18 signature exactly."""
-        self.assertEqual("broken", self._verdict("https://x.test/a", 403))
+        self.assertEqual("capped", self._verdict("https://x.test/a", 403))
 
-    def test_no_url_is_unknown_rather_than_broken(self):
-        """We measured nothing. Calling that "broken" would blame YouTube for our own yt-dlp."""
+    def test_no_url_is_unknown_rather_than_capped(self):
+        """We measured nothing. Calling that "capped" would blame YouTube for our own yt-dlp."""
         self.assertEqual("unknown", self._verdict(None, None))
 
     def test_an_unmakeable_request_is_unknown(self):
@@ -64,34 +67,34 @@ class ReportingTest(unittest.TestCase):
             canary.main(["--state", str(self.state), *extra])
         return notify
 
-    def test_the_first_broken_verdict_is_announced(self):
-        notify = self._run("broken")
+    def test_the_first_capped_verdict_is_announced(self):
+        notify = self._run("capped")
 
         self.assertEqual(1, notify.call_count)
-        self.assertIn("BROKEN", notify.call_args[0][1])
-        self.assertEqual("broken", self.state.read_text())
+        self.assertIn("CAPPING", notify.call_args[0][1])
+        self.assertEqual("capped", self.state.read_text())
 
-    def test_staying_broken_is_silent(self):
-        self.state.write_text("broken")
+    def test_staying_capped_is_silent(self):
+        self.state.write_text("capped")
 
-        self.assertEqual(0, self._run("broken").call_count)
+        self.assertEqual(0, self._run("capped").call_count)
 
     def test_recovery_is_announced(self):
         """Good news is news: it is the signal to stop working around the breakage."""
-        self.state.write_text("broken")
+        self.state.write_text("capped")
 
-        notify = self._run("working")
+        notify = self._run("open")
 
-        self.assertIn("RECOVERED", notify.call_args[0][1])
-        self.assertEqual("working", self.state.read_text())
+        self.assertIn("RELAXED", notify.call_args[0][1])
+        self.assertEqual("open", self.state.read_text())
 
     def test_unknown_never_counts_as_a_change(self):
-        self.state.write_text("working")
+        self.state.write_text("open")
 
         notify = self._run("unknown")
 
         self.assertEqual(0, notify.call_count)
-        self.assertEqual("working", self.state.read_text(), "an unknown must not overwrite the state")
+        self.assertEqual("open", self.state.read_text(), "an unknown must not overwrite the state")
 
 
 if __name__ == "__main__":

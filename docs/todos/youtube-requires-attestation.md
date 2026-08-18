@@ -207,7 +207,17 @@ raised then.
   37-minute video**. Fails right now, correctly. Runs through the home connection, and a failure
   turns CI red rather than printing "SKIPPED".
 - `tools/ci/youtube-canary.py` — hourly on the Pi, range-fetches 1MB from 8MB into a real stream and
-  reports **state changes only**. It says `broken` today. This is the piece that would have caught it
+  reports **state changes only**. It says `capped` today, which is the expected state.
+
+  Its states are `open` / `capped` and describe **YouTube's policy, not whether the app works.** The Pi
+  has no JavaScript runtime, so its `yt-dlp` only ever obtains the unattested (`c=ANDROID_VR`) URLs —
+  precisely the ones subject to the cap — while the app runs QuickJS and prefers a solved `n`. The two
+  can therefore disagree, and that is correct. The first version called the states "working" and
+  "broken" and announced *"Totum/YouTube BROKEN"* on the day the app had just been fixed; a monitor whose
+  wording implies the wrong subject teaches you to distrust something that is fine.
+
+  Watching the app's OWN path would need a JS runtime on the Pi. There is no `quickjs` package for it and
+  `nodejs` is 184MB installed, so that is Dewi's call rather than something to slip in. This is the piece that would have caught it
   the same day: no commit caused this, so nothing that runs on push could have.
 - The three live tests that existed could not have caught it. They asked for **1 second** of
   playback, a **10KB** file, and used a **19-second** fixture whose entire download fits under the
