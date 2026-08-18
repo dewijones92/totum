@@ -361,3 +361,35 @@ somewhere else and this doc is wrong about the cause, which is worth knowing eit
 
 Until then the honest position is: **1080p30 over SABR, full quality whenever direct URLs are
 available**, and no guessing in between.
+
+## 4K, settled (2026-08-18)
+
+Dewi: *"also make sure it works at 4k"*. Three separate questions, measured on `totum-api35` rather
+than reasoned about:
+
+| Question | Answer |
+|---|---|
+| Does YouTube offer 4K? | **Yes** — `itag 315` and `401` at 2160p60, with URLs, on Blender's CC film |
+| Does the app ask for it? | **Not by default** — `DEFAULT_WIFI_MAX_HEIGHT` is 1080. 2160p is selectable in Settings |
+| Does it work when asked for? | **Chosen and decoded, but does not sustain** |
+
+With the cap raised the app picks it correctly and the decoder runs:
+
+```
+[4k] the ladder chose 2160p (durable video=false)
+[format] video video/x-vnd.on2.vp9 3840x2160
+```
+
+But `durable video=false`: there is **no durable 2160p URL**, so the stream is refused past its first
+megabyte, and SABR cannot stand in above 1080p/30fps. Sustained 4K is therefore behind the same
+attestation wall as everything else here, not behind a quality-selection bug — and the ladder's
+durable-first sort is not at fault, because it sorts *within* a height group and found no durable
+option at 2160p to prefer.
+
+`FourKActuallyPlaysTest` asserts the half that is ours — raising the cap must raise the pick above
+1080 — on **both** paths, so a regression that stopped the setting reaching the ladder cannot hide
+behind YouTube refusing the stream.
+
+**Open for Dewi:** whether to raise the Wi-Fi default to 2160. Deliberately not changed: a 1080p phone
+screen gains nothing from 4K and spends roughly four times the data getting there, and today it would
+not sustain anyway.
