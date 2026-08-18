@@ -32,8 +32,14 @@ mediaTime=407499ms   ← correct, halfway through an ~815s stream
 fetches=4  served=0B  discarded=8152B (100% wasted)  segments=0[]
 ```
 
-Four responses of about 1KB each, carrying control parts and **no media at all**. So YouTube declines a
+Four responses of about 1KB each, carrying control parts and **no usable media**: `segments=0[]`, and the
+single header arrived as `id0:itag258:seq?:at-1` — no sequence number, no start. So YouTube declines a
 cold mid-stream open in this request shape.
+
+⚠️ Read `discarded` carefully here. It is `response.size - added`, so it counts **protocol overhead as
+well as** already-passed media — "100% wasted" on a control-only response is expected arithmetic, not a
+second symptom. Judge whether media arrived from `segments=` and the header list, not from that
+percentage.
 
 `SabrServesWhatWeChooseTest.sabrCanBeOpenedPartWayThrough` asserts the half we own — that the request
 aims near the right time — and *reports* whether YouTube served it, so the build does not go red for a
@@ -71,10 +77,11 @@ not verified is worth nothing** — the second run asking for 407499ms is what m
    `VideoPlaybackAbrRequest`/`ClientAbrState` fields we do not populate yet. Worth diffing our request
    against `LuanRT/googlevideo`'s protos for what a real player sends alongside `player_time_ms`.
 
-   Separately, and possibly a real bug of its own: we **ignore** `SABR_SEEK` when it arrives. It was
-   present in the cold-open response, and a server that says "I have repositioned to X" while we assume
-   the bytes belong at our requested offset is exactly the mis-attribution that produced "Invalid NAL
-   length" once already.
+   I also flagged ignoring `SABR_SEEK` as a possible mis-attribution bug of its own. **Checked, and it
+   is not one:** `storeMedia` places bytes using the `MEDIA_HEADER`'s own `startBytes`
+   (`writeAt[headerId] = known.startBytes`), never the offset we asked for. The server tells us where
+   each run belongs and we honour that, so a silent reposition cannot land bytes in the wrong place.
+   Handling `SABR_SEEK` may still be needed to *notice* a reposition; it is not a correctness risk.
 2. **A byte↔time reconciliation layer.** Even when the server serves the right media time, the run it
    returns starts at whatever byte that time maps to — not necessarily the byte ExoPlayer asked for. A
    ratio estimate cannot be byte-exact, so `SabrDataSource` would need to present a virtual byte space
