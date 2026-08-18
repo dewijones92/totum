@@ -104,10 +104,12 @@ jobs:
             # FourKActuallyPlaysTest was added to neither, ran against CI's datacentre IP, and turned
             # main red. check-live-tests-registered.py now fails the build rather than letting that
             # happen again.
-            LIVE=$(grep -vE '^\s*(#|$)' tools/ci/live-instrumented-tests.txt | paste -sd,)
-            echo "excluding live tests: $LIVE"
-            ./gradlew connectedDebugAndroidTest --no-daemon \
-              -Pandroid.testInstrumentationRunnerArguments.notClass="$LIVE"
+            # ONE line, deliberately. android-emulator-runner runs each line of `script:` in its own
+            # shell, so `LIVE=$(...)` on a previous line is gone by the next — which is exactly what
+            # happened: the log read `excluding live tests: ` with an empty value and nothing was
+            # excluded. `[[:space:]]` rather than `\s`, which is a GNU extension and not POSIX ERE.
+            test -n "$(grep -vE '^[[:space:]]*(#|$)' tools/ci/live-instrumented-tests.txt)" || { echo "live list parsed EMPTY — refusing to run with no exclusions"; exit 1; }
+            ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.notClass="$(grep -vE '^[[:space:]]*(#|$)' tools/ci/live-instrumented-tests.txt | paste -sd,)"
             tools/ci/live-test-via-home.sh
 
 
