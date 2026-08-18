@@ -323,3 +323,41 @@ raised then.
 - The three live tests that existed could not have caught it. They asked for **1 second** of
   playback, a **10KB** file, and used a **19-second** fixture whose entire download fits under the
   cap. See [tests/_index.md](../tests/_index.md).
+
+## The 4K60 gap, measured rather than assumed (2026-08-18)
+
+Dewi: *"you plan to get this all working??? they work great in smarttube"*. Here is exactly what
+separates us from SmartTube, probed live today rather than reasoned about.
+
+**SmartTube's advantage is its client identity, not its SABR code.** Asking `/player` anonymously:
+
+| Client | Status | Formats | With a URL | 60fps | Above 1080p |
+|---|---|---|---|---|---|
+| `ANDROID` 20.10.38 | OK | 34 | 34 | 10 | 4 (to 2160p) |
+| `TVHTML5` 7.20240401 (downgraded) | **LOGIN_REQUIRED** | 0 | – | – | – |
+| `TVHTML5` 7.20250312 (current) | **LOGIN_REQUIRED** | 0 | – | – | – |
+
+So the TV client is not available to us anonymously at either version — that is now measured, not
+assumed, and it is why the account matters beyond age-restricted videos. `preferAccount` (this
+commit's parent) makes the app ask as the account first when there is one; without one there is no TV
+client to ask as.
+
+**And the SABR caps are still correct today.** `SabrServesWhatWeChooseTest`, live:
+
+```
+[sabr] our own picks: audio 474KB, video 115KB
+[sabr] confirmed still refused: itag 401 2160p60 served 0KB. Our caps remain correct.
+```
+
+YouTube lists 2160p60 to the ANDROID client and then serves zero bytes of it over SABR. So the
+1080p30 cap is not our conservatism, and raising it would break playback rather than improve it.
+
+**What is left needs one thing only a human can do.** Sign in on the emulator: Google refuses an
+automated browser outright (*"This browser or app may not be secure"*), so somebody has to type a
+device code at google.com/device once. With a signed-in session the remaining experiment is a single
+measurement — does the CURRENT TV client's `ustreamer_config` serve the 60fps and 2160p formats the
+ANDROID one refuses? If yes, that is 4K60 and the gap closes. If no, SmartTube's quality comes from
+somewhere else and this doc is wrong about the cause, which is worth knowing either way.
+
+Until then the honest position is: **1080p30 over SABR, full quality whenever direct URLs are
+available**, and no guessing in between.

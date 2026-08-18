@@ -414,6 +414,31 @@ Where the tiers landed for that fix, as a worked example of the pyramid:
 The live one runs only through the residential-egress tunnel, which is allowed to skip — so it
 adds proof but can never be the only proof. Both, not either.
 
+## A measurement in a `const` is a fact with no expiry date (2026-08-18)
+
+`SabrResolve` refuses to pick any format above 1080p or 30fps, and both numbers are measurements of
+YouTube's behaviour taken on 2026-07-31 and then frozen into a constant. Nothing re-checked them, and
+they can rot in **two opposite directions**:
+
+* **Stricter** — a format we still pick stops being served, so playback breaks while our picker
+  behaves exactly as designed. No unit test can see this; the code is right and the world moved.
+* **Looser** — 60fps or 2160p start being served and we refuse them forever, so a 4K60 upload plays
+  at 1080p30 with nothing anywhere saying why. This is the shape of the "works great in SmartTube" gap.
+
+`SabrServesWhatWeChooseTest` (live, JVM) closes both. It **asserts only our half** — every format our
+own picker chooses must actually deliver bytes — and *prints* what YouTube allows beyond the caps
+without asserting it. A test that went red because YouTube RELAXED a restriction would be failing on
+good news, which is the same mistake as asserting someone else's policy; this repo made that one three
+times in a day, so the pattern is now explicit: **assert ours, report theirs.**
+
+Its printed line is as much the deliverable as the green tick, because it is the only place that says
+what quality YouTube would serve today versus what we ask for. Run 2026-08-18, live:
+
+```
+[sabr] our own picks: audio 474KB, video 115KB
+[sabr] confirmed still refused: itag 401 2160p60 served 0KB. Our caps remain correct.
+```
+
 ## Reading the results without downloading anything (2026-08-11)
 
 Dewi asked whether GitHub has a GUI for test pass/fail history. It does not: Actions shows ✅/❌
