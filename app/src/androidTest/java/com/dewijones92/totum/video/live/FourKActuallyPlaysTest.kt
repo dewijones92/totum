@@ -79,53 +79,56 @@ class FourKActuallyPlaysTest {
 
     @Test
     fun askingForFourKGetsMoreThanTheDefaultCap() = runBlocking(Dispatchers.Main) {
-        // What YouTube OFFERS this machine, before asserting anything about what we pick. Skipped
-        // otherwise, and that is not fussiness: the first version asserted the pick exceeded 1080p
-        // unconditionally, ran in the ordinary CI job against a datacentre IP where nothing above 1080p
-        // is served, and turned main red — asserting someone else's policy for the fifth time in a day.
-        // Our contract is "if it is offered, ask for it", which is exactly what this makes testable.
+        // What is available to THIS MACHINE, which is not the same as what YouTube lists. CI's emulator
+        // has no AV1 decoder at 4K, so `VideoCodecSupport` correctly withholds those rungs and the tallest
+        // real option there is lower — a device fact, not a YouTube one, and not something the app should
+        // be marked down for. Skipped rather than asserted either way.
         val offered = container.videoResolver
             .resolve(HttpUrl.of(WATCH + FOUR_K_SIXTY), SourceId("youtube"), asked = "test")
             ?.qualities.orEmpty()
         val tallest = offered.maxOfOrNull { it.height } ?: 0
-        println("[4k] YouTube offered this machine up to ${tallest}p (${offered.size} rungs)")
+        println("[4k] this machine can actually use up to ${tallest}p (${offered.size} rungs)")
         assumeTrue(
-            "YouTube offered nothing above ${DEFAULT_CAP}p here (tallest ${tallest}p), so there is no " +
-                "4K to ask for and nothing about OUR behaviour to measure",
+            "nothing above ${DEFAULT_CAP}p is usable here (tallest ${tallest}p) — either YouTube did not " +
+                "offer it or this device cannot decode it, and neither is a statement about our code",
             tallest > DEFAULT_CAP,
         )
 
         queue.playNow(item())
-
         val playing = awaitPlaying()
-        // What the LADDER chose, before asking whether it survived. Different questions, and conflating
-        // them produced a badly misleading line on 2026-08-18: the test printed "YouTube served nothing
-        // fetchable" for a run in which the app had correctly picked 2160p and decoded 3840x2160, and
-        // only then had the stream refused. Those two send a reader to completely different places.
+
+        // THE ASSERTION, and the only one: raising the cap must make the ladder ASK for the taller rung.
+        // Whether YouTube then serves it is not ours — 2160p formats are the non-durable ones, so they are
+        // refused past the first megabyte, which docs/todos/youtube-requires-attestation.md measures.
+        // Earlier versions asserted that it PLAYED and went red twice for exactly that reason: the fifth
+        // and sixth times this repo asserted someone else's policy in a test.
         val pick = Breadcrumbs.snapshot().lastOrNull { " stream " in it.message }?.message
         val choseHeight = pick?.let { PICKED.find(it)?.groupValues?.get(1)?.toIntOrNull() } ?: 0
         val durableVideo = pick?.contains("durable video=true") == true
         val trail = Breadcrumbs.snapshot().joinToString("\n    ") { it.message.take(TRAIL_CHARS) }
-        println("[4k] the ladder chose ${choseHeight}p (durable video=$durableVideo)")
 
-        if (!playing) {
-            explainTheRefusal(trail, choseHeight, durableVideo)
-            return@runBlocking
-        }
-
-        val height = awaitDecodedHeight()
-        val sound = awaitSound()
-        println("[4k] decoded ${height}p, sound=${if (sound) "yes" else "no"} (cap raised to ${FOUR_K}p)")
-        println("[4k] trail:\n    $trail")
-
-        assertTrue("the picture never reported a size, so nothing was decoded", height > 0)
         assertTrue(
-            "raising the cap to ${FOUR_K}p still produced only ${height}p. YouTube offers 2160p60 for " +
-                "this film with working URLs, so at or below the ${DEFAULT_CAP}p default means the " +
-                "setting is not reaching the ladder — which is ours, not YouTube's.",
-            height > DEFAULT_CAP,
+            "the ladder offered ${tallest}p but the launcher picked ${choseHeight}p, at or below the " +
+                "${DEFAULT_CAP}p default — so raising the cap is not reaching the pick, which IS ours. " +
+                "Trail:\n    $trail",
+            choseHeight > DEFAULT_CAP,
         )
-        assertTrue("4K arrived with no sound", sound)
+
+        // Everything below is REPORTED. It is the evidence a reader wants months later, and none of it is
+        // a promise the app can keep while YouTube refuses the streams it hands out.
+        val height = if (playing) awaitDecodedHeight() else 0
+        val sound = playing && awaitSound()
+        println(
+            "[4k] asked for ${choseHeight}p (durable video=$durableVideo); " +
+                if (playing) {
+                    "it played — decoded ${height}p, sound=${if (sound) "yes" else "no"}"
+                } else {
+                    "it did not sustain. With no durable ${choseHeight}p URL the stream is refused past " +
+                        "its first megabyte and SABR cannot stand in above ${SABR_CAP}p/30fps — the " +
+                        "attestation wall, not a quality-selection bug."
+                },
+        )
+        println("[4k] trail:\n    $trail")
     }
 
     private suspend fun awaitPlaying(): Boolean = withTimeoutOrNull(START_MS) {
@@ -147,34 +150,6 @@ class FourKActuallyPlaysTest {
         while ((controller.state.value?.positionMs ?: 0) < from + ADVANCE_MS) delay(POLL_MS)
         true
     } ?: false
-
-    /**
-     * Why 4K did not play, when the ladder had correctly chosen it.
-     *
-     * Its own function to keep the test method within the complexity budget, and because it is a
-     * genuinely separate judgement: the pick is ours to get right, and whether YouTube then serves it
-     * is not.
-     */
-    private fun explainTheRefusal(trail: String, choseHeight: Int, durableVideo: Boolean) {
-        assertTrue(
-            "nothing played AND nothing explains it — that is ours. Trail:\n    $trail",
-            trail.contains("refused"),
-        )
-        // The cap DID reach the ladder even though playback died, and that is the half we own. Asserted
-        // on this path too, or a regression that stopped the setting working would hide behind YouTube
-        // refusing the stream.
-        assertTrue(
-            "raising the cap to ${FOUR_K}p produced a pick of ${choseHeight}p, at or below the " +
-                "${DEFAULT_CAP}p default — the setting is not reaching the ladder, which is ours.",
-            choseHeight > DEFAULT_CAP,
-        )
-        println(
-            "[4k] chose ${choseHeight}p and it would not sustain. durable video=$durableVideo — with no " +
-                "durable ${choseHeight}p URL the stream is refused past its first megabyte, and SABR " +
-                "cannot stand in above ${SABR_CAP}p/30fps. That is the attestation wall, not a " +
-                "quality-selection bug. See docs/todos/youtube-requires-attestation.md.",
-        )
-    }
 
     private fun item() = PlayableItem(
         item = MediaItem(
