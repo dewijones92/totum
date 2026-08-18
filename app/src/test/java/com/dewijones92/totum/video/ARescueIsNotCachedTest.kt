@@ -137,6 +137,67 @@ class ARescueIsNotCachedTest {
         )
     }
 
+    /**
+     * NO SABR result may be cached under the ordinary key — not from any call site.
+     *
+     * The rescue was fixed by passing `cache = false` at one of three call sites. The other two still
+     * cached: `fromPlayerResponse` (reached on ANY extraction failure, no setting required) and
+     * `overSabr` (the primary route). `extractAndCache` consults the cache BEFORE either of those paths'
+     * guards, so a cached SABR answer walks past the `sabrPlayback` setting and the `resumeAt > 0`
+     * refusal that exists because SABR cannot seek — the same stall, arriving by a different door, on a
+     * default install with the setting off.
+     *
+     * So the rule is the property, not the call site: a SABR result has an empty quality ladder and no
+     * metadata, and neither is worth caching under a key an ordinary play will read.
+     */
+    @Test
+    fun `an extraction failure recovered over SABR is not cached either`() = runTest {
+        val calls = AtomicInteger()
+        val resolver = VideoResolver(
+            engine = RefusingThenWorkingEngine(calls),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = { sabrCapableResponse() },
+        )
+
+        // First play: extraction refuses, so the player response recovers it over SABR.
+        val first = resolver.resolve(url, source, asked = "play")
+        assertNotNull("the fixture must recover over SABR", first)
+        assertTrue("a SABR result has no ladder", first!!.qualities.isEmpty())
+
+        // Second play, inside the cache TTL. It must resolve again, not read the SABR answer back.
+        val second = resolver.resolve(url, source, asked = "play")
+
+        assertEquals(
+            "the second play must not have been served the cached SABR result",
+            FROM_EXTRACTION,
+            second?.item?.title,
+        )
+    }
+
+    /** Refuses once (so SABR recovers it), then succeeds — proving the second play really re-extracted. */
+    private class RefusingThenWorkingEngine(private val calls: AtomicInteger) : YtDlpEngine by FakeYtDlpEngine() {
+        override suspend fun extract(url: HttpUrl): ExtractionResult =
+            if (calls.getAndIncrement() == 0) {
+                ExtractionResult.Failure.Extractor("ERROR: Sign in to confirm your age")
+            } else {
+                ExtractionResult.Success(
+                    MediaMetadata(
+                        id = VIDEO_ID,
+                        title = FROM_EXTRACTION,
+                        uploader = null,
+                        durationSeconds = 600,
+                        thumbnailUrl = null,
+                        formats = listOf(
+                            MediaFormat(
+                                "18", "mp4", 640, 360, true, true, null,
+                                "https://x.test/extracted?n=solved", "avc1", "mp4a",
+                            ),
+                        ),
+                    ),
+                )
+            }
+    }
+
     private companion object {
         const val VIDEO_ID = "dQw4w9WgXcQ"
         const val FROM_EXTRACTION = "From extraction"

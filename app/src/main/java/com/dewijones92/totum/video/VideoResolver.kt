@@ -516,7 +516,7 @@ class VideoResolver(
             Diag.warn("resolve", "$id could not be rescued over SABR: no player response")
             return null
         }
-        return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, "rescue", now()), response, cache = false)
+        return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, "rescue", now()), response)
     }
 
     private suspend fun overSabr(
@@ -551,19 +551,6 @@ class VideoResolver(
     private suspend fun overSabrFrom(
         request: PlayerRequest,
         response: com.dewijones92.totum.innertube.player.PlayerResult.Success,
-        /**
-         * Whether to CACHE the result under the ordinary key.
-         *
-         * False for a rescue, and that is not a preference. `extractAndCache` checks the cache BEFORE
-         * `overSabr()`, so a cached rescue walks past both of that path's guards -- the `sabrPlayback`
-         * setting and the `resumeAt > 0` refusal that exists because a resume is a seek and SABR cannot
-         * seek yet. A part-watched re-tap then resumes into a cold mid-stream SABR open, which serves
-         * nothing at all, and the item stalls. It also loses the quality menu (`qualities` is empty over
-         * SABR) and the audio-track menu (no metadata is remembered), while logging only the ordinary
-         * "cache hit ... skipped extraction". `resolveAsRescue`'s KDoc promised this and nothing enforced
-         * it.
-         */
-        cache: Boolean = true,
     ): Resolved? {
         val id = request.id
         val sourceId = request.sourceId
@@ -605,11 +592,16 @@ class VideoResolver(
             audioOnlyUrl = prepared.audioUrl,
             subtitles = response.subtitles,
         )
-        if (cache) {
-            remember(watchUrl, resolved)
-        } else {
-            Diag.log("resolve", "$id resolved over SABR as a rescue — deliberately NOT cached")
-        }
+        // NEVER cached, from ANY call site -- a property of the RESULT, not of the caller. It was first
+        // fixed as a `cache = false` at the rescue's call site, and the other two sites went on caching:
+        // `fromPlayerResponse` (reached on any extraction failure, no setting required) and `overSabr`
+        // itself. `extractAndCache` consults the cache BEFORE either of their guards, so a cached SABR
+        // answer walks past the `sabrPlayback` setting AND the `resumeAt > 0` refusal that exists because
+        // SABR cannot seek -- the same stall, through a different door, on a default install.
+        //
+        // There is nothing to gain either way: a SABR result has an empty quality ladder and no metadata,
+        // so a cache hit on one also kills the quality and audio-track menus for the whole TTL.
+        Diag.log("resolve", "$id resolved over SABR — deliberately NOT cached under the ordinary key")
         return resolved
     }
 

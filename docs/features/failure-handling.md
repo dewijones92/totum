@@ -3,7 +3,7 @@ title: Permanent vs transient failure, and playback that goes nowhere
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-17
+updated: 2026-08-19
 ---
 
 # Knowing when to stop asking
@@ -204,3 +204,25 @@ advances; 19s does not; a long stall advances exactly once; a mid-item stall is 
 paused player is not a stall; buffering that keeps progressing is not a stall; a recovered
 stall does not bank its time towards a later one; auto-play-off reports but does not play;
 each item gets its own stall; an unknown duration is never the end; no state is not a stall.
+
+## The rescue ladder, corrected after review (2026-08-19)
+
+The ladder gained two rungs on 2026-08-18 (SABR, then sound-only) and an adversarial review of those
+commits found the rungs themselves had introduced four faults. Recorded because each is a shape, not a
+one-off:
+
+| Fault | Shape |
+|---|---|
+| The rungs asked the **cursor** what was playing | the cursor is `-1` for a peek by design, so the whole ladder was dead for peeked items |
+| The sound rung refused by **pillar** | a torrent is `PlayHandle.Podcast` and *has* a picture plus its own audio-only stream — the one item it could help |
+| Both network rungs reset `attempts` | so the ladder re-walked from the top and `moveOn()` was unreachable — the queue re-fetched forever |
+| The rescue cap sat **above** the disk rung | a download finishing mid-recovery was never consulted, which is the harm the disk rung exists for |
+
+The order is now: **disk → cap → SABR → sound → move on**, all four rungs reading `playingNow`
+(`_nowPlaying` falling back to the cursor), and the sound rung asking "does this item have a separate
+soundtrack" rather than "which pillar is it".
+
+Two supporting rules landed with it. A `Downloaded` row is now validated before the disk rung trusts it
+— nothing revalidated one, so a copy the person deleted made `routeNow` prefer a missing file, which
+Media3 reports as an `IOException` and recovery therefore retries forever behind a green tick. And a
+content type that cannot be media is classed **permanent**, or the download is retried on every launch.
