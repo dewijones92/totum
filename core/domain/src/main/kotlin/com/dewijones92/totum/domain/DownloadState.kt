@@ -128,6 +128,12 @@ private val PERMANENT_MARKERS = listOf(
     "who has paid for access",
     "not made this video available",
     "ffmpeg exited with code",
+    // A server that answers an enclosure with HTML will answer with HTML again: a moved feed, a
+    // paywall interstitial, a CDN error page. Without this the guard added on 2026-08-18 swapped a
+    // player livelock for a download one -- QueueAutoDownloader retries a transient failure three
+    // times per session with unpersisted attempts, i.e. every launch forever, while OfflineReadiness
+    // counts it "waiting" and the queue banner reads "N downloading..." indefinitely.
+    "which is not media",
 )
 
 /**

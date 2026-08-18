@@ -238,17 +238,6 @@ internal class StreamRecovery(
         // giving up on the whole queue is not: a real report had the player dead on one
         // item with 58 more behind it, going nowhere. So move on, and say so.
         Diag.warn("playback", "stream still failing after $spent recoveries; giving up on the stream")
-        // The ladder's own budget. Without it the two network rungs could reset `attempts` forever and
-        // moveOn was unreachable -- see [rescues].
-        if (rescues >= MAX_RESCUES) {
-            Diag.warn(
-                "playback",
-                "already rescued ${failure.itemId.value} $rescues time(s) at this stuck point and it " +
-                    "keeps failing; moving on rather than rescuing it again",
-            )
-            abandon()
-            return
-        }
         // Before abandoning the item, ask whether it is already on the disk. The rule that an
         // audio-only copy must not silently replace a video you are watching assumes a working
         // stream to prefer; once there is not one, the choice is audio or nothing, and report
@@ -257,6 +246,19 @@ internal class StreamRecovery(
             Diag.log("playback", "playing ${failure.itemId.value} from the copy on disk instead")
             attempts = 0
             // NOT counted as a rescue: a local file cannot 403, so it cannot loop.
+            return
+        }
+        // The ladder's own budget, checked AFTER the disk rung. Above it, a copy that finished
+        // downloading DURING the recovery was never consulted -- which is the exact report-0.1.383 harm
+        // the disk rung was added for. The disk rung stays exempt from counting because it is the one
+        // rung that cannot come back round: a local file is not re-fetched.
+        if (rescues >= MAX_RESCUES) {
+            Diag.warn(
+                "playback",
+                "already rescued ${failure.itemId.value} $rescues time(s) at this stuck point and it " +
+                    "keeps failing; moving on rather than rescuing it again",
+            )
+            abandon()
             return
         }
         // The protocol YouTube is actually serving, before the picture is given up for good. Below

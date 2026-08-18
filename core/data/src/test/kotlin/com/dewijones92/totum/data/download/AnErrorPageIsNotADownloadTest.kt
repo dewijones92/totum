@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.isPermanent
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -143,5 +144,33 @@ class AnErrorPageIsNotADownloadTest {
         val (states, _) = fetch()
 
         assertTrue("Got: $states", states.last() is DownloadState.Downloaded)
+    }
+
+    /**
+     * The failure must be classed PERMANENT, or the fix swaps one loop for another.
+     *
+     * A reason string that matches no marker is treated as transient: `QueueAutoDownloader` retries it
+     * three times per session with unpersisted attempts — so, every launch, forever — `OfflineReadiness`
+     * counts it `waiting` and the queue banner reads "N downloading…" indefinitely, and the row shows
+     * nothing. That reproduces this test's own complaint that "nothing tells the person", by a different
+     * route. A server sending HTML for an enclosure will send it again next time; asking again cannot help.
+     */
+    @Test
+    fun `an html enclosure is a permanent failure, not something to retry forever`() = runTest {
+        server.enqueue(
+            MockResponse.Builder()
+                .code(200)
+                .setHeader("Content-Type", "text/html; charset=utf-8")
+                .body("<html><body>This podcast has moved.</body></html>")
+                .build(),
+        )
+
+        val (states, _) = fetch()
+        val failed = states.last() as DownloadState.Failed
+
+        assertTrue(
+            "\"${failed.reason}\" matches no permanence marker, so it would be retried on every launch",
+            failed.isPermanent,
+        )
     }
 }

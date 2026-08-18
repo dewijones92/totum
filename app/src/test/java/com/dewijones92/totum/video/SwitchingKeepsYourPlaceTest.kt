@@ -119,6 +119,35 @@ class SwitchingKeepsYourPlaceTest {
         )
     }
 
+    /**
+     * A FINISHED item must start again from the beginning, not from its own end.
+     *
+     * `whereWeAre()` was added so a switch keeps your place — and it broke the opposite rule, which is
+     * older and lives in the progress store: an item played to the end resumes at 0 next time.
+     * `Media3PlaybackController` treats ANY non-zero start position as "the caller knows better, skip
+     * the store", so handing it a position at all bypasses that rule. An ended item's `positionMs` is
+     * sticky at roughly its duration (the ticker stops), so nudging the quality on something you have
+     * just finished re-prepared it at its own end and it instantly ended again — and with autoplay on,
+     * that second `Ended` makes the advancer skip an extra item.
+     *
+     * The old `startPositionMs = 0` here was not an oversight; it was the mechanism. So the position is
+     * only carried while there is a position worth carrying.
+     */
+    @Test
+    fun `a finished item still restarts from the beginning`() = runTest {
+        playAndSeekAnHourIn()
+        controller.endCurrent()
+        val other = launcher.quality.value.options.first { it.height == 480 }
+
+        launcher.selectQuality(other.id)
+
+        assertEquals(
+            "a finished item must go back to the start, not re-prepare at its own end",
+            0L,
+            controller.lastStartPositionMs,
+        )
+    }
+
     private companion object {
         const val VIDEO = "uSMGENDH_QI"
         const val WATCH = "https://www.youtube.com/watch?v=$VIDEO"

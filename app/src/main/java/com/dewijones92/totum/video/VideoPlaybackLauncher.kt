@@ -333,7 +333,20 @@ class VideoPlaybackLauncher(
      * `playVideoQuality`'s default of 0. So nudging the quality 40 minutes into something started it
      * again. Named rather than repeated inline so a fifth switch cannot quietly omit it.
      */
-    private fun whereWeAre(): Long = playback.state.value?.positionMs ?: 0
+    private fun whereWeAre(): Long {
+        val state = playback.state.value ?: return 0
+        // A FINISHED item goes back to the start. Media3PlaybackController treats any non-zero start
+        // position as "the caller knows better, skip the progress store" -- and the store is where the
+        // restart-when-finished rule lives. An ended item's positionMs is sticky at roughly its duration
+        // because the ticker stops, so carrying it re-prepared the item at its own end, where it
+        // instantly ended again; with autoplay on, that second Ended makes the advancer skip an extra
+        // item. The old `startPositionMs = 0` was the mechanism, not an oversight.
+        if (state.hasEnded) {
+            Diag.log("playback", "${state.itemId?.value ?: "item"} has ended; a switch restarts it")
+            return 0
+        }
+        return state.positionMs
+    }
 
     fun listen(fromMs: Long = whereWeAre()) {
         val resolved = current ?: return

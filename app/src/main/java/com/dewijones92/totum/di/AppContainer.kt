@@ -895,10 +895,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // The same rule the video path uses, so Listen means one thing on both pillars.
             audioPreferred = ::audioPlaybackPreferred,
             // Asked per play, so an item downloaded after it was queued still plays from disk.
-            localCopy = { id ->
-                (downloadManager.observe(id).first() as? DownloadState.Downloaded)
-                    ?.let { LocalCopy(it.localPath, it.audioOnly) }
-            },
+            localCopy = { id -> realCopyFor(id) },
             // Errs toward "there is a network" only when it can genuinely tell; NetworkStatus
             // itself errs the other way when unsure, which is the safe direction for data.
             offline = ::isOffline,
@@ -1029,6 +1026,33 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * launcher and by the queue's torrent path alike — Listen has to mean the same thing on
      * both pillars, and two copies of this rule would eventually disagree about a video.
      */
+    /**
+     * The download record for [id], but only when the file it names is really there.
+     *
+     * A RECORD is not a FILE. Nothing revalidates a `Downloaded` row, so a copy the person deleted from
+     * storage -- or a zero-byte one left by an older build -- still made `routeNow` prefer the disk,
+     * where Media3 threw `FileDataSourceException` (an `IOException`, so recovery classed it
+     * `Unreachable`), the retries replayed the same missing file, and the disk rung re-routed to it and
+     * reset the budget. The item never played AND the queue never advanced past it, behind a green tick,
+     * with deleting the download the only escape.
+     *
+     * The sibling rule already exists in `PlayerBackedDownloadStrategy`: "a file that exists is not a
+     * file that plays". This is the read-side half, and it remediates records already on the device --
+     * nothing else does.
+     */
+    private suspend fun realCopyFor(id: MediaItemId): LocalCopy? {
+        val recorded = (downloadManager.observe(id).first() as? DownloadState.Downloaded) ?: return null
+        val file = java.io.File(recorded.localPath)
+        if (file.exists() && file.length() > 0) return LocalCopy(recorded.localPath, recorded.audioOnly)
+        val why = if (file.exists()) "is empty" else "is missing"
+        Diag.warn(
+            "playback",
+            "${id.value} is recorded as downloaded but ${recorded.localPath} $why — " +
+                "ignoring the record and streaming instead",
+        )
+        return null
+    }
+
     private fun audioPlaybackPreferred(): Boolean =
         when (appPreferences.settings.value.playbackMode) {
             PlaybackMode.AUDIO -> true
