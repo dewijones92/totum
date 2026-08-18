@@ -129,13 +129,18 @@ class InnerTubePlayerStreams(
      */
     private suspend fun signedInFirst(videoId: String): PlayerResult.Success? {
         if (!preferAccount() || account == null) return null
-        val signedIn = account.playerFor(videoId) as? PlayerResult.Success
+        // The REASON, not just "gave nothing". This is the path that is currently broken -- TVHTML5
+        // answers `UNPLAYABLE: The page needs to be reloaded.` for every request we can construct
+        // (docs/todos/tv-client-player-is-refused.md) -- and a line that cannot distinguish that from
+        // an expired token or a dead network makes the fix undebuggable from a report.
+        val outcome = account.playerFor(videoId)
+        val signedIn = outcome as? PlayerResult.Success
         Diag.log(
             "resolve",
             if (signedIn != null) {
                 "$videoId resolved as the signed-in TV client"
             } else {
-                "$videoId: the signed-in client gave nothing; trying anonymously"
+                "$videoId: the signed-in TV client gave nothing ($outcome); trying anonymously"
             },
         )
         return signedIn

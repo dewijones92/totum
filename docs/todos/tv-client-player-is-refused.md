@@ -41,17 +41,41 @@ them as malformed.
 **Anonymous is a different refusal**: `LOGIN_REQUIRED — "Sign in to confirm you're not a bot"`. So the
 token IS read and does change the outcome — it moves us from one refusal to another.
 
+## The decisive narrowing: it is `/player` ONLY
+
+The same token, the same `TVHTML5` client, the same Cobalt user agent, two different endpoints:
+
+| Endpoint | Response |
+|---|---|
+| `browse` (`browseId: FEsubscriptions`) | **1,563,757 bytes of real data** |
+| `player` (`videoId`) | **2,781 bytes — the `UNPLAYABLE` refusal** |
+
+And the app agrees on the device: the signed-in subscriptions feed loads and threads Shorts into it
+(`[feed] showing 45 cached items`, then `videos=67`, `[shorts] threading 22 Short(s)`).
+
+**So the token, the scope, the client version, the user agent and the headers are all ACCEPTED by
+InnerTube.** They cannot be the cause, because `browse` succeeds with every one of them identical. The
+refusal is specific to `/player`.
+
+That is the same shape as the rest of this document: `/player` is the endpoint that hands out stream
+URLs, and it is the one YouTube now gates behind attestation. A TV client without a PO token gets a
+`browse` that works and a `/player` that refuses. This is very probably not a bug in our TV client at
+all — it is the attestation wall arriving by a second route.
+
 ## Where to look next
 
-Not more permutations of the above; that seam is exhausted. Candidates, cheapest first:
+The config seam is exhausted, and so is the auth seam — `browse` proves both. Do NOT spend more time on
+client versions, user agents, scopes or account state; those are ruled out by the table above.
 
-1. **Account state.** This Google account may never have been used on a real TV, or needs to accept
-   something. Try a second account, or sign in on an actual TV/Cobalt device once.
-2. **Scope breadth.** SmartTube requests more than one scope (`youtube.force-ssl`,
-   `youtube-paid-content`, and historically `gdata.youtube.com`). We request one. Cheap to widen in
-   `YouTubeTvClient.SCOPE` — but note it invalidates existing tokens, so everyone re-logs in.
-3. **Read SmartTube's live behaviour rather than its source.** Its repo search was unavailable; the
-   decisive evidence would be a packet capture of a working TV `/player` to diff against ours.
+What is left:
+
+1. **A PO token / attestation for `/player`.** The real fix, and the same blocker as the main
+   attestation todo. Everything else here is a workaround.
+2. **A packet capture of SmartTube playing a video**, to see what its `/player` carries that ours does
+   not. That is the only remaining source of ground truth, since its repo search was unavailable and
+   its source-level constants (taken from the yt-dlp wheel) are already matched exactly.
+3. **Accept it and lean on SABR**, which is what the rescue ladder now does. SABR is YouTube offering
+   the bytes through the door it has left open.
 
 ## Meanwhile
 

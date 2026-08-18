@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.innertube.auth.DeviceLoginEvent
@@ -44,15 +45,24 @@ class AccountViewModel(
 
     init {
         viewModelScope.launch {
-            if (account.isSignedIn()) _state.value = UiState.SignedIn
+            val already = account.isSignedIn()
+            Diag.log("account", "screen opened — ${if (already) "already signed in" else "signed out"}")
+            if (already) _state.value = UiState.SignedIn
         }
     }
 
     fun signIn() {
-        if (loginJob?.isActive == true) return
+        if (loginJob?.isActive == true) {
+            // Said out loud rather than returning silently: "I tapped Sign in and nothing happened"
+            // was completely undiagnosable when this whole flow logged not one line (2026-08-18).
+            Diag.log("account", "sign-in already running — ignoring the tap")
+            return
+        }
+        Diag.log("account", "sign-in starting — asking Google for a device code")
         _state.value = UiState.Starting
         loginJob = viewModelScope.launch {
             account.signIn().collect { event ->
+                Diag.log("account", event.describe())
                 _state.value = event.toUiState()
                 // As soon as sign-in lands, load the live subscriptions so the
                 // rest of the app reflects it without a restart.
@@ -62,12 +72,14 @@ class AccountViewModel(
     }
 
     fun cancel() {
+        Diag.log("account", "sign-in cancelled by the person")
         loginJob?.cancel()
         loginJob = null
         _state.value = if (_state.value is UiState.SignedIn) UiState.SignedIn else UiState.SignedOut
     }
 
     fun signOut() {
+        Diag.log("account", "signing out — the token is being dropped")
         loginJob?.cancel()
         viewModelScope.launch {
             account.signOut()
@@ -75,6 +87,20 @@ class AccountViewModel(
             // Clear the live subscription list (and the feed) app-wide.
             accountSubscriptions.refresh(force = true)
         }
+    }
+
+    /**
+     * One line per login event, written to be read months later by someone with no context.
+     *
+     * The user code is deliberately included: it is not a credential — it is the thing the person types
+     * into google.com/device — and without it a report cannot tell "we never got a code" from "we got
+     * one and nobody approved it". Tokens are absent because [AccessToken] redacts itself.
+     */
+    private fun DeviceLoginEvent.describe(): String = when (this) {
+        is DeviceLoginEvent.AwaitingUser ->
+            "waiting for approval — code $userCode to be entered at ${verificationUrl.value}"
+        is DeviceLoginEvent.Succeeded -> "signed in; loading the account's subscriptions"
+        is DeviceLoginEvent.Failed -> "sign-in failed: $reason"
     }
 
     private fun DeviceLoginEvent.toUiState(): UiState = when (this) {
