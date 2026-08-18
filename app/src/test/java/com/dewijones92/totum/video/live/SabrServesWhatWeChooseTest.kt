@@ -164,6 +164,63 @@ class SabrServesWhatWeChooseTest {
     }
 
     /**
+     * Does a jump work once the conversation is ESTABLISHED?
+     *
+     * The leading hypothesis from `docs/todos/sabr-cannot-seek.md`: a COLD stream has no playback cookie
+     * and no prior buffered ranges, so YouTube may only permit a seek inside a conversation it already
+     * recognises. This plays from the start for a few reads and only then jumps.
+     *
+     * Entirely a probe — it asserts only that the early sequential reads work (which is ours and already
+     * covered elsewhere) and prints what the jump did. If the jump serves media, that is the unlock for
+     * SABR as an ordinary playback route and the todo says what to do next.
+     */
+    @Test
+    fun aJumpInsideAnEstablishedConversation() = runBlocking {
+        val parsed = playerResponse(FOUR_K_SIXTY)
+        assumeTrue(
+            "no SABR session could be built, so there is nothing to probe",
+            SabrResolve.prepare(FOUR_K_SIXTY, parsed.streaming, parsed.details) != null,
+        )
+        val session = SabrSessions.of(FOUR_K_SIXTY)!!
+        val audio = session.audio!!
+        val length = audio.contentLength
+        assumeTrue("this format stated no length, so there is no offset to aim at", length != null)
+
+        val stream = SabrStream(
+            url = session.streamingUrl,
+            ustreamerConfig = session.ustreamerConfig,
+            format = audio,
+            kind = SabrTrackKind.AUDIO,
+            transport = transport,
+            totalBytes = length,
+            durationMs = session.durationMs,
+        )
+        var at = 0L
+        var warmed = 0L
+        repeat(WARM_READS) {
+            val chunk = runCatching { stream.read(at) }.getOrDefault(ByteArray(0))
+            warmed += chunk.size
+            at += chunk.size
+        }
+        println("[sabr] warmed the conversation with ${warmed / KB}KB over $WARM_READS reads, now at ${at}B")
+        assertTrue("sequential reading from the start must work — that is ours", warmed > ENOUGH_BYTES)
+
+        val target = length!! / 2
+        val jumped = runCatching { stream.read(target) }.getOrDefault(ByteArray(0))
+        println("[sabr] then jumped to ${target}B and got ${jumped.size / KB}KB")
+        println("[sabr] ${stream.describeProgress()}")
+        println(
+            if (jumped.isEmpty()) {
+                "[sabr] a warm jump is refused too — session continuity is NOT the missing piece. " +
+                    "Cross that lead off docs/todos/sabr-cannot-seek.md."
+            } else {
+                "[sabr] A WARM JUMP WORKS. Session continuity WAS the missing piece: seeking is " +
+                    "reachable by establishing the conversation first. Act on this."
+            },
+        )
+    }
+
+    /**
      * What YouTube would serve beyond our caps — printed, never asserted.
      *
      * Probes one excluded format of each kind rather than all of them: the point is to notice a
@@ -228,6 +285,9 @@ class SabrServesWhatWeChooseTest {
         const val ENOUGH_BYTES = 10L * 1024
         const val KB = 1024
         const val CALL_TIMEOUT_SECONDS = 60L
+
+        /** Enough reads to build a real conversation before jumping. */
+        const val WARM_READS = 4
 
         /** Pulls `mediaTime=NNNms` out of the stream's own progress line. */
         val ASKED_TIME = Regex("""mediaTime=(\d+)ms""")

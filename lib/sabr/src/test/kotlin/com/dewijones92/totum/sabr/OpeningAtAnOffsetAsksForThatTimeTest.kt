@@ -40,6 +40,18 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
         durationMs = DURATION_MS,
     )
 
+    /** One run of real media, so a read can actually hand bytes out. */
+    private fun segment(index: Int): ByteArray {
+        val header = UmpFraming.part(
+            UmpPart.MEDIA_HEADER,
+            Protobuf.number(1, 0L) +
+                Protobuf.number(3, video.itag.toLong()) +
+                Protobuf.number(6, index.toLong() * CHUNK) +
+                Protobuf.number(9, index.toLong() + 1),
+        )
+        return header + UmpFraming.media(0, ByteArray(CHUNK.toInt()) { 7 })
+    }
+
     /** THE case: a mid-file open must not ask for the beginning. */
     @Test
     fun `opening at an offset asks for the matching media time`() = runTest {
@@ -69,23 +81,55 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
     /**
      * Sequential reading must NOT be re-estimated per read.
      *
-     * The claimed time is advanced from the bytes actually held (`advanceClaimedTime`), which is more
+     * The claimed time is advanced from the bytes actually served (`advanceClaimedTime`), which is more
      * truthful than a ratio. Recomputing an estimate on every read would throw that away and could move
      * the claim BACKWARDS mid-stream, which reads to the server as a seek and re-sends everything —
      * exactly the 52%-wasted-bytes problem that sending buffered ranges was introduced to fix.
+     *
+     * So it needs a stream that actually hands bytes out: the distinction is between a read that
+     * continues from the last one and a read that jumps, and with no data every read looks like a jump.
      */
     @Test
     fun `reading on from what it holds does not re-estimate`() = runTest {
-        val asked = AskedTimes()
+        val asked = AskedTimes(listOf(segment(0), segment(1)))
         val stream = stream(asked)
 
-        stream.read(from = 0)
-        stream.read(from = FIRST_CHUNK)
+        val first = stream.read(from = 0)
+        assertEquals("the fixture must hand out the first run", CHUNK.toInt(), first.size)
+        stream.read(from = first.size.toLong())
 
         assertTrue(
-            "the second fetch should follow the bytes held, not jump to an estimate for $FIRST_CHUNK: " +
+            "a read continuing from ${first.size} should follow the bytes served, not re-estimate: " +
                 "asked ${asked.times}",
             asked.times.drop(1).all { it < HALFWAY_MS },
+        )
+    }
+
+    /**
+     * A JUMP after sequential reading must be aimed — the case a cold-start-only guard silently skipped.
+     *
+     * Found by a probe that meant to test whether YouTube allows a seek inside an established
+     * conversation and instead asked for the position sequential reading had already reached (130005ms
+     * when it meant 407499ms). It would have recorded "session continuity is not the missing piece" as a
+     * finding, from an instrument that never performed the seek.
+     */
+    @Test
+    fun `a jump after sequential reading is aimed at the new position`() = runTest {
+        // Every response carries media: a response WITHOUT any marks the stream exhausted, and an
+        // exhausted stream returns from `read` without fetching at all — so the jump would make no
+        // request and the test would pass or fail for the wrong reason.
+        val asked = AskedTimes(listOf(segment(0), segment(1), segment(2)))
+        val stream = stream(asked)
+
+        val first = stream.read(from = 0)
+        stream.read(from = first.size.toLong())
+        val beforeJump = asked.times.size
+        stream.read(from = HALFWAY_BYTES)
+
+        assertEquals(
+            "the jump should ask for the halfway mark, not carry on from where reading had reached",
+            HALFWAY_MS,
+            asked.times.drop(beforeJump).firstOrNull(),
         )
     }
 
@@ -95,17 +139,18 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
         const val DURATION_MS = 5_820_000L
         const val HALFWAY_BYTES = TOTAL_BYTES / 2
         const val HALFWAY_MS = DURATION_MS / 2
-        const val FIRST_CHUNK = 64L * 1024
+        const val CHUNK = 64L * 1024
     }
 }
 
 /** Records the `player_time_ms` of every request, which is the field under test. */
-private class AskedTimes : SabrTransport {
+private class AskedTimes(private val responses: List<ByteArray> = emptyList()) : SabrTransport {
     val times: MutableList<Long> = mutableListOf()
+    private var index = 0
 
     override suspend fun post(url: String, body: ByteArray): ByteArray {
         times += playerTimeIn(body)
-        return ByteArray(0)
+        return responses.getOrElse(index++) { ByteArray(0) }
     }
 }
 

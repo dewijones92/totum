@@ -69,6 +69,16 @@ public class SabrStream(
 
     /** The next byte offset we have not yet served to a reader. */
     private var served = 0L
+
+    /**
+     * The byte just past what the last successful read handed out, or -1 before any.
+     *
+     * Needed because [contiguousFrom] CONSUMES the runs it returns, so `chunks` cannot answer "where
+     * are we". Without it a mid-stream jump was indistinguishable from ordinary sequential reading, and
+     * `aimAtByte` skipped the very case it exists for — a warm-jump probe on 2026-08-18 asked for
+     * 130005ms when it meant to ask for 407499ms, and would have recorded a false conclusion.
+     */
+    private var handedThrough = -1L
     private var playerTimeMs = 0L
     private var exhausted = false
 
@@ -114,6 +124,7 @@ public class SabrStream(
         while (attempts < MAX_FETCHES_PER_READ) {
             contiguousFrom(from)?.let { held ->
                 bytesServed += held.size
+                handedThrough = from + held.size
                 if (attempts > 0) readsThatFetched++
                 return held
             }
@@ -187,7 +198,11 @@ public class SabrStream(
      * and never arriving.
      */
     private fun aimAtByte(from: Long) {
-        if (from <= 0 || chunks.isNotEmpty() || fetches > 0) return
+        if (from <= 0) return
+        // A DISCONTINUITY, not merely a cold start. Sequential reading picks up exactly where the last
+        // read left off; anything else is a seek and has to be aimed. Judged from `handedThrough`
+        // because `contiguousFrom` consumes what it returns, so the held runs cannot say where we are.
+        if (from == handedThrough) return
         val target = segmentsHeld.timeOfByte(from, totalBytes, durationMs) ?: run {
             Diag.log(
                 "sabr",
@@ -196,7 +211,11 @@ public class SabrStream(
             )
             return
         }
-        Diag.log("sabr", "itag ${format.itag} opening ${from}B in — asking from ${target}ms")
+        Diag.log(
+            "sabr",
+            "itag ${format.itag} ${if (handedThrough < 0) "opening" else "seeking to"} ${from}B " +
+                "(last handed through $handedThrough) — asking from ${target}ms instead of ${playerTimeMs}ms",
+        )
         playerTimeMs = target
     }
 
