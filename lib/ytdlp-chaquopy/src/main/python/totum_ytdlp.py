@@ -38,7 +38,25 @@ def versions():
 # newest on PyPI. SmartTube plays the same videos at full quality because it implements
 # YouTube's own streaming path rather than extracting plain URLs — which is a project, not
 # a flag. Until then this is a real ceiling on kids content and nothing else.
-PLAYER_CLIENTS = {"youtube": {"player_client": ["default", "android"]}}
+# web_embedded added 2026-08-18, and it is the whole reason anything streams.
+#
+# YouTube began serving roughly the first megabyte of a stream and refusing the rest, so the app could
+# play nothing it had not already downloaded. Measured from Dewi's own connection, on fresh URLs: the
+# only client in `default` for this yt-dlp is `android_vr`, whose URLs carry no `n` and answer 403 at
+# any offset past ~1MB. `web_embedded` returns `c=WEB_EMBEDDED_PLAYER` with a DECIPHERED `n`, and those
+# served the middle of the file on 2 of the 3 videos tried.
+#
+# It costs nothing new: solving `n` needs a JavaScript runtime, and this app already runs QuickJS for
+# extraction on purpose (see the note below). The durable URLs were available all along and simply
+# never asked for.
+#
+# `MediaMetadata.isDurable` is what makes it count — requesting the client is not enough, because
+# yt-dlp's own ranking still prefers `android_vr`'s audio on size and language, both of which it wins
+# while being unfetchable.
+#
+# A PARTIAL fix. One of those three videos was refused even here; the full answer is a PO token. See
+# docs/todos/youtube-requires-attestation.md.
+PLAYER_CLIENTS = {"youtube": {"player_client": ["default", "android", "web_embedded"]}}
 
 # Path to the bundled QuickJS interpreter, set once from Kotlin (see configure_js_runtime).
 #

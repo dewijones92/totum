@@ -167,7 +167,32 @@ public val MediaFormat.audioTag: AudioTrackTag
 
 /** Audio language first, [tieBreak] second — the order every stream picker uses. */
 private fun byAudioThen(wanted: List<String>, tieBreak: Comparator<MediaFormat>): Comparator<MediaFormat> =
-    compareBy(audioLanguagePreference(wanted)) { format: MediaFormat -> format.audioTag }.then(tieBreak)
+    compareBy<MediaFormat> { if (it.isDurable) 1 else 0 }
+        .then(compareBy(audioLanguagePreference(wanted)) { format: MediaFormat -> format.audioTag })
+        .then(tieBreak)
+
+/**
+ * Whether this stream's URL has been through the `n` solve — the difference between a stream that
+ * plays to the end and one that stops about a megabyte in.
+ *
+ * Measured 2026-08-18, from Dewi's own connection, when the app could play nothing it had not already
+ * downloaded. `ANDROID_VR`'s URLs carry no `n` and were refused 403 at any offset past the first
+ * megabyte; `WEB_EMBEDDED_PLAYER`'s carry one and served the middle of the file. `n` is the parameter a
+ * JavaScript runtime exists to solve, so its presence means a real client's request rather than a
+ * guess, and YouTube treats it accordingly.
+ *
+ * Ranked FIRST, ahead of language and size, because durability is not something those can express: with
+ * every client requested at once, yt-dlp still handed back `ANDROID_VR`'s audio — the largest, the right
+ * language, and unfetchable. A URL with no `n` at all (a podcast enclosure, a torrent) is simply not
+ * YouTube's and loses nothing by this, since it is only ever compared against its own kind.
+ *
+ * Anchored on the parameter boundary so `ns=` and `sn=`, which appear on the very URLs that fail, are
+ * not mistaken for it.
+ */
+private val MediaFormat.isDurable: Boolean
+    get() = url?.let { DECIPHERED_N.containsMatchIn(it) } == true
+
+private val DECIPHERED_N = Regex("""[?&]n=[^&]+""")
 
 /** yt-dlp scores the uploader's own track 10 and everything else below it. */
 private const val ORIGINAL_LANGUAGE_PREFERENCE = 10

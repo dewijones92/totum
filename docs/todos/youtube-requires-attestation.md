@@ -75,7 +75,36 @@ trigger:**
 Every one of them was written after a real incident, tested, and correct about the case it was built
 for. Together they meant an app with four fallbacks and no working path.
 
-## The fix, and why it is not in this commit
+## A partial fix that works: prefer the URLs that have been through the `n` solve
+
+Shipped 2026-08-18, and it should restore most streaming.
+
+`web_embedded` returns `c=WEB_EMBEDDED_PLAYER` URLs carrying a **deciphered `n`** — the parameter a
+JavaScript runtime exists to solve — and those serve the whole file. The app already runs QuickJS for
+extraction on purpose, so these were available all along and simply never asked for: `player_client`
+listed `default` and `android`, and neither yields them.
+
+Asking for the client is not enough on its own. With all three requested, yt-dlp's own `bestaudio`
+still returns `ANDROID_VR`: it is the largest, in the right language, and unfetchable past a megabyte.
+Durability is not something a bitrate can express, so `MediaFormat.isDurable` is now the **first** key
+in the app's own picker, ahead of language and size.
+
+Measured on the NASA fixture with all three clients requested:
+
+```
+audio-only formats with a URL: 37
+by client:  WEB_EMBEDDED_PLAYER 33, ANDROID_VR 4
+durable:    33 yes, 4 no
+best durable: itag 140-0, 35644394 bytes
+  first 256K   206      middle 206      near the end 206
+  a 2MB chunk (what ChunkedDataSource asks for) 206
+```
+
+**Still partial.** One of the three videos tried was refused even via `web_embedded`, so some items
+will remain unplayable until the real fix lands. `sR1s-pxRktU` and `ttiLcMUQq80` were durable;
+`ng2Tsa5KE_A` was not.
+
+## The full fix, and why it is not built
 
 **A PO token.** yt-dlp reaches them through an external provider; SmartTube runs the attestation
 itself. The app already bundles QuickJS, so running BotGuard is not obviously out of reach — but it
