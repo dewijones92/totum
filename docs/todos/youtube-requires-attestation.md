@@ -182,6 +182,25 @@ a SABR session that serves in full, the fix is small and the seam already exists
 tested here — the emulator's token was not readable and a JVM test has no account — so it is written
 down rather than guessed at. **Test it on a signed-in device before building anything on it.**
 
+## What a test may assert, and what only a canary can
+
+Worth stating plainly, because getting it wrong nearly recreated the original failure. The first version
+of `SabrCarriesAWholeStreamTest` demanded 80% of a stream — a fair description of what the app needs, and
+impossible until a PO token exists. That is a build red every run for a reason nobody in this repository
+can fix, and a permanently red build is exactly what taught everyone to wave the earlier
+`assumeTrue("… not this defect")` skip through. A test that lies by being silent and a test that lies by
+shouting are the same bug.
+
+| Question | Belongs to |
+|---|---|
+| Does our machinery still work on what we are given? | a **test** — red means our bug |
+| Has YouTube's policy changed? | the **canary** — hourly, reports state changes |
+
+So the test asserts the floor we own: SABR delivers the window it *is* offered, and when it stops the
+response carried a refusal. An early ending with no refusal in it is ours to explain. The 80% belongs
+here, in prose, with its date — and when the ceiling lifts the canary is what says so, and the floor gets
+raised then.
+
 ## What now guards this
 
 - `SabrCarriesAWholeStreamTest` (`:app`, JVM, live) — fetches real bytes and requires **80% of a
