@@ -119,6 +119,22 @@ internal class StreamRecovery(
     private var attempts = 0
 
     /**
+     * How many times the rungs BELOW a working stream have rescued this stuck point.
+     *
+     * Its own counter, because `attempts` is deliberately reset by a successful rescue and therefore
+     * cannot bound one. Both network rungs zeroed the budget -- copying the disk rung, where it is safe
+     * because a local file cannot 403 -- and neither emits `freshStarts` nor bumps `generation`, so every
+     * failure of a rescue walked the ladder again from the top and [moveOn] was unreachable. In AUDIO or
+     * metered AUTO mode the failing stream IS the audio-only one, so the rung replayed the identical dead
+     * URL at a 10-25s re-extraction per cycle: the queue parked on one item, re-fetching in the person's
+     * pocket, never advancing.
+     *
+     * Reset only where the budget legitimately starts over -- a fresh start, or real progress -- so a
+     * long listen that crosses several leases still gets rescued each time.
+     */
+    private var rescues = 0
+
+    /**
      * Bumped by every fresh start. A retry captures it before its backoff and abandons if it has
      * moved on waking, which is how a tap during the wait cancels the retry it would otherwise
      * race — the failure collector is asleep in [delay] and cannot notice on its own.
@@ -136,6 +152,7 @@ internal class StreamRecovery(
                 attempts = 0
                 lastItem = itemId
                 lastPositionMs = 0
+                rescues = 0
                 Diag.log("playback", "fresh start of ${itemId.value} — recovery starts over")
             }
         }
@@ -150,6 +167,7 @@ internal class StreamRecovery(
         val generationAtFailure = generation
         if (failure.shouldResetBudget()) {
             attempts = 0
+            rescues = 0
         }
         val firstFailureForThisItem = attempts == 0
         lastItem = failure.itemId
@@ -220,6 +238,17 @@ internal class StreamRecovery(
         // giving up on the whole queue is not: a real report had the player dead on one
         // item with 58 more behind it, going nowhere. So move on, and say so.
         Diag.warn("playback", "stream still failing after $spent recoveries; giving up on the stream")
+        // The ladder's own budget. Without it the two network rungs could reset `attempts` forever and
+        // moveOn was unreachable -- see [rescues].
+        if (rescues >= MAX_RESCUES) {
+            Diag.warn(
+                "playback",
+                "already rescued ${failure.itemId.value} $rescues time(s) at this stuck point and it " +
+                    "keeps failing; moving on rather than rescuing it again",
+            )
+            abandon()
+            return
+        }
         // Before abandoning the item, ask whether it is already on the disk. The rule that an
         // audio-only copy must not silently replace a video you are watching assumes a working
         // stream to prefer; once there is not one, the choice is audio or nothing, and report
@@ -227,6 +256,7 @@ internal class StreamRecovery(
         if (playWithoutTheStream(failure.positionMs)) {
             Diag.log("playback", "playing ${failure.itemId.value} from the copy on disk instead")
             attempts = 0
+            // NOT counted as a rescue: a local file cannot 403, so it cannot loop.
             return
         }
         // The protocol YouTube is actually serving, before the picture is given up for good. Below
@@ -250,6 +280,7 @@ internal class StreamRecovery(
                     "so the picture is capped at 1080p30 rather than lost",
             )
             attempts = 0
+            rescues++
             return
         }
         // The sound, if the picture is all that was refused. Tried AFTER the disk (a copy costs no
@@ -262,13 +293,18 @@ internal class StreamRecovery(
                     "stream was refused and no copy is on disk",
             )
             attempts = 0
+            rescues++
             return
         }
         Diag.warn("playback", "nothing on disk for ${failure.itemId.value} either; skipping it")
+        abandon()
+    }
+
+    /** Steps to the next item, saying so when there is nothing to step to. */
+    private suspend fun abandon() {
         if (!moveOn()) {
             Diag.warn("playback", "nothing left in the queue to move on to")
         }
-        return
     }
 
     /**
@@ -328,6 +364,14 @@ internal class StreamRecovery(
 
         /** One, so a bad CDN node is covered and a refusing client is not argued with. */
         const val REFUSED_MAX_ATTEMPTS = 1
+
+        /**
+         * How many times the rungs below a working stream may rescue ONE stuck point.
+         *
+         * Two, so a genuinely re-resolved audio URL gets a second chance while a dead one cannot loop.
+         * The ladder must always be able to reach [moveOn]; this is what guarantees it.
+         */
+        const val MAX_RESCUES = 2
 
         /** Multiplied by the attempt number, so the second waits 2s and the third 4s. */
         const val BACKOFF_MS = 2_000L

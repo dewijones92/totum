@@ -85,6 +85,38 @@ class KeepTheSoundWhenThePictureIsRefusedTest {
         assertEquals("and not abandoned the item", 0, movedOn)
     }
 
+    /**
+     * The rescue must not become a LOOP: the ladder has to reach `moveOn` eventually.
+     *
+     * Both new rungs set `attempts = 0` on success, copying the disk rung — where it is safe, because a
+     * local file cannot 403. The sound rung starts another NETWORK stream, and neither rung emits
+     * `freshStarts` or bumps `generation`, so every failure of the rescue walked the ladder again from
+     * the top and `moveOn` was unreachable.
+     *
+     * The guaranteed variant is the app's normal state: in AUDIO or metered AUTO mode the failing stream
+     * IS the audio-only one, and `forgetResolved` clears only the resolver cache — not the launcher's
+     * resolution — so the rung replayed the identical dead URL, reported success and reset the budget.
+     * Each cycle costs a 10-25s re-extraction, so the queue parks on one item, re-fetching in the
+     * person's pocket, never advancing.
+     *
+     * Four failures at the SAME position, deliberately: the existing tests emit two, which is exactly
+     * why none of them could see this. `shouldResetBudget` cannot break the cycle because the position
+     * never moves on, and `StallWatchdog` cannot because the player is not buffering.
+     */
+    @Test
+    fun `a rescue that keeps failing eventually moves on`() = runTest {
+        soundAvailable = true
+        recovery()
+        runCurrent()
+
+        repeat(6) {
+            failures.emit(refused(at = 3_600_000))
+            runCurrent()
+        }
+
+        assertEquals("the ladder must reach moveOn rather than rescuing forever", 1, movedOn)
+    }
+
     /** A copy on the disk still wins: no data, and it cannot stall. */
     @Test
     fun `a copy on disk is preferred over a picture-less stream`() = runTest {
