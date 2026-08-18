@@ -1,0 +1,102 @@
+---
+title: YouTube now refuses us past the first megabyte
+kind: todo
+area: playback
+priority: critical
+status: open — root cause identified and measured; the fix (a PO token) is not built
+updated: 2026-08-18
+---
+
+# Nothing streams, and it is not our code
+
+Dewi, 2026-08-18: *"cant play anything that i havent already downloaded"*, then *"ai video not
+playing???? why not???? seems like I can't play anything???"*.
+
+He was right, and it is not a regression we introduced. Nothing in the app changed between the
+evening it worked and the morning it did not.
+
+## What was measured
+
+From his own IP, on his own videos, on freshly-obtained URLs:
+
+| Route | Direct URL? | Fetchable past ~1MB? |
+|---|---|---|
+| `android_vr` — yt-dlp 2026.07.04's **only** default YouTube client | yes | **no.** `0-1048575` → 206, anything beyond → 403 |
+| `android`, `tv`, `web`, `web_safari`, `ios`, `mweb` | **no URL at all** — SABR-only formats | — |
+| `web_embedded` **with** a JS runtime | yes, with a deciphered `n` | only sometimes — 1 of 3 videos tried |
+| SABR (`serverAbrStreamingUrl`) | n/a | **no.** ~812KB, six segments, then it stops |
+
+The ceiling is the same on both routes, which is what makes it one cause rather than two bugs. And
+the SABR responses say so outright — the server sends media *and* a refusal in the same answer:
+
+```
+server sent parts=[REQUEST_CANCELLATION_POLICY, START_BW_SAMPLING_HINT, LAWNMOWER_POLICY,
+                   SABR_ERROR, STREAM_PROTECTION_STATUS, SELECTABLE_FORMATS,
+                   MEDIA_HEADER, MEDIA, MEDIA_END]
+```
+
+`STREAM_PROTECTION_STATUS` is the attestation signal. The app holds no PO token and has no way to
+produce one, so it gets a trial window — about a megabyte, about a minute — and then is turned away.
+
+**SmartTube on his TV, on the same broadband, plays fine.** That is the decisive comparison: it is
+not the address being refused, it is *this client* not attesting. Dewi is the one who pointed it out,
+and it reframed the whole investigation — up to that point the working theory was our chunk size.
+
+## What was fixed on the way (all shipped)
+
+None of these make streaming work. They were all real, and three of them are the same shape.
+
+- **A refused download never tried the working route.** `shouldFallBack = { it.isPermanent }` — a 403
+  is transient, so the second route was withheld from exactly the failure it exists for. Now
+  `DownloadState.Failed.deservesAnotherRoute`, a named rule with unit tests instead of a lambda at
+  the wiring. See [failure-handling.md](../features/failure-handling.md).
+- **SABR's claimed position ran away from its data.** Floored at `playerTimeMs + stepMs`, so it
+  gained ten seconds per fetch whatever arrived; once ahead, the server says "you have enough", which
+  was read as empty and punished with a thirty-second skip. 793KB of Opus believing it was 160
+  seconds in.
+- **The empty-response budget was a lifetime count** that nothing reset, so the fourth blank answer
+  of a session ended the stream however healthy the hundreds of fetches around it.
+- **`buffered_ranges` was never sent**, so the server had no idea what we held and re-sent it: 52% of
+  every byte fetched discarded. Now built from each `MEDIA_HEADER`'s `sequence_number`, with the time
+  span derived from bytes because live headers carry no `start_ms` at all.
+
+### The pattern worth remembering
+
+**Four gated fallbacks, each a working second route behind a condition the real failure does not
+trigger:**
+
+| Where | Its gate | Why it never fired |
+|---|---|---|
+| `FallbackDownloadStrategy` | `isPermanent` | a 403 is transient |
+| `VideoResolver`'s player fallback | extraction failed | extraction succeeded — the *stream* failed |
+| `StreamRecovery` | budget spent | spent re-resolving the same dead route |
+| `InnerTubePlayerStreams`' account path | anonymous call refused | anonymous call succeeded, then was refused mid-stream |
+
+Every one of them was written after a real incident, tested, and correct about the case it was built
+for. Together they meant an app with four fallbacks and no working path.
+
+## The fix, and why it is not in this commit
+
+**A PO token.** yt-dlp reaches them through an external provider; SmartTube runs the attestation
+itself. The app already bundles QuickJS, so running BotGuard is not obviously out of reach — but it
+is a new capability, not a flag, and building it on a hunch is how the last two theories died
+(chunk size, then buffered ranges — both wrong, both measured wrong before being believed).
+
+**The most promising lead, unverified.** The signed-in path in `InnerTubePlayerStreams` already uses
+a **TV context**, which is what SmartTube is. It is the fourth row of the table above: consulted only
+when the anonymous call is refused, which today it is not. If a signed-in TV `/player` response yields
+a SABR session that serves in full, the fix is small and the seam already exists. It could not be
+tested here — the emulator's token was not readable and a JVM test has no account — so it is written
+down rather than guessed at. **Test it on a signed-in device before building anything on it.**
+
+## What now guards this
+
+- `SabrCarriesAWholeStreamTest` (`:app`, JVM, live) — fetches real bytes and requires **80% of a
+  37-minute video**. Fails right now, correctly. Runs through the home connection, and a failure
+  turns CI red rather than printing "SKIPPED".
+- `tools/ci/youtube-canary.py` — hourly on the Pi, range-fetches 1MB from 8MB into a real stream and
+  reports **state changes only**. It says `broken` today. This is the piece that would have caught it
+  the same day: no commit caused this, so nothing that runs on push could have.
+- The three live tests that existed could not have caught it. They asked for **1 second** of
+  playback, a **10KB** file, and used a **19-second** fixture whose entire download fits under the
+  cap. See [tests/_index.md](../tests/_index.md).

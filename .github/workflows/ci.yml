@@ -153,6 +153,7 @@ jobs:
         if: always()
         run: |
           python3 tools/ci/test_summary_test.py
+          python3 tools/ci/youtube_canary_test.py
           python3 tools/ci/test-summary.py "Unit tests" \
             $(ls -d */build/test-results */*/build/test-results 2>/dev/null)
 

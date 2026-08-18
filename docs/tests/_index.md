@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Testing
@@ -76,6 +76,16 @@ instead).
   wrong answer, and four green tests certified a bug the app had been logging on every item for two
   weeks (`preloadsWasted = 12` of 12). If the real rule needs Android to reach, extract it as a pure
   function and test *that* — do not retype it.
+- **A threshold is a claim about what "working" means — make it one that can fail.** The three live
+  YouTube tests all passed on 2026-08-18 while nothing in the app would play, because they asked for
+  **1 second** of playback (`SabrPlaybackTest`), a **10KB** file (`LiveSabrDownloadTest`), and used a
+  **19-second** fixture whose entire download fits inside the cap that had just been imposed. A bar
+  that low cannot tell working from broken. `SabrCarriesAWholeStreamTest` asks for 80% of a 37-minute
+  video instead, as a proportion of the stream's own declared length so it cannot rot.
+- **Some breakage arrives without a commit, and no push-triggered test can catch it in time.** YouTube
+  changed; the app did not. That needs a clock, not a pipeline: `tools/ci/youtube-canary.py` runs
+  hourly on the Pi and reports state changes. See
+  [youtube-requires-attestation](../todos/youtube-requires-attestation.md).
 - **Passes alone, fails in the suite ⇒ shared SAMPLED state, and confirm before calling it flaky.**
   `MeteredAudioSwitchDeviceTest`'s blip case failed only after its sibling (2026-08-17). `@Before`
   reset the visible setting, but `MeteredAudioSwitch` accumulates metered time on a **5-second
@@ -191,6 +201,12 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A download that fails is tried again by itself, without waiting for the queue to change | `AFailedDownloadIsTriedAgainTest` | every commit |
 | "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
 | The stream held for the next item is the stream that then plays — not a second guess at it | `ThePreloadIsTheStreamThatPlaysTest` | every commit |
+| SABR carries MOST of a real stream, not just its first minute | `SabrCarriesAWholeStreamTest` | live phase, via the home connection — allowed to FAIL CI |
+| The claimed SABR position never outruns the bytes in hand | `ClaimedTimeFollowsTheBytesTest` | every commit |
+| A few empty SABR answers spread over a long stream do not end it | `EmptyRunsDoNotEndTheStreamTest` | every commit |
+| Every SABR request tells the server which segments we already hold | `BufferedRangesAreSentTest`, `TheStreamTellsTheServerWhatItHoldsTest` | every commit |
+| A refused download is tried by a DIFFERENT route, not the one that refused it | `DownloadFailureTest` | every commit |
+| YouTube still serves a whole stream at all (no commit needed to break this) | `tools/ci/youtube_canary_test.py` + the hourly Pi timer | hourly, off-CI |
 | The subscription list is not fetched twice in a session | `SubscriptionsFetchedOnceTest` | every commit |
 | A report's own numbers survive minification and reset per item | `PlayHandleLabelTest`, `AnalyticsResetPerItemTest` | every commit (the second on the emulator) |
 | What you type into "Send diagnostics" reaches the report | `DiagnosticsNoteTest`, `DiagnosticsContentTest`, `DiagnosticsNoteBoxTest` | every commit |
