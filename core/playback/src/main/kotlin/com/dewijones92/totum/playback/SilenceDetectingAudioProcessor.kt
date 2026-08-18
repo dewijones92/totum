@@ -122,6 +122,17 @@ internal class SilenceDetectingAudioProcessor(
         }
     }
 
+    /** The loudest sample across all channels of the frame at [frameStart]. */
+    private fun ByteBuffer.peakInFrame(frameStart: Int, end: Int): Int {
+        var peak = 0
+        for (channel in 0 until channels) {
+            val at = frameStart + channel * BYTES_PER_SAMPLE
+            if (at + BYTES_PER_SAMPLE > end) break
+            peak = maxOf(peak, abs(getShort(at).toInt()))
+        }
+        return peak
+    }
+
     /** True when every sampled frame sits below the silence threshold. */
     private fun ByteBuffer.isQuiet(): Boolean {
         val order = order()
@@ -136,12 +147,7 @@ internal class SilenceDetectingAudioProcessor(
             val stride = (STRIDE_BYTES / frameBytes).coerceAtLeast(1) * frameBytes
             var peak = 0
             while (index + frameBytes <= end) {
-                for (channel in 0 until channels) {
-                    val at = index + channel * BYTES_PER_SAMPLE
-                    if (at + BYTES_PER_SAMPLE > end) break
-                    val sample = abs(getShort(at).toInt())
-                    if (sample > peak) peak = sample
-                }
+                peak = maxOf(peak, peakInFrame(index, end))
                 index += stride
             }
             lastPeak = peak
