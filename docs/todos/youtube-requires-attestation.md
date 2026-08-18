@@ -112,6 +112,17 @@ test that was wrong. `libqjs.so` is bundled in **`:app`'s** `jniLibs`, so that m
 cannot contain it — the runtime was absent and yt-dlp fell back to the client with no `n` to solve. A
 test in the wrong module measures a different app.
 
+**And it plays, end to end, on a device.** `LiveStreamPlaysToItsEndTest` played a real YouTube stream
+on the emulator, seeked to `duration − 6s` — deep into the file, the exact region that was answering
+403 — and reached the end. 85 seconds, 0 failures, **0 skipped**. The same test *skipped* in CI the
+night before with "YouTube did not serve this machine a playable stream", which is what makes the pair
+of runs evidence rather than a single green tick.
+
+Worth being blunt about the order this was established in: URL-level `curl` measurements and an
+extraction test came first, and neither is playback. Dewi asked "did you test on a emulator??" and the
+honest answer at that moment was "not the part that matters". The end-to-end run came after the
+question.
+
 **Still partial.** One of the three videos tried was refused even via `web_embedded`, so some items
 will remain unplayable until the real fix lands. `sR1s-pxRktU` and `ttiLcMUQq80` were durable;
 `ng2Tsa5KE_A` was not.
