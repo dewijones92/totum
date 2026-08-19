@@ -156,9 +156,15 @@ class InnerTubePlayerStreams(
     private suspend fun PlayerResult.Success.playable(): PlayerResult.Success? {
         val solve = solveN ?: return this
         val solved = copy(streaming = solve(streaming))
-        if (solved.streaming.directlyPlayable.isEmpty()) {
-            Diag.log("resolve", "the fast player response had nothing fetchable after solving n")
+        // A SABR endpoint counts as fetchable. Without this the SABR-only sessions -- the ones with no
+        // direct URLs at all, which is the whole reason the SABR path was built -- were discarded here
+        // and `overSabr` never got to ask. See StreamingData.playableSomehow.
+        if (!solved.streaming.playableSomehow) {
+            Diag.log("resolve", "the fast player response had nothing fetchable after solving n, and no SABR endpoint")
             return null
+        }
+        if (solved.streaming.directlyPlayable.isEmpty()) {
+            Diag.log("resolve", "nothing directly fetchable after solving n, but a SABR session is offered")
         }
         return solved
     }

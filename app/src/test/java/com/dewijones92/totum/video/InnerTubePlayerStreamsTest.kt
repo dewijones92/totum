@@ -9,6 +9,7 @@ import mockwebserver3.MockWebServer
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -75,6 +76,57 @@ class InnerTubePlayerStreamsTest {
 
         assertNull(streams.playerFor("dQw4w9WgXcQ"))
     }
+
+    /**
+     * A SABR-ONLY response is not a useless one, and discarding it is what kept SABR unreachable.
+     *
+     * When YouTube runs its SABR-only experiment on a session it strips the direct URLs and keeps the
+     * `serverAbrStreamingUrl` and ustreamer config — everything the SABR path needs is still there. But
+     * `playable()` judged the response solely on `directlyPlayable`, so it returned null, `playerFor`
+     * returned null, and `VideoResolver.overSabr` gave up before ever calling `SabrResolve.prepare`.
+     * SABR exists FOR that session and was gated off in exactly it: the fifth instance in this repo of a
+     * useless success not looking like a failure to a gate written for failures.
+     *
+     * Measured on 2026-08-19, a real SABR-only response still carried a working endpoint and served
+     * bytes for itags 140/135/134 — so what was thrown away was playable.
+     */
+    @Test
+    fun `a response with no fetchable URL but a SABR endpoint survives`() = runTest {
+        respondWithSabrOnly()
+        val streams = InnerTubePlayerStreams(
+            client(),
+            // The real solver drops what it cannot solve; here nothing is left, as in a stripped session.
+            solveN = { data -> data.copy(formats = emptyList()) },
+        )
+
+        val result = streams.playerFor("dQw4w9WgXcQ")
+
+        assertNotNull(
+            "a response carrying a SABR endpoint was discarded, so SABR can never be tried in the one " +
+                "session it exists for",
+            result,
+        )
+        assertNotNull(
+            "the SABR endpoint has to survive too, or nothing can use it",
+            result!!.streaming.serverAbrStreamingUrl
+        )
+    }
+
+    /** A stripped session: no format URLs at all, but the SABR endpoint and ustreamer config present. */
+    private fun respondWithSabrOnly() = server.enqueue(
+        MockResponse.Builder().code(200).body(
+            """
+            {"playabilityStatus":{"status":"OK"},
+             "streamingData":{
+               "serverAbrStreamingUrl":"https://x.test/videoplayback?sabr=1",
+               "adaptiveFormats":[
+                 {"itag":140,"mimeType":"audio/mp4; codecs=\"mp4a.40.2\"","bitrate":130000,"lastModified":"5"}]},
+             "playerConfig":{"mediaCommonConfig":{"mediaUstreamerRequestConfig":{
+               "videoPlaybackUstreamerConfig":"AQID"}}},
+             "videoDetails":{"videoId":"dQw4w9WgXcQ","title":"A video"}}
+            """.trimIndent(),
+        ).build(),
+    )
 
     /** With no solver wired, the response passes through untouched — tests and previews. */
     @Test

@@ -365,21 +365,42 @@ public class SabrStream(
     private fun absorb(response: ByteArray): Int {
         var added = 0
         carried.clear()
+        unhandled.clear()
         UmpReader.read(response).parts.forEach { part ->
             when (part.type) {
                 UmpPart.MEDIA_HEADER -> remember(MediaHeader.parse(part.payload))
                 UmpPart.MEDIA -> added += storeMedia(part.payload)
-                else -> Unit
+                // Named, not silently dropped. A part this class ignores is indistinguishable from one
+                // the server never sent, and telling those apart is the whole question for a LIVE
+                // stream: its media arrives with no initialization segment, so whether the init data is
+                // present in a part we skip decides whether live is buildable or refused.
+                else -> unhandled += part.type
             }
+        }
+        if (unhandled.isNotEmpty()) {
+            Diag.log("sabr", "ignored parts: " + unhandled.distinct().joinToString { "${UmpPart.nameOf(it)}($it)" })
         }
         return added
     }
+
+    /** Part types this response carried and this class does nothing with. */
+    private val unhandled = mutableListOf<Int>()
 
     /** What the last response carried, which is how the sharing question gets answered. */
     private val carried = CarriedItags()
 
     private fun remember(header: MediaHeader?) {
         val known = header ?: return
+        // Every run announced, with the numbers that decide where its bytes land. A VOD starts at byte 0
+        // and reads forward; a LIVE stream joins mid-broadcast, so its init segment and its first media
+        // can be megabytes apart and the gap between them is invisible without this line.
+        if (known.itag == format.itag) {
+            Diag.log(
+                "sabr",
+                "run ${known.headerId} itag=${known.itag} init=${known.isInitSegment} " +
+                    "startBytes=${known.startBytes} seq=${known.sequenceNumber} length=${known.contentLength}",
+            )
+        }
         headers[known.headerId] = known
         // Where this run starts in the whole format; every MEDIA part for it continues from here.
         writeAt[known.headerId] = known.startBytes

@@ -19,3 +19,7 @@ com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest
 com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
 com.dewijones92.totum.video.live.FourKActuallyPlaysTest
 com.dewijones92.totum.account.SignInOnThisDeviceTest
+com.dewijones92.totum.video.live.SignedInVersusAnonymousPlayerTest
+com.dewijones92.totum.video.live.SabrPlaysAcrossVideoTypesTest
+com.dewijones92.totum.video.live.WhatSabrWillServeTest
+com.dewijones92.totum.video.live.SabrKeepsServingTest

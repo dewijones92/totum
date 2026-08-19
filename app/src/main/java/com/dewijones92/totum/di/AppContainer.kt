@@ -1011,6 +1011,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             return null
         }
         val playable = parsed.streaming.withSolvedN(nSolver, playerUrl)
+        // DELIBERATELY still `directlyPlayable`, not `playableSomehow`. The sibling gate in
+        // InnerTubePlayerStreams was widened to accept a SABR-only response; this one must not be.
+        // Its whole job is to keep trying CLIENTS, and the current TV client answers OK for an
+        // age-restricted video while withholding the streams -- accepting that as success is what
+        // short-circuited the downgraded client that returns seven fetchable URLs, and shipped a
+        // feature that resolved and then would not play (2026-08-01).
         if (playable.directlyPlayable.isEmpty()) {
             Diag.log("resolve", "$videoId as $client -> OK but nothing fetchable; trying the next client")
             return null

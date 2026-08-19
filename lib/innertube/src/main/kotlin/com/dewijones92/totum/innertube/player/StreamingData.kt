@@ -33,6 +33,22 @@ public data class StreamingData(
     /** Formats we could play today — those with a direct URL. */
     public val directlyPlayable: List<PlayableFormat> get() = formats.filter { it.url != null }
 
+    /**
+     * Whether this response can be played AT ALL — by a direct URL, or over SABR.
+     *
+     * The distinction matters because YouTube runs its SABR-only experiment per session: when it does,
+     * it strips every format's URL and keeps `serverAbrStreamingUrl` and the ustreamer config, so the
+     * response looks empty to anything that only counts [directlyPlayable] while still carrying
+     * everything the SABR path needs. Judging usefulness by direct URLs alone therefore discarded
+     * precisely the sessions SABR exists to rescue — measured 2026-08-19, a stripped response still
+     * served bytes for itags 140, 135 and 134.
+     *
+     * ONE definition, because two callers ask it (`InnerTubePlayerStreams.playable` and
+     * `AppContainer.withPlayableStreams`) and a second copy would drift.
+     */
+    public val playableSomehow: Boolean
+        get() = directlyPlayable.isNotEmpty() || (serverAbrStreamingUrl != null && ustreamerConfig != null)
+
     /** The best height YouTube offers, whether or not we can currently fetch it. */
     public val bestOfferedHeight: Int? get() = formats.mapNotNull { it.height }.maxOrNull()
 

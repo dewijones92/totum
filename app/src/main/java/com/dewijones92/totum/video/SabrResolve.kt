@@ -43,6 +43,19 @@ internal object SabrResolve {
         val endpoint = streaming.serverAbrStreamingUrl?.value ?: return refuse(videoId, "no SABR endpoint")
         val config = streaming.ustreamerConfig ?: return refuse(videoId, "no ustreamer config")
         val known = details ?: return refuse(videoId, "no videoDetails")
+        // LIVE is refused BY NAME, so it falls back to extraction and keeps playing.
+        //
+        // SABR fetches a live stream's bytes perfectly well -- measured 2026-08-19, one fetch returned
+        // 902900B and kept 820060B -- but the player never becomes ready, because a live stream joins
+        // mid-broadcast and its media arrives with NO initialization segment:
+        //     VOD  run 0 init=true  startBytes=0    length=2249   <- the moov
+        //     LIVE run 1 init=false startBytes=0    seq=2770558   <- nothing to parse it with
+        // The init data is sent, in the FORMAT_INITIALIZATION_METADATA part this library ignores, so
+        // this is buildable rather than impossible. Until it is built, refusing is what plays.
+        // See ALiveStreamIsNotRefusedBySabrTest and docs/todos/sabr-live-needs-an-init-segment.md.
+        if (known.lengthSeconds == null) {
+            return refuse(videoId, "a live stream: its media has no initialization segment SABR can play yet")
+        }
 
         val audio = streaming.formats.bestAudio(wanted) ?: return refuse(videoId, "no identifiable audio format")
         // Video works now. MEDIA parts are routed by the header id they CARRY rather than by
@@ -84,7 +97,7 @@ internal object SabrResolve {
      */
     private fun List<PlayableFormat>.bestAudio(wanted: List<String>): PlayableFormat? =
         filter { it.mimeType?.startsWith("audio/") == true }
-            .filter { it.lastModified != null && it.itag !in REFUSED_ITAGS }
+            .filter { it.itag !in REFUSED_ITAGS }
             .maxWithOrNull(
                 compareBy(audioLanguagePreference(wanted)) { format: PlayableFormat -> format.audioTag }
                     .thenBy { it.bitrate ?: 0 },
@@ -124,10 +137,21 @@ internal object SabrResolve {
             // one 4K video was 480p. That is worse quality but it PLAYS, where before the whole
             // request came back empty.
             .filterNot { (it.fps ?: 0) > MAX_SABR_FPS }
-            .filter { it.lastModified != null && (it.height ?: 0) <= MAX_SABR_HEIGHT }
+            .filter { (it.height ?: 0) <= MAX_SABR_HEIGHT }
             .maxByOrNull { it.height ?: 0 }
 
-    private fun PlayableFormat.toSabrFormat() = SabrFormat(itag, lastModified!!, xtags, contentLength)
+    /**
+     * `lastModified` is ZERO when YouTube did not send one, which is every format of every LIVE stream.
+     *
+     * It was required, on the reasonable-sounding grounds that it identifies the format — and that cost
+     * the app every live stream over SABR. Measured against a real live stream on 2026-08-19: all 13
+     * formats carried no `lastModified`, and asking SABR for them with 0 served anyway —
+     * audio itag 140 gave 81593B, video itag 135 (480p30) gave 236435B, itag 134 (360p30) gave 133581B.
+     * So the requirement was ours rather than YouTube's, and it was refusing streams YouTube would serve.
+     *
+     * See ALiveStreamIsNotRefusedBySabrTest.
+     */
+    private fun PlayableFormat.toSabrFormat() = SabrFormat(itag, lastModified ?: 0L, xtags, contentLength)
 
     /**
      * The quality the user is ACTUALLY getting, against what YouTube offered.

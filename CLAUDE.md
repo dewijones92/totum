@@ -111,13 +111,18 @@ On-device testing matters: the podcast RSS bug (Android's Expat parser rejecting
 `DocumentBuilder` bean-property toggles) passed every JVM test and only surfaced
 when driven on the emulator. Verify real flows on a device, not just via tests.
 
-### The emulator: `totum-api35`, and it is SIGNED IN to YouTube
+### The emulator: `totum-api35`, and its YouTube sign-in is perishable
 
 The project's emulator AVD is **`totum-api35`** (API 35, x86_64). Boot it with
 `-gpu swiftshader_indirect` — the hardware GPU segfaults on sustained 4K/live decode and takes the whole
 emulator down mid-test.
 
-**It holds a real YouTube sign-in, and that is expensive to replace.** Signing in needs a device code
+**It is signed OUT as of 2026-08-19 evening, and this section claimed otherwise for a few hours.** The
+sign-in was restored that afternoon and then lost when WSL restarted: the emulator was killed uncleanly
+and came back on an older snapshot with the app not even installed. So a sign-in survives an ordinary
+reboot only if the emulator is shut down cleanly — treat it as perishable and check rather than assume.
+
+**A sign-in is expensive to replace, whoever holds it.** Signing in needs a device code
 approved by hand at google.com/device: the automation browser profile is signed out, so nobody but Dewi
 can do it, and a code is single-use and short-lived. Treat the token as an asset:
 
