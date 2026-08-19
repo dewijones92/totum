@@ -23,3 +23,4 @@ com.dewijones92.totum.video.live.SignedInVersusAnonymousPlayerTest
 com.dewijones92.totum.video.live.SabrPlaysAcrossVideoTypesTest
 com.dewijones92.totum.video.live.WhatSabrWillServeTest
 com.dewijones92.totum.video.live.SabrKeepsServingTest
+com.dewijones92.totum.video.live.AutoDownloadFetchesTheAudioTest
