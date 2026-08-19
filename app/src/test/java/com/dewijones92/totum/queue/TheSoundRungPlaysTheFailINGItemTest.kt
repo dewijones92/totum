@@ -159,6 +159,46 @@ class TheSoundRungPlaysTheFailINGItemTest {
     }
 
     /**
+     * Once the picture is given up on, it must STAY given up on for that item.
+     *
+     * From Dewi's Pixel (0.1.437, commit c65a750), note *"tennis video not working????"*. The rescue
+     * fired correctly and was then undone 4.3 seconds later, over and over:
+     *
+     * ```
+     * 09:51:47  403 -> refused -> keeping the sound without its picture   (audio plays)
+     * 09:51:52  stream 1080p av01... (merged)                            (video AGAIN)
+     * 09:52:00  403 again
+     * 09:52:10  video AGAIN
+     * ```
+     *
+     * `listen()` sets a flag on the LAUNCHER, but every route decides from the persisted playback mode —
+     * which was VIDEO — so the next automatic route went straight back to the stream that had just been
+     * refused. Each cycle costs a 10-14 second extraction, and what the person sees is a video that
+     * stops every few seconds forever.
+     *
+     * So the refusal is remembered per item, for the session, and automatic routes for it prefer the
+     * sound. A deliberate tap on Watch still clears it — an automatic decision that cannot be overruled
+     * is worse than no automatic decision.
+     */
+    @Test
+    fun `a refused picture stays refused for that item`() = runTest {
+        queue.playNow(video())
+        advanceUntilIdle()
+        queue.playCurrentWithoutThePicture(positionMs = 120_000)
+        advanceUntilIdle()
+
+        // Anything that routes the item again — a recovery replay, a refresh, an advance back to it.
+        queue.replayCurrent(positionMs = 130_000)
+        advanceUntilIdle()
+
+        assertEquals(
+            "the video stream was just refused, so re-routing must not ask for it again",
+            VIDEO_AUDIO_URL,
+            controller.lastItem?.mediaUrl?.value,
+        )
+    }
+
+    /**
      * A TORRENT has a picture to lose, and its own audio-only stream to fall back to.
      *
      * It is a `PlayHandle.Podcast` — the pillar-shaped guard refused it — but it is one file carrying

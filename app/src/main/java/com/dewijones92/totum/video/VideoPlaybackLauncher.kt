@@ -138,7 +138,16 @@ class VideoPlaybackLauncher(
         watchUrl: HttpUrl,
         startPositionMs: Long = 0,
         request: Long = beginPlay(),
-    ): Boolean = play(listing, watchUrl, startPositionMs, request) {
+        /**
+         * Forces the sound-only stream, whatever the playback mode says.
+         *
+         * The caller knows something the mode does not: this item's PICTURE has already been refused.
+         * Without it the sound-only rescue was undone by the very next route -- the mode was VIDEO, so
+         * `audioPreferred()` said no, and the item flapped between audio that worked and video that
+         * 403'd, at a 10-14 second extraction per cycle (0.1.437, "tennis video not working????").
+         */
+        audioOnly: Boolean = false,
+    ): Boolean = play(Attempt(listing, watchUrl, startPositionMs, request, audioOnly)) {
         // `asked` names WHO wanted this, because a report showed one video extracted four
         // times in thirty seconds and the log could not say by whom.
         resolver.resolve(watchUrl, listing.sourceId, asked = "play")
@@ -153,17 +162,28 @@ class VideoPlaybackLauncher(
      * the history, tracking and quality state quietly wrong.
      */
     suspend fun playAsRescue(listing: MediaItem, watchUrl: HttpUrl, startPositionMs: Long = 0): Boolean =
-        play(listing, watchUrl, startPositionMs, beginPlay()) {
+        play(Attempt(listing, watchUrl, startPositionMs, beginPlay(), audioOnly = false)) {
             resolver.resolveAsRescue(watchUrl, listing.sourceId)
         }
 
+    /** One play's inputs, grouped so the shared body does not need a six-argument signature. */
+    private data class Attempt(
+        val listing: MediaItem,
+        val watchUrl: HttpUrl,
+        val startPositionMs: Long,
+        val request: Long,
+        val audioOnly: Boolean,
+    )
+
     private suspend fun play(
-        listing: MediaItem,
-        watchUrl: HttpUrl,
-        startPositionMs: Long,
-        request: Long,
+        attempt: Attempt,
         resolve: suspend () -> VideoResolver.Resolved?,
     ): Boolean {
+        val listing = attempt.listing
+        val watchUrl = attempt.watchUrl
+        val startPositionMs = attempt.startPositionMs
+        val request = attempt.request
+        val audioOnly = attempt.audioOnly
         val extracted = resolve() ?: return false
         if (request != latestRequest.get()) {
             // True rather than false: something IS playing, just not this. Returning false makes
@@ -198,7 +218,13 @@ class VideoPlaybackLauncher(
         // startPositionMs on BOTH branches. The audio branch dropped it, so a rescue that asked to
         // resume an hour in restarted from zero whenever the mode was audio -- which every diagnostics
         // report from Dewi's phone says it is.
-        if (audioPreferred() && resolved.audioOnlyUrl != null) {
+        if ((audioOnly || audioPreferred()) && resolved.audioOnlyUrl != null) {
+            if (audioOnly) {
+                Diag.log(
+                    "playback",
+                    "${resolved.item.id.value} plays as sound only — its picture was refused earlier",
+                )
+            }
             listen(startPositionMs)
         } else {
             playVideoQuality(resolved, startPositionMs)

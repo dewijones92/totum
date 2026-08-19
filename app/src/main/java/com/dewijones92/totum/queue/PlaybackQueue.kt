@@ -145,6 +145,28 @@ class PlaybackQueue(
     private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
 
     /**
+     * Items whose PICTURE has been given up on this session, so automatic routes ask for the sound.
+     *
+     * Without this the rescue was undone within seconds and the item flapped. Reported from a real device
+     * (0.1.437, commit c65a750, "tennis video not working????"): 403 at 09:51:47 -> refused -> sound kept
+     * -> a video route at 09:51:52 -> 403 again at 09:52:00 -> video again at 09:52:10. `listen()` sets a
+     * flag on the LAUNCHER, but every route decides from the persisted playback mode -- VIDEO in his case
+     * -- so the next automatic route went straight back to the stream just refused, at a 10-14 second
+     * extraction per cycle. What he saw was a video stopping every few seconds, forever.
+     *
+     * Per item and per session: it is a fact about these streams right now. Cleared by a deliberate tap on
+     * Watch, because an automatic decision that cannot be overruled is worse than no automatic decision.
+     */
+    private val pictureGivenUpOn = mutableSetOf<String>()
+
+    /** Forgets the refusal for [id] — the person has asked for the picture back. */
+    fun wantsThePictureAgain(id: MediaItemId) {
+        if (pictureGivenUpOn.remove(id.value)) {
+            Diag.log("playback", "${id.value} asked for its picture back; routes will try the video again")
+        }
+    }
+
+    /**
      * Every play that was somebody's *intent* — a tap, an auto-advance, a peek — as opposed to
      * recovery replaying what is already current after a stream died.
      *
@@ -598,6 +620,8 @@ class PlaybackQueue(
             return false
         }
         val kept = launcher.listenIfPossible(item.item.id, positionMs)
+        // STICKY, or the next automatic route undoes it -- see [pictureGivenUpOn].
+        if (kept) pictureGivenUpOn.add(item.item.id.value)
         Diag.log(
             "playback",
             if (kept) {
@@ -688,7 +712,7 @@ class PlaybackQueue(
         val request = launcher.beginPlay()
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
-        val audioNow = forceAudio || audioPreferred()
+        val audioNow = forceAudio || queued.item.id.value in pictureGivenUpOn || audioPreferred()
         val route = queued.routeNow(
             onDisk,
             offline = offlineNow,
@@ -720,7 +744,13 @@ class PlaybackQueue(
                 true
             }
             is PlayRoute.VideoStream ->
-                launcher.play(route.playable.item, route.watchUrl, startPositionMs, request)
+                launcher.play(
+                    route.playable.item,
+                    route.watchUrl,
+                    startPositionMs,
+                    request,
+                    audioOnly = queued.item.id.value in pictureGivenUpOn,
+                )
             is PlayRoute.AudioStream -> {
                 controller.play(route.playable.item, queued.handle.pillar, startPositionMs = startPositionMs)
                 true

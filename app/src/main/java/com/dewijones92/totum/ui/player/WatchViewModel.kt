@@ -79,6 +79,7 @@ constructor(
     /** Switches to video and makes that the mode. */
     fun watch() {
         preferences.setPlaybackMode(PlaybackMode.VIDEO)
+        clearAnyEarlierRefusal()
         launcher.watch()
     }
 
@@ -86,7 +87,22 @@ constructor(
      * Watches **this item only**, leaving the mode alone — for the unambiguous
      * "I want to see this" signals (Shorts, an explicit fullscreen tap).
      */
-    fun watchOnce(): Unit = launcher.watch()
+    fun watchOnce() {
+        clearAnyEarlierRefusal()
+        launcher.watch()
+    }
+
+    /**
+     * Lets the picture be tried again for the item playing.
+     *
+     * The sound-only rescue is sticky per item, or the next automatic route undoes it and the item flaps
+     * (0.1.437, "tennis video not working????"). Sticky must not mean permanent: asking for the picture by
+     * hand is exactly the signal that overrules it, and an automatic decision that cannot be overruled is
+     * worse than no automatic decision.
+     */
+    private fun clearAnyEarlierRefusal() {
+        queue.nowPlaying.value?.item?.id?.let(queue::wantsThePictureAgain)
+    }
 
     sealed interface CommentsState {
         data object Loading : CommentsState
