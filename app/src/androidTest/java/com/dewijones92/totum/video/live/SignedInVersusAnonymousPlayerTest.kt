@@ -12,7 +12,7 @@ import com.dewijones92.totum.innertube.player.StreamingData
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -51,7 +51,11 @@ class SignedInVersusAnonymousPlayerTest {
     fun signedInAndAnonymousComparedOnOneVideo() = runBlocking {
         val account = app.container.youTubeAccount
         val token = (account.accessToken() as? AccessTokenResult.Available)?.token
-        assertTrue(
+        // SKIPPED, not failed, when there is no account. The comparison genuinely cannot be made on a
+        // signed-out device, and a red build teaches people to ignore red — this is registered
+        // `manual:` for the same reason, but assuming here means it degrades gracefully if it is ever
+        // run somewhere unattended.
+        assumeTrue(
             "this device is not signed in, so the comparison cannot be made — run " +
                 "SignInOnThisDeviceTest first (see CLAUDE.md)",
             token != null,

@@ -28,7 +28,9 @@ PACKAGE = "com.dewijones92.totum.video.live"
 def registered() -> set[str]:
     return {
         line.strip()
-        for line in LIST.read_text().splitlines()
+        # `manual:` marks a test excluded from CI and not run in the live phase either; it is still
+        # REGISTERED, which is what this check is about.
+        for line in (l.removeprefix("manual:") for l in LIST.read_text().splitlines())
         if line.strip() and not line.startswith("#")
     }
 

@@ -79,7 +79,8 @@ echo "[live-test] LAN unreachable from the CI peer, as intended"
 # The same ONE list ci.yml excludes, so a test cannot be skipped there and unrun here.
 # NOT `package=` plus `class=`: AndroidJUnitRunner INTERSECTS those rather than unioning them, and the
 # combination ran a single test while silently skipping the rest — green, with no live coverage.
-LIVE=$(grep -vE '^[[:space:]]*(#|$)' "$(dirname "$0")/live-instrumented-tests.txt" | paste -sd,)
+# `manual:` entries are excluded from CI but not run HERE either — see the file's own header.
+LIVE=$(grep -vE '^[[:space:]]*(#|$)' "$(dirname "$0")/live-instrumented-tests.txt" | grep -v '^manual:' | paste -sd,)
 # An EMPTY list must stop the script, not run silently. In ci.yml the same expansion came back empty
 # (each line of android-emulator-runner's `script:` runs in its own shell, so the assignment was lost)
 # and the job excluded nothing at all -- a wrong filter that announced itself only as a blank value in

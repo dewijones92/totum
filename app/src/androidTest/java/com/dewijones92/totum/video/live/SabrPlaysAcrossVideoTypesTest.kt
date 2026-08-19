@@ -165,13 +165,20 @@ class SabrPlaysAcrossVideoTypesTest {
             if (!ready.await(READY_SECONDS, TimeUnit.SECONDS)) {
                 return Outcome(label, resolved = true, detail = "never became ready", 0, false)
             }
-            failure[0]?.let {
+            failure[0]?.let { error ->
+                // The CAUSE, not just "Source error". ExoPlayer's top-level message is a CATEGORY, and
+                // CI reported exactly that for the 19-second clip while the same fixture played fine
+                // here — a failure that cannot tell a refused stream from a missing codec is one nobody
+                // can act on. errorCodeName names the class; the cause chain names the thing.
+                val code = (error as? PlaybackException)?.errorCodeName ?: "?"
+                val root = generateSequence(error.cause) { it.cause }.lastOrNull()
                 return Outcome(
-                    label,
+                    label = label,
                     resolved = true,
-                    detail = "player error: ${it.message?.take(TRAIL_CHARS)}",
-                    0,
-                    false
+                    detail = "player error $code: ${error.message?.take(SHORT_CHARS)} <- " +
+                        (root?.let { "${it::class.simpleName}: ${it.message?.take(SHORT_CHARS)}" } ?: "no cause"),
+                    playedMs = 0,
+                    hadPicture = false,
                 )
             }
             // The position REACHED, not "did it clear the bar". Reporting 0 for a stream that got to
@@ -230,5 +237,6 @@ class SabrPlaysAcrossVideoTypesTest {
         const val MIN_POSITION_MS = 10_000L
         const val POLL_MS = 250L
         const val TRAIL_CHARS = 160
+        const val SHORT_CHARS = 90
     }
 }

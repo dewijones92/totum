@@ -9,6 +9,13 @@
 # Excluding by package instead was tried and is WRONG: AndroidJUnitRunner INTERSECTS `package=` with
 # `class=` rather than unioning them, so `package=…video.live` plus the older classes ran ONE test and
 # silently skipped the rest — a green build with no live coverage at all.
+#
+# A line may be prefixed `manual:` — still excluded from the ordinary CI job, but NOT run in the live
+# phase either. That is for a test no unattended run can pass: SignInOnThisDeviceTest waits nine minutes
+# for a person to type a code at google.com/device, and SignedInVersusAnonymousPlayerTest needs a device
+# that is signed in. Registered here without it on 2026-08-19, both went red every run AND took the
+# emulator job from about thirteen minutes to twenty-eight. Both consumers of this file understand the
+# prefix, so there is still ONE list.
 com.dewijones92.totum.sabr.SabrPlaybackTest
 com.dewijones92.totum.playback.LiveDownloadedVideoOfflineTest
 com.dewijones92.totum.playback.LiveSabrDownloadTest
@@ -18,8 +25,8 @@ com.dewijones92.totum.video.live.SeekDeepIntoALongVideoTest
 com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest
 com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
 com.dewijones92.totum.video.live.FourKActuallyPlaysTest
-com.dewijones92.totum.account.SignInOnThisDeviceTest
-com.dewijones92.totum.video.live.SignedInVersusAnonymousPlayerTest
+manual:com.dewijones92.totum.account.SignInOnThisDeviceTest
+manual:com.dewijones92.totum.video.live.SignedInVersusAnonymousPlayerTest
 com.dewijones92.totum.video.live.SabrPlaysAcrossVideoTypesTest
 com.dewijones92.totum.video.live.WhatSabrWillServeTest
 com.dewijones92.totum.video.live.SabrKeepsServingTest
