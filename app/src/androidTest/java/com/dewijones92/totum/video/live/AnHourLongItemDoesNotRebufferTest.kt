@@ -105,8 +105,10 @@ class AnHourLongItemDoesNotRebufferTest {
 
         var rebuffers = 0
         var wasBuffering = false
-        val startedAt = controller.state.value?.positionMs ?: 0L
+        val startedAt = controller.state.value?.bufferedPositionMs ?: 0L
+        val playedFrom = controller.state.value?.positionMs ?: 0L
         var reached = startedAt
+        var played = playedFrom
         val stalls = mutableListOf<String>()
         val until = System.currentTimeMillis() + WATCH_MS
         while (System.currentTimeMillis() < until) {
@@ -121,7 +123,13 @@ class AnHourLongItemDoesNotRebufferTest {
                 stalls += "at ${state.positionMs}ms: " + (lastPlaybackNote() ?: "nothing logged")
             }
             wasBuffering = state.isBuffering
-            reached = state.positionMs
+            // BUFFERED position, not playback position. Buffering is about DATA arriving, and playback
+            // position is about decode: CI's emulator renders 1080p in software and cannot hold real
+            // time, so it advanced 44230ms of a 60000ms window while the stream itself kept up fine.
+            // Asserting on playback position measured that machine's decoder and called it a verdict on
+            // streaming — the same mistake, in its third disguise, in one evening.
+            reached = state.bufferedPositionMs
+            played = state.positionMs
         }
         // The DELTA, not the absolute position. The queue resumes where it left off, so the video case
         // began at ~59s (where the audio case stopped) and "reached 74234ms of 60000ms" — a number that
@@ -130,14 +138,26 @@ class AnHourLongItemDoesNotRebufferTest {
 
         Log.i(
             "dewidebug",
-            "no-rebuffer $what: rebuffers=$rebuffers progressed=${progressed}ms of ${WATCH_MS}ms " +
-                "(from ${startedAt}ms to ${reached}ms)" + stalls.joinToString(prefix = " stalls[", postfix = "]"),
+            "no-rebuffer $what: rebuffers=$rebuffers buffered=${progressed}ms of ${WATCH_MS}ms " +
+                "(${startedAt}ms->${reached}ms) rendered=${played - playedFrom}ms" +
+                stalls.joinToString(prefix = " stalls[", postfix = "]"),
         )
         // PROGRESS first, because its absence is what the previous version of this test could not see.
+        // The GUARD, not the measurement. `rebuffers == 0` is the property being asserted; this only has
+        // to rule out the case that made a corpse look healthy — a player that stopped entirely reports
+        // no buffering either. So the bar is deliberately low: CI's emulator renders 1080p in software
+        // and reached 44230ms of a 60000ms window while the stream was perfectly fine, and failing that
+        // build measured its decoder rather than the app.
+        //
+        // Buffered position cannot serve here, tempting though it looks: it is a LEVEL, not a flow. The
+        // video case sat at 300901ms for the whole window because the buffer was already five minutes
+        // ahead and full, so its delta was zero while everything worked.
+        val rendered = played - playedFrom
         assertTrue(
-            "playing $what advanced only ${progressed}ms in ${WATCH_MS}ms — it stopped rather than " +
-                "played, and a stopped player reports no buffering at all, which is how this passed before",
-            progressed >= WATCH_MS * MIN_PROGRESS_NUMERATOR / MIN_PROGRESS_DENOMINATOR,
+            "playing $what rendered only ${rendered}ms in ${WATCH_MS}ms — it stopped rather than played, " +
+                "and a stopped player reports no buffering at all, which is how this passed before " +
+                "(buffered ${progressed}ms, ${startedAt}ms->${reached}ms)",
+            rendered >= WATCH_MS / STOPPED_UNLESS_FRACTION,
         )
         assertTrue(
             "playing $what stalled $rebuffers time(s) in ${WATCH_MS / MS_PER_SECOND}s — the spinner " +
@@ -188,12 +208,11 @@ class AnHourLongItemDoesNotRebufferTest {
         const val MS_PER_SECOND = 1_000L
 
         /**
-         * Position must keep up with most of the wall clock. Not all of it: a resolve happens inside the
-         * window and this emulator renders in software, so demanding parity would measure the machine.
-         * Four fifths still fails hard on the thing that matters — a stream that stops.
+         * A third of the window. Low on purpose: this only separates "played" from "stopped", and any
+         * higher bar starts measuring how fast the machine can decode. A stopped stream renders a second
+         * or two and fails this comfortably.
          */
-        const val MIN_PROGRESS_NUMERATOR = 4L
-        const val MIN_PROGRESS_DENOMINATOR = 5L
+        const val STOPPED_UNLESS_FRACTION = 3L
 
         /** ZERO. A tolerance here would hide exactly the regression this exists to catch. */
         const val ALLOWED_REBUFFERS = 0
