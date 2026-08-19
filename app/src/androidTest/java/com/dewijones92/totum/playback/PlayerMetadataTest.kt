@@ -11,7 +11,12 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
@@ -74,10 +79,10 @@ class PlayerMetadataTest {
     @Test
     fun `the view count and both date forms survive the session`() = runBlocking(Dispatchers.Main) {
         val id = "metadata-with-facts"
-        controller.play(itemWithMetadata(id))
 
-        val state = awaitStateFor(id)
-        assertTrue("the player never reported the item as current", state != null)
+        val states = statesFor(id, until = { it.viewsText != null }) { controller.play(itemWithMetadata(id)) }
+        val state = states.firstOrNull { it.viewsText != null }
+        assertTrue("the session never published the item's facts at all: $states", state != null)
 
         assertEquals("the view count did not cross the session", "1.2M views", state!!.viewsText)
         assertEquals("the relative date did not cross the session", "5 days ago", state.publishedText)
@@ -95,13 +100,20 @@ class PlayerMetadataTest {
     fun `an item with no views or date reports neither rather than a placeholder`() =
         runBlocking(Dispatchers.Main) {
             val id = "metadata-with-nothing"
-            controller.play(itemWithMetadata(id, withMetadata = false))
 
-            val state = awaitStateFor(id)
-            assertTrue(state != null)
-            assertEquals("a view count was invented", null, state!!.viewsText)
-            assertEquals("a relative date was invented", null, state.publishedText)
-            assertEquals("an epoch date was invented from the absent sentinel", null, state.publishedAt)
+            val states = statesFor(id, until = { true }) {
+                controller.play(itemWithMetadata(id, withMetadata = false))
+            }
+
+            assertTrue("the player never reported the item as current", states.isNotEmpty())
+            // Against EVERY state it published, not one sample of them: an invented value in a later
+            // publication is exactly as wrong, and the old single read could not have seen it.
+            assertTrue("a view count was invented: $states", states.all { it.viewsText == null })
+            assertTrue("a relative date was invented: $states", states.all { it.publishedText == null })
+            assertTrue(
+                "an epoch date was invented from the absent sentinel: $states",
+                states.all { it.publishedAt == null },
+            )
         }
 
     /**
@@ -113,23 +125,62 @@ class PlayerMetadataTest {
     @Test
     fun `playing from the queue carries the listing facts too`() = runBlocking(Dispatchers.Main) {
         val id = "metadata-via-queue"
-        queue.playNow(PlayableItem(itemWithMetadata(id), PlayHandle.Podcast()))
 
-        val state = awaitStateFor(id)
-        assertEquals("the queue's own play path dropped the view count", "1.2M views", state?.viewsText)
+        val states = statesFor(id, until = { it.viewsText != null }) {
+            queue.playNow(PlayableItem(itemWithMetadata(id), PlayHandle.Podcast()))
+        }
+        val state = states.firstOrNull { it.viewsText != null }
+
+        // An EMPTY list here is a different finding from a state without the facts: it means nothing was
+        // ever published for this item, and with no network and no copy on disk that is the queue
+        // REFUSING to play, which is correct behaviour rather than a metadata bug. Unlike the direct
+        // plays above, this case needs a reachable stream, because routing is the thing under test.
+        assertEquals(
+            "the queue's own play path dropped the view count (states published: $states)",
+            "1.2M views",
+            state?.viewsText,
+        )
         assertEquals("5 days ago", state?.publishedText)
     }
 
     /**
-     * Waits for the player's state to be about [id] specifically.
+     * Every state the session published ABOUT [id], COLLECTED from the stream rather than sampled.
      *
-     * A per-test id, and matched here, because the service outlives a single test and a StateFlow
-     * keeps its last value — so a loop that waited for "any state" would be handed the PREVIOUS
-     * test's, complete with its view count, and pass while proving nothing.
+     * A per-test id, and matched here, because the service outlives a single test and a StateFlow keeps
+     * its last value — so waiting for "any state" would be handed the PREVIOUS test's, complete with its
+     * view count, and pass while proving nothing.
+     *
+     * Collected, because what is being asserted is TRANSIENT and the old poll loop raced it twice over.
+     * The item's URI is unreachable on purpose, and how long that takes to discover is a property of the
+     * machine: locally DNS and connect take long enough that the state is still current when the loop
+     * looks, while on CI there is no route at all, the load fails in **73ms**, the player goes idle and
+     * the session lands on nothing — so `state.value` had already been torn down and the test failed with
+     * "the player never reported the item as current". This class failed that way in two CI runs today
+     * (15feb95, ef8e0cd), and turning the emulator's network off reproduces it exactly.
+     *
+     * And the facts do not necessarily arrive in the FIRST state for an id — the queue's path publishes
+     * a bare one first — so the wait is for a state that satisfies [until] rather than for the id alone.
+     * A list rather than a single state, so "no value was invented" can be asserted against everything
+     * the session said instead of one sample of it.
+     *
+     * [start] is invoked once the collector is running, and the buffer is what stops StateFlow
+     * conflating a publication away while the collector sits between emissions.
      */
-    private suspend fun awaitStateFor(id: String): PlaybackState? = withTimeoutOrNull(TIMEOUT_MS) {
-        while (controller.state.value?.itemId?.value != id) delay(POLL_MS)
-        controller.state.value
+    private suspend fun statesFor(
+        id: String,
+        until: (PlaybackState) -> Boolean,
+        start: suspend () -> Unit,
+    ): List<PlaybackState> = coroutineScope {
+        val seen = mutableListOf<PlaybackState>()
+        val collector = launch {
+            controller.state.buffer(Channel.UNLIMITED).filterNotNull().collect { seen += it }
+        }
+        start()
+        withTimeoutOrNull(TIMEOUT_MS) {
+            while (seen.none { it.itemId.value == id && until(it) }) delay(POLL_MS)
+        }
+        collector.cancel()
+        seen.filter { it.itemId.value == id }
     }
 
     private fun itemWithMetadata(id: String, withMetadata: Boolean = true) = MediaItem(
