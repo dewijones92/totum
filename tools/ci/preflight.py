@@ -30,6 +30,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MANUAL_MARKER = "MANUAL ONLY"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 LIVE_LIST = ROOT / "tools/ci/live-instrumented-tests.txt"
+LIVE_RUNNER = ROOT / "tools/ci/live-test-via-home.sh"
 EMULATOR_ACTION = "reactivecircus/android-emulator-runner"
 
 # A bare `NAME=` assignment at the start of a line, which is what does not survive the runner.
@@ -55,21 +56,46 @@ def check_yaml() -> tuple[int, dict]:
 
 
 def check_live_list_expands() -> int:
-    """Through `sh`, one line, exactly as the workflow does it — not bash, where `\\s` would work."""
-    expansion = (
-        f"grep -vE '^[[:space:]]*(#|$)' {LIVE_LIST.relative_to(ROOT)} | paste -sd,"
-    )
-    result = subprocess.run(["sh", "-c", expansion], cwd=ROOT, capture_output=True, text=True)
-    value = result.stdout.strip()
-    if not value:
+    """
+    Runs the REAL expansions, lifted out of ci.yml and live-test-via-home.sh rather than copied.
+
+    A copy drifts, and this one did within the hour: the `manual:` prefix landed on 2026-08-19 and this
+    check went on exercising the previous command, so it would have passed while ci.yml excluded a class
+    literally named `manual:com.dewijones92...` — which matches nothing, meaning the very tests it meant
+    to exclude would have run in the ordinary job anyway. A guard that quietly stops guarding the thing
+    it is named after is worse than no guard.
+    """
+    ci = re.search(r"L=\$\((grep -vE .*?)\); test", WORKFLOW.read_text())
+    runner = re.search(r"LIVE=\$\((grep -vE [^\n]*?)\)\n", LIVE_RUNNER.read_text())
+    if not ci or not runner:
+        return fail("could not find the live-list expansion in ci.yml or live-test-via-home.sh")
+
+    here = str(LIVE_LIST)
+    excluded = run_sh(re.sub(r'"?\$\(dirname "\$0"\)/live-instrumented-tests.txt"?|tools/ci/live-instrumented-tests.txt', here, ci.group(1)))
+    live = run_sh(re.sub(r'"?\$\(dirname "\$0"\)/live-instrumented-tests.txt"?', here, runner.group(1)))
+    if not excluded or not live:
         return fail(
-            f"the live-test list expands to NOTHING under sh: {expansion}\n"
-            "      An empty filter excludes nothing (CI) or runs nothing (live phase), and both\n"
-            "      report success having tested nothing."
+            "a live-list expansion came back EMPTY.\n"
+            "      An empty filter excludes nothing (CI) or runs nothing (live phase), and both report\n"
+            "      success having tested nothing."
         )
-    count = len(value.split(","))
-    print(f"  ok: live-test list expands to {count} classes under one-line sh")
-    return 0
+    problems = 0
+    if any(":" in name for name in excluded.split(",")):
+        problems += fail(
+            "ci.yml's exclusion still carries a `manual:` prefix, so it names classes that do not exist\n"
+            "      — and the tests it meant to exclude would run in the ordinary job."
+        )
+    manual = [l.removeprefix("manual:") for l in LIVE_LIST.read_text().splitlines() if l.startswith("manual:")]
+    if any(m in live.split(",") for m in manual):
+        problems += fail("the live phase would run a `manual:` test, which no unattended run can pass")
+    if problems == 0:
+        print(f"  ok: {len(excluded.split(','))} excluded from CI, {len(live.split(','))} run in the live phase")
+    return problems
+
+
+def run_sh(command: str) -> str:
+    """Through `sh`, one line, exactly as the workflow does it — not bash, where `\\s` would work."""
+    return subprocess.run(["sh", "-c", command], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
 def check_no_cross_line_variables(workflow: dict) -> int:

@@ -3,6 +3,7 @@ package com.dewijones92.totum.playback
 import com.dewijones92.totum.sabr.SabrFormat
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Before
@@ -72,6 +73,37 @@ class AReopenContinuesTheSabrConversationTest {
             video,
             audio,
         )
+    }
+
+    /**
+     * A SPENT stream is dropped rather than handed out again.
+     *
+     * Reusing one is worse than the cold restarts the cache was built to stop: the stream ends, the
+     * player reopens, the cache returns the same corpse and it ends again, forever. Measured on
+     * 2026-08-19 as ten identical pairs in the log, the read count climbing and the byte count frozen at
+     * 979459 — and it broke a case that WORKED before the cache existed, because building a fresh stream
+     * is exactly what recovery needs.
+     */
+    @Test
+    fun `a spent stream is not handed out again`() {
+        val uri = SabrSessions.uriFor(VIDEO_ID, VIDEO_ITAG)!!
+        val first = sabrStreamFor(uri)!!
+        // Drive it to exhaustion: a transport that answers with nothing leaves the stream with nothing
+        // left to give, which is the state the real one reaches when YouTube stops serving.
+        runBlocking { runCatching { first.read(0L) } }
+
+        val second = sabrStreamFor(uri)
+
+        if (first.isSpent) {
+            assertNotSame(
+                "a spent stream was handed out again — the player will reopen onto the same dead object " +
+                    "and fail in a loop",
+                first,
+                second,
+            )
+        } else {
+            assertSame("a healthy stream must still be continued, not restarted", first, second)
+        }
     }
 
     private companion object {

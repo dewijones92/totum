@@ -130,6 +130,16 @@ public class SabrStream(
      * Null [contentLength] is never premature: a live stream states no length, and calling its natural
      * end a fault would be worse than the bug this fixes.
      */
+    /**
+     * Whether this stream has nothing left to give, prematurely or otherwise.
+     *
+     * Public so a CACHE can tell a stream worth continuing from a corpse. Reusing a spent one is an
+     * infinite failure loop, measured 2026-08-19: the stream ended short at byte 979459, ExoPlayer
+     * reopened, the cache handed back the same dead object, and it failed again — ten times in a row,
+     * with the read count climbing and the byte count never moving.
+     */
+    public val isSpent: Boolean get() = exhausted
+
     public val endedPrematurely: Boolean
         get() = exhausted && contentLength?.let { served < it } == true
 

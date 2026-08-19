@@ -85,9 +85,19 @@ public fun sabrStreamFor(uri: String): SabrStream? {
     // other's. Bounded by the session store, which evicts at MAX_SESSIONS.
     // See AReopenContinuesTheSabrConversationTest.
     val key = "$videoId:$itag"
-    live[key]?.let {
-        Diag.log("sabr", "reusing the open stream for $videoId itag $itag — ${it.describeProgress()}")
-        return it
+    live[key]?.let { held ->
+        // A SPENT stream is dropped, not reused. Reusing one is an infinite failure loop: it ends,
+        // ExoPlayer reopens, the cache hands back the same corpse and it ends again — measured
+        // 2026-08-19 as ten identical "stopped short at byte 979459" / "reusing the open stream" pairs
+        // with the byte count never moving. A fresh stream is exactly what recovery needs there, and
+        // building one is what this cache had been doing accidentally before it existed.
+        if (held.isSpent) {
+            Diag.log("sabr", "the held stream for $videoId itag $itag is spent — starting a fresh one")
+            live.remove(key)
+        } else {
+            Diag.log("sabr", "reusing the open stream for $videoId itag $itag — ${held.describeProgress()}")
+            return held
+        }
     }
     Diag.log("sabr", "serving $videoId itag $itag as $kind")
     return SabrStream(
