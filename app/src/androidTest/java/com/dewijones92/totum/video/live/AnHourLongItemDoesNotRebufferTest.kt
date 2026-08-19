@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -161,7 +162,21 @@ class AnHourLongItemDoesNotRebufferTest {
          * Long enough to cross several SABR round trips — a fetch carries roughly ten seconds of media,
          * so this is six or more, well past where a cold reopen or an exhausted stream would show.
          */
-        const val WATCH_MS = 60_000L
+        /**
+         * Sixty seconds by default, overridable for a real soak:
+         *
+         * ```
+         * adb shell am instrument -w -e soakMs 600000 \
+         *   -e class com.dewijones92.totum.video.live.AnHourLongItemDoesNotRebufferTest \
+         *   com.dewijones92.totum.test/androidx.test.runner.AndroidJUnitRunner
+         * ```
+         *
+         * The default has to stay short enough for CI to run it on every push, and "an hour-long video"
+         * deserves better evidence than one minute of it — so the same code does both rather than a
+         * second copy drifting from the first.
+         */
+        val WATCH_MS: Long = InstrumentationRegistry.getArguments()
+            .getString("soakMs")?.toLongOrNull() ?: 60_000L
         const val GRACE_MS = 30_000L
         const val READY_SECONDS = 60L
         const val POLL_MS = 500L
