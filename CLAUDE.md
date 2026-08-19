@@ -111,6 +111,29 @@ On-device testing matters: the podcast RSS bug (Android's Expat parser rejecting
 `DocumentBuilder` bean-property toggles) passed every JVM test and only surfaced
 when driven on the emulator. Verify real flows on a device, not just via tests.
 
+### The emulator: `totum-api35`, and it is SIGNED IN to YouTube
+
+The project's emulator AVD is **`totum-api35`** (API 35, x86_64). Boot it with
+`-gpu swiftshader_indirect` — the hardware GPU segfaults on sustained 4K/live decode and takes the whole
+emulator down mid-test.
+
+**It holds a real YouTube sign-in, and that is expensive to replace.** Signing in needs a device code
+approved by hand at google.com/device: the automation browser profile is signed out, so nobody but Dewi
+can do it, and a code is single-use and short-lived. Treat the token as an asset:
+
+- **`./gradlew connectedAndroidTest` UNINSTALLS the app when it finishes**, which destroys the sign-in.
+  So does `pm clear` and any reinstall that wipes data. Check `run-as com.dewijones92.totum ls
+  shared_prefs/` for a non-empty `youtube_account.xml` before and after anything drastic.
+- **A test must never touch the real token store.** `SharedPrefsTokenStore` takes a `prefsName` for
+  exactly that reason — `ASignInSurvivesTheProcessTest` clears its own file, and the version that used
+  the default signed the device out (2026-08-19, throwing away an approval from minutes earlier).
+- To sign in without the UI, run `SignInOnThisDeviceTest` and watch logcat for `dewidebug signin code`.
+  It drives the real `YouTubeAccount.signIn()`, which persists the tokens itself.
+
+Signed-in state matters for more than convenience: the subs feed, history, comments and likes all need
+it, and `docs/todos/youtube-requires-attestation.md` turns on whether a **signed-in TV `/player`** behaves
+differently from an anonymous one — which cannot be tested on a signed-out device.
+
 - JDK 21 lives at `/home/dewi/code/jdk/`; Android SDK at `/home/dewi/code/android-sdk`
   (see `local.properties`, not committed).
 - The `android` CLI (`~/.local/bin/android`) is available for emulators, screenshots,

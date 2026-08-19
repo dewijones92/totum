@@ -18,3 +18,4 @@ com.dewijones92.totum.video.live.SeekDeepIntoALongVideoTest
 com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest
 com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
 com.dewijones92.totum.video.live.FourKActuallyPlaysTest
+com.dewijones92.totum.account.SignInOnThisDeviceTest
