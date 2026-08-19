@@ -4,7 +4,7 @@ kind: todo
 area: playback
 priority: critical
 status: open — root cause identified and measured; the fix (a PO token) is not built
-updated: 2026-08-18
+updated: 2026-08-19
 ---
 
 # Nothing streams, and it is not our code
@@ -409,3 +409,43 @@ healthy extraction, two of them real, and a ~1KB WARN on every single resolve.
 silent, and `lib/ytdlp-chaquopy/src/test/python/totum_ytdlp_test.py` pins it against the real transcript.
 A healthy extraction now produces **no notes at all**, which is what makes the line meaningful when one
 does appear.
+
+## YouTube now says it out loud: `status=3` (2026-08-19)
+
+The whole story above was inferred from symptoms — stripped URLs, a first megabyte, 403s. As of a report
+from Dewi's Pixel (0.1.437, commit c65a750) it is stated outright on every SABR fetch:
+
+```
+itag 137 was refused: parts=[SELECTABLE_FORMATS, PLAYBACK_START_POLICY,
+    STREAM_PROTECTION_STATUS, NEXT_REQUEST_POLICY]  protection=status=3,2=10
+```
+
+`StreamProtectionStatus.status = 3` is **attestation required**, `max_retries = 10`. It serves 968 bytes
+and then nothing.
+
+**This datum had never reached a report before today.** The hand-written part table read
+`STREAM_PROTECTION_STATUS` at id 35, which is really `NEXT_REQUEST_POLICY` — so the field being decoded
+was a backoff in milliseconds, which is exactly the "field 1 reads 9000 then 8000, so that assumption
+was simply wrong" note that sat unexplained in `ResponseSummary`. Regenerating the table from the proto
+turned an eight-day-old mystery into a one-line answer.
+
+## So: is SABR the problem? No — and this corrects earlier advice
+
+Dewi asked the right question: *"sabr???? but thats what smarttube uses isnt it??"* It is, and the
+distinction matters:
+
+* **SABR is the correct protocol** and the one SmartTube uses. Nothing is wrong with choosing it.
+* **SmartTube is a signed-in TV client**, and that identity is what satisfies attestation. Ours cannot
+  be: `TVHTML5` `/player` answers `UNPLAYABLE: The page needs to be reloaded` for every request we can
+  construct — see `tv-client-player-is-refused.md`, where version, user agent, visitorData, headers,
+  scopes and the token are all ruled out by more than twenty probes.
+* **Turning `sabrPlayback` off does NOT get the picture back**, and suggesting it as a fix was wrong.
+  The ordinary route's video URLs are non-durable and 403 too (`durable video=false` in the same
+  report). Turning it off only changes WHICH route fails; the app then degrades to sound either way.
+
+What it does buy is avoiding the unseekable path, since our SABR cannot seek
+(`sabr-cannot-seek.md`) — a real but much smaller benefit than "it would work".
+
+**The single blocker is a PO token.** Every branch of this investigation now ends at the same place, and
+the app's job until then is to degrade honestly: fail rather than fake an ending, keep the sound, and say
+which of the two it did.
