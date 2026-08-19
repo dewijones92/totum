@@ -82,7 +82,14 @@ class ShortsReelAdvanceTest {
         // "something is playing" rather than on s1 keeps openingTheReel_playsTheFirstShort's
         // assertion a real one.
         composeTestRule.waitForIdle()
-        composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value != null }
+        try {
+            composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value != null }
+        } catch (timeout: ComposeTimeoutException) {
+            // Reported for the same reason the waits below are: "the reel never started" and "the reel
+            // advanced wrongly" are different findings, and a bare ComposeTimeoutException here would
+            // read as the second while meaning the first.
+            throw AssertionError("the reel never started playing anything in ${TIMEOUT_MS}ms:\n" + trail(), timeout)
+        }
     }
 
     /**
