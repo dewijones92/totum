@@ -13,6 +13,10 @@ import org.junit.Test
 /**
  * Signs this device in to YouTube, printing the code for a human to approve.
  *
+ * MANUAL ONLY: it waits up to nine minutes for a person to type a code at google.com/device, so no
+ * unattended run can pass it. Registered `manual:` in the live list for that reason — before it was,
+ * CI ran it on every push, failed it every time, and spent most of that wait doing so.
+ *
  * NOT part of any suite: it needs a person at google.com/device, so it is registered as a live test and
  * excluded from CI. It exists because the sign-in screen could not be reached by hand on the emulator on
  * 2026-08-19 (the Library's nav rows did not render) and because the automation browser profile is now

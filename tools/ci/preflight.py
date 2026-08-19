@@ -27,6 +27,7 @@ import sys
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+MANUAL_MARKER = "MANUAL ONLY"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 LIVE_LIST = ROOT / "tools/ci/live-instrumented-tests.txt"
 EMULATOR_ACTION = "reactivecircus/android-emulator-runner"
@@ -148,6 +149,46 @@ def check_shell_syntax(workflow: dict) -> int:
     return problems
 
 
+def check_manual_tests_are_marked() -> int:
+    """
+    A test no unattended run can pass must be `manual:` in the live list, and vice versa.
+
+    Both directions, because both have cost. On 2026-08-19 `SignInOnThisDeviceTest` — which waits NINE
+    MINUTES for a person to type a code at google.com/device — was registered as an ordinary live test,
+    so CI ran it, failed it every time, and spent most of that wait doing so. The reverse is just as
+    bad: marking something `manual:` that could run unattended silently drops its coverage, and nothing
+    would ever say so.
+
+    The declaration lives in the test, next to the reason, rather than in the list: a list entry is
+    easy to copy without noticing, and a source file is where someone editing the test will see it.
+    """
+    listed = LIVE_LIST.read_text().splitlines()
+    entries = [line.strip() for line in listed if line.strip() and not line.strip().startswith("#")]
+    problems = 0
+    for entry in entries:
+        marked_in_list = entry.startswith("manual:")
+        klass = entry.removeprefix("manual:")
+        found = list(ROOT.glob(f"app/src/androidTest/**/{klass.rsplit('.', 1)[-1]}.kt"))
+        if not found:
+            print(f"  PROBLEM: {klass} is in the live list but no such test file exists")
+            print("    A name that matches nothing filters nothing, and reports success having run less.")
+            problems += 1
+            continue
+        declared = MANUAL_MARKER in found[0].read_text()
+        if declared and not marked_in_list:
+            print(f"  PROBLEM: {klass} declares {MANUAL_MARKER} but is not `manual:` in the live list")
+            print("    CI will run it, and it cannot pass unattended.")
+            problems += 1
+        elif marked_in_list and not declared:
+            print(f"  PROBLEM: {klass} is `manual:` in the live list but does not declare {MANUAL_MARKER}")
+            print(f"    Say why in the test itself, or drop the prefix so its coverage actually runs.")
+            problems += 1
+    if not problems:
+        manual = sum(1 for e in entries if e.startswith("manual:"))
+        print(f"  ok: live list agrees with the tests ({len(entries) - manual} run live, {manual} manual-only)")
+    return problems
+
+
 def main() -> int:
     print(f"preflight: {WORKFLOW.relative_to(ROOT)}")
     problems, workflow = check_yaml()
@@ -164,6 +205,7 @@ def main() -> int:
     else:
         print("  ok: all live instrumented tests are registered")
     problems += check_live_list_expands()
+    problems += check_manual_tests_are_marked()
     problems += check_python_tests()
     problems += check_no_cross_line_variables(workflow)
     problems += check_shell_syntax(workflow)

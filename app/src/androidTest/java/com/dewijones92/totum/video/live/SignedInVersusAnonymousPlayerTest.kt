@@ -18,6 +18,10 @@ import org.junit.Test
 /**
  * Does signing in change what YouTube is willing to serve? Measured, on one video, three ways.
  *
+ * MANUAL ONLY: the comparison needs a device that is SIGNED IN, and no unattended runner is. It assumes
+ * rather than asserts that, so running it anyway skips instead of going red — but it is registered
+ * `manual:` so nothing spends live-phase minutes on a test that can only ever skip there.
+ *
  * `docs/todos/youtube-requires-attestation.md` calls this its "most promising lead, unverified", and
  * says in as many words: **test it on a signed-in device before building anything on it**. It could not
  * be tested when it was written because no device here was signed in. One now is.
