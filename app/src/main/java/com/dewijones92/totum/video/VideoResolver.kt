@@ -19,6 +19,7 @@ import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.audioTracks
 import com.dewijones92.totum.ytdlp.bestAudioUrl
 import com.dewijones92.totum.ytdlp.bestPlayableFormat
+import com.dewijones92.totum.ytdlp.isDurableAddress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -241,7 +242,9 @@ class VideoResolver(
         Diag.log(
             "resolve",
             "${metadata.id} in ${now() - startedAt}ms for $asked — " +
-                "${resolved.qualities.size} qualities, ${metadata.subtitles.size} subtitle tracks, " +
+                "${resolved.qualities.size} qualities " +
+                "(${resolved.qualities.count { isDurableAddress(it.videoUrl.value) }} durable), " +
+                "${metadata.subtitles.size} subtitle tracks, " +
                 "audioOnly=${resolved.audioOnlyUrl != null}" +
                 metadata.audioChoice(wanted, metadata.bestPlayableFormat(wanted)),
         )

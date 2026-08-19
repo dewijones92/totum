@@ -208,7 +208,20 @@ private fun byAudioThen(wanted: List<String>, tieBreak: Comparator<MediaFormat>)
  * very URLs that fail and would otherwise be read as a solved `n`.
  */
 public val MediaFormat.isDurable: Boolean
-    get() = url?.let { address -> DECIPHERED_N.any { it.containsMatchIn(address) } } == true
+    get() = isDurableAddress(url)
+
+/**
+ * Whether an address has been through the `n` solve, and so will still serve past its first megabyte.
+ *
+ * The two spellings: a query parameter on a `videoplayback` URL, a path segment on an HLS manifest.
+ *
+ * Public and shared because there are now three callers asking the same question at different moments —
+ * a FORMAT before a quality is chosen ([isDurable]), the URL actually handed to the player, and the
+ * ladder's distribution at resolve time. `VideoPlaybackLauncher` carried a second copy with a note
+ * saying "if a third caller appears, factor it"; this is that.
+ */
+public fun isDurableAddress(url: String?): Boolean =
+    url?.let { address -> DECIPHERED_N.any { it.containsMatchIn(address) } } == true
 
 private val DECIPHERED_N = listOf(
     Regex("""[?&]n=[^&]+"""),

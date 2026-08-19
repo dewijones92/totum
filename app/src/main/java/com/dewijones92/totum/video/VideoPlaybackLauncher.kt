@@ -12,6 +12,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.withStreamFrom
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import com.dewijones92.totum.playback.PlaybackController
+import com.dewijones92.totum.ytdlp.isDurableAddress
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -441,8 +442,7 @@ class VideoPlaybackLauncher(
     }
 
     /** Whether an address carries a solved `n`, in either of the two spellings YouTube uses. */
-    private fun HttpUrl.solvedN(): Boolean =
-        SOLVED_N.any { it.containsMatchIn(value) }
+    private fun HttpUrl.solvedN(): Boolean = isDurableAddress(value)
 
     /** Leaves "Listen" (audio-only) and returns to watching the video, at the saved position. */
     fun watch() {
@@ -478,11 +478,3 @@ class VideoPlaybackLauncher(
         )
     }
 }
-
-/**
- * The two spellings of a solved `n`: a query parameter on a `videoplayback` URL, a path segment on an
- * HLS manifest. Duplicated from `MediaFormat.isDurable` deliberately — that one judges a FORMAT before
- * a quality is chosen, this one describes the URL actually handed to the player, and they are checked
- * at different moments for different reasons. If a third caller appears, factor it.
- */
-private val SOLVED_N = listOf(Regex("""[?&]n=[^&]+"""), Regex("""/n/[^/?&]+"""))
