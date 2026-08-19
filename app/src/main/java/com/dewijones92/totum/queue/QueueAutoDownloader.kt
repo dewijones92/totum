@@ -44,6 +44,19 @@ class QueueAutoDownloader(
      * Supplied by AppContainer, where all pillar routing lives, so this class stays pillar-agnostic.
      */
     private val fetchesAudioOnly: (PlayableItem) -> Boolean = { true },
+    /**
+     * What is playing right now, which is fetched before the rest of the queue.
+     *
+     * Not the cursor: a PEEK leaves `currentIndex` at -1 by design, and a peek is precisely how the
+     * reported case arose. Reported from a real device (0.1.435): a Ms Rachel video he was 52 minutes
+     * into sat first in a 47-item queue with NO download event at all, while the downloader ground
+     * through a podcast that was 403ing and retrying.
+     *
+     * The pass is strictly in order, one at a time, each awaited for up to [settleTimeoutMs] -- so one
+     * slow or retrying item blocks everything behind it, including the one item where a download has
+     * immediate value: what is playing is what the rescue ladder falls back to when the stream stalls.
+     */
+    private val playingNow: () -> MediaItemId? = { null },
     private val maxAttempts: Int = MAX_ATTEMPTS,
     /** How long one download may hold the queue before the next starts anyway. */
     private val settleTimeoutMs: Long = SETTLE_TIMEOUT_MS,
@@ -62,7 +75,15 @@ class QueueAutoDownloader(
             queue.collect { snapshot ->
                 if (!isEnabled() || !isAllowedOnThisNetwork()) return@collect
                 val states = downloads.observeDownloads().first()
-                snapshot.entries.forEach { entry -> download(entry, states) }
+                // Ordering only -- nothing is skipped and no budget changes. The playing item simply
+                // goes to the front of the pass.
+                val playing = playingNow()
+                val ordered = if (playing == null) {
+                    snapshot.entries
+                } else {
+                    snapshot.entries.sortedBy { if (it.item.item.id == playing) 0 else 1 }
+                }
+                ordered.forEach { entry -> download(entry, states) }
             }
         }
     }

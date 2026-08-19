@@ -895,6 +895,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // The one place pillar routing lives. A torrent has no audio-only fetch — the server's
             // audio is HLS — so an automatic "fetch the audio" would silently pull a whole film.
             fetchesAudioOnly = { it.hasAudioOnlyFetch },
+            // NOT the cursor: a peek leaves it at -1 by design, and a peek is how the reported case
+            // arose — a Ms Rachel video 52 minutes in, first in a 47-item queue, with no download
+            // event at all while the pass ground through a 403ing podcast ahead of it.
+            playingNow = { playbackQueue.nowPlaying.value?.item?.id },
         ).start()
     }
 
