@@ -14,6 +14,15 @@ public data class StreamFailure(
     public val itemId: MediaItemId,
     public val positionMs: Long,
     public val reason: Reason,
+    /**
+     * True when a SABR stream stopped short of its stated length.
+     *
+     * Carried separately from [reason] because it answers a different question. [reason] says how
+     * patient to be; this says which ROUTE is at fault, so the next resolve of this item can avoid it —
+     * without it, recovery forgets the resolution and asks `overSabr()` again, which is the route that
+     * just stalled. Reported from a real device (0.1.435): SABR served 1% of a 61-minute video.
+     */
+    public val sabrStalled: Boolean = false,
 ) {
     /**
      * Why it stopped — and therefore what would help, which is not the same for both.

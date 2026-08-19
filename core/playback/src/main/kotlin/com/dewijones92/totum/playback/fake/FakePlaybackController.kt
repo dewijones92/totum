@@ -133,6 +133,10 @@ public class FakePlaybackController : PlaybackController {
             description = item.description,
             kind = kind,
             isPlaying = true,
+            // A played item is INTENDED to play. Without this the fake modelled "moving but not meant
+            // to be", which is a state the real player never reports on a fresh play, and it made the
+            // first toggle after play() read as "start" rather than "stop".
+            wantsToPlay = true,
             positionMs = 0,
             durationMs = item.duration?.inWholeMilliseconds,
             speed = 1.0f,
@@ -150,8 +154,24 @@ public class FakePlaybackController : PlaybackController {
 
     private var subtitleLanguage: String? = null
 
+    /**
+     * Toggles INTENT, like the real controller — not motion.
+     *
+     * It flipped `isPlaying`, which is a different thing while BUFFERING: a stalling stream reports
+     * `isPlaying = false` with `wantsToPlay = true`, so a fake that flips motion would model a tap as
+     * "start playing" when the real player pauses. That is the very bug this models (the real
+     * `togglePlayPause` branched on `isPlaying`, so pause was inert on a spinner), and a fake that gets
+     * it wrong lets a test pass on either behaviour.
+     *
+     * `isPlaying` follows intent EXCEPT while buffering, where the player is trying and failing.
+     */
     override fun togglePlayPause() {
-        _state.update { it?.copy(isPlaying = !it.isPlaying) }
+        _state.update { state ->
+            state?.let {
+                val wants = !it.wantsToPlay
+                it.copy(wantsToPlay = wants, isPlaying = wants && !it.isBuffering)
+            }
+        }
     }
 
     override fun seekTo(positionMs: Long) {

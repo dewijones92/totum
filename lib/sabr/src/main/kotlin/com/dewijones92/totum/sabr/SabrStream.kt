@@ -110,6 +110,20 @@ public class SabrStream(
     public val contentLength: Long? get() = totalBytes
 
     /**
+     * Whether this stream stopped SHORT of the length it stated.
+     *
+     * The state behind the `PREMATURE END` warning, exposed so something can act on it. From a real
+     * report (0.1.435, commit 3a31b58): itag 251 served 920030B of 53458433B — 1% of a 61-minute video
+     * — and `SabrDataSource` reported plain end-of-input, so ExoPlayer believed the video had finished.
+     * Every later seek then "succeeded" instantly into a stream that was not there.
+     *
+     * Null [contentLength] is never premature: a live stream states no length, and calling its natural
+     * end a fault would be worse than the bug this fixes.
+     */
+    public val endedPrematurely: Boolean
+        get() = exhausted && contentLength?.let { served < it } == true
+
+    /**
      * Bytes starting at [from], or empty when the stream is finished.
      *
      * Fetches as needed. Returns what is contiguously available rather than a fixed size,

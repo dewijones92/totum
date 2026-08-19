@@ -98,9 +98,12 @@ def check_no_cross_line_variables(workflow: dict) -> int:
     return problems
 
 
-PYTHON_TESTS = [
-    "tools/ci/youtube_canary_test.py",
-    "lib/ytdlp-chaquopy/src/test/python/totum_ytdlp_test.py",
+# DISCOVERED, not listed. The hand-kept version was already incomplete on the day it was written --
+# it omitted tools/ci/test_summary_test.py, which CI runs -- while its docstring claimed to cover "the
+# plain-Python test suites". That is the exact drift this file exists to prevent, on this file.
+PYTHON_TEST_GLOBS = [
+    "tools/ci/*_test.py",
+    "**/src/test/python/*_test.py",
 ]
 
 
@@ -112,11 +115,11 @@ def check_python_tests() -> int:
     resolve, flooding a bounded report buffer. Sub-second, so it belongs here rather than in the gate.
     """
     problems = 0
-    for relative in PYTHON_TESTS:
-        path = ROOT / relative
-        if not path.exists():
-            problems += fail(f"{relative} is listed here but does not exist")
-            continue
+    found = sorted({p for pattern in PYTHON_TEST_GLOBS for p in ROOT.glob(pattern)})
+    if not found:
+        return fail("no python test suites found — the globs no longer match anything")
+    for path in found:
+        relative = path.relative_to(ROOT)
         result = subprocess.run([sys.executable, str(path)], cwd=ROOT, capture_output=True, text=True)
         if result.returncode != 0:
             problems += fail(f"{relative} failed:\n{result.stdout.strip()}\n{result.stderr.strip()}")

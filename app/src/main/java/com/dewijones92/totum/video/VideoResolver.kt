@@ -519,6 +519,27 @@ class VideoResolver(
         return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, "rescue", now()), response)
     }
 
+    /**
+     * Items whose SABR stream stalled this session, so the route is not offered for them again.
+     *
+     * Raising a premature end as a failure is only half a fix: recovery answers a failure by forgetting
+     * the resolution and resolving again, and with the setting on `extractAndCache` asks `overSabr()`
+     * first -- so the retry went straight back to the route that had just stalled, failed the same way,
+     * and burned the budget before the ladder could fall through. Reported from a real device (0.1.435):
+     * SABR served 1% of a 61-minute video.
+     *
+     * Per ITEM and per session: a stall is about this video's streams right now, not a permanent
+     * property, so a fresh launch is free to try again.
+     */
+    private val sabrStalledOn = mutableSetOf<String>()
+
+    /** Records that SABR stalled on [id], so this session stops offering it that route. */
+    public fun sabrStalled(id: MediaItemId) {
+        if (sabrStalledOn.add(id.value)) {
+            Diag.warn("resolve", "SABR stalled on ${id.value}; extracting for it from now on this session")
+        }
+    }
+
     private suspend fun overSabr(
         watchUrl: HttpUrl,
         sourceId: SourceId,
@@ -528,6 +549,10 @@ class VideoResolver(
         if (!sabrEnabled()) return null
         val fast = playerStreams ?: return null
         val id = watchUrl.youTubeVideoId() ?: return null
+        if (id in sabrStalledOn) {
+            Diag.log("resolve", "$id stalled over SABR earlier; extracting instead")
+            return null
+        }
         val resumeAt = resumePositionMs(MediaItemId(id)) ?: 0
         if (resumeAt > 0) {
             Diag.log(

@@ -164,7 +164,9 @@ public class Media3PlaybackController(
                             val id = connected.currentMediaItem?.mediaId ?: return
                             val at = connected.currentPosition
                             Diag.log("playback", "stream failed at ${at}ms — $reason")
-                            _streamFailures.tryEmit(StreamFailure(MediaItemId(id), at, reason))
+                            _streamFailures.tryEmit(
+                                StreamFailure(MediaItemId(id), at, reason, error.isSabrPrematureEnd()),
+                            )
                         }
 
                         override fun onEvents(player: Player, events: Player.Events) {
@@ -283,7 +285,11 @@ public class Media3PlaybackController(
 
     override fun togglePlayPause() {
         withController {
-            if (it.isPlaying) {
+            // INTENT, not motion. `isPlaying` is false while BUFFERING even with playWhenReady true, so
+            // tapping pause during a spinner called play() -- the button was inert exactly when someone
+            // most wants it, on a stalling stream. Same confusion the stall watchdog had: "is it moving"
+            // and "is it meant to be playing" are different questions.
+            if (it.playWhenReady) {
                 it.pause()
                 saveProgress(it) // capture where we paused straight away
             } else {
@@ -585,7 +591,13 @@ internal fun PlaybackException.deadAddressReason(nowEpochSeconds: Long): StreamF
 internal fun PlaybackException.recoverableReason(
     nowEpochSeconds: Long = System.currentTimeMillis() / MILLIS_PER_SECOND,
 ): StreamFailure.Reason? = when (val address = deadAddressReason(nowEpochSeconds)) {
-    null -> if (isUnreachable()) StreamFailure.Reason.Unreachable else null
+    null -> when {
+        // Rejected, not Unreachable: the address will not serve, so the answer is a fresh resolve rather
+        // than a wait for a network that is already up.
+        isSabrPrematureEnd() -> StreamFailure.Reason.Rejected
+        isUnreachable() -> StreamFailure.Reason.Unreachable
+        else -> null
+    }
     else -> address
 }
 
@@ -646,7 +658,20 @@ internal fun PlaybackException.isUnreachable(): Boolean {
     var cause: Throwable? = this
     while (cause != null) {
         if (cause is HttpDataSource.InvalidResponseCodeException) return false
+        // A stalled SABR stream is NOT a dead network, and treating it as one makes recovery wait for a
+        // connection that is already there. Checked before the IOException catch-all because it IS one.
+        if (cause is SabrPrematureEndException) return false
         if (cause is IOException) return true
+        cause = cause.cause
+    }
+    return false
+}
+
+/** Whether a SABR stream stopped short — a refusal to serve, not a network fault. */
+internal fun PlaybackException.isSabrPrematureEnd(): Boolean {
+    var cause: Throwable? = this
+    while (cause != null) {
+        if (cause is SabrPrematureEndException) return true
         cause = cause.cause
     }
     return false

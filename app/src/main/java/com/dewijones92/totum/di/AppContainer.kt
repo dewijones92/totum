@@ -783,6 +783,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             awaitNetwork = networkStatus::awaitOnline,
             scope = applicationScope,
         ).start()
+        // A SABR stall must stop that item being resolved over SABR again. Without this, recovery
+        // forgets the resolution, `extractAndCache` asks overSabr() first (the setting is on), and the
+        // retry goes straight back to the route that just stalled -- burning the budget before the
+        // ladder can fall through to extraction, which is the route that can seek.
+        applicationScope.launch {
+            playbackController.streamFailures.collect { failure ->
+                if (failure.sabrStalled) videoResolver.sabrStalled(failure.itemId)
+            }
+        }
     }
 
     /**
