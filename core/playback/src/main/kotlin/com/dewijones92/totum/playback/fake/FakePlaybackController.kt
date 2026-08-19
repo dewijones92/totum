@@ -57,13 +57,16 @@ public class FakePlaybackController : PlaybackController {
     }
 
     public fun endCurrent() {
+        // Loud, because silence here is unreadable. This used to hide behind `?.let`, so ending
+        // before anything had started emitted no event and left no trace -- and the only symptom
+        // was the advancer's consumer timing out, which reads as "advancing is broken" when in
+        // fact nothing had ever ended. See EndingNothingIsATestBugTest.
+        val current = checkNotNull(_state.value) {
+            "endCurrent() while nothing is playing -- wait for playback to start before ending it"
+        }
         // Both, because the real controller does both: the state is how things ARE, the event is
         // what happened. A fake that emitted only one would let a consumer of the other pass.
-        _state.value?.let { current ->
-            _events.tryEmit(
-                PlaybackEvent.Ended(current.itemId, current.positionMs, current.durationMs),
-            )
-        }
+        _events.tryEmit(PlaybackEvent.Ended(current.itemId, current.positionMs, current.durationMs))
         _state.update { it?.copy(hasEnded = true, isPlaying = false) }
     }
 

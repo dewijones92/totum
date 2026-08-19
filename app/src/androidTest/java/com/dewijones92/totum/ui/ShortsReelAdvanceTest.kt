@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaContentKind
@@ -49,6 +51,7 @@ class ShortsReelAdvanceTest {
 
     @Before
     fun makeShortsExtractable() {
+        Breadcrumbs.clear()
         // A queued video resolves just-in-time through the engine, so an unregistered URL
         // simply never plays — the first run of this test failed on exactly that, which is a
         // fake's default rather than anything about the reel.
@@ -70,7 +73,16 @@ class ShortsReelAdvanceTest {
         composeTestRule.setContent {
             TotumTheme { ShortsReelScreen(container, ReelStart(shorts, 0), onBack = {}) }
         }
+        // waitForIdle() settles COMPOSITION, and the reel does not start its first short in
+        // composition -- it queues the run and resolves the stream through the engine in a
+        // coroutine. So idle does not mean playing, and on a slow machine these tests reached
+        // endCurrent() with nothing playing at all: no event was emitted, the advancer heard
+        // nothing, and the failure surfaced 5s later as "the reel does not advance". It cost a red
+        // main (run 32239962730, 2026-08-19) and read as the opposite of the truth. Waiting on
+        // "something is playing" rather than on s1 keeps openingTheReel_playsTheFirstShort's
+        // assertion a real one.
         composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value != null }
     }
 
     /**
@@ -99,7 +111,7 @@ class ShortsReelAdvanceTest {
         openReel()
 
         playback.endCurrent()
-        composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value?.itemId?.value == "s2" }
+        waitForPlaying("s2")
 
         assertEquals("s2", playback.state.value?.itemId?.value)
     }
@@ -110,12 +122,43 @@ class ShortsReelAdvanceTest {
         openReel()
 
         playback.endCurrent()
-        composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value?.itemId?.value == "s2" }
+        waitForPlaying("s2")
         playback.endCurrent()
-        composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value?.itemId?.value == "s3" }
+        waitForPlaying("s3")
 
         assertEquals("s3", playback.state.value?.itemId?.value)
     }
+
+    /**
+     * Waits, and says what actually happened when it does not arrive.
+     *
+     * A bare `waitUntil` fails as `ComposeTimeoutException: Condition still not satisfied after
+     * 5000 ms` and nothing else, which is unreadable: it cannot distinguish "the advancer never
+     * heard the end" from "it heard it and the queue refused every remaining item" from "it
+     * advanced onto the wrong short". That cost a whole investigation on a red main
+     * (run 32239962730, 2026-08-19) which had to proceed by reading code and rejecting theories,
+     * because the report could not answer the first question asked of it. The trail is already
+     * being recorded -- this just puts it in the failure.
+     */
+    private fun waitForPlaying(id: String) {
+        try {
+            composeTestRule.waitUntil(TIMEOUT_MS) { playback.state.value?.itemId?.value == id }
+        } catch (timeout: ComposeTimeoutException) {
+            val queue = container.playbackQueue.state.value
+            throw AssertionError(
+                "waited ${TIMEOUT_MS}ms for \"$id\" to play; playing " +
+                    "\"${playback.state.value?.itemId?.value ?: "nothing"}\", queue " +
+                    "${queue.entries.map { it.item.item.id.value }} at index ${queue.currentIndex}. " +
+                    "What the advancer and the queue did:\n" + trail(),
+                timeout,
+            )
+        }
+    }
+
+    private fun trail(): String = Breadcrumbs.snapshot()
+        .filter { it.tag == "advance" || it.tag == "queue" || it.tag == "playback" }
+        .joinToString("\n") { "  ${it.tag}: ${it.message}" }
+        .ifEmpty { "  (nothing at all was recorded -- the advancer may never have started)" }
 
     private fun short(id: String) = MediaItem(
         id = MediaItemId(id),

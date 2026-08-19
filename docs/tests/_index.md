@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-08-18
+updated: 2026-08-19
 ---
 
 # Testing
@@ -365,6 +365,39 @@ numbers came down to timing. On a device it would have shown them and then dropp
 Fixed by holding the values on the controller, as the skip segments and subtitles already were.
 Then run five times consecutively — because "it passed once after I changed something" is how a race
 gets declared fixed while still being a race.
+
+## A timeout is not a diagnosis (2026-08-19)
+
+`ShortsReelAdvanceTest > endingRepeatedly_walksTheWholeReel` failed on main (run 32239962730) on a
+**docs-only** commit, and the entire report was
+`ComposeTimeoutException: Condition still not satisfied after 5000 ms`.
+
+That one line is consistent with at least four different causes — the advancer never heard the end,
+it heard it and the queue refused every remaining item, it advanced onto the wrong short, or nothing
+was playing when the test ended it — and it separates none of them. So the investigation had to run
+on code-reading and elimination. Two plausible theories died that way: a stale `nowPlaying` racing
+the advance (impossible — `_nowPlaying` is committed *before* routing) and connectivity making
+`routeNow` refuse (impossible — `FakeAppContainer.isOffline()` is hardcoded false). A third, that
+`waitForIdle()` can return before the reel has started because the first short is started by a
+coroutine rather than by composition, is **reachable in the code but did not reproduce** in 10
+probe runs under host CPU load, nor in a full 104-test suite run.
+
+So the cause is not proven, and nothing here claims to fix it. What changed is that a recurrence
+will now say what happened:
+
+- **The wait reports.** Every wait in that test goes through `waitForPlaying`, which on timeout
+  raises what is playing, what is queued, where the cursor is, and the `advance`/`queue`/`playback`
+  breadcrumb trail. The trail was always being recorded — it just was not in the failure.
+- **`FakePlaybackController.endCurrent()` no longer no-ops.** It built its event from `state.value`
+  behind a `?.let`, so ending before anything played emitted nothing and left no trace: the advancer
+  heard nothing, and 5s later the symptom read as "the reel does not advance", the opposite of the
+  truth. It now fails immediately and names itself (`EndingNothingIsATestBugTest`), and `openReel()`
+  waits for playback to have started rather than trusting `waitForIdle()`.
+
+The rule: when a test can fail for several reasons, its failure has to say which one. An assertion
+that reports only *that* a condition was unmet is the test equivalent of an unlogged branch. And a
+`ComposeTimeoutException` is a fact about the wait, not about the product — the same trap as reading
+an empty capture as an empty world.
 
 ## When an environment disagrees about a NUMBER, believe it (2026-08-07)
 
