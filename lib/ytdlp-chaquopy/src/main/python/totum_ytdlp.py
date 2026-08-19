@@ -191,7 +191,15 @@ def extract(url):
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
             return json.dumps({"ok": True, "info": info, "notes": logger.notes()})
     except yt_dlp.utils.DownloadError as e:
-        return json.dumps({"ok": False, "kind": _classify(e), "detail": str(e)})
+        # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
+        # it noticed on the way there, which is often the actual reason -- and a failed extraction is
+        # exactly when that is worth having. See FailedExtractionNotesTest.
+        return json.dumps({
+            "ok": False,
+            "kind": _classify(e),
+            "detail": str(e),
+            "notes": logger.notes(),
+        })
 
 
 # The solver, built ONCE. Rebuilding it per call threw away yt-dlp's own cache of the
@@ -288,7 +296,15 @@ def search(query, max_results):
             ]
             return json.dumps({"ok": True, "entries": entries})
     except yt_dlp.utils.DownloadError as e:
-        return json.dumps({"ok": False, "kind": _classify(e), "detail": str(e)})
+        # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
+        # it noticed on the way there, which is often the actual reason -- and a failed extraction is
+        # exactly when that is worth having. See FailedExtractionNotesTest.
+        return json.dumps({
+            "ok": False,
+            "kind": _classify(e),
+            "detail": str(e),
+            "notes": logger.notes(),
+        })
 
 
 def _members_only(entry):
@@ -405,7 +421,15 @@ def download(url, target_dir, format_id, listener, ffmpeg_location, sponsorblock
             path = requested[0].get("filepath")
             return json.dumps({"ok": True, "filepath": path})
     except yt_dlp.utils.DownloadError as e:
-        return json.dumps({"ok": False, "kind": _classify(e), "detail": str(e)})
+        # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
+        # it noticed on the way there, which is often the actual reason -- and a failed extraction is
+        # exactly when that is worth having. See FailedExtractionNotesTest.
+        return json.dumps({
+            "ok": False,
+            "kind": _classify(e),
+            "detail": str(e),
+            "notes": logger.notes(),
+        })
 
 
 def _classify(error):

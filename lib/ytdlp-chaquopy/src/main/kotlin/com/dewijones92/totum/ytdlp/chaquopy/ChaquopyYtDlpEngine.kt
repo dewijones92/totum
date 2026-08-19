@@ -79,23 +79,8 @@ public class ChaquopyYtDlpEngine(
     override suspend fun extract(url: HttpUrl): ExtractionResult = withContext(dispatcher) {
         check(jsRuntimeConfigured)
         timed("extract ${url.value}") {
-            parseExtraction(url, bridge.callAttr("extract", url.value).toString()).also { it.reportNotes() }
+            parseExtraction(url, bridge.callAttr("extract", url.value).toString())
         }
-    }
-
-    /**
-     * Says out loud anything yt-dlp lost during a SUCCESSFUL extraction.
-     *
-     * A degraded success is the failure mode with no symptom: the same video produced 33 durable
-     * formats on one run of this device and none on the next, and nothing in any report could say why
-     * because `no_warnings` had thrown the explanation away. Logged as a warning because a missing
-     * JavaScript runtime or an abandoned client is the difference between a stream that plays to the end
-     * and one that stops a megabyte in.
-     */
-    private fun ExtractionResult.reportNotes() {
-        val notes = (this as? ExtractionResult.Success)?.notes.orEmpty()
-        if (notes.isEmpty()) return
-        Diag.warn("engine", "yt-dlp reported ${notes.size} note(s) while extracting: ${notes.joinToString(" | ")}")
     }
 
     override suspend fun searchVideos(query: String, maxResults: Int): VideoSearchResult =

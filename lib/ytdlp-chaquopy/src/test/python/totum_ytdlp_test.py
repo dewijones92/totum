@@ -19,6 +19,8 @@ These tests are the guard, and they need no Android, no Chaquopy and no network 
 Python. The transcripts below are the real messages observed from yt-dlp 2026.07.04 against
 `jNQXAC9IVRw`.
 """
+import importlib.util
+import json
 import pathlib
 import sys
 import unittest
@@ -106,6 +108,93 @@ class NoteCollectionTest(unittest.TestCase):
 
         self.assertEqual(1, len(log.notes()))
         self.assertLess(len(log.notes()[0]), 400)
+
+
+def _bridge_with_stubbed_ytdlp():
+    """
+    Imports the real bridge against a stub yt-dlp, so the JSON envelope itself can be tested.
+
+    Possible because the module imports only `json`, `platform` and `yt_dlp` at the top level --
+    no Chaquopy `java` -- so the whole thing loads on a plain interpreter. Returns the module and
+    the stub, and the stub's error class is the one the module will catch: raising an instance of
+    any OTHER class with the same name sails straight through the `except`.
+    """
+    import types
+
+    class DownloadError(Exception):
+        def __init__(self, message, exc_info=None):
+            super().__init__(message)
+            self.exc_info = exc_info
+
+    class UnsupportedError(DownloadError):
+        pass
+
+    stub = types.ModuleType("yt_dlp")
+
+    class YoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            # The warnings yt-dlp emits BEFORE it gives up are the ones worth keeping.
+            self.options["logger"].warning(REAL_WARNING)
+            raise stub.failWith
+
+        def sanitize_info(self, info):
+            return info
+
+    stub.version = types.SimpleNamespace(__version__="stub")
+    stub.YoutubeDL = YoutubeDL
+    stub.utils = types.SimpleNamespace(
+        DownloadError=DownloadError,
+        UnsupportedError=UnsupportedError,
+        network_exceptions=(OSError,),
+    )
+    stub.failWith = DownloadError("nothing playable")
+    sys.modules["yt_dlp"] = stub
+    spec = importlib.util.spec_from_file_location("totum_ytdlp_under_test", BRIDGE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module, stub
+
+
+class FailedExtractionNotesTest(unittest.TestCase):
+    """
+    A FAILED extraction is when yt-dlp's own warnings matter most -- and they were thrown away.
+
+    The success envelope carried `notes`; the `except DownloadError` branch returned only `kind` and
+    `detail`, so the sentence explaining WHY it failed ("...formats have been skipped as they are
+    missing a URL. YouTube may have enabled the SABR-only streaming experiment...") was collected and
+    then dropped. A report of a video that would not play could say what went wrong but not what
+    yt-dlp had noticed on the way there.
+    """
+
+    def test_a_failed_extraction_still_reports_what_yt_dlp_noticed(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        result = json.loads(module.extract("https://www.youtube.com/watch?v=jNQXAC9IVRw"))
+
+        self.assertFalse(result["ok"])
+        self.assertIn("notes", result, f"a failure must carry the warnings that preceded it: {result}")
+        self.assertTrue(
+            any("SABR-only" in note for note in result["notes"]),
+            f"the warning yt-dlp emitted before giving up has to survive: {result}",
+        )
+
+    def test_a_successful_extraction_is_unchanged(self):
+        module, stub = _bridge_with_stubbed_ytdlp()
+        stub.YoutubeDL.extract_info = lambda self, url, download=False: {"id": "jNQXAC9IVRw"}
+
+        result = json.loads(module.extract("https://www.youtube.com/watch?v=jNQXAC9IVRw"))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual("jNQXAC9IVRw", result["info"]["id"])
 
 
 if __name__ == "__main__":

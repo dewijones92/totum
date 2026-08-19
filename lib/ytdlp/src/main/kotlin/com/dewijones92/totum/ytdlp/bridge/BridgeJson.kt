@@ -57,18 +57,31 @@ public fun parseSolvedN(text: String): Map<String, String> {
     return solved.mapNotNull { (key, value) -> value.jsonPrimitive.contentOrNull?.let { key to it } }.toMap()
 }
 
+/**
+ * Parsed here, and the notes REPORTED here, because this is the one place common to every engine.
+ *
+ * The reporting lived in ChaquopyYtDlpEngine, so the desktop engine — which runs the same bridge
+ * script and parses it with this same function — carried the notes in its JSON and dropped them:
+ * `totum` could not say an extraction had come back degraded even with TOTUM_VERBOSE set. One rule
+ * with two callers, implemented in one of them. See EveryFrontEndHearsTheNotesTest.
+ *
+ * The notes are yt-dlp's own account of anything it lost on the way. Suppressed by `no_warnings`
+ * once, and they are the only place an extraction says it came back degraded — "formats have been
+ * skipped as they are missing a URL … SABR-only streaming experiment" is the sentence that explained
+ * a whole day. Warned rather than logged because a missing JS runtime or an abandoned client is the
+ * difference between a stream that plays to the end and one that stops a megabyte in. Taken for a
+ * FAILURE too: `detail` says what yt-dlp gave up with, the notes say what it noticed first.
+ *
+ * Inline rather than factored out because this file is at detekt's function limit for it.
+ */
 public fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
     val obj = json.parseToJsonElement(text).jsonObject
+    val notes = (obj["notes"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty()
+    if (notes.isNotEmpty()) {
+        Diag.warn("engine", "yt-dlp reported ${notes.size} note(s) while extracting: ${notes.joinToString(" | ")}")
+    }
     return if (obj.isOk()) {
-        ExtractionResult.Success(
-            obj.getValue("info").jsonObject.toMediaMetadata(url),
-            // yt-dlp's own account of anything it lost. These used to be suppressed by `no_warnings`,
-            // and they are the only place a SUCCESSFUL extraction says it came back degraded — "formats
-            // have been skipped as they are missing a URL … SABR-only streaming experiment" is the
-            // sentence that explained a whole day. Inline because this file is at its function limit and
-            // one list access does not earn a name.
-            (obj["notes"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
-        )
+        ExtractionResult.Success(obj.getValue("info").jsonObject.toMediaMetadata(url), notes)
     } else {
         obj.toFailure(url)
     }
