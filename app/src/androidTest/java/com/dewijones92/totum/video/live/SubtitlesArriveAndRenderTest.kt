@@ -114,14 +114,11 @@ class SubtitlesArriveAndRenderTest {
             println("[subtitles] no caption assertions: the stream was refused after starting")
             return@runBlocking
         }
-        // A third thing outside this test's control, alongside the two above: the app may have taken the
-        // picture away itself, and an audio-only route carries no captions. See switchedItselfOutOfVideo.
-        val mode = container.switchedItselfOutOfVideo()
-        if (tracks.isEmpty() && mode != null) {
-            println(
-                "[subtitles] no caption assertions: the app switched itself to $mode mid-test " +
-                    "(MeteredAudioSwitch, metered connection), and an audio-only route has no captions",
-            )
+        // A third thing outside this test's control, alongside the two above: the app decided to play
+        // this without the picture, and an audio-only route carries no captions. See audioOnlyRouteTaken.
+        val audioOnly = audioOnlyRouteTaken()
+        if (tracks.isEmpty() && audioOnly != null) {
+            println("[subtitles] no caption assertions: the route carried no picture —\n  $audioOnly")
             return@runBlocking
         }
         assertTrue(

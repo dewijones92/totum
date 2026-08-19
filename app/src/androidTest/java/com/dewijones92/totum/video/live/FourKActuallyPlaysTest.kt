@@ -108,13 +108,10 @@ class FourKActuallyPlaysTest {
         val trail = Breadcrumbs.snapshot().joinToString("\n    ") { it.message.take(TRAIL_CHARS) }
 
         // An audio-only route picks no video height at all, so this assertion would read "picked 0p" and
-        // blame the cap for something the app decided. See switchedItselfOutOfVideo.
-        val switched = container.switchedItselfOutOfVideo()
-        if (choseHeight == 0 && switched != null) {
-            println(
-                "[4k] no quality assertions: the app switched itself to $switched mid-test " +
-                    "(MeteredAudioSwitch, metered connection), so there was no video pick to measure",
-            )
+        // blame the cap for something the app decided. See audioOnlyRouteTaken.
+        val audioOnly = audioOnlyRouteTaken()
+        if (choseHeight == 0 && audioOnly != null) {
+            println("[4k] no quality assertions: the route carried no picture, so there was no pick —\n  $audioOnly")
             return@runBlocking
         }
         assertTrue(

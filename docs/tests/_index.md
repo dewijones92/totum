@@ -391,16 +391,22 @@ isolation on the emulator, so it was never YouTube and never the caption path. T
 `listen=true` **eight lines after the test set `PlaybackMode.VIDEO`** — and `audioPlaybackPreferred()`
 returns `false` for an explicit VIDEO, so the mode genuinely was not VIDEO when the route was taken.
 
-`MeteredAudioSwitch` PERSISTS its decision (`setPlaybackMode(AUDIO)`) and samples on a clock. **CI's
-emulator connection is metered**, so it fires between a test's precondition and its measurement, and an
-audio-only route has no picture, no captions and no quality ladder. Every test that measures one of
-those can be told a lie by the app doing exactly what it is designed to do.
+The first guess was `MeteredAudioSwitch`, which PERSISTS its decision (`setPlaybackMode(AUDIO)`) and
+samples on a clock, so on a metered connection it can fire between a precondition and its measurement.
+**That guess was wrong**, and the fix built on it did not fire in CI: the mode genuinely was VIDEO. The
+trail's `listen=` field is `forceAudio || pictureGivenUpOn || audioPreferred()`, and what had actually
+happened was the **recovery ladder degrading a stream YouTube refused** — the attestation wall — leaving
+an audio-only route. Three different causes, one observable, and only the observable is worth testing.
+
+An audio-only route has no picture, no captions and no quality ladder. So every test that measures one
+of those can be told a lie by the app doing exactly what it is designed to do.
 
 `PlaysAcrossContentTypesTest` met this on 2026-08-18 (three items read as "no picture") and fixed it by
 restating the precondition per measurement — necessary, but not sufficient: it does not help when the
-switch fires *during* the measurement. So the question "has the app switched itself out of VIDEO?" now
-lives in one place, `switchedItselfOutOfVideo()`, and the tests that measure the picture consult it and
-say so rather than asserting. `FourKActuallyPlaysTest` needed it for the same reason: an audio-only
+switch fires *during* the measurement. So the question "did the app route this without the picture?" now
+lives in one place, `audioOnlyRouteTaken()` — asking the recorded DECISION rather than the setting, which
+is what makes it right for all three causes — and the tests that measure the picture consult it and say
+so rather than asserting, printing the route line as the evidence. `FourKActuallyPlaysTest` needed it for the same reason: an audio-only
 route picks no video height, so its one assertion would have read "picked 0p" and blamed the cap.
 
 The general shape, and it is not only about this switch: **a precondition that the code under test is

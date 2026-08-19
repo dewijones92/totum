@@ -1,24 +1,30 @@
 package com.dewijones92.totum.video.live
 
-import com.dewijones92.totum.di.AppContainer
-import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.common.Breadcrumbs
 
 /**
- * Whether the APP has taken the picture away since a test asked for it — the answer to a question
- * three live tests have to ask, so it is asked in one place.
+ * The route line, when the app decided to play this WITHOUT the picture — the question three live
+ * tests have to ask, so it is asked in one place.
  *
- * `MeteredAudioSwitch` PERSISTS its decision (`setPlaybackMode(AUDIO)`) and samples on a clock, so on a
- * metered connection it fires BETWEEN a test's precondition and its measurement. CI's emulator is
- * metered. An audio-only route then has no picture, no captions and no quality ladder — so a test that
- * set VIDEO and measured any of those reports a defect in the thing it was measuring, when what actually
- * happened is the app doing exactly what it is designed to do.
+ * An audio-only route has no picture, no captions and no quality ladder. So a test that asked for video
+ * and then measured one of those reports a defect in the thing it was measuring, when the app had
+ * already decided, for its own good reasons, not to send a picture at all.
  *
- * It cost two red mains: `SubtitlesArriveAndRenderTest` read as "no subtitle track reached the player"
- * (2026-08-19) and `PlaysAcrossContentTypesTest` read as "no picture" for three items (2026-08-18).
- * Restating the precondition per measurement, which is what the second one did, does not help when the
- * switch fires mid-measurement.
+ * Asks the ROUTE rather than the setting, which matters: `listen=` in the trail is
+ * `forceAudio || pictureGivenUpOn || audioPreferred()`, so it goes true for THREE different reasons —
+ * the recovery ladder degrading a stream YouTube refused, the picture having been given up on for this
+ * item, or the mode being AUDIO (explicitly, or AUTO on a metered connection, which is what
+ * `MeteredAudioSwitch` persists). A first attempt at this guard checked only the last of those and did
+ * not fire in CI, because the mode genuinely was VIDEO and the ladder had degraded a refused stream.
+ * The decision is the honest thing to test, and it is already recorded.
  *
- * Returns the mode it switched to, or null while the picture is still ours to measure.
+ * Cost: `SubtitlesArriveAndRenderTest` read as "no subtitle track reached the player" twice
+ * (2026-08-19), and `PlaysAcrossContentTypesTest` as "no picture" for three items (2026-08-18).
+ *
+ * Returns the whole route line, so a skip carries the evidence rather than an assertion of it.
  */
-internal fun AppContainer.switchedItselfOutOfVideo(): PlaybackMode? =
-    appPreferences.settings.value.playbackMode.takeIf { it != PlaybackMode.VIDEO }
+internal fun audioOnlyRouteTaken(): String? =
+    Breadcrumbs.snapshot()
+        .lastOrNull { it.message.startsWith("route ") }
+        ?.message
+        ?.takeIf { "listen=true" in it }
