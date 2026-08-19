@@ -197,24 +197,41 @@ class InnerTubePlayerStreams(
  */
 internal fun StreamingData.videoQualities(wanted: List<String> = emptyList()): List<VideoQuality> {
     val audio = bestAudioFormat(wanted)
+    val byAudio = audioLanguagePreference(wanted)
+    // The bar every height has to clear: the best sound anywhere on this video, muxed streams
+    // included. Without it a muxed rung was preferred on being muxed alone, so asking for German
+    // where German exists only as an audio-only track served the English muxed — report 0.1.373's
+    // bug reached by the second-opinion route. See ASecondOpinionRungKeepsYourTrackTest.
+    val bestSound = directlyPlayable.filter { it.carriesSound }
+        .map { it.audioTag }
+        .maxWithOrNull(byAudio) ?: AudioTrackTag.Unknown
 
     return directlyPlayable
         .filter { it.height != null && it.mimeType?.startsWith("video/") == true }
         .groupBy { it.height!! }
         .mapNotNull { (height, atHeight) ->
-            // A muxed stream needs no merge, so prefer it; otherwise pair video with the
-            // best audio, exactly as the yt-dlp path does — language first, as it does.
-            val muxed = atHeight.filter { it.mimeType?.contains("mp4a") == true }.bestSounding(wanted)
-            val chosen = muxed ?: atHeight.maxByOrNull { it.bitrate ?: 0 } ?: return@mapNotNull null
-            val url = chosen.url ?: return@mapNotNull null
+            // A muxed stream needs no merge, so prefer it — but only while its sound is what you
+            // asked for; otherwise pair video with the best audio, exactly as the yt-dlp path does.
+            val muxed = atHeight.filter { it.carriesSound }.bestSounding(wanted)
+            val videoOnly = atHeight.filterNot { it.carriesSound }.maxByOrNull { it.bitrate ?: 0 }
             when {
-                muxed != null -> quality(height, url, audioUrl = null, audio = muxed.audioTag)
-                audio != null -> quality(height, url, audio.url, audio.audioTag)
+                muxed != null && byAudio.compare(muxed.audioTag, bestSound) >= 0 ->
+                    muxed.url?.let { quality(height, it, audioUrl = null, audio = muxed.audioTag) }
+                // Nothing at this height speaks the language you asked for and there is no
+                // video-only stream to pair with the audio that does, so the height is dropped:
+                // the ladder is the ladder for the track you are listening to. Offering it anyway
+                // sends the auto-pick — which takes the tallest — back to the dub.
+                videoOnly != null && audio != null && byAudio.compare(audio.audioTag, bestSound) >= 0 ->
+                    videoOnly.url?.let { quality(height, it, audio.url, audio.audioTag) }
                 else -> null
             }
         }
         .sortedByDescending { it.height }
 }
+
+/** Whether this format carries audio at all: an audio-only track, or a muxed stream. */
+private val PlayableFormat.carriesSound: Boolean
+    get() = mimeType?.startsWith("audio/") == true || mimeType?.contains("mp4a") == true
 
 private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioTrackTag) =
     VideoQuality("$height", "${height}p", height, url, audioUrl, audio = audio)

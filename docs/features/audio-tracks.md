@@ -3,7 +3,7 @@ title: Audio tracks and language
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-09
+updated: 2026-08-19
 ---
 
 # The right language, and a way to say otherwise
@@ -29,7 +29,7 @@ looked at language.**
 | `bestAudioFormat` (audio-only / Listen) | language, then size | the one that was fixed, in July |
 | `bestPlayableFormat` (the item's stream URL) | tallest | language-blind |
 | `videoQualities` (the quality ladder) | first muxed at each height | **language-blind, and the one that chose** |
-| `StreamingData.videoQualities` (the `/player` fallback) | highest bitrate | language-blind |
+| `StreamingData.videoQualities` (the `/player` fallback) | highest bitrate | fixed in two halves — see below |
 | `SabrResolve.bestAudio` (experimental, off) | highest bitrate | language-blind |
 
 The resolve log made it worse rather than better. It printed `audio en-US (preference 10,
@@ -69,6 +69,20 @@ ladder still offered 1080p — which existed only as the German dub — and the 
 tallest. So a height whose sound is worse than the best available on that video is **dropped**,
 and comes back the moment you select that language. The ladder is the ladder for the track you
 are listening to.
+
+That rule held on ONE ladder for nine days. `StreamingData.videoQualities` — the ladder built from
+a `/player` response, which is what serves you whenever yt-dlp comes back degraded, i.e. the whole
+SABR-stripped present — needed two separate fixes to catch up: `wanted` was never passed to it at
+all (2026-08-18), and even with the language in hand it preferred a muxed stream on being *muxed*,
+never comparing its sound against the audio-only tracks (2026-08-19). So asking for German where
+German existed only as an audio-only track served the English muxed — 0.1.373's own bug, arriving
+by the other route, months after the route everyone was looking at was fixed.
+
+The two ladders stay separate on purpose: a `MediaFormat` knows codecs and whether it has audio, a
+`PlayableFormat` carries only a mime type, so one function would have two disjoint halves. That is
+precisely why the *rule* has to be asserted against both — a recorded, reasoned duplication still
+duplicates the rules that live inside it. `ASecondOpinionRungKeepsYourTrackTest` now pins all three
+cases (merge instead, drop the height, keep the muxed one when its language is right).
 
 ## The menu
 
