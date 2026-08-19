@@ -269,12 +269,26 @@ class StalledStreamRecoveryTest {
             while (controller.state.value?.isPlaying != true) delay(POLL_MS)
             true
         }
-        assertEquals(
-            "the hosted item never started playing — on a device that usually means audio focus " +
-                "was refused, which happens when the screen is off or the app is not foreground",
-            true,
-            playing,
-        )
+        assertEquals(whyItNeverPlayed(), true, playing)
+    }
+
+    /**
+     * What the player actually reported, rather than a guess at why.
+     *
+     * The old message asserted "audio focus was refused" — a plausible cause that was never
+     * evidence. This failed once in a full-suite run on 2026-08-19 and passed both in isolation and
+     * in CI, so a recurrence needs the state, not another theory. Same rule as the reel test's
+     * waitForPlaying: a wait that times out has to say what it was looking at.
+     */
+    private fun whyItNeverPlayed(): String {
+        val state = controller.state.value
+            ?: return "the hosted item never started: play() produced NO state at all after " +
+                "${START_TIMEOUT_MS}ms, so it never reached the player"
+        return "the hosted item never started playing after ${START_TIMEOUT_MS}ms — " +
+            "playing=${state.isPlaying} buffering=${state.isBuffering} wants=${state.wantsToPlay} " +
+            "ended=${state.hasEnded} position=${state.positionMs} item=${state.itemId.value}. " +
+            "A started-but-not-playing state on a device usually means audio focus was refused, " +
+            "which happens when the screen is off or the app is not foreground."
     }
 
     /** The position that stops moving, or null if playback never stalls. */
