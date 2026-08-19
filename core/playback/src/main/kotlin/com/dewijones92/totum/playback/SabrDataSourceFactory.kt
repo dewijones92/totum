@@ -10,6 +10,7 @@ import com.dewijones92.totum.sabr.SabrTransport
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Serves `sabr://` URLs from a registered session, and hands everything else upstream.
@@ -106,7 +107,7 @@ public fun sabrStreamFor(uri: String): SabrStream? {
 }
 
 /** The stream open for each `videoId:itag`, so a reopen is not a cold start. */
-private val live = java.util.concurrent.ConcurrentHashMap<String, SabrStream>()
+private val live = ConcurrentHashMap<String, SabrStream>()
 
 /**
  * The SABR POST, on `HttpURLConnection`.
