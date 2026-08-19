@@ -67,4 +67,5 @@ All backlog items are Dewi requests. `refining` = spec written, decisions still 
 instruction on the queue/download/autoplay/volume group: refine first, implement on
 command).
 - [The signed-in TV client's /player is refused](tv-client-player-is-refused.md) — blocks the SmartTube quality route and age-restricted videos; 20+ probes ruled out version, UA, headers, token
+- [SABR cannot play a live stream without its initialization segment](sabr-live-needs-an-init-segment.md) — SABR fetches live fine (820KB kept in one fetch) and the player never becomes ready; the init data is on the wire in a part we discard
 - [SABR cannot be opened part-way through](sabr-cannot-seek.md) — units bug fixed; YouTube still serves no media for a cold jump, so SABR stays start-of-item only

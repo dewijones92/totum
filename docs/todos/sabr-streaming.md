@@ -4,10 +4,37 @@ kind: todo
 area: video
 priority: medium
 status: partly shipped — fallback AND QuickJS both shipped; time-addressed seeking still open
-updated: 2026-08-06
+updated: 2026-08-19
 ---
 
 # The 360p problem, and what it actually was
+
+## What it actually carries, measured 2026-08-19 on `totum-api35`
+
+Driven through the real `SabrResolve` seam, at up to 1080p (the cap `SabrResolve` already enforces, and
+what Dewi asked to test):
+
+| Content | Result |
+|---|---|
+| 97-minute VOD | itag 137 **1080p30**, picture and sound |
+| Made-for-kids (Ms Rachel) | itag 137 **1080p25**, capped down from 2160p |
+| 19-second clip | itag 133 240p15 — everything YouTube offers for it |
+| 4K60 upload (Big Buck Bunny) | itag 135 **480p30** — an honest ceiling, see below |
+| Live stream | refused by name, falls back to extraction |
+
+Sustained serving, which is what decides "comfortable" rather than merely "working": **11,315,189 bytes
+of 1080p30 in 6 fetches, 60 seconds of media**, stopping only at the test's own target. The ~1MB refusal
+that governs plain URLs does not apply here — that is what SABR is for.
+
+**The 60fps and VP9/webm refusals were re-measured, not assumed.** Probing every rung of a 4K60 upload:
+1080p60 mp4, 1080p60 webm, 1080p60 AV1, 720p60 mp4, 720p60 webm and 480p30 webm all returned 0 bytes;
+480p30 mp4 served 117954B. So a 60fps upload legitimately comes back at 480p, because YouTube offers
+30fps no higher for it. A ceiling, not a defect — `MAX_SABR_FPS`/`MAX_SABR_HEIGHT` stay as they are.
+
+**Three of our own gates were in the way**, now fixed or named: a SABR-only response discarded before
+SABR was ever asked, `lastModified` required when a live stream carries none, and live then needing an
+explicit refusal. See [sabr-live-needs-an-init-segment.md](sabr-live-needs-an-init-segment.md).
+
 
 Made-for-kids videos (Ms Rachel) played at 360p while SmartTube played them properly.
 

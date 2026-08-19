@@ -63,6 +63,13 @@ instead).
 | A queue drag of ten places in one motion | JVM unit | `:app` `ReorderStateTest` — the accumulator over distance. Deliberately NOT a gesture: that version failed on CI twice on screen size and frame timing while passing locally |
 | Views + dates surviving the **database** | instrumented | `:core:database` `ItemFactsSurviveStorageTest` — queue and history; the boundary where they were dying |
 
+| SABR carrying every content type it can | instrumented, live | `:app` `SabrPlaysAcrossVideoTypesTest` — five shapes through the real `SabrResolve` seam; 1080p30 VOD, 1080p25 kids, 480p30 on a 4K60 upload, live refused by name |
+| How far SABR actually serves | instrumented, live | `:app` `SabrKeepsServingTest` — **bytes, not position**: this emulator's software decoder cannot hold 1080p, so a position bar would measure the machine. Measured 11.3MB in 6 fetches |
+| Which formats SABR will really serve | instrumented, live | `:app` `WhatSabrWillServeTest` — re-measures the 60fps/webm refusals rather than trusting the recorded table, and is how live's missing `lastModified` was found |
+| A live stream is refused, a VOD without `lastModified` is not | JVM unit | `:app` `ALiveStreamIsNotRefusedBySabrTest` — both halves, so relaxing one gate cannot silently hand live to a path that fetches and never plays |
+| A SABR-only response surviving the gate | JVM unit | `:app` `InnerTubePlayerStreamsTest` — the response with no direct URLs is the one SABR exists for, and it was being discarded before SABR was asked |
+| The queue fetching its own audio | instrumented, live | `:app` `AutoDownloadFetchesTheAudioTest` — queue it, touch nothing, find audio-ONLY on disk. The loop had unit tests; nothing proved the parts agree on a device |
+
 ## Verification reflexes (learned the hard way)
 
 - **Verify on a device, not just the JVM.** The podcast RSS bug (Android's Expat
