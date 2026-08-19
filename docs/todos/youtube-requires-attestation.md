@@ -216,6 +216,28 @@ itself. The app already bundles QuickJS, so running BotGuard is not obviously ou
 is a new capability, not a flag, and building it on a hunch is how the last two theories died
 (chunk size, then buffered ranges — both wrong, both measured wrong before being believed).
 
+### SmartTube's mechanism, read rather than assumed (2026-08-19)
+
+Dewi asked the fair question — *"SmartTube works via SABR and video works fine, why can't we have
+that?"* — so its implementation was read instead of reasoned about. `MediaServiceCore` carries a full
+PO-token stack (55 code hits), and the shape is small enough to follow:
+
+- `app/PoTokenGate.kt` names the two kinds, which is the part worth knowing: **CONTENT** (minted from
+  the `videoId`, and *"used in DASH/SABR requests (e.g. `pot` param)"*) and **SESSION** (minted from
+  `visitorData`). So a token is attached to the SABR/stream request, not only to `/player`.
+- `app/potoken/PoTokenService.kt` is the flow: a hard-coded `REQUEST_KEY = "O43z0dpjhgX20SCx4KAo"` —
+  the same key NewPipe and yt-dlp's providers use — then `getChallenge()` fetches BotGuard's program,
+  its JS is executed, and `generateIntegrityToken(requestKey, botguardResponse)` exchanges the result
+  for an **integrity token** with a TTL, a mint-refresh threshold and a websafe fallback token. Tokens
+  are then minted per video from that.
+- `app/potokencloud/PoTokenCloudService` is a **remote fallback** for devices that cannot run the
+  challenge locally, and `potokennp2` is the NewPipe-derived local path.
+
+Two things follow. First, **SABR is not what makes SmartTube work** — attestation is; its SABR code is
+ordinary. Second, this is a followable reference implementation with a known request key and a known
+exchange, which moves "a new capability" from a hunch to a bounded piece of work. It still needs a JS
+runtime for the challenge: QuickJS is already bundled for `n`, and a WebView exists on the device.
+
 **The most promising lead, unverified.** The signed-in path in `InnerTubePlayerStreams` already uses
 a **TV context**, which is what SmartTube is. It is the fourth row of the table above: consulted only
 when the anonymous call is refused, which today it is not. If a signed-in TV `/player` response yields
