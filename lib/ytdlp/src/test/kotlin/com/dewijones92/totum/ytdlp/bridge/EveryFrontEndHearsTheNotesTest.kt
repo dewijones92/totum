@@ -6,6 +6,7 @@ import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 /**
  * yt-dlp's notes are logged where the contract is PARSED, so both front ends get them.
@@ -68,5 +69,21 @@ class EveryFrontEndHearsTheNotesTest {
         parseExtraction(url, """{"ok":true,"info":{"id":"jNQXAC9IVRw","title":"Me at the zoo"},"notes":[]}""")
 
         assertTrue("nothing to report must mean nothing logged, or the line means nothing: $logged", logged.isEmpty())
+    }
+
+    @Test
+    fun `a failed download says what yt-dlp noticed too`() {
+        parseDownloadCompletion(
+            url,
+            """{"ok":false,"kind":"network","detail":"gave up",
+               "notes":["warning: formats have been skipped ... SABR-only streaming experiment"]}""",
+            { File(it) },
+        )
+
+        assertTrue(
+            "a failed download is the one people complain about, and its notes were suppressed " +
+                "outright until 2026-08-19: $logged",
+            logged.any { "SABR-only" in it && "downloading" in it },
+        )
     }
 }

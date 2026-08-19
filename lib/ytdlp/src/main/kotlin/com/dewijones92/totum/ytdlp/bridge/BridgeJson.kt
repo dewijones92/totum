@@ -76,10 +76,8 @@ public fun parseSolvedN(text: String): Map<String, String> {
  */
 public fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
     val obj = json.parseToJsonElement(text).jsonObject
-    val notes = (obj["notes"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty()
-    if (notes.isNotEmpty()) {
-        Diag.warn("engine", "yt-dlp reported ${notes.size} note(s) while extracting: ${notes.joinToString(" | ")}")
-    }
+    val notes = obj.notes()
+    reportNotes("extracting", notes)
     return if (obj.isOk()) {
         ExtractionResult.Success(obj.getValue("info").jsonObject.toMediaMetadata(url), notes)
     } else {
@@ -89,6 +87,10 @@ public fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
 
 public fun parseDownloadCompletion(url: HttpUrl, text: String, fileOf: (String) -> File): DownloadEvent {
     val obj = json.parseToJsonElement(text).jsonObject
+    // A FAILED download is the one a person actually complains about, and its notes were suppressed
+    // outright (`no_warnings`) until 2026-08-19 — so "the download just failed" had no explanation
+    // anywhere. See FailedDownloadNotesTest.
+    reportNotes("downloading", obj.notes())
     if (!obj.isOk()) return DownloadEvent.Failed(obj.toFailure(url))
     val path = obj.stringOrNull("filepath")
         ?: return DownloadEvent.Failed(ExtractionResult.Failure.Extractor("yt-dlp reported no output file"))

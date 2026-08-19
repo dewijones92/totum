@@ -142,8 +142,12 @@ def _bridge_with_stubbed_ytdlp():
             return False
 
         def extract_info(self, url, download=False):
-            # The warnings yt-dlp emits BEFORE it gives up are the ones worth keeping.
-            self.options["logger"].warning(REAL_WARNING)
+            # The warnings yt-dlp emits BEFORE it gives up are the ones worth keeping. Tolerant of a
+            # caller with no logger, so a missing one shows up as the bridge's own failure rather than
+            # this stub's.
+            logger = self.options.get("logger")
+            if logger is not None:
+                logger.warning(REAL_WARNING)
             raise stub.failWith
 
         def sanitize_info(self, info):
@@ -195,6 +199,58 @@ class FailedExtractionNotesTest(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual("jNQXAC9IVRw", result["info"]["id"])
+
+class FailedDownloadNotesTest(unittest.TestCase):
+    """
+    A failed DOWNLOAD reports what yt-dlp noticed too -- and this is the test that was missing.
+
+    Adding notes to the failure envelope was done with a blanket string replace, and the same
+    `except yt_dlp.utils.DownloadError` block appears in `download()` as well as `extract()` -- where
+    there is no collecting logger in scope. So every failed download raised
+    `NameError: name 'logger' is not defined` instead of returning a value, which broke the contract's
+    one rule (expected failures are values, never exceptions).
+
+    The extract-path test passed throughout, because it only ever exercised extract. The live
+    instrumented suite caught it (SeekDeepIntoALongVideoTest, 2026-08-19) -- a JVM-and-python-only
+    gate could not have. This test is the cheap guard that belongs underneath it.
+    """
+
+    class Listener:
+        def onProgress(self, done, total, eta):
+            pass
+
+    def test_a_failed_download_returns_a_value_rather_than_raising(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        result = json.loads(module.download(
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+            "/tmp",
+            None,
+            self.Listener(),
+            None,
+            "",
+        ))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual("extractor", result["kind"])
+
+    def test_a_failed_download_reports_what_yt_dlp_noticed(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        result = json.loads(module.download(
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+            "/tmp",
+            None,
+            self.Listener(),
+            None,
+            "",
+        ))
+
+        self.assertIn("notes", result, f"a failed download must say what preceded it: {result}")
+        self.assertTrue(
+            any("SABR-only" in note for note in result["notes"]),
+            f"the warning yt-dlp emitted before giving up has to survive: {result}",
+        )
 
 
 if __name__ == "__main__":

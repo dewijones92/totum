@@ -376,9 +376,14 @@ def download(url, target_dir, format_id, listener, ffmpeg_location, sponsorblock
                 int(d.get("eta") or 0),
             )
 
+    logger = _CollectingLogger()
     options = {
         "quiet": True,
-        "no_warnings": True,
+        # NOT no_warnings, for the same reason extract() does not suppress them: when a download
+        # fails, yt-dlp's own warnings are usually the only account of WHY, and they were being
+        # thrown away on the one path a person actually complains about. Collected rather than
+        # printed. See FailedDownloadNotesTest.
+        "logger": logger,
         "outtmpl": target_dir + "/%(id)s.%(ext)s",
         "progress_hooks": [hook],
         # Fetch everything in Python, never through ffmpeg.
@@ -419,7 +424,7 @@ def download(url, target_dir, format_id, listener, ffmpeg_location, sponsorblock
             info = ydl.sanitize_info(ydl.extract_info(url, download=True))
             requested = info.get("requested_downloads") or [{}]
             path = requested[0].get("filepath")
-            return json.dumps({"ok": True, "filepath": path})
+            return json.dumps({"ok": True, "filepath": path, "notes": logger.notes()})
     except yt_dlp.utils.DownloadError as e:
         # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
         # it noticed on the way there, which is often the actual reason -- and a failed extraction is
