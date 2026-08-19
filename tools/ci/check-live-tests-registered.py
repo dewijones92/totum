@@ -9,6 +9,12 @@ is both wrongly included and never covered.
 Only the `video.live` package is checked. It is the convention for new live tests, and the four older
 ones outside it are already listed; guessing which arbitrary class is "live" from its name would be a
 worse rule than the convention.
+
+A file in that directory with no `@Test` in it is a HELPER, not a test, and is skipped: registering one
+would put a class that runs nothing into the list both ci.yml and live-test-via-home.sh read from. Added
+2026-08-19 when `ThePictureTheAppTookAway.kt` — a shared question two live tests ask — was flagged. The
+narrower rule is the accurate one: an unregistered file that cannot contribute a test cannot cause the
+failure this check exists to prevent.
 """
 import pathlib
 import sys
@@ -32,9 +38,10 @@ def main() -> int:
         print(f"no live test directory at {LIVE_DIR} — nothing to check")
         return 0
     known = registered()
+    tests = [path for path in LIVE_DIR.glob("*.kt") if "@Test" in path.read_text()]
     missing = sorted(
         f"{PACKAGE}.{path.stem}"
-        for path in LIVE_DIR.glob("*.kt")
+        for path in tests
         if f"{PACKAGE}.{path.stem}" not in known
     )
     if missing:
@@ -45,7 +52,11 @@ def main() -> int:
         print("Add them there. Unregistered, they run in the ordinary CI job against a datacentre IP")
         print("where YouTube serves differently, and they are never run in the live phase either.")
         return 1
-    print(f"all {len(list(LIVE_DIR.glob('*.kt')))} live instrumented tests are registered")
+    helpers = len(list(LIVE_DIR.glob("*.kt"))) - len(tests)
+    print(
+        f"all {len(tests)} live instrumented tests are registered"
+        + (f" ({helpers} helper file(s) skipped)" if helpers else ""),
+    )
     return 0
 
 
