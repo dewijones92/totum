@@ -35,7 +35,11 @@ instead).
 | Pillar inference, `fetchUrl`, `DownloadedMedia.offline` | JVM unit | `:core:domain` — the rules that used to exist twice |
 | Download-record migration (v13→v14 backfill + table shape) | instrumented | `:core:database` — real files must survive it |
 | InnerTube parsers (feeds/related/comments/search/…) | JVM unit | `:lib:innertube`, against captured fixtures |
-| yt-dlp `BridgeJson` | JVM unit | `:lib:ytdlp-chaquopy` |
+| yt-dlp `BridgeJson` | JVM unit | `:lib:ytdlp` — the parser is platform-neutral and lives beside the API, not with the Chaquopy engine (this row said `:lib:ytdlp-chaquopy` until 2026-08-19) |
+| yt-dlp's notes reaching EVERY front end | JVM unit | `:lib:ytdlp` `EveryFrontEndHearsTheNotesTest` — reported where the contract is parsed, so the CLI cannot silently lose them |
+| The bridge's JSON envelope, success and failure | python | `lib/ytdlp-chaquopy/src/test/python` `FailedExtractionNotesTest` — imports the real bridge against a stub yt-dlp; a failed extraction used to bin the warnings explaining it |
+| Ending playback in a test fake is never a silent no-op | JVM unit | `:core:playback` `EndingNothingIsATestBugTest` — a swallowed signal is indistinguishable from a product bug |
+| The `/player` ladder keeping your audio track | JVM unit | `:app` `ASecondOpinionRungKeepsYourTrackTest` — the rule lived on the yt-dlp ladder only, so the degraded path served the wrong language |
 | Room DAOs / stores | instrumented | `:core:database` |
 | `Media3PlaybackController` / service | instrumented + on-device | `:core:playback` |
 | Ranged fetch arithmetic + stopping rule (`ChunkedRead`) | JVM unit | `:core:playback` — 18 cases; the class every stream flows through, previously untested |
