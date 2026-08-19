@@ -141,9 +141,18 @@ class WhatSabrWillServeTest {
 
         /** Dewi's cap, and SabrResolve's: nothing above 1080p is worth measuring here. */
         const val MAX_HEIGHT = 1080
-        const val MAX_PROBES = 8
-        const val MAX_AUDIO_PROBES = 3
-        const val PROBE_TIMEOUT_MS = 30_000L
+
+        /**
+         * Kept cheap on purpose. This is a DIAGNOSTIC — it answers "what will SABR serve" when someone
+         * is investigating — and it runs in the live phase on every push, where its cost is paid by
+         * everybody. Eight probes at a thirty-second timeout each is four minutes of worst case per
+         * subject, and it is a large part of what took CI's emulator job from thirteen minutes to
+         * twenty-eight. Four probes at twelve seconds still covers the interesting rungs, because the
+         * refusals answer in tens of milliseconds and only a hang reaches the timeout.
+         */
+        const val MAX_PROBES = 4
+        const val MAX_AUDIO_PROBES = 2
+        const val PROBE_TIMEOUT_MS = 12_000L
         const val MIME_CHARS = 40
         const val DESC_CHARS = 120
     }
