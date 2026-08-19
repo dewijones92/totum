@@ -72,6 +72,22 @@ public fun sabrStreamFor(uri: String): SabrStream? {
         return null
     }
     val kind = if (format == session.audio) SabrTrackKind.AUDIO else SabrTrackKind.VIDEO
+    // KEPT per track, so a reopen continues the conversation instead of starting a cold one.
+    //
+    // ExoPlayer's loader reopens a source at a non-zero byte offset during ordinary playback -- no user
+    // seek involved -- and this function is called on every one of those. Building a new stream each
+    // time threw away the held segments and buffered ranges, leaving exactly the cold mid-stream open
+    // that YouTube answers with no media. Measured on totum-api35 over ten seconds of playback per
+    // fixture: sixteen "SEEK to byte N ... expect this to stall" restarts.
+    //
+    // Keyed by video AND itag: sharing one stream across itags splices one format's bytes into the
+    // other's. Bounded by the session store, which evicts at MAX_SESSIONS.
+    // See AReopenContinuesTheSabrConversationTest.
+    val key = "$videoId:$itag"
+    live[key]?.let {
+        Diag.log("sabr", "reusing the open stream for $videoId itag $itag — ${it.describeProgress()}")
+        return it
+    }
     Diag.log("sabr", "serving $videoId itag $itag as $kind")
     return SabrStream(
         url = session.streamingUrl,
@@ -81,8 +97,16 @@ public fun sabrStreamFor(uri: String): SabrStream? {
         totalBytes = format.contentLength,
         durationMs = session.durationMs,
         transport = SabrPostTransport,
-    )
+    ).also { stream ->
+        live[key] = stream
+        // Bounded alongside the sessions it belongs to: a stream whose session has been evicted can
+        // never be asked for again, so holding it would be a slow leak of whole response buffers.
+        live.keys.removeAll { held -> SabrSessions.of(held.substringBeforeLast(':')) == null }
+    }
 }
+
+/** The stream open for each `videoId:itag`, so a reopen is not a cold start. */
+private val live = java.util.concurrent.ConcurrentHashMap<String, SabrStream>()
 
 /**
  * The SABR POST, on `HttpURLConnection`.

@@ -79,6 +79,16 @@ public class SabrStream(
      * 130005ms when it meant to ask for 407499ms, and would have recorded a false conclusion.
      */
     private var handedThrough = -1L
+
+    /**
+     * The byte a sequential read would ask for next, or -1 before any read.
+     *
+     * Public so a caller can tell a CONTINUATION from a real jump. `SabrDataSource` warned "expect this
+     * to stall" on every open at a non-zero position, which was true when every open built a cold
+     * stream and became a lie the moment reopens started reusing a warm one — sixteen of those in ten
+     * seconds of ordinary playback, all of them fine. A warning that cries wolf is worse than none.
+     */
+    public val readTo: Long get() = handedThrough
     private var playerTimeMs = 0L
     private var exhausted = false
 

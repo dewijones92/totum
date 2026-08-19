@@ -51,12 +51,18 @@ public class SabrDataSource(private val stream: SabrStream) : BaseDataSource(tru
         // is asked for a media time, not a byte offset, so bytes before that offset were never
         // fetched and never will be. Said loudly and by name, because the symptom otherwise is
         // "the player froze after I scrubbed" with nothing to connect it to.
-        if (position > 0) {
+        if (position > 0 && position == stream.readTo) {
+            // Not a seek at all: ExoPlayer's loader closes and reopens a source during ordinary
+            // playback, and this one carries on exactly where the last read stopped. It used to be
+            // reported as a stall risk, which was true only while every reopen built a cold stream.
+            Diag.log("sabr", "continuing at byte $position (open #$opens)")
+        } else if (position > 0) {
             Vitals.add("sabr.seekAttempts")
             Diag.warn(
                 "sabr",
-                "SEEK to byte $position — not supported on this path (SABR is time-addressed, " +
-                    "not byte-addressed); expect this to stall. open #$opens, ${stream.describeProgress()}",
+                "SEEK to byte $position — a real jump, not a continuation (the stream had read to " +
+                    "${stream.readTo}). SABR is time-addressed, not byte-addressed, so expect this to " +
+                    "stall. open #$opens, ${stream.describeProgress()}",
             )
         } else {
             Diag.log("sabr", "opened at $position of ${length ?: -1} bytes (open #$opens)")
