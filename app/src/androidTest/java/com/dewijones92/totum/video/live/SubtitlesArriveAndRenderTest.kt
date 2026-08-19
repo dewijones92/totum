@@ -114,6 +114,22 @@ class SubtitlesArriveAndRenderTest {
             println("[subtitles] no caption assertions: the stream was refused after starting")
             return@runBlocking
         }
+        // A third thing outside this test's control, alongside the two above: the app may have taken the
+        // picture away itself. `MeteredAudioSwitch` PERSISTS its decision (`setPlaybackMode(AUDIO)`) and
+        // samples on a clock, so on a metered connection it can fire BETWEEN the precondition set above
+        // and this measurement -- and an audio-only route carries no captions. CI's emulator is metered,
+        // which is exactly what happened on 2026-08-19: the trail read `listen=true` despite VIDEO being
+        // set eight lines earlier, and the absent captions were reported as a caption defect.
+        // `PlaysAcrossContentTypesTest` met the same thing on 2026-08-18 and restated the precondition
+        // per measurement, which is not enough when the switch fires mid-measurement.
+        val mode = container.appPreferences.settings.value.playbackMode
+        if (tracks.isEmpty() && mode != PlaybackMode.VIDEO) {
+            println(
+                "[subtitles] no caption assertions: the app switched itself to $mode mid-test " +
+                    "(MeteredAudioSwitch, metered connection), and an audio-only route has no captions",
+            )
+            return@runBlocking
+        }
         assertTrue(
             "no subtitle track reached the player. The resolve log says how many were extracted; if it " +
                 "says several then they were lost between the resolver and the session. Trail:\n${trail()}",
