@@ -52,11 +52,20 @@ class AnHourLongItemDoesNotRebufferTest {
     private val controller get() = container.playbackController
     private val queue get() = container.playbackQueue
     private var modeBefore = PlaybackMode.AUTO
+    private var sabrBefore = false
 
     @Before
     fun startClean() = runBlocking(Dispatchers.Main) {
         modeBefore = container.appPreferences.settings.value.playbackMode
         container.appPreferences.setAutoDownloadQueue(false)
+        // SABR ON, because that is the path this is about. It is off by DEFAULT, so the first version of
+        // this test measured the extraction path instead — and found its wall: a plain ANDROID_VR URL
+        // 403ing at 60006ms ("a stream with 21522s of its lease left"), the app re-resolving, and one
+        // visible stall. That is the same failure as report 0.1.444 from Dewi's phone, and it is exactly
+        // what SABR exists to avoid. Whether the default should change is his call; this test says what
+        // the SABR path does.
+        sabrBefore = container.appPreferences.settings.value.sabrPlayback
+        container.appPreferences.setSabrPlayback(true)
         queue.clear()
         container.downloadManager.delete(MediaItemId(VIDEO_ID))
         // From the BEGINNING, every time. The queue resumes where it left off, so the second case
@@ -74,6 +83,7 @@ class AnHourLongItemDoesNotRebufferTest {
         queue.clear()
         controller.player?.stop()
         container.appPreferences.setPlaybackMode(modeBefore)
+        container.appPreferences.setSabrPlayback(sabrBefore)
         container.downloadManager.delete(MediaItemId(VIDEO_ID))
     }
 

@@ -547,3 +547,42 @@ And the honest summary of the whole path: without a PoToken minter, SABR gives a
 and about a minute of video. It stays behind the beta flag, and the next thing worth doing is
 either minting a PoToken or falling back to extraction mid-stream when the protection status
 appears — not more tuning of the request.
+
+## The default is OFF, and that is where the buffering comes from (2026-08-19)
+
+Asked to prove an hour-long video plays without buffering, the first honest measurement — through the
+app's own queue and controller rather than a bare player — found a stall, and the cause was not SABR:
+
+```
+[playback] HTTP 403 from client ANDROID_VR on a stream with 21522s of its lease left -> Rejected
+[playback] stream failed at 60006ms — Rejected
+[playback] stopped loading at 60006ms with only 0ms buffered ahead and 5745161ms of the item never
+           fetched — the tail is not coming
+```
+
+That is a plain extracted URL hitting the attestation wall, identical to report 0.1.444 from Dewi's
+phone. The app took that path because **`sabrPlayback` defaults to false**, so SABR — the thing that
+avoids that wall — was never asked. Every earlier SABR measurement here called `SabrResolve.prepare`
+directly and so could not reveal it.
+
+With the flag ON, same test, same emulator, cold from the beginning:
+
+| Track | Rebuffers | Progress |
+|---|---|---|
+| audio-only | **0** | 59866ms of 60000ms |
+| video (itag 137, 1080p30) | **0** | 60099ms of 60000ms |
+
+and audio off the SABR path managed ten minutes with **0** rebuffers and 599918ms of 600000ms.
+
+### The nuance that decides whether flipping the default would help
+
+`VideoResolver.overSabr` refuses when `resumeAt > 0` — *"a resume is a seek, and the SABR path cannot
+seek yet"*. So SABR only ever serves a fresh start. Turning the default on would help someone starting a
+video and not someone RESUMING one, which is exactly the case in Dewi's report (2150716ms in). The
+complete fix for that remains a PO token or a seekable SABR, both already written up in
+[youtube-requires-attestation.md](youtube-requires-attestation.md) and
+[sabr-cannot-seek.md](sabr-cannot-seek.md).
+
+**Not changed here.** Flipping a default on shipped playback is Dewi's call, and the honest summary is:
+it removes the 60-second 403 for fresh starts, does nothing for resumes, and brings the known SABR
+limitations (no seeking, live refused by name) with it.
