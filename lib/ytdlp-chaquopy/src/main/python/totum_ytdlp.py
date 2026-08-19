@@ -58,6 +58,24 @@ def versions():
 # docs/todos/youtube-requires-attestation.md.
 PLAYER_CLIENTS = {"youtube": {"player_client": ["default", "android", "web_embedded"]}}
 
+
+def _extractor_args(po_token=None):
+    """
+    The youtube extractor args for one call, with an optional PO token.
+
+    COPIED rather than mutated: PLAYER_CLIENTS is module-level and shared by every call, so adding a
+    per-video token to it in place would leak that video's token into the next video's request.
+
+    Shape is yt-dlp's own, verified against the bundled 2026.07.04:
+    `CLIENT.CONTEXT+PO_TOKEN`, contexts `player`, `gvs`, `subs`. A token is what the attestation wall
+    ends at (docs/todos/youtube-requires-attestation.md); the bridge only has to CARRY one, and does not
+    need to know how it was minted. See PoTokenPassThroughTest.
+    """
+    args = {key: dict(value) for key, value in PLAYER_CLIENTS.items()}
+    if po_token:
+        args["youtube"]["po_token"] = list(po_token)
+    return args
+
 # Path to the bundled QuickJS interpreter, set once from Kotlin (see configure_js_runtime).
 #
 # yt-dlp has deprecated YouTube extraction without a JavaScript runtime and silently drops
@@ -169,7 +187,7 @@ class _CollectingLogger:
         self._keep("error", message)
 
 
-def extract(url):
+def extract(url, po_token=None):
     # No watch-progress tracking is captured here, deliberately. yt-dlp runs
     # unauthenticated, so the tracking URLs in its player response address an
     # anonymous session: pinging them returns 204 and credits nobody. Measured
@@ -183,7 +201,7 @@ def extract(url):
         # megabyte in. Collected rather than printed, so the app decides what to do with them.
         "logger": logger,
         "skip_download": True,
-        "extractor_args": PLAYER_CLIENTS,
+        "extractor_args": _extractor_args(po_token),
         "js_runtimes": _js_runtimes(),
     }
     try:
@@ -367,7 +385,7 @@ def channel(url, max_videos):
         return json.dumps({"ok": False, "kind": kind, "detail": str(e)})
 
 
-def download(url, target_dir, format_id, listener, ffmpeg_location, sponsorblock_categories):
+def download(url, target_dir, format_id, listener, ffmpeg_location, sponsorblock_categories, po_token=None):
     def hook(d):
         if d.get("status") == "downloading":
             listener.onProgress(
@@ -401,7 +419,7 @@ def download(url, target_dir, format_id, listener, ffmpeg_location, sponsorblock
         # m3u8 before it ever looks at this setting. Recording a live stream is not something
         # this build can do, and the failure is classified permanent so it stops retrying.
         "external_downloader": "native",
-        "extractor_args": PLAYER_CLIENTS,
+        "extractor_args": _extractor_args(po_token),
         "js_runtimes": _js_runtimes(),
     }
     if format_id:

@@ -252,6 +252,86 @@ class FailedDownloadNotesTest(unittest.TestCase):
             f"the warning yt-dlp emitted before giving up has to survive: {result}",
         )
 
+class PoTokenPassThroughTest(unittest.TestCase):
+    """
+    A PO token reaches yt-dlp's extractor args, in the shape it documents.
+
+    The attestation wall (docs/todos/youtube-requires-attestation.md) ends at one missing thing: a PO
+    token. The bundled yt-dlp 2026.07.04 already accepts one -- `CLIENT.CONTEXT+PO_TOKEN`, contexts
+    `player`, `gvs`, `subs` -- so the bridge does not need to know how a token is MINTED to be able to
+    carry one. This is that seam, and it is the half that is needed whichever way minting is solved.
+
+    Asserted against the options actually handed to YoutubeDL, because "we set an option" and "yt-dlp
+    received it under the key it reads" are different claims, and only the second one plays a video.
+    """
+
+    def _options_seen(self, **kwargs):
+        module, stub = _bridge_with_stubbed_ytdlp()
+        seen = {}
+
+        class Recording(stub.YoutubeDL):
+            def __init__(self, options):
+                seen.update(options)
+                super().__init__(options)
+
+            def extract_info(self, url, download=False):
+                return {"id": "jNQXAC9IVRw"}
+
+        stub.YoutubeDL = Recording
+        module.extract("https://www.youtube.com/watch?v=jNQXAC9IVRw", **kwargs)
+        return seen
+
+    def test_no_token_leaves_the_extractor_args_alone(self):
+        args = self._options_seen()["extractor_args"]
+
+        self.assertNotIn("po_token", args["youtube"], f"nothing to pass must add nothing: {args}")
+        self.assertIn("player_client", args["youtube"], "the client list must survive: %s" % args)
+
+    def test_a_token_arrives_under_the_key_yt_dlp_reads(self):
+        args = self._options_seen(po_token=["web.gvs+TOKENVALUE"])["extractor_args"]
+
+        self.assertEqual(["web.gvs+TOKENVALUE"], args["youtube"]["po_token"])
+        self.assertIn("player_client", args["youtube"], "adding a token must not drop the client list")
+
+    def test_a_download_carries_the_token_too(self):
+        module, stub = _bridge_with_stubbed_ytdlp()
+        seen = {}
+
+        class Recording(stub.YoutubeDL):
+            def __init__(self, options):
+                seen.update(options)
+                super().__init__(options)
+
+            def extract_info(self, url, download=False):
+                return {"id": "x", "requested_downloads": [{"filepath": "/tmp/x.webm"}]}
+
+        stub.YoutubeDL = Recording
+
+        class Listener:
+            def onProgress(self, done, total, eta):
+                pass
+
+        module.download(
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw", "/tmp", None, Listener(), None, "",
+            po_token=["web.gvs+TOKENVALUE"],
+        )
+
+        self.assertEqual(
+            ["web.gvs+TOKENVALUE"],
+            seen["extractor_args"]["youtube"]["po_token"],
+            "a download is refused by the same wall as a play, so it needs the same token",
+        )
+
+    def test_the_shared_client_list_is_not_mutated(self):
+        self._options_seen(po_token=["web.gvs+TOKENVALUE"])
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        self.assertNotIn(
+            "po_token",
+            module.PLAYER_CLIENTS["youtube"],
+            "a per-call token must not stick to the module-level dict every other call shares",
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
