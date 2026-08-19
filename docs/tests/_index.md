@@ -384,6 +384,30 @@ is being asserted, because the queue's path publishes a bare state for the id fi
 races the poll loop could win on one machine and lose on another. See also [a test can measure the
 environment].
 
+## The app can change the precondition you just set (2026-08-19)
+
+`SubtitlesArriveAndRenderTest` failed CI as *"no subtitle track reached the player"*. It passes in
+isolation on the emulator, so it was never YouTube and never the caption path. The trail said
+`listen=true` **eight lines after the test set `PlaybackMode.VIDEO`** — and `audioPlaybackPreferred()`
+returns `false` for an explicit VIDEO, so the mode genuinely was not VIDEO when the route was taken.
+
+`MeteredAudioSwitch` PERSISTS its decision (`setPlaybackMode(AUDIO)`) and samples on a clock. **CI's
+emulator connection is metered**, so it fires between a test's precondition and its measurement, and an
+audio-only route has no picture, no captions and no quality ladder. Every test that measures one of
+those can be told a lie by the app doing exactly what it is designed to do.
+
+`PlaysAcrossContentTypesTest` met this on 2026-08-18 (three items read as "no picture") and fixed it by
+restating the precondition per measurement — necessary, but not sufficient: it does not help when the
+switch fires *during* the measurement. So the question "has the app switched itself out of VIDEO?" now
+lives in one place, `switchedItselfOutOfVideo()`, and the tests that measure the picture consult it and
+say so rather than asserting. `FourKActuallyPlaysTest` needed it for the same reason: an audio-only
+route picks no video height, so its one assertion would have read "picked 0p" and blamed the cap.
+
+The general shape, and it is not only about this switch: **a precondition that the code under test is
+allowed to change is not a precondition, it is a race.** Either take the ability away for the duration,
+or check it still holds at the moment you measure — and when it does not, report *that* rather than the
+thing you were trying to measure. Same family as [a test can measure the environment].
+
 ## A timeout is not a diagnosis (2026-08-19)
 
 `ShortsReelAdvanceTest > endingRepeatedly_walksTheWholeReel` failed on main (run 32239962730) on a
