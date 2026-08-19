@@ -366,6 +366,20 @@ Fixed by holding the values on the controller, as the skip segments and subtitle
 Then run five times consecutively — because "it passed once after I changed something" is how a race
 gets declared fixed while still being a race.
 
+**That fix was real and it was not the whole story** (2026-08-19). The same test failed the emulator
+job twice more today, and this section — which reads as though the matter was closed — is part of why
+the second reading was "flaky" again. There was a SECOND race, in the test rather than the product:
+the item's URI is unreachable on purpose, and how long that takes to discover is a property of the
+machine. Locally DNS and connect take long enough that the poll loop still finds the state; with no
+route the load fails in **73ms**, the player goes idle, the session lands on nothing, and `state.value`
+has already been torn down. Turning the emulator's network off reproduces it every time.
+
+A transient value has to be **collected from the stream, not sampled after the fact** — buffered, so
+StateFlow cannot conflate the publication away — and the wait has to be for a state that carries what
+is being asserted, because the queue's path publishes a bare state for the id first. Both halves were
+races the poll loop could win on one machine and lose on another. See also [a test can measure the
+environment].
+
 ## A timeout is not a diagnosis (2026-08-19)
 
 `ShortsReelAdvanceTest > endingRepeatedly_walksTheWholeReel` failed on main (run 32239962730) on a
