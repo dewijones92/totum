@@ -52,6 +52,12 @@ class MediaItemActions internal constructor(
      */
     fun switchMode(item: MediaItem, toAudio: Boolean, audioOnMessage: String, videoOnMessage: String) {
         preferences.setPlaybackMode(if (toAudio) PlaybackMode.AUDIO else PlaybackMode.VIDEO)
+        // Asking a row for video is asking for the PICTURE, so it has to overrule a sound-only rescue
+        // the same way the player's own Watch button does. Without this the mode changed, the toast said
+        // video was on, and the item came back as sound only -- because the refusal is sticky per item
+        // and only WatchViewModel cleared it. Report 0.1.444, "can't see video?mmm": mode=VIDEO and
+        // three routes still carrying listen=true. See TheSoundRungPlaysTheFailINGItemTest.
+        if (!toAudio) queue.wantsThePictureAgain(item.id)
         ui.announce(if (toAudio) audioOnMessage else videoOnMessage)
         val playable = item.toPlayableOrNull() ?: return
         scope.launch { queue.playNow(playable) }

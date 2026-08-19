@@ -2,6 +2,8 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
+import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
+import com.dewijones92.totum.data.source.DefaultSourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -10,6 +12,9 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.playback.fake.FakePlaybackController
+import com.dewijones92.totum.settings.InMemoryAppPreferences
+import com.dewijones92.totum.ui.common.MediaItemActions
+import com.dewijones92.totum.ui.common.UiEffects
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.ytdlp.ExtractionResult
@@ -199,6 +204,58 @@ class TheSoundRungPlaysTheFailINGItemTest {
     }
 
     /**
+     * Asking for the picture from a ROW overrules the refusal — the path that could not.
+     *
+     * The refusal is sticky, which is right (0.1.437, "tennis video not working????"), but sticky must
+     * not mean permanent. `WatchViewModel.watch()` and `watchOnce()` clear it; the row action did not.
+     * `MediaItemActions.switchMode(toAudio = false)` set the mode to VIDEO, announced video was on, and
+     * replayed the item with the refusal still standing — so it came back as sound only. Four UI entry
+     * points route through that (the action sheet, ProvideItemActions, VideosScreen, MediaItemRow), so
+     * most ways of asking for the picture could not actually get it.
+     *
+     * Report 0.1.444 from Dewi's Pixel 7, note "can't see video?mmm", PROVES it rather than suggesting
+     * it: `settings.playbackMode = VIDEO`, so `audioPreferred()` was false, and yet three consecutive
+     * routes carried `listen=true`, ending "plays as sound only — its picture was refused earlier". He
+     * toggled AUDIO/VIDEO six times trying to get the picture back.
+     *
+     * Asserted through the ROW, not through `wantsThePictureAgain`: the seam already worked, and a test
+     * of the seam passes while the app stays broken. One rule, two callers, implemented in one.
+     */
+    @Test
+    fun `switching a row back to video overrules an earlier refusal`() = runTest {
+        val preferences = InMemoryAppPreferences()
+        val actions = MediaItemActions(
+            queue = queue,
+            openPlaylistPicker = {},
+            locator = DefaultSourceLocator(FakePodcastRepository(), FakeYtDlpEngine()),
+            scope = this,
+            preferences = preferences,
+            ui = object : UiEffects {
+                override fun announce(message: String) = Unit
+                override fun expandPlayer() = Unit
+            },
+        )
+        queue.playNow(video())
+        advanceUntilIdle()
+        queue.playCurrentWithoutThePicture(positionMs = 120_000)
+        advanceUntilIdle()
+
+        actions.switchMode(video().item, toAudio = false, audioOnMessage = "", videoOnMessage = "")
+        advanceUntilIdle()
+        // The row's own replay is launched on the scope above and is covered elsewhere; what is under
+        // test here is whether the REFUSAL was lifted, so the item is re-routed explicitly. Asserting
+        // through a route rather than by reading a flag, because the route is what the person sees.
+        queue.replayCurrent(positionMs = 130_000)
+        advanceUntilIdle()
+
+        assertEquals(
+            "asking a row for video must ask for the video stream, not hand back the sound again",
+            VIDEO_STREAM_URL,
+            controller.lastItem?.mediaUrl?.value,
+        )
+    }
+
+    /**
      * A TORRENT has a picture to lose, and its own audio-only stream to fall back to.
      *
      * It is a `PlayHandle.Podcast` — the pillar-shaped guard refused it — but it is one file carrying
@@ -299,6 +356,7 @@ class TheSoundRungPlaysTheFailINGItemTest {
         const val WATCH = "https://www.youtube.com/watch?v=$VIDEO_ID"
         const val ENCLOSURE = "https://feed.test/ep1.mp3"
         const val VIDEO_AUDIO_URL = "https://x.test/a?n=solved"
+        const val VIDEO_STREAM_URL = "https://x.test/v?n=solved"
         const val TORRENT_VIDEO = "http://pi.test/stream/torrent-1"
         const val TORRENT_AUDIO = "http://pi.test/audio/torrent-1"
     }
