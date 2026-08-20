@@ -5,12 +5,16 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.sabr.ResponseSummary
 import com.dewijones92.totum.sabr.SabrClientInfo
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
+import com.dewijones92.totum.sabr.SabrTracks
 import com.dewijones92.totum.sabr.SabrTransport
+import com.dewijones92.totum.sabr.UmpReader
+import com.dewijones92.totum.sabr.VideoPlaybackAbrRequest
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
@@ -56,9 +60,15 @@ class DoesAPoTokenLiftTheCeilingTest {
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
+    /** The last HTTP status this transport saw, because a 0-byte body says nothing on its own. */
+    private var lastStatus: String = "none"
+
     private val transport = SabrTransport { url, body ->
         val request = Request.Builder().url(url).post(body.toRequestBody(PROTOBUF)).build()
-        http.newCall(request).execute().use { it.body.bytes() }
+        http.newCall(request).execute().use {
+            lastStatus = "HTTP ${it.code}"
+            it.body.bytes()
+        }
     }
 
     @Test
@@ -75,6 +85,16 @@ class DoesAPoTokenLiftTheCeilingTest {
         // Both arms ask the SAME client with the SAME visitorData, so the token is the only difference.
         // An earlier version varied the client too, which is how two arms measuring 956KB said nothing.
         val visitorData = System.getProperty("visitorData")
+        val info = when (System.getProperty("clientInfo")) {
+            "android" -> SabrClientInfo.ANDROID
+            "web" -> SabrClientInfo.WEB
+            else -> null
+        }
+        // Dumped BEFORE the ceiling runs, so a run that serves nothing still says why.
+        println("[potoken] one response WITHOUT a token:")
+        describeOneResponse(freshSession(visitorData), info, null)
+        println("[potoken] one response WITH a token:")
+        describeOneResponse(freshSession(visitorData), info, Base64.getUrlDecoder().decode(token))
         val without = ceilingOf(freshSession(visitorData), null)
         val with = ceilingOf(freshSession(visitorData), Base64.getUrlDecoder().decode(token), token)
 
@@ -96,6 +116,42 @@ class DoesAPoTokenLiftTheCeilingTest {
                     "binding is wrong — try the other identifier — or the token is not what is refused."
             },
         )
+    }
+
+    /**
+     * What the endpoint ACTUALLY answers, part by part, for one request.
+     *
+     * Added because "0KB served" is a conclusion, not evidence: a refusal, a response carrying only
+     * control parts, and media we fail to keep all produce it, and they need completely different
+     * fixes. The WEB endpoint measured 0KB in every arm INCLUDING the one with no token, so it is not
+     * a wall at all -- and nothing in the run said which of the three it was.
+     */
+    private fun describeOneResponse(session: SabrSession, clientInfo: SabrClientInfo?, poToken: ByteArray?) {
+        val audio = session.audio ?: return
+        val body = VideoPlaybackAbrRequest(
+            ustreamerConfig = session.ustreamerConfig,
+            playerTimeMs = 0,
+            audio = audio,
+            tracks = SabrTracks.AUDIO_ONLY,
+            poToken = poToken,
+            clientInfo = clientInfo,
+        ).encode()
+        val response = runBlocking { transport.post(session.streamingUrl, body) }
+        val parts = UmpReader.read(response).parts
+        // The URL's own parameters, because a 403 from googlevideo is usually about the URL rather
+        // than the body: an `n` that has not been deciphered is the classic cause, and the WEB client
+        // is the one that carries an `n` at all.
+        val query = session.streamingUrl.substringAfter('?', "").split("&").map { it.substringBefore('=') }
+        println("[potoken]   endpoint params: ${query.sorted().joinToString(",")}")
+        println(
+            "[potoken]   has n=${"n" in query} has pot=${"pot" in query} host=${session.streamingUrl.substringAfter(
+                "//"
+            ).substringBefore("/")}"
+        )
+        println("[potoken]   request ${body.size}B -> $lastStatus, response ${response.size}B")
+        println("[potoken]   parts: " + parts.joinToString { "${it.name}(${it.payload.size}B)" })
+        println("[potoken]   summary: ${ResponseSummary.of(response)}")
+        ResponseSummary.refusalIn(response)?.let { println("[potoken]   REFUSAL: $it") }
     }
 
     /**

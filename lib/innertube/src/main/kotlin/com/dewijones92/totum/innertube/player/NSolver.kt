@@ -35,7 +35,13 @@ public fun interface NSolver {
  * stall part-way through. Formats carrying no `n` at all pass through untouched.
  */
 public suspend fun StreamingData.withSolvedN(solver: NSolver, playerUrl: String): StreamingData {
-    val challenges = formats.mapNotNull { it.url?.nParameter() }.distinct()
+    // The SABR ENDPOINT counts too, and for a long time it did not. This walked `formats` and left
+    // `serverAbrStreamingUrl` exactly as it arrived -- harmless on the ANDROID client, whose URLs
+    // carry no `n`, and fatal on WEB, whose endpoint does. Measured 2026-08-20: a WEB endpoint with
+    // `n` still obfuscated answered HTTP 403 with a zero-byte body, which had been read for hours as
+    // a proof-of-origin token failing to help. The request never reached a server willing to look.
+    val challenges = (formats.mapNotNull { it.url?.nParameter() } + listOfNotNull(serverAbrStreamingUrl?.nParameter()))
+        .distinct()
     if (challenges.isEmpty()) return this
 
     val solved = runCatching { solver.solve(challenges, playerUrl) }.getOrElse { failure ->
@@ -55,7 +61,14 @@ public suspend fun StreamingData.withSolvedN(solver: NSolver, playerUrl: String)
         "solved ${solved.size}/${challenges.size} n parameter(s) — " +
             "${playable.size} of ${formats.size} format(s) playable",
     )
-    return copy(formats = playable)
+    // An endpoint whose `n` will not solve is left ALONE rather than dropped. A format that cannot be
+    // solved is dropped, because a 403 URL is worse than a missing quality -- but an endpoint is not a
+    // quality, and dropping it would take the whole SABR path away on one failed solve when the caller
+    // can still refuse it by name and fall back.
+    val endpoint = serverAbrStreamingUrl?.let { url ->
+        url.nParameter()?.let { solved[it] }?.let(url::withN) ?: url
+    }
+    return copy(formats = playable, serverAbrStreamingUrl = endpoint)
 }
 
 /** The value of the `n` query parameter, or null when the URL carries none. */

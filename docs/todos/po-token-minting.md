@@ -54,9 +54,12 @@ All against `uSMGENDH_QI`, both arms in one run:
 | ANDROID | `videoId` | `streamer_context.po_token` | 956KB | 956KB |
 | ANDROID | `visitorData` | `streamer_context.po_token` | 956KB | 956KB |
 | ANDROID | `videoId` | `pot=` on the URL | 956KB | 956KB |
-| WEB + visitorData | `visitorData` | `streamer_context.po_token` | 0KB | 0KB |
+| WEB + visitorData | `visitorData` | `streamer_context.po_token` | 0KB † | 0KB † |
 | ANDROID | `videoId` | `po_token` **+ `client_info` (ANDROID)** | 956KB | 956KB |
-| WEB + visitorData | `visitorData` | `po_token` **+ `client_info` (WEB)** | 0KB | 0KB |
+| WEB + visitorData | `visitorData` | `po_token` **+ `client_info` (WEB)** | 0KB † | 0KB † |
+
+† **Void.** Both WEB rows were HTTP 403 caused by an undeciphered `n` on our own endpoint URL, not by
+anything about the token. Re-run them once the WEB path can actually reach a server.
 
 The last two add `streamer_context.client_info` (field 19.1), read from
 `LuanRT/googlevideo`'s `streamer_context.proto` rather than guessed. It changes nothing on either
@@ -74,10 +77,17 @@ should not be conflated again:
 - **The ANDROID endpoint serves 956KB whatever we send it.** Token or no token, either binding,
   in the request or on the URL, with or without `client_info`. Six of the rows above say the same
   thing, which is strong evidence that *whatever* is capping this is not the thing we are varying.
-- **The WEB endpoint serves nothing at all, ever.** 0KB in every arm including the one with no
-  token, so this is not a wall — it is our WEB SABR request being refused outright, and its cause is
-  unknown. `SabrResolve.prepare` accepts the response and `SabrStream` gets bytes back that it keeps
-  none of. That is a separate bug and it has to be understood before the WEB path can test anything.
+- **The WEB endpoint served nothing because of OUR bug, now found and fixed.** Instrumenting the
+  probe to print the HTTP status and the endpoint's own query turned "0KB served" into
+  `has n=true has pot=false` and **HTTP 403, zero-byte body**. `withSolvedN` walked `formats` and
+  left `serverAbrStreamingUrl` exactly as it arrived — harmless on ANDROID, whose URLs carry no `n`,
+  and fatal on WEB, whose endpoint does. So **every WEB row above is void**: those requests never
+  reached a server willing to look at a token, and the token was never what was being measured.
+  Fixed, with `TheSabrEndpointNeedsItsNSolvedTest`.
+
+  Worth naming the instrument failure too, because it cost hours: the probe's transport threw the
+  status code away, and a zero-byte body with an unchecked status is indistinguishable from a stream
+  that served nothing. Two different situations, one reading.
 
 **The leading hypothesis is now that attestation is per-client.** NewPipe returns `null` from
 `getAndroidClientPoToken` outright — it does not attest the Android client at all, and every token
