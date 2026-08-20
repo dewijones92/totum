@@ -290,6 +290,36 @@ the BotGuard challenge locally. We mint a WEB token for a WEB endpoint.
 
 There is nothing further to read. The next step is observation, not deduction.
 
+## The client axis: we cannot obtain a TV player response at all
+
+Since the request body is exhausted, the remaining difference from SmartTube is **which client asks**.
+SmartTube is a TV client; every endpoint tested here has come from a WEB or ANDROID response. So
+`tools/potoken/tvsabr.py` asks as `TVHTML5`, with a visitorData, a real signature timestamp and a
+videoId-bound PO token in `serviceIntegrityDimensions` — the same four-part shape that made the WEB
+request work.
+
+```
+[tvsabr] status=UNPLAYABLE reason=The page needs to be reloaded. endpoint=False config=False formats=0
+```
+
+**We cannot get a TV SABR endpoint to test.** And that is the *same* error, word for word, that
+[signed-in-player-is-unplayable.md](signed-in-player-is-unplayable.md) recorded for the signed-in TV
+player on 2026-08-20 — which is what gates age-restricted playback.
+
+### One blocker, two symptoms
+
+That convergence is the useful part of this. The TV client path is broken for us, and it gates:
+
+1. **age-restricted videos** — `AppContainer.accountPlayer` tries `playerDowngradedTv` then
+   `playerAsAccount`, and both answer `UNPLAYABLE: The page needs to be reloaded`;
+2. **very probably SABR past sixty seconds**, since a TV client is what SmartTube is.
+
+So the next objective is narrow and nameable rather than open-ended: **make a TVHTML5 player request
+succeed.** `"The page needs to be reloaded"` is associated with a rejected client context — a stale
+`clientVersion`, a wrong or missing `visitorData` for that client family, or a signature timestamp the
+client is not expected to send. Ours read 20684 and then 20681 two minutes apart, which is itself
+unexplained. That is a bounded problem with a clear success signal, unlike anything else left here.
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which
