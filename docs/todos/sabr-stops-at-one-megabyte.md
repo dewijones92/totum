@@ -320,6 +320,29 @@ succeed.** `"The page needs to be reloaded"` is associated with a rejected clien
 client is not expected to send. Ours read 20684 and then 20681 two minutes apart, which is itself
 unexplained. That is a bounded problem with a clear success signal, unlike anything else left here.
 
+## Observed on the Fire Stick (2026-08-20, read-only)
+
+SmartTube **32.10** was in the foreground on a playback activity, `media_session` reporting
+`state=3` (playing), with seven established HTTPS sockets — actively streaming on the same broadband
+where our client and yt-dlp both cannot reach the TV client path. Read-only throughout: no install, no
+clear, no key events, and the adb session disconnected afterwards. Its release build does not log SABR
+internals, so how it does it is not visible from outside.
+
+That completes the evidence and bounds the remaining unknown exactly:
+
+- SmartTube, a TV client, streams whole videos over SABR here. **Confirmed by observation.**
+- The TV client is refused to us and to yt-dlp from the same address. **Confirmed by two tools.**
+- Our request body matches SmartTube's field for field. **Confirmed by replication.**
+- The ceiling is sixty seconds regardless. **Confirmed by eighteen variations.**
+
+So the difference is in what SmartTube presents as its identity — its own attestation stack
+(`PoTokenGate`, `potokennp2`, and a cloud fallback for devices that cannot run the challenge) plus
+whatever makes YouTube accept it as a television. Seeing that needs its requests on the wire, which
+means a MITM proxy and a trusted CA on that device.
+
+**That is Dewi's call, not something to set up unattended on a TV in use**, and it is the only step
+left that is observation rather than deduction.
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which
