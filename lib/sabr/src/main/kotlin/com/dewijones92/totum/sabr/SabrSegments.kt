@@ -42,6 +42,7 @@ public class SabrSegments(
     private val held = sortedMapOf<Int, SabrSegment>()
     private var initSegment: SabrSegment? = null
     private var playbackCookie: ByteArray? = null
+    private val contexts = linkedMapOf<Int, SabrContext>()
     private var requests = 0
 
     /** The initialization segment, once any response has carried one. */
@@ -88,13 +89,19 @@ public class SabrSegments(
             audio = format.takeIf { kind == SabrTrackKind.AUDIO },
             video = format.takeIf { kind == SabrTrackKind.VIDEO },
             tracks = if (kind == SabrTrackKind.AUDIO) SabrTracks.AUDIO_ONLY else SabrTracks.AUDIO_AND_VIDEO,
-            bufferedRanges = emptyList(),
+            bufferedRanges = describeHeld(),
             poToken = poToken,
             clientInfo = clientInfo,
             playbackCookie = playbackCookie,
+            sabrContexts = contexts.values.filter { it.sendByDefault },
+            // Sent only ONCE the init segment has arrived, which is when the format really is
+            // initialised. Sending it on a fresh conversation is what yt-dlp deliberately avoids.
+            selectedFormats = listOfNotNull(format.takeIf { initSegment != null }),
         ).encode()
         val response = transport.post(url, body)
         requests++
+        // Kept by TYPE, latest wins: the server may update a context it has already sent.
+        SabrContext.inResponse(response).forEach { contexts[it.type] = it }
         NextRequestPolicy.inResponse(response)?.let { seen ->
             policy = seen
             seen.playbackCookie?.let { playbackCookie = it }
@@ -105,6 +112,19 @@ public class SabrSegments(
         // and knowing why -- SABR_ERROR and RELOAD_PLAYER_RESPONSE both say so outright, and this class
         // otherwise reads only MEDIA_HEADER and MEDIA.
         if (added == 0) {
+            // FORMAT_INITIALIZATION_METADATA states how far this format EXTENDS -- `end_time_ms` (3)
+            // and `end_segment_number` (4), from SmartTube's format_initialization_metadata.proto. If
+            // those say sixty seconds then the ceiling is not a refusal at all: it is the stated extent
+            // of the format in this session, and continuing means asking for a new one.
+            val extent = UmpReader.read(response).parts
+                .lastOrNull { it.type == UmpPart.FORMAT_INITIALIZATION_METADATA }
+                ?.let { part ->
+                    val fields = Protobuf.read(part.payload)
+                    fun number(field: Int) = (fields[field]?.firstOrNull() as? Protobuf.Value.Number)?.value
+                    "endTimeMs=${number(INIT_END_TIME_MS)} endSegment=${number(INIT_END_SEGMENT)} " +
+                        "durationUnits=${number(INIT_DURATION_UNITS)} timescale=${number(INIT_TIMESCALE)}"
+                } ?: "no format metadata"
+            Diag.warn("sabr", "segments: format extent at ${atMs}ms -> $extent")
             val parts = UmpReader.read(response).parts
             Diag.warn(
                 "sabr",
@@ -123,12 +143,53 @@ public class SabrSegments(
         )
     }
 
+    /**
+     * What we hold, as the server needs to hear it — and it needs to hear it.
+     *
+     * The server grants `target_audio_readahead_ms` BEYOND the playback position, so it has to know
+     * what the client already has before it can work out how much of that is still owed. Told only a
+     * position and nothing else, it answered with the initialization segment and no media — measured at
+     * exactly 60001ms, repeatedly, paced and unpaced.
+     *
+     * These ranges are built from real `MEDIA_HEADER` sequence numbers and start times, which is
+     * something this class can do exactly and the byte-addressed reader could only estimate.
+     */
+    private fun describeHeld(): List<BufferedRange> {
+        val media = held.values.filter { !it.isInitSegment }
+        if (media.isEmpty()) return emptyList()
+        // ONE contiguous run from the first segment held: a gap would make this a lie, and a lie about
+        // the buffer is acted on. Segments arrive in order here, so a gap means something went wrong
+        // and describing less is the safe direction.
+        val contiguous = media.sortedBy { it.sequenceNumber }.let { sorted ->
+            sorted.takeWhile { it.sequenceNumber - sorted.first().sequenceNumber == sorted.indexOf(it) }
+        }
+        if (contiguous.isEmpty()) return emptyList()
+        val first = contiguous.first()
+        val last = contiguous.last()
+        return listOf(
+            BufferedRange(
+                format = format,
+                startTimeMs = first.startMs,
+                durationMs = last.startMs + last.durationMs - first.startMs,
+                startSegment = first.sequenceNumber,
+                endSegment = last.sequenceNumber,
+            ),
+        )
+    }
+
     /** Collects whole segments from one response. Returns how many new ones arrived. */
     private fun absorb(response: ByteArray): Int {
         val headers = mutableMapOf<Long, MediaHeader>()
         val bodies = mutableMapOf<Long, ByteArray>()
         UmpReader.read(response).parts.forEach { part -> collect(part, headers, bodies) }
         return headers.entries.count { (id, header) -> keep(header, bodies[id]) }
+    }
+
+    private companion object {
+        const val INIT_END_TIME_MS = 3
+        const val INIT_END_SEGMENT = 4
+        const val INIT_DURATION_UNITS = 9
+        const val INIT_TIMESCALE = 10
     }
 
     private fun collect(

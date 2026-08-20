@@ -98,7 +98,7 @@ class SegmentsStreamPastTheCeilingTest {
         // Diag writes to the in-memory breadcrumb trail rather than stdout, and the line that says what
         // the REFUSING response contained is the whole point of this run.
         Breadcrumbs.snapshot()
-            .filter { it.tag == "sabr" && "nothing new" in it.message }
+            .filter { it.tag == "sabr" && ("nothing new" in it.message || "format extent" in it.message) }
             .forEach { println("[segments] ${it.message}") }
         assertTrue(
             "the segment source served ${held / KB}KB, which is no better than the byte-addressed " +
@@ -114,7 +114,12 @@ class SegmentsStreamPastTheCeilingTest {
         const val REPORT_EVERY = 5
 
         /** The readahead the server states, which is what a paced caller respects. */
-        const val READAHEAD_MS = 15_000L
+        /**
+         * How far ahead of real time we allow ourselves. Overridable, because the server states
+         * 15000ms and pacing to exactly that still stopped at 60001ms -- sitting ON the boundary is
+         * not the same as staying inside it.
+         */
+        val READAHEAD_MS: Long = System.getProperty("readaheadMs")?.toLongOrNull() ?: 15_000L
 
         /** `-Dpaced=false` to measure the unpaced ceiling again. */
         val PACED: Boolean = System.getProperty("paced")?.toBooleanStrictOrNull() ?: true

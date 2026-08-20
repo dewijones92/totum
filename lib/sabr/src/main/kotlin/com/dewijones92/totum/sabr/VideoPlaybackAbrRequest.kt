@@ -58,11 +58,23 @@ public class VideoPlaybackAbrRequest(
      * back, so every request arrived as a conversation the server had no memory of agreeing to.
      */
     private val playbackCookie: ByteArray? = null,
+    /** Session state the server told us to send back. See [SabrContext]. */
+    private val sabrContexts: List<SabrContext> = emptyList(),
+    /**
+     * Formats we have already initialised — `selected_format_ids`, field 2.
+     *
+     * yt-dlp omits this on a FRESH conversation and sends it once a format's initialization segment
+     * has arrived, which is a documented difference from what this app did: it never sent it at all.
+     * Worth trying because the response at the ceiling hands back the initialization segment and
+     * nothing else, which is what a server tells a client that looks uninitialised.
+     */
+    private val selectedFormats: List<SabrFormat> = emptyList(),
 ) {
     public fun encode(): ByteArray {
         val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
             Protobuf.number(STATE_ENABLED_TRACKS, tracks.bitfield.toLong())
         var body = Protobuf.bytes(FIELD_CLIENT_ABR_STATE, abrState)
+        selectedFormats.forEach { body += Protobuf.bytes(FIELD_SELECTED_FORMATS, it.encode()) }
         // Preferred rather than "selected": selected_format_ids (field 2) was ignored, while
         // these are what the server actually honoured.
         audio?.let { body += Protobuf.bytes(FIELD_PREFERRED_AUDIO, it.encode()) }
@@ -74,13 +86,17 @@ public class VideoPlaybackAbrRequest(
         // the wall this field exists to lift, so it would hide its own failure.
         val context = (clientInfo?.let { Protobuf.bytes(CONTEXT_CLIENT_INFO, it.encode()) } ?: ByteArray(0)) +
             (poToken?.let { Protobuf.bytes(CONTEXT_PO_TOKEN, it) } ?: ByteArray(0)) +
-            (playbackCookie?.let { Protobuf.bytes(CONTEXT_PLAYBACK_COOKIE, it) } ?: ByteArray(0))
+            (playbackCookie?.let { Protobuf.bytes(CONTEXT_PLAYBACK_COOKIE, it) } ?: ByteArray(0)) +
+            sabrContexts.fold(ByteArray(0)) { all, context ->
+                all + Protobuf.bytes(CONTEXT_SABR_CONTEXTS, context.encode())
+            }
         if (context.isNotEmpty()) body += Protobuf.bytes(FIELD_STREAMER_CONTEXT, context)
         return body
     }
 
     private companion object {
         const val FIELD_CLIENT_ABR_STATE = 1
+        const val FIELD_SELECTED_FORMATS = 2
         const val FIELD_BUFFERED_RANGES = 3
         const val FIELD_USTREAMER_CONFIG = 5
         const val FIELD_PREFERRED_AUDIO = 16
@@ -90,6 +106,7 @@ public class VideoPlaybackAbrRequest(
         const val CONTEXT_CLIENT_INFO = 1
         const val CONTEXT_PO_TOKEN = 2
         const val CONTEXT_PLAYBACK_COOKIE = 3
+        const val CONTEXT_SABR_CONTEXTS = 5
         const val STATE_ENABLED_TRACKS = 40
     }
 }

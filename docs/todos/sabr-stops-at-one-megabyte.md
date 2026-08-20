@@ -196,6 +196,41 @@ ExoPlayer's buffer policy by duration and by bytes. Eleven things ruled out.
 What a client must do at the sixty-second mark that we do not is still unknown. The paced probe that
 once reached 1732KB is the only evidence anything ever went further, and it is unexplained.
 
+## The documented protocol surface is now exhausted
+
+Fifteen things have been varied against a live, working endpoint. **The number never moved: 946KB,
+covering exactly 60001ms.**
+
+| # | varied | result |
+|---|---|---|
+| 1 | PO token in `streamer_context.po_token` | no change |
+| 2 | same token as `pot=` on the URL | no change |
+| 3 | token bound to `videoId` vs `visitorData` | no change |
+| 4 | `streamer_context.client_info` naming the right client | no change |
+| 5 | `streamer_context.playback_cookie` echoed | no change |
+| 6 | `streamer_context.sabr_contexts` echoed | no change |
+| 7 | `selected_format_ids` sent once initialised | no change |
+| 8 | `buffered_ranges` describing real held segments | no change |
+| 9 | claim derived from the reader's byte offset | no change |
+| 10 | claim from the real player position | no change |
+| 11 | one request per call, no internal loop | no change |
+| 12 | paced to real time at the stated 15s readahead | no change |
+| 13 | paced with a 5s margin inside it | no change |
+| 14 | `MAX_BUFFER_MS` 240s → 14s | no change |
+| 15 | `PLAYBACK_BYTES` 64MB → 320KB | no change |
+
+And the server's own words rule out the obvious explanations:
+
+- `FORMAT_INITIALIZATION_METADATA` says **`endTimeMs=5805201 endSegment=581`** — it knows the format
+  runs the full 96.75 minutes. The media exists; this is not a windowed session.
+- `protection=status=2` on the refusing response, the same as on the ones that served megabytes. Not
+  an attestation refusal.
+- No `SABR_ERROR`, no `RELOAD_PLAYER_RESPONSE`, no reason of any kind. Just
+  `MEDIA_HEADER + MEDIA(10620B) + MEDIA_END` — the initialization segment, alone.
+
+**So: a hard sixty seconds of media per session, unexplained, and not reachable from any field in
+`video_playback_abr_request.proto` that any reference implementation populates.**
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which
