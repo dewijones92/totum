@@ -61,6 +61,30 @@ it. This confirms it, with the ceiling measured on eighteen independent streams.
 
 So the app has working paths today. What it does not have is a SABR path that survives a minute.
 
+## What was fixed once the ceiling was understood (2026-08-20)
+
+None of these lift the ceiling. They stop the app making it worse, and they are what took the
+SABR path from stalling to handing over cleanly. Measured on `totum-api35`, five-minute audio soak
+each time:
+
+| | streams built | restarts | retry backoff | rebuffers |
+|---|---|---|---|---|
+| before | 15 | 14 | 3600ms → 37656ms | 1–2 |
+| after | **1** | **1** | none (1ms) | **0** |
+
+- **A death that served nothing ends SABR for that track.** The cache was doing as told — drop the
+  spent stream, build a fresh one — and each fresh one spent its four-empty budget against the same
+  wall. About 3.5MB fetched and discarded per attempt.
+- **The refusal is not retried.** It went out as a plain `IOException`, so Media3's default policy
+  retried it ten times with exponential backoff and the extraction fallback did not begin for about
+  thirty-eight seconds. That delay *was* the stall, and it survived the bandwidth fix.
+- **Giving up needed a third answer, not a second.** `null` meant both "no session, fall through to
+  ordinary HTTP" and "SABR is finished here"; answering the second with the first is a `GET` at a
+  POST endpoint, reading a refusal body and handing it to the extractor as media.
+
+So with SABR enabled the app now reaches the wall, gives up in about a second, and plays the item
+through extraction with **zero** rebuffers. SABR still cannot carry a video, and that is attestation.
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which

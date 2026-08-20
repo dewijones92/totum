@@ -167,9 +167,15 @@ private fun routeAfterTheDeathOf(held: SabrStream, track: SabrTrack): SabrRoute?
         Diag.log("sabr", "the held stream for ${track.key} is spent — starting a fresh one")
         return null
     }
-    val why = "SABR served nothing for ${track.key} before dying (${held.describeProgress()}) — not " +
-        "starting another conversation against the same refusal; falling back so the ladder re-resolves"
-    Diag.warn("sabr", why)
+    // The DETAIL goes in the log line, once. The exception message stays short because it is repeated
+    // by every layer that reports the failure -- 49 copies of it in one five-minute soak, and carrying
+    // describeProgress() in each made that about 20KB of a bounded report buffer.
+    Diag.warn(
+        "sabr",
+        "giving up on ${track.key}: it served nothing before dying (${held.describeProgress()}) — " +
+            "falling back so the ladder can re-resolve onto extraction",
+    )
+    val why = "SABR served nothing for ${track.key}; not retrying it"
     gaveUpOn[track.key] = why
     return SabrRoute.Done(why)
 }
