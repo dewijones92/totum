@@ -6,6 +6,7 @@ import com.dewijones92.totum.sabr.SabrSessions
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -129,10 +130,12 @@ class AReopenContinuesTheSabrConversationTest {
                     "cannot tell a corpse from a warm conversation — ${first.describeProgress()}",
                 first.isSpent,
             )
-            assertNotSame(
-                "a spent stream was handed out again — the player will reopen onto the same dead object " +
-                    "and fail in a loop",
-                first,
+            // NOT merely "something different": this fixture's stream dies having served NOTHING, and
+            // that specific death now ends SABR for the track rather than earning a fresh conversation
+            // (see SabrStopsAfterADeathThatServedNothingTest). Asserting `assertNotSame` here passed
+            // either way once null became possible, which would have let the behaviour change silently.
+            assertNull(
+                "a stream that delivered nothing was replaced — the fourteen-restart loop of 2026-08-20",
                 sabrStreamFor(uri),
             )
         }

@@ -4,6 +4,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.sabr.ResponseSummary
+import com.dewijones92.totum.sabr.SabrFormat
+import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
@@ -39,7 +41,15 @@ public class SabrDataSourceFactory(
         private var delegate: DataSource = fallback
 
         override fun open(dataSpec: androidx.media3.datasource.DataSpec): Long {
-            delegate = sabrFor(dataSpec.uri.toString()) ?: fallback
+            // A track SABR has given up on must FAIL here, not fall through. The fallback is an
+            // ordinary HTTP source, so handing it a SABR URL means a GET at a POST endpoint --
+            // "successfully" reading a refusal body and feeding it to the extractor as media. Throwing
+            // is what reaches the recovery ladder, which re-resolves and gets a stream that works.
+            when (val route = sabrRouteFor(dataSpec.uri.toString())) {
+                is SabrRoute.Done -> throw IOException(route.why)
+                is SabrRoute.Serve -> delegate = SabrDataSource(route.stream)
+                SabrRoute.NotSabr -> delegate = fallback
+            }
             return delegate.open(dataSpec)
         }
 
@@ -49,8 +59,6 @@ public class SabrDataSourceFactory(
         override fun close() = delegate.close()
 
         override fun getUri() = delegate.uri
-
-        private fun sabrFor(uri: String): DataSource? = sabrStreamFor(uri)?.let(::SabrDataSource)
     }
 }
 
@@ -63,7 +71,52 @@ public class SabrDataSourceFactory(
  * play can never disagree about which stream a `sabr://` URL means.
  */
 @UnstableApi
-public fun sabrStreamFor(uri: String): SabrStream? {
+public fun sabrStreamFor(uri: String): SabrStream? = (sabrRouteFor(uri) as? SabrRoute.Serve)?.stream
+
+/**
+ * What SABR can do for a URL right now: serve it, refuse it for good, or not recognise it.
+ *
+ * Three answers, because collapsing two of them is what let a fourteen-restart loop run unseen.
+ * A URL with no session must fall through to ordinary HTTP — podcasts and local files depend on it —
+ * while a track SABR has given up on must become a playback FAULT, so the recovery ladder re-resolves
+ * and falls back to extraction. Both used to be `null`, which meant the second was answered with the
+ * first: a plain `GET` at the SABR POST endpoint.
+ */
+public sealed interface SabrRoute {
+    /** Use this conversation. */
+    public data class Serve(val stream: SabrStream) : SabrRoute
+
+    /** SABR is finished with this track, for the stated reason. Must surface as a fault. */
+    public data class Done(val why: String) : SabrRoute
+
+    /** Not a SABR URL at all. */
+    public data object NotSabr : SabrRoute
+}
+
+@UnstableApi
+public fun sabrRouteFor(uri: String): SabrRoute {
+    val track = trackFor(uri) ?: return SabrRoute.NotSabr
+    return routeForHeldStream(track) ?: SabrRoute.Serve(freshStreamFor(track))
+}
+
+/** Everything a `sabr://` URL resolves to, or null when it does not name a servable track. */
+private class SabrTrack(
+    val videoId: String,
+    val itag: Int,
+    val session: SabrSession,
+    val format: SabrFormat,
+) {
+    /**
+     * Keyed by video AND itag: sharing one stream across itags splices one format's bytes into the
+     * other's, which is a bug this repo has already had.
+     */
+    val key: String get() = "$videoId:$itag"
+
+    val kind: SabrTrackKind
+        get() = if (format == session.audio) SabrTrackKind.AUDIO else SabrTrackKind.VIDEO
+}
+
+private fun trackFor(uri: String): SabrTrack? {
     val (videoId, itag) = SabrSessions.parse(uri) ?: return null
     val session = SabrSessions.of(videoId) ?: run {
         Diag.warn("sabr", "no session for $videoId — falling back, which will fail loudly")
@@ -73,47 +126,69 @@ public fun sabrStreamFor(uri: String): SabrStream? {
         Diag.warn("sabr", "session for $videoId has no itag $itag")
         return null
     }
-    val kind = if (format == session.audio) SabrTrackKind.AUDIO else SabrTrackKind.VIDEO
-    // KEPT per track, so a reopen continues the conversation instead of starting a cold one.
-    //
-    // ExoPlayer's loader reopens a source at a non-zero byte offset during ordinary playback -- no user
-    // seek involved -- and this function is called on every one of those. Building a new stream each
-    // time threw away the held segments and buffered ranges, leaving exactly the cold mid-stream open
-    // that YouTube answers with no media. Measured on totum-api35 over ten seconds of playback per
-    // fixture: sixteen "SEEK to byte N ... expect this to stall" restarts.
-    //
-    // Keyed by video AND itag: sharing one stream across itags splices one format's bytes into the
-    // other's. Bounded by the session store, which evicts at MAX_SESSIONS.
-    // See AReopenContinuesTheSabrConversationTest.
-    val key = "$videoId:$itag"
-    live[key]?.let { held ->
-        // A SPENT stream is dropped, not reused. Reusing one is an infinite failure loop: it ends,
-        // ExoPlayer reopens, the cache hands back the same corpse and it ends again — measured
-        // 2026-08-19 as ten identical "stopped short at byte 979459" / "reusing the open stream" pairs
-        // with the byte count never moving. A fresh stream is exactly what recovery needs there, and
-        // building one is what this cache had been doing accidentally before it existed.
-        if (held.isSpent) {
-            Diag.log("sabr", "the held stream for $videoId itag $itag is spent — starting a fresh one")
-            live.remove(key)
-        } else {
-            Diag.log("sabr", "reusing the open stream for $videoId itag $itag — ${held.describeProgress()}")
-            return held
-        }
+    return SabrTrack(videoId, itag, session, format)
+}
+
+/**
+ * What the CACHE says about this track: keep talking, give up, or nothing yet (null — build a fresh one).
+ *
+ * A stream is KEPT per track so a reopen continues the conversation instead of starting a cold one.
+ * ExoPlayer's loader reopens a source at a non-zero byte offset during ordinary playback — no user seek
+ * involved — and the route is asked for on every one of those. Building a new stream each time threw
+ * away the held segments and buffered ranges, leaving exactly the cold mid-stream open YouTube answers
+ * with no media: sixteen "expect this to stall" restarts in ten seconds of playback, on totum-api35.
+ * See [AReopenContinuesTheSabrConversationTest].
+ */
+private fun routeForHeldStream(track: SabrTrack): SabrRoute? {
+    gaveUpOn[track.key]?.let { why -> return SabrRoute.Done(why) }
+    val held = live[track.key] ?: return null
+    if (!held.isSpent) {
+        Diag.log("sabr", "reusing the open stream for ${track.key} — ${held.describeProgress()}")
+        return SabrRoute.Serve(held)
     }
-    Diag.log("sabr", "serving $videoId itag $itag as $kind")
+    // A spent stream is never handed out again: it ends, ExoPlayer reopens, the cache returns the same
+    // corpse and it ends again — ten identical pairs on 2026-08-19 with the byte count frozen.
+    live.remove(track.key)
+    return routeAfterTheDeathOf(held, track)
+}
+
+/**
+ * Whether a track whose stream just died deserves another conversation.
+ *
+ * A death that delivered NOTHING says the next one will not either: it spent its whole four-empty
+ * budget against whatever is refusing it. Measured 2026-08-20 as one honest death at 979459B — the
+ * ~1MB attestation ceiling, past which the server answers with the initialization segment and nothing
+ * else — followed by FOURTEEN streams of four fetches and zero bytes each, about 3.5MB fetched and
+ * discarded before anything else happened. A death that served real bytes is the ordinary reopen and
+ * still gets a fresh stream, which is what makes recovery work.
+ */
+private fun routeAfterTheDeathOf(held: SabrStream, track: SabrTrack): SabrRoute? {
+    if (held.readTo >= 0) {
+        Diag.log("sabr", "the held stream for ${track.key} is spent — starting a fresh one")
+        return null
+    }
+    val why = "SABR served nothing for ${track.key} before dying (${held.describeProgress()}) — not " +
+        "starting another conversation against the same refusal; falling back so the ladder re-resolves"
+    Diag.warn("sabr", why)
+    gaveUpOn[track.key] = why
+    return SabrRoute.Done(why)
+}
+
+private fun freshStreamFor(track: SabrTrack): SabrStream {
+    Diag.log("sabr", "serving ${track.key} as ${track.kind}")
     return SabrStream(
-        url = session.streamingUrl,
-        ustreamerConfig = session.ustreamerConfig,
-        format = format,
-        kind = kind,
-        totalBytes = format.contentLength,
-        durationMs = session.durationMs,
+        url = track.session.streamingUrl,
+        ustreamerConfig = track.session.ustreamerConfig,
+        format = track.format,
+        kind = track.kind,
+        totalBytes = track.format.contentLength,
+        durationMs = track.session.durationMs,
         transport = SabrPostTransport,
     ).also { stream ->
-        live[key] = stream
+        live[track.key] = stream
         // Bounded alongside the sessions it belongs to: a stream whose session has been evicted can
         // never be asked for again, so holding it would be a slow leak of whole response buffers.
-        live.keys.removeAll { held -> SabrSessions.of(held.substringBeforeLast(':')) == null }
+        live.keys.removeAll { key -> SabrSessions.of(key.substringBeforeLast(':')) == null }
     }
 }
 
@@ -121,11 +196,23 @@ public fun sabrStreamFor(uri: String): SabrStream? {
 private val live = ConcurrentHashMap<String, SabrStream>()
 
 /**
+ * Tracks SABR has given up on, and why — kept for the session, not the item's lifetime.
+ *
+ * Deliberately never cleared on its own: whatever refused a whole conversation's worth of fetches is
+ * not going to relent within one sitting, and the cost of being wrong is one extraction fallback that
+ * already works, against fourteen dead conversations if it retries.
+ */
+private val gaveUpOn = ConcurrentHashMap<String, String>()
+
+/**
  * Drops every held conversation. For tests, so one case cannot leak into the next — the same reason
  * [SabrSessions.clear] exists, and needed for the same reason: the key is `videoId:itag`, so a stream
  * built by an earlier case is handed straight back to a later one that meant to start fresh.
  */
-public fun forgetLiveSabrStreams(): Unit = live.clear()
+public fun forgetLiveSabrStreams() {
+    live.clear()
+    gaveUpOn.clear()
+}
 
 /**
  * The SABR POST, on `HttpURLConnection`.

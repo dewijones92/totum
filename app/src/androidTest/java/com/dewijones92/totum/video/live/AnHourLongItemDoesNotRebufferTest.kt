@@ -12,6 +12,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.settings.PlaybackMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -65,7 +66,7 @@ class AnHourLongItemDoesNotRebufferTest {
         // what SABR exists to avoid. Whether the default should change is his call; this test says what
         // the SABR path does.
         sabrBefore = container.appPreferences.settings.value.sabrPlayback
-        container.appPreferences.setSabrPlayback(true)
+        container.appPreferences.setSabrPlayback(USE_SABR)
         queue.clear()
         container.downloadManager.delete(MediaItemId(VIDEO_ID))
         // From the BEGINNING, every time. The queue resumes where it left off, so the second case
@@ -148,7 +149,7 @@ class AnHourLongItemDoesNotRebufferTest {
 
         Log.i(
             "dewidebug",
-            "no-rebuffer $what: rebuffers=$rebuffers buffered=${progressed}ms of ${WATCH_MS}ms " +
+            "no-rebuffer $what via ${pathTaken()}: rebuffers=$rebuffers buffered=${progressed}ms of ${WATCH_MS}ms " +
                 "(${startedAt}ms->${reached}ms) rendered=${played - playedFrom}ms" +
                 stalls.joinToString(prefix = " stalls[", postfix = "]") +
                 settled.joinToString(prefix = " whileSettling[", postfix = "]"),
@@ -175,6 +176,25 @@ class AnHourLongItemDoesNotRebufferTest {
                 "coming back on a long item is what makes it unusable. Where: $stalls",
             rebuffers <= ALLOWED_REBUFFERS,
         )
+    }
+
+    /**
+     * Which path the bytes actually came from, read off the URL that was played.
+     *
+     * Named from the URL and never from the [USE_SABR] setting, which is the mistake this replaces.
+     * A first attempt printed `via sabr` whenever the setting was on, and on 2026-08-20 that labelled
+     * a run whose SABR stream died at 104401B and whose five clean minutes came from the recovery
+     * ladder falling back to extraction. It credited the result to the path that had just failed.
+     * The setting says what was ALLOWED; only the URL says what happened.
+     */
+    private fun pathTaken(): String {
+        val played = Breadcrumbs.snapshot().lastOrNull { it.message.contains(" from http") }?.message
+            ?: return "unknown — nothing recorded a played URL"
+        return when {
+            played.contains(SabrSessions.ITAG_MARKER) -> "sabr"
+            played.contains("hls_playlist") -> "hls"
+            else -> "a direct url"
+        }
     }
 
     /** The most recent playback breadcrumb, which is the app's own account of what it just decided. */
@@ -213,6 +233,16 @@ class AnHourLongItemDoesNotRebufferTest {
          */
         val WATCH_MS: Long = InstrumentationRegistry.getArguments()
             .getString("soakMs")?.toLongOrNull() ?: 60_000L
+
+        /**
+         * Which path to ALLOW. `-e sabr false` soaks the app exactly as it ships.
+         *
+         * Both need asking and for a while only one was, so the default configuration -- the one every
+         * user actually runs -- had never been soaked at all. It turns out to be the clean one: ten
+         * minutes of video and of audio, zero rebuffers each, on 2026-08-20.
+         */
+        val USE_SABR: Boolean = InstrumentationRegistry.getArguments()
+            .getString("sabr")?.toBooleanStrictOrNull() ?: true
 
         const val START_TIMEOUT_MS = 180_000L
         const val POLL_MS = 500L

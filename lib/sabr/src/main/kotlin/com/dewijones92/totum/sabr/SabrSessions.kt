@@ -49,7 +49,15 @@ public object SabrSessions {
      * and the URL ends up honest about where the bytes actually come from.
      */
     private const val VIDEO_MARKER = "totumSabrVideo"
-    private const val ITAG_MARKER = "totumSabrItag"
+
+    /**
+     * Public because it is how anything OUTSIDE decides a URL is a SABR one.
+     *
+     * A test asserting which path served the bytes has to recognise a SABR URL, and the alternative
+     * was a second copy of the literal in the test -- which is the shape that let a soak print
+     * "via sabr" for a run served entirely by the fallback.
+     */
+    public const val ITAG_MARKER: String = "totumSabrItag"
 
     private val sessions = ConcurrentHashMap<String, SabrSession>()
     private val order = ArrayDeque<String>()
