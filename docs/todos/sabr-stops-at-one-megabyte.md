@@ -53,6 +53,21 @@ Nothing else changed — no token, no client info, no cookie.
 So the PO-token thesis is dead. The refusal never raised `status=3` because nothing was being refused;
 we were asking a question that had already been answered.
 
+### Two attempts at fixing it without the seam move, both reverted
+
+**1. Derive the claim from the reader's offset.** `served` is the closest a `DataSource` has to a
+playback position. On the device the loader pulls a megabyte in about a second, so this claims
+forty-six seconds after one — no improvement, and **one rebuffer where there had been none**.
+
+**2. Report the real position through a side channel.** `Media3PlaybackController` holds the player,
+so it published `currentPosition` for `SabrStream` to read. Also no improvement, and the logs say
+exactly why: `fetch #3 itag 251 at 65173ms` while that stream had served 46 seconds of audio. The
+position belonged to the **fallback**, which by then was what was actually playing. One global number
+cannot serve two tracks, a download, and a fallback that may or may not be the current player.
+
+Keying it per video would not help either: the fallback plays the same video. The position has to come
+from the loader driving *this* stream, which is the framework's job and nobody else's.
+
 ### Why it is not simply fixed
 
 Because a `DataSource` is never told where playback is. `served` is the LOADER's offset, and on a
