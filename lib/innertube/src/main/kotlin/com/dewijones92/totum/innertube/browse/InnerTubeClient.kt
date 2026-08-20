@@ -66,6 +66,30 @@ public class InnerTubeClient(
         execute(playerUrl, androidContext(videoId), Identity.ANDROID)
 
     /**
+     * The player response as the WEB client, carrying a [visitorData] the caller chose.
+     *
+     * Exists for proof-of-origin. A streaming token is minted against a `visitorData` and the server
+     * checks it against the session it issued the stream to, so the token and the player request have
+     * to name the SAME one -- a token bound to a visitorData we never sent is refused exactly like no
+     * token at all. Not hypothetical: on 2026-08-20 both candidate bindings measured 956KB, identical
+     * to no token, and the visitorData arm could not have worked because nothing here could send one.
+     *
+     * WEB rather than ANDROID because that is the client the reference implementations attest as, and
+     * because a WEB response is SABR-only, which is the path a token is for.
+     */
+    public suspend fun playerAsWeb(
+        videoId: String,
+        visitorData: String,
+        signatureTimestamp: Long,
+        playerPoToken: String,
+    ): InnerTubeResponse =
+        execute(
+            playerUrl,
+            webPlayerContext(videoId, visitorData, signatureTimestamp, playerPoToken),
+            Identity.WEB,
+        )
+
+    /**
      * The player response as the SIGNED-IN account, which is the only way to reach an
      * age-restricted video.
      *
@@ -234,6 +258,28 @@ public class InnerTubeClient(
         clientContext(
             "\"clientName\":\"WEB_REMIX\",\"clientVersion\":\"$musicClientVersion\",\"hl\":\"en\",\"gl\":\"GB\"",
             fields,
+        )
+
+    /**
+     * A WEB player request, which needs four things together or answers "Video unavailable".
+     *
+     * Each was found by taking them away. `visitorData` alone is not enough; nor is it with a
+     * signature timestamp. The two tokens are bound to DIFFERENT things and are not
+     * interchangeable: the one here is minted against the `videoId`, while the one that unlocks the
+     * media is minted against this same `visitorData` and travels on the media request instead.
+     */
+    private fun webPlayerContext(
+        videoId: String,
+        visitorData: String,
+        signatureTimestamp: Long,
+        playerPoToken: String,
+    ): String =
+        clientContext(
+            """"clientName":"WEB","clientVersion":"$webClientVersion","visitorData":"$visitorData"""",
+            """"videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true,""" +
+                """"playbackContext":{"contentPlaybackContext":""" +
+                """{"signatureTimestamp":$signatureTimestamp}},""" +
+                """"serviceIntegrityDimensions":{"poToken":"$playerPoToken"}""",
         )
 
     private fun webContext(field: String): String =

@@ -93,6 +93,13 @@ subprojects {
       // and the red build blamed something else entirely.
       isFailOnNoMatchingTests = false
     }
+    // Forwarded EXPLICITLY, because `-Dname=value` on the command line sets the property on Gradle's
+    // own JVM and the fork that runs the tests never sees it -- so an investigation input looks like
+    // it was ignored. An allowlist rather than a blanket copy: a test should be able to say which
+    // inputs it takes.
+    listOf("poToken", "poTokenBinding", "visitorData", "playerPoToken", "poTokenInUrl").forEach { name ->
+      providers.systemProperty(name).orNull?.let { systemProperty(name, it) }
+    }
   }
 
   plugins.withId("com.android.application") {

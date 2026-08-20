@@ -35,6 +35,19 @@ public class VideoPlaybackAbrRequest(
      * repeat the same segments for ever, whatever [playerTimeMs] says.
      */
     private val bufferedRanges: List<BufferedRange> = emptyList(),
+    /**
+     * The proof-of-origin token, or null when we have none.
+     *
+     * **The field whose absence stops SABR after about a minute.** Measured on totum-api35,
+     * 2026-08-20: eighteen conversations, every one ending between 968840B and 990078B, after which
+     * the server answered with the initialization segment and nothing else. At 1080p that is roughly
+     * four seconds. Nothing about our byte bookkeeping or our Media3 seam could lift it, because the
+     * refusal is attestation and this request had nowhere to put an attestation.
+     *
+     * It also makes the earlier "PO token: not needed" note unsafe: that was measured with a request
+     * that could not carry one, so it could only find that adding nothing changed nothing.
+     */
+    private val poToken: ByteArray? = null,
 ) {
     public fun encode(): ByteArray {
         val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
@@ -46,6 +59,12 @@ public class VideoPlaybackAbrRequest(
         video?.let { body += Protobuf.bytes(FIELD_PREFERRED_VIDEO, it.encode()) }
         bufferedRanges.forEach { body += Protobuf.bytes(FIELD_BUFFERED_RANGES, it.encode()) }
         body += Protobuf.bytes(FIELD_USTREAMER_CONFIG, ustreamerConfig)
+        // Only when there IS one. An empty context is a change to the request the server accepts
+        // today, and a request it dislikes answers `sabr.malformed_config` — which looks exactly like
+        // the wall this field exists to lift, so it would hide its own failure.
+        poToken?.let {
+            body += Protobuf.bytes(FIELD_STREAMER_CONTEXT, Protobuf.bytes(CONTEXT_PO_TOKEN, it))
+        }
         return body
     }
 
@@ -56,6 +75,8 @@ public class VideoPlaybackAbrRequest(
         const val FIELD_PREFERRED_AUDIO = 16
         const val FIELD_PREFERRED_VIDEO = 17
         const val STATE_PLAYER_TIME_MS = 28
+        const val FIELD_STREAMER_CONTEXT = 19
+        const val CONTEXT_PO_TOKEN = 2
         const val STATE_ENABLED_TRACKS = 40
     }
 }

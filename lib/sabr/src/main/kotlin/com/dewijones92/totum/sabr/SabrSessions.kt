@@ -11,6 +11,14 @@ public data class SabrSession(
     public val video: SabrFormat?,
     /** The media's length, so a stream can report a truthful playback position. */
     public val durationMs: Long? = null,
+    /**
+     * The proof-of-origin token for this conversation, or null when we have none.
+     *
+     * On the SESSION and not on each request, because it has to be the same token throughout: it is
+     * minted against one binding and the server checks it against the session it issued the endpoint
+     * to. A token that varies mid-conversation is a token that does not match.
+     */
+    public val poToken: ByteArray? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || (

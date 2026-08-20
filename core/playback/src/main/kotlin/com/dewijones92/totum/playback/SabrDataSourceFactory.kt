@@ -190,6 +190,7 @@ private fun freshStreamFor(track: SabrTrack): SabrStream {
         totalBytes = track.format.contentLength,
         durationMs = track.session.durationMs,
         transport = SabrPostTransport,
+        poToken = track.session.poToken,
     ).also { stream ->
         live[track.key] = stream
         // Bounded alongside the sessions it belongs to: a stream whose session has been evicted can
