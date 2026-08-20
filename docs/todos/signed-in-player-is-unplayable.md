@@ -36,6 +36,39 @@ It is also **not** established that YouTube is refusing signed-in access on purp
 Two consecutive runs two minutes apart read **20684** then **20681**, which is worth explaining
 before anything is built on top of it.
 
+## ✅ NOT OUR BUG — confirmed against yt-dlp (2026-08-20)
+
+The TV client is refused for **yt-dlp too**, from this same address, with the same words:
+
+```
+$ yt-dlp --extractor-args "youtube:player_client=tv" ...
+ERROR: [youtube] uSMGENDH_QI: The page needs to be reloaded.
+```
+
+And it is specific to that client. On the same video, same minute, same connection:
+
+| client | result |
+|---|---|
+| `tv` | **ERROR: The page needs to be reloaded** |
+| `tv_simply` | only images — SABR-only, URLs stripped |
+| `web_safari` | only images — SABR-only |
+| `android_vr` | real formats with URLs |
+| `default` | real formats with URLs |
+
+Our TV client identity was also a year stale (`7.20250101.10.00` against yt-dlp's
+`7.20260114.12.00`) and correcting it changed nothing, so the version was not the cause either.
+
+**So the age-restricted fallback is not broken by anything in this repo.** `AppContainer.accountPlayer`
+asks correctly and the TV family is being refused generally. Nothing in our code will fix that, and the
+right response is to stop treating it as a defect here: the fallback should say so plainly when it is
+refused, rather than looking like our failure.
+
+This also closes the SABR line of enquiry. SmartTube streams whole videos over SABR *as a TV client*,
+and a TV client is exactly what cannot currently be reached from here — which is consistent with
+everything measured in
+[sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md): eighteen request variations, SmartTube's
+own request replicated field for field, and a hard sixty-second ceiling that none of it moved.
+
 ## The next experiment
 
 Two axes, one at a time, against the anonymous control that is known to work:

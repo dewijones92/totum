@@ -8,7 +8,8 @@ Prints the endpoint, the ustreamer config, and the best audio format, for the Ko
 """
 import base64, json, os, re, sys, urllib.parse, urllib.request
 
-UA = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+UA = ("Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), "
+      "Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)")
 D = os.environ.get("POT_DIR", ".")
 video = sys.argv[1] if len(sys.argv) > 1 else "uSMGENDH_QI"
 player_pot = open(os.path.join(D, "player_pot.txt")).read().strip()
@@ -30,7 +31,8 @@ sts = int(re.search(r"signatureTimestamp[=:](\d+)", js).group(1))
 body = {
     "context": {"client": {
         "clientName": "TVHTML5",
-        "clientVersion": "7.20250101.10.00",
+        "clientVersion": "7.20260114.12.00",
+        "hl": "en",
         "visitorData": urllib.parse.unquote(visitor),
     }},
     "videoId": video,
