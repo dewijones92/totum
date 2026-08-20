@@ -124,6 +124,32 @@ That is the cleanest evidence in this whole investigation: a reader doing everyt
 working endpoint, with a correctly-bound token, is refused at about 1.1MB. The wall is not our
 arithmetic and it is not our seam.
 
+## ⚠️ And the refusal is NOT the attestation signal
+
+The patient reader prints the protection status of every response. The four refusing ones read
+`protection=status=2` — **the same status as the responses that served 335KB of media each.**
+`status=3` is the value report 0.1.437 recorded as the attestation refusal, and across this entire
+investigation it has never once been observed.
+
+That undercuts the hypothesis this whole file is named after. What is actually established is narrower
+than "attestation caps us at a megabyte":
+
+- The server stops sending new media after ~1.1MB. **Measured, repeatedly, on two endpoints.**
+- It stops while asking is honest — a time the client's own bytes cover. **Measured.**
+- It stops without ever raising the protection status it raises when it is refusing on attestation
+  grounds. **Measured.**
+- A correctly bound, freshly minted PO token in either documented position changes none of it.
+  **Measured.**
+
+So "we need a PO token" is a guess that four measurements now fail to support, and it should stop being
+written down as the root cause. What is refusing us is unknown.
+
+One concrete gap in the probe, stated so it is not mistaken for a finding: the patient reader sends
+**no `buffered_ranges`**. A real client tells the server what it already holds, and that is half of
+what SABR decides from. `SabrStream` does send them and also stopped at ~956KB, but its ranges have
+their own history of being wrong, so "the server was never told what we held" has not been eliminated
+and is the cheapest thing left to test.
+
 ## The honest summary for anyone picking this up
 
 Minting works and is proven. The request can carry everything the schema allows. The WEB path now

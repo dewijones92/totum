@@ -163,6 +163,10 @@ class DoesAPoTokenLiftTheCeilingTest {
             // The init segment arrives on every response; counting it as progress would look like
             // forward motion for ever.
             val fresh = media - INIT_SEGMENT_BYTES
+            // The protection status on EVERY response, because it is the difference between "our token
+            // was not good enough" and "a token was never what was being refused". status=3 is the
+            // documented attestation refusal; a refusal that stays at 2 is something else entirely.
+            val protection = ResponseSummary.of(response).substringAfter("protection=")
             if (fresh <= 0) {
                 quiet++
             } else {
@@ -172,7 +176,7 @@ class DoesAPoTokenLiftTheCeilingTest {
             if (fetches % REPORT_EVERY == 0 || quiet > 0) {
                 println(
                     "[patient] fetch $fetches asked ${askAt}ms -> ${response.size}B, " +
-                        "media ${media}B, held ${held / KB}KB, quiet=$quiet",
+                        "media ${media}B, held ${held / KB}KB, quiet=$quiet, protection=$protection",
                 )
             }
         }
