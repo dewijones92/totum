@@ -49,6 +49,16 @@ class SignedInVersusAnonymousPlayerTest {
         val durable: Int,
         val tallest: Int,
         val deepFetch: String,
+        /**
+         * WHY it was refused, and whether SABR was still on offer.
+         *
+         * The first run of this test printed `ok=false … deepFetch=no streams` for both signed-in arms
+         * and that was all — a line that cannot be re-judged, because it is produced by three different
+         * situations: a refusal with a stated reason, a response carrying only SABR formats, and a
+         * transport failure. It very nearly went in a report as "signing in returns no streams" when the
+         * SABR case would have meant close to the opposite.
+         */
+        val why: String,
     )
 
     @Test
@@ -76,21 +86,26 @@ class SignedInVersusAnonymousPlayerTest {
         verdicts.forEach {
             println(
                 "[signin-vs-anon]   ${it.label.padEnd(24)} ok=${it.ok} videoFormats=${it.videoFormats} " +
-                    "durable=${it.durable} tallest=${it.tallest}p deepFetch=${it.deepFetch}",
+                    "durable=${it.durable} tallest=${it.tallest}p deepFetch=${it.deepFetch} — ${it.why}",
             )
         }
         println("[signin-vs-anon] durable = the URL carries a solved n, so it survives past ~1MB")
     }
 
     private suspend fun judge(label: String, request: suspend () -> InnerTubeResponse): Verdict {
-        val response = runCatching { request() }.getOrNull()
-            ?: return Verdict(label, ok = false, videoFormats = 0, durable = 0, tallest = 0, deepFetch = "not asked")
+        val thrown = runCatching { request() }
+        val response = thrown.getOrNull()
+            ?: return refused(label, "the request threw ${thrown.exceptionOrNull()?.let { it::class.simpleName }}")
         // The response is an envelope, not a body: Unauthorized and Failure are answers too, and reading
         // them as "no streams" would hide a 401 behind the same word as an empty success.
         val body = (response as? InnerTubeResponse.Success)?.body
-            ?: return Verdict(label, ok = false, videoFormats = 0, durable = 0, tallest = 0, deepFetch = "$response")
-        val streams = (PlayerResponseParser.parse(body) as? PlayerResult.Success)?.streaming
-            ?: return Verdict(label, ok = false, videoFormats = 0, durable = 0, tallest = 0, deepFetch = "no streams")
+            ?: return refused(label, "the envelope was $response")
+        val parsed = PlayerResponseParser.parse(body)
+        val streams = (parsed as? PlayerResult.Success)?.streaming
+            // Named rather than summarised, because `Unplayable` carries the status and reason YouTube
+            // gave — the whole answer to "why does signing in change this" — and the previous version
+            // printed "no streams" over the top of it.
+            ?: return refused(label, "parsed as ${parsed::class.simpleName}: $parsed")
         val video = streams.videoFormatsWithUrls()
         val durable = video.filter { DURABLE.containsMatchIn(it.second) }
         val best = durable.maxByOrNull { it.first } ?: video.maxByOrNull { it.first }
@@ -101,8 +116,17 @@ class SignedInVersusAnonymousPlayerTest {
             durable = durable.size,
             tallest = best?.first ?: 0,
             deepFetch = best?.let { deepFetch(it.second) } ?: "nothing to fetch",
+            // A response with no direct URLs is not a refusal if SABR is on offer — that is the
+            // stripped-session shape `playableSomehow` exists for, and counting direct formats alone
+            // discards exactly the sessions SABR was built to rescue.
+            why = "formats=${streams.formats.size} offered=${streams.bestOfferedHeight}p " +
+                "sabr=${streams.serverAbrStreamingUrl != null} config=${streams.ustreamerConfig != null} " +
+                "playableSomehow=${streams.playableSomehow}",
         )
     }
+
+    private fun refused(label: String, why: String) =
+        Verdict(label, ok = false, videoFormats = 0, durable = 0, tallest = 0, deepFetch = "not reached", why = why)
 
     /** Height to URL, for every format that has both. */
     private fun StreamingData.videoFormatsWithUrls(): List<Pair<Int, String>> =
