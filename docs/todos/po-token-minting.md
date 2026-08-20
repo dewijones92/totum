@@ -99,8 +99,34 @@ does it) or getting the WEB path to serve at all.
 **Do not re-run the rows in the table.** They are done, and the point of writing them down is that
 the next attempt starts from row seven.
 
+## The WEB path works now, and the ceiling is still theirs
+
+Once the endpoint's `n` was solved the WEB endpoint went from **HTTP 403, zero bytes** to **HTTP 200,
+335072B of real media** — `MEDIA_HEADER`/`MEDIA` parts for itag 251, `protection=status=2`. So the
+path is real and testable at last, and the token was measured on it properly:
+
+| endpoint | token | placement | ceiling |
+|---|---|---|---|
+| WEB, `n` solved | none | — | 956KB |
+| WEB, `n` solved | gvs (visitorData) | `streamer_context.po_token` | 956KB |
+| WEB, `n` solved | gvs (visitorData) | `pot=` on the URL | 956KB |
+
+**And the ceiling is genuinely theirs.** That needed settling separately, because our own stream pushes
+its claimed position thirty seconds forward whenever a response yields nothing — which on the device
+produced a stream claiming 147271ms while holding about 46 seconds of audio, and "proof" of a wall
+that was really the server answering a question about a time it had already covered.
+
+So `aPatientReaderIsMeasuredAgainstTheSameCeiling` asks patiently: never skip, always ask for the time
+the bytes it holds are actually worth. It reached **1104KB** and then got the initialization segment
+and nothing else, four times running, while asking for **66122ms — a time its own data covers**.
+
+That is the cleanest evidence in this whole investigation: a reader doing everything right, on a
+working endpoint, with a correctly-bound token, is refused at about 1.1MB. The wall is not our
+arithmetic and it is not our seam.
+
 ## The honest summary for anyone picking this up
 
-Minting works and is proven. The request can carry everything the schema allows. Neither has yet
-produced a single extra byte of media. The wall has not been lifted, and calling the fallback to
+Minting works and is proven. The request can carry everything the schema allows. The WEB path now
+reaches a server that answers with media instead of a 403. None of it has produced a single byte
+past ~1.1MB. The wall has not been lifted, and calling the fallback to
 extraction a workaround is correct — it is what makes the app usable, not what makes SABR work.

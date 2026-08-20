@@ -7,12 +7,14 @@ import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.sabr.ResponseSummary
 import com.dewijones92.totum.sabr.SabrClientInfo
+import com.dewijones92.totum.sabr.SabrFormat
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
 import com.dewijones92.totum.sabr.SabrTracks
 import com.dewijones92.totum.sabr.SabrTransport
+import com.dewijones92.totum.sabr.UmpPart
 import com.dewijones92.totum.sabr.UmpReader
 import com.dewijones92.totum.sabr.VideoPlaybackAbrRequest
 import com.dewijones92.totum.video.SabrResolve
@@ -92,11 +94,15 @@ class DoesAPoTokenLiftTheCeilingTest {
         }
         // Dumped BEFORE the ceiling runs, so a run that serves nothing still says why.
         println("[potoken] one response WITHOUT a token:")
-        describeOneResponse(freshSession(visitorData), info, null)
+        describeOneResponse(suppliedSession() ?: freshSession(visitorData), info, null)
         println("[potoken] one response WITH a token:")
-        describeOneResponse(freshSession(visitorData), info, Base64.getUrlDecoder().decode(token))
-        val without = ceilingOf(freshSession(visitorData), null)
-        val with = ceilingOf(freshSession(visitorData), Base64.getUrlDecoder().decode(token), token)
+        describeOneResponse(suppliedSession() ?: freshSession(visitorData), info, Base64.getUrlDecoder().decode(token))
+        val without = ceilingOf(suppliedSession() ?: freshSession(visitorData), null)
+        val with = ceilingOf(
+            suppliedSession() ?: freshSession(visitorData),
+            Base64.getUrlDecoder().decode(token),
+            token
+        )
 
         val client = if (visitorData == null) "android" else "web+visitorData"
         println("[potoken] binding=$binding client=$client token=${token!!.length} chars")
@@ -114,6 +120,69 @@ class DoesAPoTokenLiftTheCeilingTest {
             } else {
                 "[potoken] ✗ no better than without one (${with / KB}KB vs ${without / KB}KB). Either the " +
                     "binding is wrong — try the other identifier — or the token is not what is refused."
+            },
+        )
+    }
+
+    /**
+     * Is the ceiling THEIRS, or ours for asking at the wrong time?
+     *
+     * `SabrStream` reacts to a response it kept nothing from by pushing its claimed position thirty
+     * seconds forward. On the device that produced a stream claiming 147271ms while holding about 46
+     * seconds of audio, and the responses that "proved" a wall were carrying the initialization
+     * segment and nothing else -- which is exactly what a server answers when asked for a time it has
+     * already covered. Four of those end the stream.
+     *
+     * So this asks PATIENTLY: never skip, always ask for the time the bytes we hold are worth, and see
+     * how far it gets. If a patient reader passes the ~956KB every impatient one stops at, the ceiling
+     * was never attestation -- it was a runaway of our own, and no token was ever going to fix it.
+     */
+    @Test
+    fun aPatientReaderIsMeasuredAgainstTheSameCeiling() {
+        val session = suppliedSession()
+        assumeTrue("no -DsabrEndpoint supplied, so there is no session to be patient with", session != null)
+        val audio = session!!.audio!!
+        val total = audio.contentLength ?: 0L
+        val duration = DURATION_MS
+
+        var held = 0L
+        var fetches = 0
+        var quiet = 0
+        while (fetches < PATIENT_FETCHES && quiet < QUIET_BEFORE_GIVING_UP) {
+            // The time our bytes are ACTUALLY worth. No step, no skip, no floor.
+            val askAt = if (total <= 0) 0L else held * duration / total
+            val body = VideoPlaybackAbrRequest(
+                ustreamerConfig = session.ustreamerConfig,
+                playerTimeMs = askAt,
+                audio = audio,
+                tracks = SabrTracks.AUDIO_ONLY,
+            ).encode()
+            val response = runBlocking { transport.post(session.streamingUrl, body) }
+            fetches++
+            val media = UmpReader.read(response).parts.filter { it.type == UmpPart.MEDIA }.sumOf { it.payload.size }
+            // The init segment arrives on every response; counting it as progress would look like
+            // forward motion for ever.
+            val fresh = media - INIT_SEGMENT_BYTES
+            if (fresh <= 0) {
+                quiet++
+            } else {
+                quiet = 0
+                held += fresh
+            }
+            if (fetches % REPORT_EVERY == 0 || quiet > 0) {
+                println(
+                    "[patient] fetch $fetches asked ${askAt}ms -> ${response.size}B, " +
+                        "media ${media}B, held ${held / KB}KB, quiet=$quiet",
+                )
+            }
+        }
+        println("[patient] stopped after $fetches fetches holding ${held / KB}KB of ${total / KB}KB")
+        println(
+            if (held > IMPATIENT_CEILING) {
+                "[patient] ✅ PAST THE CEILING. The ~956KB wall was OURS — asking at the time our bytes " +
+                    "are worth keeps the server serving. No token needed."
+            } else {
+                "[patient] ✗ stopped at ${held / KB}KB like every impatient reader, so the ceiling is theirs."
             },
         )
     }
@@ -204,6 +273,33 @@ class DoesAPoTokenLiftTheCeilingTest {
      * Passing `null` asks as the ordinary ANDROID client, which is what the app does today and what
      * the no-token arm should measure.
      */
+    /**
+     * A session handed in whole, for the path this cannot build itself.
+     *
+     * A WEB SABR endpoint carries an `n` that has to be deciphered before the server will answer at
+     * all -- unsolved, it is HTTP 403 with a zero-byte body, which is what made the WEB rows of the
+     * po-token table meaningless. Solving it needs a JavaScript runtime, which this JVM has none of
+     * (the app uses QuickJS on the device). So `tools/potoken/websabr.py` fetches the response and
+     * solves the `n` with node, and passes the finished endpoint in.
+     */
+    private fun suppliedSession(): SabrSession? {
+        val endpoint = System.getProperty("sabrEndpoint") ?: return null
+        val config = System.getProperty("ustreamerConfig") ?: return null
+        val audio = (System.getProperty("sabrAudio") ?: return null).split(",")
+        return SabrSession(
+            streamingUrl = endpoint,
+            ustreamerConfig = Base64.getDecoder().decode(config),
+            audio = SabrFormat(
+                itag = audio[0].toInt(),
+                lastModified = audio[1].toLong(),
+                xtags = audio[2].ifBlank { null },
+                contentLength = audio[3].toLongOrNull(),
+            ),
+            video = null,
+            durationMs = null,
+        )
+    }
+
     private fun freshSession(visitorData: String?): SabrSession {
         SabrSessions.clear()
         val client = InnerTubeClient(http)
@@ -240,6 +336,20 @@ class DoesAPoTokenLiftTheCeilingTest {
 
         const val KB = 1024
         const val CALL_TIMEOUT_SECONDS = 60L
+
+        /** Generous: at ~330KB a response, a 97-minute audio track is a few hundred fetches. */
+        const val PATIENT_FETCHES = 40
+        const val QUIET_BEFORE_GIVING_UP = 4
+        const val REPORT_EVERY = 5
+
+        /** The init segment, re-sent on every response and not progress. */
+        const val INIT_SEGMENT_BYTES = 10_620
+
+        /** What every impatient reader has stopped at. */
+        const val IMPATIENT_CEILING = 1_200L * 1024
+
+        /** Cosmic Dawn's length, since a supplied session states none. */
+        const val DURATION_MS = 5_805_000L
         val PROTOBUF = "application/x-protobuf".toMediaType()
     }
 }
