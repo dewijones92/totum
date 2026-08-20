@@ -97,7 +97,7 @@ subprojects {
     // own JVM and the fork that runs the tests never sees it -- so an investigation input looks like
     // it was ignored. An allowlist rather than a blanket copy: a test should be able to say which
     // inputs it takes.
-    listOf("poToken", "poTokenBinding", "visitorData", "playerPoToken", "poTokenInUrl", "clientInfo", "sabrEndpoint", "ustreamerConfig", "sabrAudio", "describeBuffer").forEach { name ->
+    listOf("poToken", "poTokenBinding", "visitorData", "playerPoToken", "poTokenInUrl", "clientInfo", "sabrEndpoint", "ustreamerConfig", "sabrAudio", "describeBuffer", "paced", "playbackPosition").forEach { name ->
       providers.systemProperty(name).orNull?.let { systemProperty(name, it) }
     }
   }

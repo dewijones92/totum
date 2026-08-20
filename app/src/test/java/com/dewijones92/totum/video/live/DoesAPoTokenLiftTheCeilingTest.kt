@@ -6,6 +6,7 @@ import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.sabr.BufferedRange
+import com.dewijones92.totum.sabr.NextRequestPolicy
 import com.dewijones92.totum.sabr.ResponseSummary
 import com.dewijones92.totum.sabr.SabrClientInfo
 import com.dewijones92.totum.sabr.SabrFormat
@@ -19,6 +20,7 @@ import com.dewijones92.totum.sabr.UmpPart
 import com.dewijones92.totum.sabr.UmpReader
 import com.dewijones92.totum.sabr.VideoPlaybackAbrRequest
 import com.dewijones92.totum.video.SabrResolve
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -149,13 +151,32 @@ class DoesAPoTokenLiftTheCeilingTest {
         var held = 0L
         var fetches = 0
         var quiet = 0
+        // Wall time matters. The server says targetAudioReadahead=15000ms -- it serves fifteen seconds
+        // beyond where the player IS -- and a reader that pulls fifty seconds of media in one second of
+        // real time is asking for a position it could not possibly have reached. `-Dpaced=true` waits
+        // so the request tracks real playback, which is the one thing no probe here has ever done.
+        val startedAt = System.currentTimeMillis()
         // What we hold, told to the server. Half of what SABR decides from, and the patient reader was
         // sending none of it -- so "the server was never told what we held" could not be ruled out.
         var segments = 0
         while (fetches < PATIENT_FETCHES && quiet < QUIET_BEFORE_GIVING_UP) {
-            // The time our bytes are ACTUALLY worth. No step, no skip, no floor.
-            val askAt = if (total <= 0) 0L else held * duration / total
+            // WHERE PLAYBACK IS -- not where the buffer ends. `player_time_ms` is the playback
+            // position, and the server serves `targetAudioReadahead` beyond it. Sending the buffer end
+            // instead means always asking for fifteen seconds past what we already hold, which the
+            // server answers, quite correctly, with "you have plenty" -- an init segment and nothing
+            // else. That is indistinguishable from a wall, and it is what every probe here has done.
+            val askAt = if (PLAYBACK_POSITION) {
+                System.currentTimeMillis() - startedAt
+            } else {
+                if (total <= 0) 0L else held * duration / total
+            }
             val body = patientRequest(session, audio, askAt, segments)
+            if (PACED) {
+                // Stay no more than the server's own readahead ahead of real time.
+                val heldMs = if (total <= 0) 0L else held * duration / total
+                val ahead = heldMs - (System.currentTimeMillis() - startedAt) - READAHEAD_MS
+                if (ahead > 0) runBlocking { delay(ahead.coerceAtMost(MAX_WAIT_MS)) }
+            }
             val response = runBlocking { transport.post(session.streamingUrl, body) }
             fetches++
             val media = UmpReader.read(response).parts.filter { it.type == UmpPart.MEDIA }.sumOf { it.payload.size }
@@ -166,6 +187,7 @@ class DoesAPoTokenLiftTheCeilingTest {
             // was not good enough" and "a token was never what was being refused". status=3 is the
             // documented attestation refusal; a refusal that stays at 2 is something else entirely.
             val protection = ResponseSummary.of(response).substringAfter("protection=")
+            val policy = NextRequestPolicy.inResponse(response)?.toString() ?: "absent"
             if (fresh <= 0) {
                 quiet++
             } else {
@@ -177,7 +199,8 @@ class DoesAPoTokenLiftTheCeilingTest {
             if (fetches % REPORT_EVERY == 0 || quiet > 0) {
                 println(
                     "[patient] fetch $fetches asked ${askAt}ms -> ${response.size}B, " +
-                        "media ${media}B, held ${held / KB}KB, quiet=$quiet, protection=$protection",
+                        "media ${media}B, held ${held / KB}KB, quiet=$quiet, " +
+                        "protection=$protection policy[$policy]",
                 )
             }
         }
@@ -370,6 +393,21 @@ class DoesAPoTokenLiftTheCeilingTest {
         const val PATIENT_FETCHES = 40
         const val QUIET_BEFORE_GIVING_UP = 4
         const val REPORT_EVERY = 5
+
+        /** `-Dpaced=true` waits so requests track real playback instead of racing ahead. */
+        val PACED: Boolean = System.getProperty("paced").toBoolean()
+
+        /**
+         * `-DplaybackPosition=true` sends where playback WOULD be, at 1x from the first request,
+         * instead of where the buffer ends. This is what the field means.
+         */
+        val PLAYBACK_POSITION: Boolean = System.getProperty("playbackPosition").toBoolean()
+
+        /** What the server itself reports as its readahead target. */
+        const val READAHEAD_MS = 15_000L
+
+        /** No single wait longer than this, so a wrong sum cannot hang the run. */
+        const val MAX_WAIT_MS = 20_000L
 
         /** `-DdescribeBuffer=false` puts the reader back to telling the server nothing. */
         val DESCRIBE_BUFFER: Boolean = System.getProperty("describeBuffer")?.toBooleanStrictOrNull() ?: true

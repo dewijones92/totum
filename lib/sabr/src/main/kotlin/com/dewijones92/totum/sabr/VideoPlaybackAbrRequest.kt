@@ -50,6 +50,14 @@ public class VideoPlaybackAbrRequest(
     private val poToken: ByteArray? = null,
     /** Who we are, alongside the token. See [SabrClientInfo]. */
     private val clientInfo: SabrClientInfo? = null,
+    /**
+     * The session state the server handed us on the previous response, echoed back.
+     *
+     * `streamer_context.playback_cookie`, field 3. The server issues one in every
+     * [NextRequestPolicy] -- 77 bytes of it, measured 2026-08-20 -- and this app had never sent one
+     * back, so every request arrived as a conversation the server had no memory of agreeing to.
+     */
+    private val playbackCookie: ByteArray? = null,
 ) {
     public fun encode(): ByteArray {
         val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
@@ -65,7 +73,8 @@ public class VideoPlaybackAbrRequest(
         // today, and a request it dislikes answers `sabr.malformed_config` — which looks exactly like
         // the wall this field exists to lift, so it would hide its own failure.
         val context = (clientInfo?.let { Protobuf.bytes(CONTEXT_CLIENT_INFO, it.encode()) } ?: ByteArray(0)) +
-            (poToken?.let { Protobuf.bytes(CONTEXT_PO_TOKEN, it) } ?: ByteArray(0))
+            (poToken?.let { Protobuf.bytes(CONTEXT_PO_TOKEN, it) } ?: ByteArray(0)) +
+            (playbackCookie?.let { Protobuf.bytes(CONTEXT_PLAYBACK_COOKIE, it) } ?: ByteArray(0))
         if (context.isNotEmpty()) body += Protobuf.bytes(FIELD_STREAMER_CONTEXT, context)
         return body
     }
@@ -80,6 +89,7 @@ public class VideoPlaybackAbrRequest(
         const val FIELD_STREAMER_CONTEXT = 19
         const val CONTEXT_CLIENT_INFO = 1
         const val CONTEXT_PO_TOKEN = 2
+        const val CONTEXT_PLAYBACK_COOKIE = 3
         const val STATE_ENABLED_TRACKS = 40
     }
 }

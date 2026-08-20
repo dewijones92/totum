@@ -10,6 +10,18 @@ updated: 2026-08-20
 Dewi's decision, 2026-08-20: *"i want it working without (cheap/worse) ways please i want this app to
 be quality"*. This is the proper fix for seeking, and it is the only route to adaptive quality.
 
+## It also lifts the ~1MB ceiling, which was the real blocker
+
+Established 2026-08-20 and the strongest reason to do this work: the server states
+`target_audio_readahead_ms=15000` on nearly every response — it serves fifteen seconds beyond the
+**playback position**. We send the end of our buffer instead, so we ask for fifteen seconds past what
+we already hold and are told, correctly, that we have plenty. Four of those end the stream at about
+1MB, and for two days that was blamed on attestation.
+
+A `DataSource` cannot fix it: it is never told where playback is. `ChunkSource.getNextChunk` receives
+`playbackPositionUs` directly. See
+[sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md) for the measurements.
+
 ## Why the current seam cannot work
 
 SABR is **time-addressed**. Media3's `DataSource` is **byte-addressed**. Everything painful in

@@ -31,6 +31,45 @@ else**. Our four-empty budget then ends the stream, the cache correctly drops it
 stream is built, and the fresh one dies the same way. **Eighteen restarts in a single ten-minute
 run.** The restart loop is a faithful reaction to a wall it cannot see.
 
+## ⚠️ SUPERSEDED: the cause is known now, and it is not attestation
+
+Everything above stands as measurement. The *diagnosis* was wrong, and the server had been telling us
+the answer on every single response in a part we discarded:
+
+```
+NEXT_REQUEST_POLICY: targetAudioReadahead=15000ms targetVideoReadahead=15000ms
+                     maxSinceLastRequest=60000ms cookie=77B
+```
+
+**It serves fifteen seconds beyond where PLAYBACK is.** `player_time_ms` means the playback position.
+We derive it from the furthest byte HELD — the end of the buffer — so once the buffer is a minute long
+we ask for a minute and fifteen, and the honest answer to that is an initialization segment and
+nothing else. Four of those end the stream. That is the entire ~1MB ceiling.
+
+Proven on 2026-08-20: a probe sending a real playback position instead of the buffer end went from
+**1104KB to 1732KB**, with a 332864B response arriving exactly where an init-only reply had been.
+Nothing else changed — no token, no client info, no cookie.
+
+So the PO-token thesis is dead. The refusal never raised `status=3` because nothing was being refused;
+we were asking a question that had already been answered.
+
+### Why it is not simply fixed
+
+Because a `DataSource` is never told where playback is. `served` is the LOADER's offset, and on a
+device the loader pulls a megabyte in about a second — so deriving the claim from it asserts
+forty-six seconds after one. Tried on `totum-api35`: no improvement, and **one rebuffer where there
+had been none**, so it was reverted.
+
+The number the server wants is handed to a chunk source and nowhere else:
+
+```
+ChunkSource.getNextChunk(LoadingInfo, long playbackPositionUs, List<MediaChunk> queue, ChunkHolder)
+```
+
+**So [sabr-as-a-chunk-source.md](sabr-as-a-chunk-source.md) is not only the fix for seeking and for
+ABR — it is the fix for this ceiling too.** Three separate problems, one seam, and this is the one
+that makes SABR unable to carry a video at all.
+
 ## Two things this reframes
 
 **The video arm's clean result was not SABR.** The ten-minute video soak recorded zero rebuffers,

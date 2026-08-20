@@ -117,6 +117,17 @@ public class SabrStream(
      * seconds of ordinary playback, all of them fine. A warning that cries wolf is worse than none.
      */
     public val readTo: Long get() = handedThrough
+
+    /**
+     * The session state the server last handed us, echoed on the next request.
+     *
+     * The server issues a `playback_cookie` in nearly every `NEXT_REQUEST_POLICY` and this app threw
+     * every one of them away, so each request arrived as a conversation it had no memory of. Whether
+     * that is what capped a stream at about 1.1MB is being measured; carrying it is correct regardless,
+     * because a server that asks for something back and never gets it is being ignored.
+     */
+    private var playbackCookie: ByteArray? = null
+
     private var playerTimeMs = 0L
     private var exhausted = false
 
@@ -388,6 +399,7 @@ public class SabrStream(
             bufferedRanges = bufferedRanges(),
             poToken = poToken,
             clientInfo = clientInfo,
+            playbackCookie = playbackCookie,
         ).encode()
         val startedAt = clock()
         val response = try {
@@ -399,6 +411,9 @@ public class SabrStream(
         val elapsed = clock() - startedAt
         fetches++
         totalFetchMs += elapsed
+        NextRequestPolicy.inResponse(response)?.let { policy ->
+            policy.playbackCookie?.let { playbackCookie = it }
+        }
         val added = absorb(response)
         bytesDiscarded += (response.size - added).coerceAtLeast(0)
         Vitals.add("sabr.fetches")
@@ -621,7 +636,30 @@ public class SabrStream(
      * bytes already spent, which [absorb] discards, which reads as empty: the same loop from the
      * other end. Never behind, never freely ahead.
      */
+    /**
+     * Only for a stream with nothing to derive a position FROM -- a live one, which states no length.
+     *
+     * Everything else has its claim set at request time from the reader's offset (see [fetch]). This
+     * remains because stepping is genuinely all a live stream has.
+     */
     private fun advanceClaimedTime() {
+        // FURTHEST HELD, and that is knowingly not what the field means -- see
+        // docs/todos/sabr-stops-at-one-megabyte.md. `player_time_ms` is where PLAYBACK is, and the
+        // server serves
+        // `target_audio_readahead_ms` beyond it -- 15000ms, which it states on nearly every response.
+        // Deriving the claim from the furthest byte HELD therefore asks for fifteen seconds past what
+        // we already have, and the honest answer to that is an initialization segment and nothing
+        // else. Four of those end the stream, which is the entire ~1MB "wall": 968840-990078B across
+        // eighteen streams on a device, 956KB on the JVM, and blamed on attestation for two days.
+        // Sending a real position instead took a live probe from 1104KB to 1732KB, with a 332864B
+        // response arriving exactly where an init-only reply had been, and nothing else changed.
+        //
+        // It is NOT fixed here, and that is deliberate. A DataSource is never told where playback is;
+        // `served` is the LOADER's offset, and on a device the loader races through a megabyte in about
+        // a second, so deriving from it claims forty-six seconds after one. Tried on totum-api35: no
+        // improvement, and one rebuffer where there had been none. The number the server wants arrives
+        // as `playbackPositionUs` in `ChunkSource.getNextChunk`, which is why the seam move fixes this
+        // ceiling as well as seeking and ABR.
         val derived = segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)
         // Nothing to derive from — a live stream — leaves stepping as all there is, which is the
         // case the old floor was really written for.
