@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-08-11
+updated: 2026-08-20
 ---
 
 # Features
@@ -25,8 +25,8 @@ alone until they need more.
 | Channel page (subscribe + uploads) | channel | shipped | — |
 | Chapters (yt-dlp + Podcasting 2.0 `psc`/remote) + seek-bar markers | playback | shipped | — |
 | Playback queue (unified up-next) | playback | shipped | — |
-| Streaming reliability (chunked fetch, hardware-aware codec, expired-URL recovery) | playback | shipped | [streaming-reliability.md](streaming-reliability.md) |
-| Permanent vs transient failure, and playback that goes nowhere (ended / failed / stalled) | playback | shipped | [failure-handling.md](failure-handling.md) |
+| Streaming reliability (chunked fetch, hardware-aware codec, expired-URL recovery, SABR's four false endings) | playback | shipped | [streaming-reliability.md](streaming-reliability.md) |
+| Permanent vs transient failure, and playback that goes nowhere (ended / failed / stalled / never asked) | playback | shipped | [failure-handling.md](failure-handling.md) |
 | Diagnostics: nav / place / view-model / queue-intent trails | diagnostics | shipped | — |
 | Tabs remember where you were (per-destination saved state) | ui | shipped | — |
 | Shorts reel (full-screen vertical pager) | video | shipped | — |

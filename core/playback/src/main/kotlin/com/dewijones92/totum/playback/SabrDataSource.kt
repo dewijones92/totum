@@ -75,28 +75,7 @@ public class SabrDataSource(private val stream: SabrStream) : BaseDataSource(tru
         if (pendingAt >= pending.size) {
             pending = runBlocking { stream.read(position) }
             pendingAt = 0
-            if (pending.isEmpty()) {
-                // Stopping SHORT of the stated length is a FAULT, and it has to be raised rather than
-                // logged. Reported from a real device (0.1.435, commit 3a31b58): itag 251 served 920030B
-                // of 53458433B -- 1% of a 61-minute video -- and this returned plain end-of-input, so
-                // ExoPlayer believed the video had finished, marked the whole duration loaded, and every
-                // later seek "succeeded" instantly into a stream that was not there. Nothing failed, so
-                // the recovery ladder never ran and never fell back to extraction, which CAN seek.
-                //
-                // Throwing is what makes it actionable: Media3 surfaces the IOException,
-                // Media3PlaybackController raises a StreamFailure, and the ladder re-resolves.
-                if (stream.endedPrematurely) {
-                    Vitals.add("sabr.prematureEndRaised")
-                    val served = stream.describeProgress()
-                    Diag.warn("sabr", "stopped short at byte $position — failing so recovery can re-resolve; $served")
-                    throw SabrPrematureEndException(
-                        "SABR stopped short: $served — this is a stalled stream, not the end of the video",
-                    )
-                }
-                // A genuine ending, or a stream of unknown length (a live one states none), where there
-                // is nothing to fall short OF.
-                return C.RESULT_END_OF_INPUT
-            }
+            if (pending.isEmpty()) return theEndOrAFault()
         }
         val taken = minOf(length, pending.size - pendingAt)
         pending.copyInto(buffer, offset, pendingAt, pendingAt + taken)
@@ -104,6 +83,41 @@ public class SabrDataSource(private val stream: SabrStream) : BaseDataSource(tru
         position += taken
         bytesTransferred(taken)
         return taken
+    }
+
+    /**
+     * What an empty read MEANS — and it is not always the end of the video.
+     *
+     * Stopping SHORT of the stated length is a FAULT and has to be raised rather than logged. Reported
+     * from a real device (0.1.435, commit 3a31b58): itag 251 served 920030B of 53458433B -- 1% of a
+     * 61-minute video -- and this returned plain end-of-input, so ExoPlayer believed the video had
+     * finished, marked the whole duration loaded, and every later seek "succeeded" instantly into a
+     * stream that was not there. Nothing failed, so the recovery ladder never ran and never fell back to
+     * extraction, which CAN seek.
+     *
+     * Throwing is what makes it actionable: Media3 surfaces the IOException, `Media3PlaybackController`
+     * raises a `StreamFailure`, and the ladder re-resolves.
+     *
+     * TWO ways in, and both are faults. The server went quiet a long way short of the stated length, or
+     * the read gave up waiting for a byte that never came. The second is judged by the stream per read
+     * rather than against a length, because a stall cannot be an ending at ANY length — a format's real
+     * end is the server answering with nothing, which is the first case. That is why a live stream, which
+     * states no length and so can never be "premature", still reaches here rather than reporting a
+     * silent end of input.
+     */
+    private fun theEndOrAFault(): Int {
+        val stalled = stream.lastReadStalled
+        if (!stalled && !stream.endedPrematurely) {
+            // A genuine ending: the format finished, or it never stated a length and nothing stalled.
+            return C.RESULT_END_OF_INPUT
+        }
+        Vitals.add("sabr.prematureEndRaised")
+        val served = stream.describeProgress()
+        val what = if (stalled) "stalled waiting for byte $position" else "stopped short at byte $position"
+        Diag.warn("sabr", "$what — failing so recovery can re-resolve; $served")
+        throw SabrPrematureEndException(
+            "SABR $what: $served — this is a stalled stream, not the end of the video",
+        )
     }
 
     override fun getUri(): Uri? = uri

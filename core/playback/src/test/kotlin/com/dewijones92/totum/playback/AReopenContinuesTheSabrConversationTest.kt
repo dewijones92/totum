@@ -4,8 +4,10 @@ import com.dewijones92.totum.sabr.SabrFormat
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -35,14 +37,31 @@ import org.junit.Test
 class AReopenContinuesTheSabrConversationTest {
 
     @Before
-    fun registerASession() {
+    fun startWithNothingHeld() {
+        forgetEverything()
+        registerASessionServedBy("https://sabr.test/videoplayback")
+    }
+
+    @After
+    fun leaveNothingBehind(): Unit = forgetEverything()
+
+    /**
+     * Both stores, because the cache is keyed on `videoId:itag` and nothing else: leaving a stream
+     * behind hands the next case a conversation pointed at the previous case's server.
+     */
+    private fun forgetEverything() {
+        SabrSessions.clear()
+        forgetLiveSabrStreams()
+    }
+
+    private fun registerASessionServedBy(streamingUrl: String) {
         SabrSessions.register(
             VIDEO_ID,
             SabrSession(
-                streamingUrl = "https://sabr.test/videoplayback",
+                streamingUrl = streamingUrl,
                 ustreamerConfig = byteArrayOf(1, 2, 3),
                 audio = SabrFormat(AUDIO_ITAG, 1L),
-                video = SabrFormat(VIDEO_ITAG, 2L),
+                video = SabrFormat(VIDEO_ITAG, 2L, contentLength = STATED_LENGTH),
                 durationMs = 600_000,
             ),
         )
@@ -83,32 +102,57 @@ class AReopenContinuesTheSabrConversationTest {
      * 2026-08-19 as ten identical pairs in the log, the read count climbing and the byte count frozen at
      * 979459 — and it broke a case that WORKED before the cache existed, because building a fresh stream
      * is exactly what recovery needs.
+     *
+     * **The premise is asserted, not assumed.** This was written as `if (first.isSpent) assertNotSame
+     * else assertSame`, which passes whichever branch the code takes — so making `isSpent` always false
+     * restored the measured infinite loop exactly and nothing failed. A guard that cannot fail is not a
+     * guard. Driving the stream to a genuine end needs the real transport, so the session points at a
+     * loopback server that answers every request with an empty 200 — the server having nothing left,
+     * which is the one thing that spends a stream.
      */
     @Test
     fun `a spent stream is not handed out again`() {
-        val uri = SabrSessions.uriFor(VIDEO_ID, VIDEO_ITAG)!!
-        val first = sabrStreamFor(uri)!!
-        // Drive it to exhaustion: a transport that answers with nothing leaves the stream with nothing
-        // left to give, which is the state the real one reaches when YouTube stops serving.
-        runBlocking { runCatching { first.read(0L) } }
+        LoopbackHttp { LoopbackHttp.Reply("200 OK", ByteArray(0)) }.use { nothingLeftToSend ->
+            registerASessionServedBy(nothingLeftToSend.url)
+            val uri = SabrSessions.uriFor(VIDEO_ID, VIDEO_ITAG)!!
+            val first = sabrStreamFor(uri)!!
 
-        val second = sabrStreamFor(uri)
+            runBlocking { first.read(0L) }
 
-        if (first.isSpent) {
+            assertTrue(
+                "the fixture must actually reach the server — it answered " +
+                    "${nothingLeftToSend.requestsAnswered} requests",
+                nothingLeftToSend.requestsAnswered > 0,
+            )
+            assertTrue(
+                "a stream whose server has nothing left must report itself spent, or the cache below " +
+                    "cannot tell a corpse from a warm conversation — ${first.describeProgress()}",
+                first.isSpent,
+            )
             assertNotSame(
                 "a spent stream was handed out again — the player will reopen onto the same dead object " +
                     "and fail in a loop",
                 first,
-                second,
+                sabrStreamFor(uri),
             )
-        } else {
-            assertSame("a healthy stream must still be continued, not restarted", first, second)
         }
+    }
+
+    /** And a stream that is merely mid-conversation is still continued — the must-not-break case. */
+    @Test
+    fun `a stream that has not ended is continued rather than restarted`() {
+        val uri = SabrSessions.uriFor(VIDEO_ID, VIDEO_ITAG)!!
+        val first = sabrStreamFor(uri)!!
+
+        assertSame("a healthy stream must be continued, not restarted", first, sabrStreamFor(uri))
     }
 
     private companion object {
         const val VIDEO_ID = "uSMGENDH_QI"
         const val AUDIO_ITAG = 140
         const val VIDEO_ITAG = 137
+
+        /** A length to fall short of, so an early end is judged rather than assumed. */
+        const val STATED_LENGTH = 53_458_433L
     }
 }

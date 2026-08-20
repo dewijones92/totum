@@ -113,9 +113,15 @@ class SabrKeepsServingTest {
                     }
                     reads++
                     if (chunk.isEmpty()) {
-                        // An empty read is the interesting case: it is either the end of the file or the
-                        // refusal, and endedPrematurely is what tells them apart.
-                        stopped = if (stream.endedPrematurely) "ENDED PREMATURELY (refused)" else "end of stream"
+                        // An empty read is the interesting case, and it has three meanings, not two: the
+                        // file ended, the server went quiet short of the stated length, or the answers
+                        // never carried the byte being read. Naming all three is the whole point of this
+                        // test — "end of stream" for a refusal is the report saying nothing happened.
+                        stopped = when {
+                            stream.lastReadStalled -> "STALLED (answers never reached the reader)"
+                            stream.endedPrematurely -> "ENDED PREMATURELY (refused)"
+                            else -> "end of stream"
+                        }
                         return@withTimeoutOrNull
                     }
                     served += chunk.size

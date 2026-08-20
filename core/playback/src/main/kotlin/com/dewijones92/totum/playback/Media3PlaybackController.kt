@@ -590,15 +590,35 @@ internal fun PlaybackException.deadAddressReason(nowEpochSeconds: Long): StreamF
 @UnstableApi
 internal fun PlaybackException.recoverableReason(
     nowEpochSeconds: Long = System.currentTimeMillis() / MILLIS_PER_SECOND,
-): StreamFailure.Reason? = when (val address = deadAddressReason(nowEpochSeconds)) {
-    null -> when {
-        // Rejected, not Unreachable: the address will not serve, so the answer is a fresh resolve rather
-        // than a wait for a network that is already up.
-        isSabrPrematureEnd() -> StreamFailure.Reason.Rejected
-        isUnreachable() -> StreamFailure.Reason.Unreachable
-        else -> null
-    }
-    else -> address
+): StreamFailure.Reason? =
+    recoveryReasonFrom(deadAddressReason(nowEpochSeconds), isSabrPrematureEnd(), isUnreachable())
+
+/**
+ * Which answer wins when more than one applies.
+ *
+ * Split out from the extension above so the ORDER is unit-testable, for the same reason
+ * [isExpiredStatus] and [leaseVerdict] are: building a Media3 [PlaybackException] reads
+ * `SystemClock`, which a JVM unit test cannot call at all.
+ *
+ * **A SABR stall outranks an unreachable network, and that costs something real.** A stalled stream
+ * IS an [java.io.IOException], so both tests match whenever SABR gives up during an outage — and it
+ * gives up fast: a refused connection or a dead DNS fails in under a millisecond, so the read's whole
+ * six-fetch budget is spent before the network has had any time to come back. Landing on `Rejected`
+ * means `REFUSED_MAX_ATTEMPTS` of one and no `awaitNetwork`, so walking into a tunnel ends a SABR item
+ * on the spot where an ordinary HTTP stream would have waited. Kept this way on purpose for now: an
+ * address YouTube is refusing to serve needs a fresh resolve and not a wait, and that is the case this
+ * ordering was written for. Changing it would change what recovery does in the wild, so it is pinned
+ * by a test rather than left to be rediscovered.
+ */
+internal fun recoveryReasonFrom(
+    address: StreamFailure.Reason?,
+    sabrStalled: Boolean,
+    unreachable: Boolean,
+): StreamFailure.Reason? = when {
+    address != null -> address
+    sabrStalled -> StreamFailure.Reason.Rejected
+    unreachable -> StreamFailure.Reason.Unreachable
+    else -> null
 }
 
 private const val MILLIS_PER_SECOND = 1_000L

@@ -2,8 +2,17 @@ package com.dewijones92.totum.sabr
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
+import java.io.IOException
 
-/** Posts a SABR request body and returns the raw UMP response. */
+/**
+ * Posts a SABR request body and returns the raw UMP response.
+ *
+ * **An empty return means the SERVER had nothing to send**, which is a thing SABR says routinely and
+ * which [SabrStream] pays for with a thirty-second skip of the claimed time. A request that FAILED
+ * must therefore throw an [IOException] rather than return nothing: the bytes are still there, we
+ * simply never asked. Reporting a dropped connection as an empty answer cost a permanent hole in the
+ * media, and four of them ended the stream and blacklisted SABR for the item.
+ */
 public fun interface SabrTransport {
     public suspend fun post(url: String, body: ByteArray): ByteArray
 }
@@ -16,10 +25,10 @@ public fun interface SabrTransport {
  * This turns that into the one thing a player wants — bytes in order, from the start — so a
  * Media3 `DataSource` on top has nothing left to understand.
  *
- * **Only the requested itag is kept.** A response carrying audio and video is normal (no track
- * bitfield was found that returns video alone), so anything that is not [format] is dropped by
- * its [MediaHeader]. For audio there IS a bitfield that asks for audio alone, which is why
- * [tracks] exists.
+ * **Only the requested itag is kept.** A response carrying audio and video is normal — see
+ * [SabrTracks] for why asking for video alone is not built rather than not possible — so anything that
+ * is not [format] is dropped by its [MediaHeader]. For audio there IS a bitfield that asks for audio
+ * alone, which is why [tracks] exists.
  *
  * Progress is driven by `player_time_ms`, because that is what the server actually responds to:
  * `buffered_ranges` alone advanced twice and then stalled, while the same request with a larger
@@ -67,6 +76,21 @@ public class SabrStream(
     /** Where the next MEDIA part for each run belongs, since runs interleave. */
     private val writeAt = mutableMapOf<Long, Long>()
 
+    /**
+     * The furthest byte of [format] actually KEPT — the ceiling on any honest claimed time.
+     *
+     * Separate from [writeAt] on purpose. That is a per-run WRITE CURSOR and has to advance across
+     * bytes we throw away, or an interleaved continuation of the same run lands at the wrong offset.
+     * Deriving the claim from the cursor instead meant a RESEND carried the claim past the data — and a
+     * resend is not rare: 52% of every byte fetched, before buffered ranges were sent at all. [noteHeader]
+     * widened it further by recording a cursor for the OTHER track's itag, whose byte space this format
+     * does not even use, so an audio conversation could claim the time of a video byte. Once the claim
+     * is ahead of the data the server correctly answers "you already have enough for that time", which
+     * [handleEmpty] reads as an empty response and punishes with another thirty-second skip: the
+     * runaway of 2026-08-18 through a second door.
+     */
+    private var furthestHeld = 0L
+
     /** The next byte offset we have not yet served to a reader. */
     private var served = 0L
 
@@ -93,6 +117,23 @@ public class SabrStream(
     private var exhausted = false
 
     /**
+     * Whether the read that just finished gave up waiting for bytes that never came.
+     *
+     * Deliberately NOT [exhausted]. A stall is a fact about ONE read at ONE offset — the server
+     * answered every time, just never with the byte this reader is sitting at — while [exhausted]
+     * means the conversation itself has nothing left. Setting the second from the first poisoned a
+     * stream that TWO consumers share: `sabrStreamFor` hands the same object to the player and to
+     * the queue's auto-downloader (which reads from byte 0, and is sorted to the front of the pass),
+     * so one unsatisfiable download read marked the PLAYER's live stream spent and premature and
+     * tore down a track that was streaming fine. Cleared at the top of every [read], so the reader
+     * that stalled is the only one that sees it.
+     */
+    private var stalled = false
+
+    /** Failed round trips within the current read, so six of them cost one log line and not six. */
+    private var failuresThisRead = 0
+
+    /**
      * What we already hold, so a request can say so — the half of the SABR conversation that was
      * missing until 2026-08-18. See [HeldSegments] and [BufferedRange].
      */
@@ -105,10 +146,10 @@ public class SabrStream(
     private var totalFetchMs = 0L
 
     /**
-     * Bytes downloaded and thrown away, because a VIDEO request also returns audio and no track
-     * bitfield was found that suppresses it. The audio track then fetches that same audio again,
-     * so a video played this way costs noticeably more data than it needs to — worth measuring
-     * rather than discovering on a phone bill.
+     * Bytes downloaded and thrown away, because a VIDEO request also returns audio we have not asked
+     * the server to withhold — the bitfield alone does not, see [SabrTracks]. The audio track then
+     * fetches that same audio again, so a video played this way costs noticeably more data than it needs
+     * to — worth measuring rather than discovering on a phone bill.
      */
     private var bytesDiscarded = 0L
 
@@ -116,8 +157,25 @@ public class SabrStream(
     private var readsThatFetched = 0
     private var emptyResponses = 0
 
+    /** Round trips that never landed, which are a network's problem rather than the server's. */
+    private var failedFetches = 0
+
     /** Total length of this format: the player response's figure, not a run's. */
     public val contentLength: Long? get() = totalBytes
+
+    /**
+     * Whether this stream has nothing left to give, prematurely or otherwise.
+     *
+     * Public so a CACHE can tell a stream worth continuing from a corpse. Reusing a spent one is an
+     * infinite failure loop, measured 2026-08-19: the stream ended short at byte 979459, ExoPlayer
+     * reopened, the cache handed back the same dead object, and it failed again — ten times in a row,
+     * with the read count climbing and the byte count never moving.
+     *
+     * Set only where the server itself went quiet, never by a stalled read: a stall leaves megabytes
+     * already fetched, the held segments and the whole `headers` map, and the next open on a dropped
+     * stream is the cold mid-stream open YouTube answers with no media.
+     */
+    public val isSpent: Boolean get() = exhausted
 
     /**
      * Whether this stream stopped SHORT of the length it stated.
@@ -130,18 +188,22 @@ public class SabrStream(
      * Null [contentLength] is never premature: a live stream states no length, and calling its natural
      * end a fault would be worse than the bug this fixes.
      */
-    /**
-     * Whether this stream has nothing left to give, prematurely or otherwise.
-     *
-     * Public so a CACHE can tell a stream worth continuing from a corpse. Reusing a spent one is an
-     * infinite failure loop, measured 2026-08-19: the stream ended short at byte 979459, ExoPlayer
-     * reopened, the cache handed back the same dead object, and it failed again — ten times in a row,
-     * with the read count climbing and the byte count never moving.
-     */
-    public val isSpent: Boolean get() = exhausted
-
     public val endedPrematurely: Boolean
         get() = exhausted && contentLength?.let { served < it } == true
+
+    /**
+     * Whether the LAST read gave up without its bytes — a fault, and never an ending.
+     *
+     * A caller that got nothing needs the two apart. An empty answer can mean the format really
+     * finished, so it is judged against [contentLength]; a stall cannot mean that at any length,
+     * because the true end of a format is the server answering with nothing (or with bytes already
+     * served, which is the same thing here) and that goes through [handleEmpty]. So this stands on
+     * its own, and a live stream — which states no length and therefore can never be "premature" —
+     * still reports a stall rather than a silent end of input.
+     *
+     * Valid until the next [read] on this object, which clears it.
+     */
+    public val lastReadStalled: Boolean get() = stalled
 
     /**
      * Bytes starting at [from], or empty when the stream is finished.
@@ -154,6 +216,8 @@ public class SabrStream(
         aimAtByte(from)
         served = from
         reads++
+        stalled = false
+        failuresThisRead = 0
         var attempts = 0
         while (attempts < MAX_FETCHES_PER_READ) {
             contiguousFrom(from)?.let { held ->
@@ -175,10 +239,18 @@ public class SabrStream(
             attempts++
         }
         // The shape of a stall: the network answered but never with the bytes at this offset.
+        stalled = true
+        Vitals.add("sabr.stuckReads")
         Diag.warn(
             "sabr",
-            "STUCK: itag ${format.itag} has no bytes at offset $from after $attempts fetches " +
-                "(held ${chunks.size} runs at ${chunks.keys.take(HELD_TO_NAME)}, served ${bytesServed}B)",
+            // ATTEMPTS, not fetches: the two differ exactly when it matters. Six attempts that all
+            // failed to land is a dead network; six that landed with the wrong bytes is the server
+            // ignoring where we said we are, and one line used to be printed for both.
+            "STUCK: itag ${format.itag} has no bytes at offset $from after $attempts attempts " +
+                "(${attempts - failuresThisRead} landed, $failuresThisRead never left) — recorded as a " +
+                "FAULT for this read, not an ending, and the conversation is KEPT rather than spent: " +
+                "premature=$endedPrematurely against ${contentLength ?: -1}B, holding ${chunks.size} " +
+                "runs at ${chunks.keys.take(HELD_TO_NAME)}. ${describeProgress()}",
         )
         return ByteArray(0)
     }
@@ -194,9 +266,10 @@ public class SabrStream(
         // segments/described are here because their ABSENCE is invisible otherwise: a buffer we
         // never describe looks exactly like a server that ignores us, and on 2026-08-18 the two were
         // told apart only by adding this line.
-        return "itag=${format.itag} fetches=$fetches reads=$reads waited=$readsThatFetched " +
+        return "itag=${format.itag} fetches=$fetches failed=$failedFetches reads=$reads " +
+            "waited=$readsThatFetched " +
             "served=${bytesServed}B discarded=${bytesDiscarded}B ($wasted% wasted) " +
-            "avgFetch=${averageMs}ms mediaTime=${playerTimeMs}ms " +
+            "avgFetch=${averageMs}ms mediaTime=${playerTimeMs}ms heldTo=${furthestHeld}B " +
             "segments=${segmentsHeld.count}${segmentsHeld.numbers} described=${bufferedRanges().size} " +
             "headers=${headers.values.joinToString("|") {
                 "id${it.headerId}:itag${it.itag ?: "?"}:seq${it.sequenceNumber ?: "?"}:at${it.startMs ?: -1}"
@@ -230,27 +303,61 @@ public class SabrStream(
      * video. That is fine: the response names the segments it really sent, and the stream then holds
      * real ranges instead of the guess. Landing near the target and correcting beats landing at zero
      * and never arriving.
+     *
+     * **Byte 0 is a jump like any other on a WARM stream**, and this used to open `if (from <= 0)
+     * return` — right by accident on a cold stream, whose claim is already 0, and wrong on the normal
+     * case, because `SabrDataSourceFactory` caches a stream per `videoId:itag`. So replaying a video
+     * just watched, or downloading one that had played, asked the server about where playback had
+     * reached while the reader waited at byte 0: every returned byte was past the offset being read,
+     * which is the stall [read] then reports as the end of the video.
      */
     private fun aimAtByte(from: Long) {
-        if (from <= 0) return
         // A DISCONTINUITY, not merely a cold start. Sequential reading picks up exactly where the last
         // read left off; anything else is a seek and has to be aimed. Judged from `handedThrough`
         // because `contiguousFrom` consumes what it returns, so the held runs cannot say where we are.
         if (from == handedThrough) return
-        val target = segmentsHeld.timeOfByte(from, totalBytes, durationMs) ?: run {
-            Diag.log(
-                "sabr",
-                "itag ${format.itag} opening at ${from}B but its length or duration is unknown, so the " +
-                    "time cannot be estimated — asking from the start, which will not reach $from",
-            )
-            return
+        if (from <= 0 && handedThrough < 0) return
+        val target = timeToAimAt(from) ?: return
+        val move = when {
+            handedThrough < 0 -> "opening at"
+            from < handedThrough -> "REWINDING to"
+            else -> "seeking to"
         }
         Diag.log(
             "sabr",
-            "itag ${format.itag} ${if (handedThrough < 0) "opening" else "seeking to"} ${from}B " +
-                "(last handed through $handedThrough) — asking from ${target}ms instead of ${playerTimeMs}ms",
+            "itag ${format.itag} $move ${from}B (last handed through $handedThrough) — asking from " +
+                "${target}ms instead of ${playerTimeMs}ms, holding to ${furthestHeld}B",
         )
         playerTimeMs = target
+        // Lowered to the READER, never raised to it. A rewind is otherwise dragged straight back:
+        // `advanceClaimedTime` takes `maxOf(playerTimeMs, …)`, so the first fetch after re-aiming
+        // restores the old time from the byte a previous pass reached.
+        furthestHeld = minOf(furthestHeld, from.coerceAtLeast(0))
+        // The SAME lowering, said in the other half of the conversation. Re-aiming the claim alone
+        // fixed only the first request of a rewind: the ranges still advertised the prefix this
+        // reader had already consumed and can no longer serve, so the server did as it was asked and
+        // sent the segment AFTER them — bytes ahead of the reader, which `storeMedia` keeps and
+        // `advanceClaimedTime` then turns straight back into the old claim. A replay from the start
+        // served nothing at all, and since a stall is now a raised fault, silently.
+        segmentsHeld.forgetFrom(from.coerceAtLeast(0))
+    }
+
+    /**
+     * The media time to ask about for [from], or null when there is no way to estimate one.
+     *
+     * Byte 0 is 0ms whatever the format's length is, which is what makes a REWIND answerable on a
+     * stream that states neither length nor duration. Anything else needs the ratio.
+     */
+    private fun timeToAimAt(from: Long): Long? {
+        if (from <= 0) return 0
+        return segmentsHeld.timeOfByte(from, totalBytes, durationMs) ?: run {
+            Diag.log(
+                "sabr",
+                "itag ${format.itag} opening at ${from}B but its length or duration is unknown, so the " +
+                    "time cannot be estimated — asking from ${playerTimeMs}ms, which will not reach $from",
+            )
+            null
+        }
     }
 
     private fun contiguousFrom(from: Long): ByteArray? {
@@ -271,13 +378,18 @@ public class SabrStream(
             playerTimeMs = playerTimeMs,
             audio = format.takeIf { kind == SabrTrackKind.AUDIO },
             video = format.takeIf { kind == SabrTrackKind.VIDEO },
-            // Audio alone is the one selection the server honours, and it is a tenth of the
-            // bytes; asking for video means accepting audio alongside it.
+            // Audio alone is a tenth of the bytes. Asking for video accepts audio alongside it,
+            // because the sentinel range that would suppress it is unbuilt — see SabrTracks.
             tracks = if (kind == SabrTrackKind.AUDIO) SabrTracks.AUDIO_ONLY else SabrTracks.AUDIO_AND_VIDEO,
             bufferedRanges = bufferedRanges(),
         ).encode()
         val startedAt = clock()
-        val response = transport.post(url, body)
+        val response = try {
+            transport.post(url, body)
+        } catch (failure: IOException) {
+            noteRequestFailed(failure, clock() - startedAt)
+            return
+        }
         val elapsed = clock() - startedAt
         fetches++
         totalFetchMs += elapsed
@@ -293,7 +405,7 @@ public class SabrStream(
         Diag.log(
             "sabr",
             "fetch #$fetches itag ${format.itag} at ${playerTimeMs}ms -> " +
-                "${response.size}B response, ${added}B kept, ${elapsed}ms, " +
+                "${response.size}B response, ${added}B kept, ${elapsed}ms, holding to ${furthestHeld}B, " +
                 "carried $carried" +
                 if (elapsed > SLOW_FETCH_MS) " — SLOW" else "",
         )
@@ -313,6 +425,43 @@ public class SabrStream(
         // empty answer by a deliberate skip past whatever the server has nothing for. Doing both
         // would have the derived value quietly undo the skip.
         if (added == 0) handleEmpty(response) else advanceClaimedTime()
+    }
+
+    /**
+     * Records a round trip that never landed, WITHOUT spending the empty-response budget.
+     *
+     * An empty answer and a failed request are byte-for-byte identical to a caller that swallows the
+     * failure, and they call for opposite responses: an empty answer means the server has nothing for
+     * this media time, so skipping past it is right; a failed request means we never asked, so the
+     * media time is fine and only the request needs repeating. Conflating them cost a permanent
+     * thirty-second hole per Wi-Fi handoff, and four in a row ended the stream.
+     *
+     * The repeating is the read's own fetch budget and **nothing else** — there is no backoff here, so
+     * be precise about what that buys. A read timeout spends the budget over minutes; a refused
+     * connection, a dead DNS or airplane mode fails in under a millisecond, so all six attempts are
+     * gone before the outage has had time to end and the stall reaches [read] as one attempt in
+     * practice. What the split fixes is the CLAIM, which is no longer corrupted by a failure; waiting
+     * for a network to come back is the recovery ladder's job, and `recoveryReasonFrom` records how a
+     * stall is classified when it gets there.
+     *
+     * Logged ONCE per read, then counted. Six identical warnings arrived simultaneously for one dead
+     * read — twelve, with the transport's line — which is the per-event shape this repo reserves for
+     * counting. The count reaches a report through the stuck line's `never left` and through
+     * `describeProgress`'s `failed=`.
+     */
+    private fun noteRequestFailed(failure: IOException, elapsed: Long) {
+        failedFetches++
+        failuresThisRead++
+        Vitals.add("sabr.failedFetches")
+        if (failuresThisRead > 1) return
+        Diag.warn(
+            "sabr",
+            "itag ${format.itag} fetch FAILED after ${elapsed}ms — the request did not land, so this is " +
+                "NOT an empty answer: claim stays at ${playerTimeMs}ms, empty streak $emptyResponses, " +
+                "held to ${furthestHeld}B, served ${bytesServed}B (failure #$failedFetches). Any further " +
+                "failure in this read is counted, not logged",
+            failure,
+        )
     }
 
     /** What to do when a response carried nothing we wanted — the only place a stream ends. */
@@ -443,6 +592,7 @@ public class SabrStream(
         // Already read past: a reader never goes backwards, so this is spent.
         if (offset < served) return 0
         chunks[offset] = (chunks[offset] ?: ByteArray(0)) + bytes
+        furthestHeld = maxOf(furthestHeld, offset + bytes.size)
         return bytes.size
     }
 
@@ -466,8 +616,7 @@ public class SabrStream(
      * other end. Never behind, never freely ahead.
      */
     private fun advanceClaimedTime() {
-        val furthest = writeAt.values.maxOrNull() ?: 0
-        val derived = segmentsHeld.timeOfByte(furthest, totalBytes, durationMs)
+        val derived = segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)
         // Nothing to derive from — a live stream — leaves stepping as all there is, which is the
         // case the old floor was really written for.
         playerTimeMs = derived?.let { maxOf(playerTimeMs, it) } ?: (playerTimeMs + stepMs)

@@ -59,7 +59,7 @@ public object ResponseSummary {
             .mapNotNull { MediaHeader.parse(it.payload)?.itag }
             .distinct()
         val reasons = parts.filter { it.type == UmpPart.SABR_ERROR || it.type == UmpPart.RELOAD_PLAYER_RESPONSE }
-            .map { part -> part.payload.decodeToString().filter { it.code in PRINTABLE }.take(REASON_CHARS) }
+            .map { part -> printable(part.payload, REASON_CHARS) }
         return "parts=${parts.map { it.name }.distinct()} itags=$itags reasons=$reasons " +
             "protection=${protectionStatus(parts)}"
     }
@@ -83,6 +83,16 @@ public object ResponseSummary {
         }
         return fields.joinToString(",").ifEmpty { "no numeric fields" }
     }
+
+    /**
+     * As much of [bytes] as a human can read, control characters dropped.
+     *
+     * Shared because a refusal reaches a report by two routes — a `SABR_ERROR` part inside a UMP
+     * response, and the plain body of an HTTP 4xx that `SabrPostTransport` reads off `errorStream` —
+     * and both want the same thing: printable text, bounded, never raw binary in the trail.
+     */
+    public fun printable(bytes: ByteArray, max: Int): String =
+        bytes.decodeToString().filter { it.code in PRINTABLE }.take(max)
 
     private val PRINTABLE = 32..126
     private const val REASON_CHARS = 60

@@ -30,40 +30,43 @@ class TheStreamTellsTheServerWhatItHoldsTest {
         durationMs = DURATION_MS,
     )
 
-    /** A run carrying real segment metadata, which is what a live response always has. */
-    private fun segment(index: Int, startMs: Long): ByteArray {
-        val header = UmpFraming.part(
-            UmpPart.MEDIA_HEADER,
-            Protobuf.number(1, 0L) +
-                Protobuf.number(3, audio.itag.toLong()) +
-                Protobuf.number(6, index.toLong() * CHUNK) +
-                Protobuf.number(9, index.toLong()) +
-                Protobuf.number(11, startMs) +
-                Protobuf.number(12, SEGMENT_MS) +
-                Protobuf.number(14, CHUNK),
-        )
-        return header + UmpFraming.media(0, ByteArray(CHUNK.toInt()) { 5 })
-    }
+    /**
+     * A run carrying real segment metadata, which is what a live response always has.
+     *
+     * Built by [UmpFraming] rather than by a second copy of the field numbers here. The copies had
+     * already diverged: this one carried the `sequence_number` every live header carries and the shared
+     * one did not, so every test using the shared one described an empty buffer for ever while this file
+     * proved the machinery worked. One header builder, so a fixture cannot be wrong in one place only.
+     */
+    private fun segment(index: Int, startMs: Long): ByteArray =
+        UmpFraming.mediaHeader(
+            id = 0,
+            format = audio,
+            offset = index.toLong() * CHUNK,
+            length = CHUNK.toInt(),
+            startMs = startMs,
+            durationMs = SEGMENT_MS,
+        ) + UmpFraming.media(0, ByteArray(CHUNK.toInt()) { 5 })
 
     @Test
     fun `the first fetch describes an empty buffer`() = runTest {
-        val recording = RecordingRanges(listOf(segment(0, 0)))
+        val recording = FakeSabrServer(listOf(segment(0, 0)))
 
         stream(recording).read(from = 0)
 
-        assertTrue("nothing is held yet, so nothing may be claimed", recording.rangesPerFetch.first().isEmpty())
+        assertTrue("nothing is held yet, so nothing may be claimed", recording.rangesAsked.first().isEmpty())
     }
 
     /** After a segment arrives, the next fetch must say so — with that segment's own numbers. */
     @Test
     fun `a fetched segment is described back on the next fetch`() = runTest {
-        val recording = RecordingRanges(listOf(segment(0, 0), segment(1, SEGMENT_MS)))
+        val recording = FakeSabrServer(listOf(segment(0, 0), segment(1, SEGMENT_MS)))
         val stream = stream(recording)
 
         val first = stream.read(from = 0)
         stream.read(from = first.size.toLong())
 
-        val described = recording.rangesPerFetch[1]
+        val described = recording.rangesAsked[1]
         assertEquals("one contiguous span should be described", 1, described.size)
         val range = described.single()
         assertEquals("it starts at the beginning", 0L, range.startTimeMs)
@@ -75,7 +78,7 @@ class TheStreamTellsTheServerWhatItHoldsTest {
     /** Two segments in hand is one span, not two — the server wants ranges, not a list of parts. */
     @Test
     fun `consecutive segments are described as one span`() = runTest {
-        val recording = RecordingRanges(
+        val recording = FakeSabrServer(
             listOf(segment(0, 0) + segment(1, SEGMENT_MS), segment(2, SEGMENT_MS * 2)),
         )
         val stream = stream(recording)
@@ -84,7 +87,7 @@ class TheStreamTellsTheServerWhatItHoldsTest {
         at += stream.read(from = at).size
         stream.read(from = at)
 
-        val range = recording.rangesPerFetch[1].single()
+        val range = recording.rangesAsked[1].single()
         assertEquals("both segments' time", SEGMENT_MS * 2, range.durationMs)
         assertEquals(0, range.startSegment)
         assertEquals("the last segment held", 1, range.endSegment)
@@ -97,45 +100,3 @@ class TheStreamTellsTheServerWhatItHoldsTest {
         const val SEGMENT_MS = 10_000L
     }
 }
-
-/** Decodes the buffered ranges out of every request body, in order. */
-private class RecordingRanges(private val responses: List<ByteArray>) : SabrTransport {
-    val rangesPerFetch: MutableList<List<Described>> = mutableListOf()
-    private var index = 0
-
-    override suspend fun post(url: String, body: ByteArray): ByteArray {
-        rangesPerFetch += describedIn(body)
-        return responses.getOrElse(index++) { ByteArray(0) }
-    }
-}
-
-/** Just the fields under test, so an assertion reads as prose rather than protobuf. */
-private data class Described(
-    val startTimeMs: Long,
-    val durationMs: Long,
-    val startSegment: Int,
-    val endSegment: Int,
-)
-
-private fun describedIn(body: ByteArray): List<Described> =
-    Protobuf.read(body)[BUFFERED_RANGES]
-        ?.filterIsInstance<Protobuf.Value.Bytes>()
-        ?.map { Protobuf.read(it.value) }
-        ?.map { range ->
-            Described(
-                startTimeMs = range.number(START_TIME_MS),
-                durationMs = range.number(DURATION_MS),
-                startSegment = range.number(START_SEGMENT).toInt(),
-                endSegment = range.number(END_SEGMENT).toInt(),
-            )
-        }
-        ?: emptyList()
-
-private fun Map<Int, List<Protobuf.Value>>.number(field: Int): Long =
-    (this[field]?.firstOrNull() as? Protobuf.Value.Number)?.value ?: -1
-
-private const val BUFFERED_RANGES = 3
-private const val START_TIME_MS = 2
-private const val DURATION_MS = 3
-private const val START_SEGMENT = 4
-private const val END_SEGMENT = 5

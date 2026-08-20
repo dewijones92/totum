@@ -102,9 +102,9 @@ class SabrServesWhatWeChooseTest {
      * ```
      *
      * So `aimAtByte` is **necessary but not sufficient**, and this test records that honestly rather than
-     * going red for an unimplemented capability. A cold jump probably needs more of the protocol — the
-     * `SABR_SEEK` part, or session continuity from earlier fetches that a fresh stream has not built.
-     * Until then SABR stays a start-of-item route. See `docs/todos/sabr-cannot-seek.md`.
+     * going red for an unimplemented capability. What the wire measurement does NOT establish is *what*
+     * was refused: the target is past the ~1MB attestation ceiling, and `SABR_SEEK` is server→client so
+     * it cannot be the missing request part. See `docs/todos/sabr-cannot-seek.md`.
      */
     @Test
     fun sabrCanBeOpenedPartWayThrough() = runBlocking {
@@ -166,13 +166,25 @@ class SabrServesWhatWeChooseTest {
     /**
      * Does a jump work once the conversation is ESTABLISHED?
      *
-     * The leading hypothesis from `docs/todos/sabr-cannot-seek.md`: a COLD stream has no playback cookie
-     * and no prior buffered ranges, so YouTube may only permit a seek inside a conversation it already
+     * The hypothesis from `docs/todos/sabr-cannot-seek.md`: a COLD stream has no playback cookie and no
+     * prior buffered ranges, so YouTube may only permit a seek inside a conversation it already
      * recognises. This plays from the start for a few reads and only then jumps.
      *
-     * Entirely a probe — it asserts only that the early sequential reads work (which is ours and already
-     * covered elsewhere) and prints what the jump did. If the jump serves media, that is the unlock for
-     * SABR as an ordinary playback route and the todo says what to do next.
+     * ⚠️ **A NEGATIVE RESULT HERE MEANS NOTHING, and this probe once published one anyway.** Three
+     * reasons, all ours:
+     *
+     *  * it judges at the READER (`jumped.isEmpty()`), downstream of every reader defect, unlike the
+     *    cold arm above which wraps the transport and can therefore say what arrived on the wire;
+     *  * it asks for `length / 2`, an arbitrary mid-segment byte, while `SabrStream.read` needs
+     *    `chunks[from]` to exist EXACTLY and SABR answers from a segment boundary — so a perfectly
+     *    served jump still comes back empty;
+     *  * the target is past the ~1MB attestation ceiling measured on eighteen streams
+     *    (`docs/todos/sabr-stops-at-one-megabyte.md`), so a refused seek and a refused megabyte look
+     *    identical.
+     *
+     * A sound version wraps the transport in BOTH arms, aims at a real `MEDIA_HEADER` sequence boundary
+     * captured from the warm reads (never `contentLength / 2`), and stays inside the first megabyte.
+     * Until then this prints what happened and claims nothing.
      */
     @Test
     fun aJumpInsideAnEstablishedConversation() = runBlocking {
@@ -211,11 +223,12 @@ class SabrServesWhatWeChooseTest {
         println("[sabr] ${stream.describeProgress()}")
         println(
             if (jumped.isEmpty()) {
-                "[sabr] a warm jump is refused too — session continuity is NOT the missing piece. " +
-                    "Cross that lead off docs/todos/sabr-cannot-seek.md."
+                "[sabr] a warm jump returned nothing AT THE READER, which settles nothing: this probe " +
+                    "cannot tell a refused seek from one we could not key, and its target is past the " +
+                    "~1MB ceiling. Session continuity stays OPEN — see docs/todos/sabr-cannot-seek.md."
             } else {
-                "[sabr] A WARM JUMP WORKS. Session continuity WAS the missing piece: seeking is " +
-                    "reachable by establishing the conversation first. Act on this."
+                "[sabr] A WARM JUMP SERVED ${jumped.size / KB}KB. That direction IS conclusive: " +
+                    "establishing the conversation first reaches media a cold jump does not. Act on it."
             },
         )
     }

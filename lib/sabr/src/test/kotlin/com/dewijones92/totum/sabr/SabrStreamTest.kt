@@ -28,34 +28,10 @@ class SabrStreamTest {
         return out
     }
 
-    private fun header(id: Int, format: SabrFormat, offset: Long, length: Int) = umpPart(
-        UmpPart.MEDIA_HEADER,
-        Protobuf.number(1, id.toLong()) +
-            Protobuf.number(3, format.itag.toLong()) +
-            Protobuf.number(6, offset) +
-            Protobuf.number(14, length.toLong()),
-    )
+    private fun header(id: Int, format: SabrFormat, offset: Long, length: Int) =
+        UmpFraming.mediaHeader(id, format, offset, length)
 
-    /** A MEDIA part names its own run: the payload begins with the header id. */
-    private fun media(id: Int, payload: ByteArray) =
-        umpPart(UmpPart.MEDIA, byteArrayOf(id.toByte()) + payload)
-
-    private fun umpPart(type: Int, payload: ByteArray): ByteArray {
-        fun varint(value: Int) = if (value < 0x80) {
-            byteArrayOf(value.toByte())
-        } else {
-            byteArrayOf((0x80 or (value and 0x3F)).toByte(), (value shr 6).toByte())
-        }
-        return varint(type) + varint(payload.size) + payload
-    }
-
-    private class Fake(private val responses: List<ByteArray>) : SabrTransport {
-        val bodies = mutableListOf<ByteArray>()
-        override suspend fun post(url: String, body: ByteArray): ByteArray {
-            bodies += body
-            return responses.getOrElse(bodies.size - 1) { ByteArray(0) }
-        }
-    }
+    private fun media(id: Int, payload: ByteArray) = UmpFraming.media(id, payload)
 
     private fun stream(
         transport: SabrTransport,
@@ -72,7 +48,7 @@ class SabrStreamTest {
 
     @Test
     fun `serves the requested format's bytes from the start`() = runTest {
-        val fake = Fake(listOf(response(Triple(audio, 0L, byteArrayOf(10, 11, 12)))))
+        val fake = FakeSabrServer(listOf(response(Triple(audio, 0L, byteArrayOf(10, 11, 12)))))
 
         val bytes = stream(fake).read(from = 0)
 
@@ -85,7 +61,7 @@ class SabrStreamTest {
      */
     @Test
     fun `bytes belonging to another format are dropped`() = runTest {
-        val fake = Fake(
+        val fake = FakeSabrServer(
             listOf(
                 response(
                     Triple(audio, 0L, byteArrayOf(1, 2)),
@@ -107,7 +83,7 @@ class SabrStreamTest {
     @Test
     fun `the content length is the format's total, not one run's`() = runTest {
         // The response declares a 5-byte run; the format is really 5000 bytes.
-        val fake = Fake(listOf(response(Triple(audio, 0L, ByteArray(5)))))
+        val fake = FakeSabrServer(listOf(response(Triple(audio, 0L, ByteArray(5)))))
         val stream = stream(fake, totalBytes = 5_000)
 
         stream.read(from = 0)
@@ -122,7 +98,7 @@ class SabrStreamTest {
      */
     @Test
     fun `each fetch asks from a later player time`() = runTest {
-        val fake = Fake(
+        val fake = FakeSabrServer(
             listOf(
                 response(Triple(audio, 0L, byteArrayOf(1))),
                 response(Triple(audio, 1L, byteArrayOf(2))),
@@ -133,31 +109,27 @@ class SabrStreamTest {
         stream.read(from = 0)
         stream.read(from = 1)
 
-        val times = fake.bodies.map { body ->
-            val state = Protobuf.read(body)[1]?.first() as Protobuf.Value.Bytes
-            (Protobuf.read(state.value)[28]?.first() as Protobuf.Value.Number).value
-        }
-        assertEquals(listOf(0L, 10_000L), times)
+        assertEquals(listOf(0L, 10_000L), fake.timesAsked)
     }
 
     @Test
     fun `an audio stream asks for audio alone, which is a tenth of the bytes`() = runTest {
-        val fake = Fake(listOf(response(Triple(audio, 0L, byteArrayOf(1)))))
+        val fake = FakeSabrServer(listOf(response(Triple(audio, 0L, byteArrayOf(1)))))
 
         stream(fake).read(from = 0)
 
-        val state = Protobuf.read(fake.bodies.single())[1]?.first() as Protobuf.Value.Bytes
+        val state = Protobuf.read(fake.requests.single())[1]?.first() as Protobuf.Value.Bytes
         assertEquals(1L, (Protobuf.read(state.value)[40]!!.first() as Protobuf.Value.Number).value)
-        assertTrue("audio goes in field 16", Protobuf.read(fake.bodies.single())[16] != null)
+        assertTrue("audio goes in field 16", Protobuf.read(fake.requests.single())[16] != null)
     }
 
     @Test
     fun `a video stream asks in field 17 and accepts audio alongside`() = runTest {
-        val fake = Fake(listOf(response(Triple(video, 0L, byteArrayOf(1)))))
+        val fake = FakeSabrServer(listOf(response(Triple(video, 0L, byteArrayOf(1)))))
 
         stream(fake, video).read(from = 0)
 
-        val body = fake.bodies.single()
+        val body = fake.requests.single()
         assertTrue("video goes in field 17", Protobuf.read(body)[17] != null)
         val state = Protobuf.read(body)[1]?.first() as Protobuf.Value.Bytes
         assertEquals(
@@ -183,7 +155,7 @@ class SabrStreamTest {
         val body = header(0, video, 0, 4) + media(0, byteArrayOf(1, 2)) +
             header(1, audio, 0, 2) + media(1, byteArrayOf(9, 9)) +
             media(0, byteArrayOf(3, 4))
-        val fake = Fake(listOf(body))
+        val fake = FakeSabrServer(listOf(body))
 
         val first = stream(fake, video).read(from = 0)
 
@@ -195,7 +167,7 @@ class SabrStreamTest {
     @Test
     fun `media for an unknown header id is ignored`() = runTest {
         val body = header(0, video, 0, 2) + media(0, byteArrayOf(7, 7)) + media(42, byteArrayOf(1, 1))
-        val fake = Fake(listOf(body))
+        val fake = FakeSabrServer(listOf(body))
 
         assertArrayEquals(byteArrayOf(7, 7), stream(fake, video).read(from = 0))
     }
@@ -203,10 +175,10 @@ class SabrStreamTest {
     /** A server with nothing left to send must end the stream, not spin forever. */
     @Test
     fun `an empty response ends the stream rather than looping`() = runTest {
-        val fake = Fake(emptyList())
+        val fake = FakeSabrServer(emptyList())
 
         assertEquals(0, stream(fake).read(from = 0).size)
-        assertTrue("must give up, not retry indefinitely", fake.bodies.size <= 6)
+        assertTrue("must give up, not retry indefinitely", fake.requests.size <= 6)
     }
 
     /**
@@ -217,7 +189,7 @@ class SabrStreamTest {
      */
     @Test
     fun `an empty response part-way through does not end the stream`() = runTest {
-        val fake = Fake(
+        val fake = FakeSabrServer(
             listOf(
                 // Declares 10 bytes but sends 4, then nothing, then the remaining 6.
                 header(0, audio, 0, 10) + media(0, byteArrayOf(1, 2, 3, 4)),
@@ -235,7 +207,7 @@ class SabrStreamTest {
     /** Once every declared byte is served, an empty answer IS the end and must be taken as one. */
     @Test
     fun `a complete stream ends without complaint`() = runTest {
-        val fake = Fake(listOf(header(0, audio, 0, 2) + media(0, byteArrayOf(1, 2))))
+        val fake = FakeSabrServer(listOf(header(0, audio, 0, 2) + media(0, byteArrayOf(1, 2))))
         val stream = stream(fake, totalBytes = 2)
 
         assertArrayEquals(byteArrayOf(1, 2), stream.read(from = 0))

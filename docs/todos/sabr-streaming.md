@@ -3,8 +3,8 @@ title: yt-dlp needs a JavaScript runtime (kids videos were stuck at 360p)
 kind: todo
 area: video
 priority: medium
-status: partly shipped — fallback AND QuickJS both shipped; time-addressed seeking still open
-updated: 2026-08-19
+status: partly shipped — fallback AND QuickJS both shipped; seeking and attestation still open
+updated: 2026-08-20
 ---
 
 # The 360p problem, and what it actually was
@@ -161,7 +161,8 @@ And the media in it is genuine, identified by magic bytes:
 
 Audio and video, initialisation and fragments, interleaved in one response — from a body
 containing **one field**. No PO token, no `ClientAbrState`, no format selection needed to get
-bytes flowing.
+bytes flowing — but read that as "to START", not "at all": the flow stops at ~1MB, and item 5
+below is why no measurement here says anything about attestation.
 
 ## What has landed
 
@@ -191,7 +192,15 @@ real bytes are somebody's copyrighted video and prove nothing the framing does n
 2. ~~**Select formats**~~ — done, and `xtags` turned out to be the crux. See below.
 3. ~~**State across requests**~~ — `ClientAbrState.player_time_ms` does it. See below.
 4. ~~**A Media3 `DataSource`**~~ — done, and **a real video plays through it on Android**.
-5. **PO token**: not needed. Never sent one, and full-quality media came back every time.
+5. **PO token**: **untested — our request cannot carry one.** This line used to read "not needed.
+   Never sent one, and full-quality media came back every time", which measured nothing:
+   `VideoPlaybackAbrRequest` populates fields 1, 3, 5, 16 and 17 and has **no `streamer_context`
+   (field 19) at all**, so there was never a field a token could go in, and `grep -rn cookie
+   lib/sabr/src/main` returns nothing either. "We did not send one and got bytes" is a statement about
+   the first megabyte, not about attestation — see
+   [sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md), where every stream in an
+   eighteen-stream run stopped between 968840B and 990078B and the server then answered with the
+   initialization segment and nothing else. Adding the field is request work as well as provider work.
 
 ## It fetches real, decodable media. Verified 2026-07-31.
 
@@ -213,9 +222,15 @@ responses. Moved inside, 0ms reached video byte 1271335 and 30000ms reached 8761
 request in every other respect.
 
 **`enabled_track_types_bitfield` (40) = 1 gives audio ALONE** — 167876 bytes, one itag. Values
-0, 2, 3, 6 and 7 all returned audio and video together, and no value was found that gives video
-without audio. That is fine: playing a video needs both, so one request carrying both is
-efficient rather than wasteful, and the two are separated by their `MediaHeader` itag.
+0, 2, 3, 6 and 7 all returned audio and video together.
+
+⚠️ **"YouTube will not serve video without audio" is OURS-UNBUILT, not a YouTube limit.** This
+paragraph used to say no value gives video alone and that the redundancy was therefore fine. The
+bitfield is only half of it: the references suppress the other track by pairing the bitfield with a
+**full-buffer sentinel `BufferedRange` for the audio format** — telling the server we already hold all
+of it, so there is nothing left to send. We have never sent that, so what was measured is what our
+request asks for, not what the protocol permits. The cost is real and measured below: 40–60% of every
+video fetch is audio we discard, and the audio track then fetches the same bytes again.
 
 ### The proof
 
@@ -426,10 +441,12 @@ fetch #5  4842847B response, 1813644B kept   <- 63% thrown away
 
 Two problems in one place:
 
-1. **Roughly 40-60% of every video fetch is discarded**, because a video request also returns
-   audio and no track bitfield was found that suppresses it — and the audio track then fetches
-   that same audio *again*. A video played this way costs meaningfully more data than it needs
-   to. The fix is one shared session feeding both tracks instead of two independent streams.
+1. **Roughly 40-60% of every video fetch is discarded**, because a video request also returns audio
+   that we have not asked the server to withhold — the bitfield alone does not, and we have never sent
+   the full-buffer sentinel range that goes with it (see above) — and the audio track then fetches that
+   same audio *again*. A video played this way costs meaningfully more data than it needs to. Two fixes,
+   either of which works: send the sentinel range, or feed both tracks from one shared session instead
+   of two independent streams.
 2. **The bursts are large** — 5-8MB per 10s of media. Fine on wifi, not fine on a metered
    connection, and worth a cap before this leaves beta.
 

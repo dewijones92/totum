@@ -124,10 +124,11 @@ internal object Protobuf {
         return null
     }
 
+    /** Bounded as a LONG before it is narrowed, for the reason [UmpReader] records. */
     private fun readLengthDelimited(buffer: ByteArray, at: Int): Pair<ByteArray, Int>? {
         val length = readVarint(buffer, at) ?: return null
+        if (length.value < 0 || length.value > (buffer.size - length.next).toLong()) return null
         val end = length.next + length.value.toInt()
-        if (length.value < 0 || end > buffer.size) return null
         return buffer.copyOfRange(length.next, end) to end
     }
 

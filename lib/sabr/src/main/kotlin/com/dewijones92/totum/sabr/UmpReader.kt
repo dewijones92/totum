@@ -53,13 +53,22 @@ public object UmpReader {
         return Result(parts, at)
     }
 
-    /** One part and the offset past it, or null when [buffer] does not hold all of it. */
+    /**
+     * One part and the offset past it, or null when [buffer] does not hold all of it.
+     *
+     * The length is compared as a LONG against the bytes remaining, before anything narrows it to
+     * an Int. A UMP varint carries five bytes, so a hostile or simply non-UMP body can declare
+     * 4294967295: `toInt()` wrapped that to -1, the old guard let it through because the Long was
+     * positive and the wrapped `end` was small, and `copyOfRange` threw IllegalArgumentException —
+     * out of a function whose every caller catches IOException and nothing else. It is reachable
+     * from an HTTP error body, which is the most likely thing to be neither UMP nor text.
+     */
     private fun readPart(buffer: ByteArray, at: Int): Pair<Part, Int>? {
         val type = UmpVarint.read(buffer, at) ?: return null
         val size = UmpVarint.read(buffer, type.next) ?: return null
         val start = size.next
+        if (size.value < 0 || size.value > (buffer.size - start).toLong()) return null
         val end = start + size.value.toInt()
-        if (size.value < 0 || end > buffer.size) return null
         return Part(type.value.toInt(), buffer.copyOfRange(start, end)) to end
     }
 }

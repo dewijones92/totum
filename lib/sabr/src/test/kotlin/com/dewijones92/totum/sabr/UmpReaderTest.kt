@@ -104,6 +104,44 @@ class UmpReaderTest {
     }
 
     /**
+     * A body that is not UMP at all must read as nothing — never throw.
+     *
+     * `readPart` narrowed the declared length to an Int BEFORE bounding it, and a five-byte UMP varint
+     * holds far more than an Int: `0xF0 FF FF FF FF` decodes to 4294967295, `toInt()` wrapped it to -1,
+     * the guard passed because the Long was positive and the wrapped end was small, and `copyOfRange`
+     * threw `IllegalArgumentException`.
+     *
+     * That is not a hypothetical. Every caller here catches `IOException` and nothing else — the whole
+     * point of [SabrTransport] is that a failure arrives as one — so this escaped the transport's catch,
+     * escaped `SabrStream.fetch`'s catch, reached ExoPlayer as an unexpected runtime exception rather
+     * than the retryable IO failure the recovery ladder handles, and on the download path escaped the
+     * flow entirely and left the row `Downloading` for ever. The way in is an HTTP error body that is
+     * gzip or protobuf rather than text, which is the likeliest thing to arrive from the attestation
+     * wall: [ResponseSummary.of] is called on exactly that, inside the try.
+     */
+    @Test
+    fun `a length that overflows an Int is corrupt, not a crash`() {
+        val fourGigabytesDeclared = varint(0x01, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF)
+
+        val read = runCatching { UmpReader.read(fourGigabytesDeclared) }
+
+        assertEquals(
+            "a hostile length must read as an unfinished part, not throw ${read.exceptionOrNull()}",
+            emptyList<UmpReader.Part>(),
+            read.getOrNull()?.parts,
+        )
+        assertEquals("and nothing may be reported as consumed", 0, read.getOrNull()?.consumed)
+    }
+
+    /** And the summariser above it must survive the same body, because that is where it is met. */
+    @Test
+    fun `summarising a hostile error body says something rather than throwing`() {
+        val summary = runCatching { ResponseSummary.of(varint(0x01, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF)) }
+
+        assertTrue("it threw ${summary.exceptionOrNull()}", summary.isSuccess)
+    }
+
+    /**
      * The real first probe's answer, which is how the missing config field was found.
      *
      * Part **44** — and this test used to assert that id was `RELOAD_PLAYER_RESPONSE`, because the

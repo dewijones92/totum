@@ -55,27 +55,27 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
     /** THE case: a mid-file open must not ask for the beginning. */
     @Test
     fun `opening at an offset asks for the matching media time`() = runTest {
-        val asked = AskedTimes()
+        val server = FakeSabrServer(emptyList())
 
-        stream(asked).read(from = HALFWAY_BYTES)
+        stream(server).read(from = HALFWAY_BYTES)
 
-        assertTrue("no request was made at all", asked.times.isNotEmpty())
+        assertTrue("no request was made at all", server.timesAsked.isNotEmpty())
         assertEquals(
             "opening ${HALFWAY_BYTES}B into a ${TOTAL_BYTES}B / ${DURATION_MS}ms stream should ask for " +
                 "roughly the halfway mark, not the start",
             HALFWAY_MS,
-            asked.times.first(),
+            server.timesAsked.first(),
         )
     }
 
     /** And opening at the start still asks for the start — the ordinary case must not move. */
     @Test
     fun `opening at zero still asks for the beginning`() = runTest {
-        val asked = AskedTimes()
+        val server = FakeSabrServer(emptyList())
 
-        stream(asked).read(from = 0)
+        stream(server).read(from = 0)
 
-        assertEquals(0L, asked.times.first())
+        assertEquals(0L, server.timesAsked.first())
     }
 
     /**
@@ -91,8 +91,8 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
      */
     @Test
     fun `reading on from what it holds does not re-estimate`() = runTest {
-        val asked = AskedTimes(listOf(segment(0), segment(1)))
-        val stream = stream(asked)
+        val server = FakeSabrServer(listOf(segment(0), segment(1)))
+        val stream = stream(server)
 
         val first = stream.read(from = 0)
         assertEquals("the fixture must hand out the first run", CHUNK.toInt(), first.size)
@@ -100,8 +100,8 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
 
         assertTrue(
             "a read continuing from ${first.size} should follow the bytes served, not re-estimate: " +
-                "asked ${asked.times}",
-            asked.times.drop(1).all { it < HALFWAY_MS },
+                "asked ${server.timesAsked}",
+            server.timesAsked.drop(1).all { it < HALFWAY_MS },
         )
     }
 
@@ -118,18 +118,18 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
         // Every response carries media: a response WITHOUT any marks the stream exhausted, and an
         // exhausted stream returns from `read` without fetching at all — so the jump would make no
         // request and the test would pass or fail for the wrong reason.
-        val asked = AskedTimes(listOf(segment(0), segment(1), segment(2)))
-        val stream = stream(asked)
+        val server = FakeSabrServer(listOf(segment(0), segment(1), segment(2)))
+        val stream = stream(server)
 
         val first = stream.read(from = 0)
         stream.read(from = first.size.toLong())
-        val beforeJump = asked.times.size
+        val beforeJump = server.timesAsked.size
         stream.read(from = HALFWAY_BYTES)
 
         assertEquals(
             "the jump should ask for the halfway mark, not carry on from where reading had reached",
             HALFWAY_MS,
-            asked.times.drop(beforeJump).firstOrNull(),
+            server.timesAsked.drop(beforeJump).firstOrNull(),
         )
     }
 
@@ -142,25 +142,3 @@ class OpeningAtAnOffsetAsksForThatTimeTest {
         const val CHUNK = 64L * 1024
     }
 }
-
-/** Records the `player_time_ms` of every request, which is the field under test. */
-private class AskedTimes(private val responses: List<ByteArray> = emptyList()) : SabrTransport {
-    val times: MutableList<Long> = mutableListOf()
-    private var index = 0
-
-    override suspend fun post(url: String, body: ByteArray): ByteArray {
-        times += playerTimeIn(body)
-        return responses.getOrElse(index++) { ByteArray(0) }
-    }
-}
-
-private fun playerTimeIn(body: ByteArray): Long {
-    val request = Protobuf.read(body)
-    val state = request[CLIENT_ABR_STATE]?.filterIsInstance<Protobuf.Value.Bytes>()?.firstOrNull()
-        ?: return -1
-    val fields = Protobuf.read(state.value)
-    return (fields[PLAYER_TIME_MS]?.firstOrNull() as? Protobuf.Value.Number)?.value ?: -1
-}
-
-private const val CLIENT_ABR_STATE = 1
-private const val PLAYER_TIME_MS = 28

@@ -33,11 +33,7 @@ class APrematureEndIsAFailureTest {
         ustreamerConfig = byteArrayOf(1),
         format = audio,
         kind = SabrTrackKind.AUDIO,
-        transport = object : SabrTransport {
-            private var index = 0
-            override suspend fun post(url: String, body: ByteArray): ByteArray =
-                responses.getOrElse(index++) { ByteArray(0) }
-        },
+        transport = FakeSabrServer(responses),
         totalBytes = totalBytes,
         durationMs = DURATION_MS,
     )

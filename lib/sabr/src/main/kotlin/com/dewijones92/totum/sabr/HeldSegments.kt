@@ -32,6 +32,26 @@ internal class HeldSegments(private val format: SabrFormat) {
     }
 
     /**
+     * Forgets every segment that reaches past [byte] — what re-aiming the stream at [byte] means.
+     *
+     * A description of the buffer is a promise the server keeps: it sends what comes AFTER the ranges
+     * it is told about. Once a reader has gone back to [byte], the segments covering and beyond it
+     * have been consumed and cannot be served again, so leaving them described makes every answer land
+     * ahead of the reader for ever — the replay-serves-nothing bug of 2026-08-20.
+     *
+     * A segment whose header declared no length cannot be proven to end before [byte], so it goes
+     * too: describing too little costs one resend, describing too much costs the whole read.
+     */
+    fun forgetFrom(byte: Long) {
+        held.keys.removeAll(held.filterValues { it.reachesPast(byte) }.keys)
+    }
+
+    private fun MediaHeader.reachesPast(byte: Long): Boolean {
+        val length = contentLength ?: return true
+        return startBytes + length > byte
+    }
+
+    /**
      * The unbroken run we hold, as one span the server can act on.
      *
      * Only the CONTIGUOUS prefix: a gap means everything after it is not really buffered, and saying

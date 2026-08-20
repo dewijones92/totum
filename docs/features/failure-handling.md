@@ -3,7 +3,7 @@ title: Permanent vs transient failure, and playback that goes nowhere
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-19
+updated: 2026-08-20
 ---
 
 # Knowing when to stop asking
@@ -226,3 +226,30 @@ Two supporting rules landed with it. A `Downloaded` row is now validated before 
 — nothing revalidated one, so a copy the person deleted made `routeNow` prefer a missing file, which
 Media3 reports as an `IOException` and recovery therefore retries forever behind a green tick. And a
 content type that cannot be media is classed **permanent**, or the download is retried on every launch.
+
+## Three faults that arrived disguised as an ending (2026-08-20)
+
+The ladder above can only run on something that **fails**. Three SABR faults were reaching it as
+success, and one as the wrong kind of failure. Full write-ups in
+[streaming-reliability.md](streaming-reliability.md); what belongs here is which distinction each one
+lost.
+
+| Disguise | Read as | Actually | Now |
+|---|---|---|---|
+| a read gave up waiting for a byte that never came | `C.RESULT_END_OF_INPUT` — the video finished | a stall; ExoPlayer advanced the queue and the ladder never ran | `lastReadStalled` raises a fault on that read, without marking the shared stream spent |
+| a rewind to byte 0 on a warm cached stream | every byte past the reader → a stall → the ending above | the request was never re-aimed | `aimAtByte` treats byte 0 as a jump, and the buffered ranges are lowered with it |
+| a request that never landed | an empty answer, worth a thirty-second skip of the claim | we never asked; the media time was fine | the transport throws with the status and the error body; the claim is untouched |
+
+The shape all three share: **two situations produced one line and one reaction**, and the cheaper
+reaction was the one that looked like normal operation. A stall and an ending are both "no bytes"; a
+dropped connection and "you already have enough for that time" are both an empty response body. This
+repo's rule that a report must be able to answer the obvious next question is what these cost — none of
+the three left anything in a diagnostics report to distinguish them by.
+
+One ordering is recorded rather than fixed. `recoveryReasonFrom` makes a SABR stall outrank an
+unreachable network, and both match whenever SABR gives up during an outage — a refused connection fails
+in under a millisecond, so a read spends its six-fetch budget before the network can come back.
+`Rejected` means one attempt and no `awaitNetwork`, so walking into a tunnel ends a SABR item where an
+ordinary HTTP stream would have waited. Kept on purpose — an address YouTube refuses to serve wants a
+fresh resolve, not a wait — and now pinned by `SabrStallOutranksTheNetworkTest` so it cannot be reversed
+unnoticed.

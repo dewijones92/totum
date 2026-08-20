@@ -3,7 +3,7 @@ title: Streaming reliability — chunked fetch, codec choice, expired-URL recove
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-18
+updated: 2026-08-20
 ---
 
 # Making video actually play
@@ -401,3 +401,108 @@ it survived. Everything it broke was diagnostic, in both directions at once:
 `STREAM_PROTECTION_STATUS` almost certainly means `NEXT_REQUEST_POLICY`, and `SABR_ERROR` means
 `FORMAT_INITIALIZATION_METADATA`. `ARefusalIsNotEveryResponseTest` pins both directions so this cannot
 regress: a healthy media response is not a refusal, and attestation-required is.
+
+## Four ways SABR faked the end of a video (fixed 2026-08-20)
+
+All four were in the byte machinery that bridges SABR's media-time addressing to Media3's byte
+addressing, and three of the four ended the same way: the person watching saw the video stop early
+and **nothing anywhere said so**. Each now lands with a guard that was seen to fail against the old
+code, and each is worth reading as a shape.
+
+### 1. A stuck read reported the end of the video
+
+`SabrStream.read` has two exits. The server going quiet sets `exhausted`, so `endedPrematurely`
+(`exhausted && served < contentLength`) becomes true and `SabrDataSource` raises a fault the recovery
+ladder can act on — that door was already guarded by `APrematureEndIsAFailureTest`. The **other** door
+is the fetch budget running out with the network answering every time but never with the bytes at the
+offset the reader is waiting at. That exit logged `STUCK` and returned empty **without recording
+anything**, so `SabrDataSource` returned `C.RESULT_END_OF_INPUT`: ExoPlayer believed the video had
+finished, the queue advanced, the ladder never ran, and no line in the next report said a video was cut
+short.
+
+A stall is now `lastReadStalled` — a fact about **one read**, deliberately not `exhausted`. Marking the
+stream spent instead broke two things at once, both worse than the silence: `sabrStreamFor` hands one
+stream to the player *and* to the queue's auto-downloader (which reads from byte 0 on the item that is
+playing), so one unsatisfiable download read killed a track that was streaming fine; and a spent stream
+is dropped by the cache, throwing away megabytes already fetched, every held segment and the whole
+header map — making the next open the cold mid-stream one YouTube answers with no media.
+`SabrDataSource.theEndOrAFault` now raises on either door, and a live stream — which states no length
+and so can never be "premature" — reports a stall rather than a silent ending.
+
+Guards: `AStuckStreamIsNotTheEndOfTheVideoTest` (5), `APrematureSabrEndIsNotTheEndTest`.
+
+### 2. A warm stream could never rewind to byte 0
+
+`aimAtByte` opened `if (from <= 0) return`, so a read at the very start was never aimed and
+`playerTimeMs` kept whatever the last fetch left it at. On a **cold** stream that is right by accident;
+on a warm one it is the units bug at the one offset the existing test could not reach — and warm is the
+normal case, because `SabrDataSourceFactory` caches a stream per `videoId:itag`. Replaying a video just
+watched, or downloading one that had played, therefore asked the server about where playback had reached
+while the reader sat at byte 0: every returned byte was past the offset being read → stuck → a silent
+end (bug 1) → 0 bytes.
+
+Re-aiming the claim alone fixed only the *first* request of a rewind. The buffered ranges still
+advertised the prefix this reader had already consumed, so the server did as it was asked and answered
+with the segment *after* them. Both halves of the conversation have to be lowered together:
+`furthestHeld` is lowered to the reader and `HeldSegments.forgetFrom` drops every segment reaching past
+it.
+
+Guard: `AWarmStreamCanRewindToTheStartTest` (5), including that a cold stream still opens at the
+beginning and that a sequential continuation is still not re-aimed.
+
+### 3. Discarded bytes inflated the claimed position
+
+`storeMedia` set `writeAt[id] = offset + bytes.size` **before** the `if (offset < served) return 0`
+that discards already-served bytes, and `advanceClaimedTime` derived the claim from
+`writeAt.values.maxOrNull()`. So a resend extending past what we hold pushed the claim ahead of the
+data — and a resend is not rare: 52% of every byte fetched, before buffered ranges were sent at all.
+`remember` widened it further by recording `writeAt` for **every** header including the other track's
+itag (unlike `HeldSegments.record`, which filters), so an audio conversation could claim the time of a
+video byte, in a byte space that format does not even use.
+
+Once the claim is ahead of the data the server correctly answers "you already have enough for that
+time", `handleEmpty` reads that as an empty response and punishes it with a thirty-second skip: the
+runaway fixed on 2026-08-18 through a second door. The claim now follows `furthestHeld` — the furthest
+byte of *this* format actually **kept** — while `writeAt` stays a per-run write cursor, which has to
+advance across discarded bytes or an interleaved continuation lands at the wrong offset. Two counters
+because they answer two different questions.
+
+Guards: `DiscardedBytesDoNotMoveTheClaimTest` (3), alongside `ClaimedTimeFollowsTheBytesTest`.
+
+### 4. A network error was reported as "the server had nothing"
+
+`SabrPostTransport` caught `IOException` and returned `ByteArray(0)` — byte for byte what a genuine
+"you already have enough for that time" answer looks like. It never read `responseCode` and never read
+`errorStream`, which is the only place a SABR refusal explains itself. The two call for **opposite**
+responses: an empty answer means the server has nothing for this media time, so skipping the claim
+forward is right; a failed request means we never asked, so only the request needs repeating. Conflated,
+a Wi-Fi handoff cost a permanent thirty-second hole in the media, and four in a row ended the stream and
+blacklisted SABR for that item for the rest of the session.
+
+A failed request now throws, carrying the status, the error body's size and a printable summary of it;
+`SabrStream.noteRequestFailed` counts it without spending the empty-response budget and logs **once per
+read** rather than once per round trip (a refused connection fails in under a millisecond, so six
+attempts arrived as six near-identical warnings). A 3xx is a failure too, deliberately:
+`HttpURLConnection` does not follow a 307 on a POST, so the old code read the redirect's own body as a
+SABR answer and skipped the claim.
+
+⚠️ **This does not make an outage survivable, and the KDoc says so.** There is no backoff, so all six
+attempts are gone before a tunnel ends; what the split fixes is the *claim*, which is no longer
+corrupted by a failure. Waiting for the network is the recovery ladder's job — and there,
+`recoveryReasonFrom` records a deliberate trade: a SABR stall outranks an unreachable network, so
+walking into a tunnel ends a SABR item on the spot where an ordinary HTTP stream would have waited.
+
+Guards: `ANetworkErrorIsNotAnEmptyAnswerTest` (6, against a loopback socket rather than a fake — the
+defect is in what `HttpURLConnection` does on a 4xx), `AFailedRoundTripCostsNoMediaTest` (3),
+`SabrStallOutranksTheNetworkTest` (4).
+
+### What these fixes do NOT do
+
+They make SABR usable within the first megabyte. They do not make SABR a route that carries a video to
+its end, and the same-day measurement says nothing here could: every audio stream in an eighteen-stream
+run stopped between 968840B and 990078B, after which the server answers with the initialization segment
+and nothing else. See [../todos/sabr-stops-at-one-megabyte.md](../todos/sabr-stops-at-one-megabyte.md)
+— the blocker is attestation — and
+[../todos/sabr-as-a-chunk-source.md](../todos/sabr-as-a-chunk-source.md), which deletes this byte
+machinery outright. They were landed first on purpose: step 5 of that plan must not be the thing that
+fixes them, or no test ever saw them fail.

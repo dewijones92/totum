@@ -46,7 +46,7 @@ class EmptyRunsDoNotEndTheStreamTest {
             responses += UmpFraming.run(audio, round.toLong() * CHUNK, CHUNK.toInt())
             responses += ByteArray(0)
         }
-        val transport = Replaying(responses)
+        val transport = FakeSabrServer(responses)
         val stream = stream(transport)
 
         var at = 0L
@@ -65,7 +65,7 @@ class EmptyRunsDoNotEndTheStreamTest {
     /** And a genuine stop is still detected, or the budget would protect nothing. */
     @Test
     fun `answers that stay empty do end the stream`() = runTest {
-        val transport = Replaying(listOf(UmpFraming.run(audio, 0, CHUNK.toInt())))
+        val transport = FakeSabrServer(listOf(UmpFraming.run(audio, 0, CHUNK.toInt())))
         val stream = stream(transport)
 
         val first = stream.read(from = 0)
@@ -84,12 +84,4 @@ class EmptyRunsDoNotEndTheStreamTest {
         /** More rounds than the old lifetime budget of four, which is the point. */
         const val ROUNDS = 8
     }
-}
-
-/** Hands back each response in order, then nothing — an exhausted server. */
-private class Replaying(private val responses: List<ByteArray>) : SabrTransport {
-    private var index = 0
-
-    override suspend fun post(url: String, body: ByteArray): ByteArray =
-        responses.getOrElse(index++) { ByteArray(0) }
 }

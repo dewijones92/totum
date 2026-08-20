@@ -3,6 +3,7 @@ package com.dewijones92.totum.playback
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.sabr.ResponseSummary
 import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
@@ -120,13 +121,26 @@ public fun sabrStreamFor(uri: String): SabrStream? {
 private val live = ConcurrentHashMap<String, SabrStream>()
 
 /**
+ * Drops every held conversation. For tests, so one case cannot leak into the next — the same reason
+ * [SabrSessions.clear] exists, and needed for the same reason: the key is `videoId:itag`, so a stream
+ * built by an earlier case is handed straight back to a later one that meant to start fresh.
+ */
+public fun forgetLiveSabrStreams(): Unit = live.clear()
+
+/**
  * The SABR POST, on `HttpURLConnection`.
  *
  * Deliberately not OkHttp: `:core:playback` does not depend on it, and adding a client here
  * to make one POST would widen the module for nothing. The Android UA matters — it is the
  * client whose player response these URLs came from.
+ *
+ * **A failed request THROWS.** It used to return `ByteArray(0)`, which is byte for byte what a
+ * genuine "you already have enough for that time" answer looks like — see [SabrTransport]. So a
+ * Wi-Fi handoff during a fetch bought a permanent thirty-second hole in the media, and four of them
+ * ended the stream and blacklisted SABR for the item. It also never read `responseCode` and never
+ * read `errorStream`, which is the only place a refusal explains itself.
  */
-private object SabrPostTransport : SabrTransport {
+internal object SabrPostTransport : SabrTransport {
     override suspend fun post(url: String, body: ByteArray): ByteArray {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -136,17 +150,46 @@ private object SabrPostTransport : SabrTransport {
             setRequestProperty("Content-Type", "application/x-protobuf")
             setRequestProperty("User-Agent", ANDROID_UA)
         }
+        // Thrown, not logged. The failure carries the whole story in its message — status, body size,
+        // the printable body and what SABR made of it — and `SabrStream` attaches it to the ONE line
+        // it writes per failing read. Logging here as well wrote a second entry per round trip, so a
+        // refused connection (which fails in under a millisecond) put twelve near-identical warnings
+        // in the trail for one dead read, six of them saying only what the other six said.
         return try {
             connection.outputStream.use { it.write(body) }
+            val code = connection.responseCode
+            if (code !in SUCCESS) throw IOException(whatCameBack(connection, code))
             connection.inputStream.use { it.readBytes() }
-        } catch (e: IOException) {
-            Diag.warn("sabr", "request failed", e)
-            ByteArray(0)
         } finally {
             connection.disconnect()
         }
     }
 
+    /**
+     * The status, the size of the error body, and what SABR made of it.
+     *
+     * From `errorStream`, because `inputStream` throws on a 4xx and the body is where the reason
+     * lives. Summarised AND printed: a refusal can arrive as UMP carrying `SABR_ERROR` or a
+     * `STREAM_PROTECTION_STATUS`, and it can arrive as plain text that no UMP reader will decode.
+     */
+    private fun whatCameBack(connection: HttpURLConnection, code: Int): String {
+        val body = connection.errorStream?.use { it.readBytes() } ?: ByteArray(0)
+        return "HTTP $code, ${body.size}B body: ${ResponseSummary.printable(body, BODY_CHARS)} — " +
+            ResponseSummary.of(body)
+    }
+
+    /**
+     * The only statuses that carry media. A 3xx is a failure here, deliberately.
+     *
+     * `HttpURLConnection` does not follow a 307 or 308 on a POST, so the old code read the redirect's
+     * own body as if it were a SABR answer: `absorb` kept nothing from it, which spent an empty-answer
+     * from the budget and skipped the claim thirty seconds on — the exact conflation this transport
+     * now exists to prevent. Failing says `HTTP 307` in the trail instead.
+     */
+    private val SUCCESS = 200..299
+
+    /** Enough of a refusal to read it, without pasting a megabyte into the trail. */
+    private const val BODY_CHARS = 300
     private const val TIMEOUT_MS = 30_000
     private const val ANDROID_UA = "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip"
 }

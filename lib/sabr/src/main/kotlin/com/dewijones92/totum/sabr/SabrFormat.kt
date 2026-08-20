@@ -42,9 +42,11 @@ public data class SabrFormat(
  * all return audio AND video interleaved. That single value is what makes "Listen" mode a
  * clean single-stream fetch rather than a video download with the picture thrown away.
  *
- * No value was found that returns video WITHOUT audio — 2 and 6 both still sent audio. That is
- * not a problem: playing a video needs both anyway, so one request carrying both is efficient
- * rather than wasteful, and the two are separated by their [MediaHeader] itag.
+ * **No value asks for video ALONE, and that is OURS rather than YouTube's** — 2 and 6 both still sent
+ * audio. The bitfield is only half of the mechanism: the references pair it with a full-buffer sentinel
+ * [BufferedRange] for the audio format, so the server has nothing left to send. We do not send that, so
+ * a video request costs 40-60% extra bytes we then drop by [MediaHeader] itag. See
+ * `docs/todos/sabr-streaming.md`.
  */
 public enum class SabrTracks(internal val bitfield: Int) {
     /** Audio and video together, which is what every value except [AUDIO_ONLY] produced. */

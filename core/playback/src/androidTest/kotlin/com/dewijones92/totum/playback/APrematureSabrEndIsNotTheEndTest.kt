@@ -60,12 +60,34 @@ class APrematureSabrEndIsNotTheEndTest {
         durationMs = DURATION_MS,
     )
 
+    /**
+     * A server that always answers with media the reader cannot use — the OTHER way a read gives up.
+     *
+     * Every answer carries our own itag, just never at the offset being read, so the empty-answer
+     * budget is never spent and the read runs out of fetches instead. `SabrStream` records that as a
+     * stall on the read rather than as the stream being spent, and this must still raise a fault: the
+     * failure it replaces was returning end-of-input, which tells ExoPlayer the video is over.
+     */
+    private fun streamThatNeverReachesTheReader(totalBytes: Long?) = SabrStream(
+        url = "https://example.test/videoplayback",
+        ustreamerConfig = byteArrayOf(1),
+        format = audio,
+        kind = SabrTrackKind.AUDIO,
+        transport = object : SabrTransport {
+            private var index = 0
+            override suspend fun post(url: String, body: ByteArray): ByteArray =
+                oneRun(at = FAR_AHEAD + index++ * CHUNK.toLong())
+        },
+        totalBytes = totalBytes,
+        durationMs = DURATION_MS,
+    )
+
     /** One MEDIA run, framed as YouTube frames it. */
-    private fun oneRun(): ByteArray {
+    private fun oneRun(at: Long = 0): ByteArray {
         val header = umpPart(
             MEDIA_HEADER,
             protoNumber(1, 0) + protoNumber(3, audio.itag.toLong()) +
-                protoNumber(6, 0) + protoNumber(14, CHUNK.toLong()),
+                protoNumber(6, at) + protoNumber(14, CHUNK.toLong()),
         )
         return header + umpPart(MEDIA, byteArrayOf(0) + ByteArray(CHUNK) { 7 })
     }
@@ -142,8 +164,45 @@ class APrematureSabrEndIsNotTheEndTest {
         )
     }
 
+    /** THE second door: the bytes at this offset never arrive, and that is not the video ending. */
+    @Test
+    fun aStreamThatNeverReachesTheReaderThrows() {
+        val source = SabrDataSource(streamThatNeverReachesTheReader(TOTAL))
+        source.open(DataSpec(android.net.Uri.parse("sabr://test")))
+
+        val thrown = runCatching { drain(source) }.exceptionOrNull()
+
+        assertTrue(
+            "a read that spent its whole fetch budget without its bytes must raise an IOException — " +
+                "reporting end-of-input is what makes ExoPlayer mark the whole duration loaded. Got: $thrown",
+            thrown is IOException,
+        )
+    }
+
+    /**
+     * And a stall on a stream of UNKNOWN length is a fault too, unlike a quiet end.
+     *
+     * Deliberate, and the one behaviour this pair does not share. There is nothing to fall SHORT of
+     * without a stated length, so the premature-end judgement cannot speak — but a format's real end is
+     * the server answering with nothing, and that is [aStreamWithNoStatedLengthStillEndsNormally]. Six
+     * answers carrying media for the wrong offset is not an ending at any length, so a live stream gets
+     * a fault it can recover from rather than a silent stop.
+     */
+    @Test
+    fun aStallWithNoStatedLengthIsStillAFault() {
+        val source = SabrDataSource(streamThatNeverReachesTheReader(null))
+        source.open(DataSpec(android.net.Uri.parse("sabr://test")))
+
+        val thrown = runCatching { drain(source) }.exceptionOrNull()
+
+        assertTrue("a stalled live stream reported a clean ending. Got: $thrown", thrown is IOException)
+    }
+
     private companion object {
         const val CHUNK = 4096
+
+        /** Far enough past the reader that no answer can ever satisfy it. */
+        const val FAR_AHEAD = 8L * 1024 * 1024
         const val BUFFER = 8192
         const val TOTAL = 53_458_433L
         const val DURATION_MS = 3_664_121L

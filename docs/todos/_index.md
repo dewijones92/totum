@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-08-18
+updated: 2026-08-20
 ---
 
 # Backlog
@@ -37,7 +37,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [feature-gap-review](feature-gap-review.md) | planning | — | triage of the AI review |
 | [channel-groups](channel-groups.md) | video | high | shipped |
 | [watch-history-not-recorded](watch-history-not-recorded.md) | video | high | done — fixed by an authenticated player call carrying a current signatureTimestamp |
-| [sabr-streaming](sabr-streaming.md) | video | medium | fallback + QuickJS shipped; time-addressed seeking open |
+| [sabr-streaming](sabr-streaming.md) | video | medium | fallback + QuickJS shipped; SABR itself blocked at ~1MB by attestation, and seeking open |
 | [feed-pagination](feed-pagination.md) | video | high | shipped — feeds, channel tabs AND search; playlist/related still page one |
 | [queue-drag-reorder](queue-drag-reorder.md) | queue | high | shipped (auto-scroll); pickup + resilience open |
 | [public-domain-film-tv](public-domain-film-tv.md) | search | medium | **shipped** → [features/torrents.md](../features/torrents.md) |
@@ -61,6 +61,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [buffering-defects-0.1.332](buffering-defects-0.1.332.md) | playback | high | all four fixed with tests |
 | [settings-only-change-when-asked](settings-only-change-when-asked.md) | settings | high | done — speed, boost and brightness hold, incl. across a fullscreen toggle (fixed 2026-08-08) |
 | [buffer-ahead-gauge](buffer-ahead-gauge.md) | playback | medium | shipped — seconds-ahead gauge on the scrub bar |
+| [tab-state-preservation](tab-state-preservation.md) | navigation | high | shipped |
+| [diagnostics-triage-state](diagnostics-triage-state.md) | diagnostics | high | shipped |
 
 All backlog items are Dewi requests. `refining` = spec written, decisions still open;
 `ready` = decisions made, implementation waits for Dewi's explicit go (his standing
@@ -68,4 +70,8 @@ instruction on the queue/download/autoplay/volume group: refine first, implement
 command).
 - [The signed-in TV client's /player is refused](tv-client-player-is-refused.md) — blocks the SmartTube quality route and age-restricted videos; 20+ probes ruled out version, UA, headers, token
 - [SABR cannot play a live stream without its initialization segment](sabr-live-needs-an-init-segment.md) — SABR fetches live fine (820KB kept in one fetch) and the player never becomes ready; the init data is on the wire in a part we discard
-- [SABR cannot be opened part-way through](sabr-cannot-seek.md) — units bug fixed; YouTube still serves no media for a cold jump, so SABR stays start-of-item only
+- [SABR is capped at ~1MB per format](sabr-stops-at-one-megabyte.md) — **blocker**, measured on eighteen streams: past the ceiling the server answers with the init segment alone. Every other SABR problem is only observable in the first megabyte
+- [A resend is read as an empty answer and answered with a 30-second skip](a-resend-becomes-a-thirty-second-skip.md) — the response carried 171364B of this format's own bytes; `carried` already knows, and `handleEmpty` does not ask
+- [Move SABR onto a Media3 ChunkSource](sabr-as-a-chunk-source.md) — designed. The proper fix for seeking AND the only route to adaptive quality, which is structurally unreachable under a progressive source (proven against the media3 1.10.1 jars)
+- [SABR cannot be opened part-way through](sabr-cannot-seek.md) — the units bug and four byte-machinery bugs are fixed; a cold jump is still served no media (wire-measured), our reader still cannot consume a granted seek, and the warm-jump lead is **REOPENED** — it was crossed off on an unsound instrument
+- [The signed-in TV /player answers UNPLAYABLE](signed-in-player-is-unplayable.md) — the age-restricted fallback is dead until it is understood

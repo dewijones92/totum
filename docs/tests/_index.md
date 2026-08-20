@@ -1,14 +1,15 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-08-19
+updated: 2026-08-20
 ---
 
 # Testing
 
 Testing pyramid: many fast JVM unit tests, fewer integration, few
-instrumented/UI. **New behaviour lands with tests.** ~50 unit-test files, ~5
-instrumented.
+instrumented/UI. **New behaviour lands with tests.** 492 JVM `*Test.kt` files and 82
+instrumented ones, counted 2026-08-20 — the long-standing "~50 unit, ~5 instrumented" here was
+an order of magnitude out.
 
 ## The gate (matches CI)
 
@@ -232,7 +233,13 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A refused stream tries SABR before giving up the picture — and the sound still saves it when SABR refuses too | `TheSabrRungKeepsThePictureTest` | every commit — incl. that a copy on disk still wins, and that hour-deep SABR is not offered at all (it cannot seek, and "succeeding" from the top would throw away your place) |
 | Every format `SabrResolve` is willing to choose actually delivers bytes | `SabrServesWhatWeChooseTest` | live phase — asserts ours, PRINTS what YouTube allows beyond the 1080p/30fps caps. A test that went red because YouTube RELAXED a restriction would be failing on good news |
 | A SABR stream opened part-way through asks for the matching media TIME, not the byte offset | `OpeningAtAnOffsetAsksForThatTimeTest` | every commit — and the opposite: sequential reading must NOT re-estimate, or the claim can move backwards and be read as a seek |
-| Whether YouTube serves a cold or warm mid-stream jump | `SabrServesWhatWeChooseTest` | live phase — a PROBE: asserts only that the request aims at the right time, reports what was served. Session continuity is ruled out; see `docs/todos/sabr-cannot-seek.md` |
+| Whether YouTube serves a cold mid-stream jump | `SabrServesWhatWeChooseTest.sabrCanBeOpenedPartWayThrough` | live phase — a PROBE: asserts only that the request aims at the right time, and measures what was served **on the wire** (it wraps the transport), so ~1KB responses cannot be a reader defect |
+| Whether a WARM jump is served | `SabrServesWhatWeChooseTest.aJumpInsideAnEstablishedConversation` | live phase — ⚠️ **an unsound instrument for a negative result**, and it published one: it judges at the reader, asks for a mid-segment byte `read` can never key, and aims past the ~1MB ceiling. Session continuity is REOPENED; see `docs/todos/sabr-cannot-seek.md` for what a sound version needs |
+| A stalled SABR read is a FAULT, not the end of the video — and does not spend the stream it stalled on | `AStuckStreamIsNotTheEndOfTheVideoTest`, `APrematureSabrEndIsNotTheEndTest` | every commit (the second on the emulator) — the second door into the premature end `APrematureEndIsAFailureTest` guards |
+| A warm cached stream can rewind to byte 0 and play on | `AWarmStreamCanRewindToTheStartTest` | every commit — the fake answers from what the request actually said, BOTH the claim and the ranges, because a fake reading `player_time_ms` alone passed a broken rewind |
+| Bytes we discarded never move the claimed position | `DiscardedBytesDoNotMoveTheClaimTest` | every commit — incl. the other track's itag, whose byte space this format does not use |
+| A failed round trip is not an empty answer — the claim stays, and it is logged once | `ANetworkErrorIsNotAnEmptyAnswerTest`, `AFailedRoundTripCostsNoMediaTest` | every commit — the first drives the real transport against a loopback socket, because the defect is in what `HttpURLConnection` does on a 4xx |
+| Which recovery wins when a SABR stall and a dead network are the same event | `SabrStallOutranksTheNetworkTest` | every commit — pins a deliberate trade (a stall gets a fresh resolve, not a wait) that had no test at all |
 | Raising the quality cap actually reaches the ladder, and 4K arrives with picture and sound | `FourKActuallyPlaysTest` | live phase — asserted on BOTH paths, so a regression that stopped the setting working cannot hide behind YouTube refusing the stream |
 | What the signed-in TV client's ladder contains | `WhatTheTvClientWillServeTest` | live phase, needs `TOTUM_ACCESS_TOKEN` — reports, never asserts; skips without a token because "no credentials here" is not a finding about the app |
 | A few empty SABR answers spread over a long stream do not end it | `EmptyRunsDoNotEndTheStreamTest` | every commit |

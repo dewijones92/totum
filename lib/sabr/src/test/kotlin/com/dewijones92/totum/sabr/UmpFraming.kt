@@ -20,14 +20,39 @@ internal object UmpFraming {
     fun part(type: Int, payload: ByteArray): ByteArray =
         varint(type.toLong()) + varint(payload.size.toLong()) + payload
 
-    /** A `MEDIA_HEADER` declaring [format]'s run [id], starting at [offset] and [length] long. */
-    fun mediaHeader(id: Int, format: SabrFormat, offset: Long, length: Int): ByteArray = part(
+    /**
+     * A `MEDIA_HEADER` declaring [format]'s run [id], starting at [offset] and [length] long.
+     *
+     * **The sequence number is not optional.** Every live `MEDIA_HEADER` carries one (measured
+     * 2026-08-18, and it is the only field the buffered-range machinery can key on), and a header
+     * without one is dropped by `HeldSegments.record` — so a fixture that omitted it produced a
+     * stream describing an EMPTY buffer on every fetch, whatever it had received. Every test in this
+     * package then proved its case against a server that was never told what the client held, which
+     * is the half of the SABR conversation that defeats a rewind. It defaults to the segment index a
+     * run of this size at this offset would have, which is what a fixed-chunk fixture means.
+     */
+    fun mediaHeader(
+        id: Int,
+        format: SabrFormat,
+        offset: Long,
+        length: Int,
+        sequence: Int = segmentAt(offset, length),
+        startMs: Long? = null,
+        durationMs: Long? = null,
+    ): ByteArray = part(
         UmpPart.MEDIA_HEADER,
         Protobuf.number(HEADER_ID, id.toLong()) +
             Protobuf.number(HEADER_ITAG, format.itag.toLong()) +
             Protobuf.number(HEADER_OFFSET, offset) +
-            Protobuf.number(HEADER_LENGTH, length.toLong()),
+            Protobuf.number(HEADER_SEQUENCE, sequence.toLong()) +
+            Protobuf.number(HEADER_LENGTH, length.toLong()) +
+            (startMs?.let { Protobuf.number(HEADER_START_MS, it) } ?: ByteArray(0)) +
+            (durationMs?.let { Protobuf.number(HEADER_DURATION_MS, it) } ?: ByteArray(0)),
     )
+
+    /** Which segment a fixed-size run at [offset] is, and 0 for a fixture with no fixed size. */
+    private fun segmentAt(offset: Long, length: Int): Int =
+        if (length <= 0) 0 else (offset / length).toInt()
 
     /** A `MEDIA` part. Its payload begins with the run id, which is how runs are attributed. */
     fun media(id: Int, payload: ByteArray): ByteArray =
@@ -52,5 +77,8 @@ internal object UmpFraming {
     private const val HEADER_ID = 1
     private const val HEADER_ITAG = 3
     private const val HEADER_OFFSET = 6
+    private const val HEADER_SEQUENCE = 9
+    private const val HEADER_START_MS = 11
+    private const val HEADER_DURATION_MS = 12
     private const val HEADER_LENGTH = 14
 }

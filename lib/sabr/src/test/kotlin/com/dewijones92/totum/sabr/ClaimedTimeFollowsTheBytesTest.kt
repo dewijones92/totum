@@ -56,7 +56,7 @@ class ClaimedTimeFollowsTheBytesTest {
         // TWO runs on offer, so the second fetch is a real one. With only one, the second read
         // exhausts the server and the empty-response skip (+3 steps) lands on the reading under
         // test — which is how this test first failed at 310200 rather than the 220200 it means.
-        val recording = Recording(
+        val recording = FakeSabrServer(
             listOf(
                 UmpFraming.run(audio, 0, TENTH_BYTES.toInt()),
                 UmpFraming.run(audio, TENTH_BYTES, TENTH_BYTES.toInt()),
@@ -82,7 +82,7 @@ class ClaimedTimeFollowsTheBytesTest {
     @Test
     fun `the claim does not outrun the data over many fetches`() = runTest {
         val responses = (0 until TENTHS).map { UmpFraming.run(audio, it * TENTH_BYTES, TENTH_BYTES.toInt()) }
-        val recording = Recording(responses)
+        val recording = FakeSabrServer(responses)
         val stream = stream(recording)
 
         var at = 0L
@@ -103,7 +103,7 @@ class ClaimedTimeFollowsTheBytesTest {
     @Test
     fun `the claim advances as bytes arrive`() = runTest {
         val responses = (0 until TENTHS).map { UmpFraming.run(audio, it * TENTH_BYTES, TENTH_BYTES.toInt()) }
-        val recording = Recording(responses)
+        val recording = FakeSabrServer(responses)
         val stream = stream(recording)
 
         var at = 0L
@@ -124,7 +124,7 @@ class ClaimedTimeFollowsTheBytesTest {
      */
     @Test
     fun `without a length to derive from it still steps forward`() = runTest {
-        val recording = Recording(listOf(UmpFraming.run(audio, 0, TENTH_BYTES.toInt())))
+        val recording = FakeSabrServer(listOf(UmpFraming.run(audio, 0, TENTH_BYTES.toInt())))
         val undecidable = SabrStream(
             url = "https://example.test/videoplayback",
             ustreamerConfig = byteArrayOf(1),
@@ -151,25 +151,3 @@ class ClaimedTimeFollowsTheBytesTest {
         const val TENTH_BYTES = TOTAL_BYTES / TENTHS
     }
 }
-
-/** Records the `player_time_ms` of every request, which is the whole subject of this file. */
-private class Recording(private val responses: List<ByteArray>) : SabrTransport {
-    val timesAsked: MutableList<Long> = mutableListOf()
-
-    override suspend fun post(url: String, body: ByteArray): ByteArray {
-        timesAsked += playerTimeMsIn(body)
-        return responses.getOrElse(timesAsked.size - 1) { ByteArray(0) }
-    }
-}
-
-/**
- * The `player_time_ms` a request actually carries — inside `ClientAbrState` as field 28, which
- * `VideoPlaybackAbrRequestTest` pins as the only place the server reads it from.
- */
-private fun playerTimeMsIn(body: ByteArray): Long {
-    val state = Protobuf.read(body)[1]?.firstOrNull() as? Protobuf.Value.Bytes ?: return -1
-    val field = Protobuf.read(state.value)[PLAYER_TIME_FIELD]?.firstOrNull()
-    return (field as? Protobuf.Value.Number)?.value ?: 0
-}
-
-private const val PLAYER_TIME_FIELD = 28
