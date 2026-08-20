@@ -50,84 +50,95 @@ class WhichPositionsTheServerServesTest {
             !endpoint.isNullOrBlank() && !config.isNullOrBlank() && !spec.isNullOrBlank(),
         )
         val audio = spec!!.split(",")
-        val segments = SabrSegments(
-            url = endpoint!!,
-            ustreamerConfig = Base64.getDecoder().decode(config),
-            format = SabrFormat(
-                itag = audio[0].toInt(),
-                lastModified = audio[1].toLong(),
-                xtags = audio[2].ifBlank { null },
-                contentLength = audio[3].toLongOrNull(),
-            ),
-            kind = SabrTrackKind.AUDIO,
-            transport = transport,
-            clientInfo = SabrClientInfo.WEB,
-        )
+        val segments = sessionOn(endpoint!!, config!!, audio)
 
         runBlocking {
-            // Fill to the ceiling first, the ordinary way.
-            var sequence = -1
-            repeat(FILL_CALLS) {
-                val next = if (sequence < 0) segments.covering(0) else segments.after(sequence)
-                sequence = next?.sequenceNumber ?: return@repeat
-            }
-            val covered = segments.heldSegments.filter { !it.isInitSegment }
-                .maxOfOrNull { it.startMs + it.durationMs } ?: 0
-            println("[sweep] filled to ${covered}ms across ${covered / 1000}s, ${segments.heldSegments.size} segments")
+            fillToTheCeiling(segments)
 
-            // Now vary ONLY the requested position.
-            SWEEP_MS.forEach { at ->
-                val gained = segments.probeAt(at)
-                println("[sweep] asked ${at}ms -> $gained new segment(s)")
-            }
-            println("[sweep] ended holding ${segments.heldSegments.size} segments, policy ${segments.policy}")
+            sweepPositions(segments)
 
             // `backoff_time_ms` appears in the policy only once the server has stopped serving, which
             // is the server asking us to wait -- and we had been hammering it. If a wait restores
             // service then this is a rate limit that recovers; if it does not, the session is simply
             // finished at sixty seconds and no amount of patience helps.
-            WAITS_MS.forEach { wait ->
-                kotlinx.coroutines.delay(wait)
-                val gained = segments.probeAt(NEXT_WANTED_MS)
-                println("[sweep] after waiting ${wait}ms -> $gained new segment(s), policy ${segments.policy}")
-            }
+            waitAndRetry(segments)
 
-            // A FRESH SESSION, asked for the segment the exhausted one refuses. If sixty seconds is a
-            // per-session quota then this is the whole answer: a client streams a long video by
-            // re-resolving, and `maxSinceLastRequest=60000ms` has been the session's own lifetime hint
-            // all along. If it also refuses, the limit is on something wider than the session.
-            val second = System.getProperty("sabrEndpoint2")
-            if (second.isNullOrBlank()) {
-                println("[sweep] no -DsabrEndpoint2 supplied, so the fresh-session question is untested")
-                return@runBlocking
-            }
-            val fresh = SabrSegments(
-                url = second,
-                ustreamerConfig = Base64.getDecoder().decode(System.getProperty("ustreamerConfig2") ?: config),
-                format = SabrFormat(
-                    itag = audio[0].toInt(),
-                    lastModified = audio[1].toLong(),
-                    xtags = audio[2].ifBlank { null },
-                    contentLength = audio[3].toLongOrNull(),
-                ),
-                kind = SabrTrackKind.AUDIO,
-                transport = transport,
-                clientInfo = SabrClientInfo.WEB,
-            )
-            val gained = fresh.probeAt(NEXT_WANTED_MS)
-            val got = fresh.heldSegments.filter { !it.isInitSegment }
-            println(
-                "[sweep] a FRESH session asked ${NEXT_WANTED_MS}ms -> $gained new segment(s)" +
-                    got.joinToString(prefix = " [", postfix = "]") { "seq=${it.sequenceNumber}@${it.startMs}ms" },
-            )
-            println(
-                if (got.any { it.startMs >= NEXT_WANTED_MS - it.durationMs }) {
-                    "[sweep] ✅ A FRESH SESSION SERVES WHAT THE OLD ONE WOULD NOT. Sixty seconds is a " +
-                        "per-session quota, and streaming a long video means re-resolving. This is the fix."
-                } else {
-                    "[sweep] ✗ a fresh session refuses it too, so the limit is wider than one session."
-                },
-            )
+            freshSessionArm(config, audio)
+        }
+    }
+
+    /** A session on a given endpoint, so the two arms cannot differ by accident. */
+    private fun sessionOn(endpoint: String, config: String, audio: List<String>) = SabrSegments(
+        url = endpoint,
+        ustreamerConfig = Base64.getDecoder().decode(config),
+        format = SabrFormat(
+            itag = audio[0].toInt(),
+            lastModified = audio[1].toLong(),
+            xtags = audio[2].ifBlank { null },
+            contentLength = audio[3].toLongOrNull(),
+        ),
+        kind = SabrTrackKind.AUDIO,
+        transport = transport,
+        clientInfo = SabrClientInfo.WEB,
+    )
+
+    /**
+     * A FRESH session, asked for the segment the exhausted one refuses.
+     *
+     * If sixty seconds were a per-session quota this would be the whole answer, and
+     * `maxSinceLastRequest=60000ms` would have been the session's own lifetime hint all along. It is
+     * not: a new session serves nothing at a mid-stream position, not even segment one, which is the
+     * oldest finding in this investigation — a cold mid-stream open is answered with no media.
+     */
+    private suspend fun freshSessionArm(config: String, audio: List<String>) {
+        val second = System.getProperty("sabrEndpoint2")
+        if (second.isNullOrBlank()) {
+            println("[sweep] no -DsabrEndpoint2 supplied, so the fresh-session question is untested")
+            return
+        }
+        val fresh = sessionOn(second, System.getProperty("ustreamerConfig2") ?: config, audio)
+        val gained = fresh.probeAt(NEXT_WANTED_MS)
+        val got = fresh.heldSegments.filter { !it.isInitSegment }
+        println(
+            "[sweep] a FRESH session asked ${NEXT_WANTED_MS}ms -> $gained new segment(s)" +
+                got.joinToString(prefix = " [", postfix = "]") { "seq=${it.sequenceNumber}@${it.startMs}ms" },
+        )
+        println(
+            if (got.any { it.startMs >= NEXT_WANTED_MS - it.durationMs }) {
+                "[sweep] A FRESH SESSION SERVES WHAT THE OLD ONE WOULD NOT — sixty seconds is a " +
+                    "per-session quota and streaming a long video means re-resolving."
+            } else {
+                "[sweep] a fresh session refuses it too, so the limit is wider than one session."
+            },
+        )
+    }
+
+    /** Fills the session the ordinary way, and says how far it got. */
+    private suspend fun fillToTheCeiling(segments: SabrSegments) {
+        var sequence = -1
+        repeat(FILL_CALLS) {
+            val next = if (sequence < 0) segments.covering(0) else segments.after(sequence)
+            sequence = next?.sequenceNumber ?: return@repeat
+        }
+        val covered = segments.heldSegments.filter { !it.isInitSegment }
+            .maxOfOrNull { it.startMs + it.durationMs } ?: 0
+        println("[sweep] filled to ${covered}ms across ${covered / 1000}s, ${segments.heldSegments.size} segments")
+    }
+
+    /** Varies ONLY the requested position, which is the input the protocol says decides the answer. */
+    private suspend fun sweepPositions(segments: SabrSegments) {
+        SWEEP_MS.forEach { at ->
+            println("[sweep] asked ${at}ms -> ${segments.probeAt(at)} new segment(s)")
+        }
+        println("[sweep] ended holding ${segments.heldSegments.size} segments, policy ${segments.policy}")
+    }
+
+    /** `backoff_time_ms` appears only once it has stopped serving, so try obeying it. */
+    private suspend fun waitAndRetry(segments: SabrSegments) {
+        WAITS_MS.forEach { wait ->
+            kotlinx.coroutines.delay(wait)
+            val gained = segments.probeAt(NEXT_WANTED_MS)
+            println("[sweep] after waiting ${wait}ms -> $gained new segment(s), policy ${segments.policy}")
         }
     }
 
