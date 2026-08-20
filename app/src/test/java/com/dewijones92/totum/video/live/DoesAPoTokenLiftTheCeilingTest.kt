@@ -155,25 +155,7 @@ class DoesAPoTokenLiftTheCeilingTest {
         while (fetches < PATIENT_FETCHES && quiet < QUIET_BEFORE_GIVING_UP) {
             // The time our bytes are ACTUALLY worth. No step, no skip, no floor.
             val askAt = if (total <= 0) 0L else held * duration / total
-            val body = VideoPlaybackAbrRequest(
-                ustreamerConfig = session.ustreamerConfig,
-                playerTimeMs = askAt,
-                audio = audio,
-                tracks = SabrTracks.AUDIO_ONLY,
-                bufferedRanges = if (segments == 0 || !DESCRIBE_BUFFER) {
-                    emptyList()
-                } else {
-                    listOf(
-                        BufferedRange(
-                            format = audio,
-                            startTimeMs = 0,
-                            durationMs = askAt,
-                            startSegment = 1,
-                            endSegment = segments,
-                        ),
-                    )
-                },
-            ).encode()
+            val body = patientRequest(session, audio, askAt, segments)
             val response = runBlocking { transport.post(session.streamingUrl, body) }
             fetches++
             val media = UmpReader.read(response).parts.filter { it.type == UmpPart.MEDIA }.sumOf { it.payload.size }
@@ -209,6 +191,30 @@ class DoesAPoTokenLiftTheCeilingTest {
             },
         )
     }
+
+    /**
+     * One honest request: the time our bytes are worth, and the segments we actually hold.
+     *
+     * `-DdescribeBuffer=false` puts it back to telling the server nothing, which is how the first
+     * version ran -- and leaving that switchable is the point, because "the server was never told what
+     * we held" had to be eliminated rather than assumed.
+     */
+    private fun patientRequest(
+        session: SabrSession,
+        audio: SabrFormat,
+        askAt: Long,
+        segments: Int,
+    ): ByteArray = VideoPlaybackAbrRequest(
+        ustreamerConfig = session.ustreamerConfig,
+        playerTimeMs = askAt,
+        audio = audio,
+        tracks = SabrTracks.AUDIO_ONLY,
+        bufferedRanges = if (segments == 0 || !DESCRIBE_BUFFER) {
+            emptyList()
+        } else {
+            listOf(BufferedRange(audio, startTimeMs = 0, durationMs = askAt, startSegment = 1, endSegment = segments))
+        },
+    ).encode()
 
     /**
      * What the endpoint ACTUALLY answers, part by part, for one request.
