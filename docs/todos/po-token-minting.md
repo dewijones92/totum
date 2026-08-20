@@ -55,19 +55,42 @@ All against `uSMGENDH_QI`, both arms in one run:
 | ANDROID | `visitorData` | `streamer_context.po_token` | 956KB | 956KB |
 | ANDROID | `videoId` | `pot=` on the URL | 956KB | 956KB |
 | WEB + visitorData | `visitorData` | `streamer_context.po_token` | 0KB | 0KB |
+| ANDROID | `videoId` | `po_token` **+ `client_info` (ANDROID)** | 956KB | 956KB |
+| WEB + visitorData | `visitorData` | `po_token` **+ `client_info` (WEB)** | 0KB | 0KB |
+
+The last two add `streamer_context.client_info` (field 19.1), read from
+`LuanRT/googlevideo`'s `streamer_context.proto` rather than guessed. It changes nothing on either
+endpoint, so candidate 1 below is now **ruled out** as well.
 
 The visitorData-on-ANDROID row is **not** evidence about the binding: nothing sent a visitorData with
 that request, so the token was bound to a session YouTube never associated with it. It is listed
 because it was run, not because it means anything.
 
-## The two candidates left, in order
+## Where this actually stands
 
-1. **`streamer_context.client_info` (19.1) is absent.** LuanRT's SABR client throws without it. The
-   WEB endpoint answering 0KB in BOTH arms is what a rejected request looks like, and it is the one
-   row where the request shape changed. Add 19.1 before anything else.
-2. **A WEB-minted token may be worthless to an ANDROID session.** NewPipe returns `null` from
-   `getAndroidClientPoToken` outright — it does not attest the Android client at all. If attestation
-   is per-client, an ANDROID SABR endpoint needs an ANDROID-attested token, which is a different
-   handshake rather than a different binding. This would explain every ANDROID row above.
+Six combinations measured. **Not one moved the number.** Two separate things are going on and they
+should not be conflated again:
 
-Do not re-run the four rows in the table. They are done.
+- **The ANDROID endpoint serves 956KB whatever we send it.** Token or no token, either binding,
+  in the request or on the URL, with or without `client_info`. Six of the rows above say the same
+  thing, which is strong evidence that *whatever* is capping this is not the thing we are varying.
+- **The WEB endpoint serves nothing at all, ever.** 0KB in every arm including the one with no
+  token, so this is not a wall — it is our WEB SABR request being refused outright, and its cause is
+  unknown. `SabrResolve.prepare` accepts the response and `SabrStream` gets bytes back that it keeps
+  none of. That is a separate bug and it has to be understood before the WEB path can test anything.
+
+**The leading hypothesis is now that attestation is per-client.** NewPipe returns `null` from
+`getAndroidClientPoToken` outright — it does not attest the Android client at all, and every token
+minted here is minted as WEB. If that is right, an ANDROID SABR endpoint cannot be unlocked by a
+WEB-minted token no matter where the token is placed, and the ANDROID rows were never going to move.
+Testing it means either attesting AS the Android client (a different handshake, and no reference here
+does it) or getting the WEB path to serve at all.
+
+**Do not re-run the rows in the table.** They are done, and the point of writing them down is that
+the next attempt starts from row seven.
+
+## The honest summary for anyone picking this up
+
+Minting works and is proven. The request can carry everything the schema allows. Neither has yet
+produced a single extra byte of media. The wall has not been lifted, and calling the fallback to
+extraction a workaround is correct — it is what makes the app usable, not what makes SABR work.

@@ -5,6 +5,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.sabr.SabrClientInfo
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.sabr.SabrStream
@@ -122,6 +123,14 @@ class DoesAPoTokenLiftTheCeilingTest {
             totalBytes = audio.contentLength,
             durationMs = session.durationMs,
             poToken = poToken.takeUnless { inUrl },
+            // Sent on BOTH arms, so it is not a second variable in the comparison.
+            // Named after the client the ENDPOINT came from: a WEB endpoint told it is talking to
+            // an Android client is a request that disagrees with itself.
+            clientInfo = when (System.getProperty("clientInfo")) {
+                "android" -> SabrClientInfo.ANDROID
+                "web" -> SabrClientInfo.WEB
+                else -> null
+            },
         )
         var at = 0L
         repeat(READS_TO_EXHAUSTION) {

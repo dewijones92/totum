@@ -48,6 +48,8 @@ public class SabrStream(
     private val transport: SabrTransport,
     /** Attestation for every request in this conversation. See [VideoPlaybackAbrRequest.poToken]. */
     private val poToken: ByteArray? = null,
+    /** Who we say we are on every request. Null sends no client_info at all. */
+    private val clientInfo: SabrClientInfo? = null,
     /** How much media time to advance per fetch. Segments observed at ~10s for audio. */
     /**
      * The format's TOTAL length from the player response, which is what "finished" means.
@@ -385,6 +387,7 @@ public class SabrStream(
             tracks = if (kind == SabrTrackKind.AUDIO) SabrTracks.AUDIO_ONLY else SabrTracks.AUDIO_AND_VIDEO,
             bufferedRanges = bufferedRanges(),
             poToken = poToken,
+            clientInfo = clientInfo,
         ).encode()
         val startedAt = clock()
         val response = try {

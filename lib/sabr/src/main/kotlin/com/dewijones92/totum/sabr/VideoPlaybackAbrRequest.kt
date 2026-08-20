@@ -48,6 +48,8 @@ public class VideoPlaybackAbrRequest(
      * that could not carry one, so it could only find that adding nothing changed nothing.
      */
     private val poToken: ByteArray? = null,
+    /** Who we are, alongside the token. See [SabrClientInfo]. */
+    private val clientInfo: SabrClientInfo? = null,
 ) {
     public fun encode(): ByteArray {
         val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
@@ -62,9 +64,9 @@ public class VideoPlaybackAbrRequest(
         // Only when there IS one. An empty context is a change to the request the server accepts
         // today, and a request it dislikes answers `sabr.malformed_config` — which looks exactly like
         // the wall this field exists to lift, so it would hide its own failure.
-        poToken?.let {
-            body += Protobuf.bytes(FIELD_STREAMER_CONTEXT, Protobuf.bytes(CONTEXT_PO_TOKEN, it))
-        }
+        val context = (clientInfo?.let { Protobuf.bytes(CONTEXT_CLIENT_INFO, it.encode()) } ?: ByteArray(0)) +
+            (poToken?.let { Protobuf.bytes(CONTEXT_PO_TOKEN, it) } ?: ByteArray(0))
+        if (context.isNotEmpty()) body += Protobuf.bytes(FIELD_STREAMER_CONTEXT, context)
         return body
     }
 
@@ -76,6 +78,7 @@ public class VideoPlaybackAbrRequest(
         const val FIELD_PREFERRED_VIDEO = 17
         const val STATE_PLAYER_TIME_MS = 28
         const val FIELD_STREAMER_CONTEXT = 19
+        const val CONTEXT_CLIENT_INFO = 1
         const val CONTEXT_PO_TOKEN = 2
         const val STATE_ENABLED_TRACKS = 40
     }
