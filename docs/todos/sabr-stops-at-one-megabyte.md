@@ -68,6 +68,34 @@ cannot serve two tracks, a download, and a fallback that may or may not be the c
 Keying it per video would not help either: the fallback plays the same video. The position has to come
 from the loader driving *this* stream, which is the framework's job and nobody else's.
 
+### Four interventions tried on the device, none of which moved it
+
+| tried | result |
+|---|---|
+| claim derived from the reader's byte offset | no change; and in an earlier run, one rebuffer where there had been none |
+| claim from the real player position, via a side channel | no change — the position it read belonged to the FALLBACK, which was by then what was playing |
+| `MAX_BUFFER_MS` cut from 240s to 14s, inside the server's readahead | no change: still 979459B, still 14 fetches |
+| `PLAYBACK_BYTES` cut from 64MB to 320KB (~15s of Opus) | no change: identical to the byte |
+
+The last two are the informative ones, and they say something the first two do not: **ExoPlayer's
+load control cannot restrain this at all.** The fetch log explains why —
+
+```
+fetch #1 at     0ms -> 185586B response, 172220B kept
+fetch #2 at 10070ms -> 185936B response, 161948B kept
+...
+fetch #6 at 47872ms -> 346444B response, 160745B kept
+fetch #7 at 57271ms -> 184734B response,      0B kept
+```
+
+Ten fetches inside a handful of `read()` calls, all in about a second. `SabrStream.read` loops
+internally until the byte it was asked for arrives, so a single blocking `DataSource.read` can pull a
+megabyte and race the claim from zero to fifty-seven seconds. ExoPlayer never sees those requests and
+has no opportunity to say "that is enough" — which is exactly what a load control is for.
+
+So the claim is not wrong because of arithmetic. It is unrestrainable because the fetching happens
+inside a blocking read that nothing supervises.
+
 ### Why it is not simply fixed
 
 Because a `DataSource` is never told where playback is. `served` is the LOADER's offset, and on a
