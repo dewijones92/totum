@@ -26,6 +26,11 @@ From his own IP, on his own videos, on freshly-obtained URLs:
 | `web_embedded` **with** a JS runtime | yes, with a deciphered `n` | only sometimes — 1 of 3 videos tried |
 | SABR (`serverAbrStreamingUrl`) | n/a | **no.** ~812KB, six segments, then it stops |
 
+The SABR row was one measurement when written. It has since been measured on eighteen independent
+streams in one run, all ending between 968840B and 990078B, with the server answering past that point
+with the initialization segment and nothing else — see
+[sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md).
+
 The ceiling is the same on both routes, which is what makes it one cause rather than two bugs. And
 the SABR responses say so outright — the server sends media *and* a refusal in the same answer:
 
@@ -237,6 +242,25 @@ Two things follow. First, **SABR is not what makes SmartTube work** — attestat
 ordinary. Second, this is a followable reference implementation with a known request key and a known
 exchange, which moves "a new capability" from a hunch to a bounded piece of work. It still needs a JS
 runtime for the challenge: QuickJS is already bundled for `n`, and a WebView exists on the device.
+
+**That lead is now dead — tested, on a signed-in device.** ⛔ Kept rather than deleted, because the
+reasoning below was sound and the next person will have the same idea. On 2026-08-20, signed in on
+`totum-api35`, `SignedInVersusAnonymousPlayerTest` asked for one video three ways in the same minute:
+
+| arm | answer |
+|---|---|
+| anonymous | 134 formats, 20 with direct URLs, offered 1080p, SABR endpoint and ustreamer config both present, and a ranged fetch at 8,000,000B returned **HTTP 206** |
+| signed-in TV | `UNPLAYABLE: The page needs to be reloaded.` |
+| signed-in downgraded TV | `UNPLAYABLE: The page needs to be reloaded.` |
+
+Signing in made it strictly worse, and browse was fine in the same session (the subs feed pulled 1596
+subscriptions). It is **not** established that YouTube is refusing the account on purpose: that
+message is associated with a rejected client context or a bad `signatureTimestamp`, and ours is the one
+field the working anonymous call does not send — two consecutive runs read 20684 then 20681. Either
+way the seam is not the small fix it looked like. See
+[signed-in-player-is-unplayable.md](signed-in-player-is-unplayable.md).
+
+The original note follows, for its reasoning.
 
 **The most promising lead, unverified.** The signed-in path in `InnerTubePlayerStreams` already uses
 a **TV context**, which is what SmartTube is. It is the fourth row of the table above: consulted only
