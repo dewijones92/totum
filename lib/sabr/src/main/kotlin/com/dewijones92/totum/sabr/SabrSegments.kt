@@ -76,6 +76,22 @@ public class SabrSegments(
         return held.values.firstOrNull { !it.isInitSegment && it.sequenceNumber > sequenceNumber }
     }
 
+    /**
+     * Asks at [atMs] and says how many new segments came back — for mapping the server's rule.
+     *
+     * Fifteen fields and behaviours have been varied without moving a ceiling that sits at exactly
+     * sixty seconds of media, so the useful thing left is not another guess but the shape of the
+     * function: which requested positions yield media and which do not, with everything else fixed.
+     */
+    public suspend fun probeAt(atMs: Long): Int {
+        val before = held.size
+        fetch(atMs)
+        return held.size - before
+    }
+
+    /** What this source holds, for a caller reporting on a probe. */
+    public val heldSegments: List<SabrSegment> get() = held.values.toList()
+
     /** Segments before [beforeMs] are dropped: a chunk source keeps its own queue. */
     public fun forgetBefore(beforeMs: Long) {
         val gone = held.entries.filter { !it.value.isInitSegment && it.value.startMs + it.value.durationMs < beforeMs }

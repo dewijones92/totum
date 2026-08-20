@@ -231,6 +231,36 @@ And the server's own words rule out the obvious explanations:
 **So: a hard sixty seconds of media per session, unexplained, and not reachable from any field in
 `video_playback_abr_request.proto` that any reference implementation populates.**
 
+## The limit, established (2026-08-20)
+
+**Over SABR this client can obtain the first sixty seconds of a video and nothing more, by any means
+available to it.** That is not a summary of a hunch; it is what sixteen variations and three structural
+probes measured, all against endpoints that demonstrably serve.
+
+What the server does:
+
+- A session serves **exactly 60001ms** of media from a cold start, then returns the initialization
+  segment and nothing else — **permanently**. Waiting 3s, 10s and 30s does not restore it, even though
+  the policy starts advertising `backoff=2000ms` at that point.
+- **No requested position helps.** Swept 0, 15000, 30000, 45000, 55000, 59000, 60001, 65000 and
+  90000ms with the buffer declared: every one returned zero new segments. So every position-shaped
+  theory is dead, including the readahead one.
+- **A fresh session cannot resume.** A brand-new endpoint asked for 60001ms serves *nothing at all* —
+  not even segment one. A session can only begin at zero. This matches the very first finding of the
+  whole investigation, that a cold mid-stream open is answered with no media.
+- Throughout: `endSegment=581` (it knows the format runs 96.75 minutes), `protection=status=2` (the
+  same as a success), and no `SABR_ERROR` or `RELOAD_PLAYER_RESPONSE` of any kind.
+
+Sixteen request-level variations changed nothing — the fifteen in the table above, plus the one that
+had genuinely never been run: **the correct segment shape, a WEB endpoint whose `n` is solved so it
+actually answers, and a proof-of-origin token bound to the same `visitorData` that player request
+used.** Every earlier token measurement had used the byte-addressed reader, and most of them an
+endpoint that was quietly returning 403.
+
+So this is a limit on what the client is **permitted**, not a defect in how it asks. Sixty seconds
+from a cold start, no resumption, no recovery, no stated reason. It has the shape of a preview
+allowance, and nothing we can send lifts it.
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which

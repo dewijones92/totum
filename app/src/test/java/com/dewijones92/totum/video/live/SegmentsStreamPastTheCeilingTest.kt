@@ -65,6 +65,12 @@ class SegmentsStreamPastTheCeilingTest {
             kind = SabrTrackKind.AUDIO,
             transport = transport,
             clientInfo = SabrClientInfo.WEB,
+            // THE combination that had never been run: the correct segment shape, a WEB endpoint whose
+            // `n` is solved so it actually answers, and a proof-of-origin token bound to the very
+            // visitorData that player request used. Every earlier token measurement used the
+            // byte-addressed reader, and most of them used an endpoint that was quietly returning 403.
+            poToken = System.getProperty("poToken")?.takeIf { it.isNotBlank() }
+                ?.let { Base64.getUrlDecoder().decode(it) },
         )
 
         var held = 0L
