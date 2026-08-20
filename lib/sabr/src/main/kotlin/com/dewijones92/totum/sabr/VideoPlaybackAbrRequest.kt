@@ -69,10 +69,21 @@ public class VideoPlaybackAbrRequest(
      * nothing else, which is what a server tells a client that looks uninitialised.
      */
     private val selectedFormats: List<SabrFormat> = emptyList(),
+    /** The client's own bandwidth estimate in bits per second, which SmartTube always sends. */
+    private val bandwidthEstimate: Long? = null,
 ) {
     public fun encode(): ByteArray {
+        // The rest of ClientAbrState as SmartTube sends it. Read from its SabrManifest rather than
+        // guessed, and sent because replicating a client that demonstrably streams whole videos is the
+        // only lead left that is not a guess: bandwidth estimate (23), viewport flexibility (22),
+        // playback rate (35), DRC (46) and the network-interruption cap (68).
         val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
-            Protobuf.number(STATE_ENABLED_TRACKS, tracks.bitfield.toLong())
+            Protobuf.number(STATE_ENABLED_TRACKS, tracks.bitfield.toLong()) +
+            Protobuf.number(STATE_CLIENT_VIEWPORT_IS_FLEXIBLE, 0) +
+            Protobuf.number(STATE_PLAYBACK_RATE, 1) +
+            Protobuf.number(STATE_DRC_ENABLED, 0) +
+            Protobuf.number(STATE_MAX_NETWORK_INTERRUPTION_MS, 0) +
+            (bandwidthEstimate?.let { Protobuf.number(STATE_BANDWIDTH_ESTIMATE, it) } ?: ByteArray(0))
         var body = Protobuf.bytes(FIELD_CLIENT_ABR_STATE, abrState)
         selectedFormats.forEach { body += Protobuf.bytes(FIELD_SELECTED_FORMATS, it.encode()) }
         // Preferred rather than "selected": selected_format_ids (field 2) was ignored, while
@@ -108,5 +119,10 @@ public class VideoPlaybackAbrRequest(
         const val CONTEXT_PLAYBACK_COOKIE = 3
         const val CONTEXT_SABR_CONTEXTS = 5
         const val STATE_ENABLED_TRACKS = 40
+        const val STATE_CLIENT_VIEWPORT_IS_FLEXIBLE = 22
+        const val STATE_BANDWIDTH_ESTIMATE = 23
+        const val STATE_PLAYBACK_RATE = 35
+        const val STATE_DRC_ENABLED = 46
+        const val STATE_MAX_NETWORK_INTERRUPTION_MS = 68
     }
 }

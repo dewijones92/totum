@@ -113,6 +113,8 @@ public class SabrSegments(
             // Sent only ONCE the init segment has arrived, which is when the format really is
             // initialised. Sending it on a fresh conversation is what yt-dlp deliberately avoids.
             selectedFormats = listOfNotNull(format.takeIf { initSegment != null }),
+            // The format's own bitrate is the honest estimate before anything has been measured.
+            bandwidthEstimate = format.contentLength?.let { BANDWIDTH_GUESS_BPS },
         ).encode()
         val response = transport.post(url, body)
         requests++
@@ -160,37 +162,16 @@ public class SabrSegments(
     }
 
     /**
-     * What we hold, as the server needs to hear it — and it needs to hear it.
+     * What we hold, in the shape a client that actually works sends it.
      *
-     * The server grants `target_audio_readahead_ms` BEYOND the playback position, so it has to know
-     * what the client already has before it can work out how much of that is still owed. Told only a
-     * position and nothing else, it answered with the initialization segment and no media — measured at
-     * exactly 60001ms, repeatedly, paced and unpaced.
-     *
-     * These ranges are built from real `MEDIA_HEADER` sequence numbers and start times, which is
-     * something this class can do exactly and the byte-addressed reader could only estimate.
+     * NOT everything held. Declaring "segments 1 to 6, sixty seconds" combines with the server's
+     * fifteen-second readahead to mean "this client is full", and it answers with an initialization
+     * segment and nothing else -- measured at exactly 60001ms, repeatedly. SmartTube reports the LAST
+     * segment only, as both start and end, with one segment's duration; see [BufferedRange.oneSegment].
      */
     private fun describeHeld(): List<BufferedRange> {
-        val media = held.values.filter { !it.isInitSegment }
-        if (media.isEmpty()) return emptyList()
-        // ONE contiguous run from the first segment held: a gap would make this a lie, and a lie about
-        // the buffer is acted on. Segments arrive in order here, so a gap means something went wrong
-        // and describing less is the safe direction.
-        val contiguous = media.sortedBy { it.sequenceNumber }.let { sorted ->
-            sorted.takeWhile { it.sequenceNumber - sorted.first().sequenceNumber == sorted.indexOf(it) }
-        }
-        if (contiguous.isEmpty()) return emptyList()
-        val first = contiguous.first()
-        val last = contiguous.last()
-        return listOf(
-            BufferedRange(
-                format = format,
-                startTimeMs = first.startMs,
-                durationMs = last.startMs + last.durationMs - first.startMs,
-                startSegment = first.sequenceNumber,
-                endSegment = last.sequenceNumber,
-            ),
-        )
+        val last = held.values.lastOrNull { !it.isInitSegment } ?: return emptyList()
+        return listOf(BufferedRange.oneSegment(format, last.sequenceNumber, last.durationMs))
     }
 
     /** Collects whole segments from one response. Returns how many new ones arrived. */
@@ -202,6 +183,9 @@ public class SabrSegments(
     }
 
     private companion object {
+        /** A plausible connection speed, for the field SmartTube always fills in. */
+        const val BANDWIDTH_GUESS_BPS = 2_000_000L
+
         const val INIT_END_TIME_MS = 3
         const val INIT_END_SEGMENT = 4
         const val INIT_DURATION_UNITS = 9

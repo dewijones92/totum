@@ -261,6 +261,35 @@ So this is a limit on what the client is **permitted**, not a defect in how it a
 from a cold start, no resumption, no recovery, no stated reason. It has the shape of a preview
 allowance, and nothing we can send lifts it.
 
+## SmartTube's request, replicated field for field — and it changes nothing
+
+The last thing left that was not a guess was to read the request builder of a client that
+demonstrably streams whole videos over SABR on the same broadband. `SabrManifest.java` in SmartTube's
+own ExoPlayer fork is that builder, and our request now matches it:
+
+- **`ClientAbrState`**: `player_time_ms` (28), `enabled_track_types_bitfield` (40),
+  `client_viewport_is_flexible` (22), `bandwidth_estimate` (23), `playback_rate` (35),
+  `drc_enabled` (46), `sabr_force_max_network_interruption_duration_ms` (68).
+- **`BufferedRange`** in SmartTube's own shape, which is the opposite of the obvious one and worth
+  stating plainly: it reports the **last segment only**, as both start AND end index, with one
+  segment's `duration_ms`, `start_time_ms = 0` (its source comments the field "not used"), and a
+  `time_range` in ticks at timescale 1000 — a field we had never sent. Declaring the whole sixty
+  seconds we hold reads, against a fifteen-second readahead, as "this client is full".
+  Its comment describes naming the wanted segment through `player_time_ms` as *"cheating a bit by
+  abusing the player time field"*. That is precisely what it does, and what works for it.
+- **`selected_format_ids`** once initialised, and the full `streamer_context` — `client_info`,
+  `po_token`, `playback_cookie`, `sabr_contexts`.
+
+**Eighteen variations. Still exactly 60001ms, every time.**
+
+So the difference between this app and SmartTube is **not in the request body**, which is the useful
+part of this result. What is left is *who the client is and what it is entitled to*: SmartTube's
+endpoint comes from a TV player response and it carries a whole attestation subsystem —
+`PoTokenGate`, the NewPipe-derived `potokennp2`, and a **cloud fallback** for devices that cannot run
+the BotGuard challenge locally. We mint a WEB token for a WEB endpoint.
+
+There is nothing further to read. The next step is observation, not deduction.
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which
