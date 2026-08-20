@@ -144,11 +144,31 @@ than "attestation caps us at a megabyte":
 So "we need a PO token" is a guess that four measurements now fail to support, and it should stop being
 written down as the root cause. What is refusing us is unknown.
 
-One concrete gap in the probe, stated so it is not mistaken for a finding: the patient reader sends
-**no `buffered_ranges`**. A real client tells the server what it already holds, and that is half of
-what SABR decides from. `SabrStream` does send them and also stopped at ~956KB, but its ranges have
-their own history of being wrong, so "the server was never told what we held" has not been eliminated
-and is the cheapest thing left to test.
+That gap is now closed too. The patient reader describes its buffer — a `BufferedRange` naming the
+segments the responses themselves reported via `MEDIA_END` — and stops at **exactly the same 1104KB**.
+So "the server was never told what we held" is eliminated as well.
+
+## What has been eliminated, on a working endpoint
+
+Everything below was measured against a WEB endpoint with its `n` solved, which answers HTTP 200 with
+real media:
+
+- a correctly bound gvs token in `streamer_context.po_token` — no change
+- the same token as `pot=` on the URL — no change
+- `streamer_context.client_info` naming the right client — no change
+- asking only for times the client's own bytes cover, never skipping — no change
+- describing the buffer back to the server — no change
+- and the refusal never raises the protection status it raises when refusing on attestation grounds
+
+Six things ruled out. **What refuses us at ~1.1MB is not known**, and every remaining idea in this file
+is a guess.
+
+## The route that does not rely on guessing
+
+SmartTube streams whole videos over SABR on Dewi's Fire Stick, on the same broadband. That is a client
+which demonstrably works, on the network where ours does not, and it is reachable
+(`192.168.0.211:5555`). Capturing its actual SABR requests and diffing them field by field against ours
+would replace this entire file with an answer. Every cheaper approach has now been tried.
 
 ## The honest summary for anyone picking this up
 

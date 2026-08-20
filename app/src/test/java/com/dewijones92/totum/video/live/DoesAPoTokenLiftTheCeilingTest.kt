@@ -5,6 +5,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.sabr.BufferedRange
 import com.dewijones92.totum.sabr.ResponseSummary
 import com.dewijones92.totum.sabr.SabrClientInfo
 import com.dewijones92.totum.sabr.SabrFormat
@@ -148,6 +149,9 @@ class DoesAPoTokenLiftTheCeilingTest {
         var held = 0L
         var fetches = 0
         var quiet = 0
+        // What we hold, told to the server. Half of what SABR decides from, and the patient reader was
+        // sending none of it -- so "the server was never told what we held" could not be ruled out.
+        var segments = 0
         while (fetches < PATIENT_FETCHES && quiet < QUIET_BEFORE_GIVING_UP) {
             // The time our bytes are ACTUALLY worth. No step, no skip, no floor.
             val askAt = if (total <= 0) 0L else held * duration / total
@@ -156,6 +160,19 @@ class DoesAPoTokenLiftTheCeilingTest {
                 playerTimeMs = askAt,
                 audio = audio,
                 tracks = SabrTracks.AUDIO_ONLY,
+                bufferedRanges = if (segments == 0 || !DESCRIBE_BUFFER) {
+                    emptyList()
+                } else {
+                    listOf(
+                        BufferedRange(
+                            format = audio,
+                            startTimeMs = 0,
+                            durationMs = askAt,
+                            startSegment = 1,
+                            endSegment = segments,
+                        ),
+                    )
+                },
             ).encode()
             val response = runBlocking { transport.post(session.streamingUrl, body) }
             fetches++
@@ -172,6 +189,8 @@ class DoesAPoTokenLiftTheCeilingTest {
             } else {
                 quiet = 0
                 held += fresh
+                // Counted from the headers the response actually named, not guessed from bytes.
+                segments += UmpReader.read(response).parts.count { it.type == UmpPart.MEDIA_END }
             }
             if (fetches % REPORT_EVERY == 0 || quiet > 0) {
                 println(
@@ -345,6 +364,9 @@ class DoesAPoTokenLiftTheCeilingTest {
         const val PATIENT_FETCHES = 40
         const val QUIET_BEFORE_GIVING_UP = 4
         const val REPORT_EVERY = 5
+
+        /** `-DdescribeBuffer=false` puts the reader back to telling the server nothing. */
+        val DESCRIBE_BUFFER: Boolean = System.getProperty("describeBuffer")?.toBooleanStrictOrNull() ?: true
 
         /** The init segment, re-sent on every response and not progress. */
         const val INIT_SEGMENT_BYTES = 10_620
