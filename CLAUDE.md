@@ -117,14 +117,24 @@ The project's emulator AVD is **`totum-api35`** (API 35, x86_64). Boot it with
 `-gpu swiftshader_indirect` — the hardware GPU segfaults on sustained 4K/live decode and takes the whole
 emulator down mid-test.
 
-**It is signed OUT as of 2026-08-19 evening, and this section claimed otherwise for a few hours.** The
-sign-in was restored that afternoon and then lost when WSL restarted: the emulator was killed uncleanly
-and came back on an older snapshot with the app not even installed. So a sign-in survives an ordinary
-reboot only if the emulator is shut down cleanly — treat it as perishable and check rather than assume.
+**It is signed IN as of 2026-08-20 17:26.** Do not trust that sentence — this section has been wrong in
+both directions within a day, so **check** rather than read: a non-empty `youtube_account.xml` in
+`run-as com.dewijones92.totum ls -l shared_prefs/` is the only answer that counts. It was signed out
+twice in two days, each time by an unclean kill (WSL restarting) bringing the emulator back on an older
+snapshot, once with the app not even installed. A sign-in survives an ordinary reboot only if the
+emulator is shut down cleanly.
 
-**A sign-in is expensive to replace, whoever holds it.** Signing in needs a device code
-approved by hand at google.com/device: the automation browser profile is signed out, so nobody but Dewi
-can do it, and a code is single-use and short-lived. Treat the token as an asset:
+**But losing it is now cheap, and that is the point.** The token is backed up off-device at
+`~/.credentials/totum-emulator/youtube_account.xml` (600, outside the repo — it is a real OAuth
+credential), and `tools/emulator/restore-youtube-signin.sh` puts it back in about two seconds. The
+**refresh token is long-lived**, so a restore works months later: the app exchanges it for a fresh
+access token on the next call. Restore first; ask Dewi for a new code only if the restore fails.
+Verified end to end on 2026-08-20 — restore, then `SignInOnThisDeviceTest` returns immediately with
+`signin already signed in — nothing to do`, which is the cheapest signed-in check there is.
+
+**A fresh sign-in is expensive, whoever holds it.** It needs a device code approved by hand at
+google.com/device: the automation browser profile is signed out, so nobody but Dewi can do it, and a
+code is single-use and short-lived. So treat the token as an asset:
 
 - **`./gradlew connectedAndroidTest` UNINSTALLS the app when it finishes**, which destroys the sign-in.
   So does `pm clear` and any reinstall that wipes data. Check `run-as com.dewijones92.totum ls
@@ -132,8 +142,12 @@ can do it, and a code is single-use and short-lived. Treat the token as an asset
 - **A test must never touch the real token store.** `SharedPrefsTokenStore` takes a `prefsName` for
   exactly that reason — `ASignInSurvivesTheProcessTest` clears its own file, and the version that used
   the default signed the device out (2026-08-19, throwing away an approval from minutes earlier).
+- **Never run instrumented tests via `./gradlew` while signed in.** Use
+  `adb shell am instrument -w -r -e class <FQN> com.dewijones92.totum.test/androidx.test.runner.AndroidJUnitRunner`
+  against an already-installed APK, and `adb install -r` (never `-t` fresh) when the APK must change.
 - To sign in without the UI, run `SignInOnThisDeviceTest` and watch logcat for `dewidebug signin code`.
-  It drives the real `YouTubeAccount.signIn()`, which persists the tokens itself.
+  It drives the real `YouTubeAccount.signIn()`, which persists the tokens itself — and it early-returns
+  when already signed in, so it doubles as the signed-in assertion. Back the token up again afterwards.
 
 Signed-in state matters for more than convenience: the subs feed, history, comments and likes all need
 it, and `docs/todos/youtube-requires-attestation.md` turns on whether a **signed-in TV `/player`** behaves
