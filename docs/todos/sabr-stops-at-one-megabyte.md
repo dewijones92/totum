@@ -167,6 +167,35 @@ each time:
 So with SABR enabled the app now reaches the wall, gives up in about a second, and plays the item
 through extraction with **zero** rebuffers. SABR still cannot carry a video, and that is attestation.
 
+## Characterised precisely (2026-08-20, `SabrSegments`)
+
+A clean segment-addressed source was written specifically to remove every suspicion about our request
+shape: **one request per call**, at a position the caller states, no internal loop, whole segments in,
+`client_info` set, playback cookie echoed. `SegmentsAreAddressedByTimeTest` pins those properties.
+
+Against live YouTube it stops at **946KB covering exactly 60001ms of media**, paced to real time or
+not:
+
+```
+call 1: seq=1 covers 10001ms, 157KB held
+call 6: seq=6 covers 60001ms, 946KB held
+nothing new at 60001ms from 11074B — parts PLAYBACK_START_POLICY, STREAM_PROTECTION_STATUS,
+    REQUEST_CANCELLATION_POLICY, FORMAT_INITIALIZATION_METADATA, NEXT_REQUEST_POLICY,
+    MEDIA_HEADER, MEDIA(10620B), MEDIA_END   protection=status=2
+```
+
+The response at the ceiling carries the **initialization segment and nothing else**. No `SABR_ERROR`,
+no `RELOAD_PLAYER_RESPONSE`, no reason of any kind, and the same protection status as the responses
+that served megabytes. The server is not refusing us — it has no media to give for that position.
+
+**So the ceiling is about sixty seconds of media per session**, and it is independent of: request
+shape, internal looping, honest positions, real-time pacing, buffered-range descriptions,
+`client_info`, the playback cookie, a correctly-bound PO token in either documented location, and
+ExoPlayer's buffer policy by duration and by bytes. Eleven things ruled out.
+
+What a client must do at the sixty-second mark that we do not is still unknown. The paced probe that
+once reached 1732KB is the only evidence anything ever went further, and it is unexplained.
+
 ## Next
 
 1. A PO token provider, minted per session and carried in `streamer_context` (field 19.2) — which
