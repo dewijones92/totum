@@ -163,6 +163,31 @@ real media:
 Six things ruled out. **What refuses us at ~1.1MB is not known**, and every remaining idea in this file
 is a guess.
 
+## Minting order, from SmartTube's own provider (2026-08-20)
+
+`PoTokenProviderImpl` in MediaServiceCore states a requirement this repo had been violating:
+
+```kotlin
+// The streaming poToken needs to be generated exactly once before generating
+// any other (player) tokens.
+webPoTokenStreamingPot = webPoTokenGenerator!!.generatePoToken(webPoTokenVisitorData!!)
+...
+val playerPot = poTokenGenerator.generatePoToken(videoId)
+```
+
+**Both tokens come from ONE generator instance, streaming first.** `tools/potoken/mint.mjs` was run
+once per token, so the streaming and player tokens came from two unrelated BotGuard sessions — and a
+token from the wrong session is refused exactly like no token at all. It now mints both in order from
+one session (`node mint.mjs "<visitorData>" "<videoId>"`), which is correct regardless of what it
+measures.
+
+Measured with the correctly-ordered pair, against a WEB endpoint whose `n` is solved: **still exactly
+60001ms.** Nineteen variations.
+
+Also read and matched: SmartTube's whole request builder (`SabrManifest.java`) — see
+[sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md). Everything readable has been read and
+everything replicable has been replicated.
+
 ## The route that does not rely on guessing
 
 SmartTube streams whole videos over SABR on Dewi's Fire Stick, on the same broadband. That is a client

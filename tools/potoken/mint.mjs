@@ -7,6 +7,8 @@ import { chromium } from '/home/dewi/code/awning/node_modules/playwright/index.m
 const API_KEY = 'AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw';
 const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
 const IDENTIFIER = process.argv[2] ?? 'uSMGENDH_QI';
+// The second identifier, minted from the SAME generator right after the streaming one.
+const PLAYER_IDENTIFIER = process.argv[3] ?? null;
 
 const post = async (path, body) => {
   const r = await fetch(`https://www.youtube.com/api/jnn/v1/${path}`, {
@@ -84,7 +86,12 @@ console.log(`[mint] botguard response: ${snapshot.botguardResponse.length} chars
 const [integrityB64, ttlSeconds] = await post('GenerateIT', [REQUEST_KEY, snapshot.botguardResponse]);
 console.log(`[mint] integrity token: ${integrityB64.length} chars, ttl ${ttlSeconds}s`);
 
-const token = await page.evaluate(async ({ integrityB64, identifier }) => {
+// BOTH tokens from ONE generator, streaming first. SmartTube's provider says so outright:
+// "The streaming poToken needs to be generated exactly once before generating any other (player)
+// tokens." Minting them in separate processes -- which is what this script used to do, once per run --
+// gives two tokens from two unrelated BotGuard sessions, and a token from the wrong session is refused
+// exactly like no token at all.
+const mintBoth = await page.evaluate(async ({ integrityB64, streamingId, playerId }) => {
   const bytesOf = (b64) => {
     const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/').replace(/\./g, '='));
     return new Uint8Array([...s].map((c) => c.charCodeAt(0)));
@@ -92,10 +99,15 @@ const token = await page.evaluate(async ({ integrityB64, identifier }) => {
   const getMinter = window.__signal[0];
   if (!getMinter) throw new Error('no minter in the signal output');
   const mint = getMinter(bytesOf(integrityB64));
-  const out = mint(new TextEncoder().encode(identifier));
-  return btoa(String.fromCharCode(...out)).replace(/\+/g, '-').replace(/\//g, '_');
-}, { integrityB64, identifier: IDENTIFIER });
+  const b64 = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_');
+  // Order is the point: streaming first, exactly once, then the player token.
+  const streaming = b64(mint(new TextEncoder().encode(streamingId)));
+  const player = playerId ? b64(mint(new TextEncoder().encode(playerId))) : null;
+  return { streaming, player };
+}, { integrityB64, streamingId: IDENTIFIER, playerId: PLAYER_IDENTIFIER });
 
-console.log(`[mint] PO TOKEN for ${IDENTIFIER}: ${token.length} chars`);
-console.log(token);
+console.log(`[mint] streaming token (${IDENTIFIER.slice(0, 24)}…): ${mintBoth.streaming.length} chars`);
+if (mintBoth.player) console.log(`[mint] player token (${PLAYER_IDENTIFIER}): ${mintBoth.player.length} chars`);
+console.log(mintBoth.streaming);
+if (mintBoth.player) console.log(mintBoth.player);
 await browser.close();
