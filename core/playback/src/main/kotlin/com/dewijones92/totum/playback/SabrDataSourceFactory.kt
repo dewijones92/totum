@@ -46,7 +46,7 @@ public class SabrDataSourceFactory(
             // "successfully" reading a refusal body and feeding it to the extractor as media. Throwing
             // is what reaches the recovery ladder, which re-resolves and gets a stream that works.
             when (val route = sabrRouteFor(dataSpec.uri.toString())) {
-                is SabrRoute.Done -> throw IOException(route.why)
+                is SabrRoute.Done -> throw SabrGaveUpException(route.why)
                 is SabrRoute.Serve -> delegate = SabrDataSource(route.stream)
                 SabrRoute.NotSabr -> delegate = fallback
             }

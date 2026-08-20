@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
@@ -10,6 +11,7 @@ import androidx.media3.exoplayer.source.LoadEventInfo
 import androidx.media3.exoplayer.source.MediaLoadData
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.sabr.SabrSessions
 import java.io.IOException
 
 /**
@@ -207,12 +209,31 @@ internal class PlaybackAnalytics : AnalyticsListener {
         forget(loadEventInfo.loadTaskId)
         Vitals.add("playback.loadErrors")
         Vitals.set("playback.lastLoadError", "${mediaLoadData.trackName()}: ${error.javaClass.simpleName}")
+        // The URL is NAMED, not printed. A signed googlevideo URL is about 1.5KB of query string, and
+        // on 2026-08-20 a single refused SABR track produced ten of these plus ten copies of the
+        // exception -- roughly 40KB into a report buffer holding a few hundred entries, which is the
+        // chatty-logs-destroy-evidence failure this trail has already paid for once. What a reader
+        // needs is which host and which track, and those are two short fields.
         Diag.warn(
             "load",
             "${mediaLoadData.trackName()} failed (canceled=$wasCanceled) " +
-                "after ${loadEventInfo.loadDurationMs}ms — ${loadEventInfo.uri}",
+                "after ${loadEventInfo.loadDurationMs}ms — ${loadEventInfo.uri.named()}",
             error,
         )
+    }
+
+    /**
+     * A URL as a few readable fields: its host, and the SABR track it names if it names one.
+     *
+     * Keeps exactly what tells two failures apart -- which CDN host answered, and which itag -- and
+     * drops the signature, the expiry and the two dozen other parameters that make the line unreadable
+     * and the buffer short.
+     */
+    private fun Uri.named(): String {
+        val itag = getQueryParameter(SabrSessions.ITAG_MARKER)
+        return listOfNotNull(host, itag?.let { "sabr itag $it" }, path?.takeIf { itag == null })
+            .joinToString(" ")
+            .ifEmpty { "an unnamed url" }
     }
 
     /**

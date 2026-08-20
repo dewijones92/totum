@@ -225,7 +225,9 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     private fun sourceFactory(): MergingAudioVideoFactory = cachedSourceFactory ?: run {
         MergingAudioVideoFactory(
-            DefaultMediaSourceFactory(this).setDataSourceFactory(
+            DefaultMediaSourceFactory(this).setLoadErrorHandlingPolicy(
+                DoNotRetryWhatSabrHasGivenUpOn(),
+            ).setDataSourceFactory(
                 // sabr:// URLs are served from a registered session; everything else goes through
                 // the ranged fetcher exactly as before, so the path that already works is untouched.
                 SabrDataSourceFactory(
