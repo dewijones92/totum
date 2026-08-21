@@ -49,7 +49,6 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
-import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 
@@ -82,8 +81,11 @@ fun ShortsReelScreen(
     val playback = container.playbackController
     val launcher = container.videoPlaybackLauncher
     val queue = container.playbackQueue
-    val audioMode = container.appPreferences.settings.collectAsStateWithLifecycle().value.playbackMode ==
-        PlaybackMode.AUDIO
+    // The container's answer, not `mode == AUDIO`: that is false on AUTO -- the default -- however
+    // metered the connection is, so on mobile data this reel offered "Listen only" while already
+    // listening. Recomposes with the settings it depends on.
+    val settings = container.appPreferences.settings.collectAsStateWithLifecycle().value
+    val audioMode = remember(settings) { container.listeningNow }
     val context = LocalContext.current
     val kept = stringResource(R.string.watching_this_one)
     val shortsRun = stringResource(R.string.shorts_title)

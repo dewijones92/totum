@@ -36,6 +36,23 @@ enum class PlaybackMode {
     VIDEO,
 }
 
+/**
+ * Whether we are LISTENING right now — the one answer, for behaviour and for what a row says.
+ *
+ * It exists because the question was being asked three times and one answer was right. Playback asked
+ * `AppContainer.audioPlaybackPreferred()`, which resolves [PlaybackMode.AUTO] against the network;
+ * `MediaItemActions.audioMode` and `ShortsReelScreen` each hand-rolled `mode == AUDIO` instead. AUTO is
+ * the shipped default, so on mobile data the app played audio while every row offered "Listen only" and
+ * never offered the picture back — a label that says the opposite of what is happening, on defaults.
+ *
+ * Pure and named so it can be tested and so a fourth caller cannot get it wrong.
+ */
+public fun listeningIn(mode: PlaybackMode, onMeteredNetwork: Boolean): Boolean = when (mode) {
+    PlaybackMode.AUDIO -> true
+    PlaybackMode.VIDEO -> false
+    PlaybackMode.AUTO -> onMeteredNetwork
+}
+
 // One method per preference, so the count tracks how many settings exist rather than any
 // complexity. Splitting a settings interface to satisfy a counter would scatter one concept
 // across several types for no reader's benefit.

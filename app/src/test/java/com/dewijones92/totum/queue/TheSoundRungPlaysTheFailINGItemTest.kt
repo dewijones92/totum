@@ -13,6 +13,8 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.settings.InMemoryAppPreferences
+import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.ui.common.ListenMode
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.UiEffects
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -229,7 +231,12 @@ class TheSoundRungPlaysTheFailINGItemTest {
             openPlaylistPicker = {},
             locator = DefaultSourceLocator(FakePodcastRepository(), FakeYtDlpEngine()),
             scope = this,
-            preferences = preferences,
+            // Watching, which is what makes "switch back to video" the interesting direction here.
+            mode = object : ListenMode {
+                override val listening = false
+                override fun choose(audio: Boolean) =
+                    preferences.setPlaybackMode(if (audio) PlaybackMode.AUDIO else PlaybackMode.VIDEO)
+            },
             ui = object : UiEffects {
                 override fun announce(message: String) = Unit
                 override fun expandPlayer() = Unit

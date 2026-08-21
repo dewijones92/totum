@@ -130,6 +130,13 @@ class FakeAppContainer(
     ),
 ) : AppContainer {
 
+    /**
+     * Watching, so a preview shows the controls a video row has rather than a headphones glyph.
+     *
+     * A fixed answer on purpose: a preview has no network that could be metered.
+     */
+    override val listeningNow: Boolean = false
+
     /** Previews and tests always look "allowed", so the queue shows its normal state. */
     /** Previews and tests are "online" unless a case says otherwise. */
     override fun isOffline(): Boolean = false

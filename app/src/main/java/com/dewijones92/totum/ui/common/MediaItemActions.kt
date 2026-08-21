@@ -34,16 +34,40 @@ interface UiEffects {
     fun expandPlayer()
 }
 
+/**
+ * Reading and changing the listen/watch mode — one concern, so one dependency.
+ *
+ * They arrived here as two: an [AppPreferences] to write with, and a hand-rolled
+ * `mode == AUDIO` to read with. That read is wrong on [PlaybackMode.AUTO], which is the shipped
+ * default and means "audio on mobile data" — so on 4G a row said "Listen only" while already
+ * listening, and never offered the picture back. Bundling them means the next caller cannot take the
+ * write and re-invent the read.
+ */
+interface ListenMode {
+    /** Whether we are listening RIGHT NOW, network resolved. */
+    val listening: Boolean
+
+    /** Make listening (or watching) the mode from here on. */
+    fun choose(audio: Boolean)
+}
+
 class MediaItemActions internal constructor(
     private val queue: PlaybackQueue,
     private val openPlaylistPicker: (MediaItem) -> Unit,
     private val locator: SourceLocator,
     private val scope: CoroutineScope,
-    private val preferences: AppPreferences,
+    private val mode: ListenMode,
     private val ui: UiEffects,
 ) {
-    /** The mode right now, so a row can label its action "Listen only" vs "Watch with video". */
-    val audioMode: Boolean get() = preferences.settings.value.playbackMode == PlaybackMode.AUDIO
+    /**
+     * Whether we are listening, so a row can label its action "Listen only" vs "Watch with video".
+     *
+     * Asked of the caller rather than derived here, because this read used to be `mode == AUDIO` and
+     * that is FALSE on [PlaybackMode.AUTO] however metered the connection is -- and AUTO is the shipped
+     * default. On mobile data the app played audio while every row offered "Listen only" and never
+     * offered the picture back. One answer now, the one playback uses.
+     */
+    val audioMode: Boolean get() = mode.listening
 
     /**
      * Plays [item] the other way round and **makes that the mode**, announcing it —
@@ -51,7 +75,7 @@ class MediaItemActions internal constructor(
      * hiding the mode in a settings screen would be worse.
      */
     fun switchMode(item: MediaItem, toAudio: Boolean, audioOnMessage: String, videoOnMessage: String) {
-        preferences.setPlaybackMode(if (toAudio) PlaybackMode.AUDIO else PlaybackMode.VIDEO)
+        mode.choose(audio = toAudio)
         // Asking a row for video is asking for the PICTURE, so it has to overrule a sound-only rescue
         // the same way the player's own Watch button does. Without this the mode changed, the toast said
         // video was on, and the item came back as sound only -- because the refusal is sticky per item
@@ -131,7 +155,11 @@ fun rememberMediaItemActions(
             openPlaylistPicker = adder,
             locator = container.sourceLocator,
             scope = container.applicationScope,
-            preferences = container.appPreferences,
+            mode = object : ListenMode {
+                override val listening: Boolean get() = container.listeningNow
+                override fun choose(audio: Boolean) =
+                    container.appPreferences.setPlaybackMode(if (audio) PlaybackMode.AUDIO else PlaybackMode.VIDEO)
+            },
             ui = object : UiEffects {
                 override fun announce(message: String) {
                     if (snackbar != null) {

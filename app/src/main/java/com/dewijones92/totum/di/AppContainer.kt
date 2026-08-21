@@ -125,6 +125,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
+import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
@@ -161,6 +162,16 @@ interface AppContainer {
      * user switched tab 1.7s later, and nothing ever played.
      */
     val applicationScope: CoroutineScope
+
+    /**
+     * Whether we are LISTENING right now, resolving [PlaybackMode.AUTO] against the network.
+     *
+     * On the interface because the UI needs the SAME answer playback uses. It did not have it: rows
+     * hand-rolled `mode == AUDIO`, which is false on AUTO however metered the connection — and AUTO is
+     * the default. So on mobile data the app played audio while every row offered "Listen only" and
+     * never offered the picture back. See [listeningIn].
+     */
+    val listeningNow: Boolean
 
     val podcastRepository: PodcastRepository
     val channelRepository: ChannelRepository
@@ -1076,12 +1087,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         return null
     }
 
-    private fun audioPlaybackPreferred(): Boolean =
-        when (appPreferences.settings.value.playbackMode) {
-            PlaybackMode.AUDIO -> true
-            PlaybackMode.VIDEO -> false
-            PlaybackMode.AUTO -> networkStatus.isMetered()
-        }
+    override val listeningNow: Boolean
+        get() = listeningIn(appPreferences.settings.value.playbackMode, networkStatus.isMetered())
+
+    private fun audioPlaybackPreferred(): Boolean = listeningNow
 
     /**
      * Whether automatic downloads may run on the connection we are on right now.
