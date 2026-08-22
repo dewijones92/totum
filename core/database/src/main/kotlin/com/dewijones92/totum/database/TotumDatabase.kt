@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SourceGroupMemberEntity::class,
         CachedFeedItemEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = false,
 )
 public abstract class TotumDatabase : RoomDatabase() {
@@ -68,6 +68,7 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_15_16,
                 MIGRATION_16_17,
                 MIGRATION_17_18,
+                MIGRATION_18_19,
             )
 
         /**
@@ -83,6 +84,30 @@ public abstract class TotumDatabase : RoomDatabase() {
          * Purely additive and nullable, so there is nothing to backfill and nothing to get wrong:
          * rows written before this simply have no view count, which is the truth about them.
          */
+        /**
+         * v19: the rest of what a listing said — duration, the channel URL, members-only.
+         *
+         * The same defect as v18 and found the same way, because v18 fixed three fields of one
+         * problem and left three more. `duration` was hardcoded null in the shared rebuild, and the
+         * other two had no column at all, so every persisted row lost them: the Library's duration
+         * sorts became silent no-ops, length chips vanished, and "Go to channel" fell back to a full
+         * yt-dlp extraction to read one string — 12.5 seconds on a real phone, for the same video
+         * that was instant from a feed row.
+         *
+         * Purely additive and nullable like v18, so there is nothing to backfill. Rows written before
+         * this have no duration, which is the truth about them; `membersOnly` defaults false, which is
+         * both the old behaviour and true of almost everything.
+         */
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                listOf("queue_items", "play_history", "downloads", "local_playlist_items").forEach { table ->
+                    db.execSQL("ALTER TABLE $table ADD COLUMN durationMs INTEGER")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN sourceUrl TEXT")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN membersOnly INTEGER NOT NULL DEFAULT 0")
+                }
+            }
+        }
+
         private val MIGRATION_17_18 = object : Migration(17, 18) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Every table on the PlaylistItemColumns contract. Named individually rather than

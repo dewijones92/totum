@@ -47,11 +47,21 @@ down:
 
 ## Deliberately NOT on `PlaylistItemColumns`
 
-That contract exists to rebuild a `PlayableItem`: it carries a playback handle and drops
-duration, view count, upload date and members-only, because the queue and history do not render
-them. A feed row renders exactly those and needs no handle (one is derived at play time).
-Sharing it would mean either losing the metadata Dewi asked lists to show, or widening four
-other tables with columns they have no use for.
+That contract exists to rebuild a `PlayableItem`, and this table exists to render a feed row: it
+needs no playback handle, since one is derived at play time. Sharing the contract would mean
+widening four other tables with a `feedKey`, a position and a cache timestamp they have no use for.
+
+⚠️ **The reason originally given here was wrong, and the app paid for it.** It said the contract
+"drops duration, view count, upload date and members-only, because the queue and history do not
+render them" — but they do, and losing them was a bug rather than a design. View count and both
+dates were added in v18 (2026-08-07) after a video page showed them for an item tapped from a feed
+and nothing for the same item replayed from the queue. Duration, `sourceUrl` and `membersOnly`
+followed in v19 for the same reason: the Library's "Longest first" was a silent no-op, length chips
+vanished from every persisted row, and "Go to channel" fell back to a twelve-second yt-dlp
+extraction to read one string.
+
+So the split is about SHAPE — a feed row versus a playable record — not about which facts matter.
+`ItemFactsSurviveStorageTest` now guards every field on the contract across all four tables.
 
 ## The bug the screenshot caught
 

@@ -18,6 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The view count and publication date surviving the database.
@@ -37,12 +38,17 @@ import java.time.Instant
  */
 class ItemFactsSurviveStorageTest {
 
+    private companion object {
+        const val CHANNEL_URL = "https://www.youtube.com/@NovaraMedia"
+    }
+
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val db = Room.inMemoryDatabaseBuilder(context, TotumDatabase::class.java)
         .allowMainThreadQueries()
         .build()
 
     private val publishedAt = Instant.parse("2026-08-01T09:00:00Z")
+    private val duration = 42.minutes
 
     @After
     fun closeDb() = db.close()
@@ -54,10 +60,12 @@ class ItemFactsSurviveStorageTest {
             title = "an item with facts about it",
             publishedAt = publishedAt.takeIf { withFacts },
             publishedText = "2 days ago".takeIf { withFacts },
-            duration = null,
+            duration = duration.takeIf { withFacts },
             author = "Novara Media",
             mediaUrl = HttpUrl.of("https://example.test/episode.mp3"),
             viewsText = "1.2M views".takeIf { withFacts },
+            membersOnly = withFacts,
+            sourceUrl = HttpUrl.of(CHANNEL_URL).takeIf { withFacts },
         ),
         PlayHandle.Podcast(),
     )
@@ -66,6 +74,14 @@ class ItemFactsSurviveStorageTest {
         assertEquals("the view count did not survive storage", "1.2M views", read?.item?.viewsText)
         assertEquals("the relative date did not survive storage", "2 days ago", read?.item?.publishedText)
         assertEquals("the absolute date did not survive storage", publishedAt, read?.item?.publishedAt)
+        // Duration is not decoration: the Library's "Longest first" sorts on it, so losing it makes
+        // that menu entry a silent no-op, and every persisted row loses its length chip.
+        assertEquals("the duration did not survive storage", duration, read?.item?.duration)
+        // sourceUrl is what makes "Go to channel" instant. Without it the locator falls back to a
+        // full yt-dlp extraction to read one string -- 12.5s on a real phone, for a row that came
+        // from the queue rather than a feed.
+        assertEquals("the channel URL did not survive storage", CHANNEL_URL, read?.item?.sourceUrl?.value)
+        assertEquals("members-only did not survive storage", true, read?.item?.membersOnly)
     }
 
     @Test
@@ -99,5 +115,8 @@ class ItemFactsSurviveStorageTest {
         assertNull("a view count was invented", read?.viewsText)
         assertNull("a relative date was invented", read?.publishedText)
         assertNull("an epoch date was invented from a null", read?.publishedAt)
+        assertNull("a duration was invented", read?.duration)
+        assertNull("a channel URL was invented", read?.sourceUrl)
+        assertEquals("members-only was invented", false, read?.membersOnly)
     }
 }

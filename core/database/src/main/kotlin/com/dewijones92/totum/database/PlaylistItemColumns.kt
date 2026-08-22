@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.persisted
 import com.dewijones92.totum.domain.playHandleFrom
 import java.time.Instant
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The denormalized columns a [PlayableItem] persists as — shared by the local-playlist
@@ -42,6 +43,23 @@ internal interface PlaylistItemColumns {
     val viewsText: String?
     val publishedText: String?
     val publishedAtEpochMs: Long?
+
+    /**
+     * The rest of what the listing said, dropped for the same reason and found the same way.
+     *
+     * [durationMs] is not decoration: the Library's "Longest first" sorts on it, so losing it made
+     * that menu entry a silent no-op and took the length chip off every persisted row.
+     *
+     * [sourceUrl] is what makes "Go to channel" instant. Without it `DefaultSourceLocator` falls back
+     * to a full yt-dlp extraction to read one string -- 12.5s on a real phone -- so the same video was
+     * instant from a feed row and a twelve-second wait from a Library row.
+     *
+     * [membersOnly] costs nothing to keep and is worth showing rather than discovering at play time;
+     * three of them once sat unexplained in a real download queue.
+     */
+    val durationMs: Long?
+    val sourceUrl: String?
+    val membersOnly: Boolean
 }
 
 /** The one place the denormalized columns rebuild a [PlayableItem]; null if the handle is unusable. */
@@ -54,12 +72,14 @@ internal fun playlistItemFrom(columns: PlaylistItemColumns): PlayableItem? {
         publishedAt = columns.publishedAtEpochMs?.let(Instant::ofEpochMilli),
         publishedText = columns.publishedText,
         viewsText = columns.viewsText,
-        duration = null,
+        duration = columns.durationMs?.milliseconds,
         author = columns.author,
         thumbnailUrl = columns.thumbnailUrl?.let(HttpUrl::parse),
         mediaUrl = columns.mediaUrl?.let(HttpUrl::parse),
         contentKind = runCatching { MediaContentKind.valueOf(columns.contentKind) }
             .getOrDefault(MediaContentKind.STANDARD),
+        membersOnly = columns.membersOnly,
+        sourceUrl = columns.sourceUrl?.let(HttpUrl::parse),
     )
     return PlayableItem(item, playback)
 }

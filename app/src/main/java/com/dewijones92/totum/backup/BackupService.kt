@@ -25,6 +25,7 @@ import com.dewijones92.totum.domain.playHandleFrom
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import kotlinx.coroutines.flow.first
 import java.time.Instant
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Gathers everything worth keeping into a [Backup], and puts it back.
@@ -164,6 +165,9 @@ private fun PlayableItem.toBackup(): BackupItem {
         contentKind = item.contentKind.name,
         playbackType = playbackType,
         handle = handle,
+        durationMs = item.duration?.inWholeMilliseconds,
+        sourceUrl = item.sourceUrl?.value,
+        membersOnly = item.membersOnly,
     )
 }
 
@@ -176,10 +180,12 @@ private fun BackupItem.toPlayable(): PlayableItem? {
             sourceId = SourceId(sourceId),
             title = title,
             publishedAt = null,
-            duration = null,
+            duration = durationMs?.milliseconds,
             author = author,
             thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
             mediaUrl = mediaUrl?.let(HttpUrl::parse),
+            membersOnly = membersOnly,
+            sourceUrl = sourceUrl?.let(HttpUrl::parse),
             contentKind = runCatching { MediaContentKind.valueOf(contentKind) }
                 .getOrDefault(MediaContentKind.STANDARD),
         ),

@@ -78,6 +78,16 @@ public data class BackupItem(
     val contentKind: String,
     val playbackType: String,
     val handle: String? = null,
+    /**
+     * What the listing said, kept because nothing can reconstruct it from a restored row.
+     *
+     * Optional and defaulted, which this format explicitly allows without a version bump: an older
+     * build ignores them and a newer build reading an older file sees the defaults, which is exactly
+     * what a backup taken before this contained.
+     */
+    val durationMs: Long? = null,
+    val sourceUrl: String? = null,
+    val membersOnly: Boolean = false,
 )
 
 /** How far through something you got, or that you finished it. */

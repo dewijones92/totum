@@ -23,6 +23,9 @@ public data class PlayHistoryEntity(
     override val viewsText: String? = null,
     override val publishedText: String? = null,
     override val publishedAtEpochMs: Long? = null,
+    override val durationMs: Long? = null,
+    override val sourceUrl: String? = null,
+    override val membersOnly: Boolean = false,
 ) : PlaylistItemColumns
 
 @Dao
