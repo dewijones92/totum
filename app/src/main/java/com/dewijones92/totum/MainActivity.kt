@@ -99,7 +99,15 @@ class MainActivity : FragmentActivity() {
         // Resolved first so the queue entry carries a real title rather than a URL; a
         // shared link is a deliberate, occasional action, so the extra resolve is cheap.
         lifecycleScope.launch {
-            val item = container.videoPlaybackLauncher.describe(url, SHARED_SOURCE) ?: return@launch
+            val item = container.videoPlaybackLauncher.describe(url, SHARED_SOURCE)
+            if (item == null) {
+                // A share that resolves to nothing used to vanish without a word — no queue entry,
+                // and nothing in the trail tying the disappearance to the share. Report 0.1.477 is
+                // exactly that: a link shared with no network at all, 53 seconds of yt-dlp retries,
+                // and then silence.
+                Diag.warn("share", "shared link could not be resolved, so nothing was queued -> $url")
+                return@launch
+            }
             container.playbackQueue.playNow(PlayableItem(item, PlayHandle.Video(url)))
         }
     }

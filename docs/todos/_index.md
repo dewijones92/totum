@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-08-20
+updated: 2026-08-31
 ---
 
 # Backlog
@@ -63,6 +63,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [buffer-ahead-gauge](buffer-ahead-gauge.md) | playback | medium | shipped — seconds-ahead gauge on the scrub bar |
 | [tab-state-preservation](tab-state-preservation.md) | navigation | high | shipped |
 | [diagnostics-triage-state](diagnostics-triage-state.md) | diagnostics | high | shipped |
+| [a-shared-link-that-cannot-resolve-vanishes](a-shared-link-that-cannot-resolve-vanishes.md) | share | medium | open — needs a decision |
 
 All backlog items are Dewi requests. `refining` = spec written, decisions still open;
 `ready` = decisions made, implementation waits for Dewi's explicit go (his standing

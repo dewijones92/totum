@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -45,8 +46,10 @@ class AutoDownloadFetchesTheAudioTest {
     @Before
     fun startFromNothingDownloaded() = runBlocking {
         container.playbackQueue.clear()
-        container.downloadManager.cancel(id)
-        container.downloadManager.delete(id)
+        (listOf(VIDEO_ID) + SEVERAL).forEach {
+            container.downloadManager.cancel(MediaItemId(it))
+            container.downloadManager.delete(MediaItemId(it))
+        }
         container.appPreferences.setAutoDownloadQueue(true)
         // Wi-Fi-only would gate the whole thing off on a metered emulator, and that is a different
         // question from "does the automatic fetch happen at all".
@@ -55,8 +58,10 @@ class AutoDownloadFetchesTheAudioTest {
 
     @After
     fun leaveNothingBehind() = runBlocking {
-        container.downloadManager.cancel(id)
-        container.downloadManager.delete(id)
+        (listOf(VIDEO_ID) + SEVERAL).forEach {
+            container.downloadManager.cancel(MediaItemId(it))
+            container.downloadManager.delete(MediaItemId(it))
+        }
         container.playbackQueue.clear()
     }
 
@@ -84,22 +89,66 @@ class AutoDownloadFetchesTheAudioTest {
         assertTrue("the fetched audio is suspiciously small (${file.length()}B)", file.length() > MIN_BYTES)
     }
 
-    private fun video() = PlayableItem(
+    /**
+     * Several at once, which is what makes a long queue usable.
+     *
+     * One at a time was the old shape and it is far too slow for the queues this is actually for:
+     * Dewi's is regularly 80 items, and each fetch begins with a yt-dlp resolve that spends most of
+     * its time waiting on YouTube rather than moving bytes. Dewi, 2026-08-31: *"background
+     * downloading should work for multiple files in parallel"*.
+     *
+     * The unit tests prove the scheduler hands out lanes. Only this can prove the real graph acts on
+     * it — the manager launching into its own scope, the store recording three rows, the strategies
+     * running side by side — and the failure mode if it does not is invisible: everything still
+     * downloads, just one at a time, exactly as before.
+     */
+    @Test
+    fun severalQueuedItemsAreFetchedAtOnce() = runBlocking {
+        container.startQueueAutoDownload()
+        SEVERAL.forEach { container.playbackQueue.playNext(video(it)) }
+
+        var mostAtOnce = 0
+        withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) {
+            // SAMPLED on a clock rather than taken from collected values alone: two downloads
+            // starting microseconds apart can produce a stream of snapshots that never happens to
+            // show both, and "I did not observe it" would then read as "it did not happen".
+            while (mostAtOnce < SEVERAL.size) {
+                val running = container.downloadManager.observeDownloads().first()
+                    .count { it.value is DownloadState.Downloading }
+                mostAtOnce = maxOf(mostAtOnce, running)
+                delay(SAMPLE_MS)
+            }
+        }
+
+        Log.i("dewidebug", "most downloads in flight at once=$mostAtOnce of ${SEVERAL.size} queued")
+        assertTrue(
+            "only $mostAtOnce download was ever in flight for ${SEVERAL.size} queued items, so the " +
+                "queue still drains one at a time — see the [download] pass lines in logcat",
+            mostAtOnce > 1,
+        )
+    }
+
+    private fun video(videoId: String = VIDEO_ID) = PlayableItem(
         item = MediaItem(
-            id = id,
+            id = MediaItemId(videoId),
             sourceId = SourceId("auto-download-test"),
             title = "a queued video whose audio should arrive by itself",
             publishedAt = null,
             duration = null,
-            mediaUrl = HttpUrl.of(WATCH),
+            mediaUrl = HttpUrl.of("https://www.youtube.com/watch?v=$videoId"),
         ),
-        handle = PlayHandle.Video(HttpUrl.of(WATCH)),
+        handle = PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$videoId")),
     )
 
     private companion object {
         /** "Me at the zoo" — 19 seconds, so the whole fetch is quick and cheap. */
         const val VIDEO_ID = "jNQXAC9IVRw"
         const val WATCH = "https://www.youtube.com/watch?v=$VIDEO_ID"
+
+        /** Three known-good videos, so the lanes have something real to race over. */
+        val SEVERAL = listOf("jNQXAC9IVRw", "aqz-KE-bpKQ", "ttiLcMUQq80")
+
+        const val SAMPLE_MS = 50L
 
         const val DOWNLOAD_TIMEOUT_MS = 240_000L
         const val MS_PER_SECOND = 1_000L

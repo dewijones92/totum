@@ -74,6 +74,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
 import com.dewijones92.totum.innertube.actions.YouTubeActions
@@ -546,7 +547,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                                     ?.audioOnlyUrl
                             }
                         },
-                        http = HttpDownloadStrategy(transferClient),
+                        // NOT resumable: this route re-resolves the URL on every attempt and can be
+                        // handed a different audio format each time, so continuing a part-fetched
+                        // file would splice two formats into one that never plays.
+                        http = HttpDownloadStrategy(transferClient, resumable = false),
                     ),
                     // The named domain rule, not a lambda spelled out here. This used to read
                     // `{ it.isPermanent }`, which withheld the second route from every 403 — and on
@@ -815,6 +819,47 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private var latestDownloadStates: Map<MediaItemId, DownloadState> = emptyMap()
 
     /**
+     * What is actually on this device, which is the first question any "it did not play offline" or
+     * "why has it not downloaded" report asks — and the one report 0.1.346 could not answer at all:
+     * it carried the whole queue and every setting, and not one word about whether the file was there.
+     *
+     * From a cached snapshot, never a blocking read: a diagnostic must not be the thing that hangs,
+     * and this runs on whatever thread just crashed.
+     */
+    private fun MutableMap<String, String>.putDownloadState() {
+        val states = latestDownloadStates
+        val entries = playbackQueue.state.value.entries
+        val readiness = OfflineReadiness.of(
+            entries.map { it.item.item.id },
+            stateOf = { id -> states[id] ?: DownloadState.NotDownloaded },
+            fetchedAutomatically = { id ->
+                entries.firstOrNull { it.item.item.id == id }?.item?.hasAudioOnlyFetch ?: true
+            },
+        )
+        put("downloads.queueReady", readiness.ready.toString())
+        put("downloads.queueDownloading", readiness.downloading.toString())
+        put("downloads.queueWaiting", readiness.waiting.toString())
+        put("downloads.queueUnavailableOffline", readiness.unavailableOffline.toString())
+        put("downloads.queueNotAutomatic", readiness.notAutomatic.toString())
+        put("downloads.onDisk", states.count { it.value is DownloadState.Downloaded }.toString())
+        // Across EVERYTHING, not just the queue: a manual download is invisible to the queue
+        // counters above, and "is it fetching anything at all" is the first question a
+        // "downloading delayed????" report has to answer.
+        put("downloads.running", states.count { it.value is DownloadState.Downloading }.toString())
+        put("downloads.maxParallel", QueueAutoDownloader.MAX_PARALLEL.toString())
+        // Whether Android is letting this app finish its downloads in the background at all.
+        put("downloads.processHeldOpen", DownloadKeepAliveService.holdingProcess.toString())
+        // Per item, because a count cannot say whether the one that was TAPPED was there.
+        put(
+            "downloads.queueStates",
+            entries.joinToString(" | ") { entry ->
+                val title = entry.item.item.title.take(DIAG_TITLE_CHARS)
+                "$title=${states[entry.item.item.id].forDiagnostics()}"
+            },
+        )
+    }
+
+    /**
      * What the app can say about itself when something goes wrong. Verbose on purpose
      * (Dewi's instruction) — the queue, what's playing and every setting, since those
      * are what a report is usually missing. Each value is computed defensively: a
@@ -838,37 +883,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             put("queue.currentIndex", queue.currentIndex.toString())
             put("queue.items", queue.entries.joinToString(" | ") { "${it.item.item.title}" })
         }
-        runCatching {
-            // What is actually on this device, which is the first question any "it did not play
-            // offline" report asks and the one 0.1.346 could not answer: it carried the whole
-            // queue and every setting, and not one word about whether the file was there.
-            //
-            // From a cached snapshot, never a blocking read: a diagnostic must not be the thing
-            // that hangs, and this runs on whatever thread just crashed.
-            val states = latestDownloadStates
-            val entries = playbackQueue.state.value.entries
-            val readiness = OfflineReadiness.of(
-                entries.map { it.item.item.id },
-                stateOf = { id -> states[id] ?: DownloadState.NotDownloaded },
-                fetchedAutomatically = { id ->
-                    entries.firstOrNull { it.item.item.id == id }?.item?.hasAudioOnlyFetch ?: true
-                },
-            )
-            put("downloads.queueReady", readiness.ready.toString())
-            put("downloads.queueDownloading", readiness.downloading.toString())
-            put("downloads.queueWaiting", readiness.waiting.toString())
-            put("downloads.queueUnavailableOffline", readiness.unavailableOffline.toString())
-            put("downloads.queueNotAutomatic", readiness.notAutomatic.toString())
-            put("downloads.onDisk", states.count { it.value is DownloadState.Downloaded }.toString())
-            // Per item, because a count cannot say whether the one that was TAPPED was there.
-            put(
-                "downloads.queueStates",
-                entries.joinToString(" | ") { entry ->
-                    val title = entry.item.item.title.take(DIAG_TITLE_CHARS)
-                    "$title=${states[entry.item.item.id].forDiagnostics()}"
-                },
-            )
-        }
+        runCatching { putDownloadState() }
         runCatching {
             val settings = appPreferences.settings.value
             put("settings.playbackMode", settings.playbackMode.name)

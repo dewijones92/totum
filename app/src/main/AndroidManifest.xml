@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Downloads keep the process alive the same way playback does; without this a backgrounded
+         app is a cached process Android reclaims mid-download. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name=".TotumApplication"
@@ -13,6 +16,10 @@
         android:supportsRtl="true"
         android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.Totum">
+        <service
+            android:name=".downloads.DownloadKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <!-- Cast: tells the framework where to find our CastOptions. -->
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"

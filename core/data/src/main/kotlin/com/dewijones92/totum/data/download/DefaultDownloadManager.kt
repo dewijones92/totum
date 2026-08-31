@@ -35,13 +35,30 @@ public class DefaultDownloadManager(
 ) : DownloadManager {
 
     init {
-        // A "Downloading" record at startup means the process died mid-download;
-        // its coroutine is gone, so drop it rather than show a stuck spinner. An absent
-        // record already reads as NotDownloaded, so there is nothing to write.
+        // A "Downloading" record at startup means the process died mid-download. Its coroutine is
+        // gone, so nothing will ever move it -- but DELETING it, which is what happened until
+        // 2026-08-31, makes the download silently un-happen: the row disappears, the partial file
+        // becomes bytes nothing points at, and whoever asked for it is told nothing. For a
+        // backgrounded app that is often, because Android reclaims the process. Recorded as failed
+        // instead, so Library offers Retry and the queue's automatic pass asks again. No event is
+        // emitted: the row is the surface for this, and a failure notification for something about
+        // to be retried automatically would only alarm.
         scope.launch {
             store.observeAll().first()
                 .filterValues { it is DownloadState.Downloading }
-                .keys.forEach { store.remove(it) }
+                .keys.forEach { id ->
+                    val request = store.request(id)
+                    if (request == null) {
+                        Diag.warn("download", "dropping interrupted download ${id.value}: no record of what it was")
+                        store.remove(id)
+                    } else {
+                        Diag.warn(
+                            "download",
+                            "\"${request.item.item.title}\" was interrupted by the app stopping — it can be retried",
+                        )
+                        store.put(request.item, DownloadState.Failed(INTERRUPTED), request.audioOnly)
+                    }
+                }
         }
     }
 
@@ -74,7 +91,26 @@ public class DefaultDownloadManager(
     override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
         val media = item.item
         if (store.get(media.id).satisfies(audioOnly)) return
+        // What is already being fetched is answered from MEMORY, under the lock, never from the
+        // store. The store is Room: its first Downloading row lands milliseconds after it is
+        // written, so two callers arriving inside that window both read NotDownloaded, both claim
+        // the item, and two coroutines then write the same file — a corrupt download for twice the
+        // data. Seen on a device 2026-08-31, three queued videos producing six downloads, within a
+        // minute of the queue first fetching several at once. Anything that asks twice in quick
+        // succession does it: two queue edits, or several URLs shared into the app one after
+        // another.
+        runningLock.withLock {
+            if (running.containsKey(media.id)) {
+                Diag.log("download", "already fetching \"${media.title}\" — not starting a second")
+                return
+            }
+            running[media.id] = fetch(item, audioOnly)
+        }
+    }
 
+    /** Starts the coroutine that fetches [item] and records it. Called only while holding the lock. */
+    private suspend fun fetch(item: PlayableItem, audioOnly: Boolean): Job {
+        val media = item.item
         store.put(item, DownloadState.Downloading(0, null), audioOnly)
         _events.tryEmit(DownloadEvent(media, DownloadState.Downloading(0, null)))
         val target = File(downloadDir.apply { mkdirs() }, media.id.fileName())
@@ -85,18 +121,25 @@ public class DefaultDownloadManager(
                 _events.tryEmit(DownloadEvent(media, state))
                 when (state) {
                     is DownloadState.Failed -> Diag.warn("download", "failed ${media.title}: ${state.reason}")
-                    is DownloadState.Downloaded -> Diag.log("download", "done ${media.title}")
+                    is DownloadState.Downloaded -> {
+                        // Whatever produced the finished file, no part-fetched copy of it may
+                        // survive: the next fetch of this id would resume from bytes belonging to
+                        // a download that has already finished.
+                        target.partialDownload().delete()
+                        Diag.log("download", "done ${media.title}")
+                    }
                     else -> Unit
                 }
             }
         }
-        runningLock.withLock { running[media.id] = job }
-        // Forgetting itself on the way out, so the map tracks what is ACTUALLY running rather than
-        // everything ever started — otherwise "cancel" would cancel an already-completed job and
-        // the map would grow for the life of the process.
+        // Releasing its own claim on the way out, so the map tracks what is ACTUALLY running rather
+        // than everything ever started — otherwise "cancel" would cancel an already-completed job,
+        // a second request for the item could never start, and the map would grow for the life of
+        // the process.
         job.invokeOnCompletion {
             scope.launch { runningLock.withLock { running.remove(media.id) } }
         }
+        return job
     }
 
     override suspend fun cancel(id: MediaItemId) {
@@ -113,9 +156,12 @@ public class DefaultDownloadManager(
         job?.cancelAndJoin()
         // The partial file goes too. Leaving it would be invisible bytes: no record points at it,
         // so nothing in the app could ever show it or delete it.
-        val partial = File(downloadDir, id.fileName())
-        val removedBytes = partial.takeIf { it.exists() }?.length() ?: 0
-        partial.delete()
+        val target = File(downloadDir, id.fileName())
+        val partFetched = target.partialDownload()
+        val removedBytes = (target.takeIf { it.exists() }?.length() ?: 0) +
+            (partFetched.takeIf { it.exists() }?.length() ?: 0)
+        target.delete()
+        partFetched.delete()
         store.remove(id)
         cancelled?.let { _events.tryEmit(DownloadEvent(it, DownloadState.NotDownloaded)) }
         Diag.log(
@@ -152,13 +198,25 @@ public class DefaultDownloadManager(
         // bytes kept arriving — a deletion that undid itself.
         runningLock.withLock { running.remove(id) }?.cancelAndJoin()
         (store.get(id) as? DownloadState.Downloaded)?.let { File(it.localPath).delete() }
-        // Also whatever a cancelled-mid-flight download left behind, which has no record naming it.
-        File(downloadDir, id.fileName()).delete()
+        // Also whatever a cancelled-mid-flight download left behind, which has no record naming it —
+        // including the part-fetched file, which would otherwise be resumed by a later download of
+        // the same item long after this one was deleted.
+        File(downloadDir, id.fileName()).let { target ->
+            target.delete()
+            target.partialDownload().delete()
+        }
         store.remove(id)
     }
 
     private companion object {
         const val EVENT_BUFFER = 64
+
+        /**
+         * Why an in-flight download is failed at startup. Deliberately worded so that
+         * `DownloadState.Failed.isPermanent` does not match it: the app stopping says nothing at all
+         * about the media, so asking again is exactly the right thing to do.
+         */
+        const val INTERRUPTED = "the app stopped before the download finished"
     }
 
     /** Opaque, filesystem-safe name derived from the stable item id. */

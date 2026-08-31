@@ -8,13 +8,19 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.asPlayable
+import com.dewijones92.totum.domain.isPermanent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -73,15 +79,73 @@ class DefaultDownloadManagerTest {
         assertFalse(called)
     }
 
+    /**
+     * A download the process died during must be left VISIBLE and retryable, not vanish.
+     *
+     * It used to be deleted outright, on the reasoning that its coroutine was gone so the row would
+     * only show a stuck spinner. True, but the consequence is worse: the row disappears, the partial
+     * file becomes bytes nothing in the app points at, and the person who asked for the download is
+     * told nothing — a download that silently un-happens every time Android reclaims the process,
+     * which for a backgrounded app is often. Recorded as failed instead, so Library offers Retry and
+     * the queue's automatic pass asks again.
+     */
     @Test
-    fun `interrupted downloads are cleared on construction`() = runTest {
-        store.put(item.asPlayable(), DownloadState.Downloading(500, 1000), audioOnly = false)
+    fun `a download the app died during is left failed, so it can be retried`() = runTest {
+        store.put(item.asPlayable(), DownloadState.Downloading(500, 1000), audioOnly = true)
 
-        // Unconfined so the manager's init cleanup runs eagerly at construction.
+        // Unconfined so the manager's init sweep runs eagerly at construction.
         manager(DownloadStrategy { _, _, _ -> flowOf() }, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
         advanceUntilIdle()
 
-        assertEquals(DownloadState.NotDownloaded, store.get(item.id))
+        val state = store.get(item.id)
+        assertTrue("an interrupted download must be reported, not dropped. Got: $state", state is DownloadState.Failed)
+        assertFalse(
+            "and it must stay retryable — the app stopping says nothing about the media",
+            (state as DownloadState.Failed).isPermanent,
+        )
+        assertEquals(
+            "what was asked for must survive too, or the retry fetches the wrong variant",
+            true,
+            store.request(item.id)?.audioOnly,
+        )
+    }
+
+    /**
+     * Two callers asking for the SAME item at the same moment start one download, not two.
+     *
+     * Check-then-act across a suspension point: `download` asked the STORE whether the item was
+     * already in flight, and the store is Room, so the answer arrives on another thread some
+     * milliseconds later. Two callers arriving inside that window both read "not downloading", both
+     * claim the item, and two coroutines then write the same file — a corrupt download for twice
+     * the data.
+     *
+     * Caught on a device on 2026-08-31, within a minute of downloads first running in parallel:
+     * three queued videos produced six `start` lines and six extractions. It was reachable before
+     * that too — two queue changes in quick succession, or several URLs shared into the app one
+     * after another — just far less likely.
+     *
+     * Counted at the CLAIM (the first `Downloading` row written), not at the strategy: that is the
+     * moment the item is taken, it is what the device log showed twice per item, and it does not
+     * depend on how a test scheduler happens to interleave the jobs afterwards.
+     */
+    @Test
+    fun `two callers asking for the same item at once start one download`() = runTest {
+        val strategy = DownloadStrategy { _, _, _ ->
+            flow {
+                emit(DownloadState.Downloading(1, 100))
+                awaitCancellation()
+            }
+        }
+        val slow = SlowToCommit(store)
+        val manager = DefaultDownloadManager(tempFolder.root, slow, strategy, backgroundScope)
+
+        listOf(
+            backgroundScope.launch { manager.download(item) },
+            backgroundScope.launch { manager.download(item) },
+        ).joinAll()
+        advanceUntilIdle()
+
+        assertEquals("the same item was claimed twice, so it is being fetched twice", 1, slow.claims)
     }
 
     @Test
@@ -164,6 +228,31 @@ internal class InMemoryDownloadStore : DownloadStore {
         states.value[id]?.state ?: DownloadState.NotDownloaded
 
     override suspend fun remove(id: MediaItemId) { states.update { it - id } }
+}
+
+/**
+ * A store whose writes land a moment after they are made, as Room's do.
+ *
+ * [InMemoryDownloadStore] commits synchronously, which quietly closes the exact window this class
+ * exists to open: with it, a check-then-act race is unreachable and a test for one passes against
+ * broken code.
+ */
+private class SlowToCommit(private val delegate: DownloadStore) : DownloadStore by delegate {
+
+    /** How many times a caller got far enough to claim the item by writing its first row. */
+    var claims: Int = 0
+        private set
+
+    override suspend fun put(item: PlayableItem, state: DownloadState, audioOnly: Boolean) {
+        if (state == DownloadState.Downloading(0, null)) claims++
+        delay(1)
+        delegate.put(item, state, audioOnly)
+    }
+
+    override suspend fun get(id: MediaItemId): DownloadState {
+        delay(1)
+        return delegate.get(id)
+    }
 }
 
 private data class PlayableAndState(

@@ -24,6 +24,7 @@ com.dewijones92.totum.video.live.DurableUrlsOnDeviceTest
 com.dewijones92.totum.video.live.SeekDeepIntoALongVideoTest
 com.dewijones92.totum.video.live.PlaysAcrossContentTypesTest
 com.dewijones92.totum.video.live.SubtitlesArriveAndRenderTest
+com.dewijones92.totum.video.live.SeveralSharedLinksAllLandTest
 com.dewijones92.totum.video.live.FourKActuallyPlaysTest
 manual:com.dewijones92.totum.account.SignInOnThisDeviceTest
 manual:com.dewijones92.totum.video.live.SignedInVersusAnonymousPlayerTest

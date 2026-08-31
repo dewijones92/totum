@@ -3,13 +3,13 @@ package com.dewijones92.totum.notifications
 import android.app.Notification
 import android.content.Context
 import android.content.pm.PackageManager
-import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -45,6 +45,9 @@ internal class DownloadNotifier(
     }
 
     private fun render(notice: DownloadNotice) {
+        // BEFORE the permission check, deliberately: whether the process stays alive to finish a
+        // download has nothing to do with whether it is allowed to draw a notification about it.
+        keepAlive(notice.active.isNotEmpty())
         // The permission check is inline, not extracted: lint's dataflow can't see
         // through a helper, and suppressing MissingPermission would hide the real thing
         // it guards against.
@@ -102,24 +105,27 @@ internal class DownloadNotifier(
         .setCategory(NotificationCompat.CATEGORY_PROGRESS)
         .setGroup(GROUP_KEY)
 
-    private fun ensureChannel() {
-        manager.createNotificationChannel(
-            NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
-                .setName(context.getString(R.string.download_channel_name))
-                .setDescription(context.getString(R.string.download_channel_description))
-                .build(),
-        )
+    private fun ensureChannel() = DownloadNotifications.ensureChannel(context)
+
+    /** Whether the process is currently being held open; the service is told only on a change. */
+    private var holding = false
+
+    private fun keepAlive(anyRunning: Boolean) {
+        if (anyRunning == holding) return
+        holding = anyRunning
+        DownloadKeepAliveService.hold(context, anyRunning)
     }
 
     private companion object {
-        const val CHANNEL_ID = "downloads"
+        const val CHANNEL_ID = DownloadNotifications.CHANNEL_ID
         const val GROUP_KEY = "com.dewijones92.totum.DOWNLOADS"
         const val MAX_LINES = 5
         const val PROGRESS_MAX = 100
 
         // Fixed ids: there is one notification of each kind, by design (see the tracker's
-        // note on why downloads are aggregated rather than notified per item).
-        const val PROGRESS_ID = 200
+        // note on why downloads are aggregated rather than notified per item). PROGRESS_ID is
+        // shared with the keep-alive service, which adopts this very notification as its own.
+        const val PROGRESS_ID = DownloadNotifications.PROGRESS_ID
         const val DONE_ID = 201
         const val FAILED_ID = 202
     }

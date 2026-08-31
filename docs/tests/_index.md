@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-08-20
+updated: 2026-08-31
 ---
 
 # Testing
@@ -219,6 +219,13 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A resolve that lands late cannot take playback off a file it has already started — whatever route the newer play took | `AStaleResolveDoesNotClobberPlaybackTest` | every commit |
 | A 403 on a URL whose lease is still good is a refusal, not an expiry, and gets one retry rather than three | `StreamLeaseVerdictTest`, `ARefusedStreamStopsRetryingTest` | every commit |
 | A download that fails is tried again by itself, without waiting for the queue to change | `AFailedDownloadIsTriedAgainTest` | every commit |
+| Several queued items download at once, and never more than the lane limit | `QueueAutoDownloaderTest`, `AutoDownloadFetchesTheAudioTest.severalQueuedItemsAreFetchedAtOnce` | every commit + live phase — the unit test proves the scheduler hands out lanes, the live one that the real graph acts on it (the failure if it does not is invisible: everything still downloads, just one at a time) |
+| Two callers claiming the same item start ONE download | `DefaultDownloadManagerTest`, `SeveralSharedLinksAllLandTest` | every commit + live phase — needs a store that commits a moment late, as Room does; against a synchronous one the race is unreachable and the test passes against broken code |
+| Several links shared into the app in quick succession all land, each fetched once | `SeveralSharedLinksAllLandTest` | live phase — asserted from the app's own `[download] start` trail, because two downloads of one item leave exactly one row behind and the damage is invisible afterwards |
+| A download interrupted by the app being killed is retryable, not deleted | `DefaultDownloadManagerTest` | every commit |
+| A part-fetched download is continued, and never corrupted by continuing it | `AnInterruptedDownloadResumesTest` | every commit — the range asked for, progress counted from what is on disk, a server that ignores the range, a 416, a dropped connection keeping its bytes, and the non-resumable route |
+| Downloads hold the process open, as a real foreground service, and let it go afterwards | `DownloadsHoldTheProcessOpenTest` | every commit (emulator, no network) — Android's own rules about which processes keep running; a JVM test can say nothing about it |
+| Automatic downloads stop the moment the network or the setting says so, mid-pass | `QueueAutoDownloaderTest` | every commit |
 | "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
 | The stream held for the next item is the stream that then plays — not a second guess at it | `ThePreloadIsTheStreamThatPlaysTest` | every commit |
 | Subtitle tracks reach the player and a choice sticks | `SubtitlesArriveAndRenderTest` | live phase — the plumbing was unit-tested at both ends and the middle (a real resolve handing tracks to a real ExoPlayer) by nothing |

@@ -236,12 +236,38 @@ class QueueAutoDownloaderTest {
     }
 
     /**
-     * ONE at a time. The class always claimed to be sequential and never was — `download`
-     * launches and returns at once, so the loop fired the whole queue together: report 0.1.313
-     * caught nine running at once, each crawling, competing with playback for the connection.
+     * Several at once, and never more than the lane limit.
+     *
+     * This replaces a strictly one-at-a-time pass (Dewi, 2026-08-31: *"background downloading
+     * should work for multiple files in parallel"*). One lane was itself a fix — report 0.1.313
+     * caught nine downloads running together, each crawling — so the limit is the point, not the
+     * parallelism: enough lanes that a queue drains in reasonable time, few enough that they do not
+     * saturate the connection playback is streaming over.
      */
     @Test
-    fun `only one download runs at a time`() = runTest(dispatcher) {
+    fun `downloads run in parallel, up to the lane limit`() = runTest(dispatcher) {
+        val manager = NeverSettles()
+        queue.value = QueueSnapshot(entries = listOf(entry("a"), entry("b"), entry("c"), entry("d")))
+
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = manager,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { true },
+            settleTimeoutMs = Long.MAX_VALUE,
+            maxParallel = 3,
+        ).start()
+        // runCurrent, NOT advanceUntilIdle: advancing virtual time would fire the settle
+        // timeout and let the fourth start, which is the very thing being ruled out.
+        runCurrent()
+
+        assertEquals(listOf("a", "b", "c"), manager.started)
+    }
+
+    /** One lane is still one lane — the limit has to be honoured downwards as well as up. */
+    @Test
+    fun `a single lane still means one at a time`() = runTest(dispatcher) {
         val manager = NeverSettles()
         queue.value = QueueSnapshot(entries = listOf(entry("a"), entry("b"), entry("c")))
 
@@ -252,12 +278,44 @@ class QueueAutoDownloaderTest {
             isEnabled = { true },
             isAllowedOnThisNetwork = { true },
             settleTimeoutMs = Long.MAX_VALUE,
+            maxParallel = 1,
         ).start()
-        // runCurrent, NOT advanceUntilIdle: advancing virtual time would fire the settle
-        // timeout and let the next download start, which is the very thing being ruled out.
         runCurrent()
 
         assertEquals(listOf("a"), manager.started)
+    }
+
+    /**
+     * The gate is read before EVERY item, not once at the top of the pass.
+     *
+     * Read once, a queue that started downloading on Wi-Fi carried on over mobile data for as long
+     * as the pass took -- and a pass is the whole queue, so on a long one that is every remaining
+     * item. The same read also governs the setting: turning automatic downloads off mid-pass has to
+     * stop the pass, not the next one.
+     */
+    @Test
+    fun `dropping onto a disallowed network stops the pass part-way`() = runTest(dispatcher) {
+        var allowed = true
+        val real = FakeDownloadManager()
+        val flips = object : com.dewijones92.totum.data.download.DownloadManager by real {
+            override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+                real.download(item, audioOnly)
+                allowed = false
+            }
+        }
+
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = flips,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { allowed },
+            maxParallel = 1,
+        ).start()
+        queue.value = QueueSnapshot(entries = listOf(entry("a"), entry("b"), entry("c")))
+        advanceUntilIdle()
+
+        assertEquals(listOf("a"), real.requested.map { it.first.value })
     }
 
     /**
@@ -279,6 +337,7 @@ class QueueAutoDownloaderTest {
             isEnabled = { true },
             isAllowedOnThisNetwork = { true },
             settleTimeoutMs = 1_000L,
+            maxParallel = 1,
         ).start()
         advanceUntilIdle()
 
