@@ -3,6 +3,7 @@ package com.dewijones92.totum.innertube.history.fake
 import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.history.WatchHistoryResult
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
+import kotlinx.coroutines.CompletableDeferred
 
 /** In-memory [YouTubeWatchHistory] for tests and previews; records each call. */
 public class FakeYouTubeWatchHistory(
@@ -44,8 +45,15 @@ public class FakeYouTubeWatchHistory(
     /** Makes the inbound read fail, so a test can prove the fall-back to the local position. */
     public var failWatched: Boolean = false
 
+    /**
+     * Makes the inbound read HANG until completed — the shape that mattered on a real phone: with no
+     * network, the read neither answered nor failed, and every play waited on it (report 0.1.477).
+     */
+    public var watchedGate: CompletableDeferred<Unit>? = null
+
     override suspend fun watchedPositions(): Map<String, AccountProgress> {
         watchedCalls++
+        watchedGate?.await()
         if (failWatched) error("no network")
         return watched
     }

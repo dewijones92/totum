@@ -413,6 +413,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         AccountResumePositions(
             local = playbackProgressStore::resumePositionMs,
             history = youTubeWatchHistory,
+            scope = applicationScope,
+            // Known before asking, so an offline play never even starts the read that used to hang it.
+            offline = ::isOffline,
         )
     }
 

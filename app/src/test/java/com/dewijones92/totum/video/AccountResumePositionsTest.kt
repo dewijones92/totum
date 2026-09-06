@@ -3,7 +3,10 @@ package com.dewijones92.totum.video
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -22,16 +25,61 @@ class AccountResumePositionsTest {
     private var clock = 0L
     private var localCalls = 0
 
-    private fun positions() = AccountResumePositions(
+    private var offline = false
+
+    private fun TestScope.positions() = AccountResumePositions(
         local = { id ->
             localCalls++
             localPositions[id.value]
         },
         history = history,
+        scope = backgroundScope,
+        offline = { offline },
         now = { clock },
     )
 
     private val hour44 = 6_253_000L
+
+    /**
+     * THE bug behind "why the next video not playing??" (report 0.1.477, 30 Aug, offline).
+     *
+     * `play()` asks for the resume position before it touches the player, and this asked YouTube
+     * over the network first. With no network the read neither answered nor failed: every play in
+     * that report waited 7s on a DNS failure before its transition, and the last six — the item that
+     * "would not play", tapped six times — never transitioned at all, because the read hung. Resuming
+     * must never wait on the account longer than a moment; local is always a correct answer.
+     */
+    @Test
+    fun `a hanging account read never holds up resuming`() = runTest {
+        history.watchedGate = CompletableDeferred()
+        localPositions["abc"] = 224_821
+
+        val positions = positions()
+        val resumed = withTimeoutOrNull(AccountResumePositions.REMOTE_WAIT_MS * 2) {
+            positions.resumePositionMs(MediaItemId("abc"))
+        }
+
+        assertEquals("resume must come back with the local answer, not wait on YouTube", 224_821L, resumed)
+    }
+
+    /** Offline is known before asking: no request, no wait, no failure line. */
+    @Test
+    fun `offline, YouTube is not asked at all`() = runTest {
+        offline = true
+        localPositions["abc"] = 5_000
+
+        assertEquals(5_000L, positions().resumePositionMs(MediaItemId("abc")))
+        assertEquals("no network means no request", 0, history.watchedCalls)
+    }
+
+    /** And a healthy read still lands in time to be used — the whole point of asking at all. */
+    @Test
+    fun `a prompt account read still wins when it is ahead`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        localPositions["abc"] = 1_000
+
+        assertEquals(2_400_000L, positions().resumePositionMs(MediaItemId("abc")))
+    }
 
     @Test
     fun `watched elsewhere, never opened here, resumes from YouTube`() = runTest {

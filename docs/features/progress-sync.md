@@ -77,6 +77,22 @@ playback  ready after 4507ms at 1656007ms      → started at 27:34
 The log carries the inputs, not just the outcome, so a surprising resume can be re-judged from a
 report without anyone guessing which side won.
 
+## Resuming never waits on the account for long — and never offline (2026-09-06)
+
+Report 0.1.477 (30 Aug), Dewi's note *"why the next video not playing??"*. The queue advanced, routed
+to the downloaded audio, logged `play … from file:` — and then **nothing**, for 78 seconds, through six
+taps. Every earlier play in the same offline session had waited 7s on `could not read watched
+positions: Unable to resolve host` before its transition; the last six never transitioned at all,
+because the read hung. `play()` asks for the resume position before it touches the player, and this
+seam asked YouTube first, unbounded — so with no network the next item was held hostage to DNS.
+
+Now `AccountResumePositions` is bounded (`REMOTE_WAIT_MS`, 1.5s — a healthy `FEhistory` answers in
+~300ms) and **skipped when offline**. A read that does not make the cut keeps loading in the
+application scope for the next play and for the rows; the resume line says which happened:
+`(offline, so the account was not asked)` or `(the account did not answer within 1500ms …)`.
+Guarded by `AccountResumePositionsTest."a hanging account read never holds up resuming"`, proven to
+fail with the bound removed.
+
 ## Rows show the account's position too (2026-09-06)
 
 Report 0.1.477 (22 Aug): *"Sutton video is actually half way through (playing it on YouTube website)
