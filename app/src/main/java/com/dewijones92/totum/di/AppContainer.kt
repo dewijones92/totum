@@ -1176,6 +1176,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 if (networkStatus.isMetered()) settings.cellularMaxHeight else settings.wifiMaxHeight
             },
             choices = streamChoices,
+            onResolved = { playbackQueue.adoptFacts(it) },
         )
     }
 

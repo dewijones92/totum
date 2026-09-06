@@ -6,6 +6,7 @@ import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.placeholderTitleFor
 
 /**
  * The watch URL a share should play, from the text it carried — or null to ignore it.
@@ -48,7 +49,7 @@ internal fun placeholderFor(url: HttpUrl, sourceId: SourceId): MediaItem? = url.
     MediaItem(
         id = MediaItemId(id),
         sourceId = sourceId,
-        title = "YouTube video $id",
+        title = placeholderTitleFor(MediaItemId(id)),
         publishedAt = null,
         duration = null,
         mediaUrl = url,

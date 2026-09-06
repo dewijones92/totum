@@ -318,7 +318,7 @@ class VideoResolver(
                 id = MediaItemId(metadata.id),
                 sourceId = sourceId,
                 title = metadata.title,
-                publishedAt = null,
+                publishedAt = metadata.publishedAt,
                 duration = metadata.durationSeconds?.seconds,
                 author = metadata.uploader,
                 description = metadata.description,

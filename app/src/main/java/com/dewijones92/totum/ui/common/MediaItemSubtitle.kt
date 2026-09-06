@@ -5,10 +5,8 @@ import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.PublishedAge
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import kotlin.time.Duration
 
 /**
@@ -27,9 +25,9 @@ import kotlin.time.Duration
  * Duration is deliberately NOT here — it rides on the thumbnail corner, where nothing can truncate
  * it and it costs no vertical space. His call when choosing this layout.
  */
-fun mediaItemFacts(item: MediaItem, pillar: MediaKind): List<String> = mediaFacts(
+fun mediaItemFacts(item: MediaItem, pillar: MediaKind, now: Instant = Instant.now()): List<String> = mediaFacts(
     author = item.author,
-    dateText = mediaDateText(item.publishedText, item.publishedAt),
+    dateText = mediaDateText(item.publishedText, item.publishedAt, now),
     viewsText = item.viewsText,
     // Which badge the maker gets. [pillar] is PASSED, not inferred from the URL — every caller
     // already knows it exactly (it hands the same value to `MediaItemRow` on the next line), and
@@ -66,20 +64,17 @@ object FactEmoji {
 }
 
 /**
- * When a thing was published, as a list says it.
+ * When a thing was published, as a list says it — "2 hours ago", against [now].
  *
- * Its own function because the video page has to say it too, and it holds a real decision: prefer
- * the source's own relative wording ("2 days ago") over a formatted absolute date, because that is
- * what YouTube gives and re-deriving "2 days ago" from a timestamp would drift from the site.
- *
- * Deliberately NOT `@Composable` — nor is [mediaFacts] any more, though both used to be. Neither
- * ever called anything composable, and the annotation was the only thing keeping the rule that
- * decides what appears under every video title out of reach of a JVM unit test.
+ * The instant wins over the source's wording, which reverses the earlier rule and does so on
+ * purpose (Dewi, 2026-09-06: *"this should obviously increase as time goes by"*). A source's
+ * "2 hours ago" is anchored to an instant when it is observed, and re-derived here every time a
+ * row is drawn, so the label ages; the wording itself is only shown for rows persisted before
+ * anchoring existed, which have nothing else. Both pillars read the same way — a podcast episode
+ * is "3 days ago" too, not an absolute date beside a video's relative one.
  */
-fun mediaDateText(publishedText: String?, publishedAt: Instant?): String? =
-    publishedText ?: publishedAt?.let {
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withZone(ZoneId.systemDefault()).format(it)
-    }
+fun mediaDateText(publishedText: String?, publishedAt: Instant?, now: Instant = Instant.now()): String? =
+    publishedAt?.let { PublishedAge.text(it, now) } ?: publishedText
 
 /**
  * The one place that decides which facts appear under a title and in what order. Takes the parts

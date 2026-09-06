@@ -308,7 +308,7 @@ class DoesAPoTokenLiftTheCeilingTest {
             clientInfo = when (System.getProperty("clientInfo")) {
                 "android" -> SabrClientInfo.ANDROID
                 "web" -> SabrClientInfo.WEB
-            "tv" -> SabrClientInfo.TV
+                "tv" -> SabrClientInfo.TV
                 else -> null
             },
         )

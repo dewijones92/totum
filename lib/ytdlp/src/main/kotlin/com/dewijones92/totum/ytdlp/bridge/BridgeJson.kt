@@ -121,6 +121,7 @@ private fun JsonObject.toMediaMetadata(url: HttpUrl): MediaMetadata = MediaMetad
     uploaderUrl = stringOrNull("channel_url") ?: stringOrNull("uploader_url"),
     chapters = arrayAt("chapters").mapNotNull { it.jsonObject.toChapterOrNull() },
     subtitles = subtitleTracks(),
+    publishedAt = publishedAt(),
 )
 
 private fun JsonObject.toChapterOrNull(): ChapterInfo? {

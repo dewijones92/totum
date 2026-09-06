@@ -5,8 +5,10 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.feeds.FeedVideo
+import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -15,11 +17,15 @@ import kotlin.time.Duration.Companion.seconds
  * dates and the watch handle carry through identically. [watchUrl] is the stable
  * handle resolved to a stream on play.
  */
-fun FeedVideo.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
+/**
+ * [observedAt] anchors YouTube's relative wording ("2 hours ago") to an instant, so a row can keep
+ * ageing after it is listed or persisted instead of wearing that text for ever.
+ */
+fun FeedVideo.toMediaItem(sourceId: SourceId, observedAt: Instant = Instant.now()): MediaItem = MediaItem(
     id = MediaItemId(videoId),
     sourceId = sourceId,
     title = title,
-    publishedAt = null,
+    publishedAt = publishedText?.let { PublishedAge.parse(it, observedAt) },
     publishedText = publishedText,
     // Zero means "not stated", which channel search often omits — rendering it as a
     // real duration put "0 min" under results that are minutes long.
@@ -47,11 +53,11 @@ fun FeedVideo.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
  * The id comes from the watch URL rather than a video id, because a hit carries no id of
  * its own; it stays stable for the same video, which is all dedupe and play-state need.
  */
-fun SearchHit.Video.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
+fun SearchHit.Video.toMediaItem(sourceId: SourceId, observedAt: Instant = Instant.now()): MediaItem = MediaItem(
     id = MediaItemId(watchUrl.value),
     sourceId = sourceId,
     title = title,
-    publishedAt = null,
+    publishedAt = publishedText?.let { PublishedAge.parse(it, observedAt) },
     publishedText = publishedText,
     // Zero means "not stated", which channel search often omits — rendering it as a
     // real duration put "0 min" under results that are minutes long.

@@ -66,7 +66,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [a-recovery-resumes-the-next-item-at-the-last-items-position](a-recovery-resumes-the-next-item-at-the-last-items-position.md) | playback | high | fixed 2026-09-06 — StreamRecovery drops stale failures |
 | [outbound-progress-sync-is-dead](outbound-progress-sync-is-dead.md) | video | **critical** | **fixed 2026-09-06** — the TV-scale signatureTimestamp; outbox drained and the account's history shows it |
 | [the-next-video-does-not-play-offline](the-next-video-does-not-play-offline.md) | playback | high | fixed 2026-09-06 — resume no longer waits on the account offline |
-| [a-shared-link-that-cannot-resolve-vanishes](a-shared-link-that-cannot-resolve-vanishes.md) | share | medium | fixed 2026-09-06 — queued by its id, resolved when it plays |
+| [a-shared-link-that-cannot-resolve-vanishes](a-shared-link-that-cannot-resolve-vanishes.md) | share | medium | fixed 2026-09-06 — queued by its id, resolved when it plays; the row now learns its title and date on resolution |
+| [queue-rows-without-a-date](queue-rows-without-a-date.md) | ui/queue | medium | fixed 2026-09-06 — anchored instants rendered against a ticking clock; shared rows learn their facts |
 
 All backlog items are Dewi requests. `refining` = spec written, decisions still open;
 `ready` = decisions made, implementation waits for Dewi's explicit go (his standing

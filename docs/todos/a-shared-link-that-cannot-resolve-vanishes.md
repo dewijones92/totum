@@ -27,8 +27,9 @@ diagnosable. It does not make it work.
 
 `placeholderFor(url)` builds the entry from the watch URL alone (id, URL, a title of "YouTube video
 <id>") and the share plays it like any other; the queue re-resolves from the URL when it plays, and the
-player shows the real title because it plays the resolved item. Only the queue row keeps the
-placeholder title until then. A URL that is not a video is still dropped, with a line saying so.
+player shows the real title because it plays the resolved item. Since later on 2026-09-06 the queue
+row no longer keeps the placeholder either: `PlaybackQueue.adoptFacts` fills its title, date, author and
+duration from the resolution and persists them ([queue-rows-without-a-date.md](queue-rows-without-a-date.md)). A URL that is not a video is still dropped, with a line saying so.
 `SharedLinkTest` covers both. "Be bold" (Dewi, 2026-09-06) — the preference below was taken.
 
 ## The decision

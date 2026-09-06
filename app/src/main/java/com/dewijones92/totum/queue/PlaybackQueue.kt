@@ -8,11 +8,13 @@ import com.dewijones92.totum.data.queue.QueueSnapshot.Companion.NOTHING_PLAYING
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.domain.LocalCopy
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.Refusal
+import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -476,6 +478,26 @@ class PlaybackQueue(
      * look like, and telling them apart decided whether an auto-advance failure was a bug or
      * by design. One word of intent per mutation makes the trail readable.
      */
+    /**
+     * A row learns what it is playing. A link shared by its id is queued as "YouTube video <id>" with
+     * no date, author or duration; the moment it resolves, whatever the row lacked is filled in and
+     * persisted, so the queue stops showing a placeholder (reported 2026-09-06: rows with no date).
+     * Only silence is filled — see [fillingSilenceFrom] — and an unchanged row is not rewritten.
+     */
+    fun adoptFacts(resolved: MediaItem) {
+        val snapshot = _state.value
+        val learned = snapshot.entries.map { entry ->
+            if (entry.item.item.id != resolved.id) return@map entry
+            val filled = entry.item.item.fillingSilenceFrom(resolved)
+            if (filled === entry.item.item) entry else entry.copy(item = entry.item.copy(item = filled))
+        }
+        if (learned == snapshot.entries) {
+            Diag.log("queue", "${resolved.id.value} resolved; its row already knew everything")
+            return
+        }
+        mutate("row ${resolved.id.value} learned title/date/author from its resolution") { it.copy(entries = learned) }
+    }
+
     private fun mutate(why: String, block: (QueueSnapshot) -> QueueSnapshot) {
         touched = true
         _state.update(block)

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.player.WatchViewModel.RelatedState
@@ -50,7 +51,7 @@ internal fun RelatedSection(
                     related.videos.forEach { video ->
                         MediaItemRow(
                             item = video,
-                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO),
+                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
                             pillar = MediaKind.VIDEO,
                             onPlay = { onPlayRelated(video) },
                         )

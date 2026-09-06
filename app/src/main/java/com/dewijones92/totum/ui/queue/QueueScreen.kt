@@ -51,6 +51,7 @@ import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.ReorderState
@@ -236,7 +237,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                 subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
                     listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
                 } else {
-                    mediaItemFacts(media, entry.item.handle.pillar)
+                    mediaItemFacts(media, entry.item.handle.pillar, LocalNow.current)
                 },
                 downloadState = downloadState,
                 pillar = entry.item.handle.pillar,

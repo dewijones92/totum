@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.mediaItemFacts
 
@@ -72,7 +73,7 @@ fun NotificationsScreen(
                         }
                         MediaItemRow(
                             item = upload.item,
-                            subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO),
+                            subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO, LocalNow.current),
                             pillar = MediaKind.VIDEO,
                             onPlay = { viewModel.play(upload.item) },
                             modifier = if (upload.unread) Modifier.background(unreadTint()) else Modifier,

@@ -10,10 +10,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 /**
  * The facts under every video title, everywhere — channel, views, date, **one per line**.
@@ -162,22 +160,29 @@ class MediaItemSubtitleTest {
     // ---- the date rule ---------------------------------------------------------------------------
 
     /**
-     * The source's own wording wins. YouTube says "2 days ago" and deriving that from a timestamp
-     * would drift from the site — and would be wrong about a video published in a different zone.
+     * The instant wins and is rendered against the clock, so the label AGES. This reverses the
+     * earlier "the source's wording wins" rule on Dewi's instruction (2026-09-06): a row's
+     * "2 hours ago" must become "3 hours ago" an hour later, which frozen wording cannot do.
      */
     @Test
-    fun `the sources own relative wording is preferred over a timestamp`() {
-        assertEquals("2 days ago", mediaDateText("2 days ago", Instant.parse("2020-01-01T00:00:00Z")))
+    fun `an instant is rendered as an age that grows with the clock`() {
+        val now = Instant.parse("2026-09-06T16:00:00Z")
+        val at = now.minus(Duration.ofHours(2))
+        assertEquals("2 hours ago", mediaDateText("2 hours ago", at, now))
+        assertEquals("3 hours ago", mediaDateText("2 hours ago", at, now.plus(Duration.ofHours(1))))
     }
 
-    /** Podcasts give an absolute date and no wording, which is the other half of the same line. */
+    /** Wording with no instant — a row persisted before anchoring existed — is shown as it is. */
     @Test
-    fun `an absolute date is formatted when there is no wording`() {
-        val at = Instant.parse("2026-08-01T09:00:00Z")
-        val expected = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-            .withZone(ZoneId.systemDefault())
-            .format(at)
-        assertEquals(expected, mediaDateText(null, at))
+    fun `wording alone is shown verbatim when there is no instant to age`() {
+        assertEquals("2 days ago", mediaDateText("2 days ago", null))
+    }
+
+    /** Podcasts give an instant and no wording; they read like videos now, not as a calendar date. */
+    @Test
+    fun `an instant with no wording reads as a relative age on both pillars`() {
+        val now = Instant.parse("2026-09-06T16:00:00Z")
+        assertEquals("5 days ago", mediaDateText(null, now.minus(Duration.ofDays(5)), now))
     }
 
     @Test

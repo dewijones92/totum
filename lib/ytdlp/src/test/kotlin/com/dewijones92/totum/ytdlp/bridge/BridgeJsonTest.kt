@@ -59,6 +59,25 @@ class BridgeJsonTest {
         assertEquals(250L, audio.fileSizeBytes)
     }
 
+    private val watch = HttpUrl.of("https://www.youtube.com/watch?v=abc")
+
+    private fun metadataOf(info: String) =
+        (parseExtraction(watch, """{"ok": true, "info": $info}""") as ExtractionResult.Success).metadata
+
+    @Test
+    fun `the upload timestamp becomes a publication instant`() {
+        val metadata = metadataOf("""{"id": "abc", "title": "A video", "timestamp": 1741046400, "formats": []}""")
+        assertEquals(java.time.Instant.parse("2025-03-04T00:00:00Z"), metadata.publishedAt)
+    }
+
+    @Test
+    fun `an upload_date alone gives the day, and nothing gives null`() {
+        val dated = metadataOf("""{"id": "abc", "title": "A video", "upload_date": "20250304", "formats": []}""")
+        assertEquals(java.time.Instant.parse("2025-03-04T00:00:00Z"), dated.publishedAt)
+        val bare = metadataOf("""{"id": "abc", "title": "A video", "formats": []}""")
+        assertEquals(null, bare.publishedAt)
+    }
+
     @Test
     fun `parses chapters, dropping ones missing a start or title`() {
         val text = """

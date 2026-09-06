@@ -59,6 +59,7 @@ import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemActions
@@ -387,7 +388,7 @@ private fun ChannelsAndVideos(
                 items(shown, key = { it.id.value }) { video ->
                     MediaItemRow(
                         item = video,
-                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO),
+                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
                         downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                         pillar = MediaKind.VIDEO,
                         onPlay = { onPlay(video) },

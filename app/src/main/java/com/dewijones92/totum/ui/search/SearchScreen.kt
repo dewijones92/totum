@@ -58,6 +58,7 @@ import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -386,7 +387,7 @@ private fun VideoHitRow(
         item = item,
         // The hit is already a MediaItem here, so it reads through the one shared
         // formatter rather than assembling a second, subtly different subtitle.
-        subtitleLines = mediaItemFacts(item, MediaKind.VIDEO),
+        subtitleLines = mediaItemFacts(item, MediaKind.VIDEO, LocalNow.current),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
         onPlayNext = { actions.playNext(item) },

@@ -36,6 +36,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.mediaItemFacts
 
@@ -111,7 +112,7 @@ private fun PlaylistBody(
             val media = playlistItem.item
             MediaItemRow(
                 item = media,
-                subtitleLines = mediaItemFacts(media, playlistItem.handle.pillar),
+                subtitleLines = mediaItemFacts(media, playlistItem.handle.pillar, LocalNow.current),
                 downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
                 pillar = playlistItem.handle.pillar,
                 onPlay = { viewModel.playFrom(playlistItem) },

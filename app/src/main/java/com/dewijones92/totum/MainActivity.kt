@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.dewijones92.totum.common.Diag
@@ -13,6 +14,8 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.AppShell
+import com.dewijones92.totum.ui.common.LocalNow
+import com.dewijones92.totum.ui.common.rememberTickingNow
 import kotlinx.coroutines.launch
 
 /**
@@ -33,7 +36,9 @@ class MainActivity : FragmentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            TotumTheme { AppShell(container) }
+            TotumTheme {
+                CompositionLocalProvider(LocalNow provides rememberTickingNow()) { AppShell(container) }
+            }
         }
         handleShareIntent(intent)
     }

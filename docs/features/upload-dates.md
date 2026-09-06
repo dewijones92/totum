@@ -3,7 +3,7 @@ title: Views and dates everywhere — including the video page
 kind: feature
 status: shipped
 area: video/search/playback
-updated: 2026-08-15
+updated: 2026-09-06
 ---
 
 # Views and dates everywhere
@@ -75,9 +75,13 @@ the same thing is noise, not emphasis.
 
 Two smaller rules sit behind it, both now unit-tested:
 
-- **`mediaDateText`** prefers the source's own relative wording ("2 days ago") over a formatted
-  absolute date. YouTube only gives the wording, and re-deriving it from a timestamp would drift
-  from the site.
+- **`mediaDateText`** renders the publication **instant** as a relative age against `LocalNow`, a clock
+  ticking once a minute, so "2 hours ago" becomes "3 hours ago" while the screen stays open. This
+  **reversed** the earlier rule (the source's wording won) on 2026-09-06 — Dewi: *"this should
+  obviously increase as time goes by"*. YouTube's wording is anchored to an instant when observed
+  (`PublishedAge`), so nothing drifts from the site at the moment it is listed and everything ages after.
+  Wording with no instant (rows persisted before anchoring) is shown verbatim. See
+  [../todos/queue-rows-without-a-date.md](../todos/queue-rows-without-a-date.md).
 - **`formatViewCount`** turns a raw number into YouTube's own shape, truncating and never rounding
   up, so a yt-dlp row (which gives a count) and an InnerTube row (which gives text) cannot look like
   different apps in the same list.
@@ -95,6 +99,7 @@ formatting out of reach of a JVM unit test.
 | Related videos | ✅ | ✅ | `RelatedVideosParser` |
 | Search | ✅ | ✅ | `InnerTubeVideoSearchSource` (primary) |
 | Search, yt-dlp fallback only | ✅ | ❌ | `extract_flat` entries carry a count but no date |
+| A resolved / shared video | n/a | ✅ | yt-dlp's `timestamp` / `upload_date` via `MediaMetadata.publishedAt`; fills a listing that had none (2026-09-06) |
 | Podcast episodes | n/a | ✅ | `RssParser` `publishedAt` |
 | **The video page** | ✅ | ✅ | the listing, round-tripped through the session |
 

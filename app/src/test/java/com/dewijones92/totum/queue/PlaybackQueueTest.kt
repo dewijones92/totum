@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.placeholderTitleFor
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -31,6 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,6 +75,58 @@ class PlaybackQueueTest {
      * Every add-path must move rather than duplicate — playNow already did, and the others
      * disagreed with it.
      */
+    @Test
+    fun `a row queued by its id learns title, date and author when it resolves`() = runTest(dispatcher) {
+        val q = queue()
+        val shared = PlayableItem(
+            MediaItem(
+                id = MediaItemId("aqz-KE-bpKQ"),
+                sourceId = SourceId("shared"),
+                title = placeholderTitleFor(MediaItemId("aqz-KE-bpKQ")),
+                publishedAt = null,
+                duration = null,
+                mediaUrl = HttpUrl.of("https://www.youtube.com/watch?v=aqz-KE-bpKQ"),
+            ),
+            PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=aqz-KE-bpKQ")),
+        )
+        q.enqueue(shared)
+        q.enqueue(podcast("b"))
+        advanceUntilIdle()
+
+        q.adoptFacts(
+            shared.item.copy(
+                title = "Big Buck Bunny 60fps 4K",
+                author = "Blender",
+                publishedAt = Instant.parse("2014-11-10T00:00:00Z"),
+            ),
+        )
+        advanceUntilIdle()
+
+        val row = q.state.value.entries.first().item.item
+        assertEquals("Big Buck Bunny 60fps 4K", row.title)
+        assertEquals("Blender", row.author)
+        assertEquals(Instant.parse("2014-11-10T00:00:00Z"), row.publishedAt)
+        // Persisted, not just shown: the row must still know it after a restart.
+        assertEquals("Big Buck Bunny 60fps 4K", store.load().entries.first().item.item.title)
+        // The other row is untouched.
+        assertEquals("b", q.state.value.entries[1].item.item.id.value)
+    }
+
+    @Test
+    fun `a row that already knew its facts keeps them when something else resolves`() = runTest(dispatcher) {
+        val q = queue()
+        val known = podcast("a")
+        q.enqueue(PlayableItem(known.item.copy(author = "The author it was queued with"), known.handle))
+        advanceUntilIdle()
+        val before = q.state.value.entries.first().item.item
+
+        q.adoptFacts(before.copy(title = "A different title", author = "Someone else"))
+        advanceUntilIdle()
+
+        assertEquals(before.title, q.state.value.entries.first().item.item.title)
+        assertEquals(before.author, q.state.value.entries.first().item.item.author)
+    }
+
     @Test
     fun `play next moves an already-queued item instead of duplicating it`() = runTest(dispatcher) {
         val q = queue()

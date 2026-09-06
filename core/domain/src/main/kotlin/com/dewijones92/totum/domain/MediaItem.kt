@@ -101,10 +101,14 @@ public fun MediaItem.withStreamFrom(stream: MediaItem): MediaItem = copy(
     thumbnailUrl = stream.thumbnailUrl ?: thumbnailUrl,
     sourceUrl = stream.sourceUrl ?: sourceUrl,
     chapters = stream.chapters.ifEmpty { chapters },
+    // The one fact that runs the other way: yt-dlp knows an upload date, and a link shared by its id
+    // knows nothing, so the resolution fills a silent listing here (reported 2026-09-06 as queue rows
+    // with no date). The listing's own date still stands when it has one.
+    publishedAt = publishedAt ?: stream.publishedAt,
     // Everything not named above keeps the listing's value — viewsText, publishedText,
-    // publishedAt, membersOnly, contentKind — because a resolution has nothing to say about any of
-    // them. A null from something that never had an opinion is silence, not news, and treating it
-    // as news is exactly how these facts were being thrown away.
+    // membersOnly, contentKind — because a resolution has nothing to say about any of them. A null
+    // from something that never had an opinion is silence, not news, and treating it as news is
+    // exactly how these facts were being thrown away.
 )
 
 /**

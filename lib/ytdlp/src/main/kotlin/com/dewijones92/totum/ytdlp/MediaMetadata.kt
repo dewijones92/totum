@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.audioLanguagePreference
+import java.time.Instant
 
 /** Result of asking the engine to extract [MediaMetadata] for a URL. */
 public sealed interface ExtractionResult {
@@ -53,6 +54,11 @@ public data class MediaMetadata(
     val uploaderUrl: String? = null,
     /** Chapters yt-dlp parsed from the description/metadata, earliest first; empty if none. */
     val chapters: List<ChapterInfo> = emptyList(),
+    /**
+     * When it was published, from yt-dlp's `timestamp` (or the day from `upload_date`). Null when the
+     * extractor did not say. Carried so a link queued knowing only its id gets a date once it resolves.
+     */
+    val publishedAt: Instant? = null,
     /**
      * Renderable subtitle tracks, author-provided first then auto-generated. Already
      * filtered to formats a player can decode and to a sane set of languages — see

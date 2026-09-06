@@ -43,6 +43,7 @@ import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -229,7 +230,7 @@ private fun MediaItemTab(
             items(tab.items, key = { it.id.value }) { video ->
                 MediaItemRow(
                     item = video,
-                    subtitleLines = mediaItemFacts(video, MediaKind.VIDEO),
+                    subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
                     downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
                     pillar = MediaKind.VIDEO,
                     onPlay = { onPlay(video) },

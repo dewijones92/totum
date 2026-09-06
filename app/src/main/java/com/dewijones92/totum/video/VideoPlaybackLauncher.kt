@@ -52,6 +52,11 @@ class VideoPlaybackLauncher(
      * [StreamChoices].
      */
     private val choices: StreamChoices = StreamChoices(),
+    /**
+     * Told what every play resolved to, once, so the queue row that asked can learn the title, date
+     * and author it was queued without (a link shared by its id knows none of them).
+     */
+    private val onResolved: (MediaItem) -> Unit = {},
 ) {
     /** The current video's quality options and which one is playing. */
     data class QualityState(
@@ -205,6 +210,7 @@ class VideoPlaybackLauncher(
         val resolved = extracted.copy(item = listing.withStreamFrom(extracted.item))
         current = resolved
         currentWatchUrl = watchUrl
+        onResolved(resolved.item)
         // Record the play against the stable watch URL (streaming URLs expire), so
         // a history replay re-resolves through this same launcher.
         playHistory.record(

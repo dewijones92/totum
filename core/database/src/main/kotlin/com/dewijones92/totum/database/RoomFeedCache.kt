@@ -5,7 +5,9 @@ import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceId
+import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -38,9 +40,9 @@ public class RoomFeedCache(
         id = MediaItemId(itemId),
         sourceId = SourceId(sourceId),
         title = title,
-        // Not persisted: the feed gives a rendered string ("2 days ago"), never an instant, and
-        // inventing one from that text would age wrongly the moment it was read back.
-        publishedAt = null,
+        // The feed gives wording ("2 days ago"), never an instant; anchored to when it was cached so
+        // the row keeps ageing from the right moment (Dewi, 2026-09-06).
+        publishedAt = publishedText?.let { PublishedAge.parse(it, Instant.ofEpochMilli(cachedAtEpochMs)) },
         publishedText = publishedText,
         duration = durationSeconds?.seconds,
         author = author,

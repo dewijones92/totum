@@ -24,6 +24,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
+import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
 import com.dewijones92.totum.ui.common.mediaDateText
 import com.dewijones92.totum.ui.common.mediaFacts
@@ -136,7 +137,7 @@ internal fun SecondaryControls(
 internal fun ViewsAndDate(state: PlaybackState) {
     val facts = mediaFacts(
         author = null,
-        dateText = mediaDateText(state.publishedText, state.publishedAt),
+        dateText = mediaDateText(state.publishedText, state.publishedAt, LocalNow.current),
         viewsText = state.viewsText,
     )
     if (facts.isEmpty()) return

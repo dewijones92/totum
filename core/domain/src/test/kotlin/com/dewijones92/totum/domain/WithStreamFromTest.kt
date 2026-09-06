@@ -92,6 +92,21 @@ class WithStreamFromTest {
         assertEquals(listing.sourceUrl, played.sourceUrl)
     }
 
+    @Test
+    fun `a resolution fills a publication date the listing never had`() {
+        // A shared link is queued knowing nothing but its id; yt-dlp knows when it was uploaded.
+        // Reported 2026-09-06: queue rows with no date at all.
+        val bare = listing.copy(publishedAt = null, publishedText = null)
+        val dated = stream.copy(publishedAt = Instant.parse("2025-03-04T00:00:00Z"))
+        assertEquals(Instant.parse("2025-03-04T00:00:00Z"), bare.withStreamFrom(dated).publishedAt)
+    }
+
+    @Test
+    fun `a resolution never overrides a publication date the listing had`() {
+        val dated = stream.copy(publishedAt = Instant.parse("2025-03-04T00:00:00Z"))
+        assertEquals(Instant.parse("2026-08-01T09:00:00Z"), listing.withStreamFrom(dated).publishedAt)
+    }
+
     // ---- the facts it is the authority on -------------------------------------------------------
 
     @Test
