@@ -1,7 +1,7 @@
 ---
 title: Two-way progress sync with YouTube
 kind: feature
-status: BROKEN outbound since ~2026-08-18 — see ../todos/outbound-progress-sync-is-dead.md; inbound (resume) still works
+status: outbound HELD (durable outbox; sender refused by YouTube since ~2026-08-18) · inbound works for resume AND rows
 area: video
 updated: 2026-09-06
 ---
@@ -13,9 +13,15 @@ updated: 2026-09-06
 > progress won't sync` and `-> NoSession`, and it was reproduced live on a signed-in emulator with
 > YouTube's own history read back both from the app and from a signed-in browser: nothing arrives.
 > The cause and every route probed are in
-> [`../todos/outbound-progress-sync-is-dead.md`](../todos/outbound-progress-sync-is-dead.md). The
-> inbound half (resume position from `FEhistory`) still works. The rest of this page describes how
-> the outbound half worked when it worked.
+> [`../todos/outbound-progress-sync-is-dead.md`](../todos/outbound-progress-sync-is-dead.md).
+>
+> **Since 2026-09-06 nothing is lost any more.** Playback records every due update into a durable
+> **outbox** (`AccountProgressOutbox`, Room v20) and a drain sends whatever it holds whenever a
+> sender works — on every new record, at app start, and when the network comes back. What cannot be
+> sent is kept, and the report says so: `yt-sync.outbound = Unavailable(reason, held)` and
+> `yt-sync.pendingUpdates`. So listening on a plane is credited the moment a route works again, and
+> a dead sender can never again look like a working one. The inbound half now reaches **rows** too
+> (below). The rest of this page describes how the outbound half worked when it worked.
 
 Dewi, 2026-07-25: *"confident that play progress is 2-way synced with YouTube servers or???"*. The
 answer then was **no — one-way, and even that unverified**. Both halves are now true and measured.
@@ -71,6 +77,30 @@ playback  ready after 4507ms at 1656007ms      → started at 27:34
 The log carries the inputs, not just the outcome, so a surprising resume can be re-judged from a
 report without anyone guessing which side won.
 
+## Rows show the account's position too (2026-09-06)
+
+Report 0.1.477 (22 Aug): *"Sutton video is actually half way through (playing it on YouTube website)
+totum did not reflect this????"*. It did not, because the account's position was only consulted at
+the moment of resuming a tap; every list drew its progress bars from the phone alone.
+
+`AppContainer.rowPlayStates` now merges this device's `PlaybackProgressStore` with the account's
+`FEhistory` map (`AccountResumePositions.watched`, refreshed on the same five-minute window while any
+list is showing) through **one rule** — `accountAwarePlayState` in `:core:domain`, which maps the
+position `resumeFrom` would choose onto a `PlayState`. Same judgement as resuming, so the bar and
+the tap can never disagree. A local *Played* is final (exact and deliberate); a remote 100% is
+*Played*; otherwise the further position wins by `resumeFrom`'s own one-percent rule.
+
+## The outbox, in one picture
+
+```
+play (online or not) ─► WatchHistorySync records {id, pos, len, finished, at}   (latest per item)
+                                   │ kick
+                                   ▼
+                        ProgressOutboxDrain ── sender works ──► sent, row removed
+                                   └── refused / offline / signed out ──► kept; status says why + how many
+   kicked again: app start · network offline→online edge · every new record
+```
+
 ## Cost
 
 One request per five minutes, not per play: `FEhistory` answers for every recent video at once, so
@@ -83,7 +113,12 @@ locally is a far smaller problem than a screen that will not open.
 - `core/domain/…/ResumeChoice.kt` — `resumeFrom`, the rule and its reasons
 - `lib/innertube/…/VideoTileParser.kt` — `watchedPositions`, percent × the tile's own duration
 - `lib/innertube/…/history/HttpYouTubeWatchHistory.kt` — the `FEhistory` read
-- `app/…/video/AccountResumePositions.kt` — the seam, and the five-minute cache
+- `app/…/video/AccountResumePositions.kt` — the seam, the five-minute cache, and the live `watched` map
+- `core/domain/…/AccountProgressOutbox.kt` — the outbox port and `PendingAccountProgress`
+- `core/domain/…/AccountAwarePlayState.kt` — the row rule, built on `resumeFrom`
+- `core/database/…/RoomAccountProgressOutbox.kt` — Room v20 (`account_progress_outbox`)
+- `app/…/video/ProgressOutboxDrain.kt` — the only thing that talks to the account; `OutboundSyncStatus`
+- `app/…/video/WatchHistorySync.kt` — decides WHEN; records and kicks, never sends
 
 ## Tests
 
@@ -93,6 +128,14 @@ locally is a far smaller problem than a screen that will not open.
   failed inbound read still resuming locally
 - `VideoTileParserTest` — the positions read out of a **real captured history response** from Dewi's
   account, including the 13%-of-1:44:13 tile the outbound proof came from
+
+- `ProgressOutboxDrainTest` — held when the sender is down, sent the moment it works (as *finished*
+  where it was), a failed session re-attempted next drain, a working one opened once, the status a
+  report needs, and a kick mid-drain not lost
+- `WatchHistorySyncTest` — unchanged assertions, now read through the outbox + drain as wired in the app
+- `AccountAwarePlayStateTest` — the Sutton case and its neighbours
+- `RoomAccountProgressOutboxTest` (instrumented) — latest-per-item, and a send never deleting a
+  record written while it was in flight
 
 **Not covered:** that YouTube itself honours what we send. That was verified by hand (above) and
 cannot be a test — it is an assertion about someone else's server.

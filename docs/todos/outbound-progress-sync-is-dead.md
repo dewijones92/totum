@@ -1,7 +1,7 @@
 ---
 title: Outbound progress sync is dead — no client will give a signed-in session tracking URLs
 kind: todo
-status: open — reproduced and root-caused 2026-09-06; every cheap route probed and eliminated
+status: open — outbox + honest diagnostics + inbound rows SHIPPED 2026-09-06; the sender itself still needs the SmartTube capture
 area: video
 priority: critical
 requested: 2026-09-06
@@ -93,6 +93,18 @@ Two things, both worth doing whether or not the sender is ever fixed:
 
 The inbound half (resume position from `FEhistory`) is **unaffected and still works** — the app
 read 14 positions from the account in the same run.
+
+## Shipped 2026-09-06 — everything buildable this side of the wall
+
+- **Outbox:** `AccountProgressOutbox` (Room v20, latest-per-item), written by `WatchHistorySync`,
+  drained by `ProgressOutboxDrain` on every record, at app start, and on the network's
+  offline→online edge. A failed session is re-attempted on the next drain (the inline sync tried once
+  per video and then said `NoSession` forever).
+- **Truth in diagnostics:** `yt-sync.outbound = Unavailable(reason, held)` / `Working(sent)` and
+  `yt-sync.pendingUpdates`; the trail says `outbound sync unavailable — <why>; holding N update(s)`
+  once per reason, and counts routine sends rather than logging each.
+- **Inbound rows:** `rowPlayStates` merges the account's watched map into every list by the same rule
+  resume uses (`accountAwarePlayState`). The Sutton case now shows half-watched on the row.
 
 ## Done when
 

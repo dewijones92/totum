@@ -215,6 +215,8 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | The account token is attached to every client that accepts one, and no others | `AuthAttachedByIdentityTest` | every commit |
 | A video whose stream keeps failing is retried afresh when you tap it again, rather than skipped on sight | `StreamRecoveryTest`, `TappingAFailedItemAgainTest` | every commit |
 | A failure for an item the queue has moved on from is dropped, never replayed onto the NEW item | `StreamRecoveryTest` | every commit — seen twice in CI as `StalledStreamRecoveryTest` buffering forever at the previous item's position |
+| Progress the account could not be told about is HELD and sent the moment a sender works — offline listening included | `ProgressOutboxDrainTest`, `RoomAccountProgressOutboxTest` (emulator) | every commit — the send used to be fire-and-forget and 0.1.477 shows sixteen minutes of offline listening end `fin=true -> NoSession` and vanish |
+| A row shows a video watched elsewhere as watched-so-far, by the same rule resume uses | `AccountAwarePlayStateTest` | every commit — the Sutton report: half-watched on the website, blank row here |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |
 | A resolve that lands late cannot take playback off a file it has already started — whatever route the newer play took | `AStaleResolveDoesNotClobberPlaybackTest` | every commit |

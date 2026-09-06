@@ -3,6 +3,7 @@ package com.dewijones92.totum.video
 import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.fake.InMemoryAccountProgressOutbox
 import com.dewijones92.totum.innertube.history.WatchHistoryResult
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.playback.PlaybackState
@@ -41,13 +42,19 @@ class WatchHistorySyncTest {
         const val TICKS = 5
     }
     private val history = FakeYouTubeWatchHistory()
+    private val outbox = InMemoryAccountProgressOutbox()
 
     /** A clock the test drives, so the report-interval logic is not wall-clock dependent. */
     private var clock = 0L
 
+    /**
+     * The sync records and the drain sends — wired together here, as in the app, so these tests
+     * still read off what actually reached [history] rather than what was merely written down.
+     */
     private fun TestScope.sync() = WatchHistorySync(
         playback = playback,
-        history = history,
+        outbox = outbox,
+        drain = ProgressOutboxDrain(outbox, history, backgroundScope),
         scope = backgroundScope,
         now = { clock },
     ).also { it.start() }

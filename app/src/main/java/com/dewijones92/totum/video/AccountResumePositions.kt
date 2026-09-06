@@ -5,6 +5,8 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.resumeFrom
 import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -32,8 +34,30 @@ class AccountResumePositions(
     private val staleAfterMs: Long = STALE_AFTER_MS,
 ) {
     private val guard = Mutex()
-    private var watched: Map<String, AccountProgress> = emptyMap()
+    private val _watched = MutableStateFlow<Map<String, AccountProgress>>(emptyMap())
     private var fetchedAtMs = 0L
+
+    /**
+     * The account's watched positions, live — what lets ROWS show progress made elsewhere, not only
+     * the resume of a tap. Report 0.1.477 (22 Aug): a video half-watched on the website showed
+     * nothing in Totum's lists, because this map was only ever consulted at the moment of playing.
+     */
+    val watched: StateFlow<Map<String, AccountProgress>> = _watched
+
+    /** Fetches the account's history if what is held is stale — for a screen coming into view. */
+    suspend fun refresh() {
+        guard.withLock { refreshIfStale() }
+    }
+
+    private suspend fun refreshIfStale() {
+        if (_watched.value.isEmpty() || now() - fetchedAtMs > staleAfterMs) {
+            _watched.value = runCatching { history.watchedPositions() }.getOrElse {
+                Diag.warn("yt-sync", "could not read YouTube's watched positions", it)
+                emptyMap()
+            }
+            fetchedAtMs = now()
+        }
+    }
 
     /** The position to start [itemId] at, or null for the beginning. */
     suspend fun resumePositionMs(itemId: MediaItemId): Long? {
@@ -52,16 +76,8 @@ class AccountResumePositions(
     }
 
     private suspend fun remoteFor(itemId: MediaItemId): AccountProgress? {
-        guard.withLock {
-            if (watched.isEmpty() || now() - fetchedAtMs > staleAfterMs) {
-                watched = runCatching { history.watchedPositions() }.getOrElse {
-                    Diag.warn("yt-sync", "could not read YouTube's watched positions", it)
-                    emptyMap()
-                }
-                fetchedAtMs = now()
-            }
-        }
-        return watched[itemId.value]
+        refresh()
+        return _watched.value[itemId.value]
     }
 
     private companion object {

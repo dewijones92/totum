@@ -51,6 +51,7 @@ import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
+import com.dewijones92.totum.database.RoomAccountProgressOutbox
 import com.dewijones92.totum.database.RoomDownloadStore
 import com.dewijones92.totum.database.RoomFeedCache
 import com.dewijones92.totum.database.RoomLocalPlaylistStore
@@ -64,14 +65,17 @@ import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
+import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
@@ -133,6 +137,7 @@ import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
+import com.dewijones92.totum.video.ProgressOutboxDrain
 import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
@@ -144,6 +149,10 @@ import com.dewijones92.totum.ytdlp.chaquopy.YtDlpUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -267,6 +276,12 @@ interface AppContainer {
      * rows from one source, rather than each screen carrying its own copy.
      */
     val playbackProgressStore: PlaybackProgressStore
+
+    /**
+     * What every ROW shows: this device's play state merged with the account's watched position,
+     * by the same rule resuming uses. A video half-watched on the website shows half-watched here.
+     */
+    val rowPlayStates: Flow<Map<MediaItemId, PlayState>>
 
     /** User settings (per-network default quality, …). */
     val appPreferences: AppPreferences
@@ -394,14 +409,37 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * thing where an item resumes, and that stays true. Podcasts fall straight through — YouTube has
      * no position for them, so the rule returns the local answer untouched.
      */
-    private val resumePositions: PlaybackProgressStore by lazy {
-        val account = AccountResumePositions(
+    private val accountResumePositions: AccountResumePositions by lazy {
+        AccountResumePositions(
             local = playbackProgressStore::resumePositionMs,
             history = youTubeWatchHistory,
         )
+    }
+
+    private val resumePositions: PlaybackProgressStore by lazy {
         object : PlaybackProgressStore by playbackProgressStore {
             override suspend fun resumePositionMs(itemId: MediaItemId): Long? =
-                account.resumePositionMs(itemId)
+                accountResumePositions.resumePositionMs(itemId)
+        }
+    }
+
+    override val rowPlayStates: Flow<Map<MediaItemId, PlayState>> by lazy {
+        channelFlow {
+            // Refreshed for as long as anyone is looking, on the account cache's own staleness
+            // window — a shorter loop would only ever hit the cache.
+            launch {
+                while (true) {
+                    accountResumePositions.refresh()
+                    delay(ACCOUNT_WATCHED_REFRESH_MS)
+                }
+            }
+            combine(playbackProgressStore.observeStates(), accountResumePositions.watched) { local, remote ->
+                // One rule, the same one resume uses. Dropping Unplayed keeps the map to items with news.
+                (local.keys + remote.keys.map(::MediaItemId)).associateWith { id ->
+                    val account = remote[id.value]
+                    accountAwarePlayState(local[id], account?.positionMs, account?.durationMs)
+                }.filterValues { it != PlayState.Unplayed }
+            }.collect { send(it) }
         }
     }
 
@@ -898,6 +936,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // follow" is unanswerable without knowing how many channels the app thinks it has.
             val subs = accountSubscriptions.channels.value
             put("account.signedIn", accountSubscriptions.signedIn.value.toString())
+            // Whether listening is REACHING the account, and how much is waiting to. `NoSession` in the
+            // trail was indistinguishable from working for three weeks; this line is the difference.
+            put("yt-sync.outbound", progressOutboxDrain.status.value.toString())
+            put("yt-sync.pendingUpdates", latestPendingAccountUpdates.toString())
             put("account.subscriptions", subs.size.toString())
             put("account.subscriptionTitles", subs.joinToString(" | ") { it.title })
         }
@@ -1201,12 +1243,45 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    private val watchHistorySync: WatchHistorySync by lazy {
-        WatchHistorySync(playbackController, youTubeWatchHistory, applicationScope)
+    /** Progress the account has not been told about yet; drained by [progressOutboxDrain]. */
+    private val accountProgressOutbox: AccountProgressOutbox by lazy {
+        RoomAccountProgressOutbox(database.accountProgressOutboxDao())
     }
+
+    private val progressOutboxDrain: ProgressOutboxDrain by lazy {
+        ProgressOutboxDrain(accountProgressOutbox, youTubeWatchHistory, applicationScope)
+    }
+
+    private val watchHistorySync: WatchHistorySync by lazy {
+        WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope)
+    }
+
+    /** For the diagnostics snapshot, which must never block on the database. */
+    @Volatile
+    private var latestPendingAccountUpdates: Int = -1
 
     override fun startWatchHistorySync() {
         watchHistorySync.start()
+        accountProgressOutbox.observePendingCount()
+            .onEach { latestPendingAccountUpdates = it }
+            .launchIn(applicationScope)
+        // Whatever the last run could not send goes first; then again whenever the network comes
+        // back, which is the moment offline listening can finally be reported. Sampled rather than
+        // subscribed because NetworkStatus.awaitOnline returns at once while online, and a kick costs
+        // a network round trip per held item, so only a genuine offline-to-online edge earns one.
+        progressOutboxDrain.kick()
+        applicationScope.launch {
+            var wasOnline = networkStatus.isOnline()
+            while (true) {
+                delay(NETWORK_EDGE_SAMPLE_MS)
+                val online = networkStatus.isOnline()
+                if (online && !wasOnline) {
+                    Diag.log("yt-sync", "network is back — trying to send held progress")
+                    progressOutboxDrain.kick()
+                }
+                wasOnline = online
+            }
+        }
     }
 
     override fun refreshSubscriptions() {
@@ -1285,6 +1360,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private companion object {
+        /** How often the network is sampled for an offline-to-online edge; a kick per edge, not per tick. */
+        const val NETWORK_EDGE_SAMPLE_MS = 15_000L
+
+        /** Matches AccountResumePositions' staleness window. */
+        const val ACCOUNT_WATCHED_REFRESH_MS = 5 * 60 * 1_000L
+
         const val HTTP_TIMEOUT_SECONDS = 20L
 
         /** Matches the home server's own 180s ceiling for a fan-out indexer search. */

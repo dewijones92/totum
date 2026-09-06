@@ -20,8 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SourceGroupEntity::class,
         SourceGroupMemberEntity::class,
         CachedFeedItemEntity::class,
+        AccountProgressOutboxEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = false,
 )
 public abstract class TotumDatabase : RoomDatabase() {
@@ -41,6 +42,8 @@ public abstract class TotumDatabase : RoomDatabase() {
     public abstract fun sourceGroupDao(): SourceGroupDao
 
     public abstract fun cachedFeedDao(): CachedFeedDao
+
+    public abstract fun accountProgressOutboxDao(): AccountProgressOutboxDao
 
     public companion object {
         public fun build(context: Context): TotumDatabase =
@@ -69,7 +72,23 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_16_17,
                 MIGRATION_17_18,
                 MIGRATION_18_19,
+                MIGRATION_19_20,
             )
+
+        /**
+         * v20: the account-progress outbox. Progress the account has not been told about yet, one row
+         * per item, so listening with no network (or with no working sender, which is the state of
+         * the world since 2026-08-18) is reported later rather than lost.
+         */
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS account_progress_outbox (" +
+                        "mediaItemId TEXT NOT NULL PRIMARY KEY, positionMs INTEGER NOT NULL, " +
+                        "durationMs INTEGER NOT NULL, finished INTEGER NOT NULL, recordedAtEpochMs INTEGER NOT NULL)",
+                )
+            }
+        }
 
         /**
          * v18: what the listing said — the view count and the publication date — kept on every
