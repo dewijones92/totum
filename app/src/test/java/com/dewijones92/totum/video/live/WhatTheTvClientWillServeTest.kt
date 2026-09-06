@@ -7,6 +7,7 @@ import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assume.assumeTrue
@@ -62,8 +63,8 @@ class WhatTheTvClientWillServeTest {
         for ((id, what) in listOf(FOUR_K_SIXTY to "4K60 CC film", ORDINARY_VOD to "97-minute VOD")) {
             println("[tv] --- $what ($id)")
             report("  ANDROID anonymous (what we use today)") { client.player(id) }
-            report("  TVHTML5 current, signed in") { client.playerAsAccount(id, sts ?: 0, token) }
-            report("  TVHTML5 downgraded, signed in") { client.playerDowngradedTv(id, sts ?: 0, token) }
+            report("  TVHTML5 current, signed in") { client.playerAsAccount(id, sts ?: NO_STAMP, token) }
+            report("  TVHTML5 downgraded, signed in") { client.playerDowngradedTv(id, sts ?: NO_STAMP, token) }
         }
     }
 
@@ -107,6 +108,9 @@ class WhatTheTvClientWillServeTest {
     }
 
     private companion object {
+        /** A stamp the server will refuse, so the refusal is measured rather than a crash. */
+        val NO_STAMP = SignatureTimestamp(0)
+
         /** Blender's "Big Buck Bunny" — Creative Commons, 4K60, permanently up. */
         const val FOUR_K_SIXTY = "aqz-KE-bpKQ"
 

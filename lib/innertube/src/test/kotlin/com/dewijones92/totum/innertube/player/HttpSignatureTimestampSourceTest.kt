@@ -33,7 +33,7 @@ class HttpSignatureTimestampSourceTest {
         enqueue("""var x="\/s\/player\/bed7a914\/tv-player-ias.vflset\/tv-player-ias.js";""")
         enqueue("""a.signatureTimestamp=20662;var b=1""")
 
-        assertEquals(20662, source().current())
+        assertEquals(SignatureTimestamp(20662), source().current())
         assertEquals("/iframe_api", server.takeRequest().target)
         assertEquals("/s/player/bed7a914/tv-player-ias.js", server.takeRequest().target)
     }
@@ -45,8 +45,8 @@ class HttpSignatureTimestampSourceTest {
             enqueue("""signatureTimestamp:20662,""")
             val source = source()
 
-            assertEquals(20662, source.current())
-            assertEquals(20662, source.current())
+            assertEquals(SignatureTimestamp(20662), source.current())
+            assertEquals(SignatureTimestamp(20662), source.current())
             assertEquals(2, server.requestCount)
         }
 

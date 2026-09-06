@@ -22,7 +22,29 @@ import java.io.IOException
  */
 public fun interface SignatureTimestampSource {
     /** Null when it cannot be determined; the caller then skips the request that needs it. */
-    public suspend fun current(): Int?
+    public suspend fun current(): SignatureTimestamp?
+}
+
+/**
+ * The one number, on both scales YouTube speaks — so a TV request cannot be handed the web one.
+ *
+ * Every player script carries `signatureTimestamp:20697`, and that is what a WEB client declares. A TV
+ * client must declare **20697001**: since about 2026-08-18 the same request with 20697 is refused
+ * `UNPLAYABLE — "The page needs to be reloaded"`, which sat behind three weeks of dead progress sync
+ * and every "TV /player is refused" probe. Found by capturing SmartTube on the emulator
+ * (2026-09-06) and varying one field at a time; SmartTube's own source says the same
+ * (`QueryBuilder.kt`: *"Web and TV timestamps now differs. TV one should have 001 suffix"*).
+ */
+@JvmInline
+public value class SignatureTimestamp(public val web: Int) {
+    public val tv: Int get() = web * TV_SCALE + TV_SUFFIX
+
+    override fun toString(): String = "$web (tv $tv)"
+
+    public companion object {
+        private const val TV_SCALE = 1000
+        private const val TV_SUFFIX = 1
+    }
 }
 
 /**
@@ -40,10 +62,10 @@ public class HttpSignatureTimestampSource(
 ) : SignatureTimestampSource {
 
     private val lock = Mutex()
-    private var cached: Int? = null
+    private var cached: SignatureTimestamp? = null
     private var cachedBuild: String? = null
 
-    override suspend fun current(): Int? = lock.withLock {
+    override suspend fun current(): SignatureTimestamp? = lock.withLock {
         cached ?: fetch()?.also {
             cached = it
             Diag.log("yt-sync", "player signature timestamp is $it")
@@ -71,7 +93,7 @@ public class HttpSignatureTimestampSource(
             ?: null.also { Diag.warn("yt-sync", "no player build known yet; n parameters cannot be solved") }
     }
 
-    private suspend fun fetch(): Int? {
+    private suspend fun fetch(): SignatureTimestamp? {
         val iframe = get(iframeApiUrl) ?: return null
         val build = PLAYER_BUILD.find(iframe)?.groupValues?.get(1) ?: run {
             Diag.warn("yt-sync", "iframe_api named no player build; watch history cannot sync")
@@ -79,7 +101,7 @@ public class HttpSignatureTimestampSource(
         }
         cachedBuild = build
         val script = get(playerScriptUrl(build)) ?: return null
-        return TIMESTAMP.find(script)?.groupValues?.get(1)?.toIntOrNull()
+        return TIMESTAMP.find(script)?.groupValues?.get(1)?.toIntOrNull()?.let(::SignatureTimestamp)
             ?: null.also { Diag.warn("yt-sync", "player $build carried no signatureTimestamp") }
     }
 

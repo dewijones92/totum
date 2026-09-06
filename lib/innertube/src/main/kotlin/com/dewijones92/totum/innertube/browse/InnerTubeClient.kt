@@ -1,6 +1,7 @@
 package com.dewijones92.totum.innertube.browse
 
 import com.dewijones92.totum.innertube.auth.AccessToken
+import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
@@ -80,12 +81,12 @@ public class InnerTubeClient(
     public suspend fun playerAsWeb(
         videoId: String,
         visitorData: String,
-        signatureTimestamp: Long,
+        signatureTimestamp: SignatureTimestamp,
         playerPoToken: String,
     ): InnerTubeResponse =
         execute(
             playerUrl,
-            webPlayerContext(videoId, visitorData, signatureTimestamp, playerPoToken),
+            webPlayerContext(videoId, visitorData, signatureTimestamp.web, playerPoToken),
             Identity.WEB,
         )
 
@@ -109,7 +110,7 @@ public class InnerTubeClient(
      */
     public suspend fun playerAsAccount(
         videoId: String,
-        signatureTimestamp: Int,
+        signatureTimestamp: SignatureTimestamp,
         accessToken: AccessToken,
     ): InnerTubeResponse = playerTracking(videoId, signatureTimestamp, accessToken)
 
@@ -131,7 +132,7 @@ public class InnerTubeClient(
      */
     public suspend fun playerDowngradedTv(
         videoId: String,
-        signatureTimestamp: Int,
+        signatureTimestamp: SignatureTimestamp,
         accessToken: AccessToken,
     ): InnerTubeResponse = execute(
         playerUrl,
@@ -139,7 +140,7 @@ public class InnerTubeClient(
             """"clientVersion":"$TV_DOWNGRADED_VERSION","hl":"en","gl":"GB"}},""" +
             """"videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true,""" +
             """"playbackContext":{"contentPlaybackContext":""" +
-            """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":$signatureTimestamp}}}""",
+            """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":${signatureTimestamp.tv}}}}""",
         Identity.TV,
         accessToken,
         clientHeaders = mapOf(
@@ -157,13 +158,14 @@ public class InnerTubeClient(
      * url, measured 2026-07-31), while [player] is anonymous and exists purely for streams.
      * One request cannot be both, and the app needs both.
      *
-     * [signatureTimestamp] is not optional in practice. Without it — or with a stale value —
-     * YouTube answers UNPLAYABLE "The page needs to be reloaded" even with a valid token,
-     * which is why the app's watch-history sync silently credited nobody for so long.
+     * [signatureTimestamp] is not optional in practice, and it goes on the TV scale. Without it, with
+     * a stale value, or with the web-scale number every player script actually carries, YouTube
+     * answers UNPLAYABLE "The page needs to be reloaded" even with a valid token — which is why the
+     * app's watch-history sync silently credited nobody for so long, twice.
      */
     public suspend fun playerTracking(
         videoId: String,
-        signatureTimestamp: Int,
+        signatureTimestamp: SignatureTimestamp,
         accessToken: AccessToken,
     ): InnerTubeResponse =
         execute(
@@ -171,7 +173,7 @@ public class InnerTubeClient(
             tvContext(
                 """ "videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true,""" +
                     """"playbackContext":{"contentPlaybackContext":""" +
-                    """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":$signatureTimestamp}} """,
+                    """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":${signatureTimestamp.tv}}} """,
             ),
             Identity.TV,
             accessToken,
@@ -271,7 +273,7 @@ public class InnerTubeClient(
     private fun webPlayerContext(
         videoId: String,
         visitorData: String,
-        signatureTimestamp: Long,
+        signatureTimestamp: Int,
         playerPoToken: String,
     ): String =
         clientContext(

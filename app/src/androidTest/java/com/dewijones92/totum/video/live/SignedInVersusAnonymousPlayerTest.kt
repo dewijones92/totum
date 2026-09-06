@@ -8,6 +8,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import com.dewijones92.totum.innertube.player.StreamingData
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -79,8 +80,8 @@ class SignedInVersusAnonymousPlayerTest {
 
         val verdicts = listOf(
             judge("anonymous") { client.player(VIDEO_ID) },
-            judge("signed-in TV") { client.playerAsAccount(VIDEO_ID, stamp ?: 0, token!!) },
-            judge("signed-in downgraded TV") { client.playerDowngradedTv(VIDEO_ID, stamp ?: 0, token!!) },
+            judge("signed-in TV") { client.playerAsAccount(VIDEO_ID, stamp ?: NO_STAMP, token!!) },
+            judge("signed-in downgraded TV") { client.playerDowngradedTv(VIDEO_ID, stamp ?: NO_STAMP, token!!) },
         )
         println("[signin-vs-anon] video $VIDEO_ID")
         verdicts.forEach {
@@ -147,6 +148,9 @@ class SignedInVersusAnonymousPlayerTest {
     }.getOrElse { "threw ${it::class.simpleName}" }
 
     private companion object {
+        /** A stamp the server will refuse, so the refusal is measured rather than a crash. */
+        val NO_STAMP = SignatureTimestamp(0)
+
         /** NASA's "Cosmic Dawn" — public domain, and long enough that an 8MB offset is real content. */
         const val VIDEO_ID = "uSMGENDH_QI"
         const val DEEP_OFFSET = 8_000_000L

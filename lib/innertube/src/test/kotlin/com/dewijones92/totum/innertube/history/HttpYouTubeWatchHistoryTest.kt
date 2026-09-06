@@ -7,6 +7,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.auth.fake.FakeYouTubeAuth
 import com.dewijones92.totum.innertube.auth.fake.InMemoryTokenStore
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
+import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import com.dewijones92.totum.innertube.player.SignatureTimestampSource
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
@@ -37,7 +38,7 @@ class HttpYouTubeWatchHistoryTest {
             account = account,
             client = client,
             innerTube = InnerTubeClient(client, playerUrl = server.url("/youtubei/v1/player").toString()),
-            signatureTimestamps = SignatureTimestampSource { signatureTimestamp },
+            signatureTimestamps = SignatureTimestampSource { signatureTimestamp?.let(::SignatureTimestamp) },
             newNonce = { "NONCE0123456789" },
         )
     }
@@ -70,8 +71,9 @@ class HttpYouTubeWatchHistoryTest {
             assertEquals("Bearer at", player.headers["Authorization"])
             val body = player.body!!.utf8()
             assertTrue(body.contains(""""videoId":"vid1""""))
-            // Without a current timestamp YouTube refuses with "The page needs to be reloaded".
-            assertTrue(body.contains(""""signatureTimestamp":20662"""))
+            // Without a current timestamp YouTube refuses with "The page needs to be reloaded" — and
+            // since 2026-08 so does the WEB-scale number: a TV client must declare 20662001, not 20662.
+            assertTrue(body, body.contains(""""signatureTimestamp":20662001"""))
             assertTrue(body.contains("TVHTML5"))
         }
 

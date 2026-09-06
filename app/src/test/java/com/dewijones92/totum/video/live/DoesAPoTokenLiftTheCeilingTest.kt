@@ -5,6 +5,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import com.dewijones92.totum.sabr.BufferedRange
 import com.dewijones92.totum.sabr.NextRequestPolicy
 import com.dewijones92.totum.sabr.ResponseSummary
@@ -359,7 +360,7 @@ class DoesAPoTokenLiftTheCeilingTest {
             if (visitorData == null) {
                 client.player(VIDEO_ID)
             } else {
-                val stamp = HttpSignatureTimestampSource(http).current()?.toLong() ?: 0L
+                val stamp = HttpSignatureTimestampSource(http).current() ?: SignatureTimestamp(0)
                 client.playerAsWeb(VIDEO_ID, visitorData, stamp, System.getProperty("playerPoToken") ?: "")
             }
         }
