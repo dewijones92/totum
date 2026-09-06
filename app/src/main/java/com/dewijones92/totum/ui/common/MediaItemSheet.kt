@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
@@ -33,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.MediaKind
 
 /**
  * The actions for one media item, in a Material 3 bottom sheet.
@@ -60,7 +60,8 @@ internal fun ActionSheet(
     onSwitchMode: (() -> Unit)?,
     audioMode: Boolean,
     onGoToSource: (() -> Unit)?,
-    goToSourceLabelRes: Int,
+    /** Which pillar the item's maker belongs to — decides both the label and the glyph of "go to". */
+    sourcePillar: MediaKind,
     onMoveToTop: (() -> Unit)?,
     onMoveToBottom: (() -> Unit)?,
     onSetPlayed: ((Boolean) -> Unit)?,
@@ -90,7 +91,7 @@ internal fun ActionSheet(
         )
         SheetAction(onMoveToTop, Icons.Filled.VerticalAlignTop, R.string.queue_move_to_top, onDismiss)
         SheetAction(onMoveToBottom, Icons.Filled.VerticalAlignBottom, R.string.queue_move_to_bottom, onDismiss)
-        SheetAction(onGoToSource, Icons.Filled.AccountCircle, goToSourceLabelRes, onDismiss)
+        SheetAction(onGoToSource, pillarIcon(sourcePillar), goToSourceLabelRes(sourcePillar), onDismiss)
         SheetAction(
             onSetPlayed?.let { { it(!played) } },
             if (played) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.CheckCircle,
@@ -118,4 +119,10 @@ internal fun SheetAction(action: (() -> Unit)?, icon: ImageVector, labelRes: Int
             Text(stringResource(labelRes), style = MaterialTheme.typography.bodyLarge)
         }
     }
+}
+
+/** "Go to channel" for a video, "Go to podcast" for an episode — the same rule the badge uses. */
+internal fun goToSourceLabelRes(pillar: MediaKind): Int = when (pillar) {
+    MediaKind.VIDEO -> R.string.go_to_channel
+    MediaKind.PODCAST -> R.string.go_to_podcast
 }

@@ -121,7 +121,6 @@ fun MediaItemRow(
     onMoveToBottom: (() -> Unit)? = null,
     onGoToSource: (() -> Unit)? = LocalItemActions.current.bind { goToSource(item) },
     /** Label for [onGoToSource] — the host knows its pillar ("channel" vs "podcast"). */
-    goToSourceLabelRes: Int = R.string.go_to_channel,
     /**
      * Replaces the download control for rows whose trailing affordances are about
      * something else — the queue's reorder/remove buttons, for instance.
@@ -179,7 +178,7 @@ fun MediaItemRow(
             onSwitchMode = onSwitchMode,
             audioMode = audioMode,
             onGoToSource = onGoToSource,
-            goToSourceLabelRes = goToSourceLabelRes,
+            sourcePillar = pillar,
             onMoveToTop = onMoveToTop,
             onMoveToBottom = onMoveToBottom,
             onSetPlayed = onSetPlayed,

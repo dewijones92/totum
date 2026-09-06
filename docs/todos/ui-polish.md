@@ -124,4 +124,8 @@ only so it cannot fight the drag handle), the ✕ is gone, and a snackbar offers
 Guarded by `QueueSwipeToRemoveTest` (instrumented: swipe removes, Undo restores) and two
 `PlaybackQueueTest` cases (restore keeps the cursor on what was playing; a late Undo still lands).
 
-Still open: **(d)** channel avatar instead of the AccountCircle glyph.
+**(d)**, the glyph half: the sheet's "go to" action now takes the pillar's own icon (a screen for a
+channel, a mic for a podcast — `pillarIcon`, the same glyph the badge uses) and its label comes from the
+same rule (`goToSourceLabelRes`), so a podcast row in the Library or a feed no longer says "Go to
+channel". The channel's actual avatar is still the nicer end state and remains open; it needs a
+channel-id → avatar lookup the sheet does not have today.

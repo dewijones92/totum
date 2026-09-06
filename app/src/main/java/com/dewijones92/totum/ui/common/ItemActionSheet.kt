@@ -1,9 +1,9 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.compose.runtime.Composable
-import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaKind
 
 /**
  * The long-press menu for an item, built entirely from the app-wide capabilities —
@@ -20,7 +20,7 @@ import com.dewijones92.totum.domain.MediaItem
 internal fun ItemActionSheet(
     item: MediaItem,
     onDismiss: () -> Unit,
-    goToSourceLabelRes: Int = R.string.go_to_channel,
+    sourcePillar: MediaKind = MediaKind.VIDEO,
 ) {
     val actions = LocalItemActions.current ?: return
     val local = LocalDownloadStates.current[item.id]
@@ -39,7 +39,7 @@ internal fun ItemActionSheet(
         onSwitchMode = { actions.switchMode(item) },
         audioMode = actions.audioMode,
         onGoToSource = { actions.goToSource(item) },
-        goToSourceLabelRes = goToSourceLabelRes,
+        sourcePillar = sourcePillar,
         onMoveToTop = null,
         onMoveToBottom = null,
         onSetPlayed = { played -> actions.setPlayed(item.id, played) },

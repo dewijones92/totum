@@ -231,7 +231,6 @@ private fun SubscriptionsAndEpisodes(
                 onAddToPlaylist = { onAddToPlaylist(episode) },
                 onPeek = { onPeek(episode) },
                 onGoToSource = { onGoToPodcast(episode) },
-                goToSourceLabelRes = R.string.go_to_podcast,
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }

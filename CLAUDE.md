@@ -95,6 +95,11 @@ python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run befor
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
 ```
 
+**detekt autocorrects and still fails the run that found the issue**, per module and fail-fast: a
+gate that is red on `ImportOrdering`/`Indentation`/`ArgumentListWrapping` alone usually goes green on
+the next run without an edit, and a build that touched N modules can need N reruns. Only a rule detekt
+cannot autocorrect (`LongMethod`, `TooManyFunctions`, `MaxLineLength`) needs a hand.
+
 Run `tools/ci/install-hooks.sh` once per clone (`core.hooksPath -> .githooks`) and preflight then runs
 on every `git push` automatically. The hook is deliberately **only** the sub-second checks: one that ran
 the Gradle gate would be disabled within a day, and a disabled hook protects nothing. `--no-verify`
