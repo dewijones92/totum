@@ -1,7 +1,7 @@
 ---
 title: SABR cannot be opened part-way through
 status: open (the warm-jump lead is reopened)
-updated: 2026-08-20
+updated: 2026-09-06
 ---
 
 # SABR cannot be opened part-way through
@@ -170,3 +170,28 @@ attestation ceiling may make both moot until a PO token exists.
 2. **Re-run the warm probe as a sound instrument** (above), before anything is built on either answer.
 3. **A byte↔time reconciliation layer** — trimming a straddling run and serving from a virtual byte
    space — if and only if the cheap route is chosen. Under a `ChunkSource` it is not needed at all.
+
+## CI evidence: the SABR VIDEO reader stalls on a long stream, re-fetching one segment (2026-09-06)
+
+`AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering` (SABR ON) fails on CI —
+consistently, twice — while passing locally, which is a timing-dependent SABR reader defect, not the
+plain ~1MB cap. From CI's own logcat (run 6fadd4f), the reader gets stuck:
+
+```
+[sabr] itag 137 REWINDING to 0B (last handed through 104401) — asking from 0ms instead of 30429ms
+[sabr] fetch #86 itag 137 at 30429ms -> 2353154B response, 2150211B kept ... carried 137=2164437B
+[sabr] fetch #87 ... at 30429ms -> 2353154B response, 2150211B kept ...   (identical, again)
+[sabr] fetch #88 ... at 30429ms -> 2353154B response ...                  (and again)
+[sabr] closed at 104401 — fetches=89 failed=1 served=605399B discarded=18202291B (96% wasted)
+[playback] gave up buffering after 10631ms at 9507ms — it never recovered
+[playback] stopped loading at 9507ms ... the tail is not coming
+```
+
+The server IS serving 2.3MB responses; the reader asks for media time 30429ms over and over, keeps
+~2.1MB each time yet only ever hands ~104KB through, discards 96%, and never advances past ~9.5s. So
+the stall is in how the reader requests/consumes SABR media time on a long stream, squarely the
+[sabr-as-a-chunk-source](sabr-as-a-chunk-source.md) territory — a ChunkSource addresses segments by
+position and would not re-ask for a segment it already holds. The video path is UNTOUCHED by the
+2026-09-06 session (SABR code not modified); this is the standing SABR-machinery limitation, and the
+emulator job is deliberately **not** a release gate (ci.yml:53) so it does not block the APK.
+
