@@ -5,7 +5,7 @@ status: shipped — the switch and the toggle both work; merging a LOCAL audio c
 area: playback
 priority: high
 requested: 2026-07-25
-updated: 2026-08-06
+updated: 2026-09-06
 ---
 
 # Switch between audio and video, carrying the position
@@ -143,3 +143,14 @@ merge machinery exists (`EXTRA_AUDIO_URL`), but it is typed as an `HttpUrl`, so 
 needs to accept a local path — and then the "does Media3 merge a `file://` audio source
 with a remote video stream?" question gets answered for real. Falls back to the normal
 muxed stream if it won't.
+
+## The way back to the picture (fixed 2026-09-06)
+
+An item that STARTED in listen mode — the everyday case with the queue's audio downloaded and Listen
+on — showed no Listen/Watch toggle in the full player, so there was no way back to the video. The
+toggle hides when `QualityState.canListen` is false, and `canListen` was only ever written by the
+watch path (`playVideoQuality`); `listen()` inherited whatever was there, which after the per-item
+reset was `false`. `listen()` now writes `canListen = true` — true by construction, since it has just
+found the audio-only URL. By-construction fix, no dedicated unit test: the launcher needs a real
+`VideoResolver` to reach that line, and the toggle's own visibility rule is already covered by
+`PlayerKeepsEveryControlTest`.

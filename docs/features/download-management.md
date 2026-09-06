@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-08-07
+updated: 2026-09-06
 ---
 
 # Managing downloads
@@ -99,3 +99,11 @@ still show a title.
   strategies have no notion of resuming a byte range. Worth doing, bigger than this.
 - **Reordering the download queue.** Downloads start when asked and there is no queue of pending ones
   to order — the auto-downloader starts them as the play queue advances.
+
+## Every row's download control is live (2026-09-06)
+
+`onDownload`/`onDeleteDownload` were the only two `MediaItemRow` callbacks without an app-wide default,
+so Related, Notifications and Search passed `{}` and drew a download icon that did nothing. They now
+default to `LocalItemActions` like every other action (full media, as a screen's own Download tap
+fetches), and a row with nothing behind them draws no control rather than an inert one. Previews keep
+their `{}` and simply show no icon. `MediaItemRowKeepsActionsTest` drives the default.

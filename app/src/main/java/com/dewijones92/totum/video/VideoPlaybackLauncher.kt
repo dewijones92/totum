@@ -387,7 +387,11 @@ class VideoPlaybackLauncher(
         // Claimed like any other play: switching to Listen by hand has to supersede a resolve
         // still in flight, or that resolve lands seconds later and puts the picture back.
         beginPlay()
-        _quality.update { it.copy(selectedId = null, listening = true) }
+        // canListen is TRUE here by construction (the audio-only URL was just found) — and must be
+        // written, not inherited: an item that STARTS in listen mode came through the reset
+        // `QualityState()` with canListen=false, and the full player's Listen/Watch toggle hides when
+        // it is false, so there was no way back to the picture.
+        _quality.update { it.copy(selectedId = null, listening = true, canListen = true) }
         Diag.log(
             "playback",
             "${resolved.item.id.value} listening — audio track ${resolved.audioLanguage ?: "preferred"}"

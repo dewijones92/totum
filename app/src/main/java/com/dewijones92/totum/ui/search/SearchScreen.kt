@@ -380,8 +380,6 @@ private fun VideoHitRow(
         subtitleLines = mediaItemFacts(item, MediaKind.VIDEO),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
-        onDownload = {},
-        onDeleteDownload = {},
         onPlayNext = { actions.playNext(item) },
         onAddToQueue = { actions.addToQueue(item) },
         onAddToPlaylist = { actions.addToPlaylist(item) },

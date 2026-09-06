@@ -3,7 +3,7 @@ title: Permanent vs transient failure, and playback that goes nowhere
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-20
+updated: 2026-09-06
 ---
 
 # Knowing when to stop asking
@@ -253,3 +253,11 @@ in under a millisecond, so a read spends its six-fetch budget before the network
 ordinary HTTP stream would have waited. Kept on purpose — an address YouTube refuses to serve wants a
 fresh resolve, not a wait — and now pinned by `SabrStallOutranksTheNetworkTest` so it cannot be reversed
 unnoticed.
+
+## Auto-play next is honoured when a stream is given up on (2026-09-06)
+
+End-of-item advance and the stall watchdog both read the "auto-play next" setting; `StreamRecovery`'s
+last rung did not, so a stream that failed every retry walked on down the queue for someone who had
+asked it to stop. `abandon()` now checks the same one reading of the setting (`autoPlayNextEnabled`
+in the container, shared by all three) and logs `not moving on from the failed stream — auto-play
+next is off` instead. Guarded by `StreamRecoveryTest`.

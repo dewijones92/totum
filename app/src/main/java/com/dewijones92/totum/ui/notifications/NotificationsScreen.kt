@@ -75,8 +75,6 @@ fun NotificationsScreen(
                             subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO),
                             pillar = MediaKind.VIDEO,
                             onPlay = { viewModel.play(upload.item) },
-                            onDownload = {},
-                            onDeleteDownload = {},
                             modifier = if (upload.unread) Modifier.background(unreadTint()) else Modifier,
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

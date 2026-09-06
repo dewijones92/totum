@@ -63,6 +63,7 @@ import com.dewijones92.totum.database.RoomSubscriptionStore
 import com.dewijones92.totum.database.TotumDatabase
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
+import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.domain.AccountProgressOutbox
@@ -70,7 +71,6 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
-import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
@@ -78,7 +78,6 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.toPlayableOrNull
-import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
 import com.dewijones92.totum.innertube.actions.YouTubeActions
@@ -409,6 +408,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * thing where an item resumes, and that stays true. Podcasts fall straight through — YouTube has
      * no position for them, so the rule returns the local answer untouched.
      */
+    /** The one reading of "auto-play next", shared by end-of-item advance, the stall watchdog and recovery. */
+    private val autoPlayNextEnabled: () -> Boolean = { appPreferences.settings.value.autoPlayNext }
+
     private val accountResumePositions: AccountResumePositions by lazy {
         AccountResumePositions(
             local = playbackProgressStore::resumePositionMs,
@@ -746,7 +748,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             events = playbackController.events,
             advance = { playbackQueue.playNextInQueue() },
             whenQueueEmpty = ::playRelatedNext,
-            isEnabled = { appPreferences.settings.value.autoPlayNext },
+            isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
         ).start()
         // The advancer only ever hears about a clean end. An item that stops dead at its own
@@ -779,7 +781,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // The same recovery ExpiredStreamRecovery uses. A hung request raises no error, so
             // that watcher never fires for it — this one has to reach the same rescue itself.
             replay = { positionMs -> playbackQueue.replayCurrent(positionMs) },
-            isEnabled = { appPreferences.settings.value.autoPlayNext },
+            isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
         ).start()
         // Resolving one item ahead, defined ONCE. Two things want it for the same reason —
@@ -814,6 +816,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             failures = playbackController.streamFailures,
             replay = playbackQueue::replayCurrent,
             moveOn = { playbackQueue.playNextInQueue() },
+            autoPlayNext = autoPlayNextEnabled,
             // The last thing to try before abandoning the item: the copy already on the disk.
             playWithoutTheStream = playbackQueue::playCurrentWithoutItsStream,
             // The sound without the picture, tried after the disk and before giving up. There is no
@@ -860,94 +863,24 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private var latestDownloadStates: Map<MediaItemId, DownloadState> = emptyMap()
 
     /**
-     * What is actually on this device, which is the first question any "it did not play offline" or
-     * "why has it not downloaded" report asks — and the one report 0.1.346 could not answer at all:
-     * it carried the whole queue and every setting, and not one word about whether the file was there.
-     *
-     * From a cached snapshot, never a blocking read: a diagnostic must not be the thing that hangs,
-     * and this runs on whatever thread just crashed.
+     * Everything a report carries about the app's state at the moment it was sent. Its own class:
+     * it is the largest single thing the container did, and none of it is wiring.
      */
-    private fun MutableMap<String, String>.putDownloadState() {
-        val states = latestDownloadStates
-        val entries = playbackQueue.state.value.entries
-        val readiness = OfflineReadiness.of(
-            entries.map { it.item.item.id },
-            stateOf = { id -> states[id] ?: DownloadState.NotDownloaded },
-            fetchedAutomatically = { id ->
-                entries.firstOrNull { it.item.item.id == id }?.item?.hasAudioOnlyFetch ?: true
-            },
-        )
-        put("downloads.queueReady", readiness.ready.toString())
-        put("downloads.queueDownloading", readiness.downloading.toString())
-        put("downloads.queueWaiting", readiness.waiting.toString())
-        put("downloads.queueUnavailableOffline", readiness.unavailableOffline.toString())
-        put("downloads.queueNotAutomatic", readiness.notAutomatic.toString())
-        put("downloads.onDisk", states.count { it.value is DownloadState.Downloaded }.toString())
-        // Across EVERYTHING, not just the queue: a manual download is invisible to the queue
-        // counters above, and "is it fetching anything at all" is the first question a
-        // "downloading delayed????" report has to answer.
-        put("downloads.running", states.count { it.value is DownloadState.Downloading }.toString())
-        put("downloads.maxParallel", QueueAutoDownloader.MAX_PARALLEL.toString())
-        // Whether Android is letting this app finish its downloads in the background at all.
-        put("downloads.processHeldOpen", DownloadKeepAliveService.holdingProcess.toString())
-        // Per item, because a count cannot say whether the one that was TAPPED was there.
-        put(
-            "downloads.queueStates",
-            entries.joinToString(" | ") { entry ->
-                val title = entry.item.item.title.take(DIAG_TITLE_CHARS)
-                "$title=${states[entry.item.item.id].forDiagnostics()}"
-            },
+    private val diagnosticSnapshot: DiagnosticSnapshot by lazy {
+        DiagnosticSnapshot(
+            playbackController = playbackController,
+            playbackQueue = playbackQueue,
+            accountSubscriptions = accountSubscriptions,
+            live = DiagnosticSnapshot.Live(
+                downloadStates = { latestDownloadStates },
+                settings = { appPreferences.settings.value },
+                accountSync = { progressOutboxDrain.status.value to latestPendingAccountUpdates },
+                isMetered = networkStatus::isMetered,
+            ),
         )
     }
 
-    /**
-     * What the app can say about itself when something goes wrong. Verbose on purpose
-     * (Dewi's instruction) — the queue, what's playing and every setting, since those
-     * are what a report is usually missing. Each value is computed defensively: a
-     * diagnostic must never be the thing that crashes.
-     */
-    private fun diagnosticState(): Map<String, String> = buildMap {
-        runCatching {
-            val state = playbackController.state.value
-            put("playing.title", state?.title ?: "nothing")
-            put("playing.itemId", state?.itemId?.value ?: "-")
-            put("playing.kind", state?.kind?.name ?: "-")
-            put("playing.positionMs", state?.positionMs?.toString() ?: "-")
-            put("playing.hasVideo", state?.hasVideo?.toString() ?: "-")
-            put("playing.speed", state?.speed?.toString() ?: "-")
-            put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")
-            put("playing.volumeBoost", state?.volumeBoost?.name ?: "-")
-        }
-        runCatching {
-            val queue = playbackQueue.state.value
-            put("queue.size", queue.entries.size.toString())
-            put("queue.currentIndex", queue.currentIndex.toString())
-            put("queue.items", queue.entries.joinToString(" | ") { "${it.item.item.title}" })
-        }
-        runCatching { putDownloadState() }
-        runCatching {
-            val settings = appPreferences.settings.value
-            put("settings.playbackMode", settings.playbackMode.name)
-            put("settings.autoPlayNext", settings.autoPlayNext.toString())
-            put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
-            put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
-            put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())
-            put("settings.cellularMaxHeight", settings.cellularMaxHeight.toString())
-        }
-        runCatching {
-            // The account's subscription list, because "it offered me Subscribe to a channel I
-            // follow" is unanswerable without knowing how many channels the app thinks it has.
-            val subs = accountSubscriptions.channels.value
-            put("account.signedIn", accountSubscriptions.signedIn.value.toString())
-            // Whether listening is REACHING the account, and how much is waiting to. `NoSession` in the
-            // trail was indistinguishable from working for three weeks; this line is the difference.
-            put("yt-sync.outbound", progressOutboxDrain.status.value.toString())
-            put("yt-sync.pendingUpdates", latestPendingAccountUpdates.toString())
-            put("account.subscriptions", subs.size.toString())
-            put("account.subscriptionTitles", subs.joinToString(" | ") { it.title })
-        }
-        runCatching { put("network.metered", networkStatus.isMetered().toString()) }
-    }
+    private fun diagnosticState(): Map<String, String> = diagnosticSnapshot.capture()
 
     override fun sendDiagnostics(note: String) {
         crashReporter.reportDiagnostics(note)
@@ -1375,27 +1308,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         const val TORRENT_SEARCH_TIMEOUT_SECONDS = 180L
     }
 }
-
-/** Enough of a title to recognise the item in a per-item report line. */
-private const val DIAG_TITLE_CHARS = 40
-
-/**
- * One download state, short enough that ninety of them still fit in a report.
- *
- * A failure keeps a slice of its reason: "members-only" and "network timeout" are the difference
- * between an item that will never be offline and one that will be in a minute.
- */
-private fun DownloadState?.forDiagnostics(): String = when (this) {
-    null, DownloadState.NotDownloaded -> "-"
-    is DownloadState.Downloaded -> if (audioOnly) "audio" else "full"
-    is DownloadState.Downloading -> "fetching${fraction?.let { " ${(it * PERCENT).toInt()}%" } ?: ""}"
-    is DownloadState.Failed -> "failed(${reason.take(DIAG_FAILURE_CHARS)})"
-}
-
-/** As much of a failure as identifies it; the full text is in the download row. */
-private const val DIAG_FAILURE_CHARS = 30
-
-private const val PERCENT = 100
 
 /**
  * The phone's languages, best first — which audio track a video should play in.

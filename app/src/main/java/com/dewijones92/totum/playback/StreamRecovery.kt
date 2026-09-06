@@ -49,6 +49,9 @@ import kotlinx.coroutines.launch
  *   call — but once the stream has failed every retry there is no working stream to prefer, and
  *   report 0.1.383 skipped past a video whose audio was already downloaded. Returns false when
  *   there is nothing on the disk, which is when moving on is the right answer.
+ * @param autoPlayNext the user's "auto-play next" setting. Giving up on a stream moves the queue on
+ *   only if it is on: end-of-item advance and the stall watchdog both honoured it, and this did not,
+ *   so a failed stream walked down the queue for someone who had asked it not to.
  * @param freshStarts every play the queue began that recovery did not ask for — a tap, an
  *   auto-advance, a peek. Each one is a new stuck point: the budget resets and any retry still
  *   waiting out its backoff is abandoned.
@@ -106,6 +109,7 @@ internal class StreamRecovery(
      */
     private val playOverSabr: suspend (Long) -> Boolean = { false },
     private val freshStarts: Flow<MediaItemId> = emptyFlow(),
+    private val autoPlayNext: () -> Boolean = { true },
     private val isPlaying: (MediaItemId) -> Boolean = { false },
     private val forgetResolved: (MediaItemId) -> Unit = {},
     private val prefetchNext: suspend () -> Unit = {},
@@ -328,8 +332,15 @@ internal class StreamRecovery(
         abandon()
     }
 
-    /** Steps to the next item, saying so when there is nothing to step to. */
+    /** Steps to the next item, saying so when there is nothing to step to — or when asked not to. */
     private suspend fun abandon() {
+        if (!autoPlayNext()) {
+            Diag.log(
+                "playback",
+                "not moving on from the failed stream — auto-play next is off, so the queue stops here"
+            )
+            return
+        }
         if (!moveOn()) {
             Diag.warn("playback", "nothing left in the queue to move on to")
         }

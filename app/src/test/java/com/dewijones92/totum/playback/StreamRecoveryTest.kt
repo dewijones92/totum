@@ -36,6 +36,9 @@ class StreamRecoveryTest {
     /** What the player says is playing right now, for the "did an earlier attempt work?" check. */
     private var playingNow: MediaItemId? = null
 
+    /** The user's setting; on by default, as in the app. */
+    private var autoPlayNext = true
+
     /** Items whose cached resolution was dropped, in order. */
     private val forgotten = mutableListOf<MediaItemId>()
 
@@ -59,6 +62,7 @@ class StreamRecoveryTest {
                 diskHasIt
             },
             freshStarts = freshStarts,
+            autoPlayNext = { autoPlayNext },
             isPlaying = { it == playingNow },
             forgetResolved = { forgotten += it },
             prefetchNext = { prefetched++ },
@@ -114,6 +118,22 @@ class StreamRecoveryTest {
         runCurrent()
 
         assertEquals(listOf(500L), replayedFrom)
+    }
+
+    /**
+     * "Auto-play next: off" must mean OFF for a failed stream too. Both end-of-item advance and the
+     * stall watchdog honour the setting; recovery's give-up did not, so a stream that failed walked
+     * on down the queue for someone who had asked it not to.
+     */
+    @Test
+    fun `giving up on a stream does not move on when auto-play next is off`() = runTest {
+        autoPlayNext = false
+        recovery(maxAttempts = 1)
+        runCurrent()
+        repeat(3) { failures.emit(expired("a", at = 500)) }
+        runCurrent()
+
+        assertEquals("the queue must not advance for someone who switched auto-play off", 0, movedOn)
     }
 
     @Test

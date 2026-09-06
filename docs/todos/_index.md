@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [youtube-requires-attestation](youtube-requires-attestation.md) | playback | **critical** | open — measured and understood; the fix (a PO token) is not built. Nothing un-downloaded streams |
+| [youtube-requires-attestation](youtube-requires-attestation.md) | playback | **critical** | open — SABR is capped at ~1MB and the signed-in TV client is refused (blocks progress sync and age-restricted video). Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | open — two defects fixed but disproven as the cause; instrumented for the next report |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |

@@ -82,9 +82,15 @@ fun MediaItemRow(
     subtitleLines: List<String>,
     pillar: MediaKind,
     onPlay: () -> Unit,
-    onDownload: () -> Unit,
-    onDeleteDownload: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Default to the app-wide capability like every other action — these two were the ONLY callbacks
+     * without a default, so three screens passed `{}` and drew a download control that did nothing
+     * (Related, Notifications, Search). Full media, as a screen's own Download tap fetches; the
+     * action sheet's "Download video" covers upgrading an audio-only copy.
+     */
+    onDownload: (() -> Unit)? = LocalItemActions.current.bind { download(item, audioOnly = false) },
+    onDeleteDownload: (() -> Unit)? = LocalItemActions.current.bind { deleteDownload(item.id) },
     /** Defaults to the app-wide offline state, so no screen has to plumb it. */
     downloadState: DownloadState = LocalDownloadStates.current[item.id] ?: DownloadState.NotDownloaded,
     // Everything an item can do defaults to the app-wide capability. A screen has to work
@@ -130,7 +136,7 @@ fun MediaItemRow(
     // Rows that replace the download control with something else (the queue's drag handle)
     // would otherwise have no way to (re)try a download at all — which matters precisely
     // when an automatic fetch failed.
-    val sheetDownload = onDownload.takeIf {
+    val sheetDownload = onDownload?.takeIf {
         trailing != null && downloadState !is DownloadState.Downloaded && downloadState !is DownloadState.Downloading
     }
     val hasMenu = listOfNotNull(
@@ -158,7 +164,7 @@ fun MediaItemRow(
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
             }
         }
-        if (trailing != null) trailing() else DownloadControl(downloadState, onDownload, onDeleteDownload)
+        TrailingControl(trailing, downloadState, onDownload, onDeleteDownload)
     }
     if (showSheet) {
         ActionSheet(
@@ -273,6 +279,20 @@ private fun Badge(label: String, color: androidx.compose.ui.graphics.Color) {
             .background(color)
             .padding(horizontal = 6.dp, vertical = 1.dp),
     )
+}
+
+/** The row's own control, or nothing when there is nothing behind it (a preview, a test). */
+@Composable
+private fun TrailingControl(
+    trailing: (@Composable () -> Unit)?,
+    downloadState: DownloadState,
+    onDownload: (() -> Unit)?,
+    onDeleteDownload: (() -> Unit)?,
+) {
+    when {
+        trailing != null -> trailing()
+        onDownload != null && onDeleteDownload != null -> DownloadControl(downloadState, onDownload, onDeleteDownload)
+    }
 }
 
 @Composable

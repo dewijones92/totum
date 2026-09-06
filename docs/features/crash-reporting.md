@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-08-14
+updated: 2026-09-06
 ---
 
 # Crash reporting
@@ -28,6 +28,7 @@ upload hit a DNS failure was re-sent successfully on the following launch.
 | `DiagnosticsStore` | `:app` | Pending reports on disk, capped at 50 |
 | `DiagnosticsUploader` | `:app` | Sends pending reports at launch; deletes only on success |
 | `tools/crashlog-server` | the Pi | FastAPI sink → files + SQLite index, behind Google auth |
+| `app/…/diagnostics/DiagnosticSnapshot.kt` | the app | the `state` block of every report — playback, queue, disk, settings, account, network, outbound sync — built from cached values only, so it can never hang or throw (moved out of `AppContainer` 2026-09-06; keys unchanged) |
 
 ### Why the trail lives in `:lib:common`
 

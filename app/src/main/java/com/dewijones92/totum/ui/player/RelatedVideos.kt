@@ -53,8 +53,6 @@ internal fun RelatedSection(
                             subtitleLines = mediaItemFacts(video, MediaKind.VIDEO),
                             pillar = MediaKind.VIDEO,
                             onPlay = { onPlayRelated(video) },
-                            onDownload = { },
-                            onDeleteDownload = { },
                         )
                     }
                 }

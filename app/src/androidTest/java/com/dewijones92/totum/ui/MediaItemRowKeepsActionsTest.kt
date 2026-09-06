@@ -1,16 +1,20 @@
 package com.dewijones92.totum.ui
 
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
@@ -19,6 +23,8 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.ItemActions
+import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -61,6 +67,47 @@ class MediaItemRowKeepsActionsTest {
         membersOnly = true,
         contentKind = MediaContentKind.LIVE,
     )
+
+    /** What the app provides everywhere; a row with no explicit download callbacks must reach it. */
+    private val downloadsAsked = mutableListOf<Pair<MediaItemId, Boolean>>()
+    private val actions = object : ItemActions {
+        override fun playNext(item: MediaItem) = Unit
+        override fun addToQueue(item: MediaItem) = Unit
+        override fun addToPlaylist(item: MediaItem) = Unit
+        override fun peek(item: MediaItem) = Unit
+        override fun download(item: MediaItem, audioOnly: Boolean) { downloadsAsked += item.id to audioOnly }
+        override fun deleteDownload(id: MediaItemId) = Unit
+        override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
+        override fun goToSource(item: MediaItem) = Unit
+        override val audioMode: Boolean = false
+        override fun switchMode(item: MediaItem) = Unit
+    }
+
+    /**
+     * The inert-control bug: Related, Notifications and Search drew the download icon with `{}`
+     * behind it because these were the only two row callbacks without an app-wide default. A row
+     * given NO download callbacks must still download through the provided actions.
+     */
+    @Test
+    fun `a row with no explicit download callback still downloads through the app-wide actions`() {
+        composeTestRule.setContent {
+            TotumTheme {
+                CompositionLocalProvider(LocalItemActions provides actions) {
+                    MediaItemRow(
+                        item = item,
+                        subtitleLines = emptyList(),
+                        pillar = MediaKind.VIDEO,
+                        onPlay = {},
+                        modifier = Modifier.testTag(ROW),
+                    )
+                }
+            }
+        }
+        val label = InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.download)
+        composeTestRule.onNodeWithContentDescription(label).performClick()
+
+        assertEquals(listOf(MediaItemId("abc") to false), downloadsAsked)
+    }
 
     private fun show(downloadState: DownloadState = DownloadState.NotDownloaded) {
         composeTestRule.setContent {
