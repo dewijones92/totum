@@ -4,7 +4,7 @@ kind: todo
 area: playback
 priority: critical
 status: open — root cause identified and measured; the fix (a PO token) is not built
-updated: 2026-08-19
+updated: 2026-09-06
 ---
 
 # Nothing streams, and it is not our code
@@ -495,3 +495,12 @@ What it does buy is avoiding the unseekable path, since our SABR cannot seek
 **The single blocker is a PO token.** Every branch of this investigation now ends at the same place, and
 the app's job until then is to degrade honestly: fail rather than fake an ending, keep the sound, and say
 which of the two it did.
+
+## A live-test note (2026-09-06)
+
+`PlaysAcrossContentTypesTest`'s live-stream fixture `YDvsBbKfLPA` ended and went private, which fired a
+FALSE "silent, unexplained" alarm and turned main red — a rotted fixture, not an app defect. Swapped
+for a perennial id and, more importantly, the test now classifies a video YouTube calls unavailable
+(private/removed/geo-blocked) as *explained*, not as the app going silent — so the next live fixture
+to die cannot turn main red on its own. `AnHourLongItemDoesNotRebufferTest` remains a real canary for
+this blocker: it plays over SABR, which YouTube caps per session, so it fails whenever a run is capped.

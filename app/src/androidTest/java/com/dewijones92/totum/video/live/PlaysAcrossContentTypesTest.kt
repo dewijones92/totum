@@ -164,6 +164,13 @@ class PlaysAcrossContentTypesTest {
         }
         val trail = lastTrail()
         if (trail.contains("refused")) return "sound=NO — YouTube served nothing fetchable\n    $trail"
+        // A fixture that has gone private/removed/geo-blocked is a DEAD FIXTURE, not an app defect:
+        // the app said so plainly ("genuinely unavailable" / "This video is private"). Counting that
+        // as UNEXPLAINED is a false canary — a rotted live-stream fixture fired exactly this on
+        // 2026-09-06 and turned main red. A live stream ends eventually; the test must survive it.
+        if (fullTrail().let { t -> UNAVAILABLE.any { it in t } }) {
+            return "sound=NO — YouTube says this video is unavailable (a dead fixture, not an app defect)\n    $trail"
+        }
         return "$UNEXPLAINED sound=NO and nothing explains it\n    $trail"
     }
 
@@ -210,6 +217,8 @@ class PlaysAcrossContentTypesTest {
 
     private fun breadcrumbSays(phrase: String) = Breadcrumbs.snapshot().any { phrase in it.message }
 
+    private fun fullTrail() = Breadcrumbs.snapshot().joinToString("\n") { it.message }
+
     private fun lastTrail() = Breadcrumbs.snapshot().takeLast(TRAIL_LINES)
         .filter { "route" in it.message || "stream " in it.message || "sound" in it.message }
         .joinToString("\n      ") { it.message.take(TRAIL_CHARS) }
@@ -233,11 +242,16 @@ class PlaysAcrossContentTypesTest {
         /** Marks an outcome the app has to answer for, as opposed to one YouTube explained. */
         const val UNEXPLAINED = "UNEXPLAINED:"
 
+        /** How the app words a video YouTube will not serve anyone — a dead fixture, not a defect. */
+        val UNAVAILABLE = listOf("genuinely unavailable", "is private", "This video is private", "unavailable")
+
         val FIXTURES = listOf(
             Fixture("jNQXAC9IVRw", "19-second clip"),
             Fixture("uSMGENDH_QI", "97-minute VOD"),
             Fixture("gngPQ771Ahk", "Ms Rachel (made-for-kids)"),
-            Fixture("YDvsBbKfLPA", "live stream"),
+            // A perennial 24/7 live stream (Lofi Girl), so the fixture does not rot: YDvsBbKfLPA was a
+            // stream that ended and went private, which fired a FALSE "silent" alarm on 2026-09-06.
+            Fixture("jfKfPfyJRdk", "live stream"),
         )
 
         /** A cold resolve with a QuickJS `n` solve has been measured at 25s; four of them need room. */
