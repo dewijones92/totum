@@ -40,7 +40,7 @@ internal fun ShellOverlays(
             modifier = Modifier.safeDrawingPadding(),
         )
     }
-// A playlist opened from that channel overlay, on top of it. Same shape, same reason.
+    // A playlist opened from that channel overlay, on top of it. Same shape, same reason.
     BackHandler(enabled = playlist != null) { onClosePlaylist() }
     playlist?.let { playlist ->
         PlaylistScreen(

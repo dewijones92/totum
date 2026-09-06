@@ -483,7 +483,8 @@ public class Media3PlaybackController(
         skipsThisItem++
         Diag.log(
             "sponsorblock",
-            "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms (skip $skipsThisItem of this item)",
+            "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms " +
+                "(skip $skipsThisItem of this item)",
         )
         controller.seekTo(target.inWholeMilliseconds)
     }

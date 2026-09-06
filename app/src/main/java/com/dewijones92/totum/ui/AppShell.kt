@@ -59,9 +59,9 @@ import com.dewijones92.totum.ui.player.PlaybackToggles
 import com.dewijones92.totum.ui.player.QualityControl
 import com.dewijones92.totum.ui.player.QueueControls
 import com.dewijones92.totum.ui.player.VideoBounds
-import com.dewijones92.totum.ui.player.WatchActions
 import com.dewijones92.totum.ui.player.WatchViewModel
 import com.dewijones92.totum.ui.player.rememberIsInPictureInPicture
+import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.search.SearchScreen
@@ -247,10 +247,6 @@ private fun FullPlayerHost(
     val replies by watchViewModel.replies.collectAsStateWithLifecycle()
     val related by watchViewModel.related.collectAsStateWithLifecycle()
     val sleepTimer by container.sleepTimer.state.collectAsStateWithLifecycle()
-    val signedIn by watchViewModel.signedIn.collectAsStateWithLifecycle()
-    val rating by watchViewModel.rating.collectAsStateWithLifecycle()
-    val inWatchLater by watchViewModel.inWatchLater.collectAsStateWithLifecycle()
-    val postState by watchViewModel.postState.collectAsStateWithLifecycle()
     val quality by watchViewModel.quality.collectAsStateWithLifecycle()
     val queueState by container.playbackQueue.state.collectAsStateWithLifecycle()
     val upNext = queueState.upNext
@@ -275,17 +271,7 @@ private fun FullPlayerHost(
             onLoadMore = watchViewModel::loadMoreReplies,
         ),
         related = related,
-        watchActions = WatchActions(
-            canAct = signedIn,
-            rating = rating,
-            inWatchLater = inWatchLater,
-            onToggleLike = watchViewModel::toggleLike,
-            onToggleDislike = watchViewModel::toggleDislike,
-            onToggleWatchLater = watchViewModel::toggleWatchLater,
-            postState = postState,
-            onPostComment = watchViewModel::postComment,
-            onPostHandled = watchViewModel::clearPostState,
-        ),
+        watchActions = rememberWatchActions(watchViewModel),
         quality = qualityControl(quality, watchViewModel),
         sleepTimer = sleepTimer,
         onDismiss = onDismiss,
