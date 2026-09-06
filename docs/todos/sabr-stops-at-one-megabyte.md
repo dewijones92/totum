@@ -320,9 +320,11 @@ That convergence is the useful part of this. The TV client path is broken for us
 > config, `n` solved). **First measurement, same day: the TV endpoint answers 0 bytes** to every patient
 > fetch, with the SABR body declaring either the WEB or the ANDROID client (`protection=none
 > policy[absent]`, 4 fetches, 0KB) — where the ANDROID endpoint at least serves its first megabyte. So
-> a TV endpoint with a non-TV `clientInfo` is worse than useless, and the arm cannot mean anything until
-> `SabrClientInfo` has a TVHTML5 member (client id 7, the TV version) and, probably, the bearer on the
-> `videoplayback` request. Bounded follow-up; not pursued today. Note what SmartTube's capture showed: it streams from `WEB_EMBEDDED_PLAYER` **with a
+> the same with `SabrClientInfo.TV` (client id 7, version 7.20260114.12.00, added the same day): **0 bytes
+> again**. The signed-in TV endpoint gives nothing to a request carrying no PO token, whatever client the
+> body declares — consistent with SmartTube not streaming from its own TV response but from a
+> `WEB_EMBEDDED_PLAYER` one with a BotGuard token. Untried: the bearer on the `videoplayback` POST itself.
+> Conclusion for now: the TV identity is not a route past the ceiling; attestation is. Note what SmartTube's capture showed: it streams from `WEB_EMBEDDED_PLAYER` **with a
 > BotGuard PO token**, 4.6MB responses, so the working reference is attestation rather than the TV identity.
 
 So the next objective is narrow and nameable rather than open-ended: **make a TVHTML5 player request

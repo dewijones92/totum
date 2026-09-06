@@ -47,8 +47,18 @@ public data class SabrClientInfo(
             osVersion = "10.0",
         )
 
+        /**
+         * What the signed-in TV player calls present (reachable again since 2026-09-06). A TV endpoint
+         * given a WEB or ANDROID client here answered 0 bytes to every request, measured the same day.
+         */
+        public val TV: SabrClientInfo = SabrClientInfo(
+            clientName = TV_CLIENT_NAME,
+            clientVersion = "7.20260114.12.00",
+        )
+
         private const val ANDROID_CLIENT_NAME = 3
         private const val WEB_CLIENT_NAME = 1
+        private const val TV_CLIENT_NAME = 7
         private const val CLIENT_NAME = 16
         private const val CLIENT_VERSION = 17
         private const val OS_NAME = 18

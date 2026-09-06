@@ -94,6 +94,7 @@ class DoesAPoTokenLiftTheCeilingTest {
         val info = when (System.getProperty("clientInfo")) {
             "android" -> SabrClientInfo.ANDROID
             "web" -> SabrClientInfo.WEB
+            "tv" -> SabrClientInfo.TV
             else -> null
         }
         // Dumped BEFORE the ceiling runs, so a run that serves nothing still says why.
@@ -307,6 +308,7 @@ class DoesAPoTokenLiftTheCeilingTest {
             clientInfo = when (System.getProperty("clientInfo")) {
                 "android" -> SabrClientInfo.ANDROID
                 "web" -> SabrClientInfo.WEB
+            "tv" -> SabrClientInfo.TV
                 else -> null
             },
         )
