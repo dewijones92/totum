@@ -316,8 +316,13 @@ That convergence is the useful part of this. The TV client path is broken for us
 
 > ✅ **Done 2026-09-06 — the TVHTML5 player request succeeds** once `signatureTimestamp` is on the TV scale
 > (`20697001`; [tv-client-player-is-refused.md](tv-client-player-is-refused.md)). `tools/potoken/tvsabr.py`
-> can now obtain a TV SABR endpoint, so "does a TV session pass 1MB without a PO token?" is finally
-> testable. Note what SmartTube's capture showed: it streams from `WEB_EMBEDDED_PLAYER` **with a
+> can now obtain a TV SABR endpoint (`NO_POT=1 BEARER_FILE=… tvsabr.py` → OK, 98 formats, endpoint +
+> config, `n` solved). **First measurement, same day: the TV endpoint answers 0 bytes** to every patient
+> fetch, with the SABR body declaring either the WEB or the ANDROID client (`protection=none
+> policy[absent]`, 4 fetches, 0KB) — where the ANDROID endpoint at least serves its first megabyte. So
+> a TV endpoint with a non-TV `clientInfo` is worse than useless, and the arm cannot mean anything until
+> `SabrClientInfo` has a TVHTML5 member (client id 7, the TV version) and, probably, the bearer on the
+> `videoplayback` request. Bounded follow-up; not pursued today. Note what SmartTube's capture showed: it streams from `WEB_EMBEDDED_PLAYER` **with a
 > BotGuard PO token**, 4.6MB responses, so the working reference is attestation rather than the TV identity.
 
 So the next objective is narrow and nameable rather than open-ended: **make a TVHTML5 player request

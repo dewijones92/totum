@@ -12,8 +12,12 @@ UA = ("Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike
       "Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)")
 D = os.environ.get("POT_DIR", ".")
 video = sys.argv[1] if len(sys.argv) > 1 else "uSMGENDH_QI"
-player_pot = open(os.path.join(D, "player_pot.txt")).read().strip()
-visitor = open(os.path.join(D, "visitor.txt")).read().strip()
+# NO_POT=1 asks WITHOUT a PO token, and BEARER_FILE=<path> asks as the signed-in account -- the two arms
+# the TV client could not be asked until 2026-09-06, when its /player started answering (see below).
+no_pot = os.environ.get("NO_POT") == "1"
+player_pot = None if no_pot else open(os.path.join(D, "player_pot.txt")).read().strip()
+visitor = open(os.path.join(D, "visitor.txt")).read().strip() if os.path.exists(os.path.join(D, "visitor.txt")) else None
+bearer = open(os.environ["BEARER_FILE"]).read().strip() if os.environ.get("BEARER_FILE") else None
 
 # The signature timestamp comes from the player script, same as the app reads it.
 iframe = urllib.request.urlopen(urllib.request.Request(
@@ -27,24 +31,31 @@ ver = re.search(r"player\\?/([0-9a-f]{8})\\?/", iframe) or re.search(r"/s/player
 player_url = "https://www.youtube.com/s/player/%s/player_ias.vflset/en_US/base.js" % ver.group(1)
 js = urllib.request.urlopen(urllib.request.Request(player_url, headers={"User-Agent": UA}), timeout=30).read().decode()
 sts = int(re.search(r"signatureTimestamp[=:](\d+)", js).group(1))
+# A TV client declares the same number with a 001 suffix; the script's own value is refused with "The
+# page needs to be reloaded" (docs/todos/tv-client-player-is-refused.md, 2026-09-06).
+tv_sts = sts * 1000 + 1
 
+client = {"clientName": "TVHTML5", "clientVersion": "7.20260114.12.00", "hl": "en"}
+if visitor:
+    client["visitorData"] = urllib.parse.unquote(visitor)
 body = {
-    "context": {"client": {
-        "clientName": "TVHTML5",
-        "clientVersion": "7.20260114.12.00",
-        "hl": "en",
-        "visitorData": urllib.parse.unquote(visitor),
-    }},
+    "context": {"client": client},
     "videoId": video,
     "contentCheckOk": True,
     "racyCheckOk": True,
-    "playbackContext": {"contentPlaybackContext": {"signatureTimestamp": sts}},
-    "serviceIntegrityDimensions": {"poToken": player_pot},
+    "playbackContext": {"contentPlaybackContext": {"html5Preference": "HTML5_PREF_WANTS", "signatureTimestamp": tv_sts}},
 }
+if player_pot:
+    body["serviceIntegrityDimensions"] = {"poToken": player_pot}
+headers = {"Content-Type": "application/json", "User-Agent": UA,
+           "X-Youtube-Client-Name": "7", "X-Youtube-Client-Version": client["clientVersion"]}
+if bearer:
+    headers["Authorization"] = "Bearer " + bearer
+print("[tvsabr] asking: sts=%d bearer=%s poToken=%s visitorData=%s" % (
+    tv_sts, bool(bearer), bool(player_pot), bool(visitor)), file=sys.stderr)
 req = urllib.request.Request(
     "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
-    data=json.dumps(body).encode(),
-    headers={"Content-Type": "application/json", "User-Agent": UA})
+    data=json.dumps(body).encode(), headers=headers)
 resp = json.load(urllib.request.urlopen(req, timeout=30))
 
 status = resp.get("playabilityStatus", {})
