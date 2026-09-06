@@ -2,7 +2,7 @@
 title: SABR is capped at ~1MB per format, so it cannot carry a whole video
 status: open
 severity: blocker
-updated: 2026-08-20
+updated: 2026-09-06
 ---
 
 # SABR stops at ~1MB, and everything else about SABR is downstream of that
@@ -314,6 +314,12 @@ That convergence is the useful part of this. The TV client path is broken for us
    `playerAsAccount`, and both answer `UNPLAYABLE: The page needs to be reloaded`;
 2. **very probably SABR past sixty seconds**, since a TV client is what SmartTube is.
 
+> ✅ **Done 2026-09-06 — the TVHTML5 player request succeeds** once `signatureTimestamp` is on the TV scale
+> (`20697001`; [tv-client-player-is-refused.md](tv-client-player-is-refused.md)). `tools/potoken/tvsabr.py`
+> can now obtain a TV SABR endpoint, so "does a TV session pass 1MB without a PO token?" is finally
+> testable. Note what SmartTube's capture showed: it streams from `WEB_EMBEDDED_PLAYER` **with a
+> BotGuard PO token**, 4.6MB responses, so the working reference is attestation rather than the TV identity.
+
 So the next objective is narrow and nameable rather than open-ended: **make a TVHTML5 player request
 succeed.** `"The page needs to be reloaded"` is associated with a rejected client context — a stale
 `clientVersion`, a wrong or missing `visitorData` for that client family, or a signature timestamp the
@@ -331,7 +337,8 @@ internals, so how it does it is not visible from outside.
 That completes the evidence and bounds the remaining unknown exactly:
 
 - SmartTube, a TV client, streams whole videos over SABR here. **Confirmed by observation.**
-- The TV client is refused to us and to yt-dlp from the same address. **Confirmed by two tools.**
+- The TV client is refused to us and to yt-dlp from the same address. **Confirmed by two tools** — and
+  both were wrong the same way: the web-scale timestamp (fixed for us 2026-09-06).
 - Our request body matches SmartTube's field for field. **Confirmed by replication.**
 - The ceiling is sixty seconds regardless. **Confirmed by eighteen variations.**
 

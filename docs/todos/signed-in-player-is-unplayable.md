@@ -1,11 +1,19 @@
 ---
 title: The signed-in TV /player answers UNPLAYABLE, so the age-restricted fallback is dead
-status: open
+status: fixed 2026-09-06 — it WAS the stamp: TV clients need 20697001, the scripts say 20697
 severity: high
-updated: 2026-08-20
+updated: 2026-09-06
 ---
 
 # The signed-in TV `/player` answers UNPLAYABLE
+
+> ✅ **FIXED 2026-09-06.** "The next experiment" below was the right one and the stamp was the cause: a
+> TV client must send the signature timestamp with a `001` suffix (`20697001`), and the plain script value
+> that works for WEB is refused. One-axis measurement, SmartTube capture and fix are in
+> [tv-client-player-is-refused.md](tv-client-player-is-refused.md). The **"NOT OUR BUG"** section below
+> was wrong in its conclusion — yt-dlp's `tv` client fails for the same reason (it sends the web scale),
+> which made two tools agree on a shared mistake rather than confirm a wall. Age-restricted fallback
+> re-measured the same day: downgraded TV + TV-scale stamp → `rwcfPqbAx-0` OK, 7 formats, 7 plain URLs.
 
 Measured on `totum-api35`, signed in, 2026-08-20 17:30, one video, one axis at a time
 (`SignedInVersusAnonymousPlayerTest`, video `uSMGENDH_QI` — NASA, public domain):

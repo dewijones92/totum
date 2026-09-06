@@ -150,7 +150,7 @@ code is single-use and short-lived. So treat the token as an asset:
   when already signed in, so it doubles as the signed-in assertion. Back the token up again afterwards.
 
 Signed-in state matters for more than convenience: the subs feed, history, comments and likes all need
-it, and `docs/todos/youtube-requires-attestation.md` turns on whether a **signed-in TV `/player`** behaves
+it, and (since the TV `/player` works again, 2026-09-06) `docs/todos/youtube-requires-attestation.md` turns on whether a **signed-in TV SABR session** behaves
 differently from an anonymous one — which cannot be tested on a signed-out device.
 
 - JDK 21 lives at `/home/dewi/code/jdk/`; Android SDK at `/home/dewi/code/android-sdk`

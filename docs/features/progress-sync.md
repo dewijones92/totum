@@ -1,14 +1,22 @@
 ---
 title: Two-way progress sync with YouTube
 kind: feature
-status: outbound HELD (durable outbox; sender refused by YouTube since ~2026-08-18) · inbound works for resume AND rows
+status: shipped — both halves proven on the account 2026-09-06 (outbound revived by the TV-scale timestamp, held updates drain through the outbox)
 area: video
 updated: 2026-09-06
 ---
 
 # Two-way progress sync with YouTube
 
-> ⚠️ **Status correction, 2026-09-06.** This page said `shipped` while the outbound half had been
+> ✅ **Outbound is back, 2026-09-06 (later the same day).** The sender was refused because the TV
+> `/player` call declared the signature timestamp on the web scale (`20697`) where YouTube now wants
+> the TV scale (`20697001`) — see [`../todos/tv-client-player-is-refused.md`](../todos/tv-client-player-is-refused.md).
+> With `SignatureTimestamp.tv` on every TV player call, the outbox drained its held rows on the first
+> launch (`outbound sync working — sent 4, 0 held`) and the four videos appeared at the top of the
+> account's history in a signed-in browser. The report line that proves it in the wild is
+> `yt-sync.outbound = Working(sent=N)` with `yt-sync.pendingUpdates` at 0 after being online.
+>
+> ⚠️ **Status correction, 2026-09-06 (earlier).** This page said `shipped` while the outbound half had been
 > dead for nearly three weeks. Every report since ~2026-08-18 shows `carried no playback tracking;
 > progress won't sync` and `-> NoSession`, and it was reproduced live on a signed-in emulator with
 > YouTube's own history read back both from the app and from a signed-in browser: nothing arrives.

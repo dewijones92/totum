@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-08-31
+updated: 2026-09-06
 ---
 
 # Testing
@@ -215,6 +215,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | The account token is attached to every client that accepts one, and no others | `AuthAttachedByIdentityTest` | every commit |
 | A video whose stream keeps failing is retried afresh when you tap it again, rather than skipped on sight | `StreamRecoveryTest`, `TappingAFailedItemAgainTest` | every commit |
 | A failure for an item the queue has moved on from is dropped, never replayed onto the NEW item | `StreamRecoveryTest` | every commit — seen twice in CI as `StalledStreamRecoveryTest` buffering forever at the previous item's position |
+| Every TV player call declares the signature timestamp on the TV scale (20697001), the WEB call on the web scale — the one field that killed sync for three weeks | `PlayerTimestampScaleTest`, `SignatureTimestampTest`, `HttpYouTubeWatchHistoryTest` | every commit |
 | Progress the account could not be told about is HELD and sent the moment a sender works — offline listening included | `ProgressOutboxDrainTest`, `RoomAccountProgressOutboxTest` (emulator) | every commit — the send used to be fire-and-forget and 0.1.477 shows sixteen minutes of offline listening end `fin=true -> NoSession` and vanish |
 | A row shows a video watched elsewhere as watched-so-far, by the same rule resume uses | `AccountAwarePlayStateTest` | every commit — the Sutton report: half-watched on the website, blank row here |
 | Resuming never waits on the account for long, and not at all offline — so the next item plays | `AccountResumePositionsTest` | every commit — report 0.1.477 "why the next video not playing??": six plays, no transition, the account read hung with no network. Proven to fail with the bound removed |

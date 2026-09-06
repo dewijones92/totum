@@ -1,10 +1,36 @@
 ---
 title: The signed-in TV client's /player is refused
-status: blocked-upstream
-updated: 2026-08-18
+status: fixed 2026-09-06 — the TV client wants the signature timestamp on the TV scale (20697001, not 20697)
+updated: 2026-09-06
 ---
 
 # The signed-in TV client's `/player` is refused
+
+> ✅ **FIXED 2026-09-06 — and the diagnosis below was wrong.** It was never attestation. Since about
+> 2026-08-18 a TV client must declare `signatureTimestamp` with a `001` suffix — `20697001` where every
+> player script (web *and* `tv-player-ias.js`) still says `20697` — and the web-scale number is answered
+> `UNPLAYABLE "The page needs to be reloaded"`. Found by installing SmartTube on `totum-api35`, decrypting
+> its traffic with mitmproxy (system CA, `tools/emulator/mitm-capture.sh`), and varying **one field at a
+> time** against its captured request as the control:
+>
+> | variant (one axis from SmartTube's captured request) | answer |
+> |---|---|
+> | SmartTube verbatim (control) | OK, 22 formats, SABR, tracking URLs |
+> | Totum verbatim (old version, 2 headers) | UNPLAYABLE "The page needs to be reloaded" |
+> | Totum body with **`signatureTimestamp: 20697001`** and nothing else changed | **OK, 26 formats, tracking URLs** |
+> | SmartTube body with `signatureTimestamp: 20697` and nothing else changed | UNPLAYABLE |
+> | SmartTube minus visitorData + `X-Goog-Visitor-Id` / minus cpn / minus User-Agent / minus Referer / minus `X-Youtube-Client-*` / minus client UA fields / with our 2024 client version | all still OK |
+> | `signatureTimestamp` ∈ {20697000, 20697002, 20698001, 19000001, 99999999} | OK — any number on the TV scale |
+> | `signatureTimestamp` ∈ {20696, 20697, 20698, 100000} | UNPLAYABLE — any number on the web scale |
+>
+> SmartTube's own source says so (`QueryBuilder.kt`: *"Web and TV timestamps now differs. TV one should
+> have 001 suffix … wrong timestamp format yield 'page should be reloaded' error"*). The table below
+> did try `signatureTimestamp` — one value, 20677, on the wrong scale — and ruled it out; a field that
+> is *present and wrong* looks exactly like a field that does not matter. Fix: `SignatureTimestamp`
+> value class (`web` / `tv`), taken by type on every TV player call (`PlayerTimestampScaleTest`).
+> Proven on device: four held outbox rows drained and appeared at the top of the account's history.
+> The `browse`-works-`player`-fails narrowing below was real but pointed the wrong way: `browse`
+> sends no timestamp, so it could never have caught this.
 
 `TVHTML5` returns **`UNPLAYABLE — "The page needs to be reloaded."`** for every request we can
 construct, with a valid signed-in token. This blocks two things:

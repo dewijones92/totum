@@ -1,7 +1,7 @@
 ---
 title: Outbound progress sync is dead — no client will give a signed-in session tracking URLs
 kind: todo
-status: open — outbox + honest diagnostics + inbound rows SHIPPED 2026-09-06; the sender itself still needs the SmartTube capture
+status: FIXED 2026-09-06 — the sender needed the TV-scale signatureTimestamp; outbox drained and the account's history shows it
 area: video
 priority: critical
 requested: 2026-09-06
@@ -9,6 +9,19 @@ updated: 2026-09-06
 ---
 
 # Outbound progress sync is dead
+
+> ✅ **FIXED 2026-09-06, the same afternoon the outbox shipped.** The SmartTube capture this page asked
+> for was done on the emulator (not the Fire Stick) and found the cause in one afternoon: the signed-in
+> TV `/player` wants `signatureTimestamp` on the **TV scale** — `20697001` — and we sent the script's
+> `20697`. Nothing else in the request mattered ([tv-client-player-is-refused.md](tv-client-player-is-refused.md)
+> has the one-axis table). The "two independent walls" below were one wrong number.
+>
+> Proof, on `totum-api35` with build 5478660: `player signature timestamp is 20697 (tv 20697001)` →
+> `aqz-KE-bpKQ tracking acquired for the account` ×4 → `outbound sync working — sent 4, 0 held` (the
+> outbox drained three rows held from earlier in the day plus the new one) → the same four videos at
+> the top of `/feed/history` in a signed-in browser twenty seconds later, above SmartTube's own plays.
+> The stats request shape itself never needed changing; SmartTube's is the same pings
+> (`playback` then `watchtime` with `cmt/st/et`, `final=1` at the end) with a shorter parameter list.
 
 Dewi, 2026-09-06: *"I especially want the play progress to be reflected back into the YouTube
 servers under all circumstances, especially when listening to the audio file offline."*

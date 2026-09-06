@@ -3,8 +3,8 @@ title: Age-restricted videos
 kind: todo
 area: video
 priority: high
-status: shipped — age-restricted videos play on-device
-updated: 2026-08-04
+status: shipped — age-restricted videos play on-device (fallback was DEAD 2026-08-18 → 2026-09-06: TV timestamp scale)
+updated: 2026-09-06
 ---
 
 # Age-restricted videos
@@ -36,6 +36,13 @@ returns SABR-only (one URL out of seven). At `5.20260707` it returns seven fetch
 is exactly why SmartTube keeps a `TV_DOWNGRADED` client in its list and tries it *before* `TV`.
 
 ### signatureTimestamp is not optional, and its absence lies to you
+
+> **And since ~2026-08-18 it must be on the TV scale.** `20697001` where the player script says `20697`;
+> the web-scale value is refused with the same "page needs to be reloaded" as no value at all, which is
+> how this fallback was dead for three weeks while looking like an attestation wall
+> ([tv-client-player-is-refused.md](tv-client-player-is-refused.md)). Re-measured 2026-09-06 on
+> `rwcfPqbAx-0`: downgraded TV + `20697` → UNPLAYABLE; + `20697001` → OK, 7 formats, 7 plain URLs.
+> `SignatureTimestamp.tv` carries it; the TV player calls take the type so the web number cannot be passed.
 
 Without it the response is `UNPLAYABLE: "The page needs to be reloaded"` — **on any video,
 including unrestricted ones**. Two earlier rounds of this investigation were spent on results

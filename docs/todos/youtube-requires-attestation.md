@@ -243,7 +243,15 @@ ordinary. Second, this is a followable reference implementation with a known req
 exchange, which moves "a new capability" from a hunch to a bounded piece of work. It still needs a JS
 runtime for the challenge: QuickJS is already bundled for `n`, and a WebView exists on the device.
 
-**That lead is now dead — tested, on a signed-in device.** ⛔ Kept rather than deleted, because the
+**REVIVED 2026-09-06: the lead was right and the refusal was ours.** ✅ The signed-in TV `/player` wanted
+`signatureTimestamp` on the TV scale (`20697001`); with it, `playerAsAccount` answers OK with 27 formats and
+a `serverAbrStreamingUrl` — see [tv-client-player-is-refused.md](tv-client-player-is-refused.md). Whether a
+**TV** SABR session from that response passes the ~1MB ceiling without a PO token is the open question
+this reopens; SmartTube's capture shows it streaming SABR from a `WEB_EMBEDDED_PLAYER` response *with* a
+PO token minted via BotGuard (`/api/jnn/v1/GenerateIT`), not from its TV response. The paragraph below
+records the 2026-08-20 refusal as it was read at the time.
+
+**That lead looked dead — tested, on a signed-in device.** ⛔ Kept rather than deleted, because the
 reasoning below was sound and the next person will have the same idea. On 2026-08-20, signed in on
 `totum-api35`, `SignedInVersusAnonymousPlayerTest` asked for one video three ways in the same minute:
 
@@ -481,10 +489,11 @@ Dewi asked the right question: *"sabr???? but thats what smarttube uses isnt it?
 distinction matters:
 
 * **SABR is the correct protocol** and the one SmartTube uses. Nothing is wrong with choosing it.
-* **SmartTube is a signed-in TV client**, and that identity is what satisfies attestation. Ours cannot
-  be: `TVHTML5` `/player` answers `UNPLAYABLE: The page needs to be reloaded` for every request we can
-  construct — see `tv-client-player-is-refused.md`, where version, user agent, visitorData, headers,
-  scopes and the token are all ruled out by more than twenty probes.
+* **SmartTube is a signed-in TV client**, and ours now is too (2026-09-06: the TV `/player` refusal was
+  the timestamp scale, see `tv-client-player-is-refused.md`). But the capture shows SmartTube does NOT
+  stream from its TV response — it streams SABR from a `WEB_EMBEDDED_PLAYER` response carrying a
+  BotGuard-minted PO token (`serviceIntegrityDimensions.poToken`, `pot=` on `videoplayback`, 7 of 154
+  responses over 1MB, max 4.6MB). Attestation, not identity, is what lifts the ceiling for it.
 * **Turning `sabrPlayback` off does NOT get the picture back**, and suggesting it as a fix was wrong.
   The ordinary route's video URLs are non-durable and 403 too (`durable video=false` in the same
   report). Turning it off only changes WHICH route fails; the app then degrades to sound either way.

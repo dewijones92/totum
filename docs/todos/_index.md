@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [youtube-requires-attestation](youtube-requires-attestation.md) | playback | **critical** | open — SABR is capped at ~1MB and the signed-in TV client is refused (blocks progress sync and age-restricted video). Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
+| [youtube-requires-attestation](youtube-requires-attestation.md) | playback | **critical** | open — SABR is capped at ~1MB without a PO token (SmartTube mints one via BotGuard, captured 2026-09-06); the signed-in TV client is NO LONGER refused (timestamp scale, fixed 2026-09-06). Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | open — two defects fixed but disproven as the cause; instrumented for the next report |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |
@@ -64,7 +64,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [tab-state-preservation](tab-state-preservation.md) | navigation | high | shipped |
 | [diagnostics-triage-state](diagnostics-triage-state.md) | diagnostics | high | shipped |
 | [a-recovery-resumes-the-next-item-at-the-last-items-position](a-recovery-resumes-the-next-item-at-the-last-items-position.md) | playback | high | fixed 2026-09-06 — StreamRecovery drops stale failures |
-| [outbound-progress-sync-is-dead](outbound-progress-sync-is-dead.md) | video | **critical** | outbox + diagnostics + inbound rows shipped 2026-09-06; the sender still needs the SmartTube capture |
+| [outbound-progress-sync-is-dead](outbound-progress-sync-is-dead.md) | video | **critical** | **fixed 2026-09-06** — the TV-scale signatureTimestamp; outbox drained and the account's history shows it |
 | [the-next-video-does-not-play-offline](the-next-video-does-not-play-offline.md) | playback | high | fixed 2026-09-06 — resume no longer waits on the account offline |
 | [a-shared-link-that-cannot-resolve-vanishes](a-shared-link-that-cannot-resolve-vanishes.md) | share | medium | fixed 2026-09-06 — queued by its id, resolved when it plays |
 
@@ -72,10 +72,10 @@ All backlog items are Dewi requests. `refining` = spec written, decisions still 
 `ready` = decisions made, implementation waits for Dewi's explicit go (his standing
 instruction on the queue/download/autoplay/volume group: refine first, implement on
 command).
-- [The signed-in TV client's /player is refused](tv-client-player-is-refused.md) — blocks the SmartTube quality route and age-restricted videos; 20+ probes ruled out version, UA, headers, token
+- [The signed-in TV client's /player is refused](tv-client-player-is-refused.md) — **fixed 2026-09-06**: the TV client wants `signatureTimestamp` 20697001, not the script's 20697; found by capturing SmartTube on the emulator
 - [SABR cannot play a live stream without its initialization segment](sabr-live-needs-an-init-segment.md) — SABR fetches live fine (820KB kept in one fetch) and the player never becomes ready; the init data is on the wire in a part we discard
 - [SABR is capped at ~1MB per format](sabr-stops-at-one-megabyte.md) — **blocker**, measured on eighteen streams: past the ceiling the server answers with the init segment alone. Every other SABR problem is only observable in the first megabyte
 - [A resend is read as an empty answer and answered with a 30-second skip](a-resend-becomes-a-thirty-second-skip.md) — the response carried 171364B of this format's own bytes; `carried` already knows, and `handleEmpty` does not ask
 - [Move SABR onto a Media3 ChunkSource](sabr-as-a-chunk-source.md) — designed. The proper fix for seeking AND the only route to adaptive quality, which is structurally unreachable under a progressive source (proven against the media3 1.10.1 jars)
 - [SABR cannot be opened part-way through](sabr-cannot-seek.md) — the units bug and four byte-machinery bugs are fixed; a cold jump is still served no media (wire-measured), our reader still cannot consume a granted seek, and the warm-jump lead is **REOPENED** — it was crossed off on an unsound instrument
-- [The signed-in TV /player answers UNPLAYABLE](signed-in-player-is-unplayable.md) — the age-restricted fallback is dead until it is understood
+- [The signed-in TV /player answers UNPLAYABLE](signed-in-player-is-unplayable.md) — **fixed 2026-09-06**, it was the stamp's scale; age-restricted fallback re-measured working
