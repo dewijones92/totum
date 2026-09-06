@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-08-31
+updated: 2026-09-06
 ---
 
 # Backlog
@@ -63,6 +63,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [buffer-ahead-gauge](buffer-ahead-gauge.md) | playback | medium | shipped — seconds-ahead gauge on the scrub bar |
 | [tab-state-preservation](tab-state-preservation.md) | navigation | high | shipped |
 | [diagnostics-triage-state](diagnostics-triage-state.md) | diagnostics | high | shipped |
+| [a-recovery-resumes-the-next-item-at-the-last-items-position](a-recovery-resumes-the-next-item-at-the-last-items-position.md) | playback | high | fixed 2026-09-06 — StreamRecovery drops stale failures |
+| [outbound-progress-sync-is-dead](outbound-progress-sync-is-dead.md) | video | **critical** | open — root-caused 2026-09-06; no client route; outbox + SmartTube capture in progress |
 | [a-shared-link-that-cannot-resolve-vanishes](a-shared-link-that-cannot-resolve-vanishes.md) | share | medium | open — needs a decision |
 
 All backlog items are Dewi requests. `refining` = spec written, decisions still open;

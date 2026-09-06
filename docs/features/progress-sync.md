@@ -1,12 +1,21 @@
 ---
 title: Two-way progress sync with YouTube
 kind: feature
-status: shipped
+status: BROKEN outbound since ~2026-08-18 — see ../todos/outbound-progress-sync-is-dead.md; inbound (resume) still works
 area: video
-updated: 2026-08-16
+updated: 2026-09-06
 ---
 
 # Two-way progress sync with YouTube
+
+> ⚠️ **Status correction, 2026-09-06.** This page said `shipped` while the outbound half had been
+> dead for nearly three weeks. Every report since ~2026-08-18 shows `carried no playback tracking;
+> progress won't sync` and `-> NoSession`, and it was reproduced live on a signed-in emulator with
+> YouTube's own history read back both from the app and from a signed-in browser: nothing arrives.
+> The cause and every route probed are in
+> [`../todos/outbound-progress-sync-is-dead.md`](../todos/outbound-progress-sync-is-dead.md). The
+> inbound half (resume position from `FEhistory`) still works. The rest of this page describes how
+> the outbound half worked when it worked.
 
 Dewi, 2026-07-25: *"confident that play progress is 2-way synced with YouTube servers or???"*. The
 answer then was **no — one-way, and even that unverified**. Both halves are now true and measured.

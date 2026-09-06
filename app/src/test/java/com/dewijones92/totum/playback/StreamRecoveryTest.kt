@@ -82,6 +82,41 @@ class StreamRecoveryTest {
     }
 
     @Test
+    fun `a failure for an item the queue has moved on from is ignored`() = runTest {
+        // The cross-item leak from the 2026-08-31 CI logcat: the previous item's recovery was still
+        // in flight when the next item started, and it replayed the NEW item at the OLD item's dead
+        // position. `overtaken` did not catch it — the stale failure arrived AFTER the fresh start,
+        // so the generation it captured already included the bump, and the failed item was not the
+        // one playing, so neither guard fired.
+        recovery()
+        runCurrent()
+        freshStarts.emit(MediaItemId("b")) // the queue is now on b
+        runCurrent()
+        failures.emit(expired("a", at = 39_387)) // a's recovery, arriving late
+        runCurrent()
+
+        assertTrue(
+            "a's recovery acted on the current item — replaying it at a's dead position. Replays: $replayedFrom",
+            replayedFrom.isEmpty(),
+        )
+        assertEquals("and it must not have moved the queue on on a's behalf either", 0, movedOn)
+    }
+
+    @Test
+    fun `a failure for the item that IS current is still recovered`() = runTest {
+        // The guard must not over-block: a failure for the item the queue is actually on is the
+        // ordinary case and must still be replayed.
+        recovery()
+        runCurrent()
+        freshStarts.emit(MediaItemId("a"))
+        runCurrent()
+        failures.emit(expired("a", at = 500))
+        runCurrent()
+
+        assertEquals(listOf(500L), replayedFrom)
+    }
+
+    @Test
     fun `stops after the retry budget, so a dead video cannot loop forever`() = runTest {
         recovery(maxAttempts = 3)
         runCurrent() // let the collector subscribe; a SharedFlow drops what it misses

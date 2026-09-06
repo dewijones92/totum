@@ -214,6 +214,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | Search is attributed when signed in, and never worse when it cannot be | `AuthenticatedSearchTest` | every commit |
 | The account token is attached to every client that accepts one, and no others | `AuthAttachedByIdentityTest` | every commit |
 | A video whose stream keeps failing is retried afresh when you tap it again, rather than skipped on sight | `StreamRecoveryTest`, `TappingAFailedItemAgainTest` | every commit |
+| A failure for an item the queue has moved on from is dropped, never replayed onto the NEW item | `StreamRecoveryTest` | every commit — seen twice in CI as `StalledStreamRecoveryTest` buffering forever at the previous item's position |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |
 | A resolve that lands late cannot take playback off a file it has already started — whatever route the newer play took | `AStaleResolveDoesNotClobberPlaybackTest` | every commit |

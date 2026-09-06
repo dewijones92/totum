@@ -142,6 +142,18 @@ internal class StreamRecovery(
     @Volatile
     private var generation = 0
 
+    /**
+     * The item the QUEUE last started on its own — a tap, an auto-advance, a peek — never one of
+     * recovery's own replays (those do not emit [freshStarts]). It is the truth about what is
+     * current, and it is separate from [lastItem], which [recover] overwrites with whatever failure
+     * it is handling. A failure for anything else is stale and must be ignored: without this, the
+     * previous item's recovery, arriving after the next item has started, called [replay] — which
+     * acts on the current item — and so replayed the NEW item at the OLD item's dead position (the
+     * 2026-08-31 CI cross-item leak).
+     */
+    @Volatile
+    private var currentStartedItem: MediaItemId? = null
+
     fun start() {
         scope.launch {
             failures.collect(::recover)
@@ -151,6 +163,7 @@ internal class StreamRecovery(
                 generation++
                 attempts = 0
                 lastItem = itemId
+                currentStartedItem = itemId
                 lastPositionMs = 0
                 rescues = 0
                 Diag.log("playback", "fresh start of ${itemId.value} — recovery starts over")
@@ -164,6 +177,19 @@ internal class StreamRecovery(
         // the same item afterwards got a cache hit on the dead URL and failed before it began.
         runCatching { forgetResolved(failure.itemId) }
             .onFailure { Diag.warn("playback", "could not forget the failed stream for ${failure.itemId.value}", it) }
+        // Stale failures do nothing beyond forgetting their dead URL above. `replay` acts on the
+        // queue's CURRENT item, so acting on a failure for anything else replays the wrong item at
+        // the wrong position — the cross-item leak. Only drop when we positively know it is stale;
+        // a null means no fresh start has been seen yet, and blocking then would break app-start.
+        val current = currentStartedItem
+        if (current != null && failure.itemId != current) {
+            Diag.log(
+                "playback",
+                "ignoring a stale failure for ${failure.itemId.value} at ${failure.positionMs}ms — " +
+                    "the queue has moved on to ${current.value}",
+            )
+            return
+        }
         val generationAtFailure = generation
         if (failure.shouldResetBudget()) {
             attempts = 0
@@ -194,7 +220,7 @@ internal class StreamRecovery(
             // network would burn the budget without ever having had a chance.
             Diag.log("playback", "stream unreachable at ${failure.positionMs}ms — waiting for a network")
             awaitNetwork()
-            Diag.log("playback", "network is back — resuming from ${failure.positionMs}ms")
+            Diag.log("playback", "network is back — resuming ${failure.itemId.value} from ${failure.positionMs}ms")
             // This is the longest wait there is — a tunnel can be minutes — so it is the one most
             // likely to be overtaken by the user picking something else.
             if (overtaken(failure, generationAtFailure)) return
