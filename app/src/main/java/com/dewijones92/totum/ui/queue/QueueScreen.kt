@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui.queue
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,19 +16,27 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,6 +57,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.unavailableOfflineNow
+import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
@@ -58,6 +69,7 @@ import com.dewijones92.totum.ui.common.ReorderState
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberReorderState
 import com.dewijones92.totum.ui.common.reorderable
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -76,71 +88,126 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val playing by container.playbackController.state.collectAsStateWithLifecycle()
     val entries = snapshot.entries
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
 
     // Hoisted so the header can collapse against it — the header sits outside the list, so
     // it cannot read a state the list owns privately.
     val listState = rememberLazyListState()
 
-    Column(modifier = modifier.fillMaxSize()) {
-        QueueHeader(canClear = entries.isNotEmpty(), onClear = queue::clear, listState = listState)
-        if (entries.isEmpty()) {
-            EmptyState(
-                icon = Icons.AutoMirrored.Filled.QueueMusic,
-                headline = stringResource(R.string.queue_title),
-                supportingText = stringResource(R.string.queue_empty),
-            )
-        } else {
-            val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
-            OfflineSummary(
-                readiness = readinessOf(entries, downloads),
-                autoDownloadOff = !settings.autoDownloadQueue,
-                waitingForWifi = settings.autoDownloadQueue && !container.autoDownloadAllowedNow(),
-            )
-            // Survives rotation and process death: a collapsed 24-episode season staying
-            // collapsed is the entire point, and re-expanding on every return would undo it.
-            var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
-            val reorder = rememberReorderState(listState = listState, onMove = queue::move)
-            LazyColumn(
-                state = listState,
-                // The container has to be known for a drag held at an edge to scroll the list;
-                // without it dragging still works, it just cannot reach past the screen.
-                modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
-            ) {
-                itemsWithGroupHeaders(
-                    availability = QueueAvailability(downloads, container.isOffline()),
-                    entries = entries,
-                    nowPlaying = NowPlaying(snapshot.currentIndex, playing?.progress, playing?.isPlaying == true),
-                    reorder = reorder,
-
-                    actions = QueueActions(
-                        onPlay = queue::jumpTo,
-                        onRemove = queue::removeAt,
-                        onRemoveGroup = queue::removeGroup,
-                        onMove = queue::move,
-                        // A manual retry: the queue fetches audio by itself, but a failed
-                        // or skipped fetch otherwise leaves no way to ask again.
-                        onDownload = { item ->
-                            scope.launch { container.downloadManager.download(item, audioOnly = true) }
-                        },
-                        onDownloadVideo = { item ->
-                            scope.launch { container.downloadManager.download(item, audioOnly = false) }
-                        },
-                        groups = GroupCollapse(
-                            collapsedIds = collapsedGroups,
-                            onChange = { collapsedGroups = it },
-                        ),
-                        onDeleteDownload = { id -> scope.launch { container.downloadManager.delete(id) } },
-                    ),
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            QueueHeader(canClear = entries.isNotEmpty(), onClear = queue::clear, listState = listState)
+            if (entries.isEmpty()) {
+                EmptyState(
+                    icon = Icons.AutoMirrored.Filled.QueueMusic,
+                    headline = stringResource(R.string.queue_title),
+                    supportingText = stringResource(R.string.queue_empty),
                 )
+            } else {
+                val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
+                OfflineSummary(
+                    readiness = readinessOf(entries, downloads),
+                    autoDownloadOff = !settings.autoDownloadQueue,
+                    waitingForWifi = settings.autoDownloadQueue && !container.autoDownloadAllowedNow(),
+                )
+                // Survives rotation and process death: a collapsed 24-episode season staying
+                // collapsed is the entire point, and re-expanding on every return would undo it.
+                var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
+                val reorder = rememberReorderState(listState = listState, onMove = queue::move)
+                val actions = rememberQueueActions(
+                    container = container,
+                    queue = queue,
+                    snackbar = snackbar,
+                    scope = scope,
+                    collapsedGroups = collapsedGroups,
+                    onCollapsedChange = { collapsedGroups = it },
+                )
+                LazyColumn(
+                    state = listState,
+                    // The container has to be known for a drag held at an edge to scroll the list;
+                    // without it dragging still works, it just cannot reach past the screen.
+                    modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
+                ) {
+                    itemsWithGroupHeaders(
+                        availability = QueueAvailability(downloads, container.isOffline()),
+                        entries = entries,
+                        nowPlaying = NowPlaying(snapshot.currentIndex, playing?.progress, playing?.isPlaying == true),
+                        reorder = reorder,
+
+                        actions = actions,
+                    )
+                }
+            }
+        }
+        SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/**
+ * Removal as the screen does it: drop the row, offer Undo on the snackbar, and put it back at the
+ * same index if taken. Remembered against its inputs so every row shares one lambda.
+ */
+@Composable
+private fun rememberRemoveWithUndo(
+    queue: PlaybackQueue,
+    snackbar: SnackbarHostState,
+    scope: CoroutineScope,
+): (Int, QueueEntry) -> Unit {
+    val removedMessage = stringResource(R.string.queue_removed)
+    val undoLabel = stringResource(R.string.queue_undo)
+    return remember(queue, snackbar, scope) {
+        {
+                index, entry ->
+            queue.removeAt(index)
+            scope.launch {
+                val result = snackbar.showSnackbar(
+                    message = removedMessage,
+                    actionLabel = undoLabel,
+                    duration = SnackbarDuration.Short,
+                )
+                if (result == SnackbarResult.ActionPerformed) queue.restoreAt(index, entry)
             }
         }
     }
 }
 
+/** The row actions, built once per change of their inputs rather than inline in the screen body. */
+@Composable
+private fun rememberQueueActions(
+    container: AppContainer,
+    queue: PlaybackQueue,
+    snackbar: SnackbarHostState,
+    scope: CoroutineScope,
+    collapsedGroups: Set<String>,
+    onCollapsedChange: (Set<String>) -> Unit,
+): QueueActions {
+    val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
+    return QueueActions(
+        onPlay = queue::jumpTo,
+        onRemove = onRemove,
+        onRemoveGroup = queue::removeGroup,
+        onMove = queue::move,
+        // A manual retry: the queue fetches audio by itself, but a failed
+        // or skipped fetch otherwise leaves no way to ask again.
+        onDownload = { item ->
+            scope.launch { container.downloadManager.download(item, audioOnly = true) }
+        },
+        onDownloadVideo = { item ->
+            scope.launch { container.downloadManager.download(item, audioOnly = false) }
+        },
+        groups = GroupCollapse(
+            collapsedIds = collapsedGroups,
+            onChange = onCollapsedChange,
+        ),
+        onDeleteDownload = { id -> scope.launch { container.downloadManager.delete(id) } },
+    )
+}
+
 /** What a queue row can do — bundled so the row builder isn't a wall of lambdas. */
 private data class QueueActions(
     val onPlay: (Int) -> Unit,
-    val onRemove: (Int) -> Unit,
+    /** Removal hands over the entry, because the snackbar's Undo needs to put it back. */
+    val onRemove: (Int, QueueEntry) -> Unit,
     val onRemoveGroup: (String) -> Unit,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,
@@ -229,35 +296,32 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
             val media = entry.item.item
             if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
             val downloadState = availability.stateOf(media.id)
-            MediaItemRow(
-                item = media,
-                // Says why a row will be passed over, rather than leaving it to be discovered.
-                // It REPLACES the facts rather than joining them: "this will be skipped" is the
-                // only thing worth reading on a row you cannot play.
-                subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
-                    listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
-                } else {
-                    mediaItemFacts(media, entry.item.handle.pillar, LocalNow.current)
-                },
-                downloadState = downloadState,
-                pillar = entry.item.handle.pillar,
-                onPlay = { actions.onPlay(index) },
-                onDownload = { actions.onDownload(media) },
-                onDeleteDownload = { actions.onDeleteDownload(media.id) },
-                onDownloadVideo = { actions.onDownloadVideo(media) },
-                onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
-                onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
-                    .takeIf { index < entries.lastIndex },
-                modifier = Modifier.reorderable(reorder, index),
-                trailing = {
-                    with(reorder) {
-                        DragHandle(
-                            modifier = Modifier.dragHandle(index, entries.size),
-                            onRemove = { actions.onRemove(index) },
-                        )
-                    }
-                },
-            )
+            SwipeToRemove(onRemove = { actions.onRemove(index, entry) }) {
+                MediaItemRow(
+                    item = media,
+                    // Says why a row will be passed over, rather than leaving it to be discovered.
+                    // It REPLACES the facts rather than joining them: "this will be skipped" is the
+                    // only thing worth reading on a row you cannot play.
+                    subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
+                        listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
+                    } else {
+                        mediaItemFacts(media, entry.item.handle.pillar, LocalNow.current)
+                    },
+                    downloadState = downloadState,
+                    pillar = entry.item.handle.pillar,
+                    onPlay = { actions.onPlay(index) },
+                    onDownload = { actions.onDownload(media) },
+                    onDeleteDownload = { actions.onDeleteDownload(media.id) },
+                    onDownloadVideo = { actions.onDownloadVideo(media) },
+                    onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
+                    onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
+                        .takeIf { index < entries.lastIndex },
+                    modifier = Modifier.reorderable(reorder, index),
+                    trailing = {
+                        with(reorder) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
+                    },
+                )
+            }
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
     }
@@ -379,19 +443,56 @@ private fun GroupHeader(
     }
 }
 
-/** The grip to long-press and drag, plus remove. Two controls instead of the old three. */
+/** The grip to long-press and drag. The only control left on a row: removal is a swipe. */
 @Composable
-private fun DragHandle(modifier: Modifier, onRemove: () -> Unit) {
+private fun DragHandle(modifier: Modifier) {
     Icon(
         Icons.Filled.DragHandle,
         contentDescription = stringResource(R.string.queue_reorder),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.padding(horizontal = 8.dp),
     )
-    IconButton(onClick = onRemove) {
-        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.queue_remove))
-    }
 }
+
+/**
+ * Swipe a row towards the start to remove it, the gesture every queue teaches. One direction only:
+ * the other would fight the drag handle's reach, and there is nothing a second swipe should do.
+ * The queue is told as the row commits to going, and a snackbar offers Undo.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) onRemove()
+            value == SwipeToDismissBoxValue.EndToStart
+        },
+    )
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = false,
+        modifier = Modifier.testTag(QUEUE_ROW_SWIPE_TAG),
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.queue_remove),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        },
+        content = { content() },
+    )
+}
+
+/** So a UI test can swipe exactly a row and nothing else. */
+const val QUEUE_ROW_SWIPE_TAG: String = "queue-row-swipe"
 
 private val PROGRESS_HEIGHT = 2.dp
 

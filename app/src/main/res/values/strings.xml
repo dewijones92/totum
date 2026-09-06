@@ -141,6 +141,8 @@
     <string name="queue_add">Add to queue</string>
     <string name="queue_up_next_title">Up next</string>
     <string name="queue_remove">Remove from queue</string>
+    <string name="queue_removed">Removed from the queue</string>
+    <string name="queue_undo">Undo</string>
     <string name="shorts_title">Shorts</string>
     <string name="shorts_empty">No Shorts in this feed</string>
     <string name="skip_silence">Skip silences</string>

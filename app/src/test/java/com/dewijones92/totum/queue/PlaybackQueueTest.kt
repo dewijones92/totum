@@ -128,6 +128,40 @@ class PlaybackQueueTest {
     }
 
     @Test
+    fun `a swiped-away entry is put back exactly where it was by undo`() = runTest(dispatcher) {
+        val q = queue()
+        q.playAll(listOf(podcast("a"), podcast("b"), podcast("c")))
+        advanceUntilIdle()
+        q.jumpTo(2)
+        advanceUntilIdle()
+        val removed = q.state.value.entries[1]
+
+        q.removeAt(1)
+        assertEquals(listOf("a", "c"), q.state.value.entries.map { it.item.item.id.value })
+        assertEquals(1, q.state.value.currentIndex)
+
+        q.restoreAt(1, removed)
+        advanceUntilIdle()
+        assertEquals(listOf("a", "b", "c"), q.state.value.entries.map { it.item.item.id.value })
+        // Still playing "c", which moved back down a slot.
+        assertEquals(2, q.state.value.currentIndex)
+        assertEquals("c", q.state.value.current?.item?.item?.id?.value)
+    }
+
+    @Test
+    fun `undo after the queue shrank still lands, at the end`() = runTest(dispatcher) {
+        val q = queue()
+        q.playAll(listOf(podcast("a"), podcast("b"), podcast("c")))
+        advanceUntilIdle()
+        val removed = q.state.value.entries[2]
+        q.removeAt(2)
+        q.removeAt(1)
+        q.restoreAt(2, removed)
+        advanceUntilIdle()
+        assertEquals(listOf("a", "c"), q.state.value.entries.map { it.item.item.id.value })
+    }
+
+    @Test
     fun `play next moves an already-queued item instead of duplicating it`() = runTest(dispatcher) {
         val q = queue()
         q.enqueue(podcast("a"))

@@ -5,7 +5,7 @@ status: refining
 area: ui
 priority: medium
 requested: 2026-07-25
-updated: 2026-07-28
+updated: 2026-09-06
 ---
 
 # Make the UI nicer
@@ -115,3 +115,13 @@ already says is decoration.
 
 Still open: **(c)** swipe-to-remove in the queue, **(d)** channel avatar instead of the
 AccountCircle glyph.
+
+## Shipped 2026-09-06 — swipe to remove, with Undo
+
+**(c)** done: a queue row is removed by swiping it towards the start (`SwipeToDismissBox`, one direction
+only so it cannot fight the drag handle), the ✕ is gone, and a snackbar offers **Undo** —
+`PlaybackQueue.restoreAt` puts the entry back at its old index and keeps the playing item playing.
+Guarded by `QueueSwipeToRemoveTest` (instrumented: swipe removes, Undo restores) and two
+`PlaybackQueueTest` cases (restore keeps the cursor on what was playing; a late Undo still lands).
+
+Still open: **(d)** channel avatar instead of the AccountCircle glyph.

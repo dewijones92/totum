@@ -330,6 +330,26 @@ class PlaybackQueue(
         }
     }
 
+    /**
+     * Puts a removed [entry] back where it was — the Undo of a swipe. [index] is where it sat before
+     * [removeAt]; clamped, so an entry removed from the end of a queue that has since shrunk still
+     * lands. The cursor moves with anything re-inserted above it, so what is playing stays playing.
+     */
+    fun restoreAt(index: Int, entry: QueueEntry) {
+        mutate("restore-at-$index") { snapshot ->
+            val at = index.coerceIn(0, snapshot.entries.size)
+            val cursor = if (snapshot.currentIndex != NOTHING_PLAYING && at <= snapshot.currentIndex) {
+                snapshot.currentIndex + 1
+            } else {
+                snapshot.currentIndex
+            }
+            snapshot.copy(
+                entries = snapshot.entries.take(at) + entry + snapshot.entries.drop(at),
+                currentIndex = cursor,
+            )
+        }
+    }
+
     /** Drops every entry tagged with [groupId] — the batch action a grouped run offers. */
     fun removeGroup(groupId: String) {
         mutate("remove-group") { snapshot -> snapshot.removing { it.group?.id == groupId } }
