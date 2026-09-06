@@ -264,6 +264,12 @@ public class Media3PlaybackController(
                 // so its media item and state never clobber the current item.
                 if (generation != playGeneration) return@withController
                 activeSkipSegments = skipSegments
+                skipsThisItem = 0
+                // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
+                // "SponsorBlock never ran" — previously indistinguishable, both silent.
+                if (kind == MediaKind.VIDEO) {
+                    Diag.log("sponsorblock", "${item.id.value}: ${skipSegments.size} segment(s) to skip")
+                }
                 activeChapters = item.chapters
                 activeSubtitles = subtitles
                 activeViewsText = item.viewsText
@@ -468,8 +474,17 @@ public class Media3PlaybackController(
     }
 
     /** The one place segment-skipping happens, for every pillar. */
+    /** Skips this item so far — a few per video at most, so each is worth its own line. */
+    private var skipsThisItem = 0
+
     private fun applySkipSegments(controller: MediaController) {
-        val target = activeSkipSegments.skipTargetFor(controller.currentPosition.milliseconds) ?: return
+        val from = controller.currentPosition.milliseconds
+        val target = activeSkipSegments.skipTargetFor(from) ?: return
+        skipsThisItem++
+        Diag.log(
+            "sponsorblock",
+            "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms (skip $skipsThisItem of this item)",
+        )
         controller.seekTo(target.inWholeMilliseconds)
     }
 

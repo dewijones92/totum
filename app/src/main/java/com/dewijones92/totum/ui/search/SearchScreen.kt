@@ -52,6 +52,7 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
@@ -64,6 +65,7 @@ import com.dewijones92.totum.ui.common.VideoChannelSaver
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.ui.playlist.PlaylistScreen
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 import com.dewijones92.totum.ui.search.SearchViewModel.UiState
 
@@ -77,13 +79,20 @@ fun SearchScreen(container: AppContainer, modifier: Modifier = Modifier) {
     var browsingChannel by rememberSaveable(stateSaver = VideoChannelSaver) {
         mutableStateOf<MediaSource.VideoChannel?>(null)
     }
+    // A playlist opened from a channel browsed here. This passed `{}` and swallowed the tap, so a
+    // channel's playlists could be listed from Search and none of them would open.
+    var browsingPlaylist by remember { mutableStateOf<Playlist?>(null) }
+    browsingPlaylist?.let { playlist ->
+        PlaylistScreen(container, playlist, onBack = { browsingPlaylist = null }, modifier = modifier)
+        return
+    }
     val channel = browsingChannel
     if (channel != null) {
         ChannelScreen(
             container,
             channel,
             onBack = { browsingChannel = null },
-            onOpenPlaylist = {},
+            onOpenPlaylist = { browsingPlaylist = it },
             modifier = modifier,
         )
         return

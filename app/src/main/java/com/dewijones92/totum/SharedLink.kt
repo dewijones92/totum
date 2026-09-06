@@ -2,6 +2,10 @@ package com.dewijones92.totum
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.canonicalWatchUrl
+import com.dewijones92.totum.common.youTubeVideoId
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.SourceId
 
 /**
  * The watch URL a share should play, from the text it carried — or null to ignore it.
@@ -30,3 +34,23 @@ internal fun sharedWatchUrl(rawText: String?, alreadyHandled: Boolean): HttpUrl?
 private val URL_PATTERN = Regex("""https?://\S+""")
 
 private val WATCH_MARKERS = listOf("youtube.com/watch", "youtu.be/", "youtube.com/shorts/")
+
+/**
+ * A queue entry for a shared link that could not be resolved — so the link is not lost.
+ *
+ * Report 0.1.477 (30 Aug): a link shared with no network spent 53 seconds in yt-dlp retries, was
+ * declared unavailable, and vanished. The common cause is a bad connection, not a bad link, and the
+ * queue already re-resolves from the watch URL when it plays — so the entry only needs the URL. The
+ * title is the id until then; the player shows the real title, because it plays the resolved item.
+ * Null for a URL that is not a YouTube video, where there is nothing to queue.
+ */
+internal fun placeholderFor(url: HttpUrl, sourceId: SourceId): MediaItem? = url.youTubeVideoId()?.let { id ->
+    MediaItem(
+        id = MediaItemId(id),
+        sourceId = sourceId,
+        title = "YouTube video $id",
+        publishedAt = null,
+        duration = null,
+        mediaUrl = url,
+    )
+}

@@ -1,5 +1,7 @@
 package com.dewijones92.totum
 
+import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.SourceId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -68,5 +70,25 @@ class SharedLinkTest {
     fun `text with no link at all is ignored`() {
         assertNull(sharedWatchUrl("no link here", alreadyHandled = false))
         assertNull(sharedWatchUrl(null, alreadyHandled = false))
+    }
+
+    /**
+     * A link that cannot be resolved right now is queued by its id, not lost. Report 0.1.477: shared
+     * with no network, 53s of retries, gone. The entry needs only the watch URL — the queue
+     * re-resolves from it when it plays — so the title is the id until then.
+     */
+    @Test
+    fun `an unresolvable share still becomes a queue entry by its id`() {
+        val item = placeholderFor(HttpUrl.of(watch), SourceId("shared"))
+
+        assertEquals("GGY17VD_9Bs", item?.id?.value)
+        assertEquals(watch, item?.mediaUrl?.value)
+        assertEquals("YouTube video GGY17VD_9Bs", item?.title)
+    }
+
+    /** And a URL that is not a video has nothing to queue — better nothing than a broken row. */
+    @Test
+    fun `a non-video link is not queued`() {
+        assertNull(placeholderFor(HttpUrl.of("https://www.youtube.com/@NovaraMedia"), SourceId("shared")))
     }
 }

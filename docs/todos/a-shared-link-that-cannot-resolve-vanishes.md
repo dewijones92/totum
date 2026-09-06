@@ -1,7 +1,7 @@
 ---
 title: A shared link that cannot be resolved vanishes
 kind: todo
-status: open — needs a decision
+status: fixed 2026-09-06 — option 1: queued by its id, resolved when it plays
 area: share
 priority: medium
 requested: 2026-08-31
@@ -22,6 +22,14 @@ phone with no DNS at all, `genuinely unavailable`, and then nothing. The link wa
 
 It now says so — `shared link could not be resolved, so nothing was queued -> <url>`. That makes it
 diagnosable. It does not make it work.
+
+## Fixed (2026-09-06) — option 1
+
+`placeholderFor(url)` builds the entry from the watch URL alone (id, URL, a title of "YouTube video
+<id>") and the share plays it like any other; the queue re-resolves from the URL when it plays, and the
+player shows the real title because it plays the resolved item. Only the queue row keeps the
+placeholder title until then. A URL that is not a video is still dropped, with a line saying so.
+`SharedLinkTest` covers both. "Be bold" (Dewi, 2026-09-06) — the preference below was taken.
 
 ## The decision
 

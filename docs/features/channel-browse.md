@@ -3,7 +3,7 @@ title: Explore channel content (InnerTube tabs)
 kind: feature
 status: shipped
 area: channel
-updated: 2026-07-24
+updated: 2026-09-06
 ---
 
 # Explore channel content
@@ -83,3 +83,10 @@ on-device (3Blue1Brown). Minor follow-ups: Shorts + Playlist tile thumbnails com
 back as placeholders (those lockup shapes hold the image under a different key
 than videos) and a playlist's subtitle is "View full playlist" rather than a
 count — cosmetic.
+
+## Playlists open from every channel (2026-09-06)
+
+`ChannelScreen` takes `onOpenPlaylist`; the Videos tab wired it and the two other hosts — the shell's
+"go to channel" overlay and a channel browsed from Search — passed `{}`, so a channel's playlists
+listed fine there and none of them would open. Both now hold a playlist overlay of their own, in the
+same shape as the channel overlay they sit on.

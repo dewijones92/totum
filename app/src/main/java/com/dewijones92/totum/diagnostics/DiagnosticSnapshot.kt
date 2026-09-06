@@ -60,6 +60,19 @@ internal class DiagnosticSnapshot(
             put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
             put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())
             put("settings.cellularMaxHeight", settings.cellularMaxHeight.toString())
+            // The half that was missing: half the settings never reached a report, so "is SABR on?"
+            // and "which categories does it skip?" were unanswerable. Home-server VALUES are
+            // never written — a token in a report is an account-takeover risk — only whether each
+            // is present, which is the question a torrent report actually asks.
+            put("settings.sabrPlayback", settings.sabrPlayback.toString())
+            put("settings.mediaFilter", settings.mediaFilter.name)
+            put("settings.skipCategories", settings.skipCategories.joinToString(",") { it.id })
+            put(
+                "settings.homeServer",
+                "configured=${settings.homeServerBase.isNotBlank()} " +
+                    "signedIn=${settings.homeServerToken.isNotBlank()} " +
+                    "prowlarr=${settings.prowlarrApiKey.isNotBlank()}",
+            )
         }
         runCatching {
             // The account's subscription list, because "it offered me Subscribe to a channel I

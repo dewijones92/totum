@@ -220,6 +220,8 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | Resuming never waits on the account for long, and not at all offline — so the next item plays | `AccountResumePositionsTest` | every commit — report 0.1.477 "why the next video not playing??": six plays, no transition, the account read hung with no network. Proven to fail with the bound removed |
 | Giving up on a failed stream does NOT move the queue on when "auto-play next" is off | `StreamRecoveryTest` | every commit — end-of-item advance and the stall watchdog honoured the setting; recovery did not |
 | A row given no download callbacks still downloads through the app-wide actions | `MediaItemRowKeepsActionsTest` (emulator) | every commit — Related, Notifications and Search drew a control with `{}` behind it |
+| A shared link that cannot be resolved is queued by its id, not lost; a non-video link is dropped with a line | `SharedLinkTest` | every commit — report 0.1.477: shared offline, 53s of retries, vanished |
+| Every report carries SABR, media filter, skip categories, home-server presence and outbound-sync state | `DiagnosticsContentTest` (emulator) | every commit |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |
 | A resolve that lands late cannot take playback off a file it has already started — whatever route the newer play took | `AStaleResolveDoesNotClobberPlaybackTest` | every commit |

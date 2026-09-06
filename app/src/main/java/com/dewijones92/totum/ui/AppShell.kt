@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -38,13 +37,13 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
+import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.MiniPlayerBar
@@ -82,6 +81,9 @@ fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
     var shortsReel by remember { mutableStateOf<ReelStart?>(null) }
     // "Go to channel" works from ANY row because the shell hosts the destination once.
     var shellChannel by remember { mutableStateOf<MediaSource.VideoChannel?>(null) }
+    // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
+    // channel reached via "go to channel" listed its playlists and none of them would open.
+    var shellPlaylist by remember { mutableStateOf<Playlist?>(null) }
     val playbackState by container.playbackController.state.collectAsStateWithLifecycle()
     val controller = container.playbackController
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
@@ -134,23 +136,14 @@ fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
                 // so vertical swipes page between shorts without the app chrome in the way.
                 shortsReel?.let { ShortsReelScreen(container, it, onBack = { shortsReel = null }) }
                 // Same as the Videos tab's overlays: back should close the channel, not quit.
-                BackHandler(enabled = shellChannel != null) { shellChannel = null }
-                shellChannel?.let { channel ->
-                    ChannelScreen(
-                        container,
-                        channel,
-                        onBack = { shellChannel = null },
-                        onOpenPlaylist = {},
-                        // An overlay sits in the Box, OUTSIDE the Scaffold, so it never
-                        // receives the innerPadding that keeps tab content clear of the
-                        // system bars — its title and Subscribe button drew underneath the
-                        // clock and battery icons. The same screen opened from within a tab
-                        // is fine, which is why this only bites on "go to channel" from a
-                        // row. The full player and shorts reel are deliberately exempt: they
-                        // are full-bleed video and inset themselves.
-                        modifier = Modifier.safeDrawingPadding(),
-                    )
-                }
+                ShellOverlays(
+                    container = container,
+                    channel = shellChannel,
+                    onCloseChannel = { shellChannel = null },
+                    playlist = shellPlaylist,
+                    onOpenPlaylist = { shellPlaylist = it },
+                    onClosePlaylist = { shellPlaylist = null },
+                )
                 // Last in the Box so it draws over everything, including the full player and
                 // any overlay: "is the app doing something" is a question worth answering
                 // from whatever screen the user is on.

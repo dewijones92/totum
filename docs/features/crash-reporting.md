@@ -373,3 +373,12 @@ when it ends — `...and unchanged for the next 12 snapshot(s), 360s`. Dropping 
 be the opposite mistake, since a player frozen at one position for twenty minutes is a finding and
 would otherwise be indistinguishable from a gap in the trail. The duration is spelled out rather
 than left as a bare count, because "×12" means nothing without the interval.
+
+## The other half of the settings, and SponsorBlock (2026-09-06)
+
+Six of the twelve settings never reached a report — `sabrPlayback`, `mediaFilter`, `skipCategories`
+and the three home-server fields — so "is SABR on?" and "which categories does it skip?" could not be
+answered. They do now; the home-server ones as *presence only* (`configured= signedIn= prowlarr=`),
+never the values. SponsorBlock was entirely silent: a report could not tell "no segments for this
+video" from "SponsorBlock never ran". It now says `<id>: N segment(s) to skip` once per video and
+`skipped Xms -> Yms (skip N of this item)` per skip — a few lines per video at most.

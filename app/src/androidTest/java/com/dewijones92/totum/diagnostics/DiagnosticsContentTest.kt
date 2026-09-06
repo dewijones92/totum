@@ -120,6 +120,11 @@ class DiagnosticsContentTest {
             "downloads.queueStates",
             "settings.playbackMode",
             "settings.autoDownloadQueue",
+            "settings.sabrPlayback",
+            "settings.skipCategories",
+            "settings.homeServer",
+            "yt-sync.outbound",
+            "yt-sync.pendingUpdates",
             "network.metered",
         )
 
