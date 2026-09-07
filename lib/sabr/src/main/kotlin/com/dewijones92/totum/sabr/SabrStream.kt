@@ -443,6 +443,7 @@ public class SabrStream(
             Diag.warn("sabr", "itag ${format.itag} fetch #$fetches was refused: $it")
         }
         if (added > 0) {
+            sameTimeRetries = 0
             // CONSECUTIVE, not lifetime. Nothing reset this, so the fourth empty answer of a session
             // ended the stream however many healthy fetches sat between them — four unlucky moments
             // out of hundreds on one item, and a certainty across a four-hour listen. An empty
@@ -492,6 +493,44 @@ public class SabrStream(
         )
     }
 
+    /**
+     * Whether this empty answer is one to re-ask at the SAME time rather than skip past: a server-shaped
+     * handshake before the first byte, or an answer spent on another format's bytes. Both budgets are
+     * finite. Returns true when it has claimed the answer, having logged which case it was.
+     */
+    private fun askedSameTimeAgain(): Boolean {
+        // Only an answer the server actually SHAPED counts as a handshake — a context update, or a policy
+        // before any byte has been served. A bare empty body is a dead conversation, and the tests that
+        // hand one out (`SabrStopsAfterADeathThatServedNothingTest`) must still see the stream spend itself.
+        val handshake = contextUpdatedThisResponse || (served == 0L && policyThisResponse)
+        if (handshake && handshakeEmpties < MAX_HANDSHAKE_EMPTIES) {
+            handshakeEmpties++
+            emptyResponses--
+            Diag.log(
+                "sabr",
+                "itag ${format.itag} handshake: nothing yet at ${playerTimeMs}ms, asking the same position again " +
+                    "with ${contexts.size} context(s) echoed (handshake #$handshakeEmpties of $MAX_HANDSHAKE_EMPTIES)",
+            )
+            return true
+        }
+        // The server spent this answer on ANOTHER format's bytes (audio beside our video, typically) and
+        // gave ours nothing but its init segment. That is not a gap in OUR media, so skipping thirty
+        // seconds past it tears a hole no later fetch fills — measured 2026-09-07 (Spring, itag 400: one
+        // such skip at 5.4s, then 20MB served from 35s onwards that the player could never reach). Ask
+        // for the same time again; the budget is the read's own fetch count.
+        if (carried.hasOthersThan(format.itag) && sameTimeRetries < MAX_SAME_TIME_RETRIES) {
+            sameTimeRetries++
+            emptyResponses--
+            Diag.log(
+                "sabr",
+                "itag ${format.itag}: this answer carried other formats ($carried), not a gap in ours — " +
+                    "asking ${playerTimeMs}ms again (retry #$sameTimeRetries of $MAX_SAME_TIME_RETRIES)",
+            )
+            return true
+        }
+        return false
+    }
+
     /** What to do when a response carried nothing we wanted — the only place a stream ends. */
     private fun handleEmpty(response: ByteArray) {
         emptyResponses++
@@ -517,20 +556,7 @@ public class SabrStream(
         // the first answer, then ~10B answers, then media on the same position once the context came
         // back (SmartTube's capture shows the same four empties before its first 3MB). Skipping ahead
         // here asked for 30s with nothing buffered and the server, quite reasonably, said nothing.
-        // Only an answer the server actually SHAPED counts as a handshake — a context update, or a policy
-        // before any byte has been served. A bare empty body is a dead conversation, and the tests that
-        // hand one out (`SabrStopsAfterADeathThatServedNothingTest`) must still see the stream spend itself.
-        val handshake = contextUpdatedThisResponse || (served == 0L && policyThisResponse)
-        if (!complete && handshake && handshakeEmpties < MAX_HANDSHAKE_EMPTIES) {
-            handshakeEmpties++
-            emptyResponses--
-            Diag.log(
-                "sabr",
-                "itag ${format.itag} handshake: nothing yet at ${playerTimeMs}ms, asking the same position again " +
-                    "with ${contexts.size} context(s) echoed (handshake #$handshakeEmpties of $MAX_HANDSHAKE_EMPTIES)",
-            )
-            return
-        }
+        if (!complete && askedSameTimeAgain()) return
         if (!complete && emptyResponses < MAX_EMPTY_RESPONSES) {
             // Skip further ahead rather than asking the same question again: the server
             // answers about a media TIME, so the same time returns the same nothing.
@@ -634,6 +660,7 @@ public class SabrStream(
     /** Whether the response being absorbed carried a context update — a handshake, not a gap. */
     private var contextUpdatedThisResponse = false
     private var policyThisResponse = false
+    private var sameTimeRetries = 0
     private var handshakeEmpties = 0
 
     private fun noteContext(payload: ByteArray) {
@@ -731,7 +758,11 @@ public class SabrStream(
         // improvement, and one rebuffer where there had been none. The number the server wants arrives
         // as `playbackPositionUs` in `ChunkSource.getNextChunk`, which is why the seam move fixes this
         // ceiling as well as seeking and ABR.
-        val derived = segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)
+        // The headers' own times first — the end of what we hold contiguously — and the byte ratio only
+        // when they carry none. The ratio assumes a constant bitrate, which video is not, and a claim
+        // past the contiguous frontier asks the server to serve from beyond a hole (2026-09-07).
+        val derived = segmentsHeld.contiguousEndMs()
+            ?: segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)
         // Nothing to derive from — a live stream — leaves stepping as all there is, which is the
         // case the old floor was really written for.
         playerTimeMs = derived?.let { maxOf(playerTimeMs, it) } ?: (playerTimeMs + stepMs)
@@ -765,6 +796,9 @@ public class SabrStream(
 
         /** The longest pause a server may ask for and be obeyed; beyond this a read must not hang. */
         const val MAX_BACKOFF_MS = 10_000L
+
+        /** Same-time re-asks tolerated in a row when the server spends its answers on other formats. */
+        const val MAX_SAME_TIME_RETRIES = 3
 
         /** How far to jump when a time yields nothing; the same time yields the same nothing. */
         const val EMPTY_SKIP_STEPS = 3

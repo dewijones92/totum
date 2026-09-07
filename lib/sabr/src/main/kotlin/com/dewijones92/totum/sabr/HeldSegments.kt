@@ -84,6 +84,19 @@ internal class HeldSegments(private val format: SabrFormat) {
         )
     }
 
+    /**
+     * Where the media we hold WITHOUT A GAP ends, in media time, from the headers' own start+duration.
+     * Null when the headers carry no times (a live stream) or nothing is held.
+     *
+     * The honest position to claim: a claim derived from bytes assumes a constant bitrate, which video
+     * is not — 6.4MB of a 720p30 file mapped to 46s when it covered 42s, the server served from 46s, and
+     * the four seconds between became a hole the player starved on (Spring / Big Buck Bunny, 2026-09-07).
+     */
+    fun contiguousEndMs(): Long? {
+        val first = held.firstKey() ?: return null
+        return held[contiguousLastFrom(first)]?.endMs()
+    }
+
     /** The last segment number reachable from [first] without a gap. */
     private fun contiguousLastFrom(first: Int): Int {
         var last = first

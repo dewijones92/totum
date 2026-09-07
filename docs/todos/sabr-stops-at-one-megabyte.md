@@ -444,8 +444,33 @@ Sintel (`eRsGyueVLvQ`) on `totum-api35`, SABR enabled, this build:
 [playback] ready after 6005ms at 27ms   → PLAYING, position 97s, buffer 259s
 ```
 
-4.2MB and climbing at ~330KB a fetch, four times the old wall, on the app's own transport. Whether the
-whole 14.5MB arrives, and video (itag 400) beside it, is what the CI canaries and the next report will say.
+4.2MB and climbing at ~330KB a fetch, four times the old wall, on the app's own transport.
+
+**Video, same morning (Spring, `WhWc3b3KhnY`, playback mode VIDEO):** the video track is not capped
+either — itag 400 (858p) was served **20.1MB in 25 fetches** (one response of 8.7MB). But the player
+errored at 22s with `ERROR_CODE_IO_UNSPECIFIED` and the ladder fell back to extraction (HLS), which then
+played on. The trail shows why, and it is OUR reader, not the server:
+
+```
+fetch #1 itag 400 at 0ms     -> 958853B kept                           (0–5.4s)
+fetch #2 itag 400 at 5381ms  -> 0B kept for 400 (531713B of 251 carried, 1788B of 400 = the init segment again)
+   → handleEmpty: "skipping ahead" +30s
+fetch #3 itag 400 at 35381ms -> 8154780B kept                          (35s onwards)
+reusing the open stream … served=958853B discarded=… (78% → 90% wasted)
+fetch #15/#20/#25 itag 400 at 113207ms -> the same 3899298B, three times
+```
+
+The empty answer at 5.4s was not a gap in the media — the server sent the other format's bytes and
+re-sent our init segment — but `handleEmpty` skipped thirty seconds past it, leaving a **hole from
+5.4s to 35s** that no later fetch fills; the claimed time then ran ahead on the bytes held (113s) and the
+server, quite correctly, kept answering the same question. ExoPlayer, still wanting byte 958854, starved.
+This is the reader's known limitation ([sabr-as-a-chunk-source.md](sabr-as-a-chunk-source.md): one
+request stream per format, byte-contiguous reads, a skip-ahead rule that cannot express "ask again for
+the same time") now finally observable past the first megabyte. Audio-only SABR is unaffected in
+practice because the audio stream is the one being asked for; video is where two formats interleave.
+The pragmatic fix inside the current design: an empty answer whose response CARRIED other formats'
+media is a "serve me the same time again" case, not a skip — the same shape as the handshake rule.
+
 
 ## Observed on the Fire Stick (2026-08-20, read-only)
 

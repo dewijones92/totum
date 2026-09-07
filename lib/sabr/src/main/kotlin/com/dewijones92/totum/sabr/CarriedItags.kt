@@ -29,6 +29,9 @@ internal class CarriedItags {
         bytesByItag[name] = (bytesByItag[name] ?: 0) + bytes
     }
 
+    /** Whether the response carried media bytes for some format other than [itag] — the answer was spent elsewhere. */
+    fun hasOthersThan(itag: Int): Boolean = bytesByItag.any { (name, bytes) -> name != itag.toString() && bytes > 0 }
+
     /** Biggest first, so the line reads as "what we got" then "what sharing could reclaim". */
     override fun toString(): String = bytesByItag.entries
         .sortedByDescending { it.value }
