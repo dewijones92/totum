@@ -127,6 +127,31 @@ class PlaybackQueueTest {
         assertEquals(before.author, q.state.value.entries.first().item.item.author)
     }
 
+    /** One wobbly swipe confirms more than once; the second call must find nothing (e713eb8 took several rows). */
+    @Test
+    fun `removing the same entry twice removes only that entry`() = runTest(dispatcher) {
+        val q = queue()
+        q.playAll(listOf(podcast("a"), podcast("b"), podcast("c")))
+        advanceUntilIdle()
+        val b = q.state.value.entries[1]
+
+        assertEquals(1, q.remove(b))
+        assertEquals(null, q.remove(b))
+        assertEquals(null, q.remove(b))
+        assertEquals(listOf("a", "c"), q.state.value.entries.map { it.item.item.id.value })
+    }
+
+    @Test
+    fun `remove reports where the entry was, so undo can put it back`() = runTest(dispatcher) {
+        val q = queue()
+        q.playAll(listOf(podcast("a"), podcast("b"), podcast("c")))
+        advanceUntilIdle()
+        val c = q.state.value.entries[2]
+        val at = q.remove(c)
+        q.restoreAt(at!!, c)
+        assertEquals(listOf("a", "b", "c"), q.state.value.entries.map { it.item.item.id.value })
+    }
+
     @Test
     fun `a swiped-away entry is put back exactly where it was by undo`() = runTest(dispatcher) {
         val q = queue()

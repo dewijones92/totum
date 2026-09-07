@@ -331,6 +331,24 @@ class PlaybackQueue(
     }
 
     /**
+     * Removes [entry] BY IDENTITY and says where it was, or null when it is not in the queue.
+     *
+     * The swipe's removal, and idempotent on purpose: a finger wobbling across the dismiss threshold
+     * fires the gesture's confirmation more than once, and `removeAt(index)` called twice deletes
+     * whatever row has slid into that slot — which is how one swipe took several items on e713eb8
+     * (Dewi, 2026-09-07). Asked for the same entry again, this does nothing and says so.
+     */
+    fun remove(entry: QueueEntry): Int? {
+        val index = _state.value.entries.indexOfFirst { it.item.item.id == entry.item.item.id }
+        if (index < 0) {
+            Diag.log("queue", "remove ${entry.item.item.id.value}: not in the queue (already removed) — nothing done")
+            return null
+        }
+        removeAt(index)
+        return index
+    }
+
+    /**
      * Puts a removed [entry] back where it was — the Undo of a swipe. [index] is where it sat before
      * [removeAt]; clamped, so an entry removed from the end of a queue that has since shrunk still
      * lands. The cursor moves with anything re-inserted above it, so what is playing stays playing.

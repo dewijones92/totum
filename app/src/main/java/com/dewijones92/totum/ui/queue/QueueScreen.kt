@@ -144,28 +144,31 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
 }
 
 /**
- * Removal as the screen does it: drop the row, offer Undo on the snackbar, and put it back at the
- * same index if taken. Remembered against its inputs so every row shares one lambda.
+ * Removal as the screen does it: drop the row BY IDENTITY, offer Undo on the snackbar, and put it back
+ * at the same index if taken. Identity, not index, because the swipe's confirmation can fire more than
+ * once for one gesture (see [PlaybackQueue.remove]); a repeat finds nothing and shows nothing.
  */
 @Composable
 private fun rememberRemoveWithUndo(
     queue: PlaybackQueue,
     snackbar: SnackbarHostState,
     scope: CoroutineScope,
-): (Int, QueueEntry) -> Unit {
+): (QueueEntry) -> Unit {
     val removedMessage = stringResource(R.string.queue_removed)
     val undoLabel = stringResource(R.string.queue_undo)
     return remember(queue, snackbar, scope) {
         {
-                index, entry ->
-            queue.removeAt(index)
-            scope.launch {
-                val result = snackbar.showSnackbar(
-                    message = removedMessage,
-                    actionLabel = undoLabel,
-                    duration = SnackbarDuration.Short,
-                )
-                if (result == SnackbarResult.ActionPerformed) queue.restoreAt(index, entry)
+                entry ->
+            val index = queue.remove(entry)
+            if (index != null) {
+                scope.launch {
+                    val result = snackbar.showSnackbar(
+                        message = removedMessage,
+                        actionLabel = undoLabel,
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) queue.restoreAt(index, entry)
+                }
             }
         }
     }
@@ -207,7 +210,7 @@ private fun rememberQueueActions(
 private data class QueueActions(
     val onPlay: (Int) -> Unit,
     /** Removal hands over the entry, because the snackbar's Undo needs to put it back. */
-    val onRemove: (Int, QueueEntry) -> Unit,
+    val onRemove: (QueueEntry) -> Unit,
     val onRemoveGroup: (String) -> Unit,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,
@@ -299,7 +302,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
             // The reorder translation goes on the OUTER element, or a dragged row slides inside a box that
             // stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
             SwipeToRemove(
-                onRemove = { actions.onRemove(index, entry) },
+                onRemove = { actions.onRemove(entry) },
                 modifier = Modifier.reorderable(reorder, index),
             ) {
                 MediaItemRow(
@@ -466,9 +469,15 @@ private fun DragHandle(modifier: Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeToRemove(onRemove: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    // Once per row, however many times the gesture confirms: the wobble across the threshold that
+    // deleted several items on e713eb8 fired this repeatedly for one swipe.
+    var removed by remember { mutableStateOf(false) }
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) onRemove()
+            if (value == SwipeToDismissBoxValue.EndToStart && !removed) {
+                removed = true
+                onRemove()
+            }
             value == SwipeToDismissBoxValue.EndToStart
         },
     )

@@ -143,3 +143,13 @@ looked frozen. Fixed: the background is drawn only while `dismissDirection == En
 
 The lesson is recorded in memory: a UI test that asserts state can pass over a screen that is unusable;
 **a Compose change is not verified until the screen has been looked at.**
+
+## ⚠️ Second regression from (c), fixed 2026-09-07 (same morning)
+
+Dewi, on e713eb8: *"swipe to delete on the queue screen actually deleting several items weirdly."*
+`SwipeToDismissBox` confirms the gesture every time the target flips to dismiss, so a finger wobbling
+across the threshold fires the callback several times — and the callback was `removeAt(index)`, which
+on the second call deletes whatever row has slid into that slot. Removal is now by IDENTITY
+(`PlaybackQueue.remove(entry)`, idempotent, returns the former index for Undo) and the row's callback
+fires once per row. Reproduced on the emulator with a three-way swipe: 9 rows → 8, one snackbar. Pinned
+by `QueueSwipeToRemoveTest.aWobblySwipeRemovesExactlyOneRow` and two `PlaybackQueueTest` cases.
