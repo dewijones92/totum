@@ -5,7 +5,9 @@ Contract: every function returns a JSON string; expected failures are values
 string-typed avoids leaking PyObject lifetimes into Kotlin.
 """
 import json
+import os
 import platform
+import re
 
 import yt_dlp
 
@@ -227,11 +229,54 @@ def extract(url, po_token=None):
 _N_SOLVER = None
 
 
+def _enable_solver_player_cache():
+    """Turn on yt-dlp's preprocessed-player cache for the JS challenge solver.
+
+    Each solve otherwise hands QuickJS the whole 2.9MB player script to parse: measured 16050ms
+    and 14793ms for the SAME video's two resolves on the emulator (2026-09-07). With the cache the
+    solver stores the player it preprocessed and reuses it for every later challenge of that build.
+    yt-dlp ships the flag off ("files are large and we do not support rotation"); this app has an
+    app-private cache dir and prunes old builds itself in `_prune_solver_player_cache`, so both of
+    those reasons are answered here. Reaches into a private attribute, hence the guard: a wheel that
+    renames it must degrade to "solves stay slow", never to a crash.
+    """
+    try:
+        from yt_dlp.extractor.youtube.jsc._builtin import ejs
+
+        ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE = True
+        return True
+    except Exception:  # noqa: BLE001 - see docstring
+        return False
+
+
+def _prune_solver_player_cache(extractor, keep_player_url):
+    """Keep only the current player build's preprocessed cache entry.
+
+    yt-dlp's reason for shipping the cache off is that entries are large (4.2MB measured) and never
+    rotated; YouTube ships a new player about weekly, so without this the cache dir grows by a few MB
+    a week for ever. yt-dlp sanitises the key on disk (`player:https://…` becomes
+    `player,3Ahttps,3A…`), so entries are matched by the build id in the URL, which survives as-is.
+    """
+    try:
+        build = re.search(r"/s/player/([0-9a-fA-F]+)/", keep_player_url)
+        keep = build.group(1) if build else keep_player_url
+        section = os.path.join(extractor.cache._get_root_dir(), "challenge-solver")
+        removed = 0
+        for name in os.listdir(section):
+            if name.startswith("player") and keep not in name:
+                os.remove(os.path.join(section, name))
+                removed += 1
+        return removed
+    except Exception:  # noqa: BLE001 - a full cache is a nuisance, not a playback failure
+        return 0
+
+
 def _n_solver():
     global _N_SOLVER
     if _N_SOLVER is None:
         from yt_dlp.extractor.youtube import YoutubeIE
 
+        _enable_solver_player_cache()
         ydl = yt_dlp.YoutubeDL(
             {"quiet": True, "no_warnings": True, "js_runtimes": _js_runtimes()}
         )
@@ -282,7 +327,8 @@ def solve_n(challenges, player_url):
         solved = {}
         for _request, response in extractor._jsc_director.bulk_solve([request]):
             solved.update(response.output.results)
-        return json.dumps({"ok": True, "solved": solved})
+        pruned = _prune_solver_player_cache(extractor, player_url)
+        return json.dumps({"ok": True, "solved": solved, "pruned_players": pruned})
     except Exception as e:  # noqa: BLE001 - see docstring: never crash playback
         return json.dumps({"ok": False, "detail": "{}: {}".format(type(e).__name__, e)})
 

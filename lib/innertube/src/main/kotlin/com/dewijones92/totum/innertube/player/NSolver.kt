@@ -2,6 +2,8 @@ package com.dewijones92.totum.innertube.player
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Deobfuscates YouTube's `n` throttling parameter.
@@ -83,3 +85,49 @@ internal fun HttpUrl.withN(solved: String): HttpUrl? =
  * them through a URI builder risks re-encoding something the signature covers.
  */
 private val N_PARAMETER = Regex("""([?&])n=([^&]*)""")
+
+/**
+ * Remembers every solved `n` for the process, keyed by player build and challenge.
+ *
+ * A video's `describe` and its `play` each solve the same challenges — 16050ms then 14793ms on the
+ * emulator, 2026-09-07, back to back — and a challenge's answer is a pure function of the player
+ * script, so the second trip is pure waste. Bounded, because a long session sees many videos.
+ */
+public class MemoisedNSolver(
+    private val delegate: NSolver,
+    private val capacity: Int = DEFAULT_CAPACITY,
+) : NSolver {
+
+    private val lock = Mutex()
+    private val known = object : LinkedHashMap<String, String>(capacity, LOAD_FACTOR, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > capacity
+    }
+
+    override suspend fun solve(challenges: List<String>, playerUrl: String): Map<String, String> {
+        val remembered = lock.withLock {
+            challenges.mapNotNull { c -> known["$playerUrl|$c"]?.let { c to it } }.toMap()
+        }
+        val missing = challenges.filterNot { it in remembered }
+        if (missing.isEmpty()) {
+            Diag.log(
+                "resolve",
+                "all ${challenges.size} n parameter(s) already solved for this player — no solve needed"
+            )
+            return remembered
+        }
+        val solved = delegate.solve(missing, playerUrl)
+        lock.withLock { solved.forEach { (c, answer) -> known["$playerUrl|$c"] = answer } }
+        if (remembered.isNotEmpty()) {
+            Diag.log(
+                "resolve",
+                "${remembered.size} of ${challenges.size} n parameter(s) remembered, ${missing.size} solved"
+            )
+        }
+        return remembered + solved
+    }
+
+    private companion object {
+        const val DEFAULT_CAPACITY = 256
+        const val LOAD_FACTOR = 0.75f
+    }
+}

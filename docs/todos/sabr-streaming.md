@@ -603,3 +603,25 @@ complete fix for that remains a PO token or a seekable SABR, both already writte
 **Not changed here.** Flipping a default on shipped playback is Dewi's call, and the honest summary is:
 it removes the 60-second 403 for fresh starts, does nothing for resumes, and brings the known SABR
 limitations (no seeking, live refused by name) with it.
+
+## The solve, not the server, was the slow part of a SABR start (2026-09-07)
+
+Resolving over SABR on the emulator took 15–25s, and the trail said where: `[engine] solve 2 n
+parameter(s) in 16050ms` — then **14793ms again** for the same video's `play` after its `describe`.
+yt-dlp's JS-challenge solver hands QuickJS the whole 2.9MB player every time, because its
+preprocessed-player cache ships OFF (*"files are large and we do not support rotation"*). The bridge
+now switches it on (`_enable_solver_player_cache`) and rotates it itself (`_prune_solver_player_cache`,
+keeping the current build only — one entry is 4.2MB), and `MemoisedNSolver` remembers answers per
+build within the process. Measured, same emulator, cache wiped first:
+
+| resolve | solve before | solve after |
+|---|---|---|
+| video A, first ever (cold — the player is preprocessed and cached here) | 16050ms | 18947ms |
+| video A, `play` after `describe` | 14793ms | **2473ms** |
+| video B, first time | ~15000ms | **1833ms** |
+| whole `describe OVER SABR` | 20966ms | **2833ms** |
+
+The memo did not fire between A's two resolves — each `/player` answer carried different `n`
+challenges — so the win is yt-dlp's cache; the memo stands for the re-pick and rescue paths that reuse a
+response. What remains is the one-off ~19s preprocess per player build, roughly weekly.
+

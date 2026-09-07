@@ -333,5 +333,70 @@ class PoTokenPassThroughTest(unittest.TestCase):
         )
 
 
+
+
+class SolverPlayerCacheTest(unittest.TestCase):
+    """The JS challenge solver keeps its preprocessed player between solves, and prunes old builds.
+
+    Measured 2026-09-07 on the emulator: the same video's two resolves each spent ~15s in the solver,
+    because yt-dlp ships the preprocessed-player cache OFF and hands QuickJS the 2.9MB player every time.
+    """
+
+    def test_the_preprocessed_player_cache_is_switched_on(self):
+        import types
+
+        ejs = types.ModuleType("yt_dlp.extractor.youtube.jsc._builtin.ejs")
+
+        class EJSBaseJCP:
+            _ENABLE_PREPROCESSED_PLAYER_CACHE = False
+
+        ejs.EJSBaseJCP = EJSBaseJCP
+        module, stub = _bridge_with_stubbed_ytdlp()
+        saved = {k: sys.modules.get(k) for k in (
+            "yt_dlp.extractor", "yt_dlp.extractor.youtube", "yt_dlp.extractor.youtube.jsc",
+            "yt_dlp.extractor.youtube.jsc._builtin", "yt_dlp.extractor.youtube.jsc._builtin.ejs")}
+        try:
+            for k in saved:
+                sys.modules[k] = ejs if k.endswith(".ejs") else types.ModuleType(k)
+            self.assertTrue(module._enable_solver_player_cache())
+            self.assertTrue(EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    sys.modules.pop(k, None)
+                else:
+                    sys.modules[k] = v
+
+    def test_a_wheel_without_the_flag_degrades_to_slow_solves_not_a_crash(self):
+        module, stub = _bridge_with_stubbed_ytdlp()
+        sys.modules.pop("yt_dlp.extractor.youtube.jsc._builtin.ejs", None)
+        self.assertIn(module._enable_solver_player_cache(), (True, False))
+
+    def test_pruning_keeps_only_the_current_player(self):
+        import tempfile
+
+        module, stub = _bridge_with_stubbed_ytdlp()
+        with tempfile.TemporaryDirectory() as root:
+            section = pathlib.Path(root) / "challenge-solver"
+            section.mkdir()
+            # The names yt-dlp writes: the key's ':' and '/' sanitised, the build id intact.
+            (section / "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2Fold00000,2Fbase.js.json").write_text("{}")
+            (section / "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2Ff572e43c,2Fbase.js.json").write_text("{}")
+            (section / "lib.json").write_text("{}")
+
+            class FakeCache:
+                def _get_root_dir(self):
+                    return root
+
+            class FakeExtractor:
+                cache = FakeCache()
+
+            current = "https://www.youtube.com/s/player/f572e43c/player_ias.vflset/en_US/base.js"
+            self.assertEqual(1, module._prune_solver_player_cache(FakeExtractor(), current))
+            self.assertEqual(
+                {"lib.json", "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2Ff572e43c,2Fbase.js.json"},
+                {p.name for p in section.iterdir()},
+            )
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

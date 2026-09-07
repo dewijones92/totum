@@ -98,6 +98,7 @@ import com.dewijones92.totum.innertube.music.HttpYouTubeMusicSearch
 import com.dewijones92.totum.innertube.player.HttpEmbedHostFlagsSource
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.HttpVisitorIdSource
+import com.dewijones92.totum.innertube.player.MemoisedNSolver
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
@@ -1040,7 +1041,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * independent of each other so both remain separately publishable.
      */
     private val nSolver: NSolver by lazy {
-        NSolver { challenges, playerUrl -> ytDlpEngine.solveN(challenges, playerUrl) }
+        MemoisedNSolver(NSolver { challenges, playerUrl -> ytDlpEngine.solveN(challenges, playerUrl) })
     }
 
     private val signatureTimestamps by lazy { HttpSignatureTimestampSource(httpClient) }
