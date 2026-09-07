@@ -1,7 +1,7 @@
 ---
 title: SABR cannot be opened part-way through
-status: open (the warm-jump lead is reopened)
-updated: 2026-09-06
+status: open — the server now serves a cold jump (embedded endpoint, 2026-09-07); the reader cannot consume one, which is the ChunkSource redesign
+updated: 2026-09-07
 ---
 
 # SABR cannot be opened part-way through
@@ -36,7 +36,29 @@ backwards and be read by the server as a seek (which re-sends everything: the 52
 that buffered ranges exist to prevent). Covered by `OpeningAtAnOffsetAsksForThatTimeTest`, and at byte
 0 — a rewind on a warm stream — by `AWarmStreamCanRewindToTheStartTest`.
 
-## THEIRS: no media for a cold jump — wire-measured
+## ✅ 2026-09-07: a cold jump IS served — on the EMBEDDED endpoint
+
+The "THEIRS" finding below was measured on the ANDROID endpoint, which is the one that also caps at ~1MB
+([sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md)). Against the embedded player's endpoint
+(`tools/potoken/embeddedsabr.py`, no token) the patient probe opened the conversation at **3,600,000ms
+of the 97-minute fixture** (`-DstartAtMs=3600000`) and was served straight away:
+
+```
+fetch  5 asked 3657156ms -> 535617B media   distinct 1138KB  furthest byte 60735KB
+fetch 10 asked 3757305ms -> 550976B media   distinct 2053KB  furthest byte 61598KB
+fetch 20 asked 3958375ms -> 511128B media   distinct 3856KB  furthest byte 63297KB
+```
+
+The first media header's offset was the hour mark's (60.7MB into the file), `protection=status=1`, ~500KB
+of fresh media a fetch, no init-only answers. **The server is not the obstacle to seeking any more.**
+What remains is entirely ours, and it is the reader's design: ExoPlayer asks a progressive `DataSource`
+for BYTE `from`; the stream aims by a bytes→time ratio and the server answers with whole segments that
+start at their own boundaries, so the byte at exactly `from` is not what arrives and the read stalls.
+For audio the ratio is close and a segment-boundary re-base would work; for VBR video it is wrong by
+seconds. Both are the [ChunkSource redesign](sabr-as-a-chunk-source.md), which asks for a TIME and hands
+ExoPlayer whole chunks. Until then the resolver still refuses SABR for a resumed item, and rightly.
+
+## THEIRS: no media for a cold jump — wire-measured (ANDROID endpoint, 2026-08-20)
 
 Live, opening halfway into a 30MB audio stream:
 
