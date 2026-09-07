@@ -296,7 +296,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
             val media = entry.item.item
             if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
             val downloadState = availability.stateOf(media.id)
-            SwipeToRemove(onRemove = { actions.onRemove(index, entry) }) {
+            // The reorder translation goes on the OUTER element, or a dragged row slides inside a box that
+            // stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
+            SwipeToRemove(
+                onRemove = { actions.onRemove(index, entry) },
+                modifier = Modifier.reorderable(reorder, index),
+            ) {
                 MediaItemRow(
                     item = media,
                     // Says why a row will be passed over, rather than leaving it to be discovered.
@@ -316,7 +321,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                     onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
                     onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
                         .takeIf { index < entries.lastIndex },
-                    modifier = Modifier.reorderable(reorder, index),
                     trailing = {
                         with(reorder) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
                     },
@@ -461,7 +465,7 @@ private fun DragHandle(modifier: Modifier) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit) {
+private fun SwipeToRemove(onRemove: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.EndToStart) onRemove()
@@ -471,20 +475,25 @@ private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit)
     SwipeToDismissBox(
         state = state,
         enableDismissFromStartToEnd = false,
-        modifier = Modifier.testTag(QUEUE_ROW_SWIPE_TAG),
+        modifier = modifier.testTag(QUEUE_ROW_SWIPE_TAG),
         backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.queue_remove),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
+            // Drawn ONLY mid-swipe. The row paints no background of its own, so a background that is
+            // always there shows straight through it — every row in the released queue was solid red
+            // with a bin on it (Dewi, 2026-09-07, on cbf9916).
+            if (state.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.queue_remove),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
             }
         },
         content = { content() },

@@ -129,3 +129,17 @@ channel, a mic for a podcast — `pillarIcon`, the same glyph the badge uses) an
 same rule (`goToSourceLabelRes`), so a podcast row in the Library or a feed no longer says "Go to
 channel". The channel's actual avatar is still the nicer end state and remains open; it needs a
 channel-id → avatar lookup the sheet does not have today.
+
+## ⚠️ Regression shipped with (c), fixed 2026-09-07
+
+Dewi, on cbf9916: *"lots of things in my queue have a reddish background and I can't drag them around any
+longer."* Both true, both from the swipe wrapper. `SwipeToDismissBox` draws its background behind the
+row at all times, and `MediaItemRow` paints no background of its own — so every row was solid
+`errorContainer` with a bin on it (screenshot-confirmed on the emulator). And the reorder translation
+was applied to the row INSIDE the box, so a dragged row slid within a box that stayed put and the list
+looked frozen. Fixed: the background is drawn only while `dismissDirection == EndToStart`, and
+`Modifier.reorderable` moves to the outer `SwipeToRemove`. Verified with `ReorderAutoScrollTest`,
+`QueueSwipeToRemoveTest`, `QueueGroupCollapseTest` on the emulator and a screenshot of the tab.
+
+The lesson is recorded in memory: a UI test that asserts state can pass over a screen that is unusable;
+**a Compose change is not verified until the screen has been looked at.**

@@ -154,6 +154,11 @@ code is single-use and short-lived. So treat the token as an asset:
   It drives the real `YouTubeAccount.signIn()`, which persists the tokens itself — and it early-returns
   when already signed in, so it doubles as the signed-in assertion. Back the token up again afterwards.
 
+**A Compose change is not verified until the screen has been LOOKED AT.** 2026-09-07: eleven queue UI
+tests were green while every queue row shipped solid red with its drag handle hidden (cbf9916). A test
+asserts the state it was written to assert; a screenshot (`adb exec-out screencap -p`) catches what nobody
+thought to assert. Screenshot the changed screen on the emulator before calling UI work done.
+
 Signed-in state matters for more than convenience: the subs feed, history, comments and likes all need
 it, and (since the TV `/player` works again, 2026-09-06) `docs/todos/youtube-requires-attestation.md` turns on whether a **signed-in TV SABR session** behaves
 differently from an anonymous one — which cannot be tested on a signed-out device.
