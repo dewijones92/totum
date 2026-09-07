@@ -101,4 +101,26 @@ class VideoPlaybackAbrRequestTest {
         val read = Protobuf.read(body)[5]?.firstOrNull() as Protobuf.Value.Bytes
         assertEquals(config.size, read.value.size)
     }
+
+    private fun abrState(request: VideoPlaybackAbrRequest): Map<Int, List<Protobuf.Value>> =
+        Protobuf.read((Protobuf.read(request.encode())[1]!!.first() as Protobuf.Value.Bytes).value)
+
+    @Test
+    fun `the playback rate is a float on the wire, as the schema says`() {
+        // Wire type 5 for field 35, then 1.0f little-endian — the bytes SmartTube sends (2026-09-06).
+        val request = VideoPlaybackAbrRequest(byteArrayOf(1)).encode()
+        val body = (Protobuf.read(request)[1]!!.first() as Protobuf.Value.Bytes).value
+        val expected = listOf(0x9D.toByte(), 0x02.toByte(), 0x00.toByte(), 0x00.toByte(), 0x80.toByte(), 0x3F.toByte())
+        assertTrue(body.toList().windowed(expected.size).any { it == expected })
+    }
+
+    @Test
+    fun `a sticky resolution goes in fields 16 and 21, and nowhere when unset`() {
+        val with = abrState(VideoPlaybackAbrRequest(byteArrayOf(1), stickyResolution = 1080))
+        assertEquals(Protobuf.Value.Number(1080), with[16]!!.first())
+        assertEquals(Protobuf.Value.Number(1080), with[21]!!.first())
+        val without = abrState(VideoPlaybackAbrRequest(byteArrayOf(1)))
+        assertNull(without[16])
+        assertNull(without[21])
+    }
 }

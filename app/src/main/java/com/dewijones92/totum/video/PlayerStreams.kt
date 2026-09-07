@@ -7,6 +7,7 @@ import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.PlayableFormat
+import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.StreamingData
@@ -41,6 +42,13 @@ fun interface PlayerStreams {
      * extraction that has already been paid for.
      */
     suspend fun playerFor(videoId: String): PlayerResult.Success?
+
+    /**
+     * The response to build a SABR session from. Defaults to [playerFor]; the real implementation asks the
+     * EMBEDDED player first, because its endpoint is the one that is not capped at ~1MB (measured
+     * 2026-09-06 — docs/todos/sabr-stops-at-one-megabyte.md).
+     */
+    suspend fun playerForSabr(videoId: String): PlayerResult.Success? = playerFor(videoId)
 }
 
 /** [PlayerStreams] over our own InnerTube client. */
@@ -71,6 +79,12 @@ class InnerTubePlayerStreams(
      */
     private val solveN: (suspend (StreamingData) -> StreamingData)? = null,
     /**
+     * The embedded player's answer for a video, or null when it cannot be asked (no visitor id, no host
+     * flags, no timestamp). Tried first for SABR only — its formats carry no direct URLs, so it must not
+     * displace the ANDROID response that progressive playback and downloads still need.
+     */
+    private val embedded: (suspend (String) -> PlayerResult?)? = null,
+    /**
      * Whether to ask the ACCOUNT first rather than only as a rescue.
      *
      * The account path is a signed-in **TV** client, which is exactly what SmartTube is — and SmartTube
@@ -91,6 +105,54 @@ class InnerTubePlayerStreams(
     /** What the signed-in retry needs: a token, and the timestamp streams are signed against. */
     fun interface AccountPlayer {
         suspend fun playerFor(videoId: String): PlayerResult?
+    }
+
+    override suspend fun playerForSabr(videoId: String): PlayerResult.Success? {
+        embeddedFirst(videoId)?.let { return it }
+        return playerFor(videoId)
+    }
+
+    /**
+     * The embedded player, when it can be asked and answers with a SABR endpoint. Every way it can fail
+     * to is logged with its reason, because the difference between "capped at 1MB" and "streams for an
+     * hour" will otherwise be invisible in a report.
+     */
+    private suspend fun embeddedFirst(videoId: String): PlayerResult.Success? {
+        val ask = embedded ?: return null
+        val outcome = runCatching { ask(videoId) }.getOrElse { failure ->
+            Diag.warn("resolve", "$videoId: the embedded player could not be asked", failure)
+            null
+        }
+        val success = outcome.embeddedSuccess(videoId) ?: return null
+        val playable = success.copy(client = PlayerClient.EMBEDDED).playable()
+        return when {
+            playable == null -> null
+            playable.streaming.serverAbrStreamingUrl == null -> {
+                Diag.log("resolve", "$videoId: the embedded player offered no SABR endpoint; falling back to ANDROID")
+                null
+            }
+            else -> {
+                Diag.log("resolve", "$videoId resolved as the EMBEDDED player — the SABR endpoint that is not capped")
+                playable
+            }
+        }
+    }
+
+    /** The embedded answer as a success, or null with its reason logged — every reason, so a report can say why. */
+    private fun PlayerResult?.embeddedSuccess(videoId: String): PlayerResult.Success? = when (this) {
+        null -> {
+            Diag.log("resolve", "$videoId: the embedded player was not asked (no visitor id, host flags or timestamp)")
+            null
+        }
+        is PlayerResult.Success -> this
+        is PlayerResult.Unplayable -> {
+            Diag.log("resolve", "$videoId: the embedded player refused: $reason; falling back to ANDROID")
+            null
+        }
+        is PlayerResult.Failure -> {
+            Diag.warn("resolve", "$videoId: the embedded player answered unreadably: $detail")
+            null
+        }
     }
 
     override suspend fun playerFor(videoId: String): PlayerResult.Success? {

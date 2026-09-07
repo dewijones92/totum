@@ -19,7 +19,7 @@ internal object Protobuf {
     private const val WIRE_VARINT = 0
     private const val WIRE_LENGTH_DELIMITED = 2
     private const val WIRE_FIXED64 = 1
-    private const val WIRE_FIXED32 = 5
+    internal const val WIRE_FIXED32 = 5
     private const val WIRE_TYPE_MASK = 0x07L
     private const val BYTE_MASK = 0xFF
     private const val MAX_SHIFT = 63
@@ -42,7 +42,7 @@ internal object Protobuf {
         return out.toByteArray()
     }
 
-    private fun tag(field: Int, wireType: Int) = varint(((field shl WIRE_TYPE_BITS) or wireType).toLong())
+    internal fun tag(field: Int, wireType: Int) = varint(((field shl WIRE_TYPE_BITS) or wireType).toLong())
 
     /** A length-delimited field: bytes, a string, or a nested message. */
     fun bytes(field: Int, value: ByteArray): ByteArray =
@@ -140,3 +140,8 @@ internal object Protobuf {
     fun Map<Int, List<Value>>.bytesAt(field: Int): ByteArray? =
         (this[field]?.firstOrNull() as? Value.Bytes)?.value
 }
+
+/** A 32-bit little-endian field — how protobuf carries a `float`, e.g. the playback rate. */
+internal fun Protobuf.float(field: Int, value: Float): ByteArray =
+    tag(field, Protobuf.WIRE_FIXED32) +
+        java.nio.ByteBuffer.allocate(Float.SIZE_BYTES).order(java.nio.ByteOrder.LITTLE_ENDIAN).putFloat(value).array()

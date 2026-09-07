@@ -18,10 +18,10 @@ package com.dewijones92.totum.sabr
  * The five-byte case is the trap: its first byte contributes nothing at all, unlike every
  * other width. `11111xxx` is invalid, and treated as corrupt rather than guessed at.
  */
-internal object UmpVarint {
+public object UmpVarint {
 
     /** Decoded value and the index just past it. */
-    data class Read(val value: Long, val next: Int)
+    public data class Read(val value: Long, val next: Int)
 
     /**
      * How one width decodes: which bits of the first byte survive, and what each following
@@ -42,7 +42,7 @@ internal object UmpVarint {
     )
 
     /** Null when [at] is out of range or the encoding is invalid — a corrupt stream, not a zero. */
-    fun read(buffer: ByteArray, at: Int): Read? {
+    public fun read(buffer: ByteArray, at: Int): Read? {
         if (at !in buffer.indices) return null
         val first = buffer[at].toInt() and BYTE_MASK
         val layout = layouts.getOrNull(leadingSetBits(first)) ?: return null

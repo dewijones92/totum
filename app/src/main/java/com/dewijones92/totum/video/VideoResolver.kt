@@ -565,7 +565,7 @@ class VideoResolver(
             )
             return null
         }
-        val response = fast.playerFor(id) ?: return null
+        val response = fast.playerForSabr(id) ?: return null
         return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, asked, startedAt), response)
     }
 
@@ -586,7 +586,8 @@ class VideoResolver(
         val asked = request.asked
         val startedAt = request.startedAt
         val wanted = wantedAudio(chosen = null)
-        val prepared = SabrResolve.prepare(id, response.streaming, response.details, wanted) ?: return null
+        val prepared = SabrResolve.prepare(id, response.streaming, response.details, wanted, response.client)
+            ?: return null
         val qualities = response.streaming.videoQualities(wanted)
         Vitals.add("resolve.sabrSuccesses")
         Diag.log(

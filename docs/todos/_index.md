@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 # Backlog
@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [youtube-requires-attestation](youtube-requires-attestation.md) | playback | **critical** | open — SABR is capped at ~1MB without a PO token (SmartTube mints one via BotGuard, captured 2026-09-06); the signed-in TV client is NO LONGER refused (timestamp scale, fixed 2026-09-06). Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
+| [youtube-requires-attestation](youtube-requires-attestation.md) | playback | high | the ~1MB cap was the ANDROID/WEB endpoint, not attestation: SABR now resolves from the embedded player and streamed 4.2MB+ on device with no token (shipped 2026-09-07); the signed-in TV client is no longer refused (timestamp scale). Still open: quality tiers above what the embedded response offers, and seeking. Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | open — two defects fixed but disproven as the cause; instrumented for the next report |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |
@@ -37,7 +37,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [feature-gap-review](feature-gap-review.md) | planning | — | triage of the AI review |
 | [channel-groups](channel-groups.md) | video | high | shipped |
 | [watch-history-not-recorded](watch-history-not-recorded.md) | video | high | done — fixed by an authenticated player call carrying a current signatureTimestamp |
-| [sabr-streaming](sabr-streaming.md) | video | medium | fallback + QuickJS shipped; SABR itself blocked at ~1MB by attestation, and seeking open |
+| [sabr-streaming](sabr-streaming.md) | video | medium | fallback + QuickJS shipped; the ~1MB wall fell 2026-09-07 (embedded endpoint); seeking still open |
 | [feed-pagination](feed-pagination.md) | video | high | shipped — feeds, channel tabs AND search; playlist/related still page one |
 | [queue-drag-reorder](queue-drag-reorder.md) | queue | high | shipped (auto-scroll); pickup + resilience open |
 | [public-domain-film-tv](public-domain-film-tv.md) | search | medium | **shipped** → [features/torrents.md](../features/torrents.md) |
@@ -75,7 +75,7 @@ instruction on the queue/download/autoplay/volume group: refine first, implement
 command).
 - [The signed-in TV client's /player is refused](tv-client-player-is-refused.md) — **fixed 2026-09-06**: the TV client wants `signatureTimestamp` 20697001, not the script's 20697; found by capturing SmartTube on the emulator
 - [SABR cannot play a live stream without its initialization segment](sabr-live-needs-an-init-segment.md) — SABR fetches live fine (820KB kept in one fetch) and the player never becomes ready; the init data is on the wire in a part we discard
-- [SABR is capped at ~1MB per format](sabr-stops-at-one-megabyte.md) — **blocker**, measured on eighteen streams: past the ceiling the server answers with the init segment alone. Every other SABR problem is only observable in the first megabyte
+- [SABR is capped at ~1MB per format](sabr-stops-at-one-megabyte.md) — **ANSWERED 2026-09-07**: the cap belonged to the ANDROID/WEB endpoint; sessions now come from the embedded player and stream past it on device
 - [A resend is read as an empty answer and answered with a 30-second skip](a-resend-becomes-a-thirty-second-skip.md) — the response carried 171364B of this format's own bytes; `carried` already knows, and `handleEmpty` does not ask
 - [Move SABR onto a Media3 ChunkSource](sabr-as-a-chunk-source.md) — designed. The proper fix for seeking AND the only route to adaptive quality, which is structurally unreachable under a progressive source (proven against the media3 1.10.1 jars)
 - [SABR cannot be opened part-way through](sabr-cannot-seek.md) — the units bug and four byte-machinery bugs are fixed; a cold jump is still served no media (wire-measured), our reader still cannot consume a granted seek, and the warm-jump lead is **REOPENED** — it was crossed off on an unsound instrument

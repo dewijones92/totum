@@ -1,10 +1,22 @@
 ---
 title: PO token minting works; it has not yet lifted the ceiling
-status: open — minting proven, four placements measured, none lifted the wall
-updated: 2026-08-20
+status: superseded 2026-09-06 — the ceiling was the request SHAPE, not attestation; see sabr-stops-at-one-megabyte.md
+updated: 2026-09-06
 ---
 
 # Minting a PO token: proven. Lifting the ceiling with it: not yet.
+
+> ⚠️ **Re-measured 2026-09-06, and the ceiling stands.** The SmartTube capture's request SHAPE (sentinel
+> range, track bitfield, sticky resolution) looked like a 4.9MB wall break on the ANDROID endpoint; with a
+> de-duplicating counter it is **414KB of distinct media** — the rest was other formats' bytes re-sent. The
+> honest shape still holds 1117KB distinct. See [sabr-stops-at-one-megabyte.md](sabr-stops-at-one-megabyte.md)
+> for the table and the instrument fix. The lead that remains is the one this file could not test: the
+> **embedded endpoint SmartTube actually streams from**, now reachable without a token for the player call.
+>
+> Two further captured facts, both measured against SmartTube's own request as the control: the
+> embedded player (`WEB_EMBEDDED_PLAYER`) needs `encryptedHostFlags` from the `/embed/<id>` page and
+> `thirdParty.embedUrl`, and does **not** need a PO token (`tools/potoken/embeddedsabr.py`); and its
+> server-issued endpoint carries no `pot=` — SmartTube appends the streaming token itself.
 
 ## What works, verified 2026-08-20
 

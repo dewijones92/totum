@@ -95,7 +95,9 @@ import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 import com.dewijones92.totum.innertube.history.HttpYouTubeWatchHistory
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import com.dewijones92.totum.innertube.music.HttpYouTubeMusicSearch
+import com.dewijones92.totum.innertube.player.HttpEmbedHostFlagsSource
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
+import com.dewijones92.totum.innertube.player.HttpVisitorIdSource
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
@@ -626,6 +628,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             playerStreams = InnerTubePlayerStreams(
                 innerTubeClient,
                 accountPlayer,
+                embedded = ::embeddedPlayer,
                 // Only the anonymous response needs solving here; the account path already
                 // solved its own, and doing it twice would transform an answer into nonsense.
                 solveN = { streaming ->
@@ -1041,6 +1044,24 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val signatureTimestamps by lazy { HttpSignatureTimestampSource(httpClient) }
+    private val embedHostFlags by lazy { HttpEmbedHostFlagsSource(httpClient) }
+    private val visitorIds by lazy { HttpVisitorIdSource(httpClient) }
+
+    /**
+     * The embedded player's answer, or null when one of its three inputs cannot be had. Each absence is
+     * logged by its source; this only says that the ask did not happen.
+     */
+    private suspend fun embeddedPlayer(videoId: String): PlayerResult? {
+        val visitor = visitorIds.current() ?: return null
+        val flags = embedHostFlags.forVideo(videoId) ?: return null
+        val stamp = runCatching { signatureTimestamps.current() }.getOrNull() ?: return null
+        val response = innerTubeClient.playerAsEmbedded(videoId, visitor, stamp, flags)
+        val body = (response as? InnerTubeResponse.Success)?.body ?: run {
+            Diag.log("resolve", "$videoId: the embedded player answered $response")
+            return null
+        }
+        return PlayerResponseParser.parse(body)
+    }
 
     override val appPreferences: AppPreferences by lazy { SharedPrefsAppPreferences(context) }
 

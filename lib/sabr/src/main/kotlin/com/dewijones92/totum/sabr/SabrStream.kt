@@ -70,6 +70,8 @@ public class SabrStream(
     private val durationMs: Long? = null,
     private val stepMs: Long = DEFAULT_STEP_MS,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** How the stream waits when the server asks it to; a test hands in a recorder instead of a sleep. */
+    private val wait: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
 ) {
     /** Bytes gathered for [format], keyed by their offset in the whole stream. */
     private val chunks = sortedMapOf<Long, ByteArray>()
@@ -388,6 +390,7 @@ public class SabrStream(
     }
 
     private suspend fun fetch() {
+        honourBackoff()
         val body = VideoPlaybackAbrRequest(
             ustreamerConfig = ustreamerConfig,
             playerTimeMs = playerTimeMs,
@@ -400,6 +403,7 @@ public class SabrStream(
             poToken = poToken,
             clientInfo = clientInfo,
             playbackCookie = playbackCookie,
+            sabrContexts = contexts.values.toList(),
         ).encode()
         val startedAt = clock()
         val response = try {
@@ -411,8 +415,11 @@ public class SabrStream(
         val elapsed = clock() - startedAt
         fetches++
         totalFetchMs += elapsed
-        NextRequestPolicy.inResponse(response)?.let { policy ->
-            policy.playbackCookie?.let { playbackCookie = it }
+        val policy = NextRequestPolicy.inResponse(response)
+        policyThisResponse = policy != null
+        policy?.let {
+            it.playbackCookie?.let { cookie -> playbackCookie = cookie }
+            backoffMs = it.backoffTimeMs?.coerceIn(0, MAX_BACKOFF_MS) ?: 0
         }
         val added = absorb(response)
         bytesDiscarded += (response.size - added).coerceAtLeast(0)
@@ -505,6 +512,25 @@ public class SabrStream(
         // much longer video, which under the old rule ended it there.
         val length = contentLength
         val complete = length != null && served >= length
+        // A handshake, not a gap: the server answered with state to echo, or nothing at all has been
+        // served yet. Measured 2026-09-06 on the embedded endpoint — a context update and no media on
+        // the first answer, then ~10B answers, then media on the same position once the context came
+        // back (SmartTube's capture shows the same four empties before its first 3MB). Skipping ahead
+        // here asked for 30s with nothing buffered and the server, quite reasonably, said nothing.
+        // Only an answer the server actually SHAPED counts as a handshake — a context update, or a policy
+        // before any byte has been served. A bare empty body is a dead conversation, and the tests that
+        // hand one out (`SabrStopsAfterADeathThatServedNothingTest`) must still see the stream spend itself.
+        val handshake = contextUpdatedThisResponse || (served == 0L && policyThisResponse)
+        if (!complete && handshake && handshakeEmpties < MAX_HANDSHAKE_EMPTIES) {
+            handshakeEmpties++
+            emptyResponses--
+            Diag.log(
+                "sabr",
+                "itag ${format.itag} handshake: nothing yet at ${playerTimeMs}ms, asking the same position again " +
+                    "with ${contexts.size} context(s) echoed (handshake #$handshakeEmpties of $MAX_HANDSHAKE_EMPTIES)",
+            )
+            return
+        }
         if (!complete && emptyResponses < MAX_EMPTY_RESPONSES) {
             // Skip further ahead rather than asking the same question again: the server
             // answers about a media TIME, so the same time returns the same nothing.
@@ -556,10 +582,14 @@ public class SabrStream(
         var added = 0
         carried.clear()
         unhandled.clear()
+        contextUpdatedThisResponse = false
         UmpReader.read(response).parts.forEach { part ->
             when (part.type) {
                 UmpPart.MEDIA_HEADER -> remember(MediaHeader.parse(part.payload))
                 UmpPart.MEDIA -> added += storeMedia(part.payload)
+                UmpPart.SABR_CONTEXT_UPDATE -> noteContext(part.payload)
+                UmpPart.SNACKBAR_MESSAGE ->
+                    Diag.warn("sabr", "server snackbar for itag ${format.itag}: ${part.payload.printableRuns()}")
                 // Named, not silently dropped. A part this class ignores is indistinguishable from one
                 // the server never sent, and telling those apart is the whole question for a LIVE
                 // stream: its media arrives with no initialization segment, so whether the init data is
@@ -573,8 +603,49 @@ public class SabrStream(
         return added
     }
 
+    /**
+     * What the server's last `NEXT_REQUEST_POLICY` asked us to wait before asking again. Ignoring it is
+     * how the embedded endpoint was asked eight times in 300ms and answered eight times with nothing
+     * (Sintel, 2026-09-06: `backoff=4000ms`, no media, until we gave up). Bounded, so a hostile value
+     * cannot park a read for ever; the read's own fetch budget still applies on top.
+     */
+    private var backoffMs: Long = 0
+
+    private suspend fun honourBackoff() {
+        val pause = backoffMs
+        if (pause <= 0) return
+        backoffMs = 0
+        Diag.log("sabr", "itag ${format.itag}: server asked for a ${pause}ms pause before the next request; waiting")
+        Vitals.add("sabr.backoffWaits")
+        Vitals.add("sabr.backoffMs", pause)
+        wait(pause)
+    }
+
     /** Part types this response carried and this class does nothing with. */
     private val unhandled = mutableListOf<Int>()
+
+    /**
+     * Session state the server handed out and asked to have back — echoed on every later request as
+     * `streamer_context.sabr_contexts`. Until 2026-09-06 every update was dropped; the embedded endpoint
+     * answered such a request with a context update, a snackbar and no media, four times, then we gave up.
+     */
+    private val contexts = linkedMapOf<Int, SabrContext>()
+
+    /** Whether the response being absorbed carried a context update — a handshake, not a gap. */
+    private var contextUpdatedThisResponse = false
+    private var policyThisResponse = false
+    private var handshakeEmpties = 0
+
+    private fun noteContext(payload: ByteArray) {
+        contextUpdatedThisResponse = true
+        val update = SabrContext.parse(payload) ?: run {
+            Diag.warn("sabr", "a context update of ${payload.size}B could not be read; not echoed")
+            return
+        }
+        if (update.sendByDefault) contexts[update.type] = update else contexts.remove(update.type)
+        val fate = if (update.sendByDefault) "echoed from the next request" else "noted, not echoed"
+        Diag.log("sabr", "server context update $update — $fate")
+    }
 
     /** What the last response carried, which is how the sharing question gets answered. */
     private val carried = CarriedItags()
@@ -689,6 +760,12 @@ public class SabrStream(
          */
         const val MAX_EMPTY_RESPONSES = 4
 
+        /** Empty answers tolerated at the SAME position before the first byte; SmartTube saw four. */
+        const val MAX_HANDSHAKE_EMPTIES = 8
+
+        /** The longest pause a server may ask for and be obeyed; beyond this a read must not hang. */
+        const val MAX_BACKOFF_MS = 10_000L
+
         /** How far to jump when a time yields nothing; the same time yields the same nothing. */
         const val EMPTY_SKIP_STEPS = 3
     }
@@ -704,3 +781,11 @@ private fun percentOf(served: Long, length: Long?): Long =
     if (length == null || length <= 0) -1 else served * PERCENT_SCALE / length
 
 private const val PERCENT_SCALE = 100
+
+/** The readable runs in an opaque payload — what a server message says, without pretending to parse it. */
+private fun ByteArray.printableRuns(minRun: Int = 4): String =
+    String(this, Charsets.ISO_8859_1)
+        .split(Regex("[^\\x20-\\x7E]+"))
+        .filter { it.length >= minRun }
+        .joinToString(" | ")
+        .ifEmpty { "(nothing readable in ${size}B)" }

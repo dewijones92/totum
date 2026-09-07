@@ -70,7 +70,12 @@ class DoesAPoTokenLiftTheCeilingTest {
     private var lastStatus: String = "none"
 
     private val transport = SabrTransport { url, body ->
-        val request = Request.Builder().url(url).post(body.toRequestBody(PROTOBUF)).build()
+        // `-DsabrUserAgent=…` sends the header the app's transport sends, to measure whether the
+        // endpoint cares who is asking (2026-09-06: the app's embedded session got no media where this
+        // probe, with OkHttp's default agent, got 500KB a response).
+        val builder = Request.Builder().url(url).post(body.toRequestBody(PROTOBUF))
+        System.getProperty("sabrUserAgent")?.let { builder.header("User-Agent", it) }
+        val request = builder.build()
         http.newCall(request).execute().use {
             lastStatus = "HTTP ${it.code}"
             it.body.bytes()
@@ -153,6 +158,7 @@ class DoesAPoTokenLiftTheCeilingTest {
         var held = 0L
         var fetches = 0
         var quiet = 0
+        val coverage = Coverage()
         // Wall time matters. The server says targetAudioReadahead=15000ms -- it serves fifteen seconds
         // beyond where the player IS -- and a reader that pulls fifty seconds of media in one second of
         // real time is asking for a position it could not possibly have reached. `-Dpaced=true` waits
@@ -181,7 +187,10 @@ class DoesAPoTokenLiftTheCeilingTest {
             }
             val response = runBlocking { transport.post(session.streamingUrl, body) }
             fetches++
-            val media = UmpReader.read(response).parts.filter { it.type == UmpPart.MEDIA }.sumOf { it.payload.size }
+            honourBackoff(response)
+            val parts = UmpReader.read(response).parts
+            val media = parts.filter { it.type == UmpPart.MEDIA }.sumOf { it.payload.size }
+            coverage.add(parts, audio.itag)
             // The init segment arrives on every response; counting it as progress would look like
             // forward motion for ever.
             val fresh = media - INIT_SEGMENT_BYTES
@@ -199,16 +208,18 @@ class DoesAPoTokenLiftTheCeilingTest {
                 segments += UmpReader.read(response).parts.count { it.type == UmpPart.MEDIA_END }
             }
             if (fetches % REPORT_EVERY == 0 || quiet > 0) {
-                println(
-                    "[patient] fetch $fetches asked ${askAt}ms -> ${response.size}B, " +
-                        "media ${media}B, held ${held / KB}KB, quiet=$quiet, " +
-                        "protection=$protection policy[$policy]",
-                )
+                report(fetches, askAt, response.size, media, held, coverage, quiet, "$protection policy[$policy]")
             }
         }
-        println("[patient] stopped after $fetches fetches holding ${held / KB}KB of ${total / KB}KB")
         println(
-            if (held > IMPATIENT_CEILING) {
+            "[patient] stopped after $fetches fetches holding ${held / KB}KB of ${total / KB}KB — " +
+                "DISTINCT ${coverage.distinctBytes / KB}KB, furthest byte ${coverage.furthestByte / KB}KB, " +
+                "${coverage.segments} segment header(s) for itag ${audio.itag}",
+        )
+        println(
+            // Judged on DISTINCT bytes: a server re-sending one segment forever inflates `held` exactly
+            // like progress, which is how a 4.9MB "wall break" was misread on 2026-09-06.
+            if (coverage.distinctBytes > IMPATIENT_CEILING) {
                 "[patient] ✅ PAST THE CEILING. The ~956KB wall was OURS — asking at the time our bytes " +
                     "are worth keeps the server serving. No token needed."
             } else {
@@ -224,6 +235,83 @@ class DoesAPoTokenLiftTheCeilingTest {
      * version ran -- and leaving that switchable is the point, because "the server was never told what
      * we held" had to be eliminated rather than assumed.
      */
+    @Suppress("LongParameterList")
+    private fun report(
+        fetch: Int,
+        askAt: Long,
+        size: Int,
+        media: Int,
+        held: Long,
+        coverage: Coverage,
+        quiet: Int,
+        tail: String,
+    ) {
+        println(
+            "[patient] fetch $fetch asked ${askAt}ms -> ${size}B, media ${media}B, held ${held / KB}KB, " +
+                "distinct ${coverage.distinctBytes / KB}KB furthest ${coverage.furthestByte / KB}KB, " +
+                "quiet=$quiet, protection=$tail",
+        )
+    }
+
+    /**
+     * A requested pause is obeyed, as the stream now does; asking again inside it is what got Sintel's
+     * embedded endpoint to answer nothing eight times (2026-09-06).
+     */
+    private fun honourBackoff(response: ByteArray) {
+        val pause = NextRequestPolicy.inResponse(response)?.backoffTimeMs?.takeIf { it > 0 } ?: return
+        println("[patient] server asked for a ${pause}ms pause — waiting")
+        runBlocking { delay(pause.coerceAtMost(MAX_WAIT_MS)) }
+    }
+
+    /**
+     * Distinct bytes of OUR format seen so far, by the offsets the server's own MEDIA_HEADERs declare.
+     * Cumulative media counts cannot tell progress from a re-sent segment; this can.
+     */
+    private class Coverage {
+        private val ranges = mutableListOf<LongRange>()
+        private val headers = mutableMapOf<Long, com.dewijones92.totum.sabr.MediaHeader>()
+        private val writeAt = mutableMapOf<Long, Long>()
+        var segments = 0
+
+        fun add(parts: List<UmpReader.Part>, itag: Int) {
+            for (part in parts) {
+                when (part.type) {
+                    UmpPart.MEDIA_HEADER -> noteHeader(part.payload, itag)
+                    UmpPart.MEDIA -> noteMedia(part.payload, itag)
+                }
+            }
+        }
+
+        private fun noteHeader(payload: ByteArray, itag: Int) {
+            val header = com.dewijones92.totum.sabr.MediaHeader.parse(payload) ?: return
+            headers[header.headerId] = header
+            if (header.itag == itag && !header.isInitSegment) segments++
+        }
+
+        private fun noteMedia(payload: ByteArray, itag: Int) {
+            val id = com.dewijones92.totum.sabr.UmpVarint.read(payload, 0) ?: return
+            val header = headers[id.value]?.takeIf { it.itag == itag } ?: return
+            val length = (payload.size - id.next).toLong()
+            val start = writeAt[id.value] ?: header.startBytes
+            writeAt[id.value] = start + length
+            if (length > 0) ranges += start until (start + length)
+        }
+
+        val furthestByte: Long get() = ranges.maxOfOrNull { it.last + 1 } ?: 0L
+
+        val distinctBytes: Long
+            get() {
+                var total = 0L
+                var end = -1L
+                for (r in ranges.sortedBy { it.first }) {
+                    val from = maxOf(r.first, end + 1)
+                    if (r.last >= from) total += r.last - from + 1
+                    end = maxOf(end, r.last)
+                }
+                return total
+            }
+    }
+
     private fun patientRequest(
         session: SabrSession,
         audio: SabrFormat,
@@ -233,11 +321,32 @@ class DoesAPoTokenLiftTheCeilingTest {
         ustreamerConfig = session.ustreamerConfig,
         playerTimeMs = askAt,
         audio = audio,
-        tracks = SabrTracks.AUDIO_ONLY,
-        bufferedRanges = if (segments == 0 || !DESCRIBE_BUFFER) {
-            emptyList()
-        } else {
-            listOf(BufferedRange(audio, startTimeMs = 0, durationMs = askAt, startSegment = 1, endSegment = segments))
+        tracks = TRACKS,
+        // SmartTube's shape (captured 2026-09-06): the requested format's range is a SENTINEL — duration
+        // and both segment indices at Int.MAX — on every request, first one included.
+        bufferedRanges = when {
+            SENTINEL_RANGE -> listOf(
+                BufferedRange(
+                    audio,
+                    startTimeMs = 0,
+                    durationMs = Int.MAX_VALUE.toLong(),
+                    startSegment = Int.MAX_VALUE,
+                    endSegment = Int.MAX_VALUE,
+                    timeRange = BufferedRange.TimeRange(0, Int.MAX_VALUE.toLong(), SENTINEL_TIMESCALE),
+                ),
+            )
+            segments == 0 || !DESCRIBE_BUFFER -> emptyList()
+            else -> listOf(
+                BufferedRange(audio, startTimeMs = 0, durationMs = askAt, startSegment = 1, endSegment = segments)
+            )
+        },
+        stickyResolution = STICKY_RESOLUTION,
+        clientInfo = when (System.getProperty("clientInfo")) {
+            "android" -> SabrClientInfo.ANDROID
+            "web" -> SabrClientInfo.WEB
+            "tv" -> SabrClientInfo.TV
+            "embedded" -> SabrClientInfo.WEB_EMBEDDED
+            else -> null
         },
     ).encode()
 
@@ -399,6 +508,20 @@ class DoesAPoTokenLiftTheCeilingTest {
 
         /** `-Dpaced=true` waits so requests track real playback instead of racing ahead. */
         val PACED: Boolean = System.getProperty("paced").toBoolean()
+
+        /** `-DsentinelRange=true`: describe the requested format as SmartTube does, not honestly. */
+        val SENTINEL_RANGE: Boolean = System.getProperty("sentinelRange").toBoolean()
+        const val SENTINEL_TIMESCALE = 1000
+
+        /** `-DstickyResolution=1080`: SmartTube's fields 16/21. */
+        val STICKY_RESOLUTION: Int? = System.getProperty("stickyResolution")?.toIntOrNull()
+
+        /** `-Dtracks=video_only`: the bitfield SmartTube's audio stream declares (2). */
+        val TRACKS: SabrTracks = when (System.getProperty("tracks")) {
+            "video_only" -> SabrTracks.VIDEO_ONLY
+            "both" -> SabrTracks.AUDIO_AND_VIDEO
+            else -> SabrTracks.AUDIO_ONLY
+        }
 
         /**
          * `-DplaybackPosition=true` sends where playback WOULD be, at 1x from the first request,

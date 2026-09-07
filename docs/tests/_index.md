@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 # Testing
@@ -215,6 +215,9 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | The account token is attached to every client that accepts one, and no others | `AuthAttachedByIdentityTest` | every commit |
 | A video whose stream keeps failing is retried afresh when you tap it again, rather than skipped on sight | `StreamRecoveryTest`, `TappingAFailedItemAgainTest` | every commit |
 | A failure for an item the queue has moved on from is dropped, never replayed onto the NEW item | `StreamRecoveryTest` | every commit — seen twice in CI as `StalledStreamRecoveryTest` buffering forever at the previous item's position |
+| SABR resolves from the embedded player first and falls back to ANDROID with a reason; the session declares the client its endpoint came from | `InnerTubePlayerStreamsTest`, `SabrSessionDeclaresItsClientTest`, `PlayerTimestampScaleTest`, `EmbedHostFlagsTest`, `VisitorIdSourceTest` | every commit |
+| The stream echoes server contexts, honours a requested backoff (bounded), and treats an empty answer before the first byte as a handshake, not a gap | `TheStreamEchoesServerContextsTest`, `TheStreamHonoursBackoffTest`, `AHandshakeIsNotAGapTest` | every commit |
+| The SABR request's playback rate is a float on the wire and a sticky resolution goes in fields 16/21 only when set | `VideoPlaybackAbrRequestTest` | every commit |
 | A queue row is removed by a swipe and put back by Undo, with the playing item still playing | `QueueSwipeToRemoveTest` (instrumented), `PlaybackQueueTest` | every commit |
 | A row's date is an anchored instant that ages with the clock, YouTube's wording parsed both long and short, a resolution fills a missing date, and a shared row learns its facts | `PublishedAgeTest`, `WithStreamFromTest`, `BridgeJsonTest`, `MediaItemSubtitleTest`, `PlaybackQueueTest` | every commit |
 | Every TV player call declares the signature timestamp on the TV scale (20697001), the WEB call on the web scale — the one field that killed sync for three weeks | `PlayerTimestampScaleTest`, `SignatureTimestampTest`, `HttpYouTubeWatchHistoryTest` | every commit |

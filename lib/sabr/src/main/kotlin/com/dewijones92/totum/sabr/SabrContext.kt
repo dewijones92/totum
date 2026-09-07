@@ -34,7 +34,8 @@ public data class SabrContext(
                 .filter { it.type == UmpPart.SABR_CONTEXT_UPDATE }
                 .mapNotNull { parse(it.payload) }
 
-        private fun parse(payload: ByteArray): SabrContext? {
+        /** One `SABR_CONTEXT_UPDATE` payload, or null when it carries no type or value. */
+        public fun parse(payload: ByteArray): SabrContext? {
             val fields = Protobuf.read(payload)
             val type = (fields[UPDATE_TYPE]?.firstOrNull() as? Protobuf.Value.Number)?.value ?: return null
             val value = (fields[UPDATE_VALUE]?.firstOrNull() as? Protobuf.Value.Bytes)?.value ?: return null

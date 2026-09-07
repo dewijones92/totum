@@ -56,7 +56,16 @@ public data class SabrClientInfo(
             clientVersion = "7.20260114.12.00",
         )
 
+        /** What SmartTube streams as (captured 2026-09-06): the embedded player, on a Mac. */
+        public val WEB_EMBEDDED: SabrClientInfo = SabrClientInfo(
+            clientName = WEB_EMBEDDED_CLIENT_NAME,
+            clientVersion = "2.20260708.00.00",
+            osName = "Macintosh",
+            osVersion = "10_15_7",
+        )
+
         private const val ANDROID_CLIENT_NAME = 3
+        private const val WEB_EMBEDDED_CLIENT_NAME = 56
         private const val WEB_CLIENT_NAME = 1
         private const val TV_CLIENT_NAME = 7
         private const val CLIENT_NAME = 16

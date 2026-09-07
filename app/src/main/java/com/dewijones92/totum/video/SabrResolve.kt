@@ -5,9 +5,11 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.innertube.player.PlayableFormat
+import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerDetails
 import com.dewijones92.totum.innertube.player.StreamingData
 import com.dewijones92.totum.innertube.player.audioTag
+import com.dewijones92.totum.sabr.SabrClientInfo
 import com.dewijones92.totum.sabr.SabrFormat
 import com.dewijones92.totum.sabr.SabrSession
 import com.dewijones92.totum.sabr.SabrSessions
@@ -39,6 +41,8 @@ internal object SabrResolve {
         details: PlayerDetails?,
         /** Audio languages to prefer — see `AudioTrackTag`. */
         wanted: List<String> = emptyList(),
+        /** Which client the response was asked as; the stream declares it, and the endpoint checks. */
+        client: PlayerClient = PlayerClient.ANDROID,
     ): Resolved? {
         val endpoint = streaming.serverAbrStreamingUrl?.value ?: return refuse(videoId, "no SABR endpoint")
         val config = streaming.ustreamerConfig ?: return refuse(videoId, "no ustreamer config")
@@ -71,7 +75,13 @@ internal object SabrResolve {
                 audio.toSabrFormat(),
                 video?.toSabrFormat(),
                 known.lengthSeconds?.times(MILLIS_PER_SECOND),
+                clientInfo = client.sabrClientInfo(),
             ),
+        )
+        Diag.log(
+            "sabr",
+            "$videoId: SABR session from the $client player " +
+                "(client info ${client.sabrClientInfo()?.clientName ?: "none"})"
         )
         val audioUrl = SabrSessions.uriFor(videoId, audio.itag)?.let(HttpUrl::parse)
             ?: return refuse(videoId, "could not build a marked endpoint URL")
@@ -209,4 +219,16 @@ internal object SabrResolve {
 
     private const val BITS_PER_KILOBIT = 1000
     private const val MILLIS_PER_SECOND = 1000L
+}
+
+/**
+ * The `client_info` a stream declares for an endpoint. ANDROID stays undeclared — that is the shape every
+ * measurement of the ANDROID endpoint was made with, and declaring it changed nothing; the others are
+ * declared as SmartTube declares them.
+ */
+internal fun PlayerClient.sabrClientInfo(): SabrClientInfo? = when (this) {
+    PlayerClient.ANDROID -> null
+    PlayerClient.WEB -> SabrClientInfo.WEB
+    PlayerClient.TV -> SabrClientInfo.TV
+    PlayerClient.EMBEDDED -> SabrClientInfo.WEB_EMBEDDED
 }

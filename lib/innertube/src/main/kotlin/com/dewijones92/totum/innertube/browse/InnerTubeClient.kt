@@ -91,6 +91,43 @@ public class InnerTubeClient(
         )
 
     /**
+     * The player response as the EMBEDDED player — the client SmartTube streams SABR from, and the one
+     * whose endpoint is not capped at ~1MB (measured 2026-09-06, 6.6MB+ distinct with no token, against
+     * the ANDROID endpoint's 1.1MB; docs/todos/sabr-stops-at-one-megabyte.md).
+     *
+     * Two fields are load-bearing, both found by removing them from SmartTube's captured request:
+     * [hostFlags] — the `encryptedHostFlags` the embed page carries for this video — and the
+     * `thirdParty.embedUrl`. Without either the answer is `ERROR "This video is unavailable"`. A PO
+     * token is NOT needed (removed: still OK), so none is sent. Anonymous: the bearer is refused here.
+     */
+    public suspend fun playerAsEmbedded(
+        videoId: String,
+        visitorData: String,
+        signatureTimestamp: SignatureTimestamp,
+        hostFlags: String,
+    ): InnerTubeResponse = execute(
+        playerUrl,
+        """{"context":{"client":{"clientName":"WEB_EMBEDDED_PLAYER",""" +
+            """"clientVersion":"$EMBEDDED_CLIENT_VERSION","clientScreen":"WATCH",""" +
+            """"userAgent":"$EMBEDDED_USER_AGENT","browserName":"Chrome","browserVersion":"124.0.0.0",""" +
+            """"acceptLanguage":"en-US","acceptRegion":"US","visitorData":"$visitorData"},""" +
+            """"user":{"enableSafetyMode":false,"lockedSafetyMode":false},""" +
+            """"thirdParty":{"embedUrl":"$EMBED_URL"}},""" +
+            """"videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true,""" +
+            """"playbackContext":{"contentPlaybackContext":{"html5Preference":"HTML5_PREF_WANTS",""" +
+            """"lactMilliseconds":60000,"isInlinePlaybackNoAd":true,""" +
+            """"signatureTimestamp":${signatureTimestamp.web},"encryptedHostFlags":"$hostFlags"},""" +
+            """"devicePlaybackCapabilities":{"supportsVp9Encoding":true,"supportXhr":true}}}""",
+        Identity.EMBEDDED,
+        clientHeaders = mapOf(
+            "X-Youtube-Client-Name" to EMBEDDED_CLIENT_ID,
+            "X-Youtube-Client-Version" to EMBEDDED_CLIENT_VERSION,
+            "User-Agent" to EMBEDDED_USER_AGENT,
+            "Referer" to "https://www.youtube.com/tv",
+        ),
+    )
+
+    /**
      * The player response as the SIGNED-IN account, which is the only way to reach an
      * age-restricted video.
      *
@@ -398,6 +435,16 @@ public class InnerTubeClient(
         public const val TV_DOWNGRADED_USER_AGENT: String =
             "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
         public const val WEB_CLIENT_VERSION: String = "2.20240726.00.00"
+
+        /** The embedded player as SmartTube 32.38 declares it (captured 2026-09-06). */
+        public const val EMBEDDED_CLIENT_VERSION: String = "2.20260708.00.00"
+        public const val EMBEDDED_CLIENT_ID: String = "56"
+        public const val EMBEDDED_USER_AGENT: String =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+        /** The page the embedded player claims to sit in; refused without one. SmartTube's choice. */
+        public const val EMBED_URL: String = "https://www.reddit.com/"
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
         private val JSON = "application/json".toMediaType()
@@ -457,6 +504,9 @@ internal enum class Identity(val acceptsBearer: Boolean) {
 
     /** YouTube Music. A web client, so the same refusal applies. */
     MUSIC(acceptsBearer = false),
+
+    /** The embedded player — the SABR endpoint that is not capped. Anonymous only. */
+    EMBEDDED(acceptsBearer = false),
 }
 
 public sealed interface SearchTarget {

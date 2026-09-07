@@ -19,6 +19,12 @@ public data class SabrSession(
      * to. A token that varies mid-conversation is a token that does not match.
      */
     public val poToken: ByteArray? = null,
+    /**
+     * The client the endpoint was issued to, declared on every request as `streamer_context.client_info`.
+     * Null keeps the ANDROID endpoint's proven behaviour (no client info); the EMBEDDED endpoint is
+     * declared, as SmartTube declares it.
+     */
+    public val clientInfo: SabrClientInfo? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || (

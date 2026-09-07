@@ -54,6 +54,13 @@ public enum class SabrTracks(internal val bitfield: Int) {
 
     /** Audio alone. Verified: one itag in the response, and a tenth of the bytes. */
     AUDIO_ONLY(1),
+
+    /**
+     * What SmartTube's AUDIO-format request stream declares (2026-09-06 capture: field 40 = 2 with
+     * itag 251 selected, and 1 with the video format selected). Whether the bitfield means what its
+     * name suggests is exactly what the probe measures; kept as a value, not a claim.
+     */
+    VIDEO_ONLY(2),
 }
 
 /** Which half of a playback a format is. Decides the request field and the track bitfield. */

@@ -1,8 +1,8 @@
 ---
 title: SABR is capped at ~1MB per format, so it cannot carry a whole video
-status: open
+status: SHIPPED 2026-09-07 — SABR sessions come from the embedded player, whose endpoint is not capped; contexts echoed and backoff honoured; 4.2MB+ streamed on device
 severity: blocker
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 # SABR stops at ~1MB, and everything else about SABR is downstream of that
@@ -332,6 +332,120 @@ succeed.** `"The page needs to be reloaded"` is associated with a rejected clien
 `clientVersion`, a wrong or missing `visitorData` for that client family, or a signature timestamp the
 client is not expected to send. Ours read 20684 and then 20681 two minutes apart, which is itself
 unexplained. That is a bounded problem with a clear success signal, unlike anything else left here.
+
+## Captured on the wire (2026-09-06) — SmartTube's SABR conversation, decoded
+
+The capture this file kept asking for: SmartTube 32.38 installed on `totum-api35`, decrypted with
+mitmproxy (`tools/emulator/mitm-capture.sh`), 430+ `videoplayback` POSTs over six videos, every request
+body decoded field by field against `VideoPlaybackAbrRequest`. The **fields match ours** — the doc's
+"replicated field for field" was right. The **conversation** does not:
+
+| | SmartTube (captured) | ours (patient reader) |
+|---|---|---|
+| endpoint | `WEB_EMBEDDED_PLAYER` (client 56) response, PO token in `serviceIntegrityDimensions`; `pot=` **appended** to the URL (the server-issued URL carries none) | ANDROID / WEB response |
+| `streamer_context.client_info` | 56, `2.20260708.00.00`, `Macintosh` / `10_15_7` | ANDROID or WEB |
+| `streamer_context.po_token` | present (binary, 87–89 bytes) on every request | optional |
+| request streams | **one format per request**, audio (251) and video (248) as **separate interleaved sequences** (`rn` alternates) | one audio request stream |
+| `buffered_ranges` | the REQUESTED format as a **sentinel**: `start=0, duration=INT_MAX, start_segment=INT_MAX, end_segment=INT_MAX, time_range{0, INT_MAX, 1000}`, on every request including the first; the OTHER format's real range beside it | honest ranges, or none |
+| `client_abr_state` | 16 = 21 = **1080** (sticky/manual resolution), 22 = 0, 23 = bandwidth, 28 = player time stepping **20s per request**, 35 = **float 1.0 (fixed32)**, 40 = **2** for the audio stream and 1 for the video stream, 46 = 0, 68 = 0 | same fields, but 35 was a **varint 1** (wrong wire type) until today, no 16/21, 40 = 1 |
+| headers | `Accept: application/vnd.yt-ump`, `Content-Type: application/x-protobuf`, Cronet UA | similar |
+| first response | **2.9MB** on `rn=0`; later ones 3–4.6MB, most in-between 11 bytes | 335KB, then a wall at ~1.1MB total |
+
+Two of those rows are things this repo had never sent: the **sentinel range** and the **float rate**.
+Both are now switches on the probe (`-DsentinelRange=true`, `-DstickyResolution=1080`,
+`-Dtracks=video_only`, `-DclientInfo=embedded`), and the rate is a float unconditionally
+(`VideoPlaybackAbrRequestTest`). The arms are measured against the ANDROID control endpoint below.
+
+## The request shape does NOT lift the ceiling — and the probe had to be fixed to know (2026-09-06)
+
+Arms against the **ANDROID** control endpoint (`tools/potoken/androidsabr.py`, `uSMGENDH_QI`), paced,
+patient reader, one change per arm. The first pass used the probe's cumulative `held` counter and read
+as a wall break (4.9MB, then 5.6MB); it was not. `held` was `held += media − init` with **no
+de-duplication by byte offset**, and it counted media of *every* format in the response. Re-measured
+with distinct coverage taken from the server's own `MEDIA_HEADER` offsets:
+
+| arm (paced) | request shape | cumulative "held" | **distinct bytes of itag 251** |
+|---|---|---|---|
+| baseline | honest ranges | 1420KB | **1117KB, 9 segments** — the wall, as ever |
+| A | rate as a float (fixed32) | 1420KB | (same) |
+| B | + sentinel range for the requested format | 0KB | 0 |
+| C | + sticky resolution 1080 | 1420KB | (same) |
+| D | + track bitfield 2 | 1843KB | not re-measured |
+| E / F | sentinel + sticky + bitfield 2 (+ embedded client info) | 4934KB / 5608KB | **414KB, 0 segment headers** — the extra bytes were OTHER formats' media, re-sent |
+
+So: the float wire type, the sticky resolution and the sentinel range change nothing for the better;
+bitfield 2 makes the server send video-track bytes, which a cumulative counter mistakes for progress.
+**The ~1.1MB wall on the ANDROID endpoint stands**, and it has now been measured with an instrument that
+cannot be fooled by a re-sent segment (`distinct` / `furthest` on every `[patient]` line). Unpaced arms
+(40 fetches in two seconds, byte-identical responses) are void and were discarded.
+
+What the capture still says SmartTube does differently, and what is left to measure properly:
+- it streams from the **`WEB_EMBEDDED_PLAYER` endpoint** (reachable to us now via
+  `tools/potoken/embeddedsabr.py`: `encryptedHostFlags` from the embed page + `thirdParty.embedUrl`; no
+  token needed for the player call) with the streaming PO token **appended** as `pot=`;
+- it runs **two per-format request streams**, audio and video interleaved, from one session.
+
+Both are measurable with the fixed instrument, paced, on the 97-minute fixture (which is embeddable).
+
+### ✅ And the embedded endpoint IS past the wall — no token, honest shape (2026-09-06, 18:04)
+
+`tools/potoken/embeddedsabr.py uSMGENDH_QI` with `NO_POT=1` (visitor id + `encryptedHostFlags` +
+`thirdParty.embedUrl`, no PO token anywhere), the patient reader paced, honest ranges, distinct-byte
+counting, `clientInfo=embedded`:
+
+```
+fetch  5 asked  42891ms -> 333764B media  distinct  960KB  protection=status=1
+fetch 10 asked 143811ms -> 514201B media  distinct 1742KB
+fetch 15 asked 243213ms -> 516636B media  distinct 2587KB
+fetch 20 asked 343463ms -> 511919B media  distinct 3439KB   (run ended on a socket timeout during a
+                                                              network blip; no refusal, no plateau)
+```
+
+Re-run to the probe's 40-fetch cap, twice, IPv4-pinned (the first run died on a network blip):
+
+| arm (paced, honest ranges, embedded endpoint) | fetch 40 | distinct of itag 251 | segments | protection |
+|---|---|---|---|---|
+| **no PO token anywhere** | asked 745s, 489KB media | **6626KB** | 112 | `status=1` ×40 |
+| streaming PO token appended as `pot=` | asked 746s, 489KB media | **6626KB** | 112 | `status=1` ×40 |
+
+Byte-identical trajectories. **The token changes nothing; the endpoint changes everything.** Six times the
+ANDROID wall, still ~500KB of fresh media per response when the probe stopped, no plateau, no refusal.
+So the ceiling belongs to the endpoint the request is made to, not to the request: the
+WEB_EMBEDDED_PLAYER response's `serverAbrStreamingUrl` streams, the ANDROID one stops at ~1.1MB. That is
+what SmartTube does and why it works. The production change follows: resolve SABR sessions from the
+embedded player (`encryptedHostFlags` from `/embed/<id>?html5=1`, `thirdParty.embedUrl`, a WEB visitor
+id, `clientInfo` = WEB_EMBEDDED on the stream) and keep ANDROID as the fallback.
+
+## ✅ Shipped: SABR resolves from the embedded player and streams on device (2026-09-07)
+
+`InnerTubePlayerStreams.playerForSabr` asks the EMBEDDED player first (`playerAsEmbedded`: a WEB
+visitor id from `/visitor_id`, `encryptedHostFlags` from `/embed/<id>?html5=1`, `thirdParty.embedUrl`,
+no token), registers the session with `SabrClientInfo.WEB_EMBEDDED`, and falls back to ANDROID with a
+logged reason whenever the embedded player cannot be asked or refuses. The ordinary `playerFor` is
+untouched, so progressive playback and downloads still get the ANDROID answer.
+
+Two stream fixes were needed before the endpoint served the app what it served the probe — both found
+from the device trail, both tested against `FakeSabrServer`:
+
+- **Echo the server's contexts.** The first answer was a `SABR_CONTEXT_UPDATE` (type 5, 82B,
+  send-by-default) and no media, and every later request left it out (`TheStreamEchoesServerContextsTest`).
+- **Honour `backoff_time_ms`.** The same answer said `backoff=4000ms`; the stream asked again 26ms later,
+  eight times, then gave up. Now it waits (bounded at 10s; `TheStreamHonoursBackoffTest`), and an empty
+  answer before the first byte is a handshake re-asked at the SAME position rather than a 30s skip
+  (`AHandshakeIsNotAGapTest`).
+
+Sintel (`eRsGyueVLvQ`) on `totum-api35`, SABR enabled, this build:
+
+```
+[sabr] server context update type=5 82B default — echoed from the next request
+[sabr] itag 251: the server asked for a 4000ms pause before the next request — waiting
+[sabr] fetch #2 itag 251 at 0ms -> 350241B response, 349698B kept
+[sabr] fetch #14 itag 251 at 236447ms -> 337784B response … holding to 4202761B
+[playback] ready after 6005ms at 27ms   → PLAYING, position 97s, buffer 259s
+```
+
+4.2MB and climbing at ~330KB a fetch, four times the old wall, on the app's own transport. Whether the
+whole 14.5MB arrives, and video (itag 400) beside it, is what the CI canaries and the next report will say.
 
 ## Observed on the Fire Stick (2026-08-20, read-only)
 

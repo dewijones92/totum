@@ -2,6 +2,8 @@ package com.dewijones92.totum.video
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
+import com.dewijones92.totum.innertube.player.PlayerClient
+import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.StreamingData
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -47,6 +49,62 @@ class InnerTubePlayerStreamsTest {
             """.trimIndent(),
         ).build(),
     )
+
+    private fun sabrOnly(client: PlayerClient = PlayerClient.ANDROID) = PlayerResult.Success(
+        streaming = StreamingData(
+            formats = emptyList(),
+            serverAbrStreamingUrl = HttpUrl.of("https://sabr.test/videoplayback?n=RAW"),
+            ustreamerConfig = byteArrayOf(1),
+        ),
+        details = null,
+        client = client,
+    )
+
+    /** The embedded endpoint is the one that is not capped, so SABR asks it first (2026-09-06). */
+    @Test
+    fun `the SABR path takes the embedded player when it offers an endpoint, and never asks ANDROID`() = runTest {
+        val streams = InnerTubePlayerStreams(client(), solveN = { it }, embedded = { sabrOnly() })
+        val chosen = streams.playerForSabr("dQw4w9WgXcQ")
+        assertEquals(PlayerClient.EMBEDDED, chosen?.client)
+        assertEquals("https://sabr.test/videoplayback?n=RAW", chosen?.streaming?.serverAbrStreamingUrl?.value)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `when the embedded player refuses, SABR falls back to the ANDROID response`() = runTest {
+        respondWithFormat("RAW")
+        val streams = InnerTubePlayerStreams(
+            client(),
+            solveN = { it },
+            embedded = { PlayerResult.Unplayable(reason = "This video is unavailable", details = null) },
+        )
+        val chosen = streams.playerForSabr("dQw4w9WgXcQ")
+        assertEquals(PlayerClient.ANDROID, chosen?.client)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `an embedded response with no SABR endpoint is not taken, whatever else it carries`() = runTest {
+        respondWithFormat("RAW")
+        val noEndpoint = sabrOnly().copy(
+            streaming = StreamingData(formats = emptyList(), serverAbrStreamingUrl = null, ustreamerConfig = null)
+        )
+        val streams = InnerTubePlayerStreams(client(), solveN = { it }, embedded = { noEndpoint })
+        assertEquals(PlayerClient.ANDROID, streams.playerForSabr("dQw4w9WgXcQ")?.client)
+    }
+
+    /** The ordinary ask is untouched: progressive playback and downloads still get the ANDROID answer. */
+    @Test
+    fun `the plain ask never consults the embedded player`() = runTest {
+        respondWithFormat("RAW")
+        var asked = false
+        val streams = InnerTubePlayerStreams(client(), solveN = { it }, embedded = {
+            asked = true
+            sabrOnly()
+        })
+        streams.playerFor("dQw4w9WgXcQ")
+        assertEquals(false, asked)
+    }
 
     @Test
     fun `the anonymous response has its n solved before it is offered`() = runTest {

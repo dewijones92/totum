@@ -7,6 +7,8 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.OkHttpClient
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -57,5 +59,21 @@ class PlayerTimestampScaleTest {
         val body = bodySent()
         assertTrue(body, body.contains(""""signatureTimestamp":20697}"""))
         assertTrue(body, body.contains(""""clientName":"WEB""""))
+    }
+
+    @Test
+    fun `the embedded player carries its two load-bearing fields and the web-scale timestamp`() = runBlocking {
+        server.enqueue(ok())
+        client.playerAsEmbedded("vid", "visitor-1", stamp, "HOSTFLAGS")
+        val request = server.takeRequest()
+        val body = request.body!!.utf8()
+        assertTrue(body, body.contains(""""clientName":"WEB_EMBEDDED_PLAYER""""))
+        assertTrue(body, body.contains(""""encryptedHostFlags":"HOSTFLAGS""""))
+        assertTrue(body, body.contains(""""thirdParty":{"embedUrl":"https://www.reddit.com/"}"""))
+        assertTrue(body, body.contains(""""visitorData":"visitor-1""""))
+        assertTrue(body, body.contains(""""signatureTimestamp":20697,"""))
+        assertTrue(body, !body.contains("poToken"))
+        assertEquals("56", request.headers["X-Youtube-Client-Name"])
+        assertNull(request.headers["Authorization"])
     }
 }

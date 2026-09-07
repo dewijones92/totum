@@ -71,20 +71,46 @@ public class VideoPlaybackAbrRequest(
     private val selectedFormats: List<SabrFormat> = emptyList(),
     /** The client's own bandwidth estimate in bits per second, which SmartTube always sends. */
     private val bandwidthEstimate: Long? = null,
+    /**
+     * The resolution the user last chose, in fields 16 and 21 as SmartTube sends them (1080 on the
+     * emulator capture of 2026-09-06). Absent by default; an experiment input until it is understood.
+     */
+    private val stickyResolution: Int? = null,
 ) {
-    public fun encode(): ByteArray {
-        // The rest of ClientAbrState as SmartTube sends it. Read from its SabrManifest rather than
-        // guessed, and sent because replicating a client that demonstrably streams whole videos is the
-        // only lead left that is not a guess: bandwidth estimate (23), viewport flexibility (22),
-        // playback rate (35), DRC (46) and the network-interruption cap (68).
-        val abrState = Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
+    private fun sticky(resolution: Int): ByteArray =
+        Protobuf.number(STATE_LAST_MANUAL_RESOLUTION, resolution.toLong()) +
+            Protobuf.number(STATE_STICKY_RESOLUTION, resolution.toLong())
+
+    /**
+     * The rest of ClientAbrState as SmartTube sends it. Read from its SabrManifest rather than guessed:
+     * bandwidth estimate (23), viewport flexibility (22), playback rate (35, a float), DRC (46) and the
+     * network-interruption cap (68); the sticky resolution (16/21) only when a caller sets one.
+     */
+    private fun abrState(): ByteArray =
+        Protobuf.number(STATE_PLAYER_TIME_MS, playerTimeMs) +
             Protobuf.number(STATE_ENABLED_TRACKS, tracks.bitfield.toLong()) +
             Protobuf.number(STATE_CLIENT_VIEWPORT_IS_FLEXIBLE, 0) +
-            Protobuf.number(STATE_PLAYBACK_RATE, 1) +
+            Protobuf.float(STATE_PLAYBACK_RATE, 1.0f) +
+            (stickyResolution?.let { sticky(it) } ?: ByteArray(0)) +
             Protobuf.number(STATE_DRC_ENABLED, 0) +
             Protobuf.number(STATE_MAX_NETWORK_INTERRUPTION_MS, 0) +
             (bandwidthEstimate?.let { Protobuf.number(STATE_BANDWIDTH_ESTIMATE, it) } ?: ByteArray(0))
-        var body = Protobuf.bytes(FIELD_CLIENT_ABR_STATE, abrState)
+
+    /**
+     * `streamer_context`, or empty when there is nothing to say. An empty context is a change to the
+     * request the server accepts today, and a request it dislikes answers `sabr.malformed_config` —
+     * which looks exactly like the wall this field exists to lift, so it would hide its own failure.
+     */
+    private fun streamerContext(): ByteArray =
+        (clientInfo?.let { Protobuf.bytes(CONTEXT_CLIENT_INFO, it.encode()) } ?: ByteArray(0)) +
+            (poToken?.let { Protobuf.bytes(CONTEXT_PO_TOKEN, it) } ?: ByteArray(0)) +
+            (playbackCookie?.let { Protobuf.bytes(CONTEXT_PLAYBACK_COOKIE, it) } ?: ByteArray(0)) +
+            sabrContexts.fold(ByteArray(0)) { all, context ->
+                all + Protobuf.bytes(CONTEXT_SABR_CONTEXTS, context.encode())
+            }
+
+    public fun encode(): ByteArray {
+        var body = Protobuf.bytes(FIELD_CLIENT_ABR_STATE, abrState())
         selectedFormats.forEach { body += Protobuf.bytes(FIELD_SELECTED_FORMATS, it.encode()) }
         // Preferred rather than "selected": selected_format_ids (field 2) was ignored, while
         // these are what the server actually honoured.
@@ -92,15 +118,7 @@ public class VideoPlaybackAbrRequest(
         video?.let { body += Protobuf.bytes(FIELD_PREFERRED_VIDEO, it.encode()) }
         bufferedRanges.forEach { body += Protobuf.bytes(FIELD_BUFFERED_RANGES, it.encode()) }
         body += Protobuf.bytes(FIELD_USTREAMER_CONFIG, ustreamerConfig)
-        // Only when there IS one. An empty context is a change to the request the server accepts
-        // today, and a request it dislikes answers `sabr.malformed_config` — which looks exactly like
-        // the wall this field exists to lift, so it would hide its own failure.
-        val context = (clientInfo?.let { Protobuf.bytes(CONTEXT_CLIENT_INFO, it.encode()) } ?: ByteArray(0)) +
-            (poToken?.let { Protobuf.bytes(CONTEXT_PO_TOKEN, it) } ?: ByteArray(0)) +
-            (playbackCookie?.let { Protobuf.bytes(CONTEXT_PLAYBACK_COOKIE, it) } ?: ByteArray(0)) +
-            sabrContexts.fold(ByteArray(0)) { all, context ->
-                all + Protobuf.bytes(CONTEXT_SABR_CONTEXTS, context.encode())
-            }
+        val context = streamerContext()
         if (context.isNotEmpty()) body += Protobuf.bytes(FIELD_STREAMER_CONTEXT, context)
         return body
     }
@@ -113,6 +131,8 @@ public class VideoPlaybackAbrRequest(
         const val FIELD_PREFERRED_AUDIO = 16
         const val FIELD_PREFERRED_VIDEO = 17
         const val STATE_PLAYER_TIME_MS = 28
+        const val STATE_LAST_MANUAL_RESOLUTION = 16
+        const val STATE_STICKY_RESOLUTION = 21
         const val FIELD_STREAMER_CONTEXT = 19
         const val CONTEXT_CLIENT_INFO = 1
         const val CONTEXT_PO_TOKEN = 2
