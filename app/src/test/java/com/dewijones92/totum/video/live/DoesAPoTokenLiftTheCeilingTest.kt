@@ -174,7 +174,7 @@ class DoesAPoTokenLiftTheCeilingTest {
             // server answers, quite correctly, with "you have plenty" -- an init segment and nothing
             // else. That is indistinguishable from a wall, and it is what every probe here has done.
             val askAt = if (PLAYBACK_POSITION) {
-                System.currentTimeMillis() - startedAt
+                START_AT_MS + (System.currentTimeMillis() - startedAt)
             } else {
                 if (total <= 0) 0L else held * duration / total
             }
@@ -508,6 +508,9 @@ class DoesAPoTokenLiftTheCeilingTest {
 
         /** `-Dpaced=true` waits so requests track real playback instead of racing ahead. */
         val PACED: Boolean = System.getProperty("paced").toBoolean()
+
+        /** `-DstartAtMs=3600000`: open the conversation an hour in — a cold jump, the seek the reader cannot do. */
+        val START_AT_MS: Long = System.getProperty("startAtMs")?.toLongOrNull() ?: 0L
 
         /** `-DsentinelRange=true`: describe the requested format as SmartTube does, not honestly. */
         val SENTINEL_RANGE: Boolean = System.getProperty("sentinelRange").toBoolean()

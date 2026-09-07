@@ -60,4 +60,20 @@ class TheClaimFollowsTheHeadersNotTheByteRatioTest {
     private companion object {
         const val CHUNK = 1024L
     }
+
+    /** Headers with no sequence number are never recorded as held; the claim must fall back, not crash. */
+    @Test
+    fun `headers without sequence numbers leave the claim to the byte ratio, without crashing`() = runTest {
+        val bare = UmpFraming.part(
+            UmpPart.MEDIA_HEADER,
+            Protobuf.number(1, 0) + Protobuf.number(3, video.itag.toLong()) + Protobuf.number(6, 0) +
+                Protobuf.number(14, CHUNK),
+        ) + UmpFraming.media(0, ByteArray(CHUNK.toInt()) { 7 })
+        val server = FakeSabrServer(listOf(bare, ByteArray(0)))
+        val stream = stream(server)
+        assertEquals(CHUNK.toInt(), stream.read(from = 0).size)
+        stream.read(from = CHUNK)
+        // 1 of 100 chunks of a 40s file: the ratio says 400ms.
+        assertEquals(400L, playerTimeMsIn(server.requests[1]))
+    }
 }

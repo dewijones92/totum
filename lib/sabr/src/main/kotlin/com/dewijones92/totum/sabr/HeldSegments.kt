@@ -93,7 +93,9 @@ internal class HeldSegments(private val format: SabrFormat) {
      * the four seconds between became a hole the player starved on (Spring / Big Buck Bunny, 2026-09-07).
      */
     fun contiguousEndMs(): Long? {
-        val first = held.firstKey() ?: return null
+        // `firstKey()` THROWS on an empty map; a header with no sequence number is never recorded here, so
+        // "held nothing" is an ordinary state (APrematureSabrEndIsNotTheEndTest went red on it, 2026-09-07).
+        val first = held.keys.firstOrNull() ?: return null
         return held[contiguousLastFrom(first)]?.endMs()
     }
 
