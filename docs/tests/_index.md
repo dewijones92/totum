@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-07
+updated: 2026-09-15
 ---
 
 # Testing
@@ -218,7 +218,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | SABR resolves from the embedded player first and falls back to ANDROID with a reason; the session declares the client its endpoint came from | `InnerTubePlayerStreamsTest`, `SabrSessionDeclaresItsClientTest`, `PlayerTimestampScaleTest`, `EmbedHostFlagsTest`, `VisitorIdSourceTest` | every commit |
 | The stream echoes server contexts, honours a requested backoff (bounded), and treats an empty answer before the first byte as a handshake, not a gap | `TheStreamEchoesServerContextsTest`, `TheStreamHonoursBackoffTest`, `AHandshakeIsNotAGapTest` | every commit |
 | The SABR request's playback rate is a float on the wire and a sticky resolution goes in fields 16/21 only when set | `VideoPlaybackAbrRequestTest` | every commit |
-| A queue row is removed by a swipe — exactly one, however the finger wobbles — and put back by Undo, with the playing item still playing | `QueueSwipeToRemoveTest` (instrumented), `PlaybackQueueTest` | every commit |
+| A queue row is removed from its ⋮ menu — exactly that row — and put back by Undo, with the playing item still playing; a swipe removes nothing | `QueueRemoveTest` (instrumented), `PlaybackQueueTest` | every commit — the swipe was withdrawn on 2026-09-15 after it twice removed several rows at once, so the gesture being inert is itself asserted |
 | The n-solver keeps yt-dlp's preprocessed player between solves and prunes old builds; answers are memoised per build | `SolverPlayerCacheTest` (Python, via preflight), `MemoisedNSolverTest` | every commit |
 | The SABR reader claims the header end time of what it holds contiguously, and re-asks the same time when an answer was spent on another format | `TheClaimFollowsTheHeadersNotTheByteRatioTest`, `AnAnswerSpentOnAnotherFormatIsNotAGapTest` | every commit |
 | A row's date is an anchored instant that ages with the clock, YouTube's wording parsed both long and short, a resolution fills a missing date, and a shared row learns its facts | `PublishedAgeTest`, `WithStreamFromTest`, `BridgeJsonTest`, `MediaItemSubtitleTest`, `PlaybackQueueTest` | every commit |

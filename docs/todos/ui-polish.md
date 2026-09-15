@@ -5,7 +5,7 @@ status: refining
 area: ui
 priority: medium
 requested: 2026-07-25
-updated: 2026-09-06
+updated: 2026-09-15
 ---
 
 # Make the UI nicer
@@ -153,3 +153,16 @@ on the second call deletes whatever row has slid into that slot. Removal is now 
 (`PlaybackQueue.remove(entry)`, idempotent, returns the former index for Undo) and the row's callback
 fires once per row. Reproduced on the emulator with a three-way swipe: 9 rows → 8, one snackbar. Pinned
 by `QueueSwipeToRemoveTest.aWobblySwipeRemovesExactlyOneRow` and two `PlaybackQueueTest` cases.
+
+## 🔄 Reverted 2026-09-15 — the swipe is gone, removal is a menu action
+
+Dewi: *"remove swipe to delete. just have it as an option like e.g. move to the top"*. **(c)** is
+therefore withdrawn rather than fixed again. `SwipeToDismissBox` had cost two regressions in one day
+(the red rows, then the multiple deletes) and a gesture whose own confirmation fires several times per
+swipe is a poor home for a destructive action, however carefully the callback is made idempotent.
+
+Removal now lives in the row's ⋮ / long-press sheet as **Remove from queue**, next to "Move to top" —
+so every queue action is in one place, discoverable, and reached by a tap that cannot be half-made.
+The screen keeps identity-based removal (`PlaybackQueue.remove(entry)`) and the Undo snackbar; what went
+is `SwipeToRemove`, its test tag and its background. `QueueSwipeToRemoveTest` is replaced by
+`QueueRemoveTest`, which adds a case pinning the gesture as **gone**: a swipe must remove nothing.

@@ -100,6 +100,11 @@ fun MediaItemRow(
     onAddToQueue: (() -> Unit)? = LocalItemActions.current.bind { addToQueue(item) },
     onAddToPlaylist: (() -> Unit)? = LocalItemActions.current.bind { addToPlaylist(item) },
     onRemoveFromPlaylist: (() -> Unit)? = null,
+    /**
+     * Queue-only: drop this entry from the up-next order. Null everywhere else, like the move
+     * actions — the queue is the only list an entry can be removed from by position.
+     */
+    onRemoveFromQueue: (() -> Unit)? = null,
     onPeek: (() -> Unit)? = LocalItemActions.current.bind { peek(item) },
     /**
      * Offered when the row's local copy is audio only (what the queue fetches
@@ -139,7 +144,7 @@ fun MediaItemRow(
         trailing != null && downloadState !is DownloadState.Downloaded && downloadState !is DownloadState.Downloading
     }
     val hasMenu = listOfNotNull(
-        onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onPeek,
+        onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue, onPeek,
         downloadVideo, sheetDownload, onGoToSource, onSetPlayed, onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
     Row(
@@ -172,6 +177,7 @@ fun MediaItemRow(
             onAddToQueue = onAddToQueue,
             onAddToPlaylist = onAddToPlaylist,
             onRemoveFromPlaylist = onRemoveFromPlaylist,
+            onRemoveFromQueue = onRemoveFromQueue,
             onPeek = onPeek,
             onDownloadVideo = downloadVideo,
             onDownload = sheetDownload,

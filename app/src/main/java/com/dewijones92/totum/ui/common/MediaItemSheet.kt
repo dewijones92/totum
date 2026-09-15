@@ -54,6 +54,8 @@ internal fun ActionSheet(
     onAddToQueue: (() -> Unit)?,
     onAddToPlaylist: (() -> Unit)?,
     onRemoveFromPlaylist: (() -> Unit)?,
+    /** Queue-only: drop this entry from the up-next order. Undo is the caller's business. */
+    onRemoveFromQueue: (() -> Unit)?,
     onPeek: (() -> Unit)?,
     onDownloadVideo: (() -> Unit)?,
     onDownload: (() -> Unit)?,
@@ -80,6 +82,7 @@ internal fun ActionSheet(
         SheetAction(onAddToQueue, Icons.AutoMirrored.Filled.QueueMusic, R.string.queue_add, onDismiss)
         SheetAction(onAddToPlaylist, Icons.AutoMirrored.Filled.PlaylistAdd, R.string.playlist_add_to, onDismiss)
         SheetAction(onRemoveFromPlaylist, Icons.Filled.Delete, R.string.playlist_remove_from, onDismiss)
+        SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
         SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
         SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
         SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)

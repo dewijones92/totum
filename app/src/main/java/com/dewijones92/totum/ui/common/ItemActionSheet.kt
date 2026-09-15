@@ -29,8 +29,9 @@ internal fun ItemActionSheet(
         onPlayNext = { actions.playNext(item) },
         onAddToQueue = { actions.addToQueue(item) },
         onAddToPlaylist = { actions.addToPlaylist(item) },
-        // Both belong to a list that has an index or a membership; nothing here has one.
+        // All three belong to a list that has an index or a membership; nothing here has one.
         onRemoveFromPlaylist = null,
+        onRemoveFromQueue = null,
         onPeek = { actions.peek(item) },
         onDownloadVideo = { actions.download(item, audioOnly = false) }
             .takeIf { (local as? DownloadState.Downloaded)?.audioOnly == true },

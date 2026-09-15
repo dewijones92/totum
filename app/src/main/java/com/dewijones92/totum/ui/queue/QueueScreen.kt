@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui.queue
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +15,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -28,11 +25,8 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -145,8 +139,8 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
 
 /**
  * Removal as the screen does it: drop the row BY IDENTITY, offer Undo on the snackbar, and put it back
- * at the same index if taken. Identity, not index, because the swipe's confirmation can fire more than
- * once for one gesture (see [PlaybackQueue.remove]); a repeat finds nothing and shows nothing.
+ * at the same index if taken. Identity, not index, because the row a tap meant is the row that must go —
+ * an index read at composition is stale the moment anything above it moves (see [PlaybackQueue.remove]).
  */
 @Composable
 private fun rememberRemoveWithUndo(
@@ -299,36 +293,33 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
             val media = entry.item.item
             if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
             val downloadState = availability.stateOf(media.id)
-            // The reorder translation goes on the OUTER element, or a dragged row slides inside a box that
-            // stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
-            SwipeToRemove(
-                onRemove = { actions.onRemove(entry) },
+            MediaItemRow(
+                item = media,
+                // Says why a row will be passed over, rather than leaving it to be discovered.
+                // It REPLACES the facts rather than joining them: "this will be skipped" is the
+                // only thing worth reading on a row you cannot play.
+                subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
+                    listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
+                } else {
+                    mediaItemFacts(media, entry.item.handle.pillar, LocalNow.current)
+                },
+                // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
+                // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
                 modifier = Modifier.reorderable(reorder, index),
-            ) {
-                MediaItemRow(
-                    item = media,
-                    // Says why a row will be passed over, rather than leaving it to be discovered.
-                    // It REPLACES the facts rather than joining them: "this will be skipped" is the
-                    // only thing worth reading on a row you cannot play.
-                    subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
-                        listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
-                    } else {
-                        mediaItemFacts(media, entry.item.handle.pillar, LocalNow.current)
-                    },
-                    downloadState = downloadState,
-                    pillar = entry.item.handle.pillar,
-                    onPlay = { actions.onPlay(index) },
-                    onDownload = { actions.onDownload(media) },
-                    onDeleteDownload = { actions.onDeleteDownload(media.id) },
-                    onDownloadVideo = { actions.onDownloadVideo(media) },
-                    onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
-                    onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
-                        .takeIf { index < entries.lastIndex },
-                    trailing = {
-                        with(reorder) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
-                    },
-                )
-            }
+                downloadState = downloadState,
+                pillar = entry.item.handle.pillar,
+                onPlay = { actions.onPlay(index) },
+                onDownload = { actions.onDownload(media) },
+                onDeleteDownload = { actions.onDeleteDownload(media.id) },
+                onRemoveFromQueue = { actions.onRemove(entry) },
+                onDownloadVideo = { actions.onDownloadVideo(media) },
+                onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
+                onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
+                    .takeIf { index < entries.lastIndex },
+                trailing = {
+                    with(reorder) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
+                },
+            )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
     }
@@ -450,7 +441,7 @@ private fun GroupHeader(
     }
 }
 
-/** The grip to long-press and drag. The only control left on a row: removal is a swipe. */
+/** The grip to long-press and drag. Removal lives in the row's ⋮ menu, beside the move actions. */
 @Composable
 private fun DragHandle(modifier: Modifier) {
     Icon(
@@ -460,57 +451,6 @@ private fun DragHandle(modifier: Modifier) {
         modifier = modifier.padding(horizontal = 8.dp),
     )
 }
-
-/**
- * Swipe a row towards the start to remove it, the gesture every queue teaches. One direction only:
- * the other would fight the drag handle's reach, and there is nothing a second swipe should do.
- * The queue is told as the row commits to going, and a snackbar offers Undo.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SwipeToRemove(onRemove: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    // Once per row, however many times the gesture confirms: the wobble across the threshold that
-    // deleted several items on e713eb8 fired this repeatedly for one swipe.
-    var removed by remember { mutableStateOf(false) }
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart && !removed) {
-                removed = true
-                onRemove()
-            }
-            value == SwipeToDismissBoxValue.EndToStart
-        },
-    )
-    SwipeToDismissBox(
-        state = state,
-        enableDismissFromStartToEnd = false,
-        modifier = modifier.testTag(QUEUE_ROW_SWIPE_TAG),
-        backgroundContent = {
-            // Drawn ONLY mid-swipe. The row paints no background of its own, so a background that is
-            // always there shows straight through it — every row in the released queue was solid red
-            // with a bin on it (Dewi, 2026-09-07, on cbf9916).
-            if (state.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.errorContainer)
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.queue_remove),
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                }
-            }
-        },
-        content = { content() },
-    )
-}
-
-/** So a UI test can swipe exactly a row and nothing else. */
-const val QUEUE_ROW_SWIPE_TAG: String = "queue-row-swipe"
 
 private val PROGRESS_HEIGHT = 2.dp
 
