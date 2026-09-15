@@ -353,9 +353,18 @@ class PlaybackQueue(
      * Puts a removed [entry] back where it was — the Undo on the snackbar. [index] is where it sat before
      * [removeAt]; clamped, so an entry removed from the end of a queue that has since shrunk still
      * lands. The cursor moves with anything re-inserted above it, so what is playing stays playing.
+     *
+     * An entry already back by some other route is left alone: a second copy would give the list two
+     * rows under one key, which a LazyColumn treats as a crash rather than a cosmetic fault. The newer,
+     * explicit add wins and a stale Undo does nothing.
      */
     fun restoreAt(index: Int, entry: QueueEntry) {
         mutate("restore-at-$index") { snapshot ->
+            val id = entry.item.item.id
+            if (snapshot.entries.any { it.item.item.id == id }) {
+                Diag.log("queue", "restore ${id.value}: already back in the queue — undo ignored, newer add wins")
+                return@mutate snapshot
+            }
             val at = index.coerceIn(0, snapshot.entries.size)
             val cursor = if (snapshot.currentIndex != NOTHING_PLAYING && at <= snapshot.currentIndex) {
                 snapshot.currentIndex + 1

@@ -166,3 +166,10 @@ so every queue action is in one place, discoverable, and reached by a tap that c
 The screen keeps identity-based removal (`PlaybackQueue.remove(entry)`) and the Undo snackbar; what went
 is `SwipeToRemove`, its test tag and its background. `QueueSwipeToRemoveTest` is replaced by
 `QueueRemoveTest`, which adds a case pinning the gesture as **gone**: a swipe must remove nothing.
+
+A Codex/Astra review of that commit cleared the change itself (removal targets the intended id, the
+action is scoped to the queue alone, no reachable swipe remains) and found a **pre-existing** Undo
+defect worth fixing: `restoreAt` inserted unconditionally, so removing an item, queueing it again and
+then tapping Undo left the queue holding one id twice — which a LazyColumn keyed by that id treats as a
+crash. The newer add now wins and a stale Undo does nothing. It also named the honest gap in coverage:
+nothing dragged a row on the real screen, only on a synthetic list — now `QueueRowDragTest`.

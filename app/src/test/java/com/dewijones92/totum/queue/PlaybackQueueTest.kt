@@ -153,7 +153,7 @@ class PlaybackQueueTest {
     }
 
     @Test
-    fun `a swiped-away entry is put back exactly where it was by undo`() = runTest(dispatcher) {
+    fun `a removed entry is put back exactly where it was by undo`() = runTest(dispatcher) {
         val q = queue()
         q.playAll(listOf(podcast("a"), podcast("b"), podcast("c")))
         advanceUntilIdle()
@@ -171,6 +171,28 @@ class PlaybackQueueTest {
         // Still playing "c", which moved back down a slot.
         assertEquals(2, q.state.value.currentIndex)
         assertEquals("c", q.state.value.current?.item?.item?.id?.value)
+    }
+
+    /**
+     * Undo is stale once the item is back by some other route, and putting it back anyway would
+     * leave the queue holding one id twice — which a LazyColumn keyed by that id treats as a crash,
+     * not a cosmetic fault. The newer, explicit add wins and the Undo does nothing.
+     */
+    @Test
+    fun `undo does not duplicate an entry that has been queued again in the meantime`() = runTest(dispatcher) {
+        val q = queue()
+        q.playAll(listOf(podcast("a"), podcast("b"), podcast("c")))
+        advanceUntilIdle()
+        val removed = q.state.value.entries[1]
+        val at = q.remove(removed)!!
+        q.enqueue(podcast("b"))
+        advanceUntilIdle()
+        assertEquals(listOf("a", "c", "b"), q.state.value.entries.map { it.item.item.id.value })
+
+        q.restoreAt(at, removed)
+        advanceUntilIdle()
+
+        assertEquals(listOf("a", "c", "b"), q.state.value.entries.map { it.item.item.id.value })
     }
 
     @Test
