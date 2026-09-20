@@ -125,5 +125,7 @@ shorts reel — shown only when there is actually a copy on disk. That also give
 whose trailing slot is the drag handle, so its rows previously had no delete at all.
 
 Deliberately **no confirmation**. Clearing space means working down a list, a confirm per item is
-exactly the friction that stops that, and a download is re-fetchable. The size of each copy is
-already on its Library row, which is what makes the list worth working down in the first place.
+exactly the friction that stops that, and a download is re-fetchable. The **Library** row carries
+each copy's size, which is what makes that list worth working down — and the Library is where
+clearing space actually happens. Worth knowing that the other surfaces do not show a size, so the
+argument is strongest exactly where it is used.

@@ -169,6 +169,32 @@ public class Media3PlaybackController(
                             )
                         }
 
+                        /**
+                         * A seek is a DECISION about where this item is, so it is written down at
+                         * once rather than waiting for the next five-second tick or a pause.
+                         *
+                         * Report 0.1.496: Dewi rewound to the start and tapped another queue row
+                         * about four seconds later, so no tick and no pause ever fired — the store
+                         * still held a position from a minute and a half earlier, and several
+                         * resumes read `local=none` outright. Every seek route lands here (the
+                         * scrubber, the 10s/30s buttons, a chapter tap, the notification, a
+                         * SponsorBlock skip), which is why it is one listener and not five callers.
+                         */
+                        override fun onPositionDiscontinuity(
+                            oldPosition: Player.PositionInfo,
+                            newPosition: Player.PositionInfo,
+                            reason: Int,
+                        ) {
+                            if (reason != Player.DISCONTINUITY_REASON_SEEK) return
+                            // A seek that changes item reports the NEW item at its start, so
+                            // saving here would move the item just jumped to back to zero. Not
+                            // reachable on a one-item timeline, which is all this app builds —
+                            // but the callback hands over both ends for nothing, so use them.
+                            if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) return
+                            ticksSinceSave = 0
+                            saveProgress(connected, Chosen.BY_SEEKING)
+                        }
+
                         override fun onEvents(player: Player, events: Player.Events) {
                             if (events.containsAny(
                                     Player.EVENT_VIDEO_SIZE_CHANGED,
@@ -465,12 +491,23 @@ public class Media3PlaybackController(
         )
     }
 
-    /** Persists the current item's position so it resumes there next time. */
-    private fun saveProgress(controller: MediaController) {
+    /**
+     * Persists the current item's position so it resumes there next time.
+     *
+     * [chosen] for a seek: the store's small-position floor must not swallow a rewind, and a
+     * seek is also worth a line of its own, because "did the rewind reach the store?" was the
+     * question report 0.1.496 could not answer.
+     *
+     * The position is read here, synchronously, and the launches are FIFO on the main dispatcher;
+     * the store serialises the writes themselves, because it is a read-modify-write and there are
+     * callers outside this class.
+     */
+    private fun saveProgress(controller: MediaController, chosen: Chosen = Chosen.NO) {
         val id = controller.currentMediaItem?.mediaId ?: return
         val position = controller.currentPosition.coerceAtLeast(0)
         val duration = controller.duration.takeIf { it > 0 }
-        scope.launch { progressStore.save(MediaItemId(id), position, duration) }
+        if (chosen != Chosen.NO) Diag.log("playback", "saving $id at ${position}ms — $chosen")
+        scope.launch { progressStore.save(MediaItemId(id), position, duration, chosen) }
     }
 
     /** The one place segment-skipping happens, for every pillar. */

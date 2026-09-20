@@ -12,6 +12,15 @@ public class YouTubeAccount(
     private val auth: YouTubeAuth,
     private val store: TokenStore,
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / MILLIS_PER_SECOND },
+    /**
+     * Run whenever the account goes away, so whatever else is scoped to it can be dropped.
+     *
+     * Here rather than at the sign-out button because there are **two** ways to lose an account
+     * and only one of them is a button: a refresh answered `invalid_grant` clears the store from
+     * inside [accessToken], with nothing in the UI involved. Anything wired to the button alone
+     * would survive a revoked token and go on being compared against the next account's.
+     */
+    private val onSignedOut: suspend () -> Unit = {},
 ) {
 
     /** A [DeviceLogin] run whose success is persisted to the [TokenStore]. */
@@ -22,6 +31,7 @@ public class YouTubeAccount(
 
     public suspend fun signOut() {
         store.clear()
+        onSignedOut()
     }
 
     public suspend fun isSignedIn(): Boolean = store.load() != null
@@ -44,6 +54,7 @@ public class YouTubeAccount(
             }
             TokenRefreshResult.Revoked -> {
                 store.clear()
+                onSignedOut()
                 AccessTokenResult.SignedOut
             }
             is TokenRefreshResult.Failure -> AccessTokenResult.Failure(refreshed.detail)

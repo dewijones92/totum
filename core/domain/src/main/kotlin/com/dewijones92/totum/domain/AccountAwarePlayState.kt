@@ -18,18 +18,23 @@ package com.dewijones92.totum.domain
  * - otherwise the position [resumeFrom] picks is **InProgress**, with the duration from whichever
  *   side knows it;
  * - nothing known on either side is **Unplayed**.
+ *
+ * [remoteAlreadyUsedMs] is passed straight through for the same reason the tap passes it: a remote
+ * number already acted on must not keep overruling what has happened here since (report 0.1.496).
  */
 public fun accountAwarePlayState(
     local: PlayState?,
     remotePositionMs: Long?,
     remoteDurationMs: Long?,
+    remoteAlreadyUsedMs: Long? = null,
 ): PlayState {
     if (local is PlayState.Played) return local
     if (remotePositionMs == null) return local ?: PlayState.Unplayed
     val finishedRemotely = remoteDurationMs != null && remoteDurationMs > 0 && remotePositionMs >= remoteDurationMs
     if (finishedRemotely) return PlayState.Played
     val localInProgress = local as? PlayState.InProgress
-    val chosen = resumeFrom(localInProgress?.positionMs, remotePositionMs, remoteDurationMs).positionMs
+    val chosen = resumeFrom(localInProgress?.positionMs, remotePositionMs, remoteDurationMs, remoteAlreadyUsedMs)
+        .positionMs
         ?: return PlayState.Unplayed
     return PlayState.InProgress(chosen, remoteDurationMs ?: localInProgress?.durationMs)
 }

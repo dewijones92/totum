@@ -11,6 +11,7 @@ import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.feeds.VideoTileParser
 import com.dewijones92.totum.innertube.player.PlaybackTracking
 import com.dewijones92.totum.innertube.player.PlaybackTrackingParser
+import com.dewijones92.totum.innertube.player.Refusal
 import com.dewijones92.totum.innertube.player.SignatureTimestampSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -75,24 +76,73 @@ public class HttpYouTubeWatchHistory(
 
     private val sessions = mutableMapOf<String, Session>()
 
-    override suspend fun beginSession(videoId: String) {
+    override suspend fun forgetSessions() {
+        if (sessions.isEmpty()) return
+        Diag.log("yt-sync", "dropping ${sessions.size} tracking session(s) — they belonged to the old account")
+        sessions.clear()
+    }
+
+    override suspend fun beginSession(videoId: String): SessionResult {
         // Keep an existing session (and its cpn) if we already have one for this video.
-        if (sessions[videoId] != null) return
+        if (sessions[videoId] != null) return SessionResult.Opened
+        return when (val found = fetchTracking(videoId)) {
+            is Tracking.None -> found.why
+            is Tracking.Found -> {
+                sessions[videoId] = Session(found.tracking, newNonce())
+                Diag.log("yt-sync", "$videoId tracking acquired for the account")
+                SessionResult.Opened
+            }
+        }
+    }
+
+    /** Either this video's tracking URLs or the reason there are none — never both, never neither. */
+    private sealed interface Tracking {
+        data class Found(val tracking: PlaybackTracking) : Tracking
+        data class None(val why: SessionResult) : Tracking
+    }
+
+    /** The tracking URLs for [videoId], or the [SessionResult] explaining why there are none. */
+    private suspend fun fetchTracking(videoId: String): Tracking {
         val token = (account.accessToken() as? AccessTokenResult.Available)?.token ?: run {
             Diag.log("yt-sync", "$videoId not tracked: signed out")
-            return
+            return Tracking.None(SessionResult.Unavailable("signed out"))
         }
         val timestamp = signatureTimestamps.current() ?: run {
             Diag.log("yt-sync", "$videoId not tracked: no player signature timestamp")
-            return
+            return Tracking.None(SessionResult.Unavailable("no player signature timestamp"))
         }
-        val tracking = when (val response = innerTube.playerTracking(videoId, timestamp, token)) {
-            is InnerTubeResponse.Success -> PlaybackTrackingParser.parse(response.body)
-                ?: null.also { Diag.warn("yt-sync", "$videoId carried no playback tracking; progress won't sync") }
-            else -> null.also { Diag.warn("yt-sync", "$videoId tracking request failed: $response") }
-        } ?: return
-        sessions[videoId] = Session(tracking, newNonce())
-        Diag.log("yt-sync", "$videoId tracking acquired for the account")
+        val response = innerTube.playerTracking(videoId, timestamp, token)
+        if (response !is InnerTubeResponse.Success) {
+            Diag.warn("yt-sync", "$videoId tracking request failed: $response")
+            return Tracking.None(SessionResult.Unavailable("tracking request failed: $response"))
+        }
+        return trackingIn(videoId, response.body)
+    }
+
+    /**
+     * The tracking in a `/player` body, or WHOSE fault it is that there is none.
+     *
+     * A refusal (`UNPLAYABLE`, `LOGIN_REQUIRED`) comes back as HTTP 200, and a stale signature
+     * timestamp produces exactly that for every video at once — so reading it as a per-video
+     * verdict would let the outbox write off its whole contents. A genuinely untrackable video
+     * answers `OK` and simply has no tracking block.
+     */
+    private fun trackingIn(videoId: String, body: String): Tracking {
+        PlaybackTrackingParser.parse(body)?.let { return Tracking.Found(it) }
+        return when (val refusal = PlaybackTrackingParser.refusalReason(body)) {
+            null -> {
+                Diag.warn("yt-sync", "$videoId carried no playback tracking; this one video won't sync")
+                Tracking.None(SessionResult.NotTrackable)
+            }
+            is Refusal.ThisVideo -> {
+                Diag.warn("yt-sync", "$videoId: ${refusal.said} — this one video, and only it, won't sync")
+                Tracking.None(SessionResult.NotTrackable)
+            }
+            is Refusal.MaybeUsAll -> {
+                Diag.warn("yt-sync", "$videoId refused: ${refusal.said} — that may be this client, not the video")
+                Tracking.None(SessionResult.Unavailable(refusal.said))
+            }
+        }
     }
 
     override suspend fun reportProgress(

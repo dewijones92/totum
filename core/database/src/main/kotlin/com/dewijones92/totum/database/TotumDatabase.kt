@@ -21,8 +21,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SourceGroupMemberEntity::class,
         CachedFeedItemEntity::class,
         AccountProgressOutboxEntity::class,
+        ReconciledAccountProgressEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = false,
 )
 public abstract class TotumDatabase : RoomDatabase() {
@@ -44,6 +45,8 @@ public abstract class TotumDatabase : RoomDatabase() {
     public abstract fun cachedFeedDao(): CachedFeedDao
 
     public abstract fun accountProgressOutboxDao(): AccountProgressOutboxDao
+
+    public abstract fun reconciledAccountProgressDao(): ReconciledAccountProgressDao
 
     public companion object {
         public fun build(context: Context): TotumDatabase =
@@ -73,7 +76,33 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_17_18,
                 MIGRATION_18_19,
                 MIGRATION_19_20,
+                MIGRATION_20_21,
             )
+
+        /**
+         * v21: the account positions this device has already acted on, and an attempt count on
+         * the outbox.
+         *
+         * Report 0.1.496: YouTube held `vceHVwxOnhA` at 77700ms and could not move it (the outbound
+         * half was refused, `held=123`), so every rewind was overruled by the same number for ever.
+         * Recording what has been acted on is what lets `resumeFrom` tell a NEW remote position from
+         * an echo of its own last decision.
+         *
+         * A new table rather than a column on `playback_progress`: that row is upserted wholesale on
+         * every save, so a column there would be wiped by the next tick.
+         */
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS account_progress_reconciled (" +
+                        "mediaItemId TEXT NOT NULL PRIMARY KEY, positionMs INTEGER NOT NULL, " +
+                        "reconciledAtEpochMs INTEGER NOT NULL)",
+                )
+                // And a per-row attempt count on the outbox, so a record YouTube will never accept
+                // can be given up on instead of blocking everything behind it for ever.
+                db.execSQL("ALTER TABLE account_progress_outbox ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         /**
          * v20: the account-progress outbox. Progress the account has not been told about yet, one row

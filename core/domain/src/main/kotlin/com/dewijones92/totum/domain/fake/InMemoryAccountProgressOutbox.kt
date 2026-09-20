@@ -12,15 +12,29 @@ public class InMemoryAccountProgressOutbox : AccountProgressOutbox {
 
     private val rows = MutableStateFlow<Map<MediaItemId, PendingAccountProgress>>(emptyMap())
 
+    /** The attempt count belongs to the item, not the position — same rule as the Room store. */
     override suspend fun record(progress: PendingAccountProgress) {
-        rows.value = rows.value + (progress.itemId to progress)
+        val held = rows.value[progress.itemId]
+        rows.value = rows.value +
+            (progress.itemId to progress.copy(attempts = maxOf(progress.attempts, held?.attempts ?: 0)))
     }
 
-    override suspend fun pending(): List<PendingAccountProgress> = rows.value.values.sortedBy { it.recordedAtEpochMs }
+    override suspend fun pending(): List<PendingAccountProgress> =
+        rows.value.values.sortedWith(compareBy({ it.attempts }, { it.recordedAtEpochMs }))
 
     override suspend fun sent(itemId: MediaItemId, recordedAtEpochMs: Long) {
         if (rows.value[itemId]?.recordedAtEpochMs == recordedAtEpochMs) rows.value = rows.value - itemId
     }
 
+    override suspend fun attempted(itemId: MediaItemId, recordedAtEpochMs: Long) {
+        val held = rows.value[itemId]?.takeIf { it.recordedAtEpochMs == recordedAtEpochMs } ?: return
+        rows.value = rows.value + (itemId to held.copy(attempts = held.attempts + 1))
+    }
+
     override fun observePendingCount(): Flow<Int> = rows.map { it.size }
+
+    override fun observeStuck(after: Int, worst: Int): Flow<List<PendingAccountProgress>> =
+        rows.map { held ->
+            held.values.filter { it.attempts >= after }.sortedByDescending { it.attempts }.take(worst)
+        }
 }

@@ -19,9 +19,28 @@ package com.dewijones92.totum.domain
  *
  * "Meaningfully" is one percent of the duration, floored at [MIN_GAP_MS], because one percent is
  * exactly the resolution of the number being compared — anything smaller is noise, not knowledge.
+ *
+ * **And "ahead" has to mean NEW.** Report 0.1.496 (2026-09-20), Dewi: *"I have tried to rewind the
+ * video back to the start but it is not working"*. He rewound `vceHVwxOnhA` six times and every
+ * re-entry answered `REMOTE_IS_AHEAD [local=11273 youtube=77700]` — the same 77700 each time,
+ * because the outbound half was refused (`held=123`) so the account's number could not move. A
+ * remote position this device has already acted on ([remoteAlreadyUsedMs], from
+ * [ReconciledAccountProgress]) is not knowledge about what has happened since; it is the echo of
+ * the last decision, and it must not overrule a deliberate rewind for ever. A number that has
+ * actually MOVED still wins, which is the forty-minutes-on-the-TV case intact.
  */
-public fun resumeFrom(localMs: Long?, remoteMs: Long?, durationMs: Long?): ResumeChoice {
+public fun resumeFrom(
+    localMs: Long?,
+    remoteMs: Long?,
+    durationMs: Long?,
+    remoteAlreadyUsedMs: Long? = null,
+): ResumeChoice {
     if (remoteMs == null) return ResumeChoice(localMs, Because.ONLY_LOCAL)
+    // Already acted on once, and unmoved since: whatever happened here happened later. Ahead of
+    // the local-is-null case deliberately — a device with NO position for an item it has already
+    // resumed once has had that position taken away (marked unplayed, or played to the end), and
+    // an echo of an old decision must not put it back.
+    if (remoteMs == remoteAlreadyUsedMs) return ResumeChoice(localMs, Because.REMOTE_IS_OLD_NEWS)
     if (localMs == null) return ResumeChoice(remoteMs, Because.ONLY_REMOTE)
     val granularity = ((durationMs ?: 0L) / PERCENT).coerceAtLeast(MIN_GAP_MS)
     return if (remoteMs - localMs > granularity) {
@@ -49,6 +68,9 @@ public enum class Because {
 
     /** Local is level or further on, and it is exact where the remote is a rounded percent. */
     LOCAL_IS_AS_GOOD,
+
+    /** The same remote number this device already acted on, so it says nothing about what came after. */
+    REMOTE_IS_OLD_NEWS,
 }
 
 /** YouTube reports whole percents, so one percent of the duration is the finest it can mean. */

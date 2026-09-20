@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-09-07
+updated: 2026-09-20
 ---
 
 # Backlog
@@ -64,7 +64,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [tab-state-preservation](tab-state-preservation.md) | navigation | high | shipped |
 | [diagnostics-triage-state](diagnostics-triage-state.md) | diagnostics | high | shipped |
 | [a-recovery-resumes-the-next-item-at-the-last-items-position](a-recovery-resumes-the-next-item-at-the-last-items-position.md) | playback | high | fixed 2026-09-06 — StreamRecovery drops stale failures |
-| [outbound-progress-sync-is-dead](outbound-progress-sync-is-dead.md) | video | **critical** | **fixed 2026-09-06** — the TV-scale signatureTimestamp; outbox drained and the account's history shows it |
+| [outbound-progress-sync-is-dead](outbound-progress-sync-is-dead.md) | video | **critical** | **fixed 2026-09-20** — not a regression: three untrackable videos at the head of the outbox blocked 120 sendable ones, every pass |
 | [the-next-video-does-not-play-offline](the-next-video-does-not-play-offline.md) | playback | high | fixed 2026-09-06 — resume no longer waits on the account offline |
 | [a-shared-link-that-cannot-resolve-vanishes](a-shared-link-that-cannot-resolve-vanishes.md) | share | medium | fixed 2026-09-06 — queued by its id, resolved when it plays; the row now learns its title and date on resolution |
 | [queue-rows-without-a-date](queue-rows-without-a-date.md) | ui/queue | medium | fixed 2026-09-06 — anchored instants rendered against a ticking clock; shared rows learn their facts |

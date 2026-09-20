@@ -1,5 +1,6 @@
 package com.dewijones92.totum.diagnostics
 
+import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
@@ -30,10 +31,19 @@ internal class DiagnosticSnapshot(
         val settings: () -> AppPreferences.Settings,
         /** Whether listening is reaching the account, and how many updates are held waiting to. */
         val accountSync: () -> Pair<OutboundSyncStatus, Int>,
+        /** The account figures already acted on — what makes a surprising resume re-judgeable. */
+        val reconciledAccountProgress: () -> Map<MediaItemId, Long>,
+        /** The outbox rows that keep failing, worst first — the one risk the new design carries. */
+        val stuckAccountUpdates: () -> String,
         val isMetered: () -> Boolean,
     )
 
     fun capture(): Map<String, String> = buildMap {
+        // ONE reading, held for the whole capture: two blocks describing two different queues is
+        // the sort of thing that makes a report argue with itself.
+        val queue = runCatching { playbackQueue.state.value }.getOrNull()
+        val entries = queue?.entries.orEmpty()
+        val currentIndex = queue?.currentIndex ?: -1
         runCatching {
             val state = playbackController.state.value
             put("playing.title", state?.title ?: "nothing")
@@ -46,12 +56,11 @@ internal class DiagnosticSnapshot(
             put("playing.volumeBoost", state?.volumeBoost?.name ?: "-")
         }
         runCatching {
-            val queue = playbackQueue.state.value
-            put("queue.size", queue.entries.size.toString())
-            put("queue.currentIndex", queue.currentIndex.toString())
-            put("queue.items", queue.entries.joinToString(" | ") { "${it.item.item.title}" })
+            put("queue.size", entries.size.toString())
+            put("queue.currentIndex", currentIndex.toString())
+            put("queue.items", entries.joinToString(" | ") { "${it.item.item.title}" })
         }
-        runCatching { putDownloadState() }
+        runCatching { putDownloadState(entries) }
         runCatching {
             val settings = live.settings()
             put("settings.playbackMode", settings.playbackMode.name)
@@ -74,25 +83,45 @@ internal class DiagnosticSnapshot(
                     "prowlarr=${settings.prowlarrApiKey.isNotBlank()}",
             )
         }
-        runCatching {
-            // The account's subscription list, because "it offered me Subscribe to a channel I
-            // follow" is unanswerable without knowing how many channels the app thinks it has.
-            val subs = accountSubscriptions.channels.value
-            put("account.signedIn", accountSubscriptions.signedIn.value.toString())
-            // Whether listening is REACHING the account, and how much is waiting to. `NoSession` in the
-            // trail was indistinguishable from working for three weeks; this line is the difference.
-            val (outbound, pending) = live.accountSync()
-            put("yt-sync.outbound", outbound.toString())
-            put("yt-sync.pendingUpdates", pending.toString())
-            put("account.subscriptions", subs.size.toString())
-            put("account.subscriptionTitles", subs.joinToString(" | ") { it.title })
-        }
+        runCatching { putAccountState(entries) }
         runCatching { put("network.metered", live.isMetered().toString()) }
     }
 
-    private fun MutableMap<String, String>.putDownloadState() {
+    /** The account block: who is signed in, whether listening reaches them, and what has been acted on. */
+    private fun MutableMap<String, String>.putAccountState(entries: List<QueueEntry>) {
+        // The account's subscription list, because "it offered me Subscribe to a channel I
+        // follow" is unanswerable without knowing how many channels the app thinks it has.
+        val subs = accountSubscriptions.channels.value
+        put("account.signedIn", accountSubscriptions.signedIn.value.toString())
+        // Whether listening is REACHING the account, and how much is waiting to. `NoSession` in the
+        // trail was indistinguishable from working for three weeks; this line is the difference.
+        val (outbound, pending) = live.accountSync()
+        put("yt-sync.outbound", outbound.toString())
+        put("yt-sync.pendingUpdates", pending.toString())
+        // The count alone cannot say whether the item that was TAPPED is in here, which is
+        // the same lesson `downloads.queueStates` was built from — so the queue's own figures
+        // are spelled out beside it.
+        val reconciled = live.reconciledAccountProgress()
+        put("yt-sync.reconciled", reconciled.size.toString())
+        put(
+            "yt-sync.reconciledInQueue",
+            entries
+                .mapNotNull { entry ->
+                    val id = entry.item.item.id
+                    reconciled[id]?.let { "${id.value}=${it}ms" }
+                }
+                .joinToString(" | ")
+                .ifEmpty { "none of the queue" },
+        )
+        // Nothing is dropped from the outbox any more, so the question a report has to answer is
+        // no longer "what was lost" but "what is stuck, and which". A count alone cannot say.
+        put("yt-sync.stuck", live.stuckAccountUpdates().ifEmpty { "nothing" })
+        put("account.subscriptions", subs.size.toString())
+        put("account.subscriptionTitles", subs.joinToString(" | ") { it.title })
+    }
+
+    private fun MutableMap<String, String>.putDownloadState(entries: List<QueueEntry>) {
         val states = live.downloadStates()
-        val entries = playbackQueue.state.value.entries
         val readiness = OfflineReadiness.of(
             entries.map { it.item.item.id },
             stateOf = { id -> states[id] ?: DownloadState.NotDownloaded },

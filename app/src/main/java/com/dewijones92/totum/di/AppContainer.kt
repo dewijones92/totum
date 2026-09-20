@@ -58,9 +58,11 @@ import com.dewijones92.totum.database.RoomLocalPlaylistStore
 import com.dewijones92.totum.database.RoomPlayHistoryStore
 import com.dewijones92.totum.database.RoomPlaybackProgressStore
 import com.dewijones92.totum.database.RoomQueueStore
+import com.dewijones92.totum.database.RoomReconciledAccountProgress
 import com.dewijones92.totum.database.RoomSourceGroupStore
 import com.dewijones92.totum.database.RoomSubscriptionStore
 import com.dewijones92.totum.database.TotumDatabase
+import com.dewijones92.totum.diagnostics.AccountReportValues
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
@@ -74,6 +76,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.deservesAnotherRoute
@@ -115,6 +118,7 @@ import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
 import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource
 import com.dewijones92.totum.playback.AutoAdvancer
+import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.Media3PlaybackController
 import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
@@ -279,6 +283,9 @@ interface AppContainer {
      */
     val playbackProgressStore: PlaybackProgressStore
 
+    /** Account-scoped figures already acted on; the account screen clears them on sign-out. */
+    val reconciledAccountProgress: ReconciledAccountProgress
+
     /**
      * What every ROW shows: this device's play state merged with the account's watched position,
      * by the same rule resuming uses. A video half-watched on the website shows half-watched here.
@@ -330,6 +337,10 @@ interface AppContainer {
     /**
      * Start mirroring video watch-progress to YouTube's servers as playback
      * advances (History + cross-device resume). No-ops while signed out.
+     *
+     * Also starts the account-side values a diagnostics report reads, which have to be in memory
+     * before one is captured — and one of which decides where a finished item resumes, so this is
+     * called unconditionally at app start rather than when an account appears.
      */
     fun startWatchHistorySync()
 
@@ -414,17 +425,31 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     /** The one reading of "auto-play next", shared by end-of-item advance, the stall watchdog and recovery. */
     private val autoPlayNextEnabled: () -> Boolean = { appPreferences.settings.value.autoPlayNext }
 
+    /** What YouTube has already told this device, so a frozen number cannot keep winning. */
+    override val reconciledAccountProgress: ReconciledAccountProgress by lazy {
+        RoomReconciledAccountProgress(database.reconciledAccountProgressDao())
+    }
+
     private val accountResumePositions: AccountResumePositions by lazy {
         AccountResumePositions(
-            local = playbackProgressStore::resumePositionMs,
+            local = playbackProgressStore::playState,
+            // A RECORD, not a position reached: the floor must not drop it, and it must not
+            // touch whether the item is finished — which is this device's own knowledge.
+            adopt = { id, position, duration ->
+                playbackProgressStore.save(id, position, duration, Chosen.AS_A_RECORD)
+            },
             history = youTubeWatchHistory,
             scope = applicationScope,
+            reconciled = reconciledAccountProgress,
             // Known before asking, so an offline play never even starts the read that used to hang it.
             offline = ::isOffline,
         )
     }
 
     private val resumePositions: PlaybackProgressStore by lazy {
+        // ONLY `resumePositionMs` is account-aware here. `playState` deliberately delegates to the
+        // raw store — it answers "what does THIS DEVICE know", which is the question the account
+        // rule is built on rather than an answer it should already contain.
         object : PlaybackProgressStore by playbackProgressStore {
             override suspend fun resumePositionMs(itemId: MediaItemId): Long? =
                 accountResumePositions.resumePositionMs(itemId)
@@ -441,11 +466,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     delay(ACCOUNT_WATCHED_REFRESH_MS)
                 }
             }
-            combine(playbackProgressStore.observeStates(), accountResumePositions.watched) { local, remote ->
+            combine(
+                playbackProgressStore.observeStates(),
+                accountResumePositions.watched,
+                // The same third input the tap gets, or a bar would still show the stale account
+                // position for an item whose rewind the tap now honours.
+                reconciledAccountProgress.observeReconciled(),
+            ) { local, remote, alreadyUsed ->
                 // One rule, the same one resume uses. Dropping Unplayed keeps the map to items with news.
                 (local.keys + remote.keys.map(::MediaItemId)).associateWith { id ->
                     val account = remote[id.value]
-                    accountAwarePlayState(local[id], account?.positionMs, account?.durationMs)
+                    accountAwarePlayState(local[id], account?.positionMs, account?.durationMs, alreadyUsed[id])
                 }.filterValues { it != PlayState.Unplayed }
             }.collect { send(it) }
         }
@@ -878,7 +909,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             live = DiagnosticSnapshot.Live(
                 downloadStates = { latestDownloadStates },
                 settings = { appPreferences.settings.value },
-                accountSync = { progressOutboxDrain.status.value to latestPendingAccountUpdates },
+                accountSync = { progressOutboxDrain.status.value to accountReportValues.pendingUpdates() },
+                reconciledAccountProgress = accountReportValues::actedOn,
+                stuckAccountUpdates = accountReportValues::stuckUpdates,
                 isMetered = networkStatus::isMetered,
             ),
         )
@@ -1215,15 +1248,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope)
     }
 
-    /** For the diagnostics snapshot, which must never block on the database. */
-    @Volatile
-    private var latestPendingAccountUpdates: Int = -1
+    /** Everything the account side of a report reads, kept in memory — see the class. */
+    private val accountReportValues by lazy {
+        AccountReportValues(accountProgressOutbox, reconciledAccountProgress)
+    }
 
     override fun startWatchHistorySync() {
         watchHistorySync.start()
-        accountProgressOutbox.observePendingCount()
-            .onEach { latestPendingAccountUpdates = it }
-            .launchIn(applicationScope)
+        accountReportValues.start(applicationScope)
         // Whatever the last run could not send goes first; then again whenever the network comes
         // back, which is the moment offline listening can finally be reported. Sampled rather than
         // subscribed because NetworkStatus.awaitOnline returns at once while online, and a kick costs
@@ -1260,6 +1292,21 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         YouTubeAccount(
             auth = HttpYouTubeAuth(httpClient),
             store = SharedPrefsTokenStore(context),
+            // Account-scoped, so it must not outlive the account — and this fires on a revoked
+            // token as well as on the button, which the account screen could not have done.
+            onSignedOut = {
+                reconciledAccountProgress.forgetAll()
+                // The held tracking URLs carry the OLD account's identity, and a session is
+                // reused for the life of the process without revalidation.
+                youTubeWatchHistory.forgetSessions()
+                // The OUTBOX is deliberately kept. A forced sign-out (a revoked refresh token)
+                // is the likely way to get here and is almost always followed by signing back
+                // into the SAME account, where clearing would destroy real listening — in
+                // Dewi's case 123 updates. The cost of keeping it is that progress recorded
+                // under one account would reach a DIFFERENT one if he ever switched; he has
+                // one account, so that trade is stated here rather than silently taken.
+                Diag.log("yt-sync", "signed out — forgetting every account position acted on")
+            },
         )
     }
 

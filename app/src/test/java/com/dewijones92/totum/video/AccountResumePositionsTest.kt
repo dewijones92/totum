@@ -1,6 +1,8 @@
 package com.dewijones92.totum.video
 
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.fake.InMemoryReconciledAccountProgress
 import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import kotlinx.coroutines.CompletableDeferred
@@ -27,13 +29,22 @@ class AccountResumePositionsTest {
 
     private var offline = false
 
+    /** Items this device has finished — which no rounded percentage from the account may override. */
+    private val finishedHere = mutableSetOf<String>()
+    private val reconciled = InMemoryReconciledAccountProgress()
+
     private fun TestScope.positions() = AccountResumePositions(
         local = { id ->
             localCalls++
-            localPositions[id.value]
+            when {
+                id.value in finishedHere -> PlayState.Played
+                else -> localPositions[id.value]?.let { PlayState.InProgress(it, hour44) } ?: PlayState.Unplayed
+            }
         },
+        adopt = { id, position, _ -> localPositions[id.value] = position },
         history = history,
         scope = backgroundScope,
+        reconciled = reconciled,
         offline = { offline },
         now = { clock },
     )
@@ -111,6 +122,136 @@ class AccountResumePositionsTest {
         history.watched = mapOf("abc" to AccountProgress(positionMs = 750_360, durationMs = hour44))
 
         assertEquals(789_873L, positions().resumePositionMs(MediaItemId("abc")))
+    }
+
+    /**
+     * THE bug in report 0.1.496, end to end: *"I have tried to rewind the video back to the start
+     * but it is not working"*.
+     *
+     * YouTube holds `vceHVwxOnhA` at 77700ms and cannot move — the outbound half was refused, so
+     * `held=123` and the figure was frozen. The first play rightly takes it. He then rewinds to the
+     * start, and the SECOND play must honour that: the same figure, already acted on, is not news
+     * about what has happened here since. Before this it answered 77700 six times in a row.
+     *
+     * Deliberately the whole seam rather than `resumeFrom` alone: the rule was already correct in
+     * isolation and the bug lived in what it was being told.
+     */
+    @Test
+    fun `a rewind survives a remote position that cannot move`() = runTest {
+        history.watched = mapOf("vceHVwxOnhA" to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        localPositions["vceHVwxOnhA"] = 11_273
+        val p = positions()
+        assertEquals(77_700L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+
+        localPositions["vceHVwxOnhA"] = 0 // he rewound to the start
+
+        assertEquals(0L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+    }
+
+    /** Watching elsewhere MOVES the figure, and that must still win — it is the whole feature. */
+    @Test
+    fun `progress made elsewhere still overrules this device after a rewind`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 77_700, durationMs = hour44))
+        localPositions["abc"] = 11_273
+        val p = positions()
+        p.resumePositionMs(MediaItemId("abc"))
+        localPositions["abc"] = 0
+
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        clock += 10 * 60 * 1_000L // past the cache window, so the newer figure is read
+
+        assertEquals(2_400_000L, p.resumePositionMs(MediaItemId("abc")))
+    }
+
+    /** It has to survive the process, or a cold start hands the frozen figure its veto straight back. */
+    @Test
+    fun `what was acted on is remembered beyond the instance that used it`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        localPositions["abc"] = 11_273
+        positions().resumePositionMs(MediaItemId("abc"))
+
+        localPositions["abc"] = 0
+
+        assertEquals(0L, positions().resumePositionMs(MediaItemId("abc")))
+    }
+
+    /**
+     * The half of report 0.1.496 that showed as `local=none`, which the first cut of this fix did
+     * not cover: nothing here to protect, so the account's figure rightly wins the first time —
+     * and the rewind after it must still stick.
+     */
+    @Test
+    fun `a rewind sticks even when this device had no position to begin with`() = runTest {
+        history.watched = mapOf("vceHVwxOnhA" to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        val p = positions()
+        assertEquals(77_700L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+
+        localPositions["vceHVwxOnhA"] = 0 // he rewound to the start
+
+        assertEquals(0L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+    }
+
+    /**
+     * Recording a figure as acted on while this device still held an older one lost real progress.
+     *
+     * Watch forty minutes on the TV, tap it here, and close the app two seconds later — before any
+     * tick, pause or seek can save. The figure was recorded as used, this device still held its own
+     * ten minutes, and the next tap answered with the ten minutes and could never offer the forty
+     * again, because a dead outbound sync means the figure can never move. Adopting it on the way
+     * makes the two agree, so the answer is the same either way.
+     */
+    @Test
+    fun `the account's figure is adopted here, so a play abandoned at once loses nothing`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        localPositions["abc"] = 600_000
+        val p = positions()
+
+        assertEquals(2_400_000L, p.resumePositionMs(MediaItemId("abc")))
+
+        assertEquals("adopted as this device's own position", 2_400_000L, localPositions["abc"])
+        assertEquals("and so the next tap answers the same", 2_400_000L, p.resumePositionMs(MediaItemId("abc")))
+    }
+
+    /** Marking it unplayed drops the position here; an echo of an old decision must not restore it. */
+    @Test
+    fun `an item marked unplayed is not dragged back by a figure already acted on`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        val p = positions()
+        p.resumePositionMs(MediaItemId("abc"))
+
+        localPositions.remove("abc") // marked unplayed
+
+        assertNull(p.resumePositionMs(MediaItemId("abc")))
+    }
+
+    /**
+     * "A local Played is final — exact and deliberate, a rounded percent cannot un-play it."
+     *
+     * `accountAwarePlayState` has said that about ROWS since it was written; the tap could not
+     * say it, because a finished item and one never played here both arrived as no position. So a
+     * video finished on this phone jumped to YouTube's stale figure while the row beside it
+     * showed the Played tick — two surfaces disagreeing about one item, which is the bug class
+     * this whole seam exists to prevent.
+     */
+    @Test
+    fun `an item finished here starts again, whatever the account says`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        finishedHere += "abc"
+
+        assertNull(positions().resumePositionMs(MediaItemId("abc")))
+    }
+
+    /** And marking it unplayed gives the account's figure a fresh hearing, rather than a veto. */
+    @Test
+    fun `a finished item records nothing, so unplaying it lets the account win again`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        finishedHere += "abc"
+        val p = positions()
+        p.resumePositionMs(MediaItemId("abc"))
+
+        finishedHere -= "abc" // marked unplayed
+
+        assertEquals(2_400_000L, p.resumePositionMs(MediaItemId("abc")))
     }
 
     /**

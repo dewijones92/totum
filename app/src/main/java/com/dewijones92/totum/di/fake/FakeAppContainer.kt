@@ -36,7 +36,9 @@ import com.dewijones92.totum.data.subscription.fake.InMemorySubscriptionStore
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.NoReconciledAccountProgress
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.YouTubeActions
 import com.dewijones92.totum.innertube.actions.fake.FakeYouTubeActions
@@ -94,6 +96,7 @@ class FakeAppContainer(
     override val searchHistoryStore: SearchHistoryStore = InMemorySearchHistoryStore(),
     override val playHistoryStore: PlayHistoryStore = InMemoryPlayHistoryStore(),
     override val playbackProgressStore: PlaybackProgressStore = NoOpPlaybackProgressStore,
+    override val reconciledAccountProgress: ReconciledAccountProgress = NoReconciledAccountProgress,
     override val rowPlayStates: Flow<Map<MediaItemId, PlayState>> = playbackProgressStore.observeStates(),
     override val sourceLocator: SourceLocator = DefaultSourceLocator(podcastRepository, ytDlpEngine),
     override val skipSegmentSource: SkipSegmentSource = SkipSegmentSource { emptyList() },

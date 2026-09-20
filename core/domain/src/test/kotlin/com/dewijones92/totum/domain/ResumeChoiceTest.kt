@@ -90,6 +90,72 @@ class ResumeChoiceTest {
         assertEquals(Because.REMOTE_IS_AHEAD, resumeFrom(100_000, 200_000, null).because)
     }
 
+    /**
+     * THE bug in report 0.1.496, Dewi: *"I have tried to rewind the video back to the start but it
+     * is not working"*. `vceHVwxOnhA`, 12:57 long, YouTube holding 77700ms and unable to move it
+     * (the outbound half was refused, `held=123`). He rewound to the start six times and every
+     * re-entry answered `REMOTE_IS_AHEAD [local=11273 youtube=77700]` — the same figure each time.
+     * Having already been acted on, it is an echo of the last decision and says nothing about what
+     * has happened here since.
+     */
+    @Test
+    fun `a remote position already acted on cannot overrule a rewind`() {
+        val choice = resumeFrom(
+            localMs = 11_273,
+            remoteMs = 77_700,
+            durationMs = 777_000,
+            remoteAlreadyUsedMs = 77_700,
+        )
+
+        assertEquals(ResumeChoice(11_273, Because.REMOTE_IS_OLD_NEWS), choice)
+    }
+
+    /** And with it not recorded, the old behaviour is exactly what happened in that report. */
+    @Test
+    fun `the same numbers with nothing recorded still take the remote`() {
+        val choice = resumeFrom(localMs = 11_273, remoteMs = 77_700, durationMs = 777_000)
+
+        assertEquals(ResumeChoice(77_700, Because.REMOTE_IS_AHEAD), choice)
+    }
+
+    /** Watching elsewhere MOVES the number, which is the whole feature and must survive the fix. */
+    @Test
+    fun `a remote position that has moved on still wins`() {
+        val choice = resumeFrom(
+            localMs = 11_273,
+            remoteMs = 2_400_000,
+            durationMs = hour44,
+            remoteAlreadyUsedMs = 77_700,
+        )
+
+        assertEquals(ResumeChoice(2_400_000, Because.REMOTE_IS_AHEAD), choice)
+    }
+
+    /**
+     * Having no local position for an item already resumed once means the position was TAKEN AWAY
+     * — marked unplayed, or played to the end. An echo of the old decision must not put it back.
+     * A figure never acted on is a different thing entirely and still wins (above).
+     */
+    @Test
+    fun `an already-used remote does not resurrect a position this device has dropped`() {
+        val choice = resumeFrom(
+            localMs = null,
+            remoteMs = 77_700,
+            durationMs = 777_000,
+            remoteAlreadyUsedMs = 77_700,
+        )
+
+        assertEquals(ResumeChoice(null, Because.REMOTE_IS_OLD_NEWS), choice)
+    }
+
+    /** But a figure this device has never acted on is the cross-device case, and still wins. */
+    @Test
+    fun `a remote never acted on still wins when this device knows nothing`() {
+        val choice = resumeFrom(localMs = null, remoteMs = 77_700, durationMs = 777_000)
+
+        assertEquals(ResumeChoice(77_700, Because.ONLY_REMOTE), choice)
+    }
+
     /** Starting fresh on this device while YouTube holds a real position is the cross-device case. */
     @Test
     fun `zero here and a real position there is still the remote`() {

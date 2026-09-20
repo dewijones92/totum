@@ -22,6 +22,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.domain.persisted
 import com.dewijones92.totum.domain.playHandleFrom
+import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import kotlinx.coroutines.flow.first
 import java.time.Instant
@@ -100,7 +101,10 @@ class BackupService(
             if (entry.completedAtEpochMs != null) {
                 progress.setPlayed(id, played = true)
             } else {
-                progress.save(id, entry.positionMs, entry.durationMs)
+                // A restore REINSTATES a recorded position rather than reporting a live one, so
+                // the floor must not judge it. Without this a rewind to the start survives being
+                // backed up and is dropped on the way in. Completed entries went to setPlayed above.
+                progress.save(id, entry.positionMs, entry.durationMs, Chosen.AS_A_RECORD)
             }
         }
 

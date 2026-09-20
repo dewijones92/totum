@@ -47,6 +47,28 @@ class RoomAccountProgressOutboxTest {
         assertEquals(0, outbox.observePendingCount().first())
     }
 
+    /** A record that can never go must not go for ever, so its attempts are counted and kept. */
+    @Test
+    fun countsAttemptsSoAnUnsendableRecordCanBeGivenUpOn() = runTest {
+        outbox.record(PendingAccountProgress(id, 10_000, 600_000, finished = false, recordedAtEpochMs = 1))
+
+        outbox.attempted(id, recordedAtEpochMs = 1)
+        outbox.attempted(id, recordedAtEpochMs = 1)
+
+        assertEquals(listOf(2), outbox.pending().map { it.attempts })
+    }
+
+    /** Same staleness guard as a send: a record rewritten meanwhile starts its own count. */
+    @Test
+    fun anAttemptDoesNotCountAgainstARecordWrittenSince() = runTest {
+        outbox.record(PendingAccountProgress(id, 10_000, 600_000, finished = false, recordedAtEpochMs = 1))
+        outbox.record(PendingAccountProgress(id, 20_000, 600_000, finished = false, recordedAtEpochMs = 2))
+
+        outbox.attempted(id, recordedAtEpochMs = 1)
+
+        assertEquals(listOf(0), outbox.pending().map { it.attempts })
+    }
+
     /** Playback carried on during the send: the newer position must survive the older send completing. */
     @Test
     fun aSendDoesNotRemoveARecordWrittenWhileItWasInFlight() = runTest {

@@ -14,7 +14,37 @@ class YouTubeAccountTest {
 
     private val auth = FakeYouTubeAuth()
     private val store = InMemoryTokenStore()
-    private val account = YouTubeAccount(auth, store, nowEpochSeconds = { NOW })
+    private var signedOutTimes = 0
+    private val account = YouTubeAccount(
+        auth,
+        store,
+        nowEpochSeconds = { NOW },
+        onSignedOut = { signedOutTimes++ },
+    )
+
+    /**
+     * There are TWO ways to lose an account and only one is a button, so anything scoped to the
+     * account has to hear about both. A revoked refresh token clears the store from inside
+     * [YouTubeAccount.accessToken] with no UI involved; something wired to the sign-out screen
+     * alone would go on comparing the old account's figures against the next account's.
+     */
+    @Test
+    fun `signing out says so`() = runTest {
+        store.save(FRESH)
+
+        account.signOut()
+
+        assertEquals(1, signedOutTimes)
+    }
+
+    @Test
+    fun `a revoked refresh token says so too`() = runTest {
+        store.save(STALE)
+        auth.refreshResult = TokenRefreshResult.Revoked
+
+        assertEquals(AccessTokenResult.SignedOut, account.accessToken())
+        assertEquals("a dead grant is a sign-out, and must be announced as one", 1, signedOutTimes)
+    }
 
     @Test
     fun `a successful sign-in is persisted`() = runTest {

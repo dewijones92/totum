@@ -2,8 +2,8 @@ package com.dewijones92.totum.innertube.player
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Where a video's watch-progress pings must be sent for YouTube to credit the account.
@@ -38,6 +38,64 @@ public object PlaybackTrackingParser {
         return PlaybackTracking(tracking.baseUrlAt("videostatsPlaybackUrl"), watchtime)
     }
 
+    /**
+     * Why a response carries no tracking — and crucially **whose fault that is**.
+     *
+     * An InnerTube refusal is HTTP 200 with a `playabilityStatus`, so this is the only thing that
+     * separates "this video" from "this app, right now":
+     *
+     * | status | verdict about | [Refusal] |
+     * |---|---|---|
+     * | `OK`, or absent | nothing is wrong; the video simply has no tracking | null |
+     * | `ERROR` ("Video unavailable") | the video, permanently — deleted, private | [Refusal.ThisVideo] |
+     * | anything else (`UNPLAYABLE`, `LOGIN_REQUIRED`, …) | possibly the client | [Refusal.MaybeUsAll] |
+     *
+     * The last row is the one that matters. A **stale signature timestamp** makes YouTube answer
+     * `UNPLAYABLE — "The page needs to be reloaded"` for every video at once, and this repository
+     * has had exactly that twice; reading it as a per-video verdict would let a backlog write
+     * itself off. `ERROR` cannot mean that — a missing video is missing for one video only — so
+     * treating it as a client fault instead made four deleted videos truncate every drain and put
+     * "the sender is down" in a report that was wrong about it.
+     *
+     * Reads defensively: this is third-party JSON on a path with no `runCatching` above it, and
+     * `jsonPrimitive` throws on an object where a string was expected.
+     */
+    public fun refusalReason(body: String): Refusal? {
+        val root = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull() ?: return null
+        val status = (root["playabilityStatus"] as? JsonObject) ?: return null
+        val state = (status["status"] as? JsonPrimitive)?.contentOrNull ?: return null
+        if (state == OK) return null
+        val detail = (status["reason"] as? JsonPrimitive)?.contentOrNull
+        val said = if (detail.isNullOrBlank()) state else "$state: $detail"
+        return if (state in ABOUT_ONE_VIDEO) Refusal.ThisVideo(said) else Refusal.MaybeUsAll(said)
+    }
+
+    private const val OK: String = "OK"
+
+    /**
+     * Statuses that cannot possibly be about the client, so one video carrying one must not make
+     * the whole queue look broken. Everything else stays ambiguous on purpose — `UNPLAYABLE` is
+     * what a stale signature timestamp looks like, and `LOGIN_REQUIRED` is what a bot check does.
+     */
+    private val ABOUT_ONE_VIDEO = setOf("ERROR", "AGE_VERIFICATION_REQUIRED", "LIVE_STREAM_OFFLINE")
+
     private fun JsonObject.baseUrlAt(key: String): String? =
-        (this[key] as? JsonObject)?.get("baseUrl")?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        ((this[key] as? JsonObject)?.get("baseUrl") as? JsonPrimitive)?.contentOrNull?.ifBlank { null }
+}
+
+/**
+ * A `/player` response that refused, and how far the refusal reaches.
+ *
+ * The distinction decides whether one row is skipped or the whole pass gives up, so it is a type
+ * rather than a string somebody has to remember to inspect.
+ */
+public sealed interface Refusal {
+    /** What YouTube said, for a log line. */
+    public val said: String
+
+    /** True of this video alone — deleted, private. Nothing else in the queue is affected. */
+    public data class ThisVideo(override val said: String) : Refusal
+
+    /** Might be this whole client: a stale signature timestamp looks exactly like this. */
+    public data class MaybeUsAll(override val said: String) : Refusal
 }

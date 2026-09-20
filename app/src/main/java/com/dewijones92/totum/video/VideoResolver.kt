@@ -557,13 +557,20 @@ class VideoResolver(
             return null
         }
         val resumeAt = resumePositionMs(MediaItemId(id)) ?: 0
-        if (resumeAt > 0) {
+        if (resumeAt > NEGLIGIBLE_RESUME_MS) {
             Diag.log(
                 "resolve",
                 "$id resumes at ${resumeAt}ms, so extracting rather than using SABR — " +
                     "a resume is a seek, and the SABR path cannot seek yet",
             )
             return null
+        }
+        if (resumeAt > 0) {
+            // A rewind to the start now persists where it used to be thrown away (report 0.1.496),
+            // and a position a second in is not worth the seven to twenty-five seconds an
+            // extraction costs. The seek still happens — this only decides how to RESOLVE — but a
+            // second or two lands inside the first chunk, which SABR serves from the start anyway.
+            Diag.log("resolve", "$id resumes at ${resumeAt}ms, near enough the start to keep SABR")
         }
         val response = fast.playerForSabr(id) ?: return null
         return overSabrFrom(PlayerRequest(id, sourceId, watchUrl, asked, startedAt), response)
@@ -715,6 +722,17 @@ class VideoResolver(
     }
 
     private companion object {
+        /**
+         * A resume this close to the start is not worth an extraction to honour.
+         *
+         * The SABR fast path cannot seek to an arbitrary offset, so any resume sends the resolve
+         * down the slow route — seven to twenty-five seconds. Since a rewind to the start now
+         * persists rather than being dropped by the progress store's floor (report 0.1.496), that
+         * would make rewinding a video the slowest thing you can do to it, to reach a position
+         * inside the first chunk it would have served anyway.
+         */
+        const val NEGLIGIBLE_RESUME_MS = 2_000L
+
         /**
          * Far below a signed URL's lifetime. A prefetch is used within a minute or two, so this
          * only has to outlive that — holding one longer risks handing back a URL that has already

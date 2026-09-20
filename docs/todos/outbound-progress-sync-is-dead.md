@@ -1,14 +1,76 @@
 ---
 title: Outbound progress sync is dead — no client will give a signed-in session tracking URLs
 kind: todo
-status: FIXED 2026-09-06 — the sender needed the TV-scale signatureTimestamp; outbox drained and the account's history shows it
+status: DIAGNOSED AND FIXED 2026-09-20 — it was never refused again; three untrackable videos at the head of the outbox blocked 120 sendable ones
 area: video
 priority: critical
 requested: 2026-09-06
-updated: 2026-09-06
+updated: 2026-09-20
 ---
 
 # Outbound progress sync is dead
+
+> ✅ **FIXED 2026-09-20 — and "regressed" was the wrong diagnosis, twice over.** The status block
+> said `Unavailable(reason=… the signed-in TV /player is refused, held=123)`, which reads as the
+> 2026-08-18 fault returning. It was not. The same report contains **five**
+> `tracking acquired for the account` lines, so the TV `/player` and the TV-scale signature
+> timestamp were working the whole time.
+>
+> What was actually happening, from the trail:
+>
+> ```
+> 37 × "hgQONOM15HI carried no playback tracking; progress won't sync"
+> 37 × "ZONm_FuGF5g carried no playback tracking; progress won't sync"
+> 37 × "86S2CePsIvQ carried no playback tracking; progress won't sync"
+>  5 × "… tracking acquired for the account"
+> ```
+>
+> **The same three ids, thirty-seven times each, and nothing else ever tried.** `pending()` is
+> ordered oldest-first, `MAX_FAILURES_PER_PASS` was 3, and a `NoSession` for one video set `stop`
+> for the whole pass — so every drain asked those three, failed three times, and gave up before
+> reaching row four. 120 perfectly sendable updates sat behind them **for ever**, and the status
+> line blamed the sender for what three videos had said about themselves. (All three are public
+> and playable — checked with yt-dlp — so why YouTube gives this app no tracking for them is still
+> unknown, and now no longer matters enough to block anything.)
+>
+> Three changes, in [`../features/progress-sync.md`](../features/progress-sync.md):
+> `beginSession` returns a `SessionResult` so "this video has no tracking" is distinguishable from
+> "nothing could be asked"; the drain carries on past a per-video verdict and only stops for a
+> sender failure or a sign-out; and **every failure sinks its row** (`pending()` orders by attempts
+> before age) so no set of failing rows can spend a pass's budget at the head twice running.
+>
+> **Nothing is dropped, and that was a measurement.** The obvious fix — write a row off after a few
+> tries — was built and then abandoned: probing those same three ids against the live account on
+> 2026-09-20 found **all three now answer `tracking=true`**. Their refusal had been temporary, so
+> a write-off would have destroyed real listening. The one destructive idea in the change was
+> removed on the strength of that, and `OneUntrackableVideoDoesNotBlockTheOutboxTest` is the live
+> test that made the measurement possible.
+>
+> **What is still unknown:** why those three were refused for at least an hour on 20 Sep while five
+> other videos in the same session acquired tracking normally. Two were US Open coverage and one an
+> interview, so a recently-ended live stream is a reasonable guess and nothing more. It no longer
+> blocks anything, which is why it is a curiosity rather than a defect.
+>
+> **The old banner, kept because its diagnosis was wrong and that is worth knowing:**
+
+> 🔴 ~~REGRESSED — refused again, report 0.1.496 (2026-09-20).~~ The fix below held for a fortnight
+> and has stopped working:
+>
+> ```
+> yt-sync.outbound   = Unavailable(reason=YouTube gave this app no tracking session
+>                      (the signed-in TV /player is refused), held=123)
+> yt-sync.pendingUpdates = 123
+> …carried no playback tracking; progress won't sync   (×180 in one report)
+> ```
+>
+> **Not investigated yet** — it was found while diagnosing a different complaint (rewinding, see
+> [`../features/progress-sync.md`](../features/progress-sync.md)) and is the reason that bug bit at
+> all: with the account's figure frozen it out-ranked every rewind for ever. That is now handled on
+> the resume side regardless of whether the sender works, so this is no longer *urgent* in the way it
+> was — but the outbox is holding 123 updates and the account's history is a fortnight stale.
+>
+> First thing to check is whether the signature timestamp has moved on again (`20697001` was right on
+> 6 Sep), since that is a number YouTube rotates.
 
 > ✅ **FIXED 2026-09-06, the same afternoon the outbox shipped.** The SmartTube capture this page asked
 > for was done on the emulator (not the Fire Stick) and found the cause in one afternoon: the signed-in

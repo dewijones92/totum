@@ -67,4 +67,38 @@ class AccountAwarePlayStateTest {
         val local = PlayState.InProgress(120_000, hour)
         assertEquals(PlayState.Played, accountAwarePlayState(local, remotePositionMs = hour, remoteDurationMs = hour))
     }
+
+    /**
+     * The bar has to agree with the tap, and after report 0.1.496 the tap ignores a remote figure
+     * already acted on. A bar still drawing 40% for an item that now resumes at the start is the
+     * drift `accountAwarePlayState` exists to prevent.
+     */
+    @Test
+    fun `a remote figure already acted on does not drag the bar forward`() {
+        val local = PlayState.InProgress(0, hour)
+
+        val state = accountAwarePlayState(
+            local,
+            remotePositionMs = hour / 2,
+            remoteDurationMs = hour,
+            remoteAlreadyUsedMs = hour / 2,
+        )
+
+        assertEquals(PlayState.InProgress(0, hour), state)
+    }
+
+    /** And one that has genuinely moved still does, exactly as the tap would. */
+    @Test
+    fun `a remote figure that has moved still moves the bar`() {
+        val local = PlayState.InProgress(0, hour)
+
+        val state = accountAwarePlayState(
+            local,
+            remotePositionMs = hour / 2,
+            remoteDurationMs = hour,
+            remoteAlreadyUsedMs = 60_000,
+        )
+
+        assertEquals(PlayState.InProgress(hour / 2, hour), state)
+    }
 }
