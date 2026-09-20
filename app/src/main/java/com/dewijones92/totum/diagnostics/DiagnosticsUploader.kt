@@ -51,7 +51,10 @@ public class DiagnosticsUploader(
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
     public fun uploadPending(): Unit = upload(becauseSomeoneAsked = false)
 
-    /** A person tapped "Send diagnostics". Always goes, emulator or not. */
+    /**
+     * A person tapped "Send diagnostics". Goes from an emulator as well as a phone — but still not
+     * from a test run, because the tests that flooded the sink drove this very method.
+     */
     public fun sendDiagnosticsNow(): Unit = upload(becauseSomeoneAsked = true)
 
     private fun upload(becauseSomeoneAsked: Boolean) {

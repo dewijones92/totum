@@ -666,23 +666,39 @@ can tell from a real one.
 
 ## The permission dialog is another activity, and it pauses yours (2026-09-20)
 
-The same CI run had been red for five days on *"rendered only 9495ms in 60000ms, so it stopped"*,
+The live CI suite had been red for five days on *"rendered only 9495ms in 60000ms, so it stopped"*,
 which reads as a stream failure and is not one. The captured logcat (`build/ci-logs/logcat.txt`,
 uploaded with the instrumented reports) shows `START … REQUEST_PERMISSIONS`, then
 `video size=0x0 hasVideo=false`, then `MainActivity in: PAUSED`, **four milliseconds apart**.
 
 The app asked for `POST_NOTIFICATIONS` at first play. On a phone somebody taps the dialog; on a
-runner emulator nobody does. Two lessons, and only one of them is about CI:
+runner emulator nobody does. It was a **real user bug** as well as a CI one: press play on a fresh
+install and the picture stops.
 
-- It was a **real user bug**. Press play on a fresh install and the picture stops. It now asks once
-  as the shell composes, and `NotificationPermissionTimingTest` asserts the TIMING rather than that
-  it asks at all — the broken version would pass the second.
-- **The grant belongs in the test process.** It was first attempted as `pm grant` in
-  `live-test-via-home.sh`, where it could never work: `connectedAndroidTest` uninstalls the app when
-  it finishes, and `pm grant` against a missing package exits 0 saying `Failure [package not found]`
-  on stderr — so behind `2>/dev/null || true` it announced nothing. `TotumTestRunner` does it in
-  `onCreate`, after the install, and logs the outcome. Verified on the emulator: `granted=false`
-  before, `granted=true` after.
+**The first attempt at covering it covered nothing, and an adversarial review is what said so.**
+That is the part worth remembering:
+
+- The defect was at the **call site** — *when* `AppShell` invokes the composable. Three tests that
+  drove the composable directly all stayed green with the gate put back in `AppShell`, and green
+  with the call deleted from `AppShell` altogether. "Asserts the timing" was a claim about a test
+  that asserted nothing of the sort.
+- The test written beside the logcat bound — a tail bigger than a pipe — **passes against the
+  previous commit**, because the drain it replaced was unbounded but perfectly correct. The bound
+  was new; a test that cannot fail against the old code is not a guard on it.
+- The commit message and a KDoc both attributed a `waitFor`-before-drain deadlock to shipped code.
+  It had never been committed: it was a wrong first attempt made in the same session. A comment
+  that invents a past defect is worse than a stale one, because it is what the next person trusts.
+
+| Test | Guards |
+|---|---|
+| `NotificationPermissionTimingTest.theShellAsksWithoutWaitingForAPlaybackState` | the CALL SITE. Goes red when `AppShell` puts the gate back, verified on the emulator. |
+| `NotificationPermissionTimingTest` (3 other cases) | the composable: it asks when ungranted, asks nobody when granted, does not re-ask per recomposition. |
+| `BoundedDrainTest` | the logcat bound — a read that never answers is given up on, one that throws is reported as no answer, one that answers passes through. |
+| `TotumTestRunner` | grants POST_NOTIFICATIONS in `onStart` — NOT `onCreate`, which has already called `start()` and so races the suite — drains the shell command to EOF because `executeShellCommand` is asynchronous, and then asks the PACKAGE MANAGER whether it worked rather than reading stdout, because `pm grant` reports failure on stderr and exits 0. Reading its output cannot tell a refusal from a success, which is exactly why the earlier `pm grant` in `live-test-via-home.sh` was useless. Proven by revoking the permission and watching the runner report it granted. |
+
+**Still uncovered, deliberately:** the share-intent path. `MainActivity` now skips the ask on a
+launch carrying a shared link — otherwise the dialog opens over the very video that launch exists
+to play — but no test drives an `ACTION_SEND` launch together with the permission state.
 
 ## Reading the results without downloading anything (2026-08-11)
 

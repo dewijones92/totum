@@ -15,6 +15,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.AppShell
 import com.dewijones92.totum.ui.common.LocalNow
+import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.rememberTickingNow
 import kotlinx.coroutines.launch
 
@@ -35,9 +36,28 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
+        // A launch that is about to play something does NOT ask for the notification permission.
+        // The dialog is another activity: it pauses ours and releases the video surface, so asking
+        // here would open it over the video this very launch is starting. Opening a YouTube link is
+        // the headline entry point and the first thing anyone does on a fresh install, which is
+        // precisely when nothing has been granted yet.
+        //
+        // The cost is that the ask waits for an ordinary launch. That is the right way round: the
+        // permission only decorates playback with a notification, while asking at the wrong moment
+        // stops the picture.
+        val willPlayImmediately = intent.sharedWatchUrl() != null
         setContent {
             TotumTheme {
-                CompositionLocalProvider(LocalNow provides rememberTickingNow()) { AppShell(container) }
+                CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
+                    AppShell(
+                        container,
+                        askForNotifications = if (willPlayImmediately) {
+                            {}
+                        } else {
+                            { RequestNotificationPermissionOnce() }
+                        },
+                    )
+                }
             }
         }
         handleShareIntent(intent)

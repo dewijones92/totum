@@ -75,7 +75,20 @@ import kotlinx.coroutines.launch
  * animated transitions between them.
  */
 @Composable
-fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
+fun AppShell(
+    container: AppContainer,
+    modifier: Modifier = Modifier,
+    /**
+     * Asking for the notification permission, injectable ONLY so a test can see that it happens
+     * here and not behind playback.
+     *
+     * The defect was never inside the composable; it was this call site, which used to read
+     * `playbackActive = playbackState != null`. A test that drove the composable directly passed
+     * against the broken version, so it guarded nothing — putting the gate back would have been
+     * green (found by an adversarial review, 2026-09-20).
+     */
+    askForNotifications: @Composable () -> Unit = { RequestNotificationPermissionOnce() },
+) {
     var selected by rememberSaveable { mutableStateOf(TopLevelDestination.Videos) }
     var showFullPlayer by rememberSaveable { mutableStateOf(false) }
     var shortsReel by remember { mutableStateOf<ReelStart?>(null) }
@@ -88,7 +101,9 @@ fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
     val controller = container.playbackController
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
 
-    RequestNotificationPermissionOnce()
+    // Unconditional, and above everything: a dialog that waits for a playback state is a dialog
+    // that opens over a playing video and pauses it.
+    askForNotifications()
     // The stage reports where the picture is, so the system animates from it rather
     // than cross-fading the whole app into the floating window.
     val videoBounds = remember { VideoBounds() }

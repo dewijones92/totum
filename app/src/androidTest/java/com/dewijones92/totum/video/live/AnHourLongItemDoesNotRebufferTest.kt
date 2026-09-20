@@ -237,7 +237,7 @@ class AnHourLongItemDoesNotRebufferTest {
          * ```
          * adb shell am instrument -w -e soakMs 600000 \
          *   -e class com.dewijones92.totum.video.live.AnHourLongItemDoesNotRebufferTest \
-         *   com.dewijones92.totum.test/androidx.test.runner.AndroidJUnitRunner
+         *   com.dewijones92.totum.test/com.dewijones92.totum.TotumTestRunner
          * ```
          *
          * The default stays short enough for CI to run on every push, and "an hour-long video" deserves

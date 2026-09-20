@@ -52,8 +52,20 @@ sensitivity … prioritise collecting data"*):
 - **The state at the moment it broke:** what was playing and its position, the whole
   queue, every setting, whether the network was metered.
 - **The device:** model, Android version, ABIs, heap and system memory, free storage.
-- **~150KB of logcat** — where the Media3 / MediaCodec lines live, which is what
-  actually diagnosed this project's playback bugs.
+- **Up to ~400KB of logcat** — where the Media3 / MediaCodec lines live, which is what
+  actually diagnosed this project's playback bugs. An app can read only its OWN log, so an
+  idle session is nearer 20KB. It is **bounded at 3 seconds**, and a report that hit the
+  bound says so in the field itself: `logcat unavailable: it did not answer in 3s`. The bound
+  is on the DRAIN rather than on the process exiting, because this runs from the
+  uncaught-exception handler one line before the report is written — a `logcat` that never
+  returns would mean no report at all, and a wedged `logd` is exactly the device duress that
+  correlates with crashes worth having. `drainWithin` holds it; `BoundedDrainTest` covers it.
+
+**Sending never blocks the app, and never floods the sink.** The upload runs on the transfer
+HTTP client rather than the shared one, so asking for a report does not light the global busy
+bar, and the Settings button says "saved — it will send" because that is what happens: the
+report is written to disk and uploaded on the next opportunity. Nothing uploads from a test
+run at all — see "What is NOT sent" below.
 
 **One security exception, which is not a privacy preference:** the YouTube OAuth tokens
 are never read into a report. A token in a transmitted log is an account-takeover risk

@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.dewijones92.totum.di.fake.FakeAppContainer
+import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -72,6 +74,35 @@ class NotificationPermissionTimingTest {
         composeTestRule.waitForIdle()
 
         assertEquals(0, asked.get())
+    }
+
+    /**
+     * THE MUTATION THAT MATTERED. The shell asks with nothing playing.
+     *
+     * The three cases above drive the composable directly, and an adversarial review of
+     * 2026-09-20 showed that all three stay green if `AppShell` puts the gate back —
+     * `if (playbackState != null) RequestNotificationPermissionOnce()` — which is the original
+     * defect exactly. They also stay green if the call is deleted from the shell entirely. The
+     * bug was never inside the composable; it was the call site, so the call site is what has to
+     * be asserted.
+     */
+    @Test
+    fun theShellAsksWithoutWaitingForAPlaybackState() {
+        val asked = AtomicInteger()
+
+        composeTestRule.setContent {
+            TotumTheme {
+                AppShell(FakeAppContainer(), askForNotifications = { asked.incrementAndGet() })
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals(
+            "FakeAppContainer plays nothing, so an ask that arrives here cannot be waiting on " +
+                "playback — and one that never arrives is the five-day CI failure back again",
+            1,
+            asked.get(),
+        )
     }
 
     private companion object {

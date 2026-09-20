@@ -17,9 +17,6 @@ import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.Instant
-import java.util.concurrent.FutureTask
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 /**
  * Catches crashes, writes a verbose report to disk, and lets [DiagnosticsUploader] send
@@ -173,9 +170,18 @@ public class CrashReporter(
      * the session worth having a crash report from. Once the tail exceeds the 64KiB pipe the child
      * blocks on `write()` and can never exit, so a `waitFor` placed before the read never
      * completes; `destroyForcibly` then closes the stream and the read throws, leaving the whole
-     * block as `logcat unavailable: IOException: Stream closed`. **Measured on device: 46
-     * characters kept instead of the full tail** — a silent, total loss of the most useful part
-     * of the report, on every crash. So the read happens on its own thread and THAT is bounded.
+     * block as `logcat unavailable: IOException: Stream closed` — 46 characters instead of the
+     * tail, which is a silent and total loss of the most useful part of a report.
+     *
+     * **That is a warning, not this repo's history.** The code before this was an unbounded
+     * `bufferedReader().readText()`, which is the correct way to drain a subprocess and cannot
+     * deadlock; the `waitFor` version existed only as a wrong first attempt while this bound was
+     * being written, and the 46 characters were measured on it. Said plainly because the obvious
+     * way to add a timeout here is exactly that wrong one, and because a comment that invents a
+     * past defect is worse than no comment — it is what the next person will trust.
+     *
+     * So what is NEW is the bound itself: the old drain was correct but unbounded, and a wedged
+     * `logd` would have hung a dying process for ever.
      *
      * The thread is a daemon: this runs while the process is dying, and a non-daemon thread stuck
      * on an unreadable pipe would be one more thing keeping it alive.
@@ -184,17 +190,22 @@ public class CrashReporter(
         val process = ProcessBuilder("logcat", "-d", "-v", "time", "-t", LOGCAT_LINES.toString())
             .redirectErrorStream(true)
             .start()
-        val drain = FutureTask { process.inputStream.bufferedReader().use { it.readText() } }
-        Thread(drain, "logcat-tail").apply { isDaemon = true }.start()
-        try {
-            drain.get(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS).takeLast(MAX_LOGCAT_CHARS)
-        } catch (timeout: TimeoutException) {
+        val tail = drainWithin(LOGCAT_TIMEOUT_SECONDS, "logcat") {
+            process.inputStream.bufferedReader().use { it.readText() }
+        }
+        if (tail == null) {
             process.destroyForcibly()
             // In the RETURNED VALUE as well as the trail: `events` is serialised on the line
             // before this one, so a breadcrumb written here reaches the NEXT report rather than
             // the one that is missing its logcat. A report has to explain its own gap.
-            Diag.warn("diagnostics", "logcat did not answer in ${LOGCAT_TIMEOUT_SECONDS}s", timeout)
-            "logcat unavailable: it did not answer in ${LOGCAT_TIMEOUT_SECONDS}s"
+            LOGCAT_UNAVAILABLE
+        } else {
+            // Closed on the happy path too: `redirectErrorStream` means stdout is the only pipe,
+            // but the child's stdin is a descriptor of ours and Settings can ask for a report
+            // repeatedly.
+            runCatching { process.outputStream.close() }
+            process.destroy()
+            tail.takeLast(MAX_LOGCAT_CHARS)
         }
     }.getOrElse { "logcat unavailable: ${it.javaClass.simpleName}: ${it.message}" }
 
@@ -225,6 +236,9 @@ public class CrashReporter(
          * one costs a couple of seconds of a dying process rather than the whole report.
          */
         const val LOGCAT_TIMEOUT_SECONDS = 3L
+
+        /** Named, so the test asserting a report explains its own gap cannot drift from it. */
+        const val LOGCAT_UNAVAILABLE = "logcat unavailable: it did not answer in ${LOGCAT_TIMEOUT_SECONDS}s"
 
         const val LOGCAT_LINES = 1500
         const val MAX_LOGCAT_CHARS = 400_000

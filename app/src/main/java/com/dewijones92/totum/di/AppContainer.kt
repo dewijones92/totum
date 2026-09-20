@@ -926,10 +926,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun sendDiagnostics(note: String) {
         crashReporter.reportDiagnostics(note)
-        // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so it goes whatever
-        // device this is. The emulator suppression is for the AUTOMATIC upload at launch only —
-        // an emulator is where this app gets debugged, and a button that silently did nothing
-        // while the UI said "Sent" would be worse than the noise it was avoiding.
+        // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
+        // suppression does not apply — an emulator is where this app gets debugged, and a button
+        // that silently did nothing while the UI said so would be worse than the noise it avoided.
+        // A test run is still suppressed either way; the flood came through this exact path.
         DiagnosticsUploader(context, transferClient, applicationScope).sendDiagnosticsNow()
     }
 
