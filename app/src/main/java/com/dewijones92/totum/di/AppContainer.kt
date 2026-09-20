@@ -129,6 +129,7 @@ import com.dewijones92.totum.playback.SharedPrefsVolumeBoostStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.StreamRecovery
+import com.dewijones92.totum.playback.forgetLiveSabrStreamsFor
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
@@ -873,6 +874,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 playbackController.state.value?.let { it.itemId == id && it.isPlaying } == true
             },
             forgetResolved = playbackQueue::forgetResolved,
+            forgetHeldStreams = { forgetLiveSabrStreamsFor(it.value) },
             // Started on the first failure, so the 20-25s extraction overlaps the retries
             // instead of following them. Report 0.1.277: 58s of silence, 28 of it after the app
             // had already given up on the dead stream.

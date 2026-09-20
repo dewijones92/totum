@@ -42,6 +42,9 @@ class StreamRecoveryTest {
     /** Items whose cached resolution was dropped, in order. */
     private val forgotten = mutableListOf<MediaItemId>()
 
+    /** Items whose HELD SABR conversations were dropped, in order. */
+    private val heldStreamsDropped = mutableListOf<MediaItemId>()
+
     /** Whether the current item has a copy on disk, and the positions it was played from. */
     private var diskHasIt = false
     private val playedFromDisk = mutableListOf<Long>()
@@ -65,6 +68,7 @@ class StreamRecoveryTest {
             autoPlayNext = { autoPlayNext },
             isPlaying = { it == playingNow },
             forgetResolved = { forgotten += it },
+            forgetHeldStreams = { heldStreamsDropped += it },
             prefetchNext = { prefetched++ },
             awaitNetwork = {
                 waitedForNetwork++
@@ -507,5 +511,39 @@ class StreamRecoveryTest {
         }
 
         assertEquals(1, prefetched)
+    }
+
+    /**
+     * A fresh start drops the SABR conversation this item left behind.
+     *
+     * The stream cache is keyed `videoId:itag` and exists so ExoPlayer's mid-playback REOPENS
+     * continue one conversation instead of opening sixteen cold ones. It has no idea that a
+     * *second playing of the same video* is a different thing, so a replay — or the same item
+     * switched from listening to watching — was handed a warm stream that had already been served
+     * the opening bytes, rewound it to zero, and then discarded every byte it re-fetched as one it
+     * already held.
+     *
+     * Measured in CI on 2026-09-20, the video case of `AnHourLongItemDoesNotRebufferTest`: four
+     * fetches of the same 289,189-byte answer, `0B kept` each time, then "NOT ending, skipping
+     * ahead" into the middle of the file. The previous case of the same test had ended
+     * `discarded=3979803B (97% wasted)`. Playback rendered 9.5 seconds of a 60-second window.
+     */
+    @Test
+    fun `a fresh start drops the held sabr conversation for that item`() = runTest {
+        recovery()
+        // The collector has to be subscribed BEFORE the emit: freshStarts has no replay, so an
+        // emit into nobody is simply lost and the test would fail in arrange rather than on its
+        // assertion -- which is a red that proves nothing.
+        runCurrent()
+
+        freshStarts.emit(MediaItemId("uSMGENDH_QI"))
+        runCurrent()
+
+        assertEquals(
+            "a replay must open a COLD conversation; a warm one gets rewound and then discards " +
+                "everything it re-fetches",
+            listOf(MediaItemId("uSMGENDH_QI")),
+            heldStreamsDropped,
+        )
     }
 }

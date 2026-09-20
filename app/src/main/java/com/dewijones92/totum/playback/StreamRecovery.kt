@@ -112,6 +112,17 @@ internal class StreamRecovery(
     private val autoPlayNext: () -> Boolean = { true },
     private val isPlaying: (MediaItemId) -> Boolean = { false },
     private val forgetResolved: (MediaItemId) -> Unit = {},
+    /**
+     * Drops the SABR conversations this item left behind, so a REPLAY opens a cold one.
+     *
+     * Separate from [forgetResolved], which drops the resolved URLs: a held SABR stream survives
+     * that, because the cache is keyed `videoId:itag` and knows only about ExoPlayer reopening a
+     * source mid-playback — which it must keep continuing, or a single play becomes sixteen cold
+     * opens. A second PLAYING of the same video is a different thing, and it was getting a warm
+     * stream that had already been served the opening bytes: it rewound to zero and then discarded
+     * every byte it re-fetched as one it already held. See the test for the CI measurement.
+     */
+    private val forgetHeldStreams: (MediaItemId) -> Unit = {},
     private val prefetchNext: suspend () -> Unit = {},
     private val awaitNetwork: suspend () -> Unit,
     private val scope: CoroutineScope,
@@ -170,6 +181,8 @@ internal class StreamRecovery(
                 currentStartedItem = itemId
                 lastPositionMs = 0
                 rescues = 0
+                runCatching { forgetHeldStreams(itemId) }
+                    .onFailure { Diag.warn("playback", "could not drop held streams for ${itemId.value}", it) }
                 Diag.log("playback", "fresh start of ${itemId.value} — recovery starts over")
             }
         }

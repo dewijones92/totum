@@ -223,6 +223,24 @@ public fun forgetLiveSabrStreams() {
 }
 
 /**
+ * Drops the held conversations for ONE video, which is what a replay needs.
+ *
+ * [gaveUpOn] is deliberately left alone: what refused a whole conversation's worth of fetches does
+ * not relent within one sitting, and clearing it costs fourteen dead conversations against one
+ * extraction fallback that already works.
+ */
+public fun forgetLiveSabrStreamsFor(videoId: String) {
+    val prefix = "$videoId:"
+    val dropped = live.keys.filter { it.startsWith(prefix) }
+    dropped.forEach { live.remove(it) }
+    if (dropped.isNotEmpty()) {
+        // Said out loud: a replay that silently reused a warm stream discarded everything it
+        // re-fetched, and the only trace was a fetch reporting 0B kept.
+        Diag.log("sabr", "dropped ${dropped.size} held stream(s) for $videoId so a replay opens cold")
+    }
+}
+
+/**
  * The SABR POST, on `HttpURLConnection`.
  *
  * Deliberately not OkHttp: `:core:playback` does not depend on it, and adding a client here
