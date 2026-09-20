@@ -218,30 +218,62 @@ position and would not re-ask for a segment it already holds. The video path is 
 emulator job is deliberately **not** a release gate (ci.yml:53) so it does not block the APK.
 
 
-### Three more runs, 2026-09-20 — and two mechanisms proposed for it, both disproved
+### Three more runs, 2026-09-20 — two mechanisms proposed for it, both disproved
 
 The same failure, in three consecutive CI runs, with the numbers above reappearing verbatim
-(`104401`, `30429ms`, `2353154B response, 2150211B kept`, `closed at 104401`). What the new runs add
-is mostly **negative** evidence, which is worth as much:
+(`104401`, `30429ms`, `2353154B response, 2150211B kept`, `closed at 104401`).
 
-- **Client identity is ruled out.** Resolution per run was 12 EMBEDDED / 0 ANDROID, then 2 / 0, then
-  0 / 11. The test failed identically in all three. An explanation built on "the embedded player
-  refused it, so SABR fell back to a capped ANDROID client" was written and retracted: the run that
-  DID use the embedded player failed the same way, and `SabrKeepsServingTest` — ANDROID, same video —
-  served **11,315,189 bytes** in every one of the three runs. There is no cap to blame.
-- **Stream reuse is ruled out.** A change now drops an item's held conversations on a fresh start, so
-  the third run opened COLD (`opened at 0 … (open #1)`). It failed byte for byte the same. An
-  explanation built on "a replay rewound a warm stream and discarded what it re-fetched" was also
-  written and retracted; `read(from)` sets `served = from` immediately after re-aiming, so the guard
-  it named is inert.
-- **The app abandons SABR a third of the way in.** The STUCK lines stop, SABR is marked stalled, the
-  app re-resolves by extraction (~20s) and plays HLS. So each failure is reported against a
-  *non-SABR* stream, which is why the assertion message names one.
-- **One of those recoveries lost the position**: `rendered only -41ms`, `9566ms -> 0ms`. A recovery
-  that restarts from zero rather than resuming is a distinct defect visible in the same artefact and
-  has not been looked at.
+**The sequence, in full, from run 35520676271** — because it is two failures, not one, and only the
+first was previously written down:
 
-None of this contradicts the hypothesis this file already holds — a byte-addressed reader cannot
-consume a time-addressed answer, and a `ChunkSource` would not re-ask for a segment it already holds.
-It removes two rivals to it. **Test that hypothesis next; do not invent a third.**
+```
+16:13:01  play uSMGENDH_QI … for play OVER SABR
+16:13:05 → 16:13:24   ×5   [sabr] stalled waiting for byte 104401 — failing so recovery can re-resolve
+16:13:24  [resolve] SABR stalled on uSMGENDH_QI; extracting for it from now on this session
+16:13:44  [resolve] uSMGENDH_QI in 20262ms … → play from …/hls_playlist/…
+16:14:03  [playback] gave up buffering after 19255ms at 0ms — it never recovered
+```
+
+So SABR wedges at 104401, the app correctly gives up and re-resolves by extraction — **and then the
+HLS replacement never buffers either, from position 0.** That second half is the `rendered only
+-41ms` / `9566ms -> 0ms` in the assertion message, seen from the other side: the recovery did not
+merely lose the place, the stream it switched to never started. Whoever picks this up needs both.
+
+This does not generalise across the runs: run 35515542462's failing test has **no HLS play at all**
+(three `videoplayback` plays, the last logged `rescued … over SABR`), so its 60-second window was
+measured on a live SABR conversation. An earlier version of this section said every failure was
+reported against a non-SABR stream; that is true of runs 2 and 3 only.
+
+**The open lead, which is the one thing here with an experiment attached.** `itag 137 gave nothing at
+30429ms … NOT ending, skipping ahead` fires after the fourth empty answer, lands the conversation at
+~3.1 MB, and the reader is still at 104401 waiting for the byte after what it holds — segments 3, 4
+and 5 are never fetched. **Whether the skip creates the gap or merely follows one is not
+established**, and the next person should establish it before changing anything. It sits alongside
+this file's existing hypothesis rather than replacing it.
+
+**What the new runs mostly add is negative evidence**, which is worth as much:
+
+- **Client identity is ruled out.** `[sabr] … SABR session from the X player` counts are
+  EMBEDDED/ANDROID = **12/8, 2/6, 0/18**; the test failed identically in all three, and run 1's
+  failing play was itself on ANDROID. An explanation built on "the embedded player refused it, so
+  SABR fell back to a capped ANDROID client" was written and retracted — `SabrKeepsServingTest`,
+  ANDROID, same video, served **11,315,189 bytes** in every one of the three runs, so there is no
+  cap to blame. (That retraction first quoted the counts as "12/0, 2/0, 0/11". The 11 was the
+  *embedded-refusal* count in run 3, a different metric on the other side of the slash.)
+- **Stream reuse is ruled out.** Only run 3's build contains the change that drops held
+  conversations on a fresh start, and only run 3 logs `dropped 1 held stream(s) … so a replay opens
+  cold` — that line, not `opened at 0 … (open #1)`, is what distinguishes the cases, because the
+  latter fires on every open including a warm reuse. Run 3 opened cold and failed byte for byte the
+  same. An explanation built on "a replay rewound a warm stream and discarded what it re-fetched"
+  was also written and retracted; `read(from)` sets `served = from` immediately after re-aiming, so
+  the guard it named is inert.
+
+**Note on this file's framing.** Its opening line says SABR "is offered only as a rescue". That is
+not true of `AnHourLongItemDoesNotRebufferTest`, which sets `setSabrPlayback(true)` and makes SABR
+the **primary** route; SABR fires as a rescue later in the same cascade. The distinction matters
+because the audio-only rung is reachable from the rescue ladder and not from the primary path, so
+"skip SABR and go straight to audio" is not a one-line change.
+
+**Keep the test red.** It asserts something the app cannot currently deliver on this route, which is
+honest. Softening it is what turned a real breakage into five green days in August.
 

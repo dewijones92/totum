@@ -16,6 +16,7 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.AppShell
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
+import com.dewijones92.totum.ui.common.mayAskForNotifications
 import com.dewijones92.totum.ui.common.rememberTickingNow
 import kotlinx.coroutines.launch
 
@@ -36,42 +37,29 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
-        // The invariant is "never open the dialog over a video", so BOTH halves are checked: a
-        // launch that is about to play one, and a launch where one is already playing.
+        // Never over a video: the dialog is another activity, so it pauses ours and releases the
+        // video surface. Opening a YouTube link is the headline entry point and the first thing
+        // anyone does on a fresh install, which is exactly when nothing has been granted yet.
         //
-        // The dialog is another activity; it pauses ours and releases the video surface. Opening a
-        // YouTube link is the headline entry point and the first thing anyone does on a fresh
-        // install, which is precisely when nothing has been granted yet.
-        //
-        // The second half is not belt and braces. `sharedWatchUrl()` returns null once the intent
-        // has been marked handled, and that mark lives on the very Intent this activity holds — so
-        // a same-process recreation (a density or locale change, "don't keep activities") re-reads
-        // it, sees null, and would ask while the video that launch started is still playing.
-        //
-        // `wantsToPlay`, not `state != null` and not `isPlaying`. A state survives the item ending,
-        // so the loosest check would skip the ask for the rest of the process's life once anything
-        // had ever played. But `isPlaying` is INTENT-blind: Media3 reports it false while BUFFERING
-        // even with playWhenReady true — this repo says so itself, next to togglePlayPause — so it
-        // would let the dialog open over a video that is spinning up, which is the exact window this
-        // gate exists for. `wantsToPlay` is playWhenReady: "is it meant to be playing". And
-        // it covers less than it looks: `state` is written from the MediaController's listener,
-        // registered in an ASYNC connect callback, so on a cold start this reads null whatever is
-        // about to happen. Same-process recreation is the case it genuinely handles.
-        //
-        // The cost is that the ask waits for a quiet launch. Right way round: the permission only
-        // decorates playback with a notification, while asking at the wrong moment stops the
-        // picture.
-        val somethingIsOrIsAboutToBePlaying =
-            intent.sharedWatchUrl() != null || container.playbackController.state.value?.wantsToPlay == true
+        // The predicate lives in mayAskForNotifications, with a test, because it has been wrong
+        // twice. It covers same-process recreation (a density or locale change, "don't keep
+        // activities"), where the intent has already been marked handled and would otherwise read
+        // as "nothing to play". It does NOT cover a cold start: `state` is written from the
+        // MediaController listener registered in an async connect callback, so onCreate reads null
+        // whatever is about to happen.
+        val mayAsk = mayAskForNotifications(
+            hasSharedLink = intent.sharedWatchUrl() != null,
+            state = container.playbackController.state.value,
+        )
         setContent {
             TotumTheme {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
                     AppShell(
                         container,
-                        askForNotifications = if (somethingIsOrIsAboutToBePlaying) {
-                            {}
-                        } else {
+                        askForNotifications = if (mayAsk) {
                             { RequestNotificationPermissionOnce() }
+                        } else {
+                            {}
                         },
                     )
                 }

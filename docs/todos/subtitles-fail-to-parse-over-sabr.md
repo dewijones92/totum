@@ -6,10 +6,10 @@ area: playback
 updated: 2026-09-20
 ---
 
-# Six identical subtitle failures, only on the SABR route
+# Subtitles fail to parse on the SABR route, only on the SABR route
 
-CI runs 35515542462 and 35518233998 (2026-09-20) each carry **two** of these — one per subtitle
-track, which matches the `2 subtitle tracks` those plays resolve. (An earlier version of this file
+CI runs 35515542462 and 35518233998 (2026-09-20) each carry **two** of these — one per PLAY ATTEMPT that
+reaches the parser — 15.6 seconds apart in one run, so not two tracks failing together. (An earlier version of this file
 said six. That was a line count: each failure logs three lines, and I counted the echoes.) Both
 times both of them fall inside one test — `AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering`,
 the case that turns SABR on:
@@ -53,7 +53,7 @@ every report as lines nobody read.
 
 ## What is known, and what is not
 
-- **Known:** it happens only under SABR, repeatably, twice per affected play, on a video whose
+- **Known:** it happens only under SABR, repeatably, once per play attempt that gets that far, on a video whose
   resolution reports `2 subtitle tracks` over SABR against `8 subtitle tracks` on the ordinary
   route for the same video. So SABR's player response offers a different, smaller set.
 - **Not known:** whether the declared mime is wrong, the `fmt` is wrong, or the response is an

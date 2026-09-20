@@ -190,34 +190,11 @@ class AnHourLongItemDoesNotRebufferTest {
     }
 
     /**
-     * Which path the bytes actually came from, read off the URL that was played.
-     *
-     * Named from the URL and never from the [USE_SABR] setting, which is the mistake this replaces.
-     * A first attempt printed `via sabr` whenever the setting was on, and on 2026-08-20 that labelled
-     * a run whose SABR stream died at 104401B and whose five clean minutes came from the recovery
-     * ladder falling back to extraction. It credited the result to the path that had just failed.
-     * The setting says what was ALLOWED; only the URL says what happened.
+     * Which route the play actually took. Lives in `:app` as [pathTakenFrom] so it can be unit
+     * tested — it shipped wrong twice without one, and the second version repeated the first's
+     * answer. See `PathTakenTest`, which pins both broken versions as cases.
      */
-    private fun pathTaken(): String {
-        val trail = Breadcrumbs.snapshot()
-        val playedAt = trail.indexOfLast { it.message.contains(" from http") }
-        if (playedAt < 0) return "unknown — nothing recorded a played URL"
-        // SABR is judged from the sabr trail, NOT the URL. The marker this used to look for
-        // (`totumSabrItag`) is a QUERY parameter, and the breadcrumb it reads is written through
-        // `forLog()`, which is `substringBefore('?')` — so the branch could never be taken and every
-        // SABR play was reported as "a direct url". Run 35515542462 says exactly that while its SABR
-        // conversation was live throughout. Found by an adversarial review, 2026-09-20; the previous
-        // version of this function was itself written to fix a mislabelling, and was never checked
-        // for the fault it rejected.
-        val servedOverSabr = trail.drop(playedAt)
-            .any { it.tag == "sabr" && it.message.contains("serving ") }
-        val played = trail[playedAt].message
-        return when {
-            servedOverSabr -> "sabr"
-            played.contains("hls_playlist") -> "hls"
-            else -> "a direct url"
-        }
-    }
+    private fun pathTaken(): String = com.dewijones92.totum.playback.pathTaken()
 
     /** The most recent playback breadcrumb, which is the app's own account of what it just decided. */
     private fun lastPlaybackNote(): String? = Breadcrumbs.snapshot()
