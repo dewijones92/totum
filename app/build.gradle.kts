@@ -10,6 +10,9 @@ android {
     defaultConfig {
         applicationId = "com.dewijones92.totum"
         targetSdk = libs.versions.targetSdk.get().toInt()
+        // Our own runner, only so POST_NOTIFICATIONS is granted before any test plays anything.
+        // See TotumTestRunner for why it cannot be a shell script or a per-test rule.
+        testInstrumentationRunner = "com.dewijones92.totum.TotumTestRunner"
         // CI passes monotonically increasing values (-PversionCode / -PversionName)
         // so Obtainium sees every main-tip build as an upgrade.
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1

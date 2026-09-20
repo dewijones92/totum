@@ -48,7 +48,7 @@ import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.MiniPlayerBar
 import com.dewijones92.totum.ui.common.ProvidePlayStates
-import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnFirstPlay
+import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
 import com.dewijones92.totum.ui.player.CommentReplies
@@ -88,7 +88,7 @@ fun AppShell(container: AppContainer, modifier: Modifier = Modifier) {
     val controller = container.playbackController
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
 
-    RequestNotificationPermissionOnFirstPlay(playbackActive = playbackState != null)
+    RequestNotificationPermissionOnce()
     // The stage reports where the picture is, so the system animates from it rather
     // than cross-fading the whole app into the floating window.
     val videoBounds = remember { VideoBounds() }

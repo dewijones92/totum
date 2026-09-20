@@ -148,7 +148,7 @@ code is single-use and short-lived. So treat the token as an asset:
   exactly that reason — `ASignInSurvivesTheProcessTest` clears its own file, and the version that used
   the default signed the device out (2026-08-19, throwing away an approval from minutes earlier).
 - **Never run instrumented tests via `./gradlew` while signed in.** Use
-  `adb shell am instrument -w -r -e class <FQN> com.dewijones92.totum.test/androidx.test.runner.AndroidJUnitRunner`
+  `adb shell am instrument -w -r -e class <FQN> com.dewijones92.totum.test/com.dewijones92.totum.TotumTestRunner`
   against an already-installed APK, and `adb install -r` (never `-t` fresh) when the APK must change.
 - To sign in without the UI, run `SignInOnThisDeviceTest` and watch logcat for `dewidebug signin code`.
   It drives the real `YouTubeAccount.signIn()`, which persists the tokens itself — and it early-returns

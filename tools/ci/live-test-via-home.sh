@@ -90,6 +90,12 @@ if [ -z "$LIVE" ]; then
   echo "matches nothing, because that reports success having tested nothing." >&2
   exit 1
 fi
+# POST_NOTIFICATIONS is granted by TotumTestRunner, in the test process, not here. A `pm grant`
+# at this point is aimed at a package `connectedAndroidTest` is about to replace, and one against
+# a missing package exits 0 saying `Failure [package not found]` on stderr — so the customary
+# `2>/dev/null || true` turned a no-op into a line that looked like a fix. It lived here for one
+# commit and never granted anything.
+
 echo "running live instrumented tests: $LIVE"
 ./gradlew :app:connectedDebugAndroidTest --no-daemon \
   -Pandroid.testInstrumentationRunnerArguments.class="$LIVE"
