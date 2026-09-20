@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -228,7 +229,10 @@ class MediaItemRowKeepsActionsTest {
 
         composeTestRule.onNodeWithTag(ROW).performTouchInput { longClick() }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText(label).assertIsDisplayed()
+        // Scrolled to, not merely asserted present: the sheet holds thirteen actions and on a
+        // short screen the tail is below the fold. CI's emulator is shorter than this laptop's,
+        // which is how it found that the sheet could not scroll at all.
+        composeTestRule.onNodeWithText(label).performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(label).performClick()
 
         assertEquals(listOf(MediaItemId("abc")), deletesAsked)

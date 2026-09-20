@@ -129,3 +129,16 @@ exactly the friction that stops that, and a download is re-fetchable. The **Libr
 each copy's size, which is what makes that list worth working down — and the Library is where
 clearing space actually happens. Worth knowing that the other surfaces do not show a size, so the
 argument is strongest exactly where it is used.
+
+### The sheet had already outgrown a short screen
+
+Adding a thirteenth action is what exposed it, but the fault was older: `ActionSheet` opened
+**partially expanded** and its content could not scroll, so anything past the fold was unreachable
+with nothing to suggest it existed. At 1080x2400 "Go to channel" was already sitting on the very
+bottom edge — visible in the screenshot taken to check this change, and not registered at the time.
+
+CI caught it on a smaller emulator than this laptop's, and it reproduced here at **1080x1920 @
+480dpi** (`adb shell wm size` / `wm density`), which is how the fix was checked rather than
+guessed. The partially-expanded state was the half that mattered: it offsets the whole sheet rather
+than constraining its content, so an inner scroll had nothing to scroll against. The sheet now
+opens fully expanded AND scrolls, verified down to a 426dp-tall screen.

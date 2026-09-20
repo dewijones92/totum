@@ -1,11 +1,14 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
@@ -25,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,39 +83,53 @@ internal fun ActionSheet(
     played: Boolean,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        SheetAction(onPlayNext, Icons.AutoMirrored.Filled.PlaylistPlay, R.string.queue_play_next, onDismiss)
-        SheetAction(onAddToQueue, Icons.AutoMirrored.Filled.QueueMusic, R.string.queue_add, onDismiss)
-        SheetAction(onAddToPlaylist, Icons.AutoMirrored.Filled.PlaylistAdd, R.string.playlist_add_to, onDismiss)
-        SheetAction(onRemoveFromPlaylist, Icons.Filled.Delete, R.string.playlist_remove_from, onDismiss)
-        SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
-        SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
-        SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
-        SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
-        SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)
-        SheetAction(
-            onSwitchMode,
-            if (audioMode) Icons.Outlined.SmartDisplay else Icons.Outlined.Headphones,
-            if (audioMode) R.string.play_with_video else R.string.play_audio_only,
-            onDismiss,
-        )
-        SheetAction(onMoveToTop, Icons.Filled.VerticalAlignTop, R.string.queue_move_to_top, onDismiss)
-        SheetAction(onMoveToBottom, Icons.Filled.VerticalAlignBottom, R.string.queue_move_to_bottom, onDismiss)
-        SheetAction(onGoToSource, pillarIcon(sourcePillar), goToSourceLabelRes(sourcePillar), onDismiss)
-        SheetAction(
-            onSetPlayed?.let { { it(!played) } },
-            if (played) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.CheckCircle,
-            if (played) R.string.mark_unplayed else R.string.mark_played,
-            onDismiss,
-        )
-        Spacer(Modifier.height(16.dp))
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        // Fully expanded, and scrollable. This sheet can hold thirteen actions and a two-line
+        // title: at 1080x2400 "Go to channel" already sat on the very bottom edge, and adding
+        // "Delete downloaded file" put the tail off a shorter phone entirely — unreachable, with
+        // nothing to suggest anything was missing. CI found it on a smaller emulator than this
+        // laptop's, reproduced here at 1080x1920 @ 480dpi.
+        //
+        // The partially-expanded state is the half that matters: it offsets the whole sheet
+        // rather than constraining its content, so the inner scroll had nothing to scroll and
+        // the rows below the fold were simply gone.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            SheetAction(onPlayNext, Icons.AutoMirrored.Filled.PlaylistPlay, R.string.queue_play_next, onDismiss)
+            SheetAction(onAddToQueue, Icons.AutoMirrored.Filled.QueueMusic, R.string.queue_add, onDismiss)
+            SheetAction(onAddToPlaylist, Icons.AutoMirrored.Filled.PlaylistAdd, R.string.playlist_add_to, onDismiss)
+            SheetAction(onRemoveFromPlaylist, Icons.Filled.Delete, R.string.playlist_remove_from, onDismiss)
+            SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
+            SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
+            SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
+            SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
+            SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)
+            SheetAction(
+                onSwitchMode,
+                if (audioMode) Icons.Outlined.SmartDisplay else Icons.Outlined.Headphones,
+                if (audioMode) R.string.play_with_video else R.string.play_audio_only,
+                onDismiss,
+            )
+            SheetAction(onMoveToTop, Icons.Filled.VerticalAlignTop, R.string.queue_move_to_top, onDismiss)
+            SheetAction(onMoveToBottom, Icons.Filled.VerticalAlignBottom, R.string.queue_move_to_bottom, onDismiss)
+            SheetAction(onGoToSource, pillarIcon(sourcePillar), goToSourceLabelRes(sourcePillar), onDismiss)
+            SheetAction(
+                onSetPlayed?.let { { it(!played) } },
+                if (played) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.CheckCircle,
+                if (played) R.string.mark_unplayed else R.string.mark_played,
+                onDismiss,
+            )
+            Spacer(Modifier.height(16.dp))
+        }
     }
 }
 
