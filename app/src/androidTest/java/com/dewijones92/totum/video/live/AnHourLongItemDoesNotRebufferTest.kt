@@ -165,10 +165,22 @@ class AnHourLongItemDoesNotRebufferTest {
         // video case sat at 300901ms for the whole window because the buffer was already five minutes
         // ahead and full, so its delta was zero while everything worked.
         val rendered = played - playedFrom
+        // WHY it stopped, in the assertion message and not only in logcat. CI does not capture
+        // logcat, so on 2026-09-20 this failed with `buffered 0ms, 9566ms->9566ms` — enough to
+        // see the stream had stopped dead and nothing at all about the cause, while the line
+        // that would have said so was written to a device log nobody collects. The notes name
+        // which of four reasons the player gave, and the path names whether it was SABR, HLS or
+        // a direct URL, which is the first thing any theory has to account for.
+        val why = "via ${pathTaken()}" +
+            stalls.joinToString(prefix = " stalls[", postfix = "]") +
+            settled.joinToString(prefix = " whileSettling[", postfix = "]")
         assertTrue(
-            "playing $what rendered only ${rendered}ms in ${WATCH_MS}ms — it stopped rather than played, " +
-                "and a stopped player reports no buffering at all, which is how this passed before " +
-                "(buffered ${progressed}ms, ${startedAt}ms->${reached}ms)",
+            // WHY first: a CI annotation is truncated at 300 characters, and the numbers are the
+            // recoverable half — they survive in the JUnit XML that CI uploads either way, while
+            // the stall notes are the part nobody can get back without another failing run.
+            "playing $what $why — rendered only ${rendered}ms in ${WATCH_MS}ms, so it stopped " +
+                "rather than played, and a stopped player reports no buffering at all, which is " +
+                "how this passed before (buffered ${progressed}ms, ${startedAt}ms->${reached}ms)",
             rendered >= WATCH_MS / STOPPED_UNLESS_FRACTION,
         )
         assertTrue(

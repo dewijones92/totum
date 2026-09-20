@@ -86,17 +86,22 @@ recreated at a much higher rate, and it buries the reports that are somebody act
 something: the one real report of 20 September — the rewind bug — sat among forty test uploads
 made the same morning.
 
-The **automatic** upload at launch now returns early on an emulator, saying so in the trail rather
-than going quiet. A **hand-sent** one never is: tapping "Send diagnostics" has asked, and an
-emulator is where this app gets debugged — a button that silently did nothing while the UI said
-"Sent" would be worse than the noise it avoided. Reports are still written either way, and are read
-off the device with `adb`.
+**The discriminator is instrumentation, not the device**, and getting that wrong cost a whole
+round. The first version guarded only the automatic launch-time upload and achieved close to
+nothing: the tests producing the noise are **hand-sends by construction** —
+`DiagnosticsContentTest` and `DiagnosticsNoteBoxTest` call `sendDiagnostics()`, the same seam the
+Settings button calls, and neither is excluded from the ordinary CI job. No `Build` heuristic can
+separate those from a person, because on the device they are identical. Whether a test runner is
+in the process separates them exactly, and `androidx.test` is an `androidTestImplementation`
+dependency that never ships.
 
-That split also settles what getting the detector wrong costs. A false negative is one filterable
-row on the Pi. A false positive would otherwise cost exactly the six reports a month that matter,
-**silently** — the phone simply goes quiet, and nothing on the server can tell "nothing broke" from
-"the detector misfired". With the button always sending, a misdetected phone still gets its report
-out the moment it is asked for.
+A person tapping "Send diagnostics" on an emulator still sends — that is where this app gets
+debugged, and a button that silently did nothing while the UI said "Sent" would be worse than the
+noise it avoided. Reports are still written in every case, and read off the device with `adb`.
+
+The emulator check remains as a **secondary** guard on the automatic path, for an emulator someone
+is driving by hand. Its false-positive cost is bounded by the same rule: a misdetected phone still
+gets its report out the moment the button is tapped.
 
 ### The detector leads with `Build.HARDWARE`, because it is the only stable signal
 
@@ -115,9 +120,11 @@ clauses that do fire depend on a naming convention Google has already changed tw
 `goldfish`) is the QEMU machine type every AOSP, Google-APIs, ATD and Play-Store image reports,
 across API levels, and it is what CI's image reports too.
 
-`EmulatorsDoNotUploadTest` guards all three behaviours, and each was proven to fail on its own
-mutation — including the third, whose first version **could not fail at all**, because it matched
-`"uploading"`, which is a substring of `"not uploading"`.
+`EmulatorsDoNotUploadTest` guards all four behaviours, each proven to fail on its own mutation.
+Two of its cases exist because of mistakes made writing it: one version **could not fail at all**
+(it matched `"uploading"`, a substring of `"not uploading"`), and the case that matters most —
+a hand-send from a test being suppressed — was missing entirely from the version that shipped the
+ineffective guard.
 
 ## Not just crashes
 

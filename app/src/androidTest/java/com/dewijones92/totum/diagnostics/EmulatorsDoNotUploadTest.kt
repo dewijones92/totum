@@ -19,17 +19,18 @@ import org.junit.Test
 import java.io.File
 
 /**
- * A test run must not post to the diagnostics sink — but a person tapping "Send" always may.
+ * A test run must not post to the diagnostics sink — by ANY route, including a hand-send.
  *
- * Every instrumented run launches the app, which uploads whatever is pending, so the sink filled
- * with test output: in September **100 of 106 reports came from an emulator and six from the
- * phone**. That is the "26 unread reports" failure the triage feature exists to prevent, recreated
- * at a much higher rate, and it buries the ones that are somebody actually telling us something.
+ * In September **100 of 106 reports on the sink came from an emulator and six from Dewi's phone**:
+ * the "26 unread reports" failure the triage feature exists to prevent, recreated at a much higher
+ * rate, burying the ones that are somebody actually telling us something.
  *
- * Three things are guarded, and the middle one is the one a careless version of this test misses:
- * the automatic upload is suppressed here, a hand-sent one is NOT (an emulator is where this app
- * gets debugged), and **this very emulator is recognised as one** by the real detector rather than
- * a double — if a future system image stops matching it, uploading silently resumes.
+ * The first version of this guard covered only the automatic launch-time upload and achieved close
+ * to nothing, because the tests doing the uploading are HAND-SENDS — `DiagnosticsContentTest` and
+ * `DiagnosticsNoteBoxTest` call `sendDiagnostics()`, the same seam the Settings button calls. So
+ * the discriminator here is **instrumentation**, which is the one thing that differs, and the case
+ * that matters most is `thisTestRunIsRecognisedAsOne`: it uses the REAL detector, so if it ever
+ * stops working, uploading silently resumes and nothing else would notice.
  */
 class EmulatorsDoNotUploadTest {
 
@@ -60,24 +61,44 @@ class EmulatorsDoNotUploadTest {
             true
         } == true
 
-    private fun uploader(onAnEmulator: (() -> Boolean)? = null) =
-        onAnEmulator
-            ?.let { DiagnosticsUploader(context, OkHttpClient(), scope, REFUSED, it) }
-            ?: DiagnosticsUploader(context, OkHttpClient(), scope, REFUSED)
+    /**
+     * Defaults are the PRODUCTION detectors, named explicitly rather than left implicit — a case
+     * that means to exercise the real one must not be able to lose it to a later refactor.
+     */
+    private fun uploader(
+        onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
+        underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
+    ) = DiagnosticsUploader(context, OkHttpClient(), scope, REFUSED, onAnEmulator, underInstrumentation)
 
-    /** The detector, against the thing it exists to detect — with no double in the way. */
+    /**
+     * THE case. A hand-send from a test must not reach the Pi, and this uses the real detector —
+     * `DiagnosticsContentTest` drives exactly this path and produced most of September's noise.
+     */
     @Test
-    fun thisEmulatorIsRecognisedAsOne() = runBlocking {
+    fun thisTestRunIsRecognisedAsOne() = runBlocking {
         aPendingReport()
         val before = DiagnosticsStore.pending(context).toSet()
 
-        uploader().uploadPending()
+        uploader().sendDiagnosticsNow()
 
         assertTrue(
-            "the emulator running this test was not recognised as an emulator, so it would upload",
-            awaitTrail("suppressed"),
+            "a hand-send from a TEST was not suppressed, so every test run still posts to the Pi",
+            awaitTrail("this is a test run"),
         )
         assertEquals("a suppressed upload must not delete anything", before, DiagnosticsStore.pending(context).toSet())
+    }
+
+    /** And the automatic path is suppressed on an emulator even when no test is driving. */
+    @Test
+    fun anEmulatorDoesNotUploadAutomatically() = runBlocking {
+        aPendingReport()
+
+        uploader(underInstrumentation = { false }).uploadPending()
+
+        assertTrue(
+            "the emulator running this test was not recognised as an emulator",
+            awaitTrail("this is an emulator"),
+        )
     }
 
     /**
@@ -89,7 +110,7 @@ class EmulatorsDoNotUploadTest {
     fun aRealDeviceStillUploads() = runBlocking {
         aPendingReport()
 
-        uploader(onAnEmulator = { false }).uploadPending()
+        uploader(onAnEmulator = { false }, underInstrumentation = { false }).uploadPending()
 
         assertTrue(
             "nothing tried to upload, so the guard has disabled the pipeline rather than narrowed it",
@@ -97,12 +118,12 @@ class EmulatorsDoNotUploadTest {
         )
     }
 
-    /** A person asked. It goes, on an emulator, using the REAL detector. */
+    /** A person asked, on an emulator, with no test driving. It goes — that is where Dewi debugs. */
     @Test
     fun aHandSentReportGoesEvenFromAnEmulator() = runBlocking {
         aPendingReport()
 
-        uploader().sendDiagnosticsNow()
+        uploader(underInstrumentation = { false }).sendDiagnosticsNow()
 
         assertTrue(
             "the Settings button did nothing on an emulator, while the UI says Sent",

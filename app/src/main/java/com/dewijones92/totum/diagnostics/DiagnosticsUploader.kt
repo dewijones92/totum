@@ -19,20 +19,26 @@ import java.io.IOException
  * network call would likely be killed mid-flight, so the crash handler only writes to
  * disk and the next launch does the sending.
  *
- * **The AUTOMATIC upload is suppressed on an emulator; a hand-sent one never is.** Every
- * instrumented run — each CI job, and each local one — launches the app and posts whatever it
- * wrote, so the sink filled with test output: of 106 reports in September, **100 came from an
- * emulator and six from the phone**. That is the same "26 unread reports" failure the triage
- * feature was built to prevent, recreated at a much higher rate, and it buries the reports that
- * are someone actually telling us something.
+ * **Nothing is uploaded from a test run.** Of 106 reports on the sink in September, **100 came
+ * from an emulator and six from Dewi's phone** — the "26 unread reports" failure the triage
+ * feature was built to prevent, recreated at a much higher rate, burying the reports that are
+ * someone actually telling us something.
  *
- * Only [uploadPending] is guarded, and [sendDiagnosticsNow] is deliberately not: a person tapping
- * "Send diagnostics" has asked, and an emulator is where Dewi debugs. That split also settles the
- * cost of getting the detector wrong. A false NEGATIVE costs one filterable row; a false POSITIVE
- * would otherwise cost exactly the reports that matter, silently — the phone would simply go
- * quiet, and nothing on the server can tell "nothing broke" from "the detector misfired". With
- * the button always sending, a misdetected phone still gets its report out the moment it is
- * asked for, so the detector can be judged on accuracy rather than on that asymmetry.
+ * The discriminator is **instrumentation, not the device**, and getting that wrong cost a whole
+ * round: guarding only the automatic launch-time upload achieved close to nothing, because the
+ * tests generating the noise are HAND-SENDS by construction — `DiagnosticsContentTest` and
+ * `DiagnosticsNoteBoxTest` drive `sendDiagnostics()`, the same seam the Settings button drives,
+ * and neither is excluded from the ordinary CI job. No `Build` heuristic can separate those from
+ * a person, because on the device they are identical. Whether a test runner is in the process
+ * separates them exactly.
+ *
+ * A person tapping "Send diagnostics" on an emulator still sends — that is where this app gets
+ * debugged, and a button that silently did nothing while the UI said "Sent" would be worse than
+ * the noise it avoided.
+ *
+ * [onAnEmulator] remains as a secondary guard on the AUTOMATIC path only, for an emulator someone
+ * is driving by hand. Its false-positive cost is bounded by the same rule: a misdetected phone
+ * still gets its report out the moment the button is tapped.
  */
 public class DiagnosticsUploader(
     private val context: Context,
@@ -40,6 +46,7 @@ public class DiagnosticsUploader(
     private val scope: CoroutineScope,
     private val endpoint: String = ENDPOINT,
     private val onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
+    private val underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
 ) {
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
     public fun uploadPending(): Unit = upload(becauseSomeoneAsked = false)
@@ -54,9 +61,13 @@ public class DiagnosticsUploader(
                 Diag.log("diagnostics", "nothing pending to upload")
                 return@launch
             }
+            // Said rather than silent in both cases: "my report never arrived" has to be
+            // answerable, and the answer here is a deliberate one.
+            if (underInstrumentation()) {
+                Diag.log("diagnostics", "suppressed ${pending.size} report(s) — this is a test run")
+                return@launch
+            }
             if (!becauseSomeoneAsked && onAnEmulator()) {
-                // Said rather than silent: "my report never arrived" has to be answerable, and the
-                // answer here is a deliberate one.
                 Diag.log("diagnostics", "suppressed ${pending.size} report(s) — this is an emulator")
                 return@launch
             }
@@ -110,7 +121,7 @@ public class DiagnosticsUploader(
  * covers Genymotion. The product/model clauses stay as a belt-and-braces for an image that
  * overrides the hardware string.
  */
-private fun runningOnAnEmulator(): Boolean =
+public fun runningOnAnEmulator(): Boolean =
     Build.HARDWARE in EMULATOR_HARDWARE ||
         Build.DEVICE.startsWith("emu") ||
         Build.FINGERPRINT.startsWith("generic") ||
@@ -123,4 +134,19 @@ private fun runningOnAnEmulator(): Boolean =
         Build.MODEL.contains("Android SDK built for")
 
 /** QEMU machine types: `goldfish` is the classic emulator, `ranchu` everything since API 25-ish. */
-private val EMULATOR_HARDWARE = setOf("ranchu", "goldfish", "vbox86", "android_x86")
+private val EMULATOR_HARDWARE: Set<String> = setOf("ranchu", "goldfish", "vbox86", "android_x86")
+
+/**
+ * Whether a test runner is in this process.
+ *
+ * Instrumentation loads the test APK's classes into the app's own process, so a class that only
+ * the test configurations depend on is present exactly when a test is driving. `androidx.test` is
+ * an `androidTestImplementation` dependency and never ships in the app, so this is false in every
+ * build Dewi installs.
+ *
+ * The device cannot answer this question. `DiagnosticsContentTest` calls the same
+ * `sendDiagnostics()` the Settings button calls, on the same emulator Dewi debugs on — identical
+ * in every `Build` property. What differs is that one of them has a test runner in the process.
+ */
+public fun runningUnderInstrumentation(): Boolean =
+    runCatching { Class.forName("androidx.test.platform.app.InstrumentationRegistry") }.isSuccess

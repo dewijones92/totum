@@ -94,6 +94,8 @@ jobs:
           # not waiting on them.
           script: |
             adb shell input keyevent 82
+            # So the captured log holds this run and not whatever the image booted with.
+            adb logcat -c
             adb shell svc power stayon true
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
@@ -109,7 +111,16 @@ jobs:
             # happened: the log read `excluding live tests: ` with an empty value and nothing was
             # excluded. `[[:space:]]` rather than `\s`, which is a GNU extension and not POSIX ERE.
             sh -c 'L=$(grep -vE "^[[:space:]]*(#|\$)" tools/ci/live-instrumented-tests.txt | sed "s/^manual://" | paste -sd,); test -n "$L" || { echo "live list parsed EMPTY - refusing to run with no exclusions"; exit 1; }; echo "excluding live tests: $L"; ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.notClass="$L"' 
-            tools/ci/live-test-via-home.sh
+            # The device log, captured in the SAME line as the live phase and before its exit code
+            # is propagated. The action runs each line with its own `exec.exec` and no
+            # `ignoreReturnCode`, so a failing line aborts the whole script and kills the
+            # emulator: a capture on its own line runs only when the tests PASSED, which is
+            # precisely when nobody needs it. Every `dewidebug` line the tests write - which
+            # stream was chosen, why the player stalled, what recovery did - goes to logcat, and
+            # nothing collected it: on 2026-09-20 a live test failed with "buffered 0ms" and the
+            # line naming the cause died with the device. stderr to /dev/null, not into the file,
+            # so a zero-line count means what it says rather than counting adb's own error.
+            sh -c 'tools/ci/live-test-via-home.sh; rc=$?; mkdir -p build/ci-logs; adb logcat -d > build/ci-logs/logcat.txt 2>/dev/null || true; echo "captured $(wc -l < build/ci-logs/logcat.txt 2>/dev/null || echo 0) logcat lines"; exit $rc'
 
 
       # Always, not just on failure: a PASS that was really a skip looks identical otherwise,
@@ -129,6 +140,7 @@ jobs:
           path: |
             **/build/reports/androidTests/**
             **/build/outputs/androidTest-results/**
+            build/ci-logs/**
 
   build:
     name: Quality gates + build
