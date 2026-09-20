@@ -134,6 +134,14 @@ internal class StreamRecovery(
      * `bytesDiscarded` cannot credit to a video track. Both have their own documented causes and
      * neither is evidence for this change. Said here rather than quietly deleted, because the
      * wrong version is in a pushed commit message and somebody will read it.
+     *
+     * **And the CI failure it was written for was not this either.** The next run opened the stream
+     * COLD — `dropped 1 held stream(s) … so a replay opens cold`, then `opened at 0 … (open #1)` —
+     * and failed identically. The cause is the embedded player refusing the video and the app
+     * falling back to a SABR client that cannot serve past its first hundred kilobytes; see
+     * `docs/todos/embedded-player-refusal-falls-back-to-capped-sabr.md`. This change is kept
+     * because continuing a previous play's conversation is still the wrong thing to do, but it has
+     * no measured benefit and should not be cited as a fix for anything.
      */
     private val forgetHeldStreams: (MediaItemId) -> Unit = {},
     private val prefetchNext: suspend () -> Unit = {},
