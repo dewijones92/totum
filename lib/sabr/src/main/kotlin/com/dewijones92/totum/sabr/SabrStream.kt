@@ -560,11 +560,18 @@ public class SabrStream(
         if (!complete && emptyResponses < MAX_EMPTY_RESPONSES) {
             // Skip further ahead rather than asking the same question again: the server
             // answers about a media TIME, so the same time returns the same nothing.
+            // Both times, and the one that gave nothing FIRST, because this line used to read
+            // `playerTimeMs` after the line above had already moved it — so it reported the time
+            // being skipped TO as the time that gave nothing. Nothing was ever asked at that time.
+            // It cost real diagnosis on 2026-09-20: a 30-second discrepancy read as evidence of a
+            // seek when the request had been at 429ms all along, four times in a row.
+            val gaveNothingAt = playerTimeMs
             playerTimeMs += stepMs * EMPTY_SKIP_STEPS
             Diag.warn(
                 "sabr",
-                "itag ${format.itag} gave nothing at ${playerTimeMs}ms but only ${served}B of " +
-                    "${length ?: -1}B served — NOT ending, skipping ahead (empty #$emptyResponses)",
+                "itag ${format.itag} gave nothing at ${gaveNothingAt}ms but only ${served}B of " +
+                    "${length ?: -1}B served — NOT ending, skipping ahead to ${playerTimeMs}ms " +
+                    "(empty #$emptyResponses)",
             )
             return
         }

@@ -21,10 +21,17 @@ import com.dewijones92.totum.playback.PlaybackState
  *   `playWhenReady` true, which this repo notes beside `togglePlayPause`. A shared link that is
  *   still spinning up would have been asked over.
  *
- * So both are needed, and both clear when the item ends (`STATE_ENDED` is neither playing nor
- * buffering).
+ * - `isPlaying || isBuffering` was the third wrong answer, and it dropped a case `wantsToPlay` had
+ *   covered. Media3's `isPlaying` is `READY && playWhenReady && suppressionReason == 0`, and
+ *   `PlaybackService` passes `handleAudioFocus = true` — so during a transient audio-focus loss a
+ *   video that is on screen and about to resume reports neither playing nor buffering.
+ *
+ * So all three flags say "occupied", and `hasEnded` is what makes it clear again — that is the part
+ * `wantsToPlay` alone was missing, since nothing calls `pause()` but the user.
  */
 public fun mayAskForNotifications(hasSharedLink: Boolean, state: PlaybackState?): Boolean {
     if (hasSharedLink) return false
-    return !(state?.isPlaying == true || state?.isBuffering == true)
+    if (state == null) return true
+    val occupied = state.isPlaying || state.isBuffering || state.wantsToPlay
+    return !(occupied && !state.hasEnded)
 }

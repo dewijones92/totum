@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.playback.PlaybackController
+import com.dewijones92.totum.playback.pathTaken
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.settings.AppPreferences
@@ -51,6 +52,11 @@ internal class DiagnosticSnapshot(
             put("playing.kind", state?.kind?.name ?: "-")
             put("playing.positionMs", state?.positionMs?.toString() ?: "-")
             put("playing.hasVideo", state?.hasVideo?.toString() ?: "-")
+            // WHICH ROUTE, which a report could not previously answer: "it stopped" reads the same
+            // whether the bytes came over SABR, HLS or a plain URL, and those have different causes
+            // and different fixes. Derived from the trail rather than stored, so it cannot drift
+            // from what actually happened.
+            put("playing.route", runCatching { pathTaken() }.getOrElse { "unknown" })
             put("playing.speed", state?.speed?.toString() ?: "-")
             put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")
             put("playing.volumeBoost", state?.volumeBoost?.name ?: "-")

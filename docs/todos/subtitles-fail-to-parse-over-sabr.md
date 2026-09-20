@@ -36,7 +36,7 @@ differently**:
 [load] track--1 failed after 10060ms — /api/timedtext — HttpDataSourceException: SocketTimeoutException
 ```
 
-against 1.6-2.2s and a parse failure in the other two. The bytes never reached the parser, so the
+against 1.5-2.2s and a parse failure in the other two. The bytes never reached the parser, so the
 parser could not fail. Subtitles are broken in all three runs; only the stage differs.
 
 Recorded at length because calling that a control was the exact mistake the control-case rule in

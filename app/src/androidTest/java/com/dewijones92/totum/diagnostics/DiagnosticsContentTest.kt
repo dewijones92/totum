@@ -150,6 +150,7 @@ class DiagnosticsContentTest {
         val REQUIRED_STATE_KEYS = listOf(
             "playing.title",
             "playing.positionMs",
+            "playing.route",
             "queue.size",
             "queue.items",
             "downloads.queueReady",

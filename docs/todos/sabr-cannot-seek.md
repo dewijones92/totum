@@ -251,6 +251,69 @@ and 5 are never fetched. **Whether the skip creates the gap or merely follows on
 established**, and the next person should establish it before changing anything. It sits alongside
 this file's existing hypothesis rather than replacing it.
 
+### The skip does not create the gap, and the byte-to-time estimate is why (2026-09-20)
+
+**The lead above is closed, with a control.** Four consecutive fetches ask at the SAME time and get
+the SAME three runs back — `init`, `seq 1`, `seq 2`, bytes 0..104401 — before any skip fires:
+
+```
+fetch #2 itag 137 at 429ms -> 289189B response, 0B kept   (retry 1 of 3)
+fetch #3 itag 137 at 429ms -> 289189B response, 0B kept   (retry 2 of 3)
+fetch #4 itag 137 at 429ms -> 289189B response, 0B kept   (retry 3 of 3)
+fetch #5 itag 137 at 429ms -> 289189B response, 0B kept   -> skipping ahead
+```
+
+Segment 3 is never offered, and it is never offered *before* the skip. **The skip follows the gap.**
+
+**Why it asks for 429ms is arithmetic, and it matches to the digit.** The reader holds up to byte
+104401 and converts that to a media time with `HeldSegments.timeOfByte`, which is
+`offset * durationMs / totalBytes` — a whole-file constant-bitrate ratio:
+
+```
+104401 × 5805166 / 1411564633 = 429.4  →  the logged "at 429ms"
+```
+
+But those 104401 bytes are the init segment plus two real segments, which carry far more than 0.43
+seconds of a NASA documentary's low-motion opening. So the app asks the server for a time it has
+already been served, is handed those same segments back, discards them, and reports "no bytes".
+
+**It always takes that fallback.** `HeldSegments` prefers a segment's real `startMs` and only falls
+back to the ratio when it is null — and across the three runs **1,513 MEDIA_HEADERs carry no
+`startMs` at all** (every one logs `:at-1`, which is the null). There is no case in hand where the
+accurate path is taken.
+
+**A natural experiment, run 35525069446 (2026-09-20 17:38): it PASSED.** `no-rebuffer video via
+sabr: rebuffers=0 … rendered=59618ms stalls[]` — a full minute of SABR video, where three earlier
+runs rendered ~9.5s or nothing.
+
+**Not because of anything changed in the app.** Nothing shipped that day touches SABR serving, and
+the run's own numbers say what differed: its first fetch returned **1,977,342B with 1,642,762B
+kept**, against `289,187B / 104,401B` in every failing run. That is the same server, the same video,
+the same code, sending sixteen times as much on the first answer.
+
+And it is exactly what the ratio predicts:
+
+| first fetch kept | `timeOfByte` asks for | outcome |
+|---|---|---|
+| 104,401 B | **429 ms** — already served | stalls, 3 runs |
+| 1,642,762 B | **6,755 ms** — not yet served | plays, 1 run |
+
+So the passing run is a control in the other direction, and the hypothesis survives it: the stall
+is not about which client answers but about **how much the first answer contains**. A small first
+response puts the ratio's estimate behind what was already served; a large one clears it. That also
+explains why the client-identity story looked plausible for a while — EMBEDDED tends to send more,
+but an EMBEDDED run with a small first response (35518233998, 15:22) failed exactly like the rest.
+
+Two controls, both consistent: the AUDIO track is near-constant-bitrate, so the same ratio is
+roughly right and the audio case does not stall; and skipping to a distant time recovers — the very
+next fetch is served `seq 6` and `seq 7` at byte 3,100,017.
+
+**This is a hypothesis with a falsifier, not a proven cause.** It dies if a run appears where the
+headers DO carry `startMs` and the stall still happens, or where a video whose opening bitrate is
+near its file average stalls the same way. Test it that way before building on it. It is a precise
+instance of this file's existing hypothesis rather than a rival to it: a byte-addressed reader is
+guessing at the time-addressed protocol's units, and guessing worst exactly where playback starts.
+
 **What the new runs mostly add is negative evidence**, which is worth as much:
 
 - **Client identity is ruled out.** `[sabr] … SABR session from the X player` counts are

@@ -82,6 +82,52 @@ class PathTakenTest {
         )
     }
 
+    /**
+     * VERSION 3's BUG. An ordinary mid-playback reopen says `continuing at byte N`, not
+     * `opened at`, so keying on the latter missed it. Taken from run 35520676271, where five of the
+     * six opens inside the failing test were continuations.
+     */
+    @Test
+    fun `a sabr play whose reopen continues rather than opens is still sabr`() {
+        val trail = trailOf(
+            "playback" to "play uSMGENDH_QI from https://rr2---sn-8vq54vox03-cgnl.googlevideo.com/videoplayback",
+            "sabr" to "reusing the open stream for uSMGENDH_QI:137 — itag=137 fetches=18",
+            "sabr" to "continuing at byte 104401 (open #1)",
+        )
+        assertEquals("sabr", pathTakenFrom(trail))
+    }
+
+    /**
+     * A SABR conversation belonging to NO play must not stamp an unrelated one.
+     *
+     * `SabrPlaysAcrossVideoTypesTest` drives `SabrStream` directly, leaving opens in the global
+     * trail with no play breadcrumb of their own. Run 35515542462 has an eight-open window like
+     * this between an HLS play and the next play, where the previous version answered "sabr".
+     */
+    @Test
+    fun `sabr opens for another item after an hls play do not stamp it`() {
+        val trail = trailOf(
+            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
+            "sabr" to "serving aqz-KE-bpKQ:137 as VIDEO",
+            "sabr" to "opened at 0 of 999 bytes (open #1)",
+        )
+        assertEquals("hls", pathTakenFrom(trail))
+    }
+
+    /**
+     * A ROUTE decision is not a play. `route <id> -> streaming the video from <url>` also contains
+     * " from http", and never contains `hls_playlist` — so matching on that substring reported an
+     * HLS play as a direct url whenever a route line followed it.
+     */
+    @Test
+    fun `a route decision is not mistaken for the played url`() {
+        val trail = trailOf(
+            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
+            "playback" to "route s2 -> streaming the video from https://www.youtube.com/watch?v=s2",
+        )
+        assertEquals("hls", pathTakenFrom(trail))
+    }
+
     private fun trailOf(vararg entries: Pair<String, String>): List<Breadcrumbs.Entry> =
         entries.mapIndexed { index, (tag, message) ->
             Breadcrumbs.Entry(atEpochMs = index.toLong(), tag = tag, message = message)

@@ -5,27 +5,30 @@ import com.dewijones92.totum.common.Breadcrumbs
 /**
  * Which route the last play actually went down, from the app's own trail.
  *
- * In main rather than androidTest so it can be unit-tested. It has shipped WRONG TWICE, both times
- * because it was judged by pattern-matching a string nobody checked against the code that writes it:
+ * Read the history before changing this. It has shipped WRONG THREE TIMES, each time because the
+ * marker was chosen by reading a log line rather than the code that writes it:
  *
- * 1. It matched `SabrSessions.ITAG_MARKER` against the played URL. That marker is a **query**
- *    parameter and the breadcrumb is written through `forLog()`, which is `substringBefore('?')` —
- *    so the branch could never be taken.
- * 2. The replacement matched a `sabr` breadcrumb containing `"serving "`. That line is emitted only
- *    by `freshStreamFor`; a SABR play that REUSES a held stream logs `"reusing the open stream"`
- *    instead and never reaches it. Across the three CI runs in hand the failing test reused a stream
- *    every time, so the replacement returned the same wrong answer as the bug it replaced.
+ * 1. Matched `SabrSessions.ITAG_MARKER` against the played URL. That is a **query** parameter and
+ *    the breadcrumb goes through `forLog()` = `substringBefore('?')`, so it was unreachable.
+ * 2. Matched a `sabr` line containing `"serving "`. Only `freshStreamFor` emits that; a play that
+ *    REUSES a held stream logs `"reusing the open stream"` instead.
+ * 3. Matched `"opened at "`. `SabrDataSource.open` has **three** branches and only the
+ *    `position == 0` one says that — the others say `"continuing at byte N"` and `"SEEK to byte N"`.
+ *    So an ordinary mid-playback reopen would have been missed. The KDoc claiming "every open, warm
+ *    or cold" was false against a logcat in hand.
  *
- * `opened at` is the line to key on: `SabrDataSource.open` emits it on **every** open, warm or cold.
- * That is why it is quoted here rather than the more descriptive ones — the descriptive lines
- * describe only one of the two paths.
+ * The version that is true to the code keys on the two lines that between them cover **every** way a
+ * SABR source is obtained — `SabrDataSourceFactory` either reuses a held stream or builds a fresh
+ * one, and both name `videoId:itag`. Using the id also scopes the match to THIS play: the trail is
+ * global, and tests that drive `SabrStream` directly leave opens in it that belong to no play at all.
  */
 public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>): String {
-    val playedAt = trail.indexOfLast { it.message.contains(" from http") }
+    val playedAt = trail.indexOfLast { it.tag == PLAYBACK && it.message.startsWith(PLAY_PREFIX) }
     if (playedAt < 0) return "unknown — nothing recorded a played URL"
-    val servedOverSabr = trail.drop(playedAt)
-        .any { it.tag == SABR && it.message.startsWith(SABR_OPENED) }
     val played = trail[playedAt].message
+    val itemId = played.removePrefix(PLAY_PREFIX).substringBefore(" from ")
+    val servedOverSabr = trail.drop(playedAt + 1)
+        .any { it.tag == SABR && it.message.contains("$itemId:") }
     return when {
         servedOverSabr -> "sabr"
         played.contains("hls_playlist") -> "hls"
@@ -36,7 +39,13 @@ public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>): String {
 /** The live trail. */
 public fun pathTaken(): String = pathTakenFrom(Breadcrumbs.snapshot())
 
+private const val PLAYBACK = "playback"
 private const val SABR = "sabr"
 
-/** `SabrDataSource.open`'s line, which is the only one every SABR open produces. */
-private const val SABR_OPENED = "opened at "
+/**
+ * `Media3PlaybackController.play` writes `play <id> from <url>`. Matched as a PREFIX because
+ * `" from http"` alone also matches `route <id> -> streaming the video from <url>`, which is a
+ * decision rather than a play — and a route line never carries `hls_playlist`, so an HLS play
+ * followed by one reported "a direct url".
+ */
+private const val PLAY_PREFIX = "play "

@@ -29,7 +29,14 @@ class AskingForNotificationsTest {
 
     @Test
     fun `a launch while something is playing does not ask`() {
-        assertFalse(mayAskForNotifications(hasSharedLink = false, state = state(isPlaying = true)))
+        // isPlaying implies playWhenReady in Media3 (READY && playWhenReady && no suppression), so
+        // a fixture with isPlaying true and wantsToPlay false is a state that cannot occur.
+        assertFalse(
+            mayAskForNotifications(
+                hasSharedLink = false,
+                state = state(isPlaying = true, wantsToPlay = true),
+            ),
+        )
     }
 
     /**
@@ -41,7 +48,10 @@ class AskingForNotificationsTest {
     fun `a launch while a video is still buffering does not ask`() {
         assertFalse(
             "a video that is spinning up is exactly the window this gate exists for",
-            mayAskForNotifications(hasSharedLink = false, state = state(isBuffering = true)),
+            mayAskForNotifications(
+                hasSharedLink = false,
+                state = state(isBuffering = true, wantsToPlay = true),
+            ),
         )
     }
 
@@ -57,6 +67,25 @@ class AskingForNotificationsTest {
             mayAskForNotifications(
                 hasSharedLink = false,
                 state = state(isPlaying = false, isBuffering = false, wantsToPlay = true, hasEnded = true),
+            ),
+        )
+    }
+
+    /**
+     * THE `isPlaying || isBuffering` BUG — the third wrong answer, which dropped a case the second
+     * one covered.
+     *
+     * `PlaybackService` passes `handleAudioFocus = true`, so a transient focus loss suppresses
+     * playback: Media3 reports READY and playWhenReady but `isPlaying` false, and the player is not
+     * buffering either. The video is on screen and about to resume, and the dialog would land on it.
+     */
+    @Test
+    fun `a launch while playback is suppressed by audio focus does not ask`() {
+        assertFalse(
+            "a suppressed video is still on screen and still about to play",
+            mayAskForNotifications(
+                hasSharedLink = false,
+                state = state(isPlaying = false, isBuffering = false, wantsToPlay = true),
             ),
         )
     }

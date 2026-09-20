@@ -696,8 +696,23 @@ That is the part worth remembering:
 | `BoundedDrainTest` | the logcat bound — a read that never answers is given up on, one that throws is reported as no answer, one that answers passes through. |
 | `TotumTestRunner` | grants POST_NOTIFICATIONS in `onStart` — NOT `onCreate`, which has already called `start()` and so races the suite — drains the shell command to EOF because `executeShellCommand` is asynchronous, and then asks the PACKAGE MANAGER whether it worked rather than reading stdout, because `pm grant` reports failure on stderr and exits 0. Reading its output cannot tell a refusal from a success, which is exactly why the earlier `pm grant` in `live-test-via-home.sh` was useless. Proven by revoking the permission and watching the runner report it granted. |
 
-**Still uncovered, deliberately:** the share-intent path itself. `MainActivity` refuses to ask
-while anything is playing or about to play — checking BOTH the intent and the controller, because
+| `PathTakenTest` | which route a play took, with all THREE previously-shipped-broken versions pinned as cases. It keys on the two lines that between them cover every way a SABR source is obtained (`serving …` / `reusing the open stream …`, both naming `videoId:itag`), which also scopes the match to the play in hand. |
+| `AskingForNotificationsTest` | whether a launch may ask, with all THREE previously-wrong predicates pinned. |
+
+**A live fake control worth knowing about:** the only PASSING execution of
+`AnHourLongItemDoesNotRebufferTest` in the three archived runs never touched SABR at all — its
+`@Before` sets `sabrPlayback = true` but does not clear the resolve cache, so it took a cache hit on
+an ordinary-route resolution from ten minutes earlier and played a direct URL. The other two audio
+executions `assumeTrue`-skipped. So the SABR **audio** path has zero passing evidence across all
+three runs while the suite reads green-or-skipped. `pathTaken()` now prints the route in the
+assertion message and in every diagnostics report; asserting it (or assuming on it) would turn that
+into a real control.
+
+**Still uncovered:** the `MainActivity` call site. `AskingForNotificationsTest` covers the predicate
+and `NotificationPermissionTimingTest` covers `AppShell`, but nothing routes through `MainActivity`
+— so re-inverting the `if` there would be green everywhere. That is the same gap this file already
+records for the share-intent path, and the same lesson: the bug was at the call site both times.
+`MainActivity` refuses to ask while anything is playing, buffering or suppressed-but-about-to-play — checking BOTH the intent and the controller, because
 `sharedWatchUrl()` returns null once the intent is marked handled and a recreation would otherwise
 ask over a video already running — but no test drives an `ACTION_SEND` launch against the
 permission state.
