@@ -45,16 +45,20 @@ class MainActivity : FragmentActivity() {
         //
         // The second half is not belt and braces. `sharedWatchUrl()` returns null once the intent
         // has been marked handled, and that mark lives on the very Intent this activity holds — so
-        // a recreation not covered by the manifest's `configChanges` (a density or locale change,
-        // "don't keep activities", process death then recents) re-reads it, sees null, and would
-        // ask while the video that launch started plays on through PlaybackService. That is the
-        // original defect one door along, and it is the door the intent check opened.
+        // a same-process recreation (a density or locale change, "don't keep activities") re-reads
+        // it, sees null, and would ask while the video that launch started is still playing.
+        //
+        // `isPlaying`, not `state != null`: a state survives the item ending, so the looser check
+        // would skip the ask for the rest of the process's life once anything had ever played. And
+        // it covers less than it looks: `state` is written from the MediaController's listener,
+        // registered in an ASYNC connect callback, so on a cold start this reads null whatever is
+        // about to happen. Same-process recreation is the case it genuinely handles.
         //
         // The cost is that the ask waits for a quiet launch. Right way round: the permission only
         // decorates playback with a notification, while asking at the wrong moment stops the
         // picture.
         val somethingIsOrIsAboutToBePlaying =
-            intent.sharedWatchUrl() != null || container.playbackController.state.value != null
+            intent.sharedWatchUrl() != null || container.playbackController.state.value?.isPlaying == true
         setContent {
             TotumTheme {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {

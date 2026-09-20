@@ -228,9 +228,6 @@ public class CrashReporter(
          */
         const val LOGCAT_TIMEOUT_SECONDS = 3L
 
-        /** The wording lives in [unavailable]; `OutputOfTest` asserts it against this same call. */
-        val LOGCAT_UNAVAILABLE: String get() = unavailable("logcat", LOGCAT_TIMEOUT_SECONDS)
-
         const val LOGCAT_LINES = 1500
         const val MAX_LOGCAT_CHARS = 400_000
     }

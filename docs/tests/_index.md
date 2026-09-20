@@ -702,9 +702,10 @@ while anything is playing or about to play — checking BOTH the intent and the 
 ask over a video already running — but no test drives an `ACTION_SEND` launch against the
 permission state.
 
-## Two narratives that were wrong, in one day (2026-09-20)
+## Three narratives that were wrong, in one day (2026-09-20)
 
-Worth its own heading because it happened **twice**, the second time after being caught the first:
+Worth its own heading because it happened **three times**, the second and third after being caught
+the first:
 
 1. A commit and a KDoc said the previous code deadlocked on a `waitFor` before draining a pipe. It
    never shipped — `git show HEAD~1:<path>` was a plain unbounded `readText()`. The `waitFor` was a
@@ -719,10 +720,20 @@ Worth its own heading because it happened **twice**, the second time after being
    cannot credit to a video track. The fix stands on a narrower claim; the evidence quoted for it
    did not support it.
 
-Both were found by an adversarial review, not by the tests, and neither would have been caught by
-running anything. The check that catches them costs ten seconds: **read `git show <sha>~1:<file>`
-before writing "it used to", and check that a quoted log line is produced by the branch you think
-it is.**
+3. The replacement for (2) said the hour-long video stalls because the embedded player refused it and
+   SABR fell back to a capped ANDROID client. Disproved by the runs already downloaded: the run where
+   the video **did** resolve as EMBEDDED failed the same test the same way, and ANDROID served
+   **11,315,189 bytes** in the very run cited as proof it "cannot serve past its first hundred
+   kilobytes". See `../todos/embedded-player-refusal-falls-back-to-capped-sabr.md`.
+
+All three were found by an adversarial review, not by the tests, and none would have been caught by
+running anything. Two checks catch all of them, and both cost about a minute:
+
+- **Read `git show <sha>~1:<file>` before writing "it used to"**, and check that a quoted log line is
+  produced by the branch you think it is — a log line proves that branch ran and nothing else.
+- **Find the control before naming a cause.** Ask "is there a run where my proposed cause is absent
+  and the failure still happens?" In all three cases the answer was yes and the run was already on
+  disk. A story that only ever meets evidence consistent with it is not a diagnosis.
 
 ## Reading the results without downloading anything (2026-08-11)
 

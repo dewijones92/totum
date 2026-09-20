@@ -1,71 +1,72 @@
 ---
-title: When the embedded player refuses, SABR falls back to a client that cannot serve
+title: The hour-long video stalls at 104401 bytes, under every client, cause unknown
 kind: todo
-status: evidenced, cause understood, fix is a decision for Dewi
+status: observations only — TWO proposed mechanisms have been disproved; do not propose a third without a control
 area: playback
 updated: 2026-09-20
 ---
 
-# The fallback is worse than the thing it falls back from
+# What is actually observed
 
-Two CI runs, 47 minutes apart, on the same video (`uSMGENDH_QI`, NASA's "Cosmic Dawn"):
-
-```
-15:22:41  [resolve] uSMGENDH_QI resolved as the EMBEDDED player — the SABR endpoint that is not capped
-16:09:58  [resolve] uSMGENDH_QI: the embedded player refused: ERROR: This video is unavailable; falling back to ANDROID
-```
-
-In the later run **every** SABR session in the whole suite came from the ANDROID player — eighteen of
-them, zero embedded. And ANDROID's SABR is the capped one
-([[youtube-android-client-first-megabyte]]): it served the init segment plus two more, 104,401 bytes,
-and then answered every subsequent request with the same three runs for ever:
+`AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering` (video case,
+`uSMGENDH_QI`, SABR the **primary** route because the test sets `setSabrPlayback(true)`) has failed in
+three consecutive CI runs. The signature is identical every time:
 
 ```
 fetch #1 itag 137 at 0ms   -> 289187B response, 104401B kept
 fetch #2 itag 137 at 429ms -> 289189B response, 0B kept   (retry 1 of 3)
 fetch #3 itag 137 at 429ms -> 289189B response, 0B kept   (retry 2 of 3)
+fetch #4 itag 137 at 429ms -> 289189B response, 0B kept   (retry 3 of 3)
+itag 137 gave nothing at 30429ms but only 104401B of 1411564633B served — NOT ending, skipping ahead
 ```
 
-`AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering` fails on it, having
-rendered nothing.
+The reader then waits at offset 104401 for the segment after the ones it has, while the stream holds
+segments 1, 2, 6 and 7 around 3.1 MB. `STUCK: itag 137 has no bytes at offset 104401` repeats until
+the test gives up.
 
-## What this is NOT
+# Two mechanisms proposed for this, both WRONG
 
-**It is not the warm-stream replay.** That was the explanation given in `5dc593b`, and this run
-disproves it: the stream here opened **cold** — `opened at 0 of 1411564633 bytes (open #1)`, with
-`dropped 1 held stream(s) for uSMGENDH_QI so a replay opens cold` logged moments before — and
-produced byte-for-byte the same failure. The replay change fired exactly as designed and made no
-difference to this. It is kept because continuing a previous play's conversation is still wrong, but
-it has no evidence behind it and this file exists partly to say so.
+Recorded because the pattern matters more than either wrong answer.
 
-It is also not a regression from anything shipped today: the embedded player served this video an
-hour earlier and refused it later, which is YouTube's decision, not the app's.
+1. **"A replay reused a warm stream and rewound it."** Disproved by the next CI run: the stream opened
+   COLD (`dropped 1 held stream(s) … so a replay opens cold`, then `opened at 0 … (open #1)`) and
+   failed byte for byte the same.
+2. **"The embedded player refused it, so SABR fell back to the capped ANDROID client."** Disproved by
+   the runs already in hand, both of which had been read before the claim was written:
+   - The run where the video **did** resolve as EMBEDDED failed this same test the same way
+     (`15:23:43 failed: anHourLongVideoPlaysOnWithoutRebuffering`). It was never the healthy control
+     the claim treated it as.
+   - In the very run cited as the indictment of ANDROID, ANDROID served **11,315,189 bytes** on other
+     items. "Cannot serve past its first hundred kilobytes" is false on its face.
+   - The stall's held-segment structure is the same under both clients.
 
-## The actual problem
+   So the client identity correlates with nothing here.
 
-Falling back from EMBEDDED to ANDROID **for SABR** trades a working route for one that cannot serve
-past its first hundred kilobytes. Failing the resolve outright would be better than succeeding into
-a stall, because the ladder below has rungs that work — the log shows the app reached SABR only as a
-rescue (`trying SABR as a rescue — the ordinary streams were refused`), and below it sits the
-audio-only rung that has never been refused.
+Also wrong in that version: it said the app "reached SABR only as a rescue". The test sets SABR as the
+**primary** route, which matters because the audio-only rung is reachable from the rescue ladder and
+not from the primary path — so "skip SABR and go straight to audio" was not implementable where it was
+implied. And "the rung below has never been refused" was asserted with no evidence; the audio case was
+SKIPPED in one of the runs quoted.
 
-## The decision, which is Dewi's
+# The discipline this file exists to enforce
 
-When the embedded player refuses, should the app:
+Three causal stories were written today from logs that were merely *consistent* with them. Every one
+would have died in about a minute against the question **"is there a run where my proposed cause is
+absent and the failure still happens?"** — and in every case that run was already downloaded.
 
-1. **skip SABR entirely** and go straight to the audio-only rescue (sound, no picture, immediately);
-2. **try ANDROID SABR anyway** and fall through to audio when it stalls (a picture when the cap does
-   not bite, at the cost of some seconds of nothing); or
-3. **keep today's behaviour** and treat the stall as the ordinary stream-failure path?
+So, before proposing a mechanism for this: find the control. State what varies and what does not.
+A log line proves the branch that emits it ran, and nothing else.
 
-Option 1 is the honest reading of the evidence. Option 2 is worth it only if ANDROID SABR ever
-serves a long video, which nothing here shows. Not chosen unilaterally because it changes what a
-shipped rescue does.
+# An open lead, offered as a lead
 
-## Whatever is chosen
+The app's own `skipping ahead` is a candidate: it fires after the fourth empty answer, lands the
+conversation at ~3.1 MB, and the reader is still at 104401 waiting for the byte after what it holds.
+Segments 3, 4 and 5 are never fetched. Whether the skip creates the gap or merely follows one is
+**not established**, and the next person should establish it before changing anything.
 
-`AnHourLongItemDoesNotRebufferTest` currently asserts something the app cannot deliver when YouTube
-refuses the embedded player, so it is a monitor of YouTube rather than a guard on this app
-([[never-assert-someone-elses-policy]]). It needs to either assert the *fallback* behaviour, or say
-out loud that the embedded refusal is an environment condition — and the second option is the one
-that turned a real breakage into five green days in August, so prefer the first.
+# Whatever is chosen
+
+The test asserts something the app currently cannot deliver on this route, so it is failing honestly
+and should stay red rather than be softened — the alternative turned a real breakage into five green
+days in August ([[never-assert-someone-elses-policy]] cuts the other way here: this failure is about
+*our* code, not a third party's policy).

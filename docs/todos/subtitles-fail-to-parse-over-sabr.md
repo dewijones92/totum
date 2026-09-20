@@ -8,7 +8,9 @@ updated: 2026-09-20
 
 # Six identical subtitle failures, only on the SABR route
 
-CI runs 35515542462 and 35518233998 (2026-09-20) each carry **six** of these, and both times all
+CI runs 35515542462 and 35518233998 (2026-09-20) each carry **six** of these — while run 35520676271,
+which completed before this was written, carries **none**. That difference is itself unexplained and
+is the control this file must not lose sight of, and both times all
 six fall inside one test — `AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering`,
 the case that turns SABR on:
 
@@ -45,12 +47,21 @@ every report as six lines nobody read.
 `Media3PlaybackController.describeSubtitles` now logs, per play:
 
 ```
-subtitles <id>: 2 track(s) — en/English (original) declared=application/ttml+xml asks=ttml | …
+subtitles <id>: 2 track(s) — en/English (original) declared=text/vtt asks=vtt | …
 ```
 
-The next CI run with SABR playback should settle it in one line. **Do not guess at a fix before
-reading that** — the plausible causes (wrong mime, wrong `fmt`, an error body) have different fixes
-and the report will say which.
+**`declared=` is a constant.** `PlayerResponseParser.captionTracks()` hardcodes `SubtitleFormat.VTT`
+for every InnerTube-derived track, and that is the only source on the SABR route — so the mime the
+app claims cannot vary, and the first version of this file showed an example (`ttml`) the code cannot
+produce. What the line genuinely discriminates is `asks=`: the URL is built by
+`base.replace("fmt=srv3", "fmt=vtt")`, which **silently no-ops** when the response's `baseUrl` does
+not carry `fmt=srv3`. So `asks=srv3` or `asks=no fmt` against `declared=text/vtt` is exactly the bug
+shape, and it is the likeliest of the three hypotheses.
+
+The third — an error body at a URL that looks right — is **not** captured by this line. If `asks=vtt`
+comes back clean, that is where to look next, and it needs its own instrumentation.
+
+**Do not guess at a fix before reading a run.**
 
 ## When fixing it
 
