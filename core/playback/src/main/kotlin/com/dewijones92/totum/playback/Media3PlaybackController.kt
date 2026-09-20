@@ -240,7 +240,7 @@ public class Media3PlaybackController(
         // secret, and never the answer. The ROUTE is decided here, from the uri, and carried in the
         // line — see routeOf, which exists because working it out afterwards was wrong four times.
         val mergedAudio = audioUrl?.let { " + audio ${it.value.forLog()}" }.orEmpty()
-        Diag.log("playback", "play ${item.id.value} from ${uri.forLog()}$mergedAudio [$ROUTE_MARKER${routeOf(uri)}]")
+        Diag.log("playback", playBreadcrumb(item.id.value, uri.forLog(), mergedAudio, routeOf(uri, localPath != null)))
         onPlay(item, kind)
         // Each play() claims a generation; only the latest one commits its state and
         // media item. Guards against two quick play() calls (double-tap, queue

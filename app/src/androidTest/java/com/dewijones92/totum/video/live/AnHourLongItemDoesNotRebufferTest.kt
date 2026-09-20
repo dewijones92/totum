@@ -189,11 +189,7 @@ class AnHourLongItemDoesNotRebufferTest {
         )
     }
 
-    /**
-     * Which route the play actually took. Lives in `:app` as [pathTakenFrom] so it can be unit
-     * tested — it shipped wrong twice without one, and the second version repeated the first's
-     * answer. See `PathTakenTest`, which pins both broken versions as cases.
-     */
+    /** Which route the play took, as `Media3PlaybackController` recorded it. See `PlaybackRoute`. */
     private fun pathTaken(): String = com.dewijones92.totum.playback.pathTaken()
 
     /** The most recent playback breadcrumb, which is the app's own account of what it just decided. */

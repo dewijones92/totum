@@ -277,7 +277,10 @@ But those 104401 bytes are the init segment plus two real segments, which carry 
 seconds of a NASA documentary's low-motion opening. So the app asks the server for a time it has
 already been served, is handed those same segments back, discards them, and reports "no bytes".
 
-**It always takes that fallback.** `HeldSegments` prefers a segment's real `startMs` and only falls
+**It usually takes that fallback** (an earlier version said "always", and said "there is no case in
+hand where the accurate path is taken" — both false, and refuted by row 3 of the table below, which
+asked `19,767 ms` via `contiguousEndMs`. The retraction was written and then lost in a later edit,
+which is why it is restated here). `HeldSegments` prefers a segment's real `startMs` and only falls
 back to the ratio when it is null — and across the three runs **1,513 MEDIA_HEADERs carry no
 `startMs` at all** (every one logs `:at-1`, which is the null). There is no case in hand where the
 accurate path is taken.
@@ -292,15 +295,38 @@ build — and the first answer is *identical* in two of them:
 | 17:37:02 (playback, passing) | `1977342B → 1642762B kept` | 19,767 ms — `contiguousEndMs` | plays |
 
 **So the variable is not how much the first answer contained** — an earlier version of this file said
-it was, and the middle row refutes it with the same bytes on both sides. The variable is **whether
-the time it asks for next is past what it already holds.**
+it was, and the middle row refutes it with the same bytes on both sides.
+
+**But "ask past what you hold" is not sufficient either, and the counterexample is forty lines away
+in the same logcat.** The itag-251 audio track of the 17:30 play asks 57,271 ms, then 87,271 ms,
+117,271 ms and 147,271 ms — all far beyond its frontier — and keeps **0 B every time**, dying at
+979,459 B. That is the ~1 MB ceiling this repo already names elsewhere, i.e. a different cause that
+this rule cannot tell apart from the first. **So the honest claim is narrow:** asking for a time
+*behind* the frontier is ONE way to be served nothing, it is demonstrably what happens to itag 137
+at 429 ms, and it is fixable in our code. It is not the only way.
+
+**Row 2 is not a clean control, and saying so is the point.** `SabrKeepsServingTest` builds its
+stream with **no `durationMs`**, which changes two things on the wire at once: `timeOfByte` returns
+null so the claim falls through to the live-stream `+ stepMs` ladder (that is where the neat
+10,000/20,000/30,000 comes from — not a design choice), and `asRanges` returns empty, so that stream
+declares **no buffered ranges at all** while the stalling one declares `described=1`. Rows 1 and 3
+differ in three ways. No pair in this table isolates a single variable; the table shows that
+first-answer size is not it, and nothing more.
+
+**Falsifier for what is left:** the claim dies if a stream is found asking for a time *behind* its
+frontier and being served new bytes anyway, or if itag 137 at 429 ms is served after the claim is
+corrected. Test it by fixing the claim, not by arguing about it.
 
 The arithmetic says why. Those 104,401 bytes are `init 14,226 + seq1 48,478 + seq2 41,697` ≈ **9.9
 seconds** of media (the passing stream's `contiguousEndMs` after four segments was 19,767 ms). The
 ratio claims **429 ms** — `104401 × 5805166 / 1411564633` — which is **23× behind the truth**,
-because a VBR video's opening segments are tiny against its mean bitrate. A claim 9.5 s behind the
-frontier, plus the server's ~15 s readahead, means there is nothing new to send: `absorb` keeps 0 B,
-four empties, dead. The step ladder asks 10,000 ms, lands just past the frontier, and is served.
+because a VBR video's opening segments are tiny against its mean bitrate. A claim behind the frontier means the server answers with the segment
+containing that time — which is exactly what the log shows it doing, `carried … 137=104401B`, the
+same `init+seq1+seq2` again — and `absorb` discards all of it as already held: 0 B, four empties,
+dead. (An earlier version reached for the server's "~15 s readahead" here. That figure is
+`target_audio_readahead_ms`, an AUDIO target, and `NEXT_REQUEST_POLICY` is in the `ignored parts`
+list on every one of these responses. The re-sent bytes are the direct evidence and need no
+arithmetic.) The step ladder asks 10,000 ms, lands just past the frontier, and is served.
 
 `HeldSegments.kt` already says in its own comment that the ratio is unsound for video. This is what
 that costs.

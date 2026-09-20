@@ -1,7 +1,7 @@
 ---
 title: Subtitles fail to parse when playback goes over SABR
 kind: todo
-status: CAUSE FOUND from the instrumentation and fixed; awaiting a CI run to confirm
+status: FIXED and confirmed end to end in CI run 35529171153
 area: playback
 updated: 2026-09-20
 ---
@@ -100,10 +100,21 @@ InnerTube `baseUrl` has no `fmt=srv3` to replace — and it usually has no `fmt`
 `askingForVtt`, which sets `fmt=vtt` whatever was there before, with `AskingForVttTest`; four of its
 five cases are red against the old implementation.
 
-**Not yet confirmed end to end**, and the obvious confirmation is worthless. `asks=` is parsed out
-of the URL the app itself just wrote, so after this fix `asks=vtt` is a **tautology** — it proves the
-string manipulation, not that YouTube served WebVTT. The only real evidence in the next run is
-**zero `SubtitleParser failed`**.
+## Confirmed, CI run 35529171153
+
+```
+[subtitles] uSMGENDH_QI: 2 track(s) — en/English declared=text/vtt asks=vtt
+```
+
+`asks=no fmt` became `asks=vtt`, and the run carries **zero** `SubtitleParser failed` against two per
+affected play before. **And the control was checked**, because the obvious reading is a trap: run
+35525069446 also had zero parse failures, purely because its caption loads had timed out *before*
+reaching the parser. This run has **no `[load]` failure line for `timedtext` at all** — the loads
+happened and succeeded.
+
+## Why `asks=vtt` on its own would have proved nothing `asks=` is parsed out of the URL the app itself just wrote, so after this fix `asks=vtt` is a
+**tautology** — it proves the string manipulation, not that YouTube served WebVTT. The evidence that
+counts is zero `SubtitleParser failed` **together with** the loads actually having run.
 
 What would actually measure it is not logged at all: the caption response's `Content-Type` and first
 bytes. If the parse failures persist with `asks=vtt`, that is the instrumentation to add before

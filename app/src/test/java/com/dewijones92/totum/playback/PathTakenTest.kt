@@ -96,8 +96,13 @@ class PathTakenTest {
         assertEquals("unknown — that play recorded no route", pathTakenFrom(trail))
     }
 
+    /**
+     * Built with the WRITER's own function, which is the whole guard. The previous version
+     * hand-wrote this string, so the reader was pinned to a literal the writer never produced and a
+     * change to the brackets would have been green here and broken in the app.
+     */
     private fun play(id: String, route: String, from: String = "https://rr2---sn-test.googlevideo.com/videoplayback") =
-        "play $id from $from [route=$route]"
+        playBreadcrumb(itemId = id, loggableUri = from, mergedAudio = "", route = route)
 
     private fun trailOf(vararg entries: Pair<String, String>): List<Breadcrumbs.Entry> =
         entries.mapIndexed { index, (tag, message) ->
