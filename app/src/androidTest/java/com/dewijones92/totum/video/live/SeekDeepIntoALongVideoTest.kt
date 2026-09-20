@@ -12,10 +12,9 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -120,28 +119,34 @@ class SeekDeepIntoALongVideoTest {
     private suspend fun seekAnHourInAndKeepPlaying() {
         queue.playNow(longVideo())
 
-        val started = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        } ?: false
-        assertTrue("nothing played at all within ${START_TIMEOUT_MS}ms. Trail:\n${trail()}", started)
+        // Scoped to THIS video, because resolving one takes tens of seconds and the previous item
+        // keeps playing throughout. Unscoped, both waits below were answered instantly by whatever
+        // was already on, and this test failed claiming the 96-minute fixture was 22 minutes long.
+        val playing = PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), START_TIMEOUT_MS) {
+            it.isPlaying
+        }
+        assertTrue(
+            "$VIDEO_ID never played within ${START_TIMEOUT_MS}ms — the player is on " +
+                "${PlaybackWaits.whatIsActuallyPlaying(controller)}. Trail:\n${trail()}",
+            playing != null,
+        )
 
-        val duration = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while ((controller.state.value?.durationMs ?: 0) <= 0) delay(POLL_MS)
-            controller.state.value?.durationMs
-        } ?: 0
+        val known = PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), START_TIMEOUT_MS) {
+            (it.durationMs ?: 0) > 0
+        }
+        val duration = known?.durationMs ?: 0
         assertTrue(
             "the fixture should be long enough for an hour-deep seek to be nowhere near its end, " +
-                "but it reported ${duration}ms",
+                "but $VIDEO_ID reported ${duration}ms. The player is on " +
+                "${PlaybackWaits.whatIsActuallyPlaying(controller)}",
             duration > SEEK_TO_MS + WELL_CLEAR_OF_THE_END_MS,
         )
 
         controller.seekTo(SEEK_TO_MS)
 
-        val arrived = withTimeoutOrNull(SEEK_TIMEOUT_MS) {
-            while ((controller.state.value?.positionMs ?: 0) < SEEK_TO_MS) delay(POLL_MS)
-            true
-        } ?: false
+        val arrived = PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), SEEK_TIMEOUT_MS) {
+            it.positionMs >= SEEK_TO_MS
+        } != null
         assertTrue(
             "never reached ${SEEK_TO_MS}ms — about ${SEEK_TO_MS / 60_000} minutes in, roughly 30MB " +
                 "into the audio. This is the exact request YouTube was refusing on 2026-08-18. " +
@@ -151,12 +156,11 @@ class SeekDeepIntoALongVideoTest {
 
         // ARRIVING is a seek; still moving is the stream being served. A URL that answers one range
         // and refuses the next would satisfy the assertion above and fail this one.
-        val reached = controller.state.value?.positionMs ?: 0
+        val reached = controller.state.value?.takeIf { it.itemId == MediaItemId(VIDEO_ID) }?.positionMs ?: 0
         // Generous, because the fallback to sound-only costs a re-resolve and a fresh connection.
-        val keptGoing = withTimeoutOrNull(PROGRESS_TIMEOUT_MS) {
-            while ((controller.state.value?.positionMs ?: 0) < reached + PROGRESS_MS) delay(POLL_MS)
-            true
-        } ?: false
+        val keptGoing = PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), PROGRESS_TIMEOUT_MS) {
+            it.positionMs >= reached + PROGRESS_MS
+        } != null
         // "Still playing" — not "still playing with a picture". Measured 2026-08-18: a 97-minute video
         // offers NO video format carrying a solved `n`, so watching it an hour in is not something the
         // app can choose; the sound is, and recovery falls back to it. Demanding the picture here would
@@ -204,7 +208,6 @@ class SeekDeepIntoALongVideoTest {
         /** Enough movement to be playback rather than the seek settling. */
         const val PROGRESS_MS = 3_000L
         const val PROGRESS_TIMEOUT_MS = 120_000L
-        const val POLL_MS = 250L
         const val TRAIL_LINES = 30
     }
 }

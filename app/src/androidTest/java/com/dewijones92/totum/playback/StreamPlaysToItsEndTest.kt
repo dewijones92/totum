@@ -60,9 +60,16 @@ class StreamPlaysToItsEndTest {
     private val media = SilentWav.bytes(MEDIA_SECONDS)
     private lateinit var server: RangedMediaServer
 
+    private var autoPlayNextBefore = true
+
     @Before
     fun startServerAndEmptyTheQueue() {
         server = RangedMediaServer(media)
+        // Autoplay OFF: reaching an item's end with an empty queue is what makes the app go and
+        // play something related, and teardown cannot catch it because the end has already happened.
+        // It leaked into a later test on 2026-09-20 — see PlaybackWaits for what that cost.
+        autoPlayNextBefore = container.appPreferences.settings.value.autoPlayNext
+        container.appPreferences.setAutoPlayNext(false)
         runBlocking(Dispatchers.Main) {
             queue.clear()
             // Silence removal deletes a silent file outright, and playback then never starts —
@@ -79,6 +86,7 @@ class StreamPlaysToItsEndTest {
             queue.clear()
             controller.player?.stop()
             controller.player?.clearMediaItems()
+            container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
         }
     }
 

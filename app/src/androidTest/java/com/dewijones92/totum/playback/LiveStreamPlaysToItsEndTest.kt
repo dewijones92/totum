@@ -70,6 +70,8 @@ class LiveStreamPlaysToItsEndTest {
      * So: radios on, wait for the app to actually believe it (ConnectivityManager's callback is
      * asynchronous), and delete any copy of the fixture so nothing can stand in for the stream.
      */
+    private var autoPlayNextBefore = true
+
     @Before
     fun emptyTheQueue() = runBlocking(Dispatchers.Main) {
         goOnline()
@@ -77,6 +79,11 @@ class LiveStreamPlaysToItsEndTest {
             while (container.isOffline()) delay(POLL_MS)
             true
         }
+        // Autoplay OFF: reaching an item's end with an empty queue is what makes the app go and
+        // play something related, and teardown cannot catch it because the end has already happened.
+        // It leaked into a later test on 2026-09-20 — see PlaybackWaits for what that cost.
+        autoPlayNextBefore = container.appPreferences.settings.value.autoPlayNext
+        container.appPreferences.setAutoPlayNext(false)
         container.downloadManager.delete(MediaItemId(VIDEO_ID))
         queue.clear()
         // Sample removal on a short clip can consume the whole thing, which reads as "never played".
@@ -92,6 +99,7 @@ class LiveStreamPlaysToItsEndTest {
             queue.clear()
             controller.player?.stop()
             controller.player?.clearMediaItems()
+            container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
         }
     }
 
