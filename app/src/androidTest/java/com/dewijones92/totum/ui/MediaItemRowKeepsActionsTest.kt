@@ -70,13 +70,14 @@ class MediaItemRowKeepsActionsTest {
 
     /** What the app provides everywhere; a row with no explicit download callbacks must reach it. */
     private val downloadsAsked = mutableListOf<Pair<MediaItemId, Boolean>>()
+    private val deletesAsked = mutableListOf<MediaItemId>()
     private val actions = object : ItemActions {
         override fun playNext(item: MediaItem) = Unit
         override fun addToQueue(item: MediaItem) = Unit
         override fun addToPlaylist(item: MediaItem) = Unit
         override fun peek(item: MediaItem) = Unit
         override fun download(item: MediaItem, audioOnly: Boolean) { downloadsAsked += item.id to audioOnly }
-        override fun deleteDownload(id: MediaItemId) = Unit
+        override fun deleteDownload(id: MediaItemId) { deletesAsked += id }
         override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
         override fun goToSource(item: MediaItem) = Unit
         override val audioMode: Boolean = false
@@ -196,6 +197,54 @@ class MediaItemRowKeepsActionsTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag(ROW).assertIsDisplayed()
+    }
+
+    /**
+     * Dewi, 2026-09-20: *"in the 'download' section in the app it has said I have used lots of space
+     * on my phone … give option to delete file (the offline file) on each item please"*.
+     *
+     * It could already be done, and that is the point — the only affordance was the trailing green
+     * TICK, which reads as "held offline", not as "tap to free 300MB". Naming it in the menu is what
+     * makes it an option rather than a secret, so the menu entry is the thing worth guarding.
+     */
+    @Test
+    fun `a downloaded row offers deleting the file by name`() {
+        composeTestRule.setContent {
+            TotumTheme {
+                CompositionLocalProvider(LocalItemActions provides actions) {
+                    MediaItemRow(
+                        item = item,
+                        subtitleLines = emptyList(),
+                        pillar = MediaKind.VIDEO,
+                        onPlay = {},
+                        downloadState = DownloadState.Downloaded("/data/x.media", audioOnly = true),
+                        modifier = Modifier.testTag(ROW),
+                    )
+                }
+            }
+        }
+        val label = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.download_delete)
+
+        composeTestRule.onNodeWithTag(ROW).performTouchInput { longClick() }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(label).assertIsDisplayed()
+        composeTestRule.onNodeWithText(label).performClick()
+
+        assertEquals(listOf(MediaItemId("abc")), deletesAsked)
+    }
+
+    /** And it is not offered for something there is no copy of, where it would do nothing. */
+    @Test
+    fun `a row with nothing on disk does not offer to delete a file`() {
+        show()
+
+        composeTestRule.onNodeWithTag(ROW).performTouchInput { longClick() }
+        composeTestRule.waitForIdle()
+
+        val label = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.download_delete)
+        composeTestRule.onNodeWithText(label).assertDoesNotExist()
     }
 
     private companion object {

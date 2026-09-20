@@ -259,6 +259,7 @@
     <string name="fullscreen_exit">Exit fullscreen</string>
     <string name="download">Download</string>
     <string name="downloaded_delete">Downloaded — tap to remove</string>
+    <string name="download_delete">Delete downloaded file</string>
     <string name="library_downloads">Downloads</string>
 
     <string name="search_hint">Search podcasts and videos</string>

@@ -37,6 +37,7 @@ internal fun ItemActionSheet(
             .takeIf { (local as? DownloadState.Downloaded)?.audioOnly == true },
         onDownload = { actions.download(item, audioOnly = true) }
             .takeIf { local !is DownloadState.Downloaded && local !is DownloadState.Downloading },
+        onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
         onSwitchMode = { actions.switchMode(item) },
         audioMode = actions.audioMode,
         onGoToSource = { actions.goToSource(item) },

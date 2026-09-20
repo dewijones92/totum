@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-09-06
+updated: 2026-09-20
 ---
 
 # Managing downloads
@@ -107,3 +107,23 @@ so Related, Notifications and Search passed `{}` and drew a download icon that d
 default to `LocalItemActions` like every other action (full media, as a screen's own Download tap
 fetches), and a row with nothing behind them draws no control rather than an inert one. Previews keep
 their `{}` and simply show no icon. `MediaItemRowKeepsActionsTest` drives the default.
+
+## Deleting one download (2026-09-20)
+
+Dewi: *"in the 'download' section in the app it has said I have used lots of space on my phone …
+give option to delete file (the offline file) on each item please"*.
+
+The capability was already there — and had been since the beginning. The problem was that the only
+way to reach it was the trailing control, which for a downloaded item is a **green filled tick**.
+Everything about that glyph says *status*: this is held offline. Nothing about it says *tap me to
+free 300MB*, and its content description (`Downloaded — tap to remove`) is read by TalkBack and
+nobody else. A destructive action that can only be found by guessing has not been offered.
+
+So **"Delete downloaded file" is now a named entry in the action sheet**, added once in
+`ActionSheet` and therefore present on every surface that shows one — rows, the full player, the
+shorts reel — shown only when there is actually a copy on disk. That also gives it to the **queue**,
+whose trailing slot is the drag handle, so its rows previously had no delete at all.
+
+Deliberately **no confirmation**. Clearing space means working down a list, a confirm per item is
+exactly the friction that stops that, and a download is re-fetchable. The size of each copy is
+already on its Library row, which is what makes the list worth working down in the first place.

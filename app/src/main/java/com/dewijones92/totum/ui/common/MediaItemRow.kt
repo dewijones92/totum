@@ -143,9 +143,15 @@ fun MediaItemRow(
     val sheetDownload = onDownload?.takeIf {
         trailing != null && downloadState !is DownloadState.Downloaded && downloadState !is DownloadState.Downloading
     }
+    // Named in the menu as well as drawn as the trailing tick. The tick both REPORTS "downloaded"
+    // and DELETES on tap, so the only affordance for freeing space looked like a status light
+    // (Dewi, 2026-09-20). Offered on every row that has a copy, including the queue's, whose
+    // trailing slot is the drag handle and so had no delete at all.
+    val sheetDeleteDownload = onDeleteDownload?.takeIf { downloadState is DownloadState.Downloaded }
     val hasMenu = listOfNotNull(
         onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue, onPeek,
-        downloadVideo, sheetDownload, onGoToSource, onSetPlayed, onMoveToTop, onMoveToBottom,
+        downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed,
+        onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -181,6 +187,7 @@ fun MediaItemRow(
             onPeek = onPeek,
             onDownloadVideo = downloadVideo,
             onDownload = sheetDownload,
+            onDeleteDownload = sheetDeleteDownload,
             onSwitchMode = onSwitchMode,
             audioMode = audioMode,
             onGoToSource = onGoToSource,

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -59,6 +60,14 @@ internal fun ActionSheet(
     onPeek: (() -> Unit)?,
     onDownloadVideo: (() -> Unit)?,
     onDownload: (() -> Unit)?,
+    /**
+     * Deletes the copy on disk. Dewi, 2026-09-20: *"in the 'download' section in the app it has
+     * said I have used lots of space on my phone … give option to delete file on each item"* — the
+     * capability was there, but the only way to reach it was a green tick in the trailing position
+     * whose whole appearance says "downloaded", not "tap me to free 300MB". A destructive action
+     * that can only be found by guessing is not offered.
+     */
+    onDeleteDownload: (() -> Unit)?,
     onSwitchMode: (() -> Unit)?,
     audioMode: Boolean,
     onGoToSource: (() -> Unit)?,
@@ -86,6 +95,7 @@ internal fun ActionSheet(
         SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
         SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
         SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
+        SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)
         SheetAction(
             onSwitchMode,
             if (audioMode) Icons.Outlined.SmartDisplay else Icons.Outlined.Headphones,
