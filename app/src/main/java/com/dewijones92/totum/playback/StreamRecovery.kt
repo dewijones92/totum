@@ -137,11 +137,16 @@ internal class StreamRecovery(
      *
      * **And the CI failure it was written for was not this either.** The next run opened the stream
      * COLD — `dropped 1 held stream(s) … so a replay opens cold`, then `opened at 0 … (open #1)` —
-     * and failed identically. The cause is the embedded player refusing the video and the app
-     * falling back to a SABR client that cannot serve past its first hundred kilobytes; see
-     * `docs/todos/embedded-player-refusal-falls-back-to-capped-sabr.md`. This change is kept
-     * because continuing a previous play's conversation is still the wrong thing to do, but it has
-     * no measured benefit and should not be cited as a fix for anything.
+     * and failed identically. **The cause is not known.** A second explanation was written here and
+     * is also retracted: "the embedded player refused it, so SABR fell back to a capped client" died
+     * against the runs already on disk — the run that DID use the embedded player failed the same
+     * test the same way, and the supposedly capped client had served 11.3MB elsewhere in the same
+     * run. The evidence now lives in `docs/todos/sabr-cannot-seek.md`, which had documented this
+     * same failure — same video, same bytes — a fortnight earlier, and already names a hypothesis
+     * worth testing.
+     *
+     * This change is kept because continuing a previous play's conversation is still the wrong thing
+     * to do, but it has no measured benefit and should not be cited as a fix for anything.
      */
     private val forgetHeldStreams: (MediaItemId) -> Unit = {},
     private val prefetchNext: suspend () -> Unit = {},

@@ -241,8 +241,8 @@ public fun forgetLiveSabrStreamsFor(videoId: String) {
     val dropped = live.keys.filter { it.startsWith(prefix) }
     dropped.forEach { live.remove(it) }
     if (dropped.isNotEmpty()) {
-        // Said out loud because a silent reuse is invisible: nothing else distinguishes a replay
-        // that began a conversation from one that continued the previous play's.
+        // Said out loud so a replay's FIRST decision is in the trail beside "reusing the open
+        // stream" and "serving …", which report the two outcomes after it.
         Diag.log("sabr", "dropped ${dropped.size} held stream(s) for $videoId so a replay opens cold")
     }
 }

@@ -1,7 +1,7 @@
 ---
 title: SABR cannot be opened part-way through
 status: open — the server now serves a cold jump (embedded endpoint, 2026-09-07); the reader cannot consume one, which is the ChunkSource redesign
-updated: 2026-09-07
+updated: 2026-09-20
 ---
 
 # SABR cannot be opened part-way through
@@ -216,4 +216,32 @@ the stall is in how the reader requests/consumes SABR media time on a long strea
 position and would not re-ask for a segment it already holds. The video path is UNTOUCHED by the
 2026-09-06 session (SABR code not modified); this is the standing SABR-machinery limitation, and the
 emulator job is deliberately **not** a release gate (ci.yml:53) so it does not block the APK.
+
+
+### Three more runs, 2026-09-20 — and two mechanisms proposed for it, both disproved
+
+The same failure, in three consecutive CI runs, with the numbers above reappearing verbatim
+(`104401`, `30429ms`, `2353154B response, 2150211B kept`, `closed at 104401`). What the new runs add
+is mostly **negative** evidence, which is worth as much:
+
+- **Client identity is ruled out.** Resolution per run was 12 EMBEDDED / 0 ANDROID, then 2 / 0, then
+  0 / 11. The test failed identically in all three. An explanation built on "the embedded player
+  refused it, so SABR fell back to a capped ANDROID client" was written and retracted: the run that
+  DID use the embedded player failed the same way, and `SabrKeepsServingTest` — ANDROID, same video —
+  served **11,315,189 bytes** in every one of the three runs. There is no cap to blame.
+- **Stream reuse is ruled out.** A change now drops an item's held conversations on a fresh start, so
+  the third run opened COLD (`opened at 0 … (open #1)`). It failed byte for byte the same. An
+  explanation built on "a replay rewound a warm stream and discarded what it re-fetched" was also
+  written and retracted; `read(from)` sets `served = from` immediately after re-aiming, so the guard
+  it named is inert.
+- **The app abandons SABR a third of the way in.** The STUCK lines stop, SABR is marked stalled, the
+  app re-resolves by extraction (~20s) and plays HLS. So each failure is reported against a
+  *non-SABR* stream, which is why the assertion message names one.
+- **One of those recoveries lost the position**: `rendered only -41ms`, `9566ms -> 0ms`. A recovery
+  that restarts from zero rather than resuming is a distinct defect visible in the same artefact and
+  has not been looked at.
+
+None of this contradicts the hypothesis this file already holds — a byte-addressed reader cannot
+consume a time-addressed answer, and a `ChunkSource` would not re-ask for a segment it already holds.
+It removes two rivals to it. **Test that hypothesis next; do not invent a third.**
 

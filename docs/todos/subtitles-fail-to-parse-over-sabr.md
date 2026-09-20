@@ -8,10 +8,10 @@ updated: 2026-09-20
 
 # Six identical subtitle failures, only on the SABR route
 
-CI runs 35515542462 and 35518233998 (2026-09-20) each carry **six** of these — while run 35520676271,
-which completed before this was written, carries **none**. That difference is itself unexplained and
-is the control this file must not lose sight of, and both times all
-six fall inside one test — `AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering`,
+CI runs 35515542462 and 35518233998 (2026-09-20) each carry **two** of these — one per subtitle
+track, which matches the `2 subtitle tracks` those plays resolve. (An earlier version of this file
+said six. That was a line count: each failure logs three lines, and I counted the echoes.) Both
+times both of them fall inside one test — `AnHourLongItemDoesNotRebufferTest.anHourLongVideoPlaysOnWithoutRebuffering`,
 the case that turns SABR on:
 
 ```
@@ -25,6 +25,23 @@ The app supplies both: `SubtitleTrack.format.mimeType` in
 `Media3PlaybackController.toSubtitleConfiguration`, and the URL — whose `fmt` parameter is what
 YouTube actually answers.
 
+## Run 35520676271 is NOT a healthy control
+
+It carries zero `SubtitleParser failed`, and an earlier version of this file called that difference
+"unexplained" and treated it as a control. It is neither. Its subtitle loads failed **earlier and
+differently**:
+
+```
+[load] track--1 failed after  9281ms — /api/timedtext — HttpDataSourceException: SocketTimeoutException
+[load] track--1 failed after 10060ms — /api/timedtext — HttpDataSourceException: SocketTimeoutException
+```
+
+against 1.6-2.2s and a parse failure in the other two. The bytes never reached the parser, so the
+parser could not fail. Subtitles are broken in all three runs; only the stage differs.
+
+Recorded at length because calling that a control was the exact mistake the control-case rule in
+`../tests/_index.md` exists to prevent, made in the commit that introduced the rule.
+
 ## Why it was not noticed
 
 `SubtitlesArriveAndRenderTest` passes, in the same runs, minutes earlier. It never touches SABR
@@ -32,11 +49,11 @@ YouTube actually answers.
 [[covered-components-unconnected-edge]] shape: the feature is tested, the route is not.
 
 It is also not fatal — playback continues without captions — which is why it has been sitting in
-every report as six lines nobody read.
+every report as lines nobody read.
 
 ## What is known, and what is not
 
-- **Known:** it happens only under SABR, repeatably, six times per affected play, on a video whose
+- **Known:** it happens only under SABR, repeatably, twice per affected play, on a video whose
   resolution reports `2 subtitle tracks` over SABR against `8 subtitle tracks` on the ordinary
   route for the same video. So SABR's player response offers a different, smaller set.
 - **Not known:** whether the declared mime is wrong, the `fmt` is wrong, or the response is an
@@ -52,8 +69,10 @@ subtitles <id>: 2 track(s) — en/English (original) declared=text/vtt asks=vtt 
 
 **`declared=` is a constant.** `PlayerResponseParser.captionTracks()` hardcodes `SubtitleFormat.VTT`
 for every InnerTube-derived track, and that is the only source on the SABR route — so the mime the
-app claims cannot vary, and the first version of this file showed an example (`ttml`) the code cannot
-produce. What the line genuinely discriminates is `asks=`: the URL is built by
+app claims cannot vary **on this route**. The first version of this file showed a `ttml` example,
+which the yt-dlp route genuinely can emit (`SubtitleFormat.TTML` exists and `fromExtension` returns
+it) but the SABR route cannot — so the example implied a variability that does not exist where the
+bug is. What the line genuinely discriminates is `asks=`: the URL is built by
 `base.replace("fmt=srv3", "fmt=vtt")`, which **silently no-ops** when the response's `baseUrl` does
 not carry `fmt=srv3`. So `asks=srv3` or `asks=no fmt` against `declared=text/vtt` is exactly the bug
 shape, and it is the likeliest of the three hypotheses.

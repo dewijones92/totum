@@ -48,8 +48,12 @@ class MainActivity : FragmentActivity() {
         // a same-process recreation (a density or locale change, "don't keep activities") re-reads
         // it, sees null, and would ask while the video that launch started is still playing.
         //
-        // `isPlaying`, not `state != null`: a state survives the item ending, so the looser check
-        // would skip the ask for the rest of the process's life once anything had ever played. And
+        // `wantsToPlay`, not `state != null` and not `isPlaying`. A state survives the item ending,
+        // so the loosest check would skip the ask for the rest of the process's life once anything
+        // had ever played. But `isPlaying` is INTENT-blind: Media3 reports it false while BUFFERING
+        // even with playWhenReady true — this repo says so itself, next to togglePlayPause — so it
+        // would let the dialog open over a video that is spinning up, which is the exact window this
+        // gate exists for. `wantsToPlay` is playWhenReady: "is it meant to be playing". And
         // it covers less than it looks: `state` is written from the MediaController's listener,
         // registered in an ASYNC connect callback, so on a cold start this reads null whatever is
         // about to happen. Same-process recreation is the case it genuinely handles.
@@ -58,7 +62,7 @@ class MainActivity : FragmentActivity() {
         // decorates playback with a notification, while asking at the wrong moment stops the
         // picture.
         val somethingIsOrIsAboutToBePlaying =
-            intent.sharedWatchUrl() != null || container.playbackController.state.value?.isPlaying == true
+            intent.sharedWatchUrl() != null || container.playbackController.state.value?.wantsToPlay == true
         setContent {
             TotumTheme {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {

@@ -724,7 +724,9 @@ the first:
    SABR fell back to a capped ANDROID client. Disproved by the runs already downloaded: the run where
    the video **did** resolve as EMBEDDED failed the same test the same way, and ANDROID served
    **11,315,189 bytes** in the very run cited as proof it "cannot serve past its first hundred
-   kilobytes". See `../todos/embedded-player-refusal-falls-back-to-capped-sabr.md`.
+   kilobytes". The evidence now lives in `../todos/sabr-cannot-seek.md`, which had documented this same
+   failure — same video, same bytes — a fortnight earlier, with a hypothesis my "cause unknown"
+   replacement had quietly discarded.
 
 All three were found by an adversarial review, not by the tests, and none would have been caught by
 running anything. Two checks catch all of them, and both cost about a minute:

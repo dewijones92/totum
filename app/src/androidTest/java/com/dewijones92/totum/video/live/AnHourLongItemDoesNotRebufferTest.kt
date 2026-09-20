@@ -12,7 +12,6 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.settings.PlaybackMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -200,10 +199,21 @@ class AnHourLongItemDoesNotRebufferTest {
      * The setting says what was ALLOWED; only the URL says what happened.
      */
     private fun pathTaken(): String {
-        val played = Breadcrumbs.snapshot().lastOrNull { it.message.contains(" from http") }?.message
-            ?: return "unknown — nothing recorded a played URL"
+        val trail = Breadcrumbs.snapshot()
+        val playedAt = trail.indexOfLast { it.message.contains(" from http") }
+        if (playedAt < 0) return "unknown — nothing recorded a played URL"
+        // SABR is judged from the sabr trail, NOT the URL. The marker this used to look for
+        // (`totumSabrItag`) is a QUERY parameter, and the breadcrumb it reads is written through
+        // `forLog()`, which is `substringBefore('?')` — so the branch could never be taken and every
+        // SABR play was reported as "a direct url". Run 35515542462 says exactly that while its SABR
+        // conversation was live throughout. Found by an adversarial review, 2026-09-20; the previous
+        // version of this function was itself written to fix a mislabelling, and was never checked
+        // for the fault it rejected.
+        val servedOverSabr = trail.drop(playedAt)
+            .any { it.tag == "sabr" && it.message.contains("serving ") }
+        val played = trail[playedAt].message
         return when {
-            played.contains(SabrSessions.ITAG_MARKER) -> "sabr"
+            servedOverSabr -> "sabr"
             played.contains("hls_playlist") -> "hls"
             else -> "a direct url"
         }
