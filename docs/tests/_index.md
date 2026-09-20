@@ -696,7 +696,9 @@ That is the part worth remembering:
 | `BoundedDrainTest` | the logcat bound — a read that never answers is given up on, one that throws is reported as no answer, one that answers passes through. |
 | `TotumTestRunner` | grants POST_NOTIFICATIONS in `onStart` — NOT `onCreate`, which has already called `start()` and so races the suite — drains the shell command to EOF because `executeShellCommand` is asynchronous, and then asks the PACKAGE MANAGER whether it worked rather than reading stdout, because `pm grant` reports failure on stderr and exits 0. Reading its output cannot tell a refusal from a success, which is exactly why the earlier `pm grant` in `live-test-via-home.sh` was useless. Proven by revoking the permission and watching the runner report it granted. |
 
-| `PathTakenTest` | which route a play took, with all THREE previously-shipped-broken versions pinned as cases. It keys on the two lines that between them cover every way a SABR source is obtained (`serving …` / `reusing the open stream …`, both naming `videoId:itag`), which also scopes the match to the play in hand. |
+| `PathTakenTest` | which route a play took. The route is now RECORDED by `Media3PlaybackController` at play time (`[route=…]`) and only read back here, because working it out from the trail shipped FIVE versions and four were wrong — the last because `sabrStreamFor` serves downloads too, so a play from a local file read as "sabr". Each broken version is pinned as a case. |
+| `PlaybackRouteTest` | the other half: deciding the route from the uri, and that the `[route=…]` spelling the app reads back is the one core:playback writes. The pair live in different modules, so changing one alone is what this catches. |
+| `AskingForVttTest` | the caption URL asks for WebVTT whatever it asked for before. Four of its five cases are red against the `replace("fmt=srv3", …)` it replaced, which no-oped on the `baseUrl` InnerTube actually hands out. |
 | `AskingForNotificationsTest` | whether a launch may ask, with all THREE previously-wrong predicates pinned. |
 
 **A live fake control worth knowing about:** the only PASSING execution of

@@ -740,12 +740,14 @@ public class SabrStream(
      * Monotonic all the same — `maxOf`, not a bare assignment. Going backwards would re-ask for
      * bytes already spent, which [absorb] discards, which reads as empty: the same loop from the
      * other end. Never behind, never freely ahead.
-     */
-    /**
-     * Only for a stream with nothing to derive a position FROM -- a live one, which states no length.
      *
-     * Everything else has its claim set at request time from the reader's offset (see [fetch]). This
-     * remains because stepping is genuinely all a live stream has.
+     * **This is the path for an ordinary VOD, not just a live stream.** A second doc comment used to
+     * sit here saying the opposite — "only for a stream with nothing to derive a position from, a
+     * live one" — and it was both false and invisible, since Kotlin attaches only the last of two
+     * stacked blocks. The 97-minute VOD in CI runs its whole conversation through this function:
+     * `timeOfByte(104401, …) = 429ms` is the number it produced, and asking for a time already
+     * served is what stalled that stream. Only the final `?: (playerTimeMs + stepMs)` fallback is
+     * live-stream-specific.
      */
     private fun advanceClaimedTime() {
         // FURTHEST HELD, and that is knowingly not what the field means -- see

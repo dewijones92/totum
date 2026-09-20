@@ -7,169 +7,97 @@ import org.junit.Test
 /**
  * The route label, against trails taken verbatim from CI.
  *
- * This function has shipped wrong twice and had no test either time, which is why the second
- * version repeated the first one's answer. Both broken versions are pinned below as cases, so a
- * third attempt cannot quietly reintroduce either.
+ * Five versions of this shipped and four were wrong, each guessing which log line implied SABR. The
+ * route is now RECORDED by `Media3PlaybackController` at play time and merely read back here, so
+ * the cases below are mostly about not re-introducing a guess. The ones marked with a version
+ * number are the exact traces that each broken version got wrong — all five would still be green on
+ * a naive reading of the trail, which is why the recorded marker exists.
  */
 class PathTakenTest {
 
+    @Test
+    fun `it reads the route the play recorded`() {
+        assertEquals("sabr", pathTakenFrom(trailOf("playback" to play("uSMGENDH_QI", "sabr"))))
+        assertEquals("hls", pathTakenFrom(trailOf("playback" to play("uSMGENDH_QI", "hls"))))
+        assertEquals("a local file", pathTakenFrom(trailOf("playback" to play("x", "a local file"))))
+        assertEquals("a direct url", pathTakenFrom(trailOf("playback" to play("x", "a direct url"))))
+    }
+
     /**
-     * THE CASE BOTH BROKEN VERSIONS GOT WRONG — a SABR play that REUSES a held conversation.
-     *
-     * Taken from CI run 35515542462 at 14:34:51. Version 1 looked for a query parameter that
-     * `forLog()` had already stripped; version 2 looked for `"serving "`, which only a FRESH stream
-     * emits. Both answered "a direct url" for a play whose SABR conversation was live throughout.
+     * VERSION 5's BUG, and the one that made recording unavoidable. `sabrStreamFor` serves DOWNLOADS
+     * as well as plays, so `serving <id>:<itag>` says a SABR source went to somebody — not that the
+     * player got it. Verbatim from run 35525069446 at 17:21:46, where the play was a local file and
+     * a download was fetching the same video over SABR.
      */
     @Test
-    fun `a sabr play that reuses a held stream is still sabr`() {
+    fun `a local-file play is not sabr just because a download is fetching over sabr`() {
         val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://rr2---sn-8vq54vox03-cgnl.googlevideo.com/videoplayback",
-            "playback" to "rescued uSMGENDH_QI over SABR from 9505ms",
-            "sabr" to "reusing the open stream for uSMGENDH_QI:137 — itag=137 fetches=18 served=104401B",
-            "sabr" to "opened at 0 of 1411564633 bytes (open #1)",
+            "playback" to play("jNQXAC9IVRw", "a local file", from = "file:/data/user/0/…/2553314430.media"),
+            "sabr" to "serving jNQXAC9IVRw:140 as AUDIO",
+            "download" to "fetching \"a real video fetched the apps way\" over SABR (309288 bytes expected)",
         )
-        assertEquals("sabr", pathTakenFrom(trail))
+        assertEquals("a local file", pathTakenFrom(trail))
     }
 
+    /** VERSION 4: an explicit refusal to use SABR, which `contains("<id>:")` read as SABR. */
     @Test
-    fun `a sabr play on a fresh stream is sabr too`() {
+    fun `an explicit refusal to use sabr is not sabr`() {
         val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://rr2---sn-8vq54vox03-cgnl.googlevideo.com/videoplayback",
-            "sabr" to "serving uSMGENDH_QI:137 as VIDEO",
-            "sabr" to "opened at 0 of 1411564633 bytes (open #1)",
-        )
-        assertEquals("sabr", pathTakenFrom(trail))
-    }
-
-    @Test
-    fun `an hls play is hls`() {
-        val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/123",
-        )
-        assertEquals("hls", pathTakenFrom(trail))
-    }
-
-    @Test
-    fun `a plain progressive play is a direct url`() {
-        val trail = trailOf(
-            "playback" to "play jNQXAC9IVRw from https://rr1---sn-test.googlevideo.com/videoplayback",
+            "playback" to play("uSMGENDH_QI", "a direct url"),
+            "sabr" to "not using SABR for uSMGENDH_QI: no endpoint — extracting instead",
         )
         assertEquals("a direct url", pathTakenFrom(trail))
     }
 
-    /**
-     * A SABR conversation that ended BEFORE the play does not make this play a SABR one.
-     *
-     * The trail is global and unscoped, so an earlier item's opens are still in it. Only what
-     * happened after the last play counts.
-     */
+    /** VERSION 2 and 3: a SABR play that REUSES a stream and CONTINUES rather than opening it. */
     @Test
-    fun `sabr belonging to an earlier item does not stamp this play`() {
+    fun `a sabr play that reuses and continues is still sabr`() {
         val trail = trailOf(
-            "sabr" to "opened at 0 of 999 bytes (open #1)",
-            "sabr" to "closed at 104401 — itag=137",
-            "playback" to "play jNQXAC9IVRw from https://rr1---sn-test.googlevideo.com/videoplayback",
-        )
-        assertEquals("a direct url", pathTakenFrom(trail))
-    }
-
-    @Test
-    fun `nothing played is said plainly rather than guessed`() {
-        assertEquals(
-            "unknown — nothing recorded a played URL",
-            pathTakenFrom(trailOf("sabr" to "opened at 0 of 999 bytes (open #1)")),
-        )
-    }
-
-    /**
-     * VERSION 3's BUG. An ordinary mid-playback reopen says `continuing at byte N`, not
-     * `opened at`, so keying on the latter missed it. Taken from run 35520676271, where five of the
-     * six opens inside the failing test were continuations.
-     */
-    @Test
-    fun `a sabr play whose reopen continues rather than opens is still sabr`() {
-        val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://rr2---sn-8vq54vox03-cgnl.googlevideo.com/videoplayback",
+            "playback" to play("uSMGENDH_QI", "sabr"),
             "sabr" to "reusing the open stream for uSMGENDH_QI:137 — itag=137 fetches=18",
             "sabr" to "continuing at byte 104401 (open #1)",
         )
         assertEquals("sabr", pathTakenFrom(trail))
     }
 
-    /**
-     * A SABR conversation belonging to NO play must not stamp an unrelated one.
-     *
-     * `SabrPlaysAcrossVideoTypesTest` drives `SabrStream` directly, leaving opens in the global
-     * trail with no play breadcrumb of their own. Run 35515542462 has an eight-open window like
-     * this between an HLS play and the next play, where the previous version answered "sabr".
-     */
+    /** The trail is global; only the LAST play counts, and only its own marker. */
     @Test
-    fun `sabr opens for another item after an hls play do not stamp it`() {
+    fun `an earlier play does not describe a later one`() {
         val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
-            "sabr" to "serving aqz-KE-bpKQ:137 as VIDEO",
-            "sabr" to "opened at 0 of 999 bytes (open #1)",
+            "playback" to play("uSMGENDH_QI", "sabr"),
+            "sabr" to "serving uSMGENDH_QI:137 as VIDEO",
+            "playback" to play("jNQXAC9IVRw", "hls"),
         )
         assertEquals("hls", pathTakenFrom(trail))
     }
 
-    /**
-     * A ROUTE decision is not a play. `route <id> -> streaming the video from <url>` also contains
-     * " from http", and never contains `hls_playlist` — so matching on that substring reported an
-     * HLS play as a direct url whenever a route line followed it.
-     */
+    /** A ROUTE decision is not a play — it also contains " from http". */
     @Test
     fun `a route decision is not mistaken for the played url`() {
         val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
+            "playback" to play("uSMGENDH_QI", "hls"),
             "playback" to "route s2 -> streaming the video from https://www.youtube.com/watch?v=s2",
         )
         assertEquals("hls", pathTakenFrom(trail))
     }
 
-    /**
-     * VERSION 4's BUG, in four shapes. Matching any `sabr` line containing `"<itemId>:"` caught four
-     * other lines, three of which mean SABR did NOT serve — including an explicit decline. An
-     * adversarial review proved all four against the real function, and the worst case is here in
-     * the artefacts: a play from a LOCAL FILE followed by a session registration read as "sabr",
-     * in 44 windows across the four archived CI runs.
-     */
     @Test
-    fun `a play from a downloaded file is not sabr however the session was registered`() {
-        val trail = trailOf(
-            "playback" to "play jNQXAC9IVRw from file:/data/user/0/com.dewijones92.totum/downloads/2001893115.media",
-            "sabr" to "jNQXAC9IVRw: SABR session from the ANDROID player (client info none)",
+    fun `nothing played is said plainly rather than guessed`() {
+        assertEquals(
+            "unknown — nothing recorded a played URL",
+            pathTakenFrom(trailOf("sabr" to "serving x:137 as VIDEO")),
         )
-        assertEquals("a direct url", pathTakenFrom(trail))
     }
 
+    /** A play from a build that predates the marker must say so rather than inventing a route. */
     @Test
-    fun `registering a session after an hls play does not make it sabr`() {
-        val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
-            "sabr" to "uSMGENDH_QI: SABR session from the EMBEDDED player (client info 56)",
-        )
-        assertEquals("hls", pathTakenFrom(trail))
+    fun `a play with no recorded route says so`() {
+        val trail = trailOf("playback" to "play uSMGENDH_QI from https://rr2---sn-test.googlevideo.com/videoplayback")
+        assertEquals("unknown — that play recorded no route", pathTakenFrom(trail))
     }
 
-    /** An explicit REFUSAL to use SABR reported as SABR is the worst of the four. */
-    @Test
-    fun `an explicit refusal to use sabr is not sabr`() {
-        val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://rr1---sn-test.googlevideo.com/videoplayback",
-            "sabr" to "not using SABR for uSMGENDH_QI: no endpoint — extracting instead",
-        )
-        assertEquals("a direct url", pathTakenFrom(trail))
-    }
-
-    @Test
-    fun `giving up on sabr is not sabr`() {
-        val trail = trailOf(
-            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
-            "sabr" to "giving up on uSMGENDH_QI:137: it served nothing before dying (itag=137 fetches=4)",
-        )
-        assertEquals("hls", pathTakenFrom(trail))
-    }
+    private fun play(id: String, route: String, from: String = "https://rr2---sn-test.googlevideo.com/videoplayback") =
+        "play $id from $from [route=$route]"
 
     private fun trailOf(vararg entries: Pair<String, String>): List<Breadcrumbs.Entry> =
         entries.mapIndexed { index, (tag, message) ->

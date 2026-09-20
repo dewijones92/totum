@@ -3,64 +3,40 @@ package com.dewijones92.totum.playback
 import com.dewijones92.totum.common.Breadcrumbs
 
 /**
- * Which route the last play actually went down, from the app's own trail.
+ * Which route the last play went down, READ from the play breadcrumb rather than inferred.
  *
- * Read the history before changing this. It has shipped WRONG THREE TIMES, each time because the
- * marker was chosen by reading a log line rather than the code that writes it:
+ * `Media3PlaybackController` decides this from the uri it is about to play and writes it into the
+ * line. This function only reads it back, which is the whole point: working it out from the rest of
+ * the trail shipped five times and was wrong four of them —
  *
- * 1. Matched `SabrSessions.ITAG_MARKER` against the played URL. That is a **query** parameter and
- *    the breadcrumb goes through `forLog()` = `substringBefore('?')`, so it was unreachable.
- * 2. Matched a `sabr` line containing `"serving "`. Only `freshStreamFor` emits that; a play that
- *    REUSES a held stream logs `"reusing the open stream"` instead.
- * 3. Matched `"opened at "`. `SabrDataSource.open` has **three** branches and only the
- *    `position == 0` one says that — the others say `"continuing at byte N"` and `"SEEK to byte N"`.
- *    So an ordinary mid-playback reopen would have been missed. The KDoc claiming "every open, warm
- *    or cold" was false against a logcat in hand.
+ * 1. matched `SabrSessions.ITAG_MARKER`, a QUERY parameter that `forLog()` strips;
+ * 2. matched `"serving "`, which only a FRESH stream emits;
+ * 3. matched `"opened at "`, which only a zero-offset open emits — an ordinary reopen says
+ *    `"continuing at byte N"`;
+ * 4. matched any sabr line containing `"<itemId>:"`, which also catches `"not using SABR for
+ *    <id>: …"` — an explicit refusal — and three other lines;
+ * 5. matched the two lines a SABR source hand-out emits, which a **download** emits identically,
+ *    because `sabrStreamFor` serves downloads too. A play from a local file while a download
+ *    fetched over SABR reported `"sabr"`, in the shipped diagnostics field.
  *
- * 4. Matched **any** `sabr` line containing `"<itemId>:"`. Four other lines carry that token and
- *    three of them mean SABR did NOT serve: `"<videoId>: SABR session from the … player"` (merely
- *    registered at resolve time), `"not using SABR for <videoId>: …"` (an explicit decline),
- *    `"giving up on <key>: it served nothing"`, and `"the held stream for <key> is spent"`. A play
- *    from a LOCAL FILE followed by a session registration reported `"sabr"` — and by then this was
- *    wired into every diagnostics report.
- *
- * So the two lines are matched by their exact prefixes. `SabrDataSourceFactory` hands out a source
- * only by reusing a held stream or building a fresh one, and each logs one of these; every other
- * `sabr` line means something else. Using the id also scopes the match to THIS play, since the trail
- * is global and tests that drive `SabrStream` directly leave entries belonging to no play at all.
+ * Every one of those was a guess about which log line implies which fact. The line now states the
+ * fact, so there is nothing left to guess.
  */
 public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>): String {
-    val playedAt = trail.indexOfLast { it.tag == PLAYBACK && it.message.startsWith(PLAY_PREFIX) }
-    if (playedAt < 0) return "unknown — nothing recorded a played URL"
-    val played = trail[playedAt].message
-    val itemId = played.removePrefix(PLAY_PREFIX).substringBefore(" from ")
-    val servedOverSabr = trail.drop(playedAt + 1).any { it.tag == SABR && it.servedSabrFor(itemId) }
-    return when {
-        servedOverSabr -> "sabr"
-        played.contains("hls_playlist") -> "hls"
-        else -> "a direct url"
-    }
+    val played = trail.lastOrNull { it.tag == PLAYBACK && it.message.startsWith(PLAY_PREFIX) }
+        ?: return "unknown — nothing recorded a played URL"
+    val marked = played.message.substringAfterLast(MARKER, missingDelimiterValue = "")
+    return marked.substringBefore(']').ifBlank { "unknown — that play recorded no route" }
 }
 
 /** The live trail. */
 public fun pathTaken(): String = pathTakenFrom(Breadcrumbs.snapshot())
 
 private const val PLAYBACK = "playback"
-private const val SABR = "sabr"
-
-/**
- * `Media3PlaybackController.play` writes `play <id> from <url>`. Matched as a PREFIX because
- * `" from http"` alone also matches `route <id> -> streaming the video from <url>`, which is a
- * decision rather than a play — and a route line never carries `hls_playlist`, so an HLS play
- * followed by one reported "a direct url".
- */
 private const val PLAY_PREFIX = "play "
 
 /**
- * Whether this breadcrumb is one of the two that mean a SABR source was actually handed out.
- *
- * By PREFIX, not `contains`: `"not using SABR for <id>: …"` also contains `"<id>:"` and means the
- * exact opposite.
+ * Matches `PlaybackRoute.ROUTE_MARKER`. Duplicated rather than shared because `:app` reads what
+ * `:core:playback` writes and the constant there is internal; the pair is pinned by `PathTakenTest`.
  */
-private fun Breadcrumbs.Entry.servedSabrFor(itemId: String): Boolean =
-    message.startsWith("serving $itemId:") || message.startsWith("reusing the open stream for $itemId:")
+private const val MARKER = "[route="

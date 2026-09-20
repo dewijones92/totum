@@ -282,55 +282,35 @@ back to the ratio when it is null — and across the three runs **1,513 MEDIA_HE
 `startMs` at all** (every one logs `:at-1`, which is the null). There is no case in hand where the
 accurate path is taken.
 
-**A natural experiment, run 35525069446 (2026-09-20 17:38): it PASSED.** `no-rebuffer video via
-sabr: rebuffers=0 … rendered=59618ms stalls[]` — a full minute of SABR video, where three earlier
-runs rendered ~9.5s or nothing.
+**The controlled comparison, run 35525069446.** Three itag-137 streams, one run, one video, one
+build — and the first answer is *identical* in two of them:
 
-**Not because of anything changed in the app.** Nothing shipped that day touches SABR serving, and
-the run's own numbers say what differed: its first fetch returned **1,977,342B with 1,642,762B
-kept**, against `289,187B / 104,401B` in every failing run. That is the same server, the same video,
-the same code, sending sixteen times as much on the first answer.
-
-And the two streams differ in a way that fits the ratio — but **not in the way an earlier version of
-this file claimed**, and the correction matters:
-
-| first fetch kept | headers carry `startMs`? | app then asks for | outcome |
+| stream | first fetch | what it asked for NEXT | outcome |
 |---|---|---|---|
-| 104,401 B | no (`:at-1`) | **429 ms** — already served, and it is the RATIO | stalls, 3 runs + one stream of the 4th |
-| 1,642,762 B | **yes** (`:at247400`, `:at250001`, …) | **19,767 ms** — the real segment time | plays |
+| 17:30:27 (playback) | `289187B → 104401B kept` | **429 ms** — the RATIO | 0B kept ×4, stalls, gives up |
+| 17:32:58 (`SabrKeepsServingTest`) | **`289187B → 104401B kept`** | **10,000 ms** — the STEP ladder | 1,538,361B kept, plays on, 11.3 MB |
+| 17:37:02 (playback, passing) | `1977342B → 1642762B kept` | 19,767 ms — `contiguousEndMs` | plays |
 
-The earlier version asserted the second row as "6,755 ms from the ratio", and said "there is no case
-in hand where the accurate path is taken". Both are false, and the run it was analysing refutes them:
-the app asked for **19,767 ms**, taking `segmentsHeld.contiguousEndMs()` — the branch that is
-*preferred* over the ratio — because in that run the MEDIA_HEADERs **do** carry `startMs`.
+**So the variable is not how much the first answer contained** — an earlier version of this file said
+it was, and the middle row refutes it with the same bytes on both sides. The variable is **whether
+the time it asks for next is past what it already holds.**
 
-So the passing run differs in **two** ways at once, and only one was named. The confound is real and
-has to be stated. What keeps the hypothesis alive is a control **inside** that same run: its other
-SABR stream kept `104401B` with all-`:at-1` headers and stalled at 429 ms exactly like the failing
-runs. Same run, same build, same network — headers with times played, headers without them stalled.
+The arithmetic says why. Those 104,401 bytes are `init 14,226 + seq1 48,478 + seq2 41,697` ≈ **9.9
+seconds** of media (the passing stream's `contiguousEndMs` after four segments was 19,767 ms). The
+ratio claims **429 ms** — `104401 × 5805166 / 1411564633` — which is **23× behind the truth**,
+because a VBR video's opening segments are tiny against its mean bitrate. A claim 9.5 s behind the
+frontier, plus the server's ~15 s readahead, means there is nothing new to send: `absorb` keeps 0 B,
+four empties, dead. The step ladder asks 10,000 ms, lands just past the frontier, and is served.
 
-One more correction of attribution: the 429 ms comes from `advanceClaimedTime`
-(`SabrStream.kt:456 → 750`), not from `aimAtByte`; there is no re-aim between those fetches. That
-matters because `aimAtByte` uses the ratio **unconditionally** with no `startMs` preference, so had
-it been that path the whole header argument would have been beside the point. Worth knowing too:
-`advanceClaimedTime`'s own KDoc says it is "only for a stream with nothing to derive a position from
-— a live one", which is false — it is demonstrably the path for this 97-minute VOD.
+`HeldSegments.kt` already says in its own comment that the ratio is unsound for video. This is what
+that costs.
 
-So the passing run is a control in the other direction, and the hypothesis survives it: the stall
-is not about which client answers but about **how much the first answer contains**. A small first
-response puts the ratio's estimate behind what was already served; a large one clears it. That also
-explains why the client-identity story looked plausible for a while — EMBEDDED tends to send more,
-but an EMBEDDED run with a small first response (35518233998, 15:22) failed exactly like the rest.
-
-Two controls, both consistent: the AUDIO track is near-constant-bitrate, so the same ratio is
-roughly right and the audio case does not stall; and skipping to a distant time recovers — the very
-next fetch is served `seq 6` and `seq 7` at byte 3,100,017.
-
-**This is a hypothesis with a falsifier, not a proven cause.** It dies if a run appears where the
-headers DO carry `startMs` and the stall still happens, or where a video whose opening bitrate is
-near its file average stalls the same way. Test it that way before building on it. It is a precise
-instance of this file's existing hypothesis rather than a rival to it: a byte-addressed reader is
-guessing at the time-addressed protocol's units, and guessing worst exactly where playback starts.
+**Two earlier explanations for this failure were written and retracted**, and the discipline is the
+point: "a replay rewound a warm stream" (disproved — a cold stream failed identically) and "the
+embedded player refused it so SABR fell back to a capped client" (disproved — the run that DID use
+the embedded player failed the same way, and the "capped" client had served 11.3 MB in the same
+run). A third framing, "the first answer was too small", is retracted here by the table above. Find
+the control before naming a cause.
 
 **What the new runs mostly add is negative evidence**, which is worth as much:
 

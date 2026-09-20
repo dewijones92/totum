@@ -100,9 +100,14 @@ InnerTube `baseUrl` has no `fmt=srv3` to replace — and it usually has no `fmt`
 `askingForVtt`, which sets `fmt=vtt` whatever was there before, with `AskingForVttTest`; four of its
 five cases are red against the old implementation.
 
-**Not yet confirmed end to end.** The fix makes the URL ask for what the app declares; whether the
-parse failures actually stop needs the next run that plays over SABR. The line to look for is
-`asks=vtt` in place of `asks=no fmt`, and zero `SubtitleParser failed`.
+**Not yet confirmed end to end**, and the obvious confirmation is worthless. `asks=` is parsed out
+of the URL the app itself just wrote, so after this fix `asks=vtt` is a **tautology** — it proves the
+string manipulation, not that YouTube served WebVTT. The only real evidence in the next run is
+**zero `SubtitleParser failed`**.
+
+What would actually measure it is not logged at all: the caption response's `Content-Type` and first
+bytes. If the parse failures persist with `asks=vtt`, that is the instrumentation to add before
+guessing again — the declared/served mismatch may be only half the story.
 
 ## When fixing it
 

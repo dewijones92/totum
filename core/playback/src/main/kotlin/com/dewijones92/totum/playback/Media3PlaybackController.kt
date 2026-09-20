@@ -237,9 +237,10 @@ public class Media3PlaybackController(
         // where — and an HLS URL with no HLS extractor bundled died instantly with only an
         // ExoPlayer ClassNotFoundException in logcat to show for it (0.1.230, found on the
         // emulator 2026-07-31). Signature and expiry parameters are dropped: they are long,
-        // secret, and never the answer.
+        // secret, and never the answer. The ROUTE is decided here, from the uri, and carried in the
+        // line — see routeOf, which exists because working it out afterwards was wrong four times.
         val mergedAudio = audioUrl?.let { " + audio ${it.value.forLog()}" }.orEmpty()
-        Diag.log("playback", "play ${item.id.value} from ${uri.forLog()}$mergedAudio")
+        Diag.log("playback", "play ${item.id.value} from ${uri.forLog()}$mergedAudio [$ROUTE_MARKER${routeOf(uri)}]")
         onPlay(item, kind)
         // Each play() claims a generation; only the latest one commits its state and
         // media item. Guards against two quick play() calls (double-tap, queue
