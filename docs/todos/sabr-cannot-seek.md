@@ -291,12 +291,30 @@ the run's own numbers say what differed: its first fetch returned **1,977,342B w
 kept**, against `289,187B / 104,401B` in every failing run. That is the same server, the same video,
 the same code, sending sixteen times as much on the first answer.
 
-And it is exactly what the ratio predicts:
+And the two streams differ in a way that fits the ratio — but **not in the way an earlier version of
+this file claimed**, and the correction matters:
 
-| first fetch kept | `timeOfByte` asks for | outcome |
-|---|---|---|
-| 104,401 B | **429 ms** — already served | stalls, 3 runs |
-| 1,642,762 B | **6,755 ms** — not yet served | plays, 1 run |
+| first fetch kept | headers carry `startMs`? | app then asks for | outcome |
+|---|---|---|---|
+| 104,401 B | no (`:at-1`) | **429 ms** — already served, and it is the RATIO | stalls, 3 runs + one stream of the 4th |
+| 1,642,762 B | **yes** (`:at247400`, `:at250001`, …) | **19,767 ms** — the real segment time | plays |
+
+The earlier version asserted the second row as "6,755 ms from the ratio", and said "there is no case
+in hand where the accurate path is taken". Both are false, and the run it was analysing refutes them:
+the app asked for **19,767 ms**, taking `segmentsHeld.contiguousEndMs()` — the branch that is
+*preferred* over the ratio — because in that run the MEDIA_HEADERs **do** carry `startMs`.
+
+So the passing run differs in **two** ways at once, and only one was named. The confound is real and
+has to be stated. What keeps the hypothesis alive is a control **inside** that same run: its other
+SABR stream kept `104401B` with all-`:at-1` headers and stalled at 429 ms exactly like the failing
+runs. Same run, same build, same network — headers with times played, headers without them stalled.
+
+One more correction of attribution: the 429 ms comes from `advanceClaimedTime`
+(`SabrStream.kt:456 → 750`), not from `aimAtByte`; there is no re-aim between those fetches. That
+matters because `aimAtByte` uses the ratio **unconditionally** with no `startMs` preference, so had
+it been that path the whole header argument would have been beside the point. Worth knowing too:
+`advanceClaimedTime`'s own KDoc says it is "only for a stream with nothing to derive a position from
+— a live one", which is false — it is demonstrably the path for this 97-minute VOD.
 
 So the passing run is a control in the other direction, and the hypothesis survives it: the stall
 is not about which client answers but about **how much the first answer contains**. A small first

@@ -17,18 +17,24 @@ import com.dewijones92.totum.common.Breadcrumbs
  *    So an ordinary mid-playback reopen would have been missed. The KDoc claiming "every open, warm
  *    or cold" was false against a logcat in hand.
  *
- * The version that is true to the code keys on the two lines that between them cover **every** way a
- * SABR source is obtained — `SabrDataSourceFactory` either reuses a held stream or builds a fresh
- * one, and both name `videoId:itag`. Using the id also scopes the match to THIS play: the trail is
- * global, and tests that drive `SabrStream` directly leave opens in it that belong to no play at all.
+ * 4. Matched **any** `sabr` line containing `"<itemId>:"`. Four other lines carry that token and
+ *    three of them mean SABR did NOT serve: `"<videoId>: SABR session from the … player"` (merely
+ *    registered at resolve time), `"not using SABR for <videoId>: …"` (an explicit decline),
+ *    `"giving up on <key>: it served nothing"`, and `"the held stream for <key> is spent"`. A play
+ *    from a LOCAL FILE followed by a session registration reported `"sabr"` — and by then this was
+ *    wired into every diagnostics report.
+ *
+ * So the two lines are matched by their exact prefixes. `SabrDataSourceFactory` hands out a source
+ * only by reusing a held stream or building a fresh one, and each logs one of these; every other
+ * `sabr` line means something else. Using the id also scopes the match to THIS play, since the trail
+ * is global and tests that drive `SabrStream` directly leave entries belonging to no play at all.
  */
 public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>): String {
     val playedAt = trail.indexOfLast { it.tag == PLAYBACK && it.message.startsWith(PLAY_PREFIX) }
     if (playedAt < 0) return "unknown — nothing recorded a played URL"
     val played = trail[playedAt].message
     val itemId = played.removePrefix(PLAY_PREFIX).substringBefore(" from ")
-    val servedOverSabr = trail.drop(playedAt + 1)
-        .any { it.tag == SABR && it.message.contains("$itemId:") }
+    val servedOverSabr = trail.drop(playedAt + 1).any { it.tag == SABR && it.servedSabrFor(itemId) }
     return when {
         servedOverSabr -> "sabr"
         played.contains("hls_playlist") -> "hls"
@@ -49,3 +55,12 @@ private const val SABR = "sabr"
  * followed by one reported "a direct url".
  */
 private const val PLAY_PREFIX = "play "
+
+/**
+ * Whether this breadcrumb is one of the two that mean a SABR source was actually handed out.
+ *
+ * By PREFIX, not `contains`: `"not using SABR for <id>: …"` also contains `"<id>:"` and means the
+ * exact opposite.
+ */
+private fun Breadcrumbs.Entry.servedSabrFor(itemId: String): Boolean =
+    message.startsWith("serving $itemId:") || message.startsWith("reusing the open stream for $itemId:")

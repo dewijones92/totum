@@ -23,7 +23,6 @@ class PathTakenTest {
     @Test
     fun `a sabr play that reuses a held stream is still sabr`() {
         val trail = trailOf(
-            "sabr" to "uSMGENDH_QI: SABR session from the ANDROID player (client info none)",
             "playback" to "play uSMGENDH_QI from https://rr2---sn-8vq54vox03-cgnl.googlevideo.com/videoplayback",
             "playback" to "rescued uSMGENDH_QI over SABR from 9505ms",
             "sabr" to "reusing the open stream for uSMGENDH_QI:137 — itag=137 fetches=18 served=104401B",
@@ -124,6 +123,50 @@ class PathTakenTest {
         val trail = trailOf(
             "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
             "playback" to "route s2 -> streaming the video from https://www.youtube.com/watch?v=s2",
+        )
+        assertEquals("hls", pathTakenFrom(trail))
+    }
+
+    /**
+     * VERSION 4's BUG, in four shapes. Matching any `sabr` line containing `"<itemId>:"` caught four
+     * other lines, three of which mean SABR did NOT serve — including an explicit decline. An
+     * adversarial review proved all four against the real function, and the worst case is here in
+     * the artefacts: a play from a LOCAL FILE followed by a session registration read as "sabr",
+     * in 44 windows across the four archived CI runs.
+     */
+    @Test
+    fun `a play from a downloaded file is not sabr however the session was registered`() {
+        val trail = trailOf(
+            "playback" to "play jNQXAC9IVRw from file:/data/user/0/com.dewijones92.totum/downloads/2001893115.media",
+            "sabr" to "jNQXAC9IVRw: SABR session from the ANDROID player (client info none)",
+        )
+        assertEquals("a direct url", pathTakenFrom(trail))
+    }
+
+    @Test
+    fun `registering a session after an hls play does not make it sabr`() {
+        val trail = trailOf(
+            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
+            "sabr" to "uSMGENDH_QI: SABR session from the EMBEDDED player (client info 56)",
+        )
+        assertEquals("hls", pathTakenFrom(trail))
+    }
+
+    /** An explicit REFUSAL to use SABR reported as SABR is the worst of the four. */
+    @Test
+    fun `an explicit refusal to use sabr is not sabr`() {
+        val trail = trailOf(
+            "playback" to "play uSMGENDH_QI from https://rr1---sn-test.googlevideo.com/videoplayback",
+            "sabr" to "not using SABR for uSMGENDH_QI: no endpoint — extracting instead",
+        )
+        assertEquals("a direct url", pathTakenFrom(trail))
+    }
+
+    @Test
+    fun `giving up on sabr is not sabr`() {
+        val trail = trailOf(
+            "playback" to "play uSMGENDH_QI from https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1",
+            "sabr" to "giving up on uSMGENDH_QI:137: it served nothing before dying (itag=137 fetches=4)",
         )
         assertEquals("hls", pathTakenFrom(trail))
     }

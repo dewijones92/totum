@@ -56,7 +56,13 @@ internal class DiagnosticSnapshot(
             // whether the bytes came over SABR, HLS or a plain URL, and those have different causes
             // and different fixes. Derived from the trail rather than stored, so it cannot drift
             // from what actually happened.
-            put("playing.route", runCatching { pathTaken() }.getOrElse { "unknown" })
+            // "-" when nothing is playing, like its neighbours: the trail outlives the play, so an
+            // unconditional route reported the LAST play ever made beside `playing.kind=-`. Two
+            // different situations producing the same line is the thing this field exists to stop.
+            put(
+                "playing.route",
+                if (state == null) "-" else runCatching { pathTaken() }.getOrElse { "unknown" },
+            )
             put("playing.speed", state?.speed?.toString() ?: "-")
             put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")
             put("playing.volumeBoost", state?.volumeBoost?.name ?: "-")

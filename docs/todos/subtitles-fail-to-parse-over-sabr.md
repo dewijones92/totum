@@ -1,7 +1,7 @@
 ---
 title: Subtitles fail to parse when playback goes over SABR
 kind: todo
-status: evidenced and instrumented; cause not yet known
+status: CAUSE FOUND from the instrumentation and fixed; awaiting a CI run to confirm
 area: playback
 updated: 2026-09-20
 ---
@@ -81,6 +81,28 @@ The third — an error body at a URL that looks right — is **not** captured by
 comes back clean, that is where to look next, and it needs its own instrumentation.
 
 **Do not guess at a fix before reading a run.**
+
+## Answered by the instrumentation, CI run 35525069446
+
+The line said it in one go, on the SABR route:
+
+```
+[subtitles] uSMGENDH_QI: 2 track(s) — en/English declared=text/vtt asks=no fmt | …
+```
+
+**`asks=no fmt`.** The URL carries no `fmt` parameter at all, while the app has declared the track
+`text/vtt`. So YouTube serves its default — srv3 XML — and Media3 fails it with
+`contentIsMalformed=true`. The ordinary yt-dlp route in the same run reads
+`declared=application/ttml+xml asks=ttml` and works, which is exactly why only this route broke.
+
+The cause is one line: `base.replace("fmt=srv3", "fmt=vtt")` is a **silent no-op** when the
+InnerTube `baseUrl` has no `fmt=srv3` to replace — and it usually has no `fmt` at all. Replaced by
+`askingForVtt`, which sets `fmt=vtt` whatever was there before, with `AskingForVttTest`; four of its
+five cases are red against the old implementation.
+
+**Not yet confirmed end to end.** The fix makes the URL ask for what the app declares; whether the
+parse failures actually stop needs the next run that plays over SABR. The line to look for is
+`asks=vtt` in place of `asks=no fmt`, and zero `SubtitleParser failed`.
 
 ## When fixing it
 
