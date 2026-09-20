@@ -260,6 +260,7 @@ public class Media3PlaybackController(
             // captions survive the higher-quality video+audio merge rather than being
             // dropped by it.
             .setSubtitleConfigurations(subtitles.map { it.toSubtitleConfiguration() })
+            .also { describeSubtitles(item, subtitles) }
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(item.title)
@@ -563,6 +564,28 @@ public class Media3PlaybackController(
             volumeBoost = volumeBoost,
             chapters = activeChapters,
         )
+    }
+
+    /**
+     * What we are TELLING Media3 each caption track is, beside what the URL asks YouTube for.
+     *
+     * The mime type here is the app's claim; the bytes are YouTube's answer to the URL's `fmt`.
+     * When they disagree the parser fails with `contentIsMalformed=true` and the only trace is a
+     * Media3 load error naming neither — which is what six consecutive failures in CI on
+     * 2026-09-20 looked like, all during SABR playback while the ordinary-route subtitle test
+     * passed. A count of tracks could not answer "which one, asking for what, declared as what",
+     * so it is said per track, once per play.
+     */
+    private fun describeSubtitles(item: MediaItem, subtitles: List<SubtitleTrack>) {
+        if (subtitles.isEmpty()) {
+            Diag.log("subtitles", "${item.id.value}: none offered")
+            return
+        }
+        val described = subtitles.joinToString(" | ") { track ->
+            val fmt = runCatching { track.url.value.toUri().getQueryParameter("fmt") }.getOrNull() ?: "no fmt"
+            "${track.languageCode}/${track.label} declared=${track.format.mimeType} asks=$fmt"
+        }
+        Diag.log("subtitles", "${item.id.value}: ${subtitles.size} track(s) — $described")
     }
 
     private fun SubtitleTrack.toSubtitleConfiguration(): Media3MediaItem.SubtitleConfiguration =
