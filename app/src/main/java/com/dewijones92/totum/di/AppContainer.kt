@@ -921,7 +921,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun sendDiagnostics(note: String) {
         crashReporter.reportDiagnostics(note)
-        DiagnosticsUploader(context, httpClient, applicationScope).uploadPending()
+        // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so it goes whatever
+        // device this is. The emulator suppression is for the AUTOMATIC upload at launch only —
+        // an emulator is where this app gets debugged, and a button that silently did nothing
+        // while the UI said "Sent" would be worse than the noise it was avoiding.
+        DiagnosticsUploader(context, httpClient, applicationScope).sendDiagnosticsNow()
     }
 
     override fun startQueueAutoDownload() {

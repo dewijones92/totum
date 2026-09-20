@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-09-06
+updated: 2026-09-20
 ---
 
 # Crash reporting
@@ -69,6 +69,55 @@ ssh pi@333133333.xyz 'cat /home/pi/crashlog-data/reports/*/*.json'   # works eve
 The web index (`/`) filters by commit and exception and groups by exception; `/api/reports`
 is the machine-readable list. Reports are stored as plain files first and indexed second,
 so an unparseable payload is still kept and still visible.
+
+## An emulator writes reports but does not send them (2026-09-20)
+
+Every instrumented run launches the app, and the app uploads whatever is pending — so the sink
+filled with test output. Counted on the Pi:
+
+```
+September 2026:  106 reports total
+                 100 from an emulator
+                   6 from Dewi's phone
+```
+
+That is the **"26 unread reports" failure this feature's own triage half was built to prevent**,
+recreated at a much higher rate, and it buries the reports that are somebody actually saying
+something: the one real report of 20 September — the rewind bug — sat among forty test uploads
+made the same morning.
+
+The **automatic** upload at launch now returns early on an emulator, saying so in the trail rather
+than going quiet. A **hand-sent** one never is: tapping "Send diagnostics" has asked, and an
+emulator is where this app gets debugged — a button that silently did nothing while the UI said
+"Sent" would be worse than the noise it avoided. Reports are still written either way, and are read
+off the device with `adb`.
+
+That split also settles what getting the detector wrong costs. A false negative is one filterable
+row on the Pi. A false positive would otherwise cost exactly the six reports a month that matter,
+**silently** — the phone simply goes quiet, and nothing on the server can tell "nothing broke" from
+"the detector misfired". With the button always sending, a misdetected phone still gets its report
+out the moment it is asked for.
+
+### The detector leads with `Build.HARDWARE`, because it is the only stable signal
+
+Measured on the running AVD with `adb getprop`, not assumed:
+
+| property | value |
+|---|---|
+| `FINGERPRINT` | `google/sdk_gphone64_x86_64/emu64xa:15/…` |
+| `PRODUCT` / `MODEL` | `sdk_gphone64_x86_64` |
+| `HARDWARE` | **`ranchu`** |
+| `DEVICE` | **`emu64xa`** |
+
+So the obvious `FINGERPRINT.contains("emulator")` does **not** fire — it says `emu64xa` — and the
+clauses that do fire depend on a naming convention Google has already changed twice
+(`sdk_phone_armv7` → `sdk_google_phone_x86` → `sdk_gphone64_x86_64`). `ranchu` (and the older
+`goldfish`) is the QEMU machine type every AOSP, Google-APIs, ATD and Play-Store image reports,
+across API levels, and it is what CI's image reports too.
+
+`EmulatorsDoNotUploadTest` guards all three behaviours, and each was proven to fail on its own
+mutation — including the third, whose first version **could not fail at all**, because it matched
+`"uploading"`, which is a substring of `"not uploading"`.
 
 ## Not just crashes
 
