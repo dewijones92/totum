@@ -27,3 +27,34 @@ internal fun drainWithin(seconds: Long, what: String, read: () -> String): Strin
         null
     }
 }
+
+/**
+ * A subprocess's output, or an explanation of why there is none — never a hang, never a survivor.
+ *
+ * Split out of `CrashReporter.logcatTail` so the give-up path can be driven by a test. It had none:
+ * nothing asserted that a child which never answers is killed, nor that the report carries a reason
+ * in the field itself rather than only in a log the report does not contain. An adversarial review
+ * pointed out that a constant's KDoc claimed a test that did not exist.
+ */
+internal fun outputOf(start: () -> Process, seconds: Long, what: String, maxChars: Int): String =
+    runCatching {
+        val process = start()
+        val output = drainWithin(seconds, what) {
+            process.inputStream.bufferedReader().use { it.readText() }
+        }
+        if (output == null) {
+            // Killed, or it sits there holding a pipe for the rest of the process's life.
+            process.destroyForcibly()
+            unavailable(what, seconds)
+        } else {
+            // The child's stdin is a descriptor of ours, and Settings can ask for a report
+            // repeatedly, so the happy path tidies up as well.
+            runCatching { process.outputStream.close() }
+            process.destroy()
+            output.takeLast(maxChars)
+        }
+    }.getOrElse { "$what unavailable: ${it.javaClass.simpleName}: ${it.message}" }
+
+/** The exact words a report uses to explain its own gap, so a test cannot drift from them. */
+internal fun unavailable(what: String, seconds: Long): String =
+    "$what unavailable: it did not answer in ${seconds}s"

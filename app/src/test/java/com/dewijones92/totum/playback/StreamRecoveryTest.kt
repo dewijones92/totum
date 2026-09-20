@@ -519,14 +519,17 @@ class StreamRecoveryTest {
      * The stream cache is keyed `videoId:itag` and exists so ExoPlayer's mid-playback REOPENS
      * continue one conversation instead of opening sixteen cold ones. It has no idea that a
      * *second playing of the same video* is a different thing, so a replay — or the same item
-     * switched from listening to watching — was handed a warm stream that had already been served
-     * the opening bytes, rewound it to zero, and then discarded every byte it re-fetched as one it
-     * already held.
+     * switched from listening to watching — was handed a conversation built for the previous play,
+     * carrying its cookie, its headers, its write offsets and a handshake budget nothing resets,
+     * and re-aimed at byte 0 rather than begun.
      *
-     * Measured in CI on 2026-09-20, the video case of `AnHourLongItemDoesNotRebufferTest`: four
-     * fetches of the same 289,189-byte answer, `0B kept` each time, then "NOT ending, skipping
-     * ahead" into the middle of the file. The previous case of the same test had ended
-     * `discarded=3979803B (97% wasted)`. Playback rendered 9.5 seconds of a 60-second window.
+     * Observed in CI on 2026-09-20 as `itag 137 REWINDING to 0B (last handed through 104401)` in
+     * the video case of `AnHourLongItemDoesNotRebufferTest`, straight after the audio case had
+     * played the same video; that playback rendered 9.5 seconds of a 60-second window. **The
+     * `0B kept` and `97% wasted` lines quoted in the original commit message are NOT evidence for
+     * this** — they are the audio-carried-beside-video branch and an accounting artefact of it
+     * respectively, both with their own causes. The claim that stands is narrower: a replay
+     * continued a used conversation where the first play began a fresh one.
      */
     @Test
     fun `a fresh start drops the held sabr conversation for that item`() = runTest {

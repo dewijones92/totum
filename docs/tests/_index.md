@@ -696,9 +696,33 @@ That is the part worth remembering:
 | `BoundedDrainTest` | the logcat bound — a read that never answers is given up on, one that throws is reported as no answer, one that answers passes through. |
 | `TotumTestRunner` | grants POST_NOTIFICATIONS in `onStart` — NOT `onCreate`, which has already called `start()` and so races the suite — drains the shell command to EOF because `executeShellCommand` is asynchronous, and then asks the PACKAGE MANAGER whether it worked rather than reading stdout, because `pm grant` reports failure on stderr and exits 0. Reading its output cannot tell a refusal from a success, which is exactly why the earlier `pm grant` in `live-test-via-home.sh` was useless. Proven by revoking the permission and watching the runner report it granted. |
 
-**Still uncovered, deliberately:** the share-intent path. `MainActivity` now skips the ask on a
-launch carrying a shared link — otherwise the dialog opens over the very video that launch exists
-to play — but no test drives an `ACTION_SEND` launch together with the permission state.
+**Still uncovered, deliberately:** the share-intent path itself. `MainActivity` refuses to ask
+while anything is playing or about to play — checking BOTH the intent and the controller, because
+`sharedWatchUrl()` returns null once the intent is marked handled and a recreation would otherwise
+ask over a video already running — but no test drives an `ACTION_SEND` launch against the
+permission state.
+
+## Two narratives that were wrong, in one day (2026-09-20)
+
+Worth its own heading because it happened **twice**, the second time after being caught the first:
+
+1. A commit and a KDoc said the previous code deadlocked on a `waitFor` before draining a pipe. It
+   never shipped — `git show HEAD~1:<path>` was a plain unbounded `readText()`. The `waitFor` was a
+   wrong first attempt made in the same session, uncommitted. (The commit correcting it then
+   *overstated* its own evidence: `git log -S waitFor` repo-wide has ~20 hits; the claim is true for
+   that one file, which is the claim that mattered.)
+2. The SABR replay commit said a rewound stream "discarded every byte it re-fetched as one it
+   already held". `read(from)` sets `served = from` immediately after re-aiming, so that guard is
+   inert for the read in question. The `0B kept` lines it quoted are the
+   `header.itag != format.itag` branch — the answer was spent on the audio requested beside the
+   video — and `97% wasted` counts that same deliberately-requested audio, which `bytesDiscarded`
+   cannot credit to a video track. The fix stands on a narrower claim; the evidence quoted for it
+   did not support it.
+
+Both were found by an adversarial review, not by the tests, and neither would have been caught by
+running anything. The check that catches them costs ten seconds: **read `git show <sha>~1:<file>`
+before writing "it used to", and check that a quoted log line is produced by the branch you think
+it is.**
 
 ## Reading the results without downloading anything (2026-08-11)
 

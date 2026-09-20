@@ -9,16 +9,20 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * The bound on the crash path, which is the only genuinely new behaviour in it.
+ * The bound on the crash path, and exactly which of these cases guards what.
  *
- * It had none. The drain it replaced was unbounded but otherwise correct, so the test written
- * alongside it — a logcat tail bigger than a pipe — passes against that version too and guards
- * nothing. What needed a guard is this: a read that never answers has to be given up on, the
- * caller has to be told so it can kill the child, and the giving up has to happen in seconds
- * rather than never.
+ * Said precisely because the last attempt at this was not. Against **6f92ecf**, whose drain was
+ * unbounded but otherwise correct, the first case below is red — it guards deleting the bound.
+ * Against **62f33d9**, which already had the timeout, only the THIRD case is red: that commit
+ * caught `TimeoutException` alone, so a read that threw escaped to an outer handler which returned
+ * a message and never killed the child. The second case is characterization and guards nothing on
+ * its own.
  *
- * Deleting the bound makes the first case here hang for ever, which is the failure it exists to
- * prevent, so the test carries its own timeout.
+ * A test that cannot fail against the code it replaced is not a guard on it, and saying "written
+ * first and seen to fail" of a test that was neither is worse than saying nothing.
+ *
+ * Deleting the bound makes the first case hang for ever, which is the failure it exists to
+ * prevent, so every case carries its own timeout.
  */
 class BoundedDrainTest {
 

@@ -83,10 +83,17 @@ class StreamPlaysToItsEndTest {
     fun tearDown() {
         server.close()
         runBlocking(Dispatchers.Main) {
-            queue.clear()
-            controller.player?.stop()
-            controller.player?.clearMediaItems()
-            container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
+            // In a finally, and FIRST in it, because setAutoPlayNext writes through to
+            // SharedPreferences: a throw in any of the three calls below would otherwise leave
+            // autoplay off on this device permanently, for every later test and for whoever uses
+            // the emulator next.
+            try {
+                queue.clear()
+                controller.player?.stop()
+                controller.player?.clearMediaItems()
+            } finally {
+                container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
+            }
         }
     }
 

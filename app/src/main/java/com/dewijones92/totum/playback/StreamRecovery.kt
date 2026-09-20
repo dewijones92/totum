@@ -118,9 +118,22 @@ internal class StreamRecovery(
      * Separate from [forgetResolved], which drops the resolved URLs: a held SABR stream survives
      * that, because the cache is keyed `videoId:itag` and knows only about ExoPlayer reopening a
      * source mid-playback — which it must keep continuing, or a single play becomes sixteen cold
-     * opens. A second PLAYING of the same video is a different thing, and it was getting a warm
-     * stream that had already been served the opening bytes: it rewound to zero and then discarded
-     * every byte it re-fetched as one it already held. See the test for the CI measurement.
+     * opens. A second PLAYING of the same video is a different thing, and it was being handed a
+     * conversation built for the previous one: `SabrStream` carries `playbackCookie`, `headers`,
+     * `writeAt`, `chunks`, `served`, `furthestHeld` and a **cumulative `handshakeEmpties` budget
+     * that nothing resets**, so re-aiming it at byte 0 continues a used conversation rather than
+     * beginning one. The first play of a video always got a cold stream and worked; the replay did
+     * not, and CI's `itag 137 REWINDING to 0B (last handed through 104401)` is that difference.
+     *
+     * **An earlier version of this comment said the replay then "discarded every byte it
+     * re-fetched as one it already held", and that was wrong** — an adversarial review caught it.
+     * `read(from)` sets `served = from` immediately after re-aiming, so the already-read-past guard
+     * in `storeMedia` is inert for that read. The `0B kept` lines quoted alongside it are the
+     * `header.itag != format.itag` branch (the answer was spent on the audio track requested beside
+     * the video), and the `97% wasted` figure counts that same deliberately-requested audio, which
+     * `bytesDiscarded` cannot credit to a video track. Both have their own documented causes and
+     * neither is evidence for this change. Said here rather than quietly deleted, because the
+     * wrong version is in a pushed commit message and somebody will read it.
      */
     private val forgetHeldStreams: (MediaItemId) -> Unit = {},
     private val prefetchNext: suspend () -> Unit = {},

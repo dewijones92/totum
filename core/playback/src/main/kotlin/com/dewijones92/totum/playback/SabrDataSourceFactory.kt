@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import com.dewijones92.totum.common.Diag
@@ -213,10 +214,16 @@ private val live = ConcurrentHashMap<String, SabrStream>()
 private val gaveUpOn = ConcurrentHashMap<String, String>()
 
 /**
- * Drops every held conversation. For tests, so one case cannot leak into the next — the same reason
+ * Drops every held conversation. **Tests only** — production drops one video at a time with
+ * [forgetLiveSabrStreamsFor], because clearing the lot restarts an unrelated item mid-playback and
+ * empties the give-up list as well. Annotated so lint says so: calling it from production was a
+ * mutation that passed the whole suite (found by an adversarial review, 2026-09-20).
+ *
+ * For tests, so one case cannot leak into the next — the same reason
  * [SabrSessions.clear] exists, and needed for the same reason: the key is `videoId:itag`, so a stream
  * built by an earlier case is handed straight back to a later one that meant to start fresh.
  */
+@VisibleForTesting
 public fun forgetLiveSabrStreams() {
     live.clear()
     gaveUpOn.clear()

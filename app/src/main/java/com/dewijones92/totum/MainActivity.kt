@@ -36,22 +36,31 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
-        // A launch that is about to play something does NOT ask for the notification permission.
-        // The dialog is another activity: it pauses ours and releases the video surface, so asking
-        // here would open it over the video this very launch is starting. Opening a YouTube link is
-        // the headline entry point and the first thing anyone does on a fresh install, which is
-        // precisely when nothing has been granted yet.
+        // The invariant is "never open the dialog over a video", so BOTH halves are checked: a
+        // launch that is about to play one, and a launch where one is already playing.
         //
-        // The cost is that the ask waits for an ordinary launch. That is the right way round: the
-        // permission only decorates playback with a notification, while asking at the wrong moment
-        // stops the picture.
-        val willPlayImmediately = intent.sharedWatchUrl() != null
+        // The dialog is another activity; it pauses ours and releases the video surface. Opening a
+        // YouTube link is the headline entry point and the first thing anyone does on a fresh
+        // install, which is precisely when nothing has been granted yet.
+        //
+        // The second half is not belt and braces. `sharedWatchUrl()` returns null once the intent
+        // has been marked handled, and that mark lives on the very Intent this activity holds — so
+        // a recreation not covered by the manifest's `configChanges` (a density or locale change,
+        // "don't keep activities", process death then recents) re-reads it, sees null, and would
+        // ask while the video that launch started plays on through PlaybackService. That is the
+        // original defect one door along, and it is the door the intent check opened.
+        //
+        // The cost is that the ask waits for a quiet launch. Right way round: the permission only
+        // decorates playback with a notification, while asking at the wrong moment stops the
+        // picture.
+        val somethingIsOrIsAboutToBePlaying =
+            intent.sharedWatchUrl() != null || container.playbackController.state.value != null
         setContent {
             TotumTheme {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
                     AppShell(
                         container,
-                        askForNotifications = if (willPlayImmediately) {
+                        askForNotifications = if (somethingIsOrIsAboutToBePlaying) {
                             {}
                         } else {
                             { RequestNotificationPermissionOnce() }

@@ -58,6 +58,8 @@ class LiveStreamPlaysToItsEndTest {
 
     private val watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=$VIDEO_ID")
 
+    private var autoPlayNextBefore = true
+
     /**
      * Establishes what this test needs, because another live test leaves the opposite.
      *
@@ -70,8 +72,6 @@ class LiveStreamPlaysToItsEndTest {
      * So: radios on, wait for the app to actually believe it (ConnectivityManager's callback is
      * asynchronous), and delete any copy of the fixture so nothing can stand in for the stream.
      */
-    private var autoPlayNextBefore = true
-
     @Before
     fun emptyTheQueue() = runBlocking(Dispatchers.Main) {
         goOnline()
@@ -96,10 +96,17 @@ class LiveStreamPlaysToItsEndTest {
     @After
     fun tearDown() {
         runBlocking(Dispatchers.Main) {
-            queue.clear()
-            controller.player?.stop()
-            controller.player?.clearMediaItems()
-            container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
+            // In a finally, and FIRST in it, because setAutoPlayNext writes through to
+            // SharedPreferences: a throw in any of the three calls below would otherwise leave
+            // autoplay off on this device permanently, for every later test and for whoever uses
+            // the emulator next.
+            try {
+                queue.clear()
+                controller.player?.stop()
+                controller.player?.clearMediaItems()
+            } finally {
+                container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
+            }
         }
     }
 

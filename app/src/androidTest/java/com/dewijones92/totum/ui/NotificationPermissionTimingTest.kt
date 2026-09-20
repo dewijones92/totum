@@ -8,6 +8,7 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -97,11 +98,14 @@ class NotificationPermissionTimingTest {
         }
         composeTestRule.waitForIdle()
 
-        assertEquals(
+        // At least one, not exactly one: the lambda runs per composition of AppShell's body, and a
+        // flow settling would recompose it. Both mutations this exists to kill — the gate put back,
+        // and the call deleted — produce ZERO, so the weaker assertion catches them both while a
+        // stray recomposition can no longer report "the five-day CI failure back again" wrongly.
+        assertTrue(
             "FakeAppContainer plays nothing, so an ask that arrives here cannot be waiting on " +
                 "playback — and one that never arrives is the five-day CI failure back again",
-            1,
-            asked.get(),
+            asked.get() >= 1,
         )
     }
 

@@ -7,6 +7,7 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -140,7 +141,9 @@ class ChunkedDataSourceTest {
         source.open(spec)
 
         assertTrue("nothing was fetched after the probe failed: ${server.asked}", server.asked.size > 1)
-        assertTrue("the whole resource must still arrive", source.drain().size == 10_000)
+        assertEquals("the whole resource must still arrive", 10_000, source.drain().size)
+        source.close()
+        assertFalse("the upstream was left open after close", server.isOpen)
     }
 
     /**

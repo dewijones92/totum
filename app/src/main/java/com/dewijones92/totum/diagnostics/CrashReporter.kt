@@ -186,28 +186,19 @@ public class CrashReporter(
      * The thread is a daemon: this runs while the process is dying, and a non-daemon thread stuck
      * on an unreadable pipe would be one more thing keeping it alive.
      */
-    private fun logcatTail(): String = runCatching {
-        val process = ProcessBuilder("logcat", "-d", "-v", "time", "-t", LOGCAT_LINES.toString())
-            .redirectErrorStream(true)
-            .start()
-        val tail = drainWithin(LOGCAT_TIMEOUT_SECONDS, "logcat") {
-            process.inputStream.bufferedReader().use { it.readText() }
-        }
-        if (tail == null) {
-            process.destroyForcibly()
-            // In the RETURNED VALUE as well as the trail: `events` is serialised on the line
-            // before this one, so a breadcrumb written here reaches the NEXT report rather than
-            // the one that is missing its logcat. A report has to explain its own gap.
-            LOGCAT_UNAVAILABLE
-        } else {
-            // Closed on the happy path too: `redirectErrorStream` means stdout is the only pipe,
-            // but the child's stdin is a descriptor of ours and Settings can ask for a report
-            // repeatedly.
-            runCatching { process.outputStream.close() }
-            process.destroy()
-            tail.takeLast(MAX_LOGCAT_CHARS)
-        }
-    }.getOrElse { "logcat unavailable: ${it.javaClass.simpleName}: ${it.message}" }
+    private fun logcatTail(): String = outputOf(
+        start = {
+            ProcessBuilder("logcat", "-d", "-v", "time", "-t", LOGCAT_LINES.toString())
+                .redirectErrorStream(true)
+                .start()
+        },
+        seconds = LOGCAT_TIMEOUT_SECONDS,
+        // In the RETURNED VALUE as well as the trail when it gives up: `events` is serialised one
+        // line before this runs, so a breadcrumb written here would reach the NEXT report rather
+        // than the one that is missing its logcat. A report has to explain its own gap.
+        what = "logcat",
+        maxChars = MAX_LOGCAT_CHARS,
+    )
 
     private fun memoryInfo(): String {
         val info = ActivityManager.MemoryInfo()
@@ -237,8 +228,8 @@ public class CrashReporter(
          */
         const val LOGCAT_TIMEOUT_SECONDS = 3L
 
-        /** Named, so the test asserting a report explains its own gap cannot drift from it. */
-        const val LOGCAT_UNAVAILABLE = "logcat unavailable: it did not answer in ${LOGCAT_TIMEOUT_SECONDS}s"
+        /** The wording lives in [unavailable]; `OutputOfTest` asserts it against this same call. */
+        val LOGCAT_UNAVAILABLE: String get() = unavailable("logcat", LOGCAT_TIMEOUT_SECONDS)
 
         const val LOGCAT_LINES = 1500
         const val MAX_LOGCAT_CHARS = 400_000
