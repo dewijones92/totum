@@ -93,6 +93,14 @@ internal class ChunkedDataSource(
      */
     private fun probeLength(dataSpec: DataSpec): Long {
         val length = runCatching { upstream.open(dataSpec) }.getOrElse { failure ->
+            // Closed on EVERY way out, including this one. A failed open still leaves the source
+            // holding one — Media3's DefaultDataSource assigns its delegate before opening it — and
+            // `open()` then begins `checkState(dataSource == null)`. So skipping the close here made
+            // the very next line, which opens the first range, throw a MESSAGELESS
+            // IllegalStateException; ExoPlayer wrapped it as UnexpectedLoaderException and reported
+            // "Source error", and the real reason survived only in the warning below. Twenty-two of
+            // those in the CI run of 2026-09-20.
+            closeRange()
             // An HTTP status is the resource answering, and answering "no" — rethrow it so
             // the player sees the real 403 rather than a second, identical failure from the
             // chunk that would follow. Recovery keys off that status; masking it behind a
@@ -101,7 +109,7 @@ internal class ChunkedDataSource(
             Diag.warn("chunked", "could not measure length; falling back to one request", failure)
             return UNKNOWN_LENGTH
         }
-        runCatching { upstream.close() }
+        closeRange()
         return length
     }
 

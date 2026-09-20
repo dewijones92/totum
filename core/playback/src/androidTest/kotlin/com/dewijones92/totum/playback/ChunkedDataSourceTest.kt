@@ -11,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 
 /**
  * The real [ChunkedDataSource], over an upstream that behaves the way googlevideo does.
@@ -114,6 +115,35 @@ class ChunkedDataSourceTest {
     }
 
     /**
+     * THE BUG in the CI logcat of 2026-09-20: a failed length probe left the upstream OPEN.
+     *
+     * `probeLength` closes the upstream on the way out when the probe succeeds, and returns
+     * `UNKNOWN_LENGTH` without closing it when the probe throws anything that is not an HTTP
+     * status. The very next statement in `open()` opens a range on that same upstream, and
+     * Media3's `DefaultDataSource.open` begins with `checkState(dataSource == null)` — so the
+     * caller gets a **messageless** IllegalStateException, ExoPlayer wraps it as
+     * `UnexpectedLoaderException` and reports `Source error`, and the actual reason (the probe
+     * failed) exists only in a warning nobody correlates. Twenty-two of those in one CI run.
+     */
+    @Test
+    fun `a length probe that fails still leaves the upstream closed`() {
+        val server = ProbeFailsOnce(content(size = 10_000))
+        val source = ChunkedDataSource(server, CHUNK)
+
+        // Position 0 with no clen and no stated length, so the probe is what runs first.
+        val spec = DataSpec.Builder()
+            .setUri("https://rr1---sn-test.googlevideo.com/videoplayback?itag=399")
+            .setPosition(0)
+            .setLength(C.LENGTH_UNSET.toLong())
+            .build()
+
+        source.open(spec)
+
+        assertTrue("nothing was fetched after the probe failed: ${server.asked}", server.asked.size > 1)
+        assertTrue("the whole resource must still arrive", source.drain().size == 10_000)
+    }
+
+    /**
      * A stand-in for googlevideo: bounded ranges are honoured, and a range starting at or past the
      * end of the content answers with **no bytes** rather than an error.
      *
@@ -146,7 +176,16 @@ class ChunkedDataSourceTest {
             asked.none { it.last >= content.size },
         )
 
+        /** True between open and close, so a double-open fails here as it does in Media3. */
+        var isOpen = false
+            private set
+
         override fun open(dataSpec: DataSpec): Long {
+            // Media3's DefaultDataSource.open starts `Assertions.checkState(dataSource == null)` and
+            // throws a MESSAGELESS IllegalStateException when it does not hold. A fake that quietly
+            // allows a second open cannot fail the way the real one fails, so it covers nothing.
+            check(!isOpen) { "open called on a source that is already open" }
+            isOpen = true
             val from = dataSpec.position.toInt()
             val want = if (dataSpec.length == C.LENGTH_UNSET.toLong()) {
                 content.size - from
@@ -167,7 +206,44 @@ class ChunkedDataSourceTest {
             return n
         }
 
-        override fun close() = Unit
+        override fun close() {
+            isOpen = false
+        }
+
+        override fun getUri() = null
+        override fun addTransferListener(transferListener: TransferListener) = Unit
+    }
+
+    /**
+     * A server whose length PROBE fails the way a flaky socket does — not with an HTTP status.
+     *
+     * The distinction is the whole point: `probeLength` deliberately rethrows an
+     * `InvalidResponseCodeException` so recovery can key off the real 403, and swallows anything
+     * else to fall back to a single unbounded request. It is that swallow that has to leave the
+     * upstream closed.
+     */
+    private class ProbeFailsOnce(content: ByteArray) : DataSource {
+        private val real = RangeServer(content, claims = null)
+        private var probed = false
+
+        val asked get() = real.asked
+        val isOpen get() = real.isOpen
+
+        override fun open(dataSpec: DataSpec): Long {
+            if (!probed) {
+                probed = true
+                // Opened, THEN failed — which is the order DefaultDataSource does it in, and the
+                // reason a failed open still leaves it holding a source.
+                real.open(dataSpec)
+                throw IOException("the socket went away mid-probe")
+            }
+            return real.open(dataSpec)
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+            real.read(buffer, offset, length)
+
+        override fun close() = real.close()
         override fun getUri() = null
         override fun addTransferListener(transferListener: TransferListener) = Unit
     }
