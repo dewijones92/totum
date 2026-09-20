@@ -640,6 +640,50 @@ a **fake** frozen history. So the full chain — a real video, a real account re
 the adopt — is covered in two halves and not in one test. That is an accepted layering, not an
 oversight; it is written here so nobody reads the two green tests as covering the whole seam.
 
+## A wait must name what it is waiting for (2026-09-20)
+
+`SeekDeepIntoALongVideoTest` failed in CI with *"the fixture should be long enough for an hour-deep
+seek to be nowhere near its end, but it reported 1330245ms"*. Every word of that was true, and the
+diagnosis it invited — the fixture changed — was wrong.
+
+22:10 is not NASA's "Cosmic Dawn" (96:45, checked). It is the length of *School Stories That Sound
+Fake But Actually Happened*, a video **the app had started by itself**: `LiveStreamPlaysToItsEndTest`
+drives an item to its end, and an end with an empty queue is what makes autoplay go and find
+something related. That happened 1.2 seconds after the class finished — after its teardown, which is
+why teardown could never have caught it. The stray video was still playing, and downloading, 37
+seconds later, and resolving Cosmic Dawn took **27 seconds**. `while (state.isPlaying != true)` was
+answered instantly by the wrong video, and the duration read a line later was its duration.
+
+So: **a wait scoped to "something" is not scoped at all.** `PlaybackWaits.awaitStateOf` takes a
+`MediaItemId` and `whatIsActuallyPlaying()` names the impostor, so the same leak now fails as "it is
+playing something else" — which is a sentence somebody can act on. The cause is fixed too: both
+`PlaysToItsEnd` tests turn `autoPlayNext` off for their duration.
+
+Fourteen instrumented tests still read `controller.state.value` without checking `itemId`. They are
+listed in `../todos/instrumented-tests-read-the-wrong-item.md` and converted as each is touched,
+because they are live tests this laptop cannot verify and a blind conversion is a red build nobody
+can tell from a real one.
+
+## The permission dialog is another activity, and it pauses yours (2026-09-20)
+
+The same CI run had been red for five days on *"rendered only 9495ms in 60000ms, so it stopped"*,
+which reads as a stream failure and is not one. The captured logcat (`build/ci-logs/logcat.txt`,
+uploaded with the instrumented reports) shows `START … REQUEST_PERMISSIONS`, then
+`video size=0x0 hasVideo=false`, then `MainActivity in: PAUSED`, **four milliseconds apart**.
+
+The app asked for `POST_NOTIFICATIONS` at first play. On a phone somebody taps the dialog; on a
+runner emulator nobody does. Two lessons, and only one of them is about CI:
+
+- It was a **real user bug**. Press play on a fresh install and the picture stops. It now asks once
+  as the shell composes, and `NotificationPermissionTimingTest` asserts the TIMING rather than that
+  it asks at all — the broken version would pass the second.
+- **The grant belongs in the test process.** It was first attempted as `pm grant` in
+  `live-test-via-home.sh`, where it could never work: `connectedAndroidTest` uninstalls the app when
+  it finishes, and `pm grant` against a missing package exits 0 saying `Failure [package not found]`
+  on stderr — so behind `2>/dev/null || true` it announced nothing. `TotumTestRunner` does it in
+  `onCreate`, after the install, and logs the outcome. Verified on the emulator: `granted=false`
+  before, `granted=true` after.
+
 ## Reading the results without downloading anything (2026-08-11)
 
 Dewi asked whether GitHub has a GUI for test pass/fail history. It does not: Actions shows ✅/❌

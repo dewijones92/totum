@@ -256,9 +256,12 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   focus + becoming-noisy handling). Both pillars play through it — anything
   with a `MediaItem.mediaUrl` is playable, and every system surface
   (notification, lock screen, Bluetooth/headset media keys, Assistant)
-  controls that one session. `POST_NOTIFICATIONS` is requested at first play
-  (`RequestNotificationPermissionOnFirstPlay`) — required on API 33+ or the
-  notification never shows. `fake.FakePlaybackController` for tests/previews.
+  controls that one session. `POST_NOTIFICATIONS` is requested once as the shell
+  composes (`RequestNotificationPermissionOnce`) — required on API 33+ or the
+  notification never shows. It used to be asked for at FIRST PLAY, which was a
+  defect: the dialog is another activity, so it paused ours and released the video
+  surface, and pressing play on a fresh install stopped the picture. CI was red on
+  it for five days reading as "the stream stopped". `fake.FakePlaybackController` for tests/previews.
   Kover-exempt adapter (Media3 glue; instrumented-verified).
   **Video renders on the same seam**: `PlaybackState.hasVideo` (from the track
   list) drives a `PlayerSurface` (media3-ui-compose) in the one `FullPlayer` —
