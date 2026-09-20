@@ -174,7 +174,7 @@
     </plurals>
     <string name="settings_check_content_failed">The check failed: %1$s</string>
     <string name="settings_diagnostics_send">Send diagnostics</string>
-    <string name="settings_diagnostics_sent">Diagnostics sent</string>
+    <string name="settings_diagnostics_sent">Diagnostics saved — it will send</string>
     <string name="settings_diagnostics_summary">Sends the recent event log and app state so a problem can be diagnosed.</string>
     <string name="settings_diagnostics_note">Sent by hand from Settings</string>
     <string name="settings_diagnostics_note_title">What went wrong?</string>

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.diagnostics
 
+import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.HttpUrl
@@ -57,6 +58,38 @@ class DiagnosticsContentTest {
         container.playbackQueue.clear()
     }
 
+    /**
+     * A logcat tail bigger than a pipe still reaches the report.
+     *
+     * The crash path bounds `logcat -d -t 1500` so a wedged `logd` cannot hang a dying process.
+     * Bounding it with `waitFor` BEFORE draining the pipe deadlocks instead: the child blocks on
+     * a full 64KiB pipe, never exits, the wait always times out, and `destroyForcibly` then
+     * closes the stream so the read throws — losing the whole logcat, silently, on exactly the
+     * reports that matter most. The bound has to be on the DRAIN.
+     *
+     * The size has to be MANUFACTURED, which is the point of the loop below: an app can only read
+     * its **own** logcat, so an idle test run has about 20KB of it — comfortably under a pipe, so
+     * the deadlock does not show. It shows after a long session of the generous logging this
+     * project mandates, which is precisely when a crash report is worth having.
+     */
+    @Test
+    fun aLogcatTailBiggerThanAPipeStillReachesTheReport() {
+        // Enough of the app's own log to overflow a 64KiB pipe, within the 1500-line tail.
+        repeat(LOUD_LINES) { Log.i("dewidebug", "pipe-filler $it ${"x".repeat(LINE_PADDING)}") }
+        val before = DiagnosticsStore.pending(context).toSet()
+
+        container.sendDiagnostics("logcat size probe")
+
+        val written = DiagnosticsStore.pending(context).firstOrNull { it !in before }
+        assertTrue("no report was written", written != null)
+        val logcat = JSONObject(written!!.readText()).getString("logcat")
+        assertTrue(
+            "logcat was ${logcat.length} chars — a pipe holds 65536, so this is one bufferful " +
+                "and the drain is being cut short rather than bounded",
+            logcat.length > ONE_PIPEFUL,
+        )
+    }
+
     @Test
     fun `a diagnostics report says what is on the disk and how the heap looks`() {
         val before = DiagnosticsStore.pending(context).toSet()
@@ -107,6 +140,13 @@ class DiagnosticsContentTest {
     }
 
     private companion object {
+        /** A Linux pipe holds 64KiB; at or below that, a deadlocked drain looks like a working one. */
+        const val ONE_PIPEFUL = 65_536
+
+        /** Within `logcat -t 1500`, and together comfortably over a pipe. */
+        const val LOUD_LINES = 900
+        const val LINE_PADDING = 120
+
         val REQUIRED_STATE_KEYS = listOf(
             "playing.title",
             "playing.positionMs",

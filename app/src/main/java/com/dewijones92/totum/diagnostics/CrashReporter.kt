@@ -17,6 +17,9 @@ import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.Instant
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Catches crashes, writes a verbose report to disk, and lets [DiagnosticsUploader] send
@@ -157,12 +160,42 @@ public class CrashReporter(
      * Our own logcat, which on modern Android is all an app can read — and all we want.
      * This is where the Media3 / MediaCodec / ExoPlayer lines live, and those were what
      * actually diagnosed this project's playback bugs.
+     *
+     * **Bounded, because this runs on the crash path.** It is called from the uncaught-exception
+     * handler, one line BEFORE the report is written and before the previous handler is chained
+     * to — so a `logcat` that never returns does not merely cost a log, it means the report is
+     * never written at all and the process hangs instead of dying and restarting. A wedged `logd`
+     * is exactly the device duress that correlates with the crashes worth having.
+     *
+     * **The bound is on the DRAIN, not on the process exiting**, and that distinction is the whole
+     * of it. An app may read only its OWN logcat, so an idle run is about 20KB and fits in a pipe
+     * — but a session of the generous logging this project mandates does not, and that is exactly
+     * the session worth having a crash report from. Once the tail exceeds the 64KiB pipe the child
+     * blocks on `write()` and can never exit, so a `waitFor` placed before the read never
+     * completes; `destroyForcibly` then closes the stream and the read throws, leaving the whole
+     * block as `logcat unavailable: IOException: Stream closed`. **Measured on device: 46
+     * characters kept instead of the full tail** — a silent, total loss of the most useful part
+     * of the report, on every crash. So the read happens on its own thread and THAT is bounded.
+     *
+     * The thread is a daemon: this runs while the process is dying, and a non-daemon thread stuck
+     * on an unreadable pipe would be one more thing keeping it alive.
      */
     private fun logcatTail(): String = runCatching {
         val process = ProcessBuilder("logcat", "-d", "-v", "time", "-t", LOGCAT_LINES.toString())
             .redirectErrorStream(true)
             .start()
-        process.inputStream.bufferedReader().use { it.readText() }.takeLast(MAX_LOGCAT_CHARS)
+        val drain = FutureTask { process.inputStream.bufferedReader().use { it.readText() } }
+        Thread(drain, "logcat-tail").apply { isDaemon = true }.start()
+        try {
+            drain.get(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS).takeLast(MAX_LOGCAT_CHARS)
+        } catch (timeout: TimeoutException) {
+            process.destroyForcibly()
+            // In the RETURNED VALUE as well as the trail: `events` is serialised on the line
+            // before this one, so a breadcrumb written here reaches the NEXT report rather than
+            // the one that is missing its logcat. A report has to explain its own gap.
+            Diag.warn("diagnostics", "logcat did not answer in ${LOGCAT_TIMEOUT_SECONDS}s", timeout)
+            "logcat unavailable: it did not answer in ${LOGCAT_TIMEOUT_SECONDS}s"
+        }
     }.getOrElse { "logcat unavailable: ${it.javaClass.simpleName}: ${it.message}" }
 
     private fun memoryInfo(): String {
@@ -186,6 +219,13 @@ public class CrashReporter(
          * logcat come to a few hundred KB, and 4MB leaves room for the copies made on the way.
          */
         const val OOM_RESERVE_BYTES = 4 * 1024 * 1024
+
+        /**
+         * Long enough for a healthy `logcat -d` on a loaded device, short enough that a wedged
+         * one costs a couple of seconds of a dying process rather than the whole report.
+         */
+        const val LOGCAT_TIMEOUT_SECONDS = 3L
+
         const val LOGCAT_LINES = 1500
         const val MAX_LOGCAT_CHARS = 400_000
     }

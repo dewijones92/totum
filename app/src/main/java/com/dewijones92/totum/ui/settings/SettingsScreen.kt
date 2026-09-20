@@ -254,6 +254,13 @@ private fun DiagnosticsRow(container: AppContainer) {
         DiagnosticsNoteDialog(
             onDismiss = { asking = false },
             onSend = { typed ->
+                // The label says SAVED, not sent, and that is the whole point: this line runs
+                // before the upload coroutine has even started, so "Diagnostics sent" was a
+                // claim the app could not possibly have checked — and offline, or on a 5xx, it
+                // was simply false. What HAS happened by here is true and is what matters: the
+                // report is written to disk, and every launch retries it until the sink accepts
+                // it. Dewi has to be able to believe this row; it is the one he uses to tell us
+                // something is wrong.
                 container.sendDiagnostics(diagnosticsNote(typed, fallback))
                 asking = false
                 sent = true

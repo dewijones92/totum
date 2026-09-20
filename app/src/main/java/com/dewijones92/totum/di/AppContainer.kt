@@ -838,7 +838,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             scope = applicationScope,
         ).start()
         startStreamRecovery(prefetchOne)
-        DiagnosticsUploader(context, httpClient, applicationScope).uploadPending()
+        // `transferClient`, not `httpClient`: the latter carries BusyInterceptor and drives the
+        // global BusyBar, so the launch after any crash flashed a loading bar for a background
+        // upload nobody asked for. `transferClient` exists for exactly this.
+        DiagnosticsUploader(context, transferClient, applicationScope).uploadPending()
         // Kept current so [diagnosticState] can answer "was it downloaded?" without blocking.
         downloadManager.observeDownloads()
             .onEach { latestDownloadStates = it }
@@ -925,7 +928,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         // device this is. The emulator suppression is for the AUTOMATIC upload at launch only —
         // an emulator is where this app gets debugged, and a button that silently did nothing
         // while the UI said "Sent" would be worse than the noise it was avoiding.
-        DiagnosticsUploader(context, httpClient, applicationScope).sendDiagnosticsNow()
+        DiagnosticsUploader(context, transferClient, applicationScope).sendDiagnosticsNow()
     }
 
     override fun startQueueAutoDownload() {
