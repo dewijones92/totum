@@ -19,6 +19,8 @@ public data class FeedEntity(
     val sourceType: String,
     val title: String,
     val feedUrl: String,
+    /** The network behind the show; null for a channel, which has no second name. */
+    val publisher: String? = null,
     val websiteUrl: String?,
     val subscribedAtEpochMs: Long,
     val origin: String = "manual",

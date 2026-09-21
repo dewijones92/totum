@@ -57,6 +57,15 @@ instead).
 | A show's name AND its publisher, never one instead of the other | JVM unit | `:core:data` `DefaultPodcastRepositoryTest`, `RssParserTest` — the assertion pinning the old `author ?: feedTitle` was seen to fail before it was rewritten |
 | A played row is washed cyan and an unplayed one is not, in BOTH themes | instrumented | `:app` `PlayedRowIsTintedTest` — reads the **corner pixel**, because a test of the colour function stays green if the modifier is dropped. Mutation-proven both ways |
 | Nothing in the app truncates text | preflight (grep) | `tools/ci/preflight.py` — deliberately not a Compose test: a truncated `Text` reports its whole string to the semantics tree, so no text assertion can see it |
+| The truncation guard's own holes (a `"*/*"` literal blinding it, a second `Ellipsis` spelling, a count-based allowance) | python | `tools/ci/preflight_text_test.py` — the guard is the only thing enforcing the rule, so it is guarded too |
+| A queue drag stepping by the height of the row it CROSSES, with rows of different heights | JVM unit | `:app` `ReorderStateTest` — every earlier case made rows uniform by construction, which is why uncapping titles broke the drag invisibly |
+| v22 repairing pre-existing podcast rows (and leaving video rows and orphaned episodes alone) | instrumented | `:core:database` `DownloadsMigrationTest` — `author` changed MEANING, so additive-only would have mislabelled every queued episode for ever |
+| A feed's own publisher surviving storage | instrumented | `:core:database` `RoomSubscriptionStoreTest` |
+| A refresh teaching an existing subscription its publisher | JVM unit | `:core:data` `DefaultPodcastRepositoryTest` — refresh re-saved the STORED source, so `toMediaSource` was reachable only by `subscribe` |
+| The publisher surviving an export/restore | JVM unit | `:app` `BackupServiceTest` — the sixth persistence format, and the one v22 missed |
+| The diagnostics line telling the two "no publisher" cases apart | JVM unit | `:core:data` `DefaultPodcastRepositoryTest` — its first version reported the opposite of the truth in the commonest case |
+| Both names crossing the media session (`artist` + `albumArtist`) | instrumented | `:app` `PlayerMetadataTest` |
+| The player page naming the show AND the network on screen | instrumented | `:app` `PlayerKeepsEveryControlTest` — the formatter test would stay green if `PlayerHeader` stopped passing it |
 | What a resolution may change about an item | JVM unit | `:core:domain` `WithStreamFromTest` — the rule that stops views/dates being destroyed at play time |
 | Views + dates on a **page-2** feed video | JVM unit | `:app` `VideosPagingTest` — where "scrolled down" can actually break |
 | Views + dates crossing the media session | instrumented | `:app` `PlayerMetadataTest` — extras written but never read compile fine and deliver nothing |

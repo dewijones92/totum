@@ -119,13 +119,22 @@ neutral.
   fourth.
 - **Played only.** Part-way rows already carry the progress sliver and the queue labels the row it
   is on, so tinting those too would leave nothing untinted to compare against. Offered; his call.
-- **The alpha is luminance-aware**, and that came from looking rather than reasoning: 8% of cyan is
-  plainly cyan over Sand99 and comes out as a *lighter grey band* over Sand10 — measurably bluer,
-  and not blue to the eye. A dark surface needs more of the hue to read as a hue, so the wash is
-  8% on a light surface and 14% on a dark one, keyed off `colorScheme.surface.luminance()` so it
-  still holds if dynamic colour is ever switched on.
+- **The alpha is luminance-aware**, and that came from looking rather than reasoning: at 8% the
+  light theme is plainly cyan and the dark theme is a *lighter grey band* — measurably bluer, and
+  not blue to the eye. So the wash is 8% on a light surface and 14% on a dark one, keyed off
+  `colorScheme.surface.luminance()` rather than a theme flag, so a scheme that is neither of ours
+  still gets a decision. (The first version of this note said "the same 8% cyan" and blamed the
+  surface alone. Round one of the gauntlet caught it: `secondary` is **Cyan40** in the light theme
+  and **Cyan80** in the dark, so the tone differs too. Two washes, each chosen for its surface.)
+- **Two backgrounds do not choose between themselves, they composite.** The Notifications tab passed
+  its unread wash through `modifier` and the row painted the played wash on top, making a third
+  colour that read as neither "new" nor "finished". `rowTint(playState, unread)` decides once —
+  played wins, being the later fact — and `MediaItemRow` is the only thing painting a background.
 - One seam, as ever: `playedRowTint` sits beside `playedTitleAlpha` in `MediaItemStatus.kt` and
   `MediaItemRow` draws it under the click, so the ripple still lands on top.
+
+**Part-way rows are asserted NOT to be tinted**, since "played only" was a decision and a decision
+nothing pins is one that drifts.
 
 **Verified by pixel**, not by the colour function: `PlayedRowIsTintedTest` renders a played and an
 unplayed row, captures each, and reads the corner pixel — in **both** themes. A test of

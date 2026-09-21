@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -35,6 +36,12 @@ import kotlin.time.Duration.Companion.minutes
  * Every table on the `PlaylistItemColumns` contract is covered, because they share one mapper and a
  * gap in any of them is a gap in all of them. CI found this on 2026-08-07 after it passed locally on
  * timing — a reminder that a round-trip through a real datastore is its own claim.
+ *
+ * That last claim was not true until 2026-09-21: it said "every table" and exercised **two** of the
+ * four (queue and history), which an adversarial review of the publisher change caught while asking
+ * why the new field had no coverage here. Downloads and local playlists are now included, and the
+ * publisher travels with the rest — it is the sharpest case of the lot, because a podcast enclosure
+ * is never re-resolved, so a name lost on the way into one of these tables is lost for good.
  */
 class ItemFactsSurviveStorageTest {
 
@@ -61,7 +68,8 @@ class ItemFactsSurviveStorageTest {
             publishedAt = publishedAt.takeIf { withFacts },
             publishedText = "2 days ago".takeIf { withFacts },
             duration = duration.takeIf { withFacts },
-            author = "Novara Media",
+            author = "The Rest Is Politics",
+            publisher = "Goalhanger".takeIf { withFacts },
             mediaUrl = HttpUrl.of("https://example.test/episode.mp3"),
             viewsText = "1.2M views".takeIf { withFacts },
             membersOnly = withFacts,
@@ -82,6 +90,10 @@ class ItemFactsSurviveStorageTest {
         // from the queue rather than a feed.
         assertEquals("the channel URL did not survive storage", CHANNEL_URL, read?.item?.sourceUrl?.value)
         assertEquals("members-only did not survive storage", true, read?.item?.membersOnly)
+        // The show's name and the network's, which a restored row can never get back: nothing
+        // re-resolves a podcast enclosure and nothing re-syncs one of these rows from its feed.
+        assertEquals("the show's name did not survive storage", "The Rest Is Politics", read?.item?.author)
+        assertEquals("the publisher did not survive storage", "Goalhanger", read?.item?.publisher)
     }
 
     @Test
@@ -118,5 +130,23 @@ class ItemFactsSurviveStorageTest {
         assertNull("a duration was invented", read?.duration)
         assertNull("a channel URL was invented", read?.sourceUrl)
         assertEquals("members-only was invented", false, read?.membersOnly)
+        assertNull("a publisher was invented", read?.publisher)
+    }
+
+    @Test
+    fun aDownloadRecordKeepsAnItemsFacts() = runBlocking {
+        val store = RoomDownloadStore(db.downloadDao())
+        store.put(item("downloaded"), DownloadState.Downloaded("/data/ep.media"), audioOnly = false)
+
+        assertFactsKept(store.observeDownloaded().first().firstOrNull()?.playable)
+    }
+
+    @Test
+    fun aLocalPlaylistKeepsAnItemsFacts() = runBlocking {
+        val store = RoomLocalPlaylistStore(db.localPlaylistDao())
+        val list = store.create("Later")
+        store.addItem(list, item("listed"))
+
+        assertFactsKept(store.observeItems(list).first().firstOrNull())
     }
 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -127,6 +128,12 @@ fun MediaItemRow(
      * something else — the queue's reorder/remove buttons, for instance.
      */
     trailing: (@Composable () -> Unit)? = null,
+    /**
+     * The row's background. Defaults to the played wash, which is what every list wants; a screen
+     * with a second state worth colouring passes [rowTint] instead, so there is still exactly one
+     * thing painting a background.
+     */
+    tint: Color = playedRowTint(playState),
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
@@ -142,7 +149,7 @@ fun MediaItemRow(
         modifier = modifier
             .fillMaxWidth()
             // Under the click, so the ripple still draws on top of it.
-            .background(playedRowTint(playState))
+            .background(tint)
             .combinedClickable(
                 enabled = item.mediaUrl != null || hasMenu,
                 onClick = { if (item.mediaUrl != null) onPlay() },
@@ -245,9 +252,9 @@ private fun TitleAndSubtitle(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.alpha(playedTitleAlpha(playState)),
         )
-        // One Text per fact. Each still caps at one line, but a line now holds ONE fact, so an
-        // ellipsis can only ever shorten a long channel name — it can no longer swallow the view
-        // count or the date, which is what it was doing when all three shared a line.
+        // One Text per fact, and nothing caps any of them: a line holds ONE fact and wraps if it
+        // has to, so neither the view count nor the date can be swallowed by a long channel name —
+        // which is what happened when all three shared a single capped line.
         subtitleLines.forEach { fact ->
             Text(
                 text = fact,
@@ -261,9 +268,10 @@ private fun TitleAndSubtitle(
 
 /**
  * What a row needs to say about itself before you read the title: LIVE / SHORT, and
- * whether it is members-only. These are pills rather than subtitle text on purpose —
- * the subtitle truncates, and "you cannot actually play this" must not be the part that
- * gets cut.
+ * whether it is members-only. These are pills rather than subtitle text on purpose: they are read
+ * BEFORE the title rather than after it, and "you cannot actually play this" belongs at the top of
+ * a row rather than at the end of a sentence. (The original reason was that the subtitle truncated.
+ * It no longer does — nothing in the app does — but the placement is still right.)
  */
 @Composable
 private fun ItemBadges(item: MediaItem) {

@@ -62,6 +62,7 @@ import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.VideoChannelSaver
+import com.dewijones92.totum.ui.common.mediaFacts
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.toMediaItem
@@ -430,6 +431,15 @@ private fun SongHitRow(
     )
 }
 
+/**
+ * A podcast hit: the show, then the facts under it — through the same seam every row uses.
+ *
+ * It used to render two bare `Text`s of its own, which made this the one podcast surface outside
+ * [mediaFacts]: its second line wore no 🏷️ label while the video hit one row below wore 📺, and it
+ * had no dedup — so a self-published show whose iTunes `artistName` equals its `collectionName`
+ * printed the identical name twice, stacked. Calling the seam fixes both at once, which is the
+ * argument for the seam.
+ */
 @Composable
 private fun HitTitles(title: String, subtitle: String?, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
@@ -437,13 +447,17 @@ private fun HitTitles(title: String, subtitle: String?, modifier: Modifier = Mod
             text = title,
             style = MaterialTheme.typography.bodyLarge,
         )
-        subtitle?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        // No date and no view count: the directory gives neither. `author` is the show's own name,
+        // already the line above, so it is passed only for the comparison that drops a repeat.
+        mediaFacts(author = title, publisher = subtitle, dateText = null, authorEmoji = FactEmoji.PODCAST)
+            .drop(1)
+            .forEach { fact ->
+                Text(
+                    text = fact,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
     }
 }
 

@@ -148,15 +148,32 @@ internal fun playedTitleAlpha(playState: PlayState): Float =
  * Only PLAYED, and only this state: part-way items already carry the progress sliver and the queue
  * labels the row it is on, so tinting those too would leave nothing untinted to compare against.
  */
+/**
+ * The wash a row wears when more than one state wants one — **played wins**.
+ *
+ * Two draw modifiers both painting a background do not choose between themselves, they composite:
+ * the Notifications tab passed an unread wash through `modifier` and the row painted the played wash
+ * on top of it, making a third colour that read as neither "new" nor "finished". Played wins because
+ * it is the later fact about the item — an episode you have finished is not news any more.
+ */
+@Composable
+internal fun rowTint(playState: PlayState, unread: Boolean): Color = when {
+    playState.isPlayed -> playedRowTint(playState)
+    unread -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = UNREAD_TINT_ALPHA)
+    else -> Color.Transparent
+}
+
 @Composable
 internal fun playedRowTint(playState: PlayState): Color {
     if (!playState.isPlayed) return Color.Transparent
     val scheme = MaterialTheme.colorScheme
-    // A dark surface needs MORE of the hue to read as a hue at all. Verified by looking: the same
-    // 8% that is plainly cyan on Sand99 came out as a lighter grey band on Sand10 — measurably
-    // bluer, and not blue to the eye, which is not what "a tinge of a colour" means. Keyed off the
-    // surface's own luminance rather than a dark-theme flag so it still holds if dynamic colour is
-    // ever switched on and the surface is neither of ours.
+    // A dark surface needs MORE alpha to read as a hue at all. Verified by looking, not reasoned:
+    // 8% was plainly cyan on Sand99 and came out as a lighter grey band on Sand10 — measurably
+    // bluer, and not blue to the eye, which is not what "a tinge of a colour" means. Note the TONE
+    // differs too (`secondary` is Cyan40 in the light theme and Cyan80 in the dark), so this is not
+    // "the same cyan behaving differently"; it is two washes, each chosen for its own surface.
+    // Keyed off the surface's luminance rather than a dark-theme flag so a scheme that is neither of
+    // ours — dynamic colour, if it is ever switched on — still gets a decision rather than a default.
     val alpha = if (scheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
         PLAYED_ROW_TINT_ALPHA_ON_DARK
     } else {
@@ -169,6 +186,13 @@ private val STATUS_ICON_SIZE = 14.dp
 private val SLIVER_HEIGHT = 3.dp
 private const val PLAYED_TITLE_ALPHA = 0.55f
 private const val PLAYED_ROW_TINT_ALPHA = 0.08f
+
+/**
+ * The Notifications tab's "arrived since you last looked" wash, moved here so the two cannot stack.
+ * Unchanged at 0.35 — it is a container colour rather than a hue, so it can afford to be stronger
+ * than the played wash.
+ */
+private const val UNREAD_TINT_ALPHA = 0.35f
 private const val PLAYED_ROW_TINT_ALPHA_ON_DARK = 0.14f
 private const val DARK_SURFACE_LUMINANCE = 0.5f
 

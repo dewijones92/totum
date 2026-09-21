@@ -89,20 +89,57 @@ public abstract class TotumDatabase : RoomDatabase() {
          * because a queued or downloaded episode has to read like the one in its feed. Exactly the
          * v18/v19 shape, which is why those tables are named here too.
          *
-         * Purely additive and nullable: rows written before this have no publisher, which is the
-         * truth about them, and the existing `author` column already holds whichever single name
-         * they were given.
+         * **And it repairs the rows already there, which additive alone would not.** `author`
+         * changed MEANING — it was `episodeAuthor ?: feedTitle` and is now always the feed title —
+         * so an episode queued or downloaded before this upgrade holds the NETWORK's name in the
+         * column that now means the show, wearing the show's glyph. `podcast_episodes` heals itself
+         * on the next feed refresh (every episode is upserted), but the four denormalised tables are
+         * written once and never synced from a feed again, so without this Dewi's own queue would
+         * read "BBC Radio 5 Live" for ever. The v14 migration in this same database already
+         * backfills denormalised rows by joining the feed, so the precedent is here.
+         *
+         * A feed's own publisher is left null by the upgrade and filled by the next refresh, which
+         * re-parses the channel and upserts the feed — unlike the denormalised item rows, that one
+         * really does heal itself.
+         *
+         * The repair is deliberately narrow: podcast rows only, only where the feed is still
+         * subscribed (nothing else can say what the show is called), and the old name is kept as the
+         * publisher unless it merely repeats the title — the same rule `publisherFor` applies to a
+         * fresh parse. An unsubscribed feed's rows are left exactly as they were, which is honest:
+         * there is nothing left to correct them from.
          */
         private val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                val tables = listOf(
-                    "queue_items",
-                    "play_history",
-                    "downloads",
-                    "local_playlist_items",
-                    "podcast_episodes",
+                val itemTables = listOf("queue_items", "play_history", "downloads", "local_playlist_items")
+                // `podcast_feeds` too: the show's own page is the one screen whose whole job is to
+                // say what the show is, and it had no column to say the network's name from.
+                (itemTables + "podcast_episodes" + "podcast_feeds").forEach {
+                    db.execSQL("ALTER TABLE $it ADD COLUMN publisher TEXT")
+                }
+                // `sourceId` on a podcast row IS the feed's id — that is what the podcast mapping
+                // puts there — so the show's name is one join away.
+                itemTables.forEach { table ->
+                    db.execSQL(
+                        "UPDATE $table SET " +
+                            "publisher = CASE WHEN author IS NOT NULL AND TRIM(author) <> '' AND " +
+                            "LOWER(TRIM(author)) <> LOWER(TRIM(" +
+                            "(SELECT title FROM podcast_feeds WHERE id = sourceId))) " +
+                            "THEN TRIM(author) ELSE NULL END, " +
+                            "author = (SELECT title FROM podcast_feeds WHERE id = sourceId) " +
+                            "WHERE playbackType = 'PODCAST' AND EXISTS " +
+                            "(SELECT 1 FROM podcast_feeds WHERE id = sourceId)",
+                    )
+                }
+                // The episodes table joins on its own feed key rather than sourceId.
+                db.execSQL(
+                    "UPDATE podcast_episodes SET " +
+                        "publisher = CASE WHEN author IS NOT NULL AND TRIM(author) <> '' AND " +
+                        "LOWER(TRIM(author)) <> LOWER(TRIM(" +
+                        "(SELECT title FROM podcast_feeds WHERE id = feedId))) " +
+                        "THEN TRIM(author) ELSE NULL END, " +
+                        "author = (SELECT title FROM podcast_feeds WHERE id = feedId) " +
+                        "WHERE EXISTS (SELECT 1 FROM podcast_feeds WHERE id = feedId)",
                 )
-                tables.forEach { db.execSQL("ALTER TABLE $it ADD COLUMN publisher TEXT") }
             }
         }
 

@@ -1,6 +1,7 @@
 package com.dewijones92.totum.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -96,6 +97,33 @@ class PublishedAgeTest {
         assertEquals("My own title", kept.title)
         assertEquals("Me", kept.author)
         assertEquals(resolved.publishedAt, kept.publishedAt)
+    }
+
+    /**
+     * The publisher fills like every other silence — and it was the one field this function was not
+     * given when its sibling `withStreamFrom` was (2026-09-21).
+     *
+     * The consequence was worse than a missing name: "nothing to learn" is signalled by returning
+     * the same instance, and the caller logs *"its row already knew everything"* on that signal. So
+     * a row lacking a publisher, meeting a resolution that had one, would have logged that it knew
+     * everything while dropping the one thing it had just been told.
+     */
+    @Test
+    fun `a row with no publisher learns one, and says it learned something`() {
+        val resolved = bare.copy(title = "Ep 214", publisher = "Goalhanger")
+
+        val learned = bare.fillingSilenceFrom(resolved)
+
+        assertEquals("Goalhanger", learned.publisher)
+        assertNotSame("returning the same instance means \"nothing to learn\", which would be a lie", bare, learned)
+    }
+
+    /** And a publisher the row already has is not overwritten by a resolution that disagrees. */
+    @Test
+    fun `a publisher the row already had stands`() {
+        val knowing = bare.copy(publisher = "Goalhanger")
+
+        assertEquals("Goalhanger", knowing.fillingSilenceFrom(bare.copy(publisher = "Someone Else")).publisher)
     }
 
     @Test

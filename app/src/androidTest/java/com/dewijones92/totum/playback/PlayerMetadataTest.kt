@@ -90,6 +90,25 @@ class PlayerMetadataTest {
     }
 
     /**
+     * Both names cross the session too — the show as `artist`, the network as `albumArtist`.
+     *
+     * This class exists because "a Bundle key that is written but never read compiles perfectly and
+     * delivers nothing", and the publisher is written through a metadata field nothing else reads.
+     * Asserting `setAlbumArtist` at the call site would have proved only that the setter was called.
+     */
+    @Test
+    fun `the show and its publisher cross the session`() = runBlocking(Dispatchers.Main) {
+        val id = "metadata-with-names"
+
+        val states = statesFor(id, until = { it.publisher != null }) { controller.play(itemWithMetadata(id)) }
+        val state = states.firstOrNull { it.publisher != null }
+        assertTrue("the session never published the publisher at all: $states", state != null)
+
+        assertEquals("the show's name did not cross the session", "The Rest Is Politics", state!!.artist)
+        assertEquals("the publisher did not cross the session", "Goalhanger", state.publisher)
+    }
+
+    /**
      * And absence stays absence.
      *
      * A Bundle cannot hold a null Long, so the publication instant travels as epoch millis with a
@@ -190,7 +209,8 @@ class PlayerMetadataTest {
         publishedAt = publishedAt.takeIf { withMetadata },
         publishedText = "5 days ago".takeIf { withMetadata },
         duration = null,
-        author = "Novara Media",
+        author = "The Rest Is Politics",
+        publisher = "Goalhanger".takeIf { withMetadata },
         mediaUrl = HttpUrl.of("https://example.test/episode.mp3"),
         viewsText = "1.2M views".takeIf { withMetadata },
     )

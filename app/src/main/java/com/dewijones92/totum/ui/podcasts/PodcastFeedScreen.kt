@@ -75,6 +75,7 @@ fun PodcastFeedScreen(
         Column(Modifier.fillMaxSize()) {
             SourceHeader(
                 title = source.title,
+                publisher = source.publisher,
                 subscribed = subscribed,
                 onBack = onBack,
                 onToggleSubscribed = {

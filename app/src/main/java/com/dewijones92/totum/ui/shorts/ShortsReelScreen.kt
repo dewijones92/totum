@@ -6,7 +6,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -210,17 +213,31 @@ private fun ShortPage(
         if (isCurrent && state?.isBuffering == true) {
             CircularProgressIndicator(color = Color.White)
         }
-        Text(
-            text = short.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.White,
+        // A scrim under the title, which it did not need while titles capped at two lines and does
+        // now: a hashtag-stuffed Shorts title wraps to four or five, so white text was sitting over
+        // a third of the picture with nothing behind it and no guarantee the frame was dark. The
+        // gradient fades to nothing at the top so it reads as the picture darkening, not a panel.
+        Column(
+            verticalArrangement = Arrangement.Bottom,
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(16.dp),
-        )
+                .background(
+                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = SCRIM_ALPHA))),
+                ),
+        ) {
+            Text(
+                text = short.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
     }
 }
+
+/** Enough to keep white text legible over a bright frame, and light enough to read through. */
+private const val SCRIM_ALPHA = 0.55f
 
 @Composable
 private fun ShortsEmpty(onBack: () -> Unit, modifier: Modifier = Modifier) {

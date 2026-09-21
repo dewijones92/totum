@@ -184,7 +184,13 @@ class MediaItemSubtitleTest {
         )
     }
 
-    /** A label, not a second microphone: two mics in a row read as one fact repeated. */
+    /**
+     * A label, not a second microphone: two mics in a row read as one fact repeated.
+     *
+     * The publisher line has to be PRESENT for the distinctness check to mean anything — asserting
+     * "all glyphs differ" alone passes just as happily with the line deleted, which is how a test
+     * ends up guarding nothing.
+     */
     @Test
     fun `the publisher wears a different glyph from the show`() {
         val facts = mediaItemFacts(
@@ -193,6 +199,7 @@ class MediaItemSubtitleTest {
         )
         val glyphs = facts.map { it.substringBefore(' ') }
 
+        assertTrue("the publisher line must be there at all: $facts", glyphs.contains(FactEmoji.PUBLISHER))
         assertEquals(glyphs.toString(), glyphs.size, glyphs.toSet().size)
     }
 
@@ -212,12 +219,21 @@ class MediaItemSubtitleTest {
         )
     }
 
-    /** A feed that says `<itunes:author></itunes:author>` must not produce a bare label either. */
+    /**
+     * A feed that says `<itunes:author></itunes:author>` must not produce a bare label either.
+     *
+     * Paired with the non-blank case in the same test, because "blank produces no line" is also
+     * true of a version with no publisher line at all.
+     */
     @Test
-    fun `a blank publisher leaves no bare label`() {
+    fun `a blank publisher leaves no bare label, while a real one does appear`() {
         assertEquals(
             listOf("${FactEmoji.PODCAST} Novara Media", "📅 2 days ago"),
             mediaItemFacts(podcastEpisode(publisher = "   "), MediaKind.PODCAST),
+        )
+        assertEquals(
+            listOf("${FactEmoji.PODCAST} Novara Media", "${FactEmoji.PUBLISHER} Goalhanger", "📅 2 days ago"),
+            mediaItemFacts(podcastEpisode(publisher = "Goalhanger"), MediaKind.PODCAST),
         )
     }
 

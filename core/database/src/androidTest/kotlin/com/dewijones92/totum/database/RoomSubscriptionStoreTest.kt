@@ -63,6 +63,34 @@ class RoomSubscriptionStoreTest {
         assertEquals(listOf(episode), podcasts.observeItems().first())
     }
 
+    /**
+     * A feed's own publisher survives storage, so the show's page can name the network.
+     *
+     * Here rather than on the device I was testing on, because that device's `podcast_feeds`
+     * predates the column and Room 2.8.4 did not complain: the app opened, read the feeds and
+     * reported a null publisher, with a stored identity hash that plainly disagreed with the
+     * generated one. An in-memory database is built from the current schema every time, so this
+     * cannot pass for the same reason a stale device would fail.
+     */
+    @Test
+    fun aFeedKeepsItsPublisher() = runTest {
+        val withNetwork = podcastSource.copy(title = "Football Daily", publisher = "BBC Radio 5 Live")
+        podcasts.saveSource(Subscription(withNetwork, podcastSub.subscribedAt), listOf(episode))
+
+        val read = podcasts.observeSubscriptions().first().single().source as MediaSource.PodcastFeed
+        assertEquals("Football Daily", read.title)
+        assertEquals("BBC Radio 5 Live", read.publisher)
+    }
+
+    /** A channel has no second name, and storage must not invent one. */
+    @Test
+    fun aChannelHasNoPublisher() = runTest {
+        channels.saveSource(channelSub, listOf(video))
+
+        val read = channels.observeSubscriptions().first().single().source
+        assertEquals(channelSource, read)
+    }
+
     @Test
     fun removeSourceCascadesToItems() = runTest {
         podcasts.saveSource(podcastSub, listOf(episode))

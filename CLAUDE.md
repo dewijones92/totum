@@ -116,6 +116,23 @@ On-device testing matters: the podcast RSS bug (Android's Expat parser rejecting
 `DocumentBuilder` bean-property toggles) passed every JVM test and only surfaced
 when driven on the emulator. Verify real flows on a device, not just via tests.
 
+### A schema change with no version bump makes the app un-openable — and it looks like nothing
+
+Room **does** throw on an identity-hash mismatch (`IllegalStateException: Room cannot verify the
+data integrity … Expected identity hash: X, found: Y`), and it throws when the DB is opened, which
+on this app is during startup. Two things make it hard to read:
+
+- **The crash can be invisible.** `com.dewijones92.uniapp` — the pre-rename app — is still installed
+  on `totum-api35`, so when Totum died at launch the launcher fell through to THAT app, which looks
+  almost identical and has its own empty database. I spent several minutes reading "No podcasts yet"
+  and a stale schema as evidence about Totum. Check `adb shell pidof com.dewijones92.totum` and
+  `dumpsys activity activities | grep topResumedActivity` before believing any screen.
+- **Amending an already-applied migration is what causes it.** Editing the body of a migration whose
+  version a dev device has already run (fine to do while the commit is unpushed) leaves that device
+  on a schema whose hash no longer matches. The cheap fix keeps the sign-in: force-stop, then
+  `run-as com.dewijones92.totum rm -f databases/totum.db*` — the DB goes, `shared_prefs/` and the
+  YouTube token stay — and re-add whatever test data you need.
+
 ### The emulator: `totum-api35`, and its YouTube sign-in is perishable
 
 The project's emulator AVD is **`totum-api35`** (API 35, x86_64). Boot it with

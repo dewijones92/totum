@@ -49,6 +49,7 @@ public class RoomSubscriptionStore(
             id = id.value,
             sourceType = SourceType.PODCAST.key,
             title = title,
+            publisher = publisher,
             feedUrl = feedUrl.value,
             websiteUrl = websiteUrl?.value,
             subscribedAtEpochMs = subscribedAt.toEpochMilli(),
@@ -75,6 +76,7 @@ public class RoomSubscriptionStore(
                 title = title,
                 feedUrl = HttpUrl.of(feedUrl),
                 websiteUrl = websiteUrl?.let(HttpUrl::parse),
+                publisher = publisher,
             )
         }
         return Subscription(source = source, subscribedAt = Instant.ofEpochMilli(subscribedAtEpochMs))

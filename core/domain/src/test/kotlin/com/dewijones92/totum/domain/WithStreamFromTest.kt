@@ -30,6 +30,7 @@ class WithStreamFromTest {
         publishedText = "5 days ago",
         duration = 600.seconds,
         author = "Novara Media",
+        publisher = "A Network",
         thumbnailUrl = HttpUrl.of("https://i.ytimg.com/vi/abc123/hq.jpg"),
         viewsText = "1.2M views",
         membersOnly = true,
@@ -68,6 +69,31 @@ class WithStreamFromTest {
      * The one that had a user-visible consequence of its own: a members-only badge disappearing at
      * play time is how three items sat in a real download queue with no explanation.
      */
+    /**
+     * Both names survive. A podcast's publisher is only ever known from the feed — an extractor has
+     * no concept of one — so a resolution that overwrote it with its own null would take the name
+     * away at the moment of playing, which is the exact defect this whole function exists to stop.
+     */
+    @Test
+    fun `the publisher survives a resolution that has none`() {
+        val resolved = listing.withStreamFrom(stream)
+
+        // The author follows the existing rule — a resolution that names one wins, trailing space
+        // and all, which is what this fixture's `"Novara Media "` is here to pin. The publisher is
+        // the new half: an extractor has no concept of one, so its silence must not take the
+        // feed's name away at the moment of playing.
+        assertEquals("Novara Media ", resolved.author)
+        assertEquals("A Network", resolved.publisher)
+    }
+
+    /** And a resolution that DOES know a publisher may fill one the listing lacked. */
+    @Test
+    fun `a resolution fills a publisher the listing never had`() {
+        val silent = listing.copy(publisher = null)
+
+        assertEquals("Goalhanger", silent.withStreamFrom(stream.copy(publisher = "Goalhanger")).publisher)
+    }
+
     @Test
     fun `the members-only flag survives resolution`() {
         assertEquals(true, listing.withStreamFrom(stream).membersOnly)

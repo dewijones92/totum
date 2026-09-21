@@ -31,6 +31,8 @@ class BackupServiceTest {
         title = "Item $id",
         publishedAt = null,
         duration = null,
+        author = "The Rest Is Politics",
+        publisher = "Goalhanger",
         mediaUrl = HttpUrl.of("https://cdn.example.com/$id.mp3"),
     )
 
@@ -113,6 +115,28 @@ class BackupServiceTest {
         assertEquals(listOf("Later"), onto.playlists.observePlaylists().first().map { it.name })
         assertEquals(listOf("two"), onto.queue.load().entries.map { it.item.item.id.value })
         assertEquals(mapOf("playbackMode" to "AUDIO"), onto.settings)
+    }
+
+    /**
+     * A restored row must carry BOTH names, because nothing can put them back: a podcast enclosure
+     * is never re-resolved and a restored queue row is never synced from its feed again. The backup
+     * file was the SIXTH place an item is persisted and the only one the v22 publisher change
+     * missed, so an export/restore silently dropped the network's name for ever — while the five
+     * database tables kept it, which is the "same item reads differently depending which list you
+     * reached it from" defect that change exists to fix.
+     */
+    @Test
+    fun `a restored queue row keeps the show AND its publisher`() = runTest {
+        val from = Fixture()
+        from.queue.save(QueueSnapshot(listOf(QueueEntry(playable("ep1")))))
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        val restored = onto.queue.load().entries.single().item.item
+        assertEquals("The Rest Is Politics", restored.author)
+        assertEquals("Goalhanger", restored.publisher)
     }
 
     /**

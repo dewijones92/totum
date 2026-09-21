@@ -63,9 +63,11 @@ class PlayedRowIsTintedTest {
     }
 
     /**
-     * Both themes, because a wash defined as an alpha over the surface can vanish in one of them:
-     * the same cyan at 8% sits on Sand99 in the light theme and Sand10 in the dark, and this repo
-     * has a memory of flipping the theme being what reveals a contrast bug.
+     * Both themes, because a wash defined as an alpha over a surface can read as a colour in one and
+     * as grey in the other — and neither the alpha nor the tone is shared between them. The light
+     * theme washes Cyan40 at 8% over Sand99; the dark washes Cyan80 at 14% over Sand10. The first
+     * version used one alpha for both and had to be corrected by *looking* at it, which is why the
+     * blue-gain bar below is not "any gain at all".
      */
     @Test
     fun `a played row is tinted and an unplayed one is not - dark theme`() {
@@ -80,6 +82,10 @@ class PlayedRowIsTintedTest {
                 Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                     TestRow(PLAYED, PlayState.Played)
                     TestRow(UNPLAYED, PlayState.Unplayed)
+                    // Part-way, which Dewi decided should NOT be tinted: it already carries the
+                    // progress sliver, and tinting it too would leave nothing untinted to compare
+                    // against. Asserted because a decision nothing pins is a decision that drifts.
+                    TestRow(PART_WAY, PlayState.InProgress(positionMs = 30_000, durationMs = 120_000))
                 }
             }
         }
@@ -95,8 +101,12 @@ class PlayedRowIsTintedTest {
             unplayed.isNear(surface),
         )
         assertTrue(
-            "$theme: a played row should differ from an unplayed one — both were $played",
-            !played.isNear(unplayed)
+            "$theme: a played row ($played) should differ from an unplayed one ($unplayed)",
+            !played.isNear(unplayed),
+        )
+        assertTrue(
+            "$theme: a part-way row must not be tinted — was ${cornerOf(PART_WAY)} against $unplayed",
+            cornerOf(PART_WAY).isNear(unplayed),
         )
 
         // Cyan, not just "different": blue must gain on red, which rules out a grey wash and rules
@@ -154,6 +164,7 @@ class PlayedRowIsTintedTest {
     private companion object {
         const val PLAYED = "row-played"
         const val UNPLAYED = "row-unplayed"
+        const val PART_WAY = "row-part-way"
         const val SAMPLE_INSET = 2
         const val TOLERANCE = 1f / 255f
         const val MAX_SHIFT = 0.2f

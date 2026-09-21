@@ -30,6 +30,16 @@ public sealed interface MediaSource {
         override val title: String,
         val feedUrl: HttpUrl,
         val websiteUrl: HttpUrl? = null,
+        /**
+         * The network behind the show, when the feed names a different one — see
+         * [MediaItem.publisher], which is the same fact about an episode.
+         *
+         * On the SOURCE as well as its items because the show's own page is the one screen whose
+         * whole job is to say what this show is, and it could not: it showed "Football Daily" alone
+         * while every episode row beneath it said "BBC Radio 5 Live". A channel has no equivalent
+         * second name, so this is podcast-only — like `feedUrl` itself.
+         */
+        val publisher: String? = null,
     ) : MediaSource
 }
 

@@ -93,6 +93,10 @@ public fun MediaItem.fillingSilenceFrom(resolved: MediaItem): MediaItem {
         publishedText = publishedText ?: resolved.publishedText,
         duration = duration ?: resolved.duration,
         author = author ?: resolved.author,
+        // Its sibling `withStreamFrom` gained this and this did not, which is one question with two
+        // answers — the DRY law's own failure mode. Latent while only videos are re-resolved, but
+        // the "nothing to learn" signal below would have been a lie the day one was not.
+        publisher = publisher ?: resolved.publisher,
         thumbnailUrl = thumbnailUrl ?: resolved.thumbnailUrl,
         description = description ?: resolved.description,
         viewsText = viewsText ?: resolved.viewsText,

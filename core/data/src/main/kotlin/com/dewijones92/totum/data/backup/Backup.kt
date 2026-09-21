@@ -88,6 +88,14 @@ public data class BackupItem(
     val durationMs: Long? = null,
     val sourceUrl: String? = null,
     val membersOnly: Boolean = false,
+
+    /**
+     * The show's publisher, for the same reason as the fields above and with a sharper edge: a
+     * podcast enclosure is never re-resolved, and a restored queue or playlist row is never synced
+     * back from its feed, so a name dropped here is dropped for ever. This was the SIXTH
+     * persistence format and the one the v22 change missed.
+     */
+    val publisher: String? = null,
 )
 
 /** How far through something you got, or that you finished it. */

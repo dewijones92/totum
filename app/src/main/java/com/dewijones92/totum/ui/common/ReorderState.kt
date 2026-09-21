@@ -30,9 +30,16 @@ import kotlin.math.abs
  *
  * Hand-rolled rather than pulling in a dependency, and deliberately simple: instead of mapping
  * pointer positions onto item bounds, it accumulates the drag and swaps one position each time
- * the accumulated distance passes a row's height. That reads identically to the user, survives
- * lists whose lazy indices don't line up with the data (the queue interleaves group headers),
- * and has no measurement edge cases.
+ * the accumulated distance passes the height of **the row being crossed**. That reads identically
+ * to the user, survives lists whose lazy indices don't line up with the data (the queue interleaves
+ * group headers), and has no measurement edge cases.
+ *
+ * **Per row, not one height for the list**, since 2026-09-21. Rows were near-uniform while titles
+ * were capped at two lines; now nothing in the app truncates, so a queue holds rows from ~100dp to
+ * ~250dp at once. One shared height means the step is whichever row happened to measure last — so
+ * dragging a short row past a tall one needed twice the travel, and the reverse produced two swaps
+ * for one row of movement. Same quantity, same class of bug as the handle-height defect recorded on
+ * [reorderable] below, which is why the heights are swapped along with the rows.
  *
  * **It auto-scrolls at the edges**, which is the difference between a toy and something usable.
  * Without it a drag could only move an item as far as the viewport, and Dewi's queue is 74 items
@@ -55,7 +62,15 @@ class ReorderState internal constructor(
 ) {
     internal var draggingIndex by mutableIntStateOf(NONE)
     private var accumulated by mutableFloatStateOf(0f)
+
+    /**
+     * Fallback height, used only for an index nothing has measured yet — and set directly by the
+     * unit tests that model a uniform list.
+     */
     internal var rowHeight by mutableStateOf(0)
+
+    /** Measured height per index, so the step can be the height of the row actually being crossed. */
+    private val rowHeights = mutableMapOf<Int, Int>()
     internal var itemCount = 0
 
     /** The list's own top and bottom in window coordinates, so "near the edge" is answerable. */
@@ -144,20 +159,37 @@ class ReorderState internal constructor(
      */
     internal fun applyDrag(dy: Float) {
         accumulated += dy
-        val step = rowHeight.takeIf { it > 0 } ?: return
-        while (abs(accumulated) >= step) {
+        while (true) {
             val direction = if (accumulated > 0) 1 else -1
             val from = draggingIndex
             val to = from + direction
+            // The row being CROSSED sets the distance, because that is how far the finger has to
+            // travel for the two to change places. Recomputed each iteration: a single step read
+            // once before the loop is only right while every row is the same height.
+            val step = (rowHeights[to] ?: rowHeights[from] ?: rowHeight).takeIf { it > 0 } ?: return
+            if (abs(accumulated) < step) return
             if (to !in 0 until itemCount) {
                 // At an end: stop accumulating so the row doesn't drift away.
                 accumulated = 0f
                 return
             }
             onMove(from, to)
+            // The heights move with the rows, or the next step would be measured against whatever
+            // used to be there. Composition re-measures and corrects this anyway; not relying on
+            // that is what keeps a fast multi-row drag stepping by the right distances throughout.
+            val crossed = rowHeights[to]
+            rowHeights[from]?.let { rowHeights[to] = it } ?: rowHeights.remove(to)
+            crossed?.let { rowHeights[from] = it } ?: rowHeights.remove(from)
             draggingIndex = to
             accumulated -= direction * step
         }
+    }
+
+    /** What [reorderable] reports for each row it measures. */
+    internal fun setRowHeight(index: Int, height: Int) {
+        rowHeights[index] = height
+        // Kept in step so an unmeasured index still has something sane to fall back to.
+        rowHeight = height
     }
 
     /**
@@ -247,10 +279,13 @@ fun rememberReorderState(
  * the handle's height rather than the row's, and items reordered roughly four times faster than
  * the finger moved. The synthetic test missed it entirely because it made the handle the whole
  * row; the real screen does not.
+ *
+ * Reported **per index** since rows stopped being uniform — the same measurement, no longer
+ * flattened into one number for the whole list.
  */
 fun Modifier.reorderable(state: ReorderState, index: Int): Modifier =
     this
-        .onSizeChanged { if (it.height > 0) state.rowHeight = it.height }
+        .onSizeChanged { if (it.height > 0) state.setRowHeight(index, it.height) }
         .graphicsLayer {
             translationY = state.offsetFor(index)
             // A little lift so it's obvious which row you picked up.

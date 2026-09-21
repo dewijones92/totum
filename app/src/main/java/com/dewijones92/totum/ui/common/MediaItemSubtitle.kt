@@ -6,6 +6,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PublishedAge
+import com.dewijones92.totum.domain.publisherFor
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -105,10 +106,11 @@ fun mediaFacts(
     publisher: String? = null,
 ): List<String> = listOfNotNull(
     author.labelled(authorEmoji),
-    // Dropped when it merely repeats the maker, which is what most feeds set it to. The comparison
-    // is here as well as at the mapping so a row stored before v22 — or any other source that
-    // fills both fields alike — cannot show one name twice.
-    publisher.takeIf { !it.equals(author, ignoreCase = true) }.labelled(FactEmoji.PUBLISHER),
+    // The SAME rule the podcast mapping applies, called rather than restated — it had three
+    // spellings within a day, two trimming and one not. Belt and braces here: our own rows cannot
+    // arrive with a publisher that repeats the author, so this can only fire on data this app did
+    // not write (an imported backup, a future source).
+    publisherFor(publisher, null, author).nameOrNull.labelled(FactEmoji.PUBLISHER),
     viewsText.labelled(FactEmoji.VIEWS),
     dateText.labelled(FactEmoji.PUBLISHED),
 )

@@ -1,9 +1,11 @@
 package com.dewijones92.totum.data.podcast
 
+import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.subscription.SubscriptionStore
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +59,39 @@ class DefaultPodcastRepositoryTest {
         assertNull(stored.second[1].publisher)
     }
 
+    /**
+     * A REFRESH teaches an existing subscription what its feed now says — the publisher especially.
+     *
+     * This was the bug the emulator found and the code did not show: `toMediaSource` was reached
+     * only by `subscribe`, and refresh re-saved the source it had read from storage, so every
+     * episode row carried "BBC Radio 5 Live" while `podcast_feeds.publisher` stayed NULL for ever
+     * and the show's own page had nothing to name. Read off the stored source, which is the thing
+     * the screen reads.
+     */
+    @Test
+    fun `a refresh gives an existing subscription its publisher`() = runTest {
+        val xml = feed(channelExtras = "<itunes:author>Goalhanger</itunes:author>", episodeExtras = "")
+        // Subscribed BEFORE the publisher was a thing, exactly like a row upgraded to v22.
+        store.saveSource(
+            Subscription(
+                source = MediaSource.PodcastFeed(
+                    id = SourceId(feedUrl.value),
+                    title = "The Rest Is Politics",
+                    feedUrl = feedUrl,
+                    websiteUrl = null,
+                ),
+                subscribedAt = now,
+            ),
+            emptyList(),
+        )
+
+        repository(FetchResult.Success(xml)).refresh()
+
+        val source = checkNotNull(store.saved).first.source as MediaSource.PodcastFeed
+        assertEquals("Goalhanger", source.publisher)
+        assertEquals("the original subscribe date must survive a refresh", now, store.saved!!.first.subscribedAt)
+    }
+
     @Test
     fun `the channel's author is the publisher every episode shares`() = runTest {
         val xml = feed(
@@ -85,6 +120,38 @@ class DefaultPodcastRepositoryTest {
         val episode = checkNotNull(store.saved).second.single()
         assertEquals("The Rest Is Politics", episode.author)
         assertEquals("A Guest Author", episode.publisher)
+    }
+
+    /**
+     * The diagnostics line has to say which of the two "no publisher" cases happened, because that
+     * is the whole reason it exists — and its first version got exactly this case backwards. A feed
+     * naming the show again on EVERY episode was reported as "the feed named no publisher", since
+     * the reason was reconstructed from the channel-level author instead of recorded per episode.
+     */
+    @Test
+    fun `the log says a publisher was dropped as a repeat, not that none was given`() = runTest {
+        Breadcrumbs.clear()
+        val xml = feed(channelExtras = "", episodeExtras = "<itunes:author>The Rest Is Politics</itunes:author>")
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        val line = Breadcrumbs.snapshot().map { it.message }.single { it.startsWith("names ") }
+        assertTrue("should count the repeat: $line", line.contains("droppedAsRepeatOfTheShow=1"))
+        assertTrue("and show nothing: $line", line.contains("shown=0"))
+        assertTrue("and not claim nobody was named: $line", line.contains("named-nobody=0"))
+    }
+
+    /** The other case, so the two are actually distinguishable in a report rather than just worded. */
+    @Test
+    fun `the log says nobody was named when the feed named nobody`() = runTest {
+        Breadcrumbs.clear()
+        val xml = feed(channelExtras = "", episodeExtras = "")
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        val line = Breadcrumbs.snapshot().map { it.message }.single { it.startsWith("names ") }
+        assertTrue("should count the silence: $line", line.contains("named-nobody=1"))
+        assertTrue("and no repeat: $line", line.contains("droppedAsRepeatOfTheShow=0"))
     }
 
     @Test

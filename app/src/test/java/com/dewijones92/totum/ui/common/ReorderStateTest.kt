@@ -21,6 +21,10 @@ class ReorderStateTest {
     private companion object {
         const val TEN = 10
         const val ROW = 100
+
+        /** A 1-line row and a 4-line one, roughly as the queue measures them at 3x density. */
+        const val SHORT = 100
+        const val TALL = 250
     }
 
     private fun state(startIndex: Int, count: Int, rowHeight: Int = ROW) =
@@ -224,6 +228,81 @@ class ReorderStateTest {
         assertEquals(listOf(1 to 0), moves)
         assertEquals(0, reorder.draggingIndex)
         assertEquals(0f, reorder.offsetFor(0), 0.01f)
+    }
+
+    // ---- rows of different heights, which is every queue since titles stopped truncating -------
+
+    /**
+     * A tall row costs MORE travel to cross than a short one, and the step follows the row being
+     * crossed rather than whichever row measured last.
+     *
+     * This is the defect the wrap change introduced (2026-09-21). Rows were near-uniform while
+     * titles capped at two lines; now a 4-line episode title next to a 1-line one is ~250dp
+     * against ~100dp in the same viewport, and one shared height made the step whichever of them
+     * Compose measured last — so half the queue dragged at the wrong rate. Same quantity, same
+     * class of bug as the handle-height defect, and the reason it survived the existing tests is
+     * that both of them make every row the same height by construction: `ReorderStateTest` set one
+     * number and `ReorderAutoScrollTest` pins `.height(rowHeight.dp)` on every row.
+     */
+    @Test
+    fun `crossing a tall row takes its height, not the previous row's`() {
+        val reorder = state(startIndex = 0, count = 3, rowHeight = 0).apply {
+            setRowHeight(0, SHORT)
+            setRowHeight(1, TALL)
+            setRowHeight(2, SHORT)
+        }
+
+        // A short row's worth of travel is not enough to get past the TALL row below it.
+        reorder.applyDrag(SHORT.toFloat())
+        assertEquals("a short step must not cross a tall row", emptyList<Pair<Int, Int>>(), moves)
+
+        // The rest of the tall row's height completes exactly one move, and no more.
+        reorder.applyDrag((TALL - SHORT).toFloat())
+        assertEquals(listOf(0 to 1), moves)
+        assertEquals(1, reorder.draggingIndex)
+    }
+
+    /**
+     * And the other way round: dragging DOWN past a short row must not need a tall row's travel.
+     * With one shared height this took 250px to move one place and then jumped two at once.
+     */
+    @Test
+    fun `crossing a short row takes only its height`() {
+        // Measured with the TALL row LAST on purpose. The fallback is the most recent measurement,
+        // so a version that ignores the per-index heights would demand a tall row's travel here —
+        // which is what makes this case discriminate rather than pass on the luck of the order. It
+        // passed the one-shared-height mutant until the order was fixed.
+        val reorder = state(startIndex = 0, count = 3, rowHeight = 0).apply {
+            setRowHeight(1, SHORT)
+            setRowHeight(2, SHORT)
+            setRowHeight(0, TALL)
+        }
+
+        reorder.applyDrag(SHORT.toFloat())
+
+        assertEquals("one short row of travel is one move", listOf(0 to 1), moves)
+    }
+
+    /**
+     * The heights travel WITH the rows. Without that, the second crossing would be measured
+     * against whatever used to sit at that index — which is the same wrong-quantity bug one step
+     * further along, and only visible in a drag of more than one place.
+     */
+    @Test
+    fun `a two-row drag measures each row it crosses`() {
+        val reorder = state(startIndex = 0, count = 4, rowHeight = 0).apply {
+            setRowHeight(0, SHORT)
+            setRowHeight(1, SHORT)
+            setRowHeight(2, TALL)
+            setRowHeight(3, SHORT)
+        }
+
+        // Short + tall in one continuous motion: exactly two moves, with nothing left over.
+        reorder.applyDrag((SHORT + TALL).toFloat())
+
+        assertEquals(listOf(0 to 1, 1 to 2), moves)
+        assertEquals(2, reorder.draggingIndex)
+        assertEquals("no leftover travel", 0f, reorder.offsetFor(2), 0.01f)
     }
 
     /** Before the row has been measured there is no step size, so nothing can be decided yet. */

@@ -197,6 +197,30 @@ class PlayerKeepsEveryControlTest {
         assertReachable("the up-next queue", "Up next", "Ceuta")
     }
 
+    /**
+     * The page names the show AND the network behind it.
+     *
+     * On the SCREEN, not through the formatter: `MediaItemSubtitleTest` calls `mediaFacts` with a
+     * hand-written argument list, so it would stay green if `PlayerHeader` stopped passing the
+     * publisher — which is the wiring, and the wiring is the part that has broken before in this
+     * repo. The show's name is `artist`, rendered above the title; the publisher is a fact line
+     * under it, and the author is deliberately NOT repeated there.
+     */
+    @Test
+    fun `the podcast player names the show and its publisher`() {
+        show(
+            video.copy(
+                kind = MediaKind.PODCAST,
+                hasVideo = false,
+                artist = "Football Daily",
+                publisher = "BBC Radio 5 Live"
+            )
+        )
+
+        assertReachable("the show", "Football Daily")
+        assertReachable("the publisher", "BBC Radio 5 Live")
+    }
+
     private companion object {
         /** Deep enough to show the controls, shallow enough to read in a failure message. */
         const val TREE_DEPTH = 30

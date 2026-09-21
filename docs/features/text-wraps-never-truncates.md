@@ -23,8 +23,10 @@ was sound and is now overruled by his preference:
 - *"Each line still caps at one line, so an ellipsis can only ever shorten a long channel
   name."* ([upload-dates.md](upload-dates.md), 2026-08-15.) It can no longer shorten anything.
 
-40 truncation sites went, across 15 files. `TextOverflow.Ellipsis` appears nowhere in
-`app/src/main`.
+**25 `TextOverflow.Ellipsis` sites and 23 `maxLines` caps went, across 16 files** — 48 lines.
+(This said "40 sites across 15 files" until the review of it counted: 40 was the number my sweep
+script dropped, which excluded four files edited by hand. `TextOverflow.Ellipsis` now appears
+nowhere in `app/src/main`.)
 
 ## The four places a cap survives, and why
 
@@ -47,6 +49,23 @@ says there is more is a labelled control rather than a punctuation mark.
 Thirteen string resources use `…` as UI convention — "Loading comments…", "Choose a file…",
 "Checking…". Those are progress and opens-a-dialog idioms rather than truncated content, so they
 stay. Say the word if you want them gone too.
+
+## Round one of the gauntlet found three holes in the guard
+
+All three are closed, with `tools/ci/preflight_text_test.py` pinning each:
+
+- **A string literal could blind it.** The stripper removed comments before strings, so the MIME
+  literal `"*/*"` (ImportExportScreen has two) opened a fake block comment and a `"https://…"`
+  literal ate the rest of its line. Probed: a snippet holding a real cap AND a real ellipsis next
+  to a `"*/*"` came back clean. Strings are now removed first.
+- **The allowance was a COUNT.** Deleting a declared cap and adding an undeclared one elsewhere in
+  the same file kept the count at 1 and passed. The exact cap expression is declared now — which
+  also exposed that the table claimed `maxLines = 1` for the diagnostics note, whose real cap is 6.
+  A declared cap that no longer exists now fails too, since a stale allowance is how the next one
+  gets in.
+- **It banned one spelling.** `TextOverflow.StartEllipsis` and `MiddleEllipsis` ship in this Compose
+  BOM and both render dots; `import …TextOverflow.Companion.Ellipsis` makes the bare name work. All
+  are caught now, and the scan covers every module rather than `app/` alone.
 
 ## Guarded by preflight, not by a test
 

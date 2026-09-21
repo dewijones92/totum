@@ -218,30 +218,52 @@ def check_manual_tests_are_marked() -> int:
     return problems
 
 
-# Where a line cap is still legitimate, with the reason. Everything else in the app WRAPS.
+# Where a line cap is still legitimate, spelled out EXACTLY, with the reason. Everything else in
+# the app WRAPS.
 #
 # Dewi, 2026-09-21: *"dont use ... please in the app - just wrap the text"*. A cap with no ellipsis
 # is still truncation — it clips instead of dotting — so the cap is what is checked, not the dots.
 # Each of these either cannot overflow or has an explicit affordance for the rest of the text.
+#
+# The VALUE is declared, not a count, because a count is evadable and was: deleting the declared cap
+# in a file and adding an undeclared one elsewhere in the same file kept the count at 1 and passed.
+# It also let this table state the wrong number — it claimed 1 for the diagnostics note, whose real
+# cap is 6 — which is a comment that cannot be trusted rather than a check.
 ALLOWED_MAXLINES = {
     "app/src/main/java/com/dewijones92/totum/ui/common/MediaThumbnail.kt": (
-        1, "the duration chip is a clock ('1:02:45') and can never need a second line",
+        ["maxLines = 1"], "the duration chip is a clock ('1:02:45') and can never need a second line",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/common/CollapsingTitle.kt": (
-        1, "a fixed string resource in a header whose height is animated, so it cannot grow",
+        ["maxLines = 1"], "a header whose height is animated, so it cannot grow; its one caller passes a string resource",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt": (
-        1, "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
+        ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/player/FullPlayer.kt": (
-        1, "the description collapses behind an explicit 'Show more', and clips rather than dotting",
+        ["maxLines = if (expanded) Int.MAX_VALUE else DESCRIPTION_COLLAPSED_LINES"],
+        "the description collapses behind an explicit 'Show more', and clips rather than dotting",
     ),
 }
-MAXLINES = re.compile(r"\bmaxLines\s*=")
+MAXLINES = re.compile(r"\bmaxLines\s*=\s*[^,\n]+")
+# Every spelling of an ellipsis overflow, not just the one in use. `StartEllipsis` and
+# `MiddleEllipsis` ship in this Compose BOM and both render dots; an `import …TextOverflow.Companion
+# .Ellipsis` makes the bare name work too. A ban on one literal is a ban on one spelling.
+ELLIPSIS = re.compile(r"\bTextOverflow\.\w*Ellipsis\b|\boverflow\s*=\s*\w*Ellipsis\b")
 # KDoc and `//` lines talk ABOUT the caps that went, and that prose is the record of why — so it
 # has to survive a check on the code. Stripped rather than pattern-dodged: an "unless it looks
 # like a comment" regex is the kind that quietly stops matching real code too.
+#
+# STRINGS GO FIRST, and that order is the whole correctness of this. A Kotlin file containing the
+# MIME literal "*/*" (ImportExportScreen has two) opens a fake block comment that swallows code to
+# the next real `*/`; a "https://…" literal eats the rest of its line. Probed on a file holding a
+# real cap AND a real ellipsis next to a "*/*": the checker saw neither, and reported clean.
+STRINGS = re.compile(r'"""(?:.|\n)*?"""|"(?:\\.|[^"\\\n])*"', re.DOTALL)
 COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
+
+
+def code_only(source: str) -> str:
+    """Kotlin source with string literals and then comments removed, in that order."""
+    return COMMENTS.sub("", STRINGS.sub('""', source))
 
 
 def check_text_wraps_instead_of_truncating() -> int:
@@ -253,20 +275,35 @@ def check_text_wraps_instead_of_truncating() -> int:
     string to the semantics tree, so no assertion on text can see the difference. A grep can.
     """
     problems = 0
-    for path in sorted((ROOT / "app/src/main").rglob("*.kt")):
-        rel = str(path.relative_to(ROOT))
-        body = COMMENTS.sub("", path.read_text())
-        if "TextOverflow.Ellipsis" in body:
-            print(f"  PROBLEM: {rel} truncates with TextOverflow.Ellipsis")
+    # Every module, not just `app`: there is no Compose outside it today, and the day some moves
+    # into a library module a check scoped to one directory stops guarding without saying so.
+    for path in sorted(ROOT.rglob("src/*/**/*.kt")):
+        rel = path.relative_to(ROOT)
+        # Generated output, and `.claude/worktrees` — a stale worktree is a snapshot of code that
+        # was already reviewed under its own commit, and failing the gate on it would make this
+        # check a nuisance rather than a guard.
+        if any(part == "build" or part.startswith(".") for part in rel.parts):
+            continue
+        rel = str(rel)
+        body = code_only(path.read_text())
+        for dots in sorted(set(ELLIPSIS.findall(body))):
+            print(f"  PROBLEM: {rel} truncates with {dots.strip()}")
             print("    The app wraps instead (Dewi, 2026-09-21). Drop the overflow and the maxLines.")
             problems += 1
-        caps = len(MAXLINES.findall(body))
-        allowed, reason = ALLOWED_MAXLINES.get(rel, (0, ""))
-        if caps > allowed:
-            print(f"  PROBLEM: {rel} caps text at maxLines ({caps} site(s), {allowed} allowed)")
+        caps = [" ".join(cap.split()).rstrip(",").strip() for cap in MAXLINES.findall(body)]
+        allowed, reason = ALLOWED_MAXLINES.get(rel, ([], ""))
+        undeclared = [cap for cap in caps if cap not in allowed]
+        missing = [cap for cap in allowed if cap not in caps]
+        if undeclared:
+            print(f"  PROBLEM: {rel} caps text: {undeclared}")
             print("    A cap clips rather than dotting, which is still not wrapping.")
             if reason:
-                print(f"    The allowance here is for: {reason}")
+                print(f"    The declared allowance here is {allowed}, for: {reason}")
+            problems += 1
+        if missing:
+            # A declared cap that is gone is not a failure of the app, it is a failure of this
+            # table — and a stale allowance is exactly what lets the next undeclared cap in.
+            print(f"  PROBLEM: {rel} no longer has its declared cap(s) {missing} — drop the allowance")
             problems += 1
     if not problems:
         print(f"  ok: no text truncation outside the {len(ALLOWED_MAXLINES)} declared allowances")

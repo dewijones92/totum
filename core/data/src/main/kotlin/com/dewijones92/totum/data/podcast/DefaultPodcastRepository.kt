@@ -15,8 +15,10 @@ import com.dewijones92.totum.domain.Chapter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.PublisherChoice
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import com.dewijones92.totum.domain.publisherFor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.Clock
@@ -57,7 +59,7 @@ public class DefaultPodcastRepository(
             episode.toMediaItem(id, feedUrl, index, parsed, resolveChapters(episode, index))
         }
         Diag.log("subs", "subscribed \"${source.title}\" (${parsed.episodes.size} episodes) $feedUrl")
-        Diag.log("subs", parsed.namingDecision(items))
+        Diag.log("podcast", parsed.namingDecision())
         store.saveSource(
             subscription = Subscription(source = source, subscribedAt = clock.instant()),
             items = items,
@@ -132,36 +134,49 @@ public class DefaultPodcastRepository(
         val items = parsed.episodes.mapIndexed { index, episode ->
             episode.toMediaItem(source.id, source.feedUrl, index, parsed, resolveChapters(episode, index))
         }
-        Diag.log("podcast", parsed.namingDecision(items))
+        Diag.log("podcast", parsed.namingDecision())
         store.saveSource(
-            // Keep the original subscribedAt so refreshing doesn't reorder feeds.
-            subscription = Subscription(source = source, subscribedAt = sub.subscribedAt),
+            // The source is rebuilt from THIS parse, not carried over from storage. It used to be
+            // the stored one, so a refresh could never teach an existing subscription anything the
+            // feed had started saying — which is how the publisher landed on every episode row and
+            // on none of the feeds: `toMediaSource` was only ever reached by `subscribe`. Found by
+            // reading `podcast_feeds` after a refresh rather than by reading the code.
+            //
+            // A feed that renames itself now takes its new name here too, which is a change and the
+            // right one: the old behaviour kept the name from the day you subscribed for ever.
+            // Keeps the original subscribedAt, so refreshing still doesn't reorder feeds.
+            subscription = Subscription(
+                source = parsed.toMediaSource(source.id, source.feedUrl),
+                subscribedAt = sub.subscribedAt,
+            ),
             items = items,
         )
         return null
     }
 
     /**
-     * What this feed called itself, what it called its publisher, and what became of the second one.
+     * What this feed called itself, what it called its publisher, and what became of the second name
+     * — counted from **each episode's own decision**, not reconstructed from the channel afterwards.
      *
-     * The INPUTS, not the outcome: a report a week later has to be able to say why a row shows one
-     * name or two, and "publisher=none" is indistinguishable from "publisher dropped as a repeat"
-     * unless the line says which. One line per feed save, which is per subscribe and per refresh —
-     * feeds refresh on the order of hours, so this cannot crowd the buffer.
+     * The first version of this line inferred the reason from the channel-level author alone, and so
+     * said "the feed named no publisher" about a feed that named one on every episode and had it
+     * dropped as a repeat of the show — the opposite of the truth, in the commonest case the line
+     * was written for. Every decision is now taken by [publisherFor] and tallied here, so what the
+     * report says is what actually happened.
+     *
+     * One line per feed save, which is per subscribe and per refresh. Feeds refresh on the order of
+     * hours, so this cannot crowd the bounded report buffer.
      */
-    private fun ParsedFeed.namingDecision(items: List<MediaItem>): String {
-        val channelAuthor = author?.trim().orEmpty()
-        val droppedAsRepeat = channelAuthor.isNotEmpty() && channelAuthor.equals(title.trim(), ignoreCase = true)
-        val publishers = items.mapNotNull { it.publisher }.distinct()
-        val example = publishers.firstOrNull()?.let { " e.g. \"$it\"" }.orEmpty()
-        val why = when {
-            publishers.isNotEmpty() -> ""
-            droppedAsRepeat -> " (channel author repeats the show, so there is no second name to show)"
-            channelAuthor.isEmpty() -> " (the feed named no publisher)"
-            else -> " (every episode dropped it)"
-        }
-        return "names show=\"$title\" channelAuthor=${channelAuthor.ifEmpty { "none" }} " +
-            "publishers=${publishers.size}$example$why"
+    private fun ParsedFeed.namingDecision(): String {
+        val decisions = episodes.map { publisherFor(it.author, author, title) }
+        val named = decisions.filterIsInstance<PublisherChoice.Named>()
+        val repeats = decisions.filterIsInstance<PublisherChoice.RepeatsShow>()
+        val silent = decisions.count { it is PublisherChoice.NotGiven }
+        val example = (named.firstOrNull()?.name ?: repeats.firstOrNull()?.name)
+            ?.let { " e.g. \"$it\"" }.orEmpty()
+        return "names show=\"$title\" channelAuthor=${author?.trim()?.ifEmpty { null } ?: "none"} " +
+            "episodes=${decisions.size} shown=${named.size} droppedAsRepeatOfTheShow=${repeats.size} " +
+            "named-nobody=$silent$example"
     }
 
     private fun ParsedFeed.toMediaSource(id: SourceId, feedUrl: HttpUrl) = MediaSource.PodcastFeed(
@@ -169,6 +184,9 @@ public class DefaultPodcastRepository(
         title = title,
         feedUrl = feedUrl,
         websiteUrl = websiteUrl?.let(HttpUrl::parse),
+        // The channel-level author only. An episode's own is a fact about that episode, not about
+        // the show, and the same rule drops it when it merely repeats the title.
+        publisher = publisherFor(episodeAuthor = null, feedAuthor = author, show = title).nameOrNull,
     )
 
     /**
@@ -210,9 +228,7 @@ public class DefaultPodcastRepository(
         publishedAt = publishedAt,
         duration = duration,
         author = feed.title,
-        publisher = (author ?: feed.author)
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() && !it.equals(feed.title.trim(), ignoreCase = true) },
+        publisher = publisherFor(author, feed.author, feed.title).nameOrNull,
         description = description,
         thumbnailUrl = imageUrl?.let(HttpUrl::parse),
         mediaUrl = enclosureUrl?.let(HttpUrl::parse),

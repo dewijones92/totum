@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui.notifications
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,9 +23,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.ui.common.LocalNow
+import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rowTint
 
 /**
  * New uploads from your subscriptions since you last looked — the stand-in for
@@ -76,7 +78,12 @@ fun NotificationsScreen(
                             subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO, LocalNow.current),
                             pillar = MediaKind.VIDEO,
                             onPlay = { viewModel.play(upload.item) },
-                            modifier = if (upload.unread) Modifier.background(unreadTint()) else Modifier,
+                            // Through the row's own tint rather than a background of our own:
+                            // two backgrounds composite, and a played unread row wore both.
+                            tint = rowTint(
+                                playState = LocalPlayStates.current[upload.item.id] ?: PlayState.Unplayed,
+                                unread = upload.unread,
+                            ),
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     }
@@ -85,10 +92,6 @@ fun NotificationsScreen(
         }
     }
 }
-
-/** A faint wash behind the rows that arrived since you last looked. */
-@Composable
-private fun unreadTint() = MaterialTheme.colorScheme.primaryContainer.copy(alpha = UNREAD_TINT_ALPHA)
 
 /** Marks where the new ones end and the ones you have already seen begin. */
 @Composable
@@ -100,5 +103,3 @@ private fun SeenSince() {
         modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 4.dp),
     )
 }
-
-private const val UNREAD_TINT_ALPHA = 0.35f
