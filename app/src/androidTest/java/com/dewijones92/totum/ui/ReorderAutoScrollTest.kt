@@ -102,6 +102,93 @@ class ReorderAutoScrollTest {
         }
     }
 
+    /**
+     * Rows of two very different heights, alternating — a real queue since titles stopped being
+     * capped, where a one-line row is ~100dp beside a four-line one at ~250dp.
+     *
+     * Every other case here pins `.height(rowHeight.dp)` on every row, so all of them are uniform
+     * by construction and none could see the step being measured against the wrong row. Same shape
+     * of blind spot as the original version of this file making the handle the whole row.
+     */
+    private fun setUpMixedList() {
+        composeTestRule.setContent {
+            val order = remember { mutableStateListOf<Int>().apply { addAll(0 until ITEMS) } }
+            val listState = rememberLazyListState()
+            val reorder = rememberReorderState(listState) { from, to ->
+                moves += from to to
+                order.add(to, order.removeAt(from))
+            }
+            LazyColumn(
+                state = listState,
+                modifier = with(reorder) { Modifier.fillMaxSize().testTag(LIST).reorderContainer() },
+            ) {
+                itemsIndexed(order, key = { _, item -> item }) { index, item ->
+                    with(reorder) {
+                        Row(
+                            modifier = Modifier
+                                // Odd rows are TALL. The row being crossed is therefore a different
+                                // height from the row doing the crossing, which is the whole point.
+                                .height(if (item % 2 == 1) TALL_ROW.dp else ROW_HEIGHT.dp)
+                                .fillMaxWidth()
+                                .reorderable(reorder, index)
+                                .testTag("row-$item"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(text = "Item $item", modifier = Modifier.weight(1f))
+                            Box(
+                                Modifier
+                                    .height(HANDLE_HEIGHT.dp)
+                                    .width(HANDLE_HEIGHT.dp)
+                                    .dragHandle(index, order.size)
+                                    .testTag("grip-$item"),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * A list of very unequal rows still drags sanely: one tall row of travel moves at most one place.
+     *
+     * **This is a smoke test, not the guard** — and it is labelled that way because I wrote it
+     * believing it was the guard and then mutation-checked it. Replacing the per-row step with the
+     * old single shared height and re-running it on this emulator gives **OK (1 test)**: the step
+     * becomes whichever row measured LAST, which on an alternating list can perfectly well be the
+     * 192dp one, and then 192dp of travel is one move either way. Which row measures last is not
+     * something a test can control.
+     *
+     * So the step rule is pinned on the JVM instead (`ReorderStateTest`: crossing a tall row, a
+     * short row, and two rows of different heights in one motion — all three fail against the shared
+     * height). What this case is genuinely worth: a real GESTURE on a list whose rows differ in
+     * height does not double-move, drift or throw, which no JVM test can claim. The repo already
+     * learned the harder version of this lesson — a long-travel gesture assertion failed on CI twice
+     * for screen-size reasons, which is why the ten-row claim lives on the JVM too.
+     */
+    @Test
+    fun aMixedHeightListStillDragsOnePlaceAtATime() {
+        composeTestRule.mainClock.autoAdvance = false
+        setUpMixedList()
+
+        composeTestRule.onNodeWithTag("grip-0").performTouchInput {
+            down(center)
+            advanceEventTime(LONG_PRESS_MS)
+            // Exactly the height of the TALL row below, and nowhere near an edge.
+            moveTo(center + Offset(0f, TALL_ROW * density))
+        }
+        composeTestRule.mainClock.advanceTimeBy(TICK_MS)
+        composeTestRule.onNodeWithTag("grip-0").performTouchInput { up() }
+
+        // 0 or 1: the long-press detector absorbs the first movement, so one row of travel can land
+        // short — the same honest slop the three-row case tolerates. What matters is that it is
+        // nowhere near the three the shared-height version produces.
+        assertTrue(
+            "one tall row of travel must be at most one move, not three: $moves",
+            moves.size <= 1,
+        )
+    }
+
     /** The list every test drives: a small grip inside a much taller row, as on the real queue. */
     private fun setUpList(rowHeight: Float = ROW_HEIGHT, handleHeight: Float = HANDLE_HEIGHT) {
         composeTestRule.setContent {
@@ -172,6 +259,9 @@ class ReorderAutoScrollTest {
     private companion object {
         const val ITEMS = 40
         const val ROW_HEIGHT = 64f
+
+        /** Three times a short row: a four-line title beside a one-line one, roughly to scale. */
+        const val TALL_ROW = 192f
 
         /** A grip much smaller than its row, as on the real queue screen. */
         const val HANDLE_HEIGHT = 24f

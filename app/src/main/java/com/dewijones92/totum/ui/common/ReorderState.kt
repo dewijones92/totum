@@ -71,6 +71,25 @@ class ReorderState internal constructor(
 
     /** Measured height per index, so the step can be the height of the row actually being crossed. */
     private val rowHeights = mutableMapOf<Int, Int>()
+
+    /**
+     * What the drag just did, summarised on release — travel in, places out, and the step sizes it
+     * was measured against.
+     *
+     * One line per GESTURE, never per event: a drag emits pointer deltas by the hundred, and this
+     * file's own bounded report buffer is the reason nothing here logs per move.
+     *
+     * It exists because the wrong-step defect was completely unloggable. "The dragger moves too
+     * far" and "the dragger moves too little" produced identical silence, and the quantity that
+     * decides both — the step — appeared nowhere. Two separate defects in this one class have now
+     * been about that number (a handle's height, then one shared height for unequal rows), and both
+     * had to be found by reading the code. A report from a phone can settle the third: travel 720px
+     * against steps 358..411 and 2 places is right; the same travel against step=24 is the handle
+     * bug; against one step for a list of visibly different rows it is this one.
+     */
+    private var startedAt = NONE
+    private var travelled = 0f
+    private val stepsUsed = mutableSetOf<Int>()
     internal var itemCount = 0
 
     /** The list's own top and bottom in window coordinates, so "near the edge" is answerable. */
@@ -134,13 +153,23 @@ class ReorderState internal constructor(
                     onDragStart = {
                         draggingIndex = latestIndex.value
                         accumulated = 0f
+                        startedAt = draggingIndex
+                        travelled = 0f
+                        stepsUsed.clear()
                     },
-                    onDragEnd = { reset() },
-                    onDragCancel = { reset() },
+                    onDragEnd = {
+                        describeDrag("released")
+                        reset()
+                    },
+                    onDragCancel = {
+                        describeDrag("cancelled")
+                        reset()
+                    },
                     onDrag = { change, delta ->
                         // Consumed so the LazyColumn does not scroll the list out from under a
                         // drag that is already moving it.
                         change.consume()
+                        travelled += delta.y
                         applyDrag(delta.y)
                         // The finger in window space: where the grip is, plus where the touch
                         // sits within it. Edge detection only needs to be right to within a row.
@@ -148,6 +177,18 @@ class ReorderState internal constructor(
                     },
                 )
             }
+    }
+
+    /** One line per drag: what went in, what came out, and the quantity that decided it. */
+    private fun describeDrag(ending: String) {
+        val from = startedAt
+        if (from == NONE) return
+        val places = draggingIndex - from
+        Diag.log(
+            "queue",
+            "drag $ending: $from -> $draggingIndex ($places place(s)) after ${travelled.toInt()}px, " +
+                "steps=${stepsUsed.sorted()}px of ${rowHeights.size} measured row(s)",
+        )
     }
 
     /**
@@ -174,6 +215,7 @@ class ReorderState internal constructor(
                 return
             }
             onMove(from, to)
+            stepsUsed += step
             // The heights move with the rows, or the next step would be measured against whatever
             // used to be there. Composition re-measures and corrects this anyway; not relying on
             // that is what keeps a fast multi-row drag stepping by the right distances throughout.
