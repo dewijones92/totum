@@ -259,7 +259,12 @@ private class InMemoryPodcastStore : SubscriptionStore {
 
     override suspend fun saveSource(subscription: Subscription, items: List<MediaItem>) {
         saved = subscription to items
-        subscriptions.value += subscription
+        // REPLACES by source id, as `@Upsert` does in the real store. It appended, so saving the
+        // same feed twice left two rows sharing one id — a fake that cannot fail the way the thing
+        // it stands in for fails. Nothing depended on the old behaviour, but a second `refresh()`
+        // in any future test would silently have refreshed the same feed twice.
+        subscriptions.value = subscriptions.value.filterNot { it.source.id == subscription.source.id } +
+            subscription
     }
 
     override suspend fun removeSource(id: SourceId) {

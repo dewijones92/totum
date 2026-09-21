@@ -44,6 +44,7 @@ class BackupServiceTest {
             title = "Feed $id",
             feedUrl = HttpUrl.of(id),
             websiteUrl = null,
+            publisher = "Goalhanger",
         ),
         subscribedAt = Instant.ofEpochMilli(1_600_000_000_000),
     )
@@ -143,6 +144,25 @@ class BackupServiceTest {
      * Additive, not destructive: restoring the wrong file must never remove a library.
      * This is the property that makes restore safe to try.
      */
+    /**
+     * A restored FEED keeps its publisher too, not just the items.
+     *
+     * It heals on the next refresh, unlike a queue row — but until then the show's own page would
+     * name the show and nothing else, which is the gap this whole change exists to close.
+     */
+    @Test
+    fun `a restored subscription keeps its publisher`() = runTest {
+        val from = Fixture()
+        from.subscriptions.saveSource(feed("https://a.example/rss"), emptyList())
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        val source = onto.subscriptions.observeSubscriptions().first().single().source
+        assertEquals("Goalhanger", (source as MediaSource.PodcastFeed).publisher)
+    }
+
     @Test
     fun `restoring never removes what is already there`() = runTest {
         val onto = Fixture()

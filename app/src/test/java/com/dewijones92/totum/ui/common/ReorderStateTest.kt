@@ -284,9 +284,13 @@ class ReorderStateTest {
     }
 
     /**
-     * The heights travel WITH the rows. Without that, the second crossing would be measured
-     * against whatever used to sit at that index — which is the same wrong-quantity bug one step
-     * further along, and only visible in a drag of more than one place.
+     * Two rows of different heights in one motion, each costing its own height.
+     *
+     * NOTE: this does **not** guard the height-swap, though an earlier version of this KDoc claimed
+     * it did, and claimed the wrong mechanism for it too (the swap writes `from` and `to`; the next
+     * crossing reads `to + 1`, which it never touched). Simulated with and without the swap, this
+     * case and both of the ones above are byte-identical. The two cases below are the ones that see
+     * it.
      */
     @Test
     fun `a two-row drag measures each row it crosses`() {
@@ -303,6 +307,79 @@ class ReorderStateTest {
         assertEquals(listOf(0 to 1, 1 to 2), moves)
         assertEquals(2, reorder.draggingIndex)
         assertEquals("no leftover travel", 0f, reorder.offsetFor(2), 0.01f)
+    }
+
+    /**
+     * A drag down and back comes home.
+     *
+     * This is what the height-swap is actually for, and the only shape in which its absence is
+     * USER-VISIBLE: drag a tall row one place down and one place back, and without the swap the
+     * return leg is measured against the tall row's height instead of the short one it is now
+     * crossing — so the row is stranded one place from where it started with travel left over.
+     * Simulated both ways: with the swap `[(0,1), (1,0)]` and home; without it `[(0,1)]` and
+     * stranded at index 1 with -100 of accumulated travel.
+     */
+    @Test
+    fun `dragging down and back returns the row to where it started`() {
+        val reorder = state(startIndex = 0, count = 3, rowHeight = 0).apply {
+            setRowHeight(0, TALL)
+            setRowHeight(1, SHORT)
+            setRowHeight(2, SHORT)
+        }
+
+        reorder.applyDrag(SHORT.toFloat())
+        reorder.applyDrag(-SHORT.toFloat())
+
+        assertEquals(listOf(0 to 1, 1 to 0), moves)
+        assertEquals("the row must come home, not sit one place down", 0, reorder.draggingIndex)
+        assertEquals("and with no travel left over", 0f, reorder.offsetFor(0), 0.01f)
+    }
+
+    /**
+     * Crossing INTO a row nothing has measured yet uses the dragged row's own height — and the
+     * swap is what keeps that true for the next crossing.
+     *
+     * Without it, the tall row's height stays attached to index 0 after the move, so the second
+     * crossing is measured against a short fallback and fires immediately: one gesture, two moves,
+     * where a finger travelled one row's worth.
+     */
+    @Test
+    fun `crossing into an unmeasured row does not double-move`() {
+        val reorder = state(startIndex = 0, count = 3, rowHeight = 0).apply {
+            setRowHeight(0, TALL)
+            setRowHeight(1, SHORT)
+            // Index 2 is deliberately never measured — a row that has not been on screen yet.
+        }
+
+        reorder.applyDrag(SHORT.toFloat())
+        reorder.applyDrag(SHORT.toFloat())
+
+        assertEquals("one row of travel each time is one move each time", listOf(0 to 1), moves)
+        assertEquals(1, reorder.draggingIndex)
+    }
+
+    /**
+     * A measurement for a row the list no longer has must not decide anything.
+     *
+     * The step is read BEFORE the bounds check — deliberately, so an unmeasured list does not zero
+     * the accumulator — which means a stale height at the end of a shortened list lets travel
+     * accumulate against a row that is gone, and the dragged row drifts past the end before
+     * snapping back. Setting `itemCount` prunes them.
+     */
+    @Test
+    fun `heights for rows the list no longer has are dropped`() {
+        val reorder = state(startIndex = 0, count = 5, rowHeight = 0).apply {
+            setRowHeight(0, SHORT)
+            setRowHeight(1, SHORT)
+            setRowHeight(4, TALL)
+            // The list shrinks under the drag — a download finishing, an item auto-queued away.
+            itemCount = 2
+        }
+
+        reorder.applyDrag(SHORT.toFloat())
+
+        assertEquals(listOf(0 to 1), moves)
+        assertEquals("at the end, with nothing left over to drift on", 0f, reorder.offsetFor(1), 0.01f)
     }
 
     /** Before the row has been measured there is no step size, so nothing can be decided yet. */

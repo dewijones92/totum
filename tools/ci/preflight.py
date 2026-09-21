@@ -248,22 +248,41 @@ MAXLINES = re.compile(r"\bmaxLines\s*=\s*[^,\n]+")
 # Every spelling of an ellipsis overflow, not just the one in use. `StartEllipsis` and
 # `MiddleEllipsis` ship in this Compose BOM and both render dots; an `import …TextOverflow.Companion
 # .Ellipsis` makes the bare name work too. A ban on one literal is a ban on one spelling.
-ELLIPSIS = re.compile(r"\bTextOverflow\.\w*Ellipsis\b|\boverflow\s*=\s*\w*Ellipsis\b")
+ELLIPSIS = re.compile(
+    r"\bTextOverflow\.(?:Companion\.)?\w*Ellipsis\b|\boverflow\s*=\s*(?:TextOverflow\.)?(?:Companion\.)?\w*Ellipsis\b"
+)
 # KDoc and `//` lines talk ABOUT the caps that went, and that prose is the record of why — so it
 # has to survive a check on the code. Stripped rather than pattern-dodged: an "unless it looks
 # like a comment" regex is the kind that quietly stops matching real code too.
 #
-# STRINGS GO FIRST, and that order is the whole correctness of this. A Kotlin file containing the
-# MIME literal "*/*" (ImportExportScreen has two) opens a fake block comment that swallows code to
-# the next real `*/`; a "https://…" literal eats the rest of its line. Probed on a file holding a
-# real cap AND a real ellipsis next to a "*/*": the checker saw neither, and reported clean.
-STRINGS = re.compile(r'"""(?:.|\n)*?"""|"(?:\\.|[^"\\\n])*"', re.DOTALL)
-COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
+# ONE pass over comments AND strings together, so whichever STARTS first consumes the other.
+#
+# Two passes cannot be right in either order, and both orders have now been tried. Comments first:
+# the MIME literal "*/*" (ImportExportScreen has two) opens a fake block comment that swallows code
+# to the next real `*/`. Strings first: a `"""` inside a `//` comment opens a fake raw string that
+# swallows the file to the next `"""` — probed, and `code_only` returned the EMPTY STRING for a
+# file holding a real cap and a real ellipsis. A char literal `'"'` does the same to its line.
+#
+# Alternation in a single scan is how a tokenizer does it, and it has no "which goes first"
+# question to get wrong. Each match is replaced by something harmless of its own kind.
+TOKENS = re.compile(
+    r'(?P<block>/\*.*?\*/)'
+    r'|(?P<line>//[^\n]*)'
+    r'|(?P<raw>"""(?:.|\n)*?""")'
+    r'|(?P<str>"(?:\\.|[^"\\\n])*")'
+    r"|(?P<char>'(?:\\.|[^'\\\n])')",
+    re.DOTALL,
+)
+MAXLINES_IN_TOKEN = re.compile(r"\bmaxLines\b")
 
 
 def code_only(source: str) -> str:
-    """Kotlin source with string literals and then comments removed, in that order."""
-    return COMMENTS.sub("", STRINGS.sub('""', source))
+    """Kotlin source with comments, string literals and char literals blanked out."""
+    def blank(match: re.Match) -> str:
+        # Newlines are kept so reported line numbers and blank-line structure survive.
+        return "\n" * match.group(0).count("\n")
+
+    return TOKENS.sub(blank, source)
 
 
 def check_text_wraps_instead_of_truncating() -> int:

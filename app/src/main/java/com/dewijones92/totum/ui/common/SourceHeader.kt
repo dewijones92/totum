@@ -59,8 +59,16 @@ fun SourceHeader(
                 .padding(horizontal = 8.dp),
         ) {
             Text(text = title, style = MaterialTheme.typography.titleLarge)
-            mediaFacts(author = title, publisher = publisher, dateText = null)
-                .drop(1)
+            // Labelled 🎙️ and filtered by that label, not by position: this is a podcast page, and
+            // the default 📺 would only ever have shown if the positional drop mis-fired — so the
+            // failure mode was "a podcast page wearing a television".
+            mediaFacts(
+                author = title,
+                publisher = publisher,
+                dateText = null,
+                authorEmoji = FactEmoji.PODCAST,
+            )
+                .filterNot { it.startsWith(FactEmoji.PODCAST) }
                 .forEach { fact ->
                     Text(
                         text = fact,

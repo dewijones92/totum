@@ -448,9 +448,13 @@ private fun HitTitles(title: String, subtitle: String?, modifier: Modifier = Mod
             style = MaterialTheme.typography.bodyLarge,
         )
         // No date and no view count: the directory gives neither. `author` is the show's own name,
-        // already the line above, so it is passed only for the comparison that drops a repeat.
+        // already the line above, so it is passed only for the comparison that drops a repeat —
+        // and then removed BY ITS LABEL rather than by position. `.drop(1)` was positional on a
+        // list whose first element is conditional: `mediaFacts` omits a blank author entirely, so
+        // a blank title would have dropped the PUBLISHER instead. The safety lived three modules
+        // away, in the directory source that nulls a blank collection name.
         mediaFacts(author = title, publisher = subtitle, dateText = null, authorEmoji = FactEmoji.PODCAST)
-            .drop(1)
+            .filterNot { it.startsWith(FactEmoji.PODCAST) }
             .forEach { fact ->
                 Text(
                     text = fact,

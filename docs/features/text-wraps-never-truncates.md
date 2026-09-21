@@ -67,6 +67,17 @@ All three are closed, with `tools/ci/preflight_text_test.py` pinning each:
   BOM and both render dots; `import …TextOverflow.Companion.Ellipsis` makes the bare name work. All
   are caught now, and the scan covers every module rather than `app/` alone.
 
+## Round two found the hardening's own two holes
+
+- **The fix had re-created the bug it fixed, the other way round.** Stripping strings before
+  comments means a `"""` inside a `//` comment opens a fake raw string that swallows the file to
+  the next `"""` — probed, and the stripper returned the **empty string** for a file holding a real
+  cap and a real ellipsis. Neither order can be right, so there is no order any more: comments,
+  strings and char literals are matched in **one alternation**, and whichever starts first consumes
+  the other, which is how a tokenizer does it and has no ordering question to get wrong.
+- **`TextOverflow.Companion.Ellipsis` still passed**, because `\w*` cannot cross a dot — while the
+  test asserting "every spelling this Compose version ships" listed four and not that one.
+
 ## Guarded by preflight, not by a test
 
 `tools/ci/preflight.py` fails on any `TextOverflow.Ellipsis` in `app/src/main`, and on any

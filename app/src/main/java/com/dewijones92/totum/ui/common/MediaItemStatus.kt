@@ -127,10 +127,37 @@ internal fun PlayProgressSliver(playState: PlayState, modifier: Modifier = Modif
     )
 }
 
-/** Dims a played item's title, so a finished row recedes without disappearing. */
+/**
+ * Dims a played item's title, so a finished row recedes without disappearing.
+ *
+ * **0.65, up from 0.55 (2026-09-21).** At 0.55 a played title measured **3.79:1** against its own
+ * background in the light theme — below WCAG AA's 4.5:1 for body text, and this is 14sp, which is
+ * not "large text" by any reading. That was already true before the wash existed (3.89:1 dimmed
+ * alone), so it is a pre-existing defect rather than one the colour introduced; the wash costs
+ * 0.10 of it in the light theme and 0.91 in the dark, which still leaves dark passing.
+ *
+ * Raising it is the right fix rather than a patch, because the row now recedes by COLOUR: the
+ * dimming no longer has to carry "finished" on its own, so it can afford to be legible. 0.65 is the
+ * first step that clears AA in both themes (5.18 light, 5.87 dark).
+ */
 @Composable
 internal fun playedTitleAlpha(playState: PlayState): Float =
     if (playState.isPlayed) PLAYED_TITLE_ALPHA else 1f
+
+/**
+ * The wash a row wears when more than one state wants one — **played wins**.
+ *
+ * Two draw modifiers both painting a background do not choose between themselves, they composite:
+ * the Notifications tab passed an unread wash through `modifier` and the row painted the played wash
+ * on top of it, making a third colour that read as neither "new" nor "finished". Played wins because
+ * it is the later fact about the item — an episode you have finished is not news any more.
+ */
+@Composable
+internal fun rowTint(playState: PlayState, unread: Boolean): Color = when {
+    playState.isPlayed -> playedRowTint(playState)
+    unread -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = UNREAD_TINT_ALPHA)
+    else -> Color.Transparent
+}
 
 /**
  * The wash a finished row wears — cyan, faintly — and [Color.Transparent] for every other row.
@@ -148,21 +175,6 @@ internal fun playedTitleAlpha(playState: PlayState): Float =
  * Only PLAYED, and only this state: part-way items already carry the progress sliver and the queue
  * labels the row it is on, so tinting those too would leave nothing untinted to compare against.
  */
-/**
- * The wash a row wears when more than one state wants one — **played wins**.
- *
- * Two draw modifiers both painting a background do not choose between themselves, they composite:
- * the Notifications tab passed an unread wash through `modifier` and the row painted the played wash
- * on top of it, making a third colour that read as neither "new" nor "finished". Played wins because
- * it is the later fact about the item — an episode you have finished is not news any more.
- */
-@Composable
-internal fun rowTint(playState: PlayState, unread: Boolean): Color = when {
-    playState.isPlayed -> playedRowTint(playState)
-    unread -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = UNREAD_TINT_ALPHA)
-    else -> Color.Transparent
-}
-
 @Composable
 internal fun playedRowTint(playState: PlayState): Color {
     if (!playState.isPlayed) return Color.Transparent
@@ -184,7 +196,7 @@ internal fun playedRowTint(playState: PlayState): Color {
 
 private val STATUS_ICON_SIZE = 14.dp
 private val SLIVER_HEIGHT = 3.dp
-private const val PLAYED_TITLE_ALPHA = 0.55f
+private const val PLAYED_TITLE_ALPHA = 0.65f
 private const val PLAYED_ROW_TINT_ALPHA = 0.08f
 
 /**

@@ -102,10 +102,16 @@ public abstract class TotumDatabase : RoomDatabase() {
          * re-parses the channel and upserts the feed — unlike the denormalised item rows, that one
          * really does heal itself.
          *
-         * The repair is deliberately narrow: podcast rows only, only where the feed is still
-         * subscribed (nothing else can say what the show is called), and the old name is kept as the
-         * publisher unless it merely repeats the title — the same rule `publisherFor` applies to a
-         * fresh parse. An unsubscribed feed's rows are left exactly as they were, which is honest:
+         * The repair is deliberately narrow: podcast rows only — by `playbackType` AND by the
+         * feed's `sourceType`, since both podcast tables hold channels too — only where the feed is
+         * still subscribed (nothing else can say what the show is called), and the old name is kept
+         * as the publisher unless it merely repeats the title. That last rule is *nearly* the one
+         * `publisherFor` applies: SQLite's `LOWER()` is ASCII-only, so a name differing from its
+         * show only in non-ASCII case (`RÁDIO` vs `Rádio`) is kept here where Kotlin would call it a
+         * repeat. Harmless at render time — the facts seam re-applies the Kotlin rule and drops it —
+         * and worth knowing, because it makes this migration the first real case for that
+         * belt-and-braces check, whose own comment says it can only fire on data this app did not
+         * write. An unsubscribed feed's rows are left exactly as they were, which is honest:
          * there is nothing left to correct them from.
          */
         private val MIGRATION_21_22 = object : Migration(21, 22) {
@@ -118,27 +124,41 @@ public abstract class TotumDatabase : RoomDatabase() {
                 }
                 // `sourceId` on a podcast row IS the feed's id — that is what the podcast mapping
                 // puts there — so the show's name is one join away.
+                // `sourceType = 'podcast'` on EVERY join, because `podcast_feeds` and
+                // `podcast_episodes` hold BOTH pillars — `RoomSubscriptionStore` serves channels
+                // from the same tables, keyed by that column, and `PodcastDao` joins on it for the
+                // same reason. Without it, an episodes row belonging to a CHANNEL is rewritten with
+                // the channel's title and given a publisher, which every other part of this change
+                // says is impossible for a video ("null for videos", and a unit test that asserts
+                // a video shows no publisher line). Not reachable today — only the podcast store is
+                // constructed — but the channel branch exists, is mapped and is tested.
                 itemTables.forEach { table ->
                     db.execSQL(
                         "UPDATE $table SET " +
                             "publisher = CASE WHEN author IS NOT NULL AND TRIM(author) <> '' AND " +
                             "LOWER(TRIM(author)) <> LOWER(TRIM(" +
-                            "(SELECT title FROM podcast_feeds WHERE id = sourceId))) " +
+                            "(SELECT title FROM podcast_feeds WHERE id = sourceId " +
+                            "AND sourceType = 'podcast'))) " +
                             "THEN TRIM(author) ELSE NULL END, " +
-                            "author = (SELECT title FROM podcast_feeds WHERE id = sourceId) " +
+                            "author = (SELECT title FROM podcast_feeds WHERE id = sourceId " +
+                            "AND sourceType = 'podcast') " +
                             "WHERE playbackType = 'PODCAST' AND EXISTS " +
-                            "(SELECT 1 FROM podcast_feeds WHERE id = sourceId)",
+                            "(SELECT 1 FROM podcast_feeds WHERE id = sourceId AND sourceType = 'podcast')",
                     )
                 }
-                // The episodes table joins on its own feed key rather than sourceId.
+                // The episodes table joins on its own feed key rather than sourceId — and had no
+                // `playbackType` to fall back on, so this was the one UPDATE scoped by nothing.
                 db.execSQL(
                     "UPDATE podcast_episodes SET " +
                         "publisher = CASE WHEN author IS NOT NULL AND TRIM(author) <> '' AND " +
                         "LOWER(TRIM(author)) <> LOWER(TRIM(" +
-                        "(SELECT title FROM podcast_feeds WHERE id = feedId))) " +
+                        "(SELECT title FROM podcast_feeds WHERE id = feedId " +
+                        "AND sourceType = 'podcast'))) " +
                         "THEN TRIM(author) ELSE NULL END, " +
-                        "author = (SELECT title FROM podcast_feeds WHERE id = feedId) " +
-                        "WHERE EXISTS (SELECT 1 FROM podcast_feeds WHERE id = feedId)",
+                        "author = (SELECT title FROM podcast_feeds WHERE id = feedId " +
+                        "AND sourceType = 'podcast') " +
+                        "WHERE EXISTS (SELECT 1 FROM podcast_feeds WHERE id = feedId " +
+                        "AND sourceType = 'podcast')",
                 )
             }
         }

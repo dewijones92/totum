@@ -46,6 +46,26 @@ class CodeOnlyTest(unittest.TestCase):
         source = 'val q = """a // b */ c"""\nText(maxLines = 2)\n'
         self.assertIn("maxLines", preflight.code_only(source))
 
+    def test_a_triple_quote_inside_a_comment_does_not_swallow_the_file(self):
+        """The hole the strings-first ordering created, which was worse than the one it closed.
+
+        Probed at the time: `code_only` returned the EMPTY STRING for this, so the cap and the
+        ellipsis below were both invisible and the file reported clean.
+        """
+        source = '// see """\nText(t, maxLines = 1, overflow = TextOverflow.Ellipsis)\nval q = """tail"""\n'
+        code = preflight.code_only(source)
+        self.assertIn("maxLines", code)
+        self.assertIn("TextOverflow.Ellipsis", code)
+
+    def test_a_char_literal_quote_does_not_swallow_its_line(self):
+        source = """val q = '"'\nText(t, maxLines = 1)\n"""
+        self.assertIn("maxLines", preflight.code_only(source))
+
+    def test_blanking_preserves_line_numbers(self):
+        """A multi-line comment must not shift what comes after it, or a report points elsewhere."""
+        source = '/* one\ntwo\nthree */\nText(maxLines = 1)\n'
+        self.assertEqual(source.count("\n"), preflight.code_only(source).count("\n"))
+
 
 class EllipsisSpellingsTest(unittest.TestCase):
     """A ban on one literal is a ban on one spelling."""
@@ -56,6 +76,11 @@ class EllipsisSpellingsTest(unittest.TestCase):
             "overflow = TextOverflow.StartEllipsis",
             "overflow = TextOverflow.MiddleEllipsis",
             "overflow = Ellipsis",  # via `import …TextOverflow.Companion.Ellipsis`
+            # Ordinary idiomatic Kotlin, and it evaded the first hardened version: `\w*` cannot
+            # cross the dot, so BOTH alternatives missed it while the test that named itself
+            # "every spelling" listed four and not this one.
+            "overflow = TextOverflow.Companion.Ellipsis",
+            "overflow = TextOverflow.Companion.StartEllipsis",
         ):
             self.assertTrue(preflight.ELLIPSIS.search(spelling), spelling)
 

@@ -165,6 +165,47 @@ class DownloadsMigrationTest {
         )
     }
 
+    /**
+     * A CHANNEL's rows are untouched, even when they look like a podcast.
+     *
+     * `podcast_feeds` and `podcast_episodes` hold both pillars — one store class serves channels
+     * from the same tables, keyed by `sourceType` — so a repair scoped only by `playbackType` (and,
+     * for the episodes table, by nothing at all) rewrote a channel's rows and gave a VIDEO a
+     * publisher, which the rest of this change says cannot happen. The earlier
+     * `aVideoRowIsLeftAloneByTheV22Repair` passes on `playbackType` alone and never exercised this.
+     */
+    @Test
+    fun aChannelsRowsAreNotRepairedEvenWhenTheyLookLikeAPodcast() {
+        val db = openAtV13()
+        db.execSQL(
+            "INSERT INTO podcast_feeds VALUES ('chan-1', 'channel', 'Novara Media', " +
+                "'https://youtube.example/@novara', NULL, 0, 'manual')",
+        )
+        // A queue row whose handle says PODCAST but whose source is a channel.
+        db.execSQL(
+            "INSERT INTO queue_items (position, groupId, groupTitle, isCurrent, itemId, title, author, " +
+                "thumbnailUrl, sourceId, contentKind, playbackType, handle, mediaUrl) VALUES " +
+                "(0, NULL, NULL, 1, 'odd-1', 'An upload', 'Some Uploader', NULL, 'chan-1', 'STANDARD', " +
+                "'PODCAST', NULL, 'https://cdn.example/odd.mp3')",
+        )
+        // And an episodes row belonging to that channel, which had no playbackType to be scoped by.
+        db.execSQL(
+            "INSERT INTO podcast_episodes VALUES ('vid-1', 'chan-1', 'An upload', 'Some Uploader', " +
+                "NULL, NULL, NULL, NULL, NULL, NULL)",
+        )
+
+        migrate(db)
+
+        assertEquals(
+            listOf(listOf("Some Uploader", null)),
+            db.rows("SELECT author, publisher FROM queue_items WHERE itemId = 'odd-1'"),
+        )
+        assertEquals(
+            listOf(listOf("Some Uploader", null)),
+            db.rows("SELECT author, publisher FROM podcast_episodes WHERE id = 'vid-1'"),
+        )
+    }
+
     @Test
     fun aDownloadedVideoKeepsItsTitleFromTheQueue() {
         val db = openAtV13()
@@ -256,13 +297,27 @@ class DownloadsMigrationTest {
 
     /** name, type, notnull — the three things Room validates, keyed by name so position cannot lie. */
     private fun SupportSQLiteDatabase.columnsOf(table: String): Map<String?, List<String?>> =
-        rows("PRAGMA table_info($table)").associate { column -> column[1] to column.subList(2, COLUMN_FIELDS + 1) }
+        rows("PRAGMA table_info($table)").associate { column ->
+            column[1] to column.subList(2, 2 + COLUMN_FIELDS)
+        }
 
     private companion object {
         const val V13 = 13
 
-        /** How many PRAGMA fields after the name carry meaning here: type, notnull, dflt_value. */
-        const val COLUMN_FIELDS = 3
+        /**
+         * PRAGMA fields after the name that are compared: **type and notnull**. Not `dflt_value`.
+         *
+         * A review flagged that the comment named three fields while the slice took two, and the
+         * comment was the wrong half — including the default fails on a difference Room does not
+         * enforce. `ALTER TABLE … ADD COLUMN … NOT NULL` *must* carry a default, while Room's
+         * generated `CREATE TABLE` does not, so a migrated `membersOnly` reads `[INTEGER, 1, 0]`
+         * against a fresh `[INTEGER, 1, null]` — measured, on this emulator, when the slice was
+         * widened. Room compares a default only where the ENTITY declares one, and none of ours
+         * does, which is why the app opens against exactly this schema.
+         *
+         * Room also validates primary keys, foreign keys and indices; this test does not claim to.
+         */
+        const val COLUMN_FIELDS = 2
 
         val V13_TABLES = listOf(
             "CREATE TABLE downloads (mediaItemId TEXT NOT NULL PRIMARY KEY, status TEXT NOT NULL, " +

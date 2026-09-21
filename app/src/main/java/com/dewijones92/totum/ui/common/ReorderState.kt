@@ -91,6 +91,15 @@ class ReorderState internal constructor(
     private var travelled = 0f
     private val stepsUsed = mutableSetOf<Int>()
     internal var itemCount = 0
+        set(value) {
+            field = value
+            // A shortened list leaves measurements behind for indices that no longer exist, and a
+            // stale one at the END is not harmless: the step is read before the bounds check, so
+            // the accumulator is allowed to grow by a height that is no longer there and the row
+            // drifts past the end before snapping back. It also made the drag log's "of N measured
+            // row(s)" a count of rows that had gone.
+            if (rowHeights.isNotEmpty()) rowHeights.keys.retainAll { it in 0 until value }
+        }
 
     /** The list's own top and bottom in window coordinates, so "near the edge" is answerable. */
     private var listTop = 0f
@@ -271,6 +280,11 @@ class ReorderState internal constructor(
                     Diag.log("queue", "auto-scroll stopped: the list is already at its end")
                     break
                 }
+                // Counted as travel like a finger's pixels are, because to the list they ARE the
+                // same event. Without this a drag completed by holding at the edge logs a small
+                // distance against genuine steps — which reads exactly like the wrong-step defect
+                // the line exists to tell apart.
+                travelled += moved
                 applyDrag(moved)
             }
         }

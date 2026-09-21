@@ -72,7 +72,10 @@ artist line is directly above it, but keeps the publisher, which appears nowhere
 
 **The show's own page too**, since round one of the gauntlet pointed out that the one screen whose
 whole job is to say what a show IS named the show alone while every row beneath it named the
-network. That needed the fact on the source as well as its items: `MediaSource.PodcastFeed.publisher`
+network. Note the upgrade leaves `podcast_feeds.publisher` NULL — the repair fills the four
+denormalised tables and the episodes, but a feed learns its own publisher only when something
+re-parses it, so the show's page is blank until the first refresh after upgrading. A restored
+backup carries it, which is why `BackupSubscription` gained the field too. That needed the fact on the source as well as its items: `MediaSource.PodcastFeed.publisher`
 and a `podcast_feeds.publisher` column. Its subscription chips are left as titles — a chip has no
 room for a second line and is a way to navigate, not the show's page.
 

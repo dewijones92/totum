@@ -55,6 +55,15 @@ public data class BackupSubscription(
     /** "podcast" or "channel" — which pillar it belongs to. */
     val kind: String,
     val subscribedAtEpochMs: Long? = null,
+    /**
+     * The network behind a show. Null for a channel, and optional like every field added since,
+     * so an older file restores with the defaults it was written with.
+     *
+     * A restored feed heals on its next refresh, unlike a restored queue row — but "the show's page
+     * has no publisher until something refreshes it" is a worse first impression than carrying one
+     * string, and the file already carries the same fact for every item.
+     */
+    val publisher: String? = null,
 )
 
 @Serializable

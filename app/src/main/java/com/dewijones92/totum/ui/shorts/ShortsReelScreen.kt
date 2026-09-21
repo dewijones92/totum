@@ -6,7 +6,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -215,16 +214,25 @@ private fun ShortPage(
         }
         // A scrim under the title, which it did not need while titles capped at two lines and does
         // now: a hashtag-stuffed Shorts title wraps to four or five, so white text was sitting over
-        // a third of the picture with nothing behind it and no guarantee the frame was dark. The
-        // gradient fades to nothing at the top so it reads as the picture darkening, not a panel.
+        // a third of the picture with nothing behind it and no guarantee the frame was dark.
+        //
+        // The gradient is anchored ABOVE the text, not to it. The first version put the brush on a
+        // wrap-content Column, so it ran transparent-to-dark across the text's own bounds — leaving
+        // the FIRST line, on the LONGEST title, the least covered part of the screen, which is
+        // precisely the case the scrim was added for. `SCRIM_LEAD` of gradient above the first line
+        // and a solid-ish floor beneath it means every line sits on something.
         Column(
-            verticalArrangement = Arrangement.Bottom,
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
                 .background(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = SCRIM_ALPHA))),
-                ),
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        SCRIM_LEAD to Color.Black.copy(alpha = SCRIM_ALPHA * SCRIM_SHOULDER),
+                        1f to Color.Black.copy(alpha = SCRIM_ALPHA),
+                    ),
+                )
+                .padding(top = SCRIM_TOP_PADDING),
         ) {
             Text(
                 text = short.title,
@@ -238,6 +246,11 @@ private fun ShortPage(
 
 /** Enough to keep white text legible over a bright frame, and light enough to read through. */
 private const val SCRIM_ALPHA = 0.55f
+
+/** Where the gradient reaches most of its darkness — above the first line of text, not at it. */
+private const val SCRIM_LEAD = 0.35f
+private const val SCRIM_SHOULDER = 0.8f
+private val SCRIM_TOP_PADDING = 40.dp
 
 @Composable
 private fun ShortsEmpty(onBack: () -> Unit, modifier: Modifier = Modifier) {

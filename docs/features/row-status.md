@@ -136,6 +136,19 @@ neutral.
 **Part-way rows are asserted NOT to be tinted**, since "played only" was a decision and a decision
 nothing pins is one that drifts.
 
+**The dimmed title went from 0.55 to 0.65 alpha**, because measuring it found a pre-existing
+accessibility defect: a played title was **3.79:1** against its own background in the light theme,
+below WCAG AA's 4.5:1 for 14sp body text, and it was already 3.89:1 before any wash existed. The
+wash costs 0.10 of that in light and 0.91 in dark (which still passes). Raising the alpha is the
+right fix rather than a patch — the row now recedes by colour, so the dimming no longer has to
+carry "finished" alone. 0.65 is the first step clearing AA in both themes: 5.18 and 5.87.
+
+**One open tension, not a defect.** On the Notifications tab the "Seen already" divider is still
+computed from unread alone, so a played-but-unread row sits above it wearing the finished wash. Both
+statements are true of that row — it arrived since you last looked, and you have finished it — but
+if "finished is not news any more" is the rule, the run itself should probably drop it. Left as it
+is because that is a product decision, not a bug.
+
 **Verified by pixel**, not by the colour function: `PlayedRowIsTintedTest` renders a played and an
 unplayed row, captures each, and reads the corner pixel — in **both** themes. A test of
 `playedRowTint` would stay green if the modifier were ordered behind the surface, applied to the

@@ -55,11 +55,12 @@ public class DefaultPodcastRepository(
         }
 
         val source = parsed.toMediaSource(id, feedUrl)
+        val decisions = mutableListOf<PublisherChoice>()
         val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(id, feedUrl, index, parsed, resolveChapters(episode, index))
+            episode.toMediaItem(id, feedUrl, index, parsed, resolveChapters(episode, index), decisions)
         }
         Diag.log("subs", "subscribed \"${source.title}\" (${parsed.episodes.size} episodes) $feedUrl")
-        Diag.log("podcast", parsed.namingDecision())
+        Diag.log("podcast", parsed.namingDecision(decisions))
         store.saveSource(
             subscription = Subscription(source = source, subscribedAt = clock.instant()),
             items = items,
@@ -131,10 +132,11 @@ public class DefaultPodcastRepository(
                 title,
                 (parsedResult as? RssParseResult.Failure)?.detail ?: "no feed",
             )
+        val decisions = mutableListOf<PublisherChoice>()
         val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(source.id, source.feedUrl, index, parsed, resolveChapters(episode, index))
+            episode.toMediaItem(source.id, source.feedUrl, index, parsed, resolveChapters(episode, index), decisions)
         }
-        Diag.log("podcast", parsed.namingDecision())
+        Diag.log("podcast", parsed.namingDecision(decisions))
         store.saveSource(
             // The source is rebuilt from THIS parse, not carried over from storage. It used to be
             // the stored one, so a refresh could never teach an existing subscription anything the
@@ -156,7 +158,12 @@ public class DefaultPodcastRepository(
 
     /**
      * What this feed called itself, what it called its publisher, and what became of the second name
-     * — counted from **each episode's own decision**, not reconstructed from the channel afterwards.
+     * — counted from the decisions the mapping ACTUALLY TOOK, handed in rather than re-derived.
+     *
+     * It re-derived them from `episodes` until an adversarial review pointed out that this is the
+     * same sin the paragraph below is about, one level up: identical inputs today, but a description
+     * of a second evaluation rather than of what was stored. The distinct count is back for the same
+     * reason — `shown=273` alone cannot tell one network across 273 episodes from 273 guest authors.
      *
      * The first version of this line inferred the reason from the channel-level author alone, and so
      * said "the feed named no publisher" about a feed that named one on every episode and had it
@@ -167,16 +174,16 @@ public class DefaultPodcastRepository(
      * One line per feed save, which is per subscribe and per refresh. Feeds refresh on the order of
      * hours, so this cannot crowd the bounded report buffer.
      */
-    private fun ParsedFeed.namingDecision(): String {
-        val decisions = episodes.map { publisherFor(it.author, author, title) }
+    private fun ParsedFeed.namingDecision(decisions: List<PublisherChoice>): String {
         val named = decisions.filterIsInstance<PublisherChoice.Named>()
         val repeats = decisions.filterIsInstance<PublisherChoice.RepeatsShow>()
         val silent = decisions.count { it is PublisherChoice.NotGiven }
-        val example = (named.firstOrNull()?.name ?: repeats.firstOrNull()?.name)
+        val distinct = named.map { it.name }.distinct()
+        val example = (distinct.firstOrNull() ?: repeats.firstOrNull()?.name)
             ?.let { " e.g. \"$it\"" }.orEmpty()
         return "names show=\"$title\" channelAuthor=${author?.trim()?.ifEmpty { null } ?: "none"} " +
-            "episodes=${decisions.size} shown=${named.size} droppedAsRepeatOfTheShow=${repeats.size} " +
-            "named-nobody=$silent$example"
+            "episodes=${decisions.size} shown=${named.size} (${distinct.size} distinct) " +
+            "droppedAsRepeatOfTheShow=${repeats.size} named-nobody=$silent$example"
     }
 
     private fun ParsedFeed.toMediaSource(id: SourceId, feedUrl: HttpUrl) = MediaSource.PodcastFeed(
@@ -220,6 +227,12 @@ public class DefaultPodcastRepository(
         index: Int,
         feed: ParsedFeed,
         chapters: List<Chapter>,
+        /**
+         * Where this episode's publisher decision is RECORDED as it is taken, so the log describes
+         * the choices actually stored rather than a second evaluation of the same inputs. The line
+         * re-derived them, which is the sin its own KDoc is about, one level up.
+         */
+        decisions: MutableList<PublisherChoice> = mutableListOf(),
     ) = MediaItem(
         // Stable per feed: guid, else enclosure, else position — in that order of trust.
         id = MediaItemId(guid ?: enclosureUrl ?: "${feedUrl.value}#$index"),
@@ -228,7 +241,7 @@ public class DefaultPodcastRepository(
         publishedAt = publishedAt,
         duration = duration,
         author = feed.title,
-        publisher = publisherFor(author, feed.author, feed.title).nameOrNull,
+        publisher = publisherFor(author, feed.author, feed.title).also { decisions += it }.nameOrNull,
         description = description,
         thumbnailUrl = imageUrl?.let(HttpUrl::parse),
         mediaUrl = enclosureUrl?.let(HttpUrl::parse),

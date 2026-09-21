@@ -149,6 +149,7 @@ private fun Subscription.toBackup() = BackupSubscription(
         is MediaSource.VideoChannel -> "channel"
     },
     subscribedAtEpochMs = subscribedAt.toEpochMilli(),
+    publisher = (source as? MediaSource.PodcastFeed)?.publisher,
 )
 
 private fun PlayState.toBackup(id: MediaItemId): BackupProgress? = when (this) {
@@ -205,6 +206,6 @@ private fun BackupSubscription.toSource(): MediaSource? {
     return if (kind == "channel") {
         MediaSource.VideoChannel(SourceId(id), title, parsed)
     } else {
-        MediaSource.PodcastFeed(SourceId(id), title, parsed, websiteUrl = null)
+        MediaSource.PodcastFeed(SourceId(id), title, parsed, websiteUrl = null, publisher = publisher)
     }
 }
