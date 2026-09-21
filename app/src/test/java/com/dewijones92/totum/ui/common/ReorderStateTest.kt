@@ -371,15 +371,26 @@ class ReorderStateTest {
         val reorder = state(startIndex = 0, count = 5, rowHeight = 0).apply {
             setRowHeight(0, SHORT)
             setRowHeight(1, SHORT)
-            setRowHeight(4, TALL)
+            // The stale height sits at exactly `itemCount` — the first index off the end, which is
+            // the only one `to` can reach, and therefore the only one whose staleness can be read.
+            // An earlier version put it at index 4 with `itemCount = 2`: unreachable, so the case
+            // passed with the prune deleted and guarded nothing. Named after a mechanism it did not
+            // pin, in the commit that fixed that same defect twice over.
+            setRowHeight(2, TALL)
             // The list shrinks under the drag — a download finishing, an item auto-queued away.
             itemCount = 2
         }
 
-        reorder.applyDrag(SHORT.toFloat())
+        // Enough travel to reach the end and try to cross it.
+        reorder.applyDrag(TALL.toFloat())
 
         assertEquals(listOf(0 to 1), moves)
-        assertEquals("at the end, with nothing left over to drift on", 0f, reorder.offsetFor(1), 0.01f)
+        assertEquals(
+            "a height for a row that is gone must not hold travel the row can drift on",
+            0f,
+            reorder.offsetFor(1),
+            0.01f,
+        )
     }
 
     /** Before the row has been measured there is no step size, so nothing can be decided yet. */

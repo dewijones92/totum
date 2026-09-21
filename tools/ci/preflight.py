@@ -273,7 +273,6 @@ TOKENS = re.compile(
     r"|(?P<char>'(?:\\.|[^'\\\n])')",
     re.DOTALL,
 )
-MAXLINES_IN_TOKEN = re.compile(r"\bmaxLines\b")
 
 
 def code_only(source: str) -> str:

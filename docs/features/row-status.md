@@ -141,7 +141,10 @@ accessibility defect: a played title was **3.79:1** against its own background i
 below WCAG AA's 4.5:1 for 14sp body text, and it was already 3.89:1 before any wash existed. The
 wash costs 0.10 of that in light and 0.91 in dark (which still passes). Raising the alpha is the
 right fix rather than a patch — the row now recedes by colour, so the dimming no longer has to
-carry "finished" alone. 0.65 is the first step clearing AA in both themes: 5.18 and 5.87.
+carry "finished" alone. The threshold is 0.606, so 0.65 is the first 0.05 step past it and leaves
+margin: 5.18 light, 5.87 dark. The fact lines under the title were checked too and were never
+dimmed — 8.13:1 and 10.26:1 on a played row, clearing AA and AAA. (Had they inherited the dim they
+would be 3.37:1, which is worth knowing before anyone "tidies" that up.)
 
 **One open tension, not a defect.** On the Notifications tab the "Seen already" divider is still
 computed from unread alone, so a played-but-unread row sits above it wearing the finished wash. Both

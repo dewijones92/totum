@@ -57,7 +57,7 @@ public class DefaultPodcastRepository(
         val source = parsed.toMediaSource(id, feedUrl)
         val decisions = mutableListOf<PublisherChoice>()
         val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(id, feedUrl, index, parsed, resolveChapters(episode, index), decisions)
+            episode.toMediaItem(source, index, parsed, resolveChapters(episode, index), decisions)
         }
         Diag.log("subs", "subscribed \"${source.title}\" (${parsed.episodes.size} episodes) $feedUrl")
         Diag.log("podcast", parsed.namingDecision(decisions))
@@ -132,9 +132,12 @@ public class DefaultPodcastRepository(
                 title,
                 (parsedResult as? RssParseResult.Failure)?.detail ?: "no feed",
             )
+        // Built once, here: the items are keyed to it and the subscription is saved with it, so a
+        // second construction would be a second chance for the two to disagree about the show.
+        val refreshed = parsed.toMediaSource(source.id, source.feedUrl)
         val decisions = mutableListOf<PublisherChoice>()
         val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(source.id, source.feedUrl, index, parsed, resolveChapters(episode, index), decisions)
+            episode.toMediaItem(refreshed, index, parsed, resolveChapters(episode, index), decisions)
         }
         Diag.log("podcast", parsed.namingDecision(decisions))
         store.saveSource(
@@ -147,10 +150,7 @@ public class DefaultPodcastRepository(
             // A feed that renames itself now takes its new name here too, which is a change and the
             // right one: the old behaviour kept the name from the day you subscribed for ever.
             // Keeps the original subscribedAt, so refreshing still doesn't reorder feeds.
-            subscription = Subscription(
-                source = parsed.toMediaSource(source.id, source.feedUrl),
-                subscribedAt = sub.subscribedAt,
-            ),
+            subscription = Subscription(source = refreshed, subscribedAt = sub.subscribedAt),
             items = items,
         )
         return null
@@ -178,7 +178,10 @@ public class DefaultPodcastRepository(
         val named = decisions.filterIsInstance<PublisherChoice.Named>()
         val repeats = decisions.filterIsInstance<PublisherChoice.RepeatsShow>()
         val silent = decisions.count { it is PublisherChoice.NotGiven }
-        val distinct = named.map { it.name }.distinct()
+        // Case-folded: `publisherFor` trims the ends but compares case-insensitively only against
+        // the SHOW, never among publishers — so a feed spelling its network "Goalhanger" on some
+        // episodes and "goalhanger" on others reported "(2 distinct)" where a person reads one.
+        val distinct = named.map { it.name }.distinctBy { it.lowercase() }
         val example = (distinct.firstOrNull() ?: repeats.firstOrNull()?.name)
             ?.let { " e.g. \"$it\"" }.orEmpty()
         return "names show=\"$title\" channelAuthor=${author?.trim()?.ifEmpty { null } ?: "none"} " +
@@ -222,8 +225,7 @@ public class DefaultPodcastRepository(
      * `itunes:author` to the show's own title, and two identical lines say less than one.
      */
     private fun ParsedEpisode.toMediaItem(
-        sourceId: SourceId,
-        feedUrl: HttpUrl,
+        source: MediaSource.PodcastFeed,
         index: Int,
         feed: ParsedFeed,
         chapters: List<Chapter>,
@@ -231,12 +233,17 @@ public class DefaultPodcastRepository(
          * Where this episode's publisher decision is RECORDED as it is taken, so the log describes
          * the choices actually stored rather than a second evaluation of the same inputs. The line
          * re-derived them, which is the sin its own KDoc is about, one level up.
+         *
+         * Deliberately NOT defaulted. A default would let a third call site quietly collect its
+         * decisions into a throwaway list, and the failure would be a silently wrong `episodes=N`
+         * in a report — the shape of bug this whole parameter exists to prevent. Without one it is
+         * a compile error.
          */
-        decisions: MutableList<PublisherChoice> = mutableListOf(),
+        decisions: MutableList<PublisherChoice>,
     ) = MediaItem(
         // Stable per feed: guid, else enclosure, else position — in that order of trust.
-        id = MediaItemId(guid ?: enclosureUrl ?: "${feedUrl.value}#$index"),
-        sourceId = sourceId,
+        id = MediaItemId(guid ?: enclosureUrl ?: "${source.feedUrl.value}#$index"),
+        sourceId = source.id,
         title = title,
         publishedAt = publishedAt,
         duration = duration,

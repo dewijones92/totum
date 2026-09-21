@@ -125,6 +125,7 @@ internal fun ChannelContent(
                 onBack = onBack,
                 onToggleSubscribed = onToggleSubscribed,
                 onOpenGroups = onOpenGroups,
+                pillar = MediaKind.VIDEO,
             )
             SecondaryTabRow(selectedTabIndex = state.tab.ordinal) {
                 ChannelTab.entries.forEach { tab ->

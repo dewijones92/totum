@@ -60,7 +60,7 @@ instead).
 | The truncation guard's own holes (a `"*/*"` literal blinding it, a second `Ellipsis` spelling, a count-based allowance) | python | `tools/ci/preflight_text_test.py` — the guard is the only thing enforcing the rule, so it is guarded too |
 | A queue drag stepping by the height of the row it CROSSES, with rows of different heights | JVM unit | `:app` `ReorderStateTest` — every earlier case made rows uniform by construction, which is why uncapping titles broke the drag invisibly |
 | The heights travelling WITH the rows (a drag down and back comes home; crossing into an unmeasured row does not double-move) | JVM unit | `:app` `ReorderStateTest` — the first three mixed-height cases are byte-identical with the swap deleted, so these two are what guard it |
-| Measurements for rows a shortened list no longer has being dropped | JVM unit | `:app` `ReorderStateTest` |
+| Measurements for rows a shortened list no longer has being dropped | JVM unit | `:app` `ReorderStateTest` — the stale height must sit at exactly `itemCount`, the only index off the end a drag can reach; at index 4 with `itemCount = 2` the case passed with the prune deleted |
 | A mixed-height list still dragging sanely under a REAL gesture | instrumented | `:app` `ReorderAutoScrollTest` — **a smoke test, not a guard**: the shared-height mutant passes it, because which row measures last is not something a test controls |
 | A CHANNEL's rows surviving the v22 repair untouched | instrumented | `:core:database` `DownloadsMigrationTest` — both podcast tables hold channels too, and the episodes repair was scoped by nothing |
 | A restored subscription keeping its publisher | JVM unit | `:app` `BackupServiceTest` |

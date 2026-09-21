@@ -137,8 +137,9 @@ internal fun PlayProgressSliver(playState: PlayState, modifier: Modifier = Modif
  * 0.10 of it in the light theme and 0.91 in the dark, which still leaves dark passing.
  *
  * Raising it is the right fix rather than a patch, because the row now recedes by COLOUR: the
- * dimming no longer has to carry "finished" on its own, so it can afford to be legible. 0.65 is the
- * first step that clears AA in both themes (5.18 light, 5.87 dark).
+ * dimming no longer has to carry "finished" on its own, so it can afford to be legible. The
+ * threshold is 0.606; 0.65 is the first 0.05 step past it and leaves real margin (5.18 light,
+ * 5.87 dark) rather than sitting on the line.
  */
 @Composable
 internal fun playedTitleAlpha(playState: PlayState): Float =

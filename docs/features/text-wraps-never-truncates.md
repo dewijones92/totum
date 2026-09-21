@@ -78,6 +78,13 @@ All three are closed, with `tools/ci/preflight_text_test.py` pinning each:
 - **`TextOverflow.Companion.Ellipsis` still passed**, because `\w*` cannot cross a dot — while the
   test asserting "every spelling this Compose version ships" listed four and not that one.
 
+Round three then attacked the one-pass version with 17 probes — escaped quotes, raw strings holding
+`//` and `/*`, a `//` inside a raw string inside a comment, unterminated tokens at EOF, backtick
+names, a cap split across lines — and it held. The only miss was a backslash-newline inside a
+non-raw string, which Kotlin does not compile. It also re-ran the corpus: across all 778 scanned
+files the raw-vs-stripped difference is still exactly the four intended KDoc mentions, and no file
+changes its line count, so nothing is joined or shifted.
+
 ## Guarded by preflight, not by a test
 
 `tools/ci/preflight.py` fails on any `TextOverflow.Ellipsis` in `app/src/main`, and on any

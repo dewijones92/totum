@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.MediaKind
 
 /**
  * The header of a source's page — back, title, subscribe toggle. One component
@@ -43,6 +44,15 @@ fun SourceHeader(
      * Null for a channel, which has no second name.
      */
     publisher: String? = null,
+    /**
+     * Which maker this page is about — a mic for a show, a screen for a channel.
+     *
+     * Passed rather than assumed, because this header serves BOTH pillars (`PodcastFeedScreen` and
+     * `ChannelScreen`) and it hardcoded the podcast glyph. Unobservable today, since the line it
+     * labels is filtered back out and a channel has no publisher — but a label that is wrong for
+     * half its callers is not something to leave sitting under a filter that depends on it.
+     */
+    pillar: MediaKind = MediaKind.PODCAST,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -62,13 +72,9 @@ fun SourceHeader(
             // Labelled 🎙️ and filtered by that label, not by position: this is a podcast page, and
             // the default 📺 would only ever have shown if the positional drop mis-fired — so the
             // failure mode was "a podcast page wearing a television".
-            mediaFacts(
-                author = title,
-                publisher = publisher,
-                dateText = null,
-                authorEmoji = FactEmoji.PODCAST,
-            )
-                .filterNot { it.startsWith(FactEmoji.PODCAST) }
+            val makerEmoji = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL
+            mediaFacts(author = title, publisher = publisher, dateText = null, authorEmoji = makerEmoji)
+                .filterNot { it.startsWith(makerEmoji) }
                 .forEach { fact ->
                     Text(
                         text = fact,
