@@ -18,6 +18,9 @@ Checks, cheapest first:
    and silently wrong here.
 5. Every `script:`/`run:` block is valid POSIX shell (`sh -n`).
 6. The plain-Python test suites pass — no Gradle task knows they exist.
+7. No UI text truncates: `TextOverflow.Ellipsis` is banned outright and a `maxLines` cap has to be
+   declared with its reason. A Compose test cannot see this — a truncated `Text` still reports its
+   whole string to the semantics tree — so a grep is the only thing that can.
 """
 import pathlib
 import re
@@ -215,6 +218,61 @@ def check_manual_tests_are_marked() -> int:
     return problems
 
 
+# Where a line cap is still legitimate, with the reason. Everything else in the app WRAPS.
+#
+# Dewi, 2026-09-21: *"dont use ... please in the app - just wrap the text"*. A cap with no ellipsis
+# is still truncation — it clips instead of dotting — so the cap is what is checked, not the dots.
+# Each of these either cannot overflow or has an explicit affordance for the rest of the text.
+ALLOWED_MAXLINES = {
+    "app/src/main/java/com/dewijones92/totum/ui/common/MediaThumbnail.kt": (
+        1, "the duration chip is a clock ('1:02:45') and can never need a second line",
+    ),
+    "app/src/main/java/com/dewijones92/totum/ui/common/CollapsingTitle.kt": (
+        1, "a fixed string resource in a header whose height is animated, so it cannot grow",
+    ),
+    "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt": (
+        1, "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
+    ),
+    "app/src/main/java/com/dewijones92/totum/ui/player/FullPlayer.kt": (
+        1, "the description collapses behind an explicit 'Show more', and clips rather than dotting",
+    ),
+}
+MAXLINES = re.compile(r"\bmaxLines\s*=")
+# KDoc and `//` lines talk ABOUT the caps that went, and that prose is the record of why — so it
+# has to survive a check on the code. Stripped rather than pattern-dodged: an "unless it looks
+# like a comment" regex is the kind that quietly stops matching real code too.
+COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
+
+
+def check_text_wraps_instead_of_truncating() -> int:
+    """
+    No `TextOverflow.Ellipsis` anywhere in the app, and a line cap only where it is declared above.
+
+    Here rather than in detekt because it is a house rule about one library call, not a Kotlin
+    smell — and here rather than in a Compose test because a truncated `Text` still reports its FULL
+    string to the semantics tree, so no assertion on text can see the difference. A grep can.
+    """
+    problems = 0
+    for path in sorted((ROOT / "app/src/main").rglob("*.kt")):
+        rel = str(path.relative_to(ROOT))
+        body = COMMENTS.sub("", path.read_text())
+        if "TextOverflow.Ellipsis" in body:
+            print(f"  PROBLEM: {rel} truncates with TextOverflow.Ellipsis")
+            print("    The app wraps instead (Dewi, 2026-09-21). Drop the overflow and the maxLines.")
+            problems += 1
+        caps = len(MAXLINES.findall(body))
+        allowed, reason = ALLOWED_MAXLINES.get(rel, (0, ""))
+        if caps > allowed:
+            print(f"  PROBLEM: {rel} caps text at maxLines ({caps} site(s), {allowed} allowed)")
+            print("    A cap clips rather than dotting, which is still not wrapping.")
+            if reason:
+                print(f"    The allowance here is for: {reason}")
+            problems += 1
+    if not problems:
+        print(f"  ok: no text truncation outside the {len(ALLOWED_MAXLINES)} declared allowances")
+    return problems
+
+
 def main() -> int:
     print(f"preflight: {WORKFLOW.relative_to(ROOT)}")
     problems, workflow = check_yaml()
@@ -235,6 +293,7 @@ def main() -> int:
     problems += check_python_tests()
     problems += check_no_cross_line_variables(workflow)
     problems += check_shell_syntax(workflow)
+    problems += check_text_wraps_instead_of_truncating()
     if problems:
         print(f"\npreflight FAILED with {problems} problem(s) — none of these would show up in the Gradle gate.")
         return 1

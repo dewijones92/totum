@@ -14,6 +14,7 @@ public data class PlayHistoryEntity(
     public val lastPlayedAtEpochMs: Long,
     override val title: String,
     override val author: String?,
+    override val publisher: String? = null,
     override val thumbnailUrl: String?,
     override val sourceId: String,
     override val contentKind: String,

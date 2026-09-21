@@ -22,6 +22,16 @@ internal interface PlaylistItemColumns {
     val sourceId: String
     val title: String
     val author: String?
+
+    /**
+     * The publisher behind the show, when the feed names one — see [MediaItem.publisher].
+     *
+     * On the shared contract rather than podcast-only storage because a queued, downloaded or
+     * replayed episode must read the same as the one in its feed: without a column here the
+     * second name existed in the podcast list and nowhere else, which is the exact shape of the
+     * v18/v19 defects above.
+     */
+    val publisher: String?
     val thumbnailUrl: String?
     val contentKind: String
     val playbackType: String
@@ -74,6 +84,7 @@ internal fun playlistItemFrom(columns: PlaylistItemColumns): PlayableItem? {
         viewsText = columns.viewsText,
         duration = columns.durationMs?.milliseconds,
         author = columns.author,
+        publisher = columns.publisher,
         thumbnailUrl = columns.thumbnailUrl?.let(HttpUrl::parse),
         mediaUrl = columns.mediaUrl?.let(HttpUrl::parse),
         contentKind = runCatching { MediaContentKind.valueOf(columns.contentKind) }

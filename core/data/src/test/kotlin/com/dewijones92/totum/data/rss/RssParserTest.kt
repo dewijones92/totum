@@ -28,6 +28,31 @@ class RssParserTest {
         assertEquals(3, feed.episodes.size)
     }
 
+    /**
+     * The channel's own `itunes:author` — the network behind the show, and a different fact from its
+     * title. It was not read at all, so the one place most feeds state their publisher was thrown
+     * away before anything downstream could show it.
+     */
+    @Test
+    fun `reads the channel's author, which is the publisher the episodes share`() {
+        val xml = """
+            <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+              <channel><title>The Rest Is Politics</title>
+                <itunes:author>Goalhanger</itunes:author>
+                <item><title>Ep 214</title></item>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        assertEquals("Goalhanger", (RssParser().parse(xml) as RssParseResult.Success).feed.author)
+    }
+
+    /** A feed that names no author says null, rather than borrowing its own title. */
+    @Test
+    fun `a channel with no author is null`() {
+        assertNull(parseSampleFeed().author)
+    }
+
     @Test
     fun `parses a fully specified episode`() {
         val episode = parseSampleFeed().episodes[0]

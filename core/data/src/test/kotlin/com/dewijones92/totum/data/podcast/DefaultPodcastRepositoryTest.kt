@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Clock
@@ -46,10 +47,73 @@ class DefaultPodcastRepositoryTest {
         // No guid or enclosure -> positional fallback.
         assertEquals("${feedUrl.value}#2", stored.second[2].id.value)
         assertEquals("https://cdn.example.com/ep2.mp3", stored.second[0].mediaUrl?.value)
-        // Episode author when present; feed title as the fallback.
-        assertEquals("A Guest Author", stored.second[0].author)
+        // The SHOW owns the maker line on every episode, whether or not the episode names an
+        // author of its own; the episode's author becomes the publisher beside it. This read
+        // `author ?: feedTitle`, so episode 0 said "A Guest Author" and the show's name appeared
+        // nowhere at all.
+        assertEquals("The Test Podcast", stored.second[0].author)
+        assertEquals("A Guest Author", stored.second[0].publisher)
         assertEquals("The Test Podcast", stored.second[1].author)
+        assertNull(stored.second[1].publisher)
     }
+
+    @Test
+    fun `the channel's author is the publisher every episode shares`() = runTest {
+        val xml = feed(
+            channelExtras = "<itunes:author>Goalhanger</itunes:author>",
+            episodeExtras = "",
+        )
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        // Most feeds name the network once, on the channel, and never per episode — so without
+        // this fallback the publisher would be absent from exactly the feeds that state it.
+        val episode = checkNotNull(store.saved).second.single()
+        assertEquals("The Rest Is Politics", episode.author)
+        assertEquals("Goalhanger", episode.publisher)
+    }
+
+    @Test
+    fun `an episode's own author beats the channel's`() = runTest {
+        val xml = feed(
+            channelExtras = "<itunes:author>Goalhanger</itunes:author>",
+            episodeExtras = "<itunes:author>A Guest Author</itunes:author>",
+        )
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        val episode = checkNotNull(store.saved).second.single()
+        assertEquals("The Rest Is Politics", episode.author)
+        assertEquals("A Guest Author", episode.publisher)
+    }
+
+    @Test
+    fun `a publisher that merely repeats the show is dropped`() = runTest {
+        // What most feeds actually do: `itunes:author` set to the show's own title. Two identical
+        // lines under a title say less than one, so there is no publisher to show here.
+        val xml = feed(
+            channelExtras = "<itunes:author>the rest is POLITICS</itunes:author>",
+            episodeExtras = "",
+        )
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        assertNull(checkNotNull(store.saved).second.single().publisher)
+    }
+
+    private fun feed(channelExtras: String, episodeExtras: String) = """
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+          <channel>
+            <title>The Rest Is Politics</title>
+            $channelExtras
+            <item>
+              <title>Ep 214</title><guid>ep214</guid>
+              $episodeExtras
+              <enclosure url="https://cdn.example.com/ep214.mp3"/>
+            </item>
+          </channel>
+        </rss>
+    """.trimIndent()
 
     @Test
     fun `fetches remote Podcasting 2_0 chapters for an episode that links them`() = runTest {

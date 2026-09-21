@@ -19,6 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -130,9 +132,45 @@ internal fun PlayProgressSliver(playState: PlayState, modifier: Modifier = Modif
 internal fun playedTitleAlpha(playState: PlayState): Float =
     if (playState.isPlayed) PLAYED_TITLE_ALPHA else 1f
 
+/**
+ * The wash a finished row wears — cyan, faintly — and [Color.Transparent] for every other row.
+ *
+ * Dewi asked for "a tinge of a colour" on played items (2026-09-21) and chose cyan from the app's
+ * own palette. Cyan rather than the tangerine hero because tangerine already means *active* — it
+ * is the play button, the now-playing equaliser and every primary action — so a played row painted
+ * with it would say the opposite of what it is. Neither is it green: this brand has three hues and
+ * "done" is not worth a fourth.
+ *
+ * Kept deliberately faint. It sits UNDER the text on every list, so it has to stay clear of both
+ * `onSurface` and `onSurfaceVariant` at any size; a wash you have to be told about is doing its
+ * job, where one you can read a title through is not.
+ *
+ * Only PLAYED, and only this state: part-way items already carry the progress sliver and the queue
+ * labels the row it is on, so tinting those too would leave nothing untinted to compare against.
+ */
+@Composable
+internal fun playedRowTint(playState: PlayState): Color {
+    if (!playState.isPlayed) return Color.Transparent
+    val scheme = MaterialTheme.colorScheme
+    // A dark surface needs MORE of the hue to read as a hue at all. Verified by looking: the same
+    // 8% that is plainly cyan on Sand99 came out as a lighter grey band on Sand10 — measurably
+    // bluer, and not blue to the eye, which is not what "a tinge of a colour" means. Keyed off the
+    // surface's own luminance rather than a dark-theme flag so it still holds if dynamic colour is
+    // ever switched on and the surface is neither of ours.
+    val alpha = if (scheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
+        PLAYED_ROW_TINT_ALPHA_ON_DARK
+    } else {
+        PLAYED_ROW_TINT_ALPHA
+    }
+    return scheme.secondary.copy(alpha = alpha)
+}
+
 private val STATUS_ICON_SIZE = 14.dp
 private val SLIVER_HEIGHT = 3.dp
 private const val PLAYED_TITLE_ALPHA = 0.55f
+private const val PLAYED_ROW_TINT_ALPHA = 0.08f
+private const val PLAYED_ROW_TINT_ALPHA_ON_DARK = 0.14f
+private const val DARK_SURFACE_LUMINANCE = 0.5f
 
 /** Padding that keeps the status row visually attached to the text above it. */
 internal val StatusRowSpacing = Modifier.padding(top = 3.dp)

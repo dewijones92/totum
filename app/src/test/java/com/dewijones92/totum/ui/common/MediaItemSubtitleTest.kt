@@ -48,14 +48,18 @@ class MediaItemSubtitleTest {
         viewsText = viewsText,
     )
 
-    private fun podcastEpisode() = MediaItem(
+    private fun podcastEpisode(
+        author: String? = "Novara Media",
+        publisher: String? = null,
+    ) = MediaItem(
         id = MediaItemId("ep"),
         sourceId = SourceId("feed"),
         title = "an episode",
         publishedAt = null,
         publishedText = "2 days ago",
         duration = null,
-        author = "Novara Media",
+        author = author,
+        publisher = publisher,
         mediaUrl = HttpUrl.of("https://example.test/ep.mp3"),
     )
 
@@ -154,6 +158,84 @@ class MediaItemSubtitleTest {
         assertEquals(
             listOf("📺 Novara Media", "📅 2 days ago"),
             mediaItemFacts(video(viewsText = "   "), MediaKind.VIDEO)
+        )
+    }
+
+    // ---- the show and the network behind it -----------------------------------------------------
+
+    /**
+     * Both names, on their own lines, in that order. Dewi, 2026-09-21: *"make sure the podcast title
+     * and podcast channel name are visible in the app wherever they SHOULD be"*. They were not:
+     * `DefaultPodcastRepository` read `author ?: feedTitle`, so a feed naming its network showed
+     * "Goalhanger" and the show's own name appeared nowhere in the app.
+     */
+    @Test
+    fun `a podcast episode gives the show then its publisher, each its own line`() {
+        assertEquals(
+            listOf(
+                "${FactEmoji.PODCAST} The Rest Is Politics",
+                "${FactEmoji.PUBLISHER} Goalhanger",
+                "📅 2 days ago",
+            ),
+            mediaItemFacts(
+                podcastEpisode(author = "The Rest Is Politics", publisher = "Goalhanger"),
+                MediaKind.PODCAST,
+            ),
+        )
+    }
+
+    /** A label, not a second microphone: two mics in a row read as one fact repeated. */
+    @Test
+    fun `the publisher wears a different glyph from the show`() {
+        val facts = mediaItemFacts(
+            podcastEpisode(author = "The Rest Is Politics", publisher = "Goalhanger"),
+            MediaKind.PODCAST,
+        )
+        val glyphs = facts.map { it.substringBefore(' ') }
+
+        assertEquals(glyphs.toString(), glyphs.size, glyphs.toSet().size)
+    }
+
+    /**
+     * What most feeds actually do: `itunes:author` set to the show's own title. Compared
+     * case-insensitively because feeds are inconsistent about capitals, and two lines saying the
+     * same name say less than one.
+     */
+    @Test
+    fun `a publisher that repeats the show is dropped, whatever its case`() {
+        assertEquals(
+            listOf("${FactEmoji.PODCAST} The Rest Is Politics", "📅 2 days ago"),
+            mediaItemFacts(
+                podcastEpisode(author = "The Rest Is Politics", publisher = "the REST is politics"),
+                MediaKind.PODCAST,
+            ),
+        )
+    }
+
+    /** A feed that says `<itunes:author></itunes:author>` must not produce a bare label either. */
+    @Test
+    fun `a blank publisher leaves no bare label`() {
+        assertEquals(
+            listOf("${FactEmoji.PODCAST} Novara Media", "📅 2 days ago"),
+            mediaItemFacts(podcastEpisode(publisher = "   "), MediaKind.PODCAST),
+        )
+    }
+
+    /** A video has no second name, and nothing must invent one for it. */
+    @Test
+    fun `a video shows no publisher line`() {
+        assertTrue(mediaItemFacts(video(), MediaKind.VIDEO).none { it.startsWith(FactEmoji.PUBLISHER) })
+    }
+
+    /**
+     * The player page omits the author (the artist line is directly above it) but NOT the
+     * publisher, which appears nowhere else on that page.
+     */
+    @Test
+    fun `the player page keeps the publisher even though it drops the author`() {
+        assertEquals(
+            listOf("${FactEmoji.PUBLISHER} Goalhanger", "📅 2 days ago"),
+            mediaFacts(author = null, publisher = "Goalhanger", dateText = mediaDateText("2 days ago", null)),
         )
     }
 

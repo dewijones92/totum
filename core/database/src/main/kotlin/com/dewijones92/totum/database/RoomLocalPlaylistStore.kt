@@ -43,6 +43,7 @@ public class RoomLocalPlaylistStore(private val dao: LocalPlaylistDao) : LocalPl
             position = position,
             title = item.title,
             author = item.author,
+            publisher = item.publisher,
             thumbnailUrl = item.thumbnailUrl?.value,
             sourceId = item.sourceId.value,
             contentKind = item.contentKind.name,

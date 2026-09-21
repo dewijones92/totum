@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Breadcrumbs
@@ -98,7 +97,7 @@ private fun EventRow(at: String, tag: String, message: String) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(text = message, style = MaterialTheme.typography.bodySmall, overflow = TextOverflow.Ellipsis)
+        Text(text = message, style = MaterialTheme.typography.bodySmall)
     }
     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 }

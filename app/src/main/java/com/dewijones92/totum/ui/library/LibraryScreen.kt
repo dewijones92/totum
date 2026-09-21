@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -302,8 +301,6 @@ private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDis
         Text(
             text = entry.item.title,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
         )
         Text(
             // The reason verbatim. A generic "download failed" would hide the difference between
@@ -312,8 +309,6 @@ private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDis
             text = entry.reason,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 2.dp),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -341,8 +336,6 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
                 // because the progress stream carried states without the items they were about.
                 text = active.item.title,
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             Text(

@@ -3,7 +3,7 @@ title: Views and dates everywhere — including the video page
 kind: feature
 status: shipped
 area: video/search/playback
-updated: 2026-09-06
+updated: 2026-09-21
 ---
 
 # Views and dates everywhere
@@ -17,7 +17,7 @@ videos). this additional detail must appear within video page also"*.
 
 ## One formatter, everywhere — one fact per line
 
-`mediaItemFacts(item)` returns **`[channel, views, date]`** and every list calls it — Videos, Search,
+`mediaItemFacts(item)` returns **`[maker, publisher, views, date]`** and every list calls it — Videos, Search,
 Channel, Related, Playlists, Podcasts, History, Library, Notifications, Queue. Each gets its own
 line. Duration is deliberately absent — it rides on the thumbnail, where nothing can truncate it and
 it costs no vertical space.
@@ -32,8 +32,9 @@ itself."*
 The facts were being listed and were not visible, which is the letter of the 2026-08-06 request
 without the point of it. A channel name of any length pushed the rest past the right-hand edge and
 Compose replaced it with an ellipsis — so the two facts he had asked for were the two that
-disappeared. Each line still caps at one line, but a line now holds ONE fact, so an ellipsis can
-only ever shorten a long channel name.
+disappeared. Splitting them meant a line held ONE fact, so an ellipsis could only ever shorten a
+long channel name — and since 2026-09-21 it cannot shorten even that, because nothing in the app
+truncates at all (see [text-wraps-never-truncates.md](text-wraps-never-truncates.md)).
 
 Returning the *parts* rather than a rendered line is what lets one seam serve both the row and the
 video page: whoever renders decides how, and only `mediaFacts` decides what and in what order. The
@@ -57,6 +58,7 @@ line is before you read it.
 | | Fact | Why |
 |---|---|---|
 | 📺 / 🎙️ | The maker | A TV for a channel, a mic for a podcast — so a mixed list says which of the two a row is |
+| 🏷️ | The publisher | The network behind a show, under its name — a label rather than a second mic, since two mics read as one fact repeated |
 | 👁️ | Views | Dewi named this one |
 | 📅 | Published | Dewi named this one |
 | 💾 | Size on disk | The Library's extra line |

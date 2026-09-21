@@ -31,6 +31,20 @@ public data class MediaItem(
     val duration: Duration?,
     /** Who made it: podcast/feed name or channel/uploader. Shown as the artist line. */
     val author: String? = null,
+    /**
+     * Who publishes the source, when that is a *different* name from [author] — a podcast
+     * network ("Goalhanger") behind a show ("The Rest Is Politics"), which RSS carries as
+     * `itunes:author` beside the channel title.
+     *
+     * Its own field because the two were in competition rather than beside each other: the
+     * podcast mapping read `author ?: feedTitle`, so a feed naming its publisher hid the SHOW's
+     * name in every list, the queue, the player and the notification (Dewi, 2026-09-21 — "make
+     * sure the podcast title and podcast channel name are visible wherever they SHOULD be").
+     *
+     * Null for videos, which have no second name to give — exactly as a podcast has no
+     * [viewsText]. Pillar-neutral all the same: whoever renders a maker line renders this one.
+     */
+    val publisher: String? = null,
     val description: String? = null,
     val thumbnailUrl: HttpUrl? = null,
     /** Where the playable media lives (podcast enclosure, resolved stream); null until known. */
@@ -98,6 +112,7 @@ public fun MediaItem.withStreamFrom(stream: MediaItem): MediaItem = copy(
     description = stream.description ?: description,
     title = stream.title.ifBlank { title },
     author = stream.author ?: author,
+    publisher = stream.publisher ?: publisher,
     thumbnailUrl = stream.thumbnailUrl ?: thumbnailUrl,
     sourceUrl = stream.sourceUrl ?: sourceUrl,
     chapters = stream.chapters.ifEmpty { chapters },

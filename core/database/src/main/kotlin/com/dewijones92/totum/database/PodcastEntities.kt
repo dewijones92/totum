@@ -49,6 +49,7 @@ public data class DownloadEntity(
     val audioOnly: Boolean = false,
     override val title: String,
     override val author: String?,
+    override val publisher: String? = null,
     override val thumbnailUrl: String?,
     override val sourceId: String,
     override val contentKind: String,
@@ -97,6 +98,8 @@ public data class EpisodeEntity(
     val feedId: String,
     val title: String,
     val author: String?,
+    /** The show's publisher, when the feed names a different one — see [MediaItem.publisher]. */
+    val publisher: String? = null,
     val publishedAtEpochMs: Long?,
     val durationSeconds: Long?,
     val description: String?,

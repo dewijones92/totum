@@ -433,8 +433,6 @@ private fun UpNextSection(queue: QueueControls) {
                 Text(
                     text = queued.item.item.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = { queue.onRemove(index) }) {
@@ -572,8 +570,10 @@ private fun DescriptionSection(description: String, onSeekTo: (Long) -> Unit) {
             text = annotated,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Clipped, never ellipsised: the "Show more" directly underneath is what says there
+            // is more, and Dewi's rule is that nothing in the app ends in three dots.
             maxLines = if (expanded) Int.MAX_VALUE else DESCRIPTION_COLLAPSED_LINES,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Clip,
         )
         Spacer(Modifier.height(4.dp))
         Text(

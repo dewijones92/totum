@@ -10,7 +10,8 @@ import java.time.Instant
 import kotlin.time.Duration
 
 /**
- * The facts shown under a media title, **one per line**, in reading order: channel, views, date.
+ * The facts shown under a media title, **one per line**, in reading order: channel (or show),
+ * publisher, views, date.
  *
  * A list, not a joined string, and that is the whole point. They used to be one line —
  * `author · views · date` — capped at `maxLines = 1`, so on a real phone the tail was replaced by
@@ -27,6 +28,7 @@ import kotlin.time.Duration
  */
 fun mediaItemFacts(item: MediaItem, pillar: MediaKind, now: Instant = Instant.now()): List<String> = mediaFacts(
     author = item.author,
+    publisher = item.publisher,
     dateText = mediaDateText(item.publishedText, item.publishedAt, now),
     viewsText = item.viewsText,
     // Which badge the maker gets. [pillar] is PASSED, not inferred from the URL — every caller
@@ -48,6 +50,12 @@ object FactEmoji {
     /** The maker — a TV for a channel, a mic for a podcast, so a mixed list tells you which. */
     const val CHANNEL: String = "📺"
     const val PODCAST: String = "🎙️"
+
+    /**
+     * The network or label behind a show, on its own line under the show's name. A label glyph
+     * rather than a second mic: two mics in a row read as one fact repeated.
+     */
+    const val PUBLISHER: String = "🏷️"
 
     /** The two Dewi named himself. */
     const val VIEWS: String = "👁️"
@@ -89,8 +97,18 @@ fun mediaFacts(
     dateText: String?,
     viewsText: String? = null,
     authorEmoji: String = FactEmoji.CHANNEL,
+    /**
+     * The publisher behind the show, when the feed names a different one. Its own line directly
+     * under the maker, because it answers the same question ("whose is this?") and the two used to
+     * be in competition for one line — see [com.dewijones92.totum.domain.MediaItem.publisher].
+     */
+    publisher: String? = null,
 ): List<String> = listOfNotNull(
     author.labelled(authorEmoji),
+    // Dropped when it merely repeats the maker, which is what most feeds set it to. The comparison
+    // is here as well as at the mapping so a row stored before v22 — or any other source that
+    // fills both fields alike — cannot show one name twice.
+    publisher.takeIf { !it.equals(author, ignoreCase = true) }.labelled(FactEmoji.PUBLISHER),
     viewsText.labelled(FactEmoji.VIEWS),
     dateText.labelled(FactEmoji.PUBLISHED),
 )

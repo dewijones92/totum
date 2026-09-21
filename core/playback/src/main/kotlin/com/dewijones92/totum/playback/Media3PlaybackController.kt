@@ -262,21 +262,7 @@ public class Media3PlaybackController(
             // dropped by it.
             .setSubtitleConfigurations(subtitles.map { it.toSubtitleConfiguration() })
             .also { describeSubtitles(item, subtitles) }
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(item.title)
-                    .setArtist(item.author)
-                    .setDescription(item.description)
-                    .setArtworkUri(item.thumbnailUrl?.value?.let(android.net.Uri::parse))
-                    // Round-trips the pillar through the session so the UI can label it.
-                    .setMediaType(
-                        when (kind) {
-                            MediaKind.VIDEO -> MediaMetadata.MEDIA_TYPE_VIDEO
-                            MediaKind.PODCAST -> MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE
-                        },
-                    )
-                    .build(),
-            )
+            .setMediaMetadata(metadataFor(item, kind))
             .build()
         // Resume where this item was left (both pillars). Fetched first so we
         // can hand the start position straight to the player — no jump from 0.
@@ -528,12 +514,37 @@ public class Media3PlaybackController(
         controller.seekTo(target.inWholeMilliseconds)
     }
 
+    /**
+     * What the session carries about the current item — and therefore what the UI, the notification
+     * and the lock screen can each say about it.
+     *
+     * The session is deliberately the only channel: anything read back in [currentPlaybackState]
+     * comes from here, so a UI cannot describe one item while another is playing.
+     */
+    private fun metadataFor(item: MediaItem, kind: MediaKind): MediaMetadata = MediaMetadata.Builder()
+        .setTitle(item.title)
+        .setArtist(item.author)
+        // The show's publisher. Not shown in the system notification, which reads title + artist,
+        // so this adds a fact to the app's own player without changing what the lock screen says.
+        .setAlbumArtist(item.publisher)
+        .setDescription(item.description)
+        .setArtworkUri(item.thumbnailUrl?.value?.let(android.net.Uri::parse))
+        // Round-trips the pillar through the session so the UI can label it.
+        .setMediaType(
+            when (kind) {
+                MediaKind.VIDEO -> MediaMetadata.MEDIA_TYPE_VIDEO
+                MediaKind.PODCAST -> MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE
+            },
+        )
+        .build()
+
     private fun MediaController.currentPlaybackState(): PlaybackState? {
         val current = currentMediaItem ?: return null
         return PlaybackState(
             itemId = MediaItemId(current.mediaId),
             title = current.mediaMetadata.title?.toString().orEmpty(),
             artist = current.mediaMetadata.artist?.toString(),
+            publisher = current.mediaMetadata.albumArtist?.toString(),
             artworkUrl = current.mediaMetadata.artworkUri?.toString(),
             viewsText = activeViewsText,
             publishedText = activePublishedText,

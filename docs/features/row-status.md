@@ -3,7 +3,7 @@ title: Row status — pillar, played, offline
 kind: feature
 status: shipped
 area: ui
-updated: 2026-07-27
+updated: 2026-09-21
 ---
 
 # Every row says what it is
@@ -20,7 +20,7 @@ queue, history, playlists, Library, channel tabs.
 |---|---|---|
 | **Pillar** | The antenna or video glyph — the same pair the bottom bar uses | Learnable at a glance; no legend needed |
 | **In progress** | A thin sliver under the thumbnail | Says *how far*, which a label can't |
-| **Played** | A bare check, plus a dimmed title | The row recedes without disappearing |
+| **Played** | A cyan wash across the row, a bare check, and a dimmed title | The row recedes without disappearing, and a finished one is findable by colour alone |
 | **Offline** | A circled down-arrow in the status line | Separate from the trailing button, which is the *action* |
 
 Three deliberate choices:
@@ -30,8 +30,10 @@ Three deliberate choices:
   with a tick.
 - **Quiet by default.** An unplayed, streaming item shows only its pillar. Status that
   shouts on every row stops carrying information.
-- **Titles cap at two lines.** Long podcast titles were running to five, which made every
-  row a paragraph. Found by looking at a screenshot, not by reading the code.
+- ~~**Titles cap at two lines.** Long podcast titles were running to five, which made every
+  row a paragraph.~~ **Reversed 2026-09-21** on Dewi's instruction: nothing in the app truncates
+  and every title wraps in full — see [text-wraps-never-truncates.md](text-wraps-never-truncates.md).
+  A long-titled row really is four lines tall now, which is the trade he chose knowingly.
 
 ## The gap this exposed: "played" wasn't representable
 
@@ -104,3 +106,32 @@ was inference where a fact was available. `STATE_ENDED` now marks it directly.
 
 Verified on device: playing to the end logs `ended`, writes `completedAtEpochMs`, and the
 row renders `content-desc="Played"`.
+
+## A played row wears a cyan wash (2026-09-21)
+
+**Ask:** *"any played item I want the background color of it to have a tinge of a color? not sure
+wha ttho???"* — cyan, chosen from the app's own palette after being offered cyan / green / lemon /
+neutral.
+
+- **Cyan, not tangerine**, because tangerine already means *active*: it is the play button, the
+  now-playing equaliser and every primary action, so a finished row painted with it would say the
+  opposite of what it is. Not green either — this brand has three hues and "done" is not worth a
+  fourth.
+- **Played only.** Part-way rows already carry the progress sliver and the queue labels the row it
+  is on, so tinting those too would leave nothing untinted to compare against. Offered; his call.
+- **The alpha is luminance-aware**, and that came from looking rather than reasoning: 8% of cyan is
+  plainly cyan over Sand99 and comes out as a *lighter grey band* over Sand10 — measurably bluer,
+  and not blue to the eye. A dark surface needs more of the hue to read as a hue, so the wash is
+  8% on a light surface and 14% on a dark one, keyed off `colorScheme.surface.luminance()` so it
+  still holds if dynamic colour is ever switched on.
+- One seam, as ever: `playedRowTint` sits beside `playedTitleAlpha` in `MediaItemStatus.kt` and
+  `MediaItemRow` draws it under the click, so the ripple still lands on top.
+
+**Verified by pixel**, not by the colour function: `PlayedRowIsTintedTest` renders a played and an
+unplayed row, captures each, and reads the corner pixel — in **both** themes. A test of
+`playedRowTint` would stay green if the modifier were ordered behind the surface, applied to the
+wrong node, or dropped entirely, and this repo has shipped exactly that shape of defect (eleven
+green queue-row tests over rows that rendered solid red, cbf9916). Mutation-proven: deleting the
+`.background(...)` fails both themes at the "should differ" assertion, and the unplayed control
+reads the surface colour exactly, so "everything is tinted" and "nothing is" are distinguishable
+outcomes rather than one indistinguishable pass.

@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.PlaybackState
@@ -62,15 +61,11 @@ internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
                     text = it,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Text(
                 text = state.title,
                 style = MaterialTheme.typography.headlineSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp),
             )
             ViewsAndDate(state)
@@ -131,12 +126,16 @@ internal fun SecondaryControls(
  * and laid out the same way for the same reason: Dewi asked for one fact per line in lists *and*
  * "also visible within the video page itself" (2026-08-15).
  *
- * The author is omitted rather than repeated: it is the line directly above this one.
+ * The author is omitted rather than repeated: it is the line directly above this one. Its
+ * publisher is not — that name appears nowhere else on the page.
  */
 @Composable
 internal fun ViewsAndDate(state: PlaybackState) {
     val facts = mediaFacts(
         author = null,
+        // The publisher IS shown here, unlike the author: the line above is the show's name, and
+        // the network behind it is a second fact rather than a repeat of that one.
+        publisher = state.publisher,
         dateText = mediaDateText(state.publishedText, state.publishedAt, LocalNow.current),
         viewsText = state.viewsText,
     )

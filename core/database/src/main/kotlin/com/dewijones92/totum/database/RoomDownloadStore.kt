@@ -80,6 +80,7 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
             audioOnly = (this as? DownloadState.Downloaded)?.audioOnly ?: requestedAudioOnly,
             title = media.title,
             author = media.author,
+            publisher = media.publisher,
             thumbnailUrl = media.thumbnailUrl?.value,
             sourceId = media.sourceId.value,
             contentKind = media.contentKind.name,

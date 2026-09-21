@@ -23,7 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AccountProgressOutboxEntity::class,
         ReconciledAccountProgressEntity::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = false,
 )
 public abstract class TotumDatabase : RoomDatabase() {
@@ -77,7 +77,34 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_18_19,
                 MIGRATION_19_20,
                 MIGRATION_20_21,
+                MIGRATION_21_22,
             )
+
+        /**
+         * v22: the publisher behind a show, kept beside its name rather than instead of it.
+         *
+         * The podcast mapping read `author ?: feedTitle`, so a feed that names its network
+         * ("Goalhanger") hid the show's own name ("The Rest Is Politics") everywhere in the app.
+         * Both are facts, so both are stored — and stored on every table that describes an item,
+         * because a queued or downloaded episode has to read like the one in its feed. Exactly the
+         * v18/v19 shape, which is why those tables are named here too.
+         *
+         * Purely additive and nullable: rows written before this have no publisher, which is the
+         * truth about them, and the existing `author` column already holds whichever single name
+         * they were given.
+         */
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val tables = listOf(
+                    "queue_items",
+                    "play_history",
+                    "downloads",
+                    "local_playlist_items",
+                    "podcast_episodes",
+                )
+                tables.forEach { db.execSQL("ALTER TABLE $it ADD COLUMN publisher TEXT") }
+            }
+        }
 
         /**
          * v21: the account positions this device has already acted on, and an attempt count on

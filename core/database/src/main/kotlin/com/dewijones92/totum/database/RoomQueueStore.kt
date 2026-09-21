@@ -36,6 +36,7 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
                     itemId = media.id.value,
                     title = media.title,
                     author = media.author,
+                    publisher = media.publisher,
                     thumbnailUrl = media.thumbnailUrl?.value,
                     sourceId = media.sourceId.value,
                     contentKind = media.contentKind.name,

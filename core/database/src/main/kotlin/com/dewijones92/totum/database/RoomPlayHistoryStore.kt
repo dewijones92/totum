@@ -23,6 +23,7 @@ public class RoomPlayHistoryStore(
                 lastPlayedAtEpochMs = System.currentTimeMillis(),
                 title = item.item.title,
                 author = item.item.author,
+                publisher = item.item.publisher,
                 thumbnailUrl = item.item.thumbnailUrl?.value,
                 sourceId = item.item.sourceId.value,
                 contentKind = item.item.contentKind.name,

@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 
 # Testing
@@ -53,7 +53,10 @@ instead).
 | The player keeping every control through a redesign | instrumented | `:app` `PlayerKeepsEveryControlTest` — written BEFORE the redesign, which is the whole point |
 | Search results streaming per section | JVM unit | `:app` `SearchStreamsPerSectionTest` — incl. the reported case, a slow torrent search not blocking YouTube |
 | What each search section state looks like | instrumented | `:app` `SearchSectionStatesTest` |
-| The facts under every video title (channel, views, date — one per line) | JVM unit | `:app` `MediaItemSubtitleTest` — testable at all only because `@Composable` came off the formatter |
+| The facts under every video title (maker, publisher, views, date — one per line) | JVM unit | `:app` `MediaItemSubtitleTest` — testable at all only because `@Composable` came off the formatter |
+| A show's name AND its publisher, never one instead of the other | JVM unit | `:core:data` `DefaultPodcastRepositoryTest`, `RssParserTest` — the assertion pinning the old `author ?: feedTitle` was seen to fail before it was rewritten |
+| A played row is washed cyan and an unplayed one is not, in BOTH themes | instrumented | `:app` `PlayedRowIsTintedTest` — reads the **corner pixel**, because a test of the colour function stays green if the modifier is dropped. Mutation-proven both ways |
+| Nothing in the app truncates text | preflight (grep) | `tools/ci/preflight.py` — deliberately not a Compose test: a truncated `Text` reports its whole string to the semantics tree, so no text assertion can see it |
 | What a resolution may change about an item | JVM unit | `:core:domain` `WithStreamFromTest` — the rule that stops views/dates being destroyed at play time |
 | Views + dates on a **page-2** feed video | JVM unit | `:app` `VideosPagingTest` — where "scrolled down" can actually break |
 | Views + dates crossing the media session | instrumented | `:app` `PlayerMetadataTest` — extras written but never read compile fine and deliver nothing |

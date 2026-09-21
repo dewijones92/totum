@@ -39,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -242,8 +241,6 @@ private fun SearchHistory(
                     Text(
                         text = recent,
                         style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { onRemove(recent) }) {
@@ -439,16 +436,12 @@ private fun HitTitles(title: String, subtitle: String?, modifier: Modifier = Mod
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
         )
         subtitle?.let {
             Text(
                 text = it,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -478,7 +471,7 @@ internal fun TorrentHitRow(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
-        headlineContent = { Text(hit.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        headlineContent = { Text(hit.title) },
         supportingContent = { hit.subtitle?.let { Text(it) } },
         leadingContent = {
             Icon(

@@ -347,6 +347,11 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   in this repo's Actions secrets (CI signing; write-only), and backed up in
   the PRIVATE repo `dewijones92/uniapp-signing-backup` (survives laptop
   loss). versionCode is `100 + run number`, so it only ever increases.
+- **Text wraps; nothing truncates.** No `TextOverflow.Ellipsis` anywhere in `app/src/main`, and a
+  `maxLines` cap only with a declared reason in `tools/ci/preflight.py` (Dewi, 2026-09-21: *"dont
+  use ... please in the app - just wrap the text"*). A row grows to fit its title. Preflight fails
+  on a reintroduction — not a Compose test, because a truncated `Text` still reports its whole
+  string to the semantics tree, so no assertion about text can see the difference.
 - **Log generously — err on the side of far more.** Dewi's standing instruction
   (2026-07-28): *"would we benefit from FAR MORE THINGS being logged??? in this repo,
   always err on the side of MORE LOGS/DIAGS."* This app is debugged almost entirely

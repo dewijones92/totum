@@ -53,12 +53,14 @@ public class DefaultPodcastRepository(
         }
 
         val source = parsed.toMediaSource(id, feedUrl)
+        val items = parsed.episodes.mapIndexed { index, episode ->
+            episode.toMediaItem(id, feedUrl, index, parsed, resolveChapters(episode, index))
+        }
         Diag.log("subs", "subscribed \"${source.title}\" (${parsed.episodes.size} episodes) $feedUrl")
+        Diag.log("subs", parsed.namingDecision(items))
         store.saveSource(
             subscription = Subscription(source = source, subscribedAt = clock.instant()),
-            items = parsed.episodes.mapIndexed { index, episode ->
-                episode.toMediaItem(id, feedUrl, index, parsed.title, resolveChapters(episode, index))
-            },
+            items = items,
         )
         return SubscribeResult.Subscribed(source)
     }
@@ -127,14 +129,39 @@ public class DefaultPodcastRepository(
                 title,
                 (parsedResult as? RssParseResult.Failure)?.detail ?: "no feed",
             )
+        val items = parsed.episodes.mapIndexed { index, episode ->
+            episode.toMediaItem(source.id, source.feedUrl, index, parsed, resolveChapters(episode, index))
+        }
+        Diag.log("podcast", parsed.namingDecision(items))
         store.saveSource(
             // Keep the original subscribedAt so refreshing doesn't reorder feeds.
             subscription = Subscription(source = source, subscribedAt = sub.subscribedAt),
-            items = parsed.episodes.mapIndexed { index, episode ->
-                episode.toMediaItem(source.id, source.feedUrl, index, parsed.title, resolveChapters(episode, index))
-            },
+            items = items,
         )
         return null
+    }
+
+    /**
+     * What this feed called itself, what it called its publisher, and what became of the second one.
+     *
+     * The INPUTS, not the outcome: a report a week later has to be able to say why a row shows one
+     * name or two, and "publisher=none" is indistinguishable from "publisher dropped as a repeat"
+     * unless the line says which. One line per feed save, which is per subscribe and per refresh —
+     * feeds refresh on the order of hours, so this cannot crowd the buffer.
+     */
+    private fun ParsedFeed.namingDecision(items: List<MediaItem>): String {
+        val channelAuthor = author?.trim().orEmpty()
+        val droppedAsRepeat = channelAuthor.isNotEmpty() && channelAuthor.equals(title.trim(), ignoreCase = true)
+        val publishers = items.mapNotNull { it.publisher }.distinct()
+        val example = publishers.firstOrNull()?.let { " e.g. \"$it\"" }.orEmpty()
+        val why = when {
+            publishers.isNotEmpty() -> ""
+            droppedAsRepeat -> " (channel author repeats the show, so there is no second name to show)"
+            channelAuthor.isEmpty() -> " (the feed named no publisher)"
+            else -> " (every episode dropped it)"
+        }
+        return "names show=\"$title\" channelAuthor=${channelAuthor.ifEmpty { "none" }} " +
+            "publishers=${publishers.size}$example$why"
     }
 
     private fun ParsedFeed.toMediaSource(id: SourceId, feedUrl: HttpUrl) = MediaSource.PodcastFeed(
@@ -158,11 +185,22 @@ public class DefaultPodcastRepository(
         return PodcastChaptersJson.parse(body)
     }
 
+    /**
+     * The show's name ALWAYS wins the maker line, and the publisher gets its own.
+     *
+     * This read `author ?: feedTitle` — the episode's `itunes:author` beating the show — so any
+     * feed that names its network showed "Goalhanger" and never "The Rest Is Politics", in every
+     * list, the queue, the player and the notification. Both are facts and neither substitutes for
+     * the other, so both are carried and [MediaItem.publisher] is the second one.
+     *
+     * A publisher equal to the show name is dropped rather than repeated: most feeds set
+     * `itunes:author` to the show's own title, and two identical lines say less than one.
+     */
     private fun ParsedEpisode.toMediaItem(
         sourceId: SourceId,
         feedUrl: HttpUrl,
         index: Int,
-        feedTitle: String,
+        feed: ParsedFeed,
         chapters: List<Chapter>,
     ) = MediaItem(
         // Stable per feed: guid, else enclosure, else position — in that order of trust.
@@ -171,7 +209,10 @@ public class DefaultPodcastRepository(
         title = title,
         publishedAt = publishedAt,
         duration = duration,
-        author = author ?: feedTitle,
+        author = feed.title,
+        publisher = (author ?: feed.author)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() && !it.equals(feed.title.trim(), ignoreCase = true) },
         description = description,
         thumbnailUrl = imageUrl?.let(HttpUrl::parse),
         mediaUrl = enclosureUrl?.let(HttpUrl::parse),

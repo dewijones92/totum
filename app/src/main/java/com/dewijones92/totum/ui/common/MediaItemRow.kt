@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.DownloadState
@@ -42,12 +41,8 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
 
-// A 16:9 leading thumbnail — the shape video stills want; square podcast art
-// centre-crops into it cleanly.
-private const val TITLE_MAX_LINES = 2
-
 /**
- * 16:9, and bigger than it was.
+ * 16:9, and bigger than it was. Square podcast art centre-crops into it cleanly.
  *
  * 96x54 was a correct aspect ratio at a size that made every thumbnail a stamp — the artwork is the
  * fastest thing to recognise in a list and it was the smallest thing in the row. 120x68 is close to
@@ -77,7 +72,8 @@ fun MediaItemRow(
      * A list rather than a string because a single line capped at `maxLines = 1` is what made the
      * view count and the date disappear behind an ellipsis on a real phone (Dewi, 2026-08-15).
      * Callers with something extra to say (a file size, an offline warning) append it as another
-     * line rather than splicing it into a sentence that then truncates.
+     * line rather than splicing it into a sentence that then truncates. Nothing truncates any more
+     * — every line here wraps — but one fact per line is still how they are meant to be read.
      */
     subtitleLines: List<String>,
     pillar: MediaKind,
@@ -133,21 +129,9 @@ fun MediaItemRow(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var showSheet by remember { mutableStateOf(false) }
-    // "Download the video too" only makes sense once the local copy is audio-only.
-    val downloadVideo = onDownloadVideo?.takeIf {
-        (downloadState as? DownloadState.Downloaded)?.audioOnly == true
-    }
-    // Rows that replace the download control with something else (the queue's drag handle)
-    // would otherwise have no way to (re)try a download at all — which matters precisely
-    // when an automatic fetch failed.
-    val sheetDownload = onDownload?.takeIf {
-        trailing != null && downloadState !is DownloadState.Downloaded && downloadState !is DownloadState.Downloading
-    }
-    // Named in the menu as well as drawn as the trailing tick. The tick both REPORTS "downloaded"
-    // and DELETES on tap, so the only affordance for freeing space looked like a status light
-    // (Dewi, 2026-09-20). Offered on every row that has a copy, including the queue's, whose
-    // trailing slot is the drag handle and so had no delete at all.
-    val sheetDeleteDownload = onDeleteDownload?.takeIf { downloadState is DownloadState.Downloaded }
+    val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
+    val sheetDownload = onDownload.onlyWhenTheControlIsTaken(trailing, downloadState)
+    val sheetDeleteDownload = onDeleteDownload.onlyWhenDownloaded(downloadState)
     val hasMenu = listOfNotNull(
         onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue, onPeek,
         downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed,
@@ -157,6 +141,8 @@ fun MediaItemRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            // Under the click, so the ripple still draws on top of it.
+            .background(playedRowTint(playState))
             .combinedClickable(
                 enabled = item.mediaUrl != null || hasMenu,
                 onClick = { if (item.mediaUrl != null) onPlay() },
@@ -201,6 +187,31 @@ fun MediaItemRow(
     }
 }
 
+/** "Download the video too" only makes sense once the local copy is audio-only. */
+private fun (() -> Unit)?.onlyWhenAudioOnly(state: DownloadState): (() -> Unit)? =
+    this?.takeIf { (state as? DownloadState.Downloaded)?.audioOnly == true }
+
+/**
+ * Rows that replace the download control with something else (the queue's drag handle) would
+ * otherwise have no way to (re)try a download at all — which matters precisely when an automatic
+ * fetch failed. So the action moves into the menu exactly when the control has been taken.
+ */
+private fun (() -> Unit)?.onlyWhenTheControlIsTaken(
+    trailing: (@Composable () -> Unit)?,
+    state: DownloadState,
+): (() -> Unit)? = this?.takeIf {
+    trailing != null && state !is DownloadState.Downloaded && state !is DownloadState.Downloading
+}
+
+/**
+ * Named in the menu as well as drawn as the trailing tick. The tick both REPORTS "downloaded" and
+ * DELETES on tap, so the only affordance for freeing space looked like a status light (Dewi,
+ * 2026-09-20). Offered on every row that has a copy, including the queue's, whose trailing slot is
+ * the drag handle and so had no delete at all.
+ */
+private fun (() -> Unit)?.onlyWhenDownloaded(state: DownloadState): (() -> Unit)? =
+    this?.takeIf { state is DownloadState.Downloaded }
+
 /** The artwork with a progress sliver beneath it, so "you are here" needs no words. */
 @Composable
 private fun ThumbnailWithProgress(item: MediaItem, playState: PlayState) {
@@ -232,10 +243,6 @@ private fun TitleAndSubtitle(
             // the same weight as the subtitle under it, so a row had no hierarchy at all.
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
-            // Two lines keeps a list scannable; long podcast titles were running to
-            // five, which made every row a paragraph.
-            maxLines = TITLE_MAX_LINES,
-            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.alpha(playedTitleAlpha(playState)),
         )
         // One Text per fact. Each still caps at one line, but a line now holds ONE fact, so an
@@ -246,8 +253,6 @@ private fun TitleAndSubtitle(
                 text = fact,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         MediaItemStatus(pillar, playState, downloadState, StatusRowSpacing)

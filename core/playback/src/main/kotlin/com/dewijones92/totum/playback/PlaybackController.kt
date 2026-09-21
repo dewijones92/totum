@@ -121,6 +121,15 @@ public data class PlaybackState(
     val itemId: MediaItemId,
     val title: String,
     val artist: String?,
+    /**
+     * The publisher behind the show, when the feed names a different one — the second half of
+     * "who made this", carried so the player says it as well as the row that led there.
+     *
+     * Round-trips through the media session's `albumArtist`, like [title] and [artist] do through
+     * theirs, rather than being held in a field beside the controller: a fact the session carries
+     * cannot go stale against what is actually playing.
+     */
+    val publisher: String? = null,
     val artworkUrl: String?,
     /**
      * "1.2M views" as the source rendered it, and when it was published — the same facts every

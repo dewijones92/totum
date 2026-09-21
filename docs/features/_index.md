@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 
 # Features
@@ -14,6 +14,7 @@ alone until they need more.
 |---|---|---|---|
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |
 | Podcasts: subscribe, RSS parse, episodes, refresh | podcasts | shipped | — |
+| A show's name AND its publisher, on every surface | podcasts | shipped | [show-and-publisher.md](show-and-publisher.md) |
 | Videos: signed-in feeds (Home/Subscriptions/Watch Later/History) | video | shipped | — |
 | YouTube TV device-code OAuth | auth | shipped | — |
 | Unified search (iTunes + InnerTube search, yt-dlp fallback → `SearchHit`) | search | shipped | — |
@@ -47,7 +48,8 @@ alone until they need more.
 | Search results arrive per section (no longer blocked by torrent search) | search | shipped | [search-sections.md](search-sections.md) |
 | Views and dates everywhere (every list, and the video page) | video/search/playback | shipped | [upload-dates.md](upload-dates.md) |
 | Crash + diagnostics reporting (verbose reports to the Pi) | infrastructure | shipped | [crash-reporting.md](crash-reporting.md) |
-| Row status (pillar / played / offline on every row) | ui | shipped | [row-status.md](row-status.md) |
+| Row status (pillar / played / offline / played wash on every row) | ui | shipped | [row-status.md](row-status.md) |
+| Text wraps — nothing ends in three dots | ui | shipped | [text-wraps-never-truncates.md](text-wraps-never-truncates.md) |
 | Feed pagination (account feeds + channel tabs) | video | shipped | [feed-pagination.md](feed-pagination.md) |
 | Shorts and live streams listed with the videos, tagged | video | shipped | [shorts-in-the-feed.md](shorts-in-the-feed.md) |
 | Two-way progress sync with YouTube (resume across devices) | video | shipped | [progress-sync.md](progress-sync.md) |

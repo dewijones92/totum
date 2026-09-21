@@ -21,6 +21,12 @@ public sealed interface RssParseResult {
 /** An RSS 2.0 podcast feed, as found in the wild. */
 public data class ParsedFeed(
     val title: String,
+    /**
+     * The channel's `itunes:author` — the network or publisher behind the show, which is a
+     * different fact from [title] and the one most feeds actually set. Episodes carry their own
+     * (often absent), so this is the fallback every episode shares.
+     */
+    val author: String?,
     val description: String?,
     val websiteUrl: String?,
     val episodes: List<ParsedEpisode>,
@@ -68,6 +74,7 @@ public class RssParser {
         return RssParseResult.Success(
             ParsedFeed(
                 title = title,
+                author = channel.firstChildText("itunes:author") ?: channel.firstChildText("author"),
                 description = channel.firstChildText("description"),
                 websiteUrl = channel.firstChildText("link"),
                 episodes = episodes,

@@ -132,6 +132,7 @@ public class FakePlaybackController : PlaybackController {
             itemId = item.id,
             title = item.title,
             artist = item.author,
+            publisher = item.publisher,
             artworkUrl = item.thumbnailUrl?.value,
             description = item.description,
             kind = kind,
