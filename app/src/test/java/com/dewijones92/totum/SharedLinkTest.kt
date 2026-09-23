@@ -19,7 +19,7 @@ class SharedLinkTest {
 
     @Test
     fun `a shared watch link plays`() {
-        assertEquals(watch, sharedWatchUrl(watch, alreadyHandled = false)?.value)
+        assertEquals(watch, sharedWatchUrl(watch)?.value)
     }
 
     /** Share sheets send a sentence, not a bare URL. */
@@ -27,17 +27,38 @@ class SharedLinkTest {
     fun `a link inside a sentence is found`() {
         val text = "Check this out $watch pretty good"
 
-        assertEquals(watch, sharedWatchUrl(text, alreadyHandled = false)?.value)
+        assertEquals(watch, sharedWatchUrl(text)?.value)
+    }
+
+    @Test
+    fun `a share delivered just now is fresh`() {
+        assertEquals(ShareArrival.FRESH, shareArrival(launchedFromHistory = false, restored = false))
     }
 
     /**
-     * Report 0.1.346: one shared link fired five times over five hours, barging a TED talk in over
-     * whatever was playing. Clearing the activity's intent was not enough — the task keeps the one
-     * it was launched with and redelivers it after the process is killed.
+     * Report 0.1.514: the app cold-started from Recents and 48ms later replayed a share from an
+     * earlier session, putting it over the news. The intent Recents replays is the task's own copy,
+     * so no mark this process put on it can be there.
      */
     @Test
-    fun `a share already handled is ignored`() {
-        assertNull(sharedWatchUrl(watch, alreadyHandled = true))
+    fun `a share reopened from Recents is a replay`() {
+        assertEquals(
+            ShareArrival.REOPENED_FROM_RECENTS,
+            shareArrival(launchedFromHistory = true, restored = false),
+        )
+    }
+
+    /**
+     * Report 0.1.346: one link fired five times over five hours. An activity rebuilt from saved
+     * state gets back the intent it was first started with, whichever process rebuilds it.
+     */
+    @Test
+    fun `a share on a restored activity is a replay`() {
+        assertEquals(ShareArrival.RESTORED, shareArrival(launchedFromHistory = false, restored = true))
+        assertEquals(
+            ShareArrival.REOPENED_FROM_RECENTS,
+            shareArrival(launchedFromHistory = true, restored = true),
+        )
     }
 
     /**
@@ -48,28 +69,34 @@ class SharedLinkTest {
     fun `a share sheet's tracking parameter is stripped`() {
         val shared = "https://youtu.be/GGY17VD_9Bs?si=aBcDeFgH"
 
-        val url = sharedWatchUrl(shared, alreadyHandled = false)?.value
+        val url = sharedWatchUrl(shared)?.value
 
         assertEquals(false, url?.contains("si="))
+    }
+
+    /** A share whose id is not the first parameter used to be thrown away before any resolve. */
+    @Test
+    fun `a link with the id after another parameter plays`() {
+        assertEquals(watch, sharedWatchUrl("https://m.youtube.com/watch?feature=shared&v=GGY17VD_9Bs")?.value)
     }
 
     @Test
     fun `a shorts link is a watch link`() {
         assertEquals(
             true,
-            sharedWatchUrl("https://www.youtube.com/shorts/GGY17VD_9Bs", alreadyHandled = false) != null,
+            sharedWatchUrl("https://www.youtube.com/shorts/GGY17VD_9Bs") != null,
         )
     }
 
     @Test
     fun `a link that is not YouTube is ignored`() {
-        assertNull(sharedWatchUrl("https://example.com/watch?v=abc", alreadyHandled = false))
+        assertNull(sharedWatchUrl("https://example.com/watch?v=abc"))
     }
 
     @Test
     fun `text with no link at all is ignored`() {
-        assertNull(sharedWatchUrl("no link here", alreadyHandled = false))
-        assertNull(sharedWatchUrl(null, alreadyHandled = false))
+        assertNull(sharedWatchUrl("no link here"))
+        assertNull(sharedWatchUrl(null))
     }
 
     /**

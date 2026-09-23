@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 
 # Testing
@@ -248,6 +248,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | Giving up on a failed stream does NOT move the queue on when "auto-play next" is off | `StreamRecoveryTest` | every commit — end-of-item advance and the stall watchdog honoured the setting; recovery did not |
 | A row given no download callbacks still downloads through the app-wide actions | `MediaItemRowKeepsActionsTest` (emulator) | every commit — Related, Notifications and Search drew a control with `{}` behind it |
 | A shared link that cannot be resolved is queued by its id, not lost; a non-video link is dropped with a line | `SharedLinkTest` | every commit — report 0.1.477: shared offline, 53s of retries, vanished |
+| A share plays when shared and never when Android replays it (Recents, or a rebuilt activity) | `SharedLinkTest` (the rule), `ReplayedShareIsIgnoredTest` (instrumented, drives `MainActivity`) | every commit — reports 0.1.346 and 0.1.514; the instrumented test is red against the 0.1.514 build |
 | Every report carries SABR, media filter, skip categories, home-server presence and outbound-sync state | `DiagnosticsContentTest` (emulator) | every commit |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |
@@ -731,12 +732,12 @@ into a real control.
 
 **Still uncovered:** the `MainActivity` call site. `AskingForNotificationsTest` covers the predicate
 and `NotificationPermissionTimingTest` covers `AppShell`, but nothing routes through `MainActivity`
-— so re-inverting the `if` there would be green everywhere. That is the same gap this file already
-records for the share-intent path, and the same lesson: the bug was at the call site both times.
-`MainActivity` refuses to ask while anything is playing, buffering or suppressed-but-about-to-play — checking BOTH the intent and the controller, because
-`sharedWatchUrl()` returns null once the intent is marked handled and a recreation would otherwise
-ask over a video already running — but no test drives an `ACTION_SEND` launch against the
-permission state.
+— so re-inverting the `if` there would be green everywhere. The share-intent path had the same gap
+and the same lesson, the bug at the call site both times; `ReplayedShareIsIgnoredTest` closed it
+for shares on 2026-09-23, after 0.1.514 replayed one with a unit-tested rule fed the wrong input.
+`MainActivity` refuses to ask while anything is playing, buffering or suppressed-but-about-to-play — checking BOTH the arrival and the controller, because
+a recreation is a replayed share (`ShareArrival.RESTORED`) and would otherwise ask over a video
+already running — but no test drives an `ACTION_SEND` launch against the permission state.
 
 ## Three narratives that were wrong, in one day (2026-09-20)
 

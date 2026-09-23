@@ -5,8 +5,8 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.lifecycleScope
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.PlayHandle
@@ -33,6 +33,8 @@ class MainActivity : FragmentActivity() {
 
     private val container by lazy { (application as TotumApplication).container }
 
+    private val mayAsk = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -43,12 +45,13 @@ class MainActivity : FragmentActivity() {
         //
         // The predicate lives in mayAskForNotifications, with a test, because it has been wrong
         // twice. It covers same-process recreation (a density or locale change, "don't keep
-        // activities"), where the intent has already been marked handled and would otherwise read
-        // as "nothing to play". It does NOT cover a cold start: `state` is written from the
-        // MediaController listener registered in an async connect callback, so onCreate reads null
-        // whatever is about to happen.
-        val mayAsk = mayAskForNotifications(
-            hasSharedLink = intent.sharedWatchUrl() != null,
+        // activities"), where the share is a replay and would otherwise read as "nothing to play".
+        // It does NOT cover a cold start: `state` is written from the MediaController listener
+        // registered in an async connect callback, so onCreate reads null whatever is about to
+        // happen.
+        val restored = savedInstanceState != null
+        mayAsk.value = mayAskForNotifications(
+            hasSharedLink = intent.isFreshShare(restored),
             state = container.playbackController.state.value,
         )
         setContent {
@@ -56,7 +59,7 @@ class MainActivity : FragmentActivity() {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
                     AppShell(
                         container,
-                        askForNotifications = if (mayAsk) {
+                        askForNotifications = if (mayAsk.value) {
                             { RequestNotificationPermissionOnce() }
                         } else {
                             {}
@@ -65,14 +68,17 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
-        handleShareIntent(intent)
+        handleShareIntent(intent, via = "onCreate", restored = restored)
     }
 
     /** A YouTube link shared to us (share sheet or opened directly) plays here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleShareIntent(intent)
+        // A share queued while the process was dead lands here after onCreate(saved state) had
+        // already allowed the ask, and before the first composition makes it.
+        if (intent.isFreshShare(restored = false)) mayAsk.value = false
+        handleShareIntent(intent, via = "onNewIntent", restored = false)
     }
 
     /**
@@ -106,42 +112,31 @@ class MainActivity : FragmentActivity() {
         return true
     }
 
-    private fun handleShareIntent(intent: Intent) {
+    private fun handleShareIntent(intent: Intent, via: String, restored: Boolean) {
         if (handleAuthIntent(intent)) return
         val url = intent.sharedWatchUrl() ?: return
-        // Logged because this path was completely silent: a shared link that misbehaved left
-        // nothing in a report tying the playback to the share (0.1.228).
-        Diag.log("share", "shared link -> $url")
-        // Consumed, so it plays ONCE — and consumed TWO ways, because clearing the field is not
-        // enough on its own.
-        //
-        // `setIntent(Intent())` only replaces the Activity's in-memory intent. The TASK keeps the
-        // intent it was launched with, so reopening from recents — especially after the process has
-        // been killed — delivers the original ACTION_SEND again. Report 0.1.346 caught exactly that:
-        // one shared link fired five times over five hours (21:22, then 02:16, 02:20, 02:21,
-        // 02:22), barging a TED talk in over whatever was playing each time. The clear alone had
-        // been in place the whole while.
-        //
-        // Marking the intent itself is what survives that, because the extra travels with the
-        // intent the task redelivers.
-        intent.putExtra(EXTRA_SHARE_HANDLED, true)
-        setIntent(Intent())
-        // Resolved first so the queue entry carries a real title rather than a URL; a
-        // shared link is a deliberate, occasional action, so the extra resolve is cheap.
-        lifecycleScope.launch {
+        val arrival = intent.arrival(restored)
+        val facts = "${arrival.why}; via=$via flags=0x${Integer.toHexString(intent.flags)} restored=$restored"
+        if (arrival != ShareArrival.FRESH) {
+            Diag.log("share", "ignored a replayed share, nothing queued [$facts] -> $url")
+            return
+        }
+        Diag.log("share", "shared link -> $url [$facts]")
+        val placeholder = placeholderFor(url, SHARED_SOURCE) ?: run {
+            Diag.warn("share", "shared link has no video id, so nothing was queued -> $url")
+            return
+        }
+        // App-scoped: a resolve can take a minute offline, and one tied to this activity was cancelled
+        // by a rebuild, which now reads the share as a replay, so the link would be lost.
+        container.applicationScope.launch {
             val item = container.videoPlaybackLauncher.describe(url, SHARED_SOURCE)
-                // A share that resolves to nothing used to vanish without a word (report 0.1.477: no
-                // network, 53s of yt-dlp retries, then silence). The link is queued by its id instead
-                // and resolves when it plays; a bad connection is the common cause, not a bad link.
-                ?: placeholderFor(url, SHARED_SOURCE)?.also {
+                // Report 0.1.477: shared offline, 53s of retries, then nothing. Queued by its id instead,
+                // and resolved when it plays; a bad connection is the common cause, not a bad link.
+                ?: placeholder.also {
                     Diag.warn(
                         "share",
                         "shared link could not be resolved now; queued by its id so it is not lost -> $url",
                     )
-                }
-                ?: run {
-                    Diag.warn("share", "shared link is not a YouTube video, so nothing was queued -> $url")
-                    return@launch
                 }
             container.playbackQueue.playNow(PlayableItem(item, PlayHandle.Video(url)))
         }
@@ -149,28 +144,22 @@ class MainActivity : FragmentActivity() {
 
     /** The YouTube watch URL from a VIEW (link) or SEND (share text) intent, if any. */
     private fun Intent.sharedWatchUrl(): HttpUrl? = sharedWatchUrl(
-        rawText = when (action) {
+        when (action) {
             Intent.ACTION_VIEW -> dataString
             Intent.ACTION_SEND -> getStringExtra(Intent.EXTRA_TEXT)
             else -> null
         },
-        alreadyHandled = getBooleanExtra(EXTRA_SHARE_HANDLED, false),
     )
 
-    private companion object {
-        /**
-         * Marks a share intent as spent. On the intent rather than in a field, so it survives the
-         * task being redelivered after the process is killed — the case a cleared field misses.
-         */
-        const val EXTRA_SHARE_HANDLED = "com.dewijones92.totum.SHARE_HANDLED"
+    private fun Intent.arrival(restored: Boolean): ShareArrival = shareArrival(
+        launchedFromHistory = (flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0,
+        restored = restored,
+    )
 
+    private fun Intent.isFreshShare(restored: Boolean): Boolean =
+        arrival(restored) == ShareArrival.FRESH && sharedWatchUrl() != null
+
+    private companion object {
         val SHARED_SOURCE = SourceId("shared")
-        val URL_PATTERN = Regex("""https?://\S+""")
-        val WATCH_MARKERS = listOf(
-            "youtube.com/watch",
-            "m.youtube.com/watch",
-            "youtu.be/",
-            "youtube.com/shorts/",
-        )
     }
 }

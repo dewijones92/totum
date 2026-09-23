@@ -51,6 +51,24 @@ class WatchUrlTest {
         assertNull(HttpUrl.of(enclosure).youTubeVideoId())
     }
 
+    /**
+     * The id is a query PARAMETER, not the text after `watch?`. A share sheet or a desktop link can
+     * put another parameter first, and a share of one of those was rejected outright once a link
+     * with no id stopped being handed to the resolver (2026-09-23).
+     */
+    @Test
+    fun `the id is found wherever it sits in the query`() {
+        listOf(
+            "https://m.youtube.com/watch?feature=shared&v=dQw4w9WgXcQ",
+            "https://www.youtube.com/watch?app=desktop&v=dQw4w9WgXcQ&t=10s",
+        ).forEach { assertEquals(it, canonical, HttpUrl.of(it).canonicalWatchUrl().value) }
+    }
+
+    @Test
+    fun `a parameter that merely ends in v is not the id`() {
+        assertNull(HttpUrl.of("https://www.youtube.com/watch?lv=dQw4w9WgXcQ").youTubeVideoId())
+    }
+
     @Test
     fun `a channel link is not mistaken for a video`() {
         val channel = "https://www.youtube.com/channel/UCsufaClk5if2RGqABb-09Uw"

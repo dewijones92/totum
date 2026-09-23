@@ -21,7 +21,8 @@ public fun HttpUrl.youTubeVideoId(): String? {
     val id = when {
         "youtu.be/" in raw -> raw.substringAfter("youtu.be/")
         "/shorts/" in raw -> raw.substringAfter("/shorts/")
-        "watch?v=" in raw -> raw.substringAfter("watch?v=")
+        "/watch?" in raw -> raw.substringAfter("/watch?").split('&')
+            .firstOrNull { it.startsWith("v=") }?.removePrefix("v=") ?: return null
         else -> return null
     }
     return id.takeWhile { it.isLetterOrDigit() || it == '_' || it == '-' }
