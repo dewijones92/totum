@@ -135,7 +135,18 @@ class AccountResumePositions(
     ) {
         val remoteMs = remote?.positionMs ?: return
         if (remoteMs == alreadyUsedMs) return
-        val remoteWon = because == Because.ONLY_REMOTE || because == Because.REMOTE_IS_AHEAD
+        val remoteWon = when (because) {
+            Because.ONLY_REMOTE, Because.REMOTE_IS_AHEAD -> true
+            Because.ONLY_LOCAL, Because.LOCAL_IS_AS_GOOD, Because.REMOTE_IS_OLD_NEWS -> false
+            Because.REMOTE_ONLY_SAYS_STARTED -> {
+                Diag.log(
+                    "yt-sync",
+                    "youtube=${remoteMs}ms for ${itemId.value} is YouTube's 10% floor, so it is not recorded " +
+                        "as acted on [kept alreadyUsed=${alreadyUsedMs ?: "none"}]",
+                )
+                return
+            }
+        }
         if (remoteWon) adopt(itemId, remoteMs, remote.durationMs)
         reconciled.reconcile(itemId, remoteMs)
         Diag.log(

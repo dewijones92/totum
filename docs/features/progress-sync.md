@@ -1,12 +1,27 @@
 ---
 title: Two-way progress sync with YouTube
 kind: feature
-status: both halves shipped; the outbox's head-of-line block fixed 2026-09-20 (report 0.1.496)
+status: both halves shipped; YouTube's 10% floor no longer read as a position (2026-09-23, report 0.1.514)
 area: video
-updated: 2026-09-20
+updated: 2026-09-23
 ---
 
 # Two-way progress sync with YouTube
+
+> 🐛 **YouTube's 10% is a floor, not a position. Fixed 2026-09-23.** Report 0.1.514, Dewi: *"why
+> downloaded files have position of like 5% in to the video? please fix?"*. Five videos played for a
+> few seconds each came back from `FEhistory` at exactly 10%. `resumeFrom` let each one win and
+> `AccountResumePositions` adopted it, so reopening jumped a tenth of the way in and the row drew a
+> 10% bar. Across all 17 distinct remote
+> positions in every report on the Pi, 12 are exactly 10% and **none is below it**. So
+> `percentDurationWatched` bottoms out at 10, and a 10 means only "started".
+> `resumeFrom` now answers `REMOTE_ONLY_SAYS_STARTED` for anything at or under 10% and keeps this
+> device's figure. A floor already adopted before the fix is recognised by matching the recorded
+> figure to the millisecond, which only adoption produces, and is treated as no position. The floor
+> is never recorded as acted on. It is not our own echo: all five read `youtube=none` on
+> their first play (13:34–13:40), so the 10 was each one's first reading ever, with only a few seconds
+> of `cmt` sent before it and nothing adopted. The cost: a genuine 10% watched elsewhere starts from the beginning here, because
+> it can't be told apart from six seconds. The 77700-of-777000 in 0.1.496 below was this same floor.
 
 > ✅ **Outbound is back, 2026-09-06 (later the same day).** The sender was refused because the TV
 > `/player` call declared the signature timestamp on the web scale (`20697`) where YouTube now wants
@@ -93,7 +108,7 @@ consequences, all deliberate:
   carries the duration onward because the position's precision depends on it.
 - **`resumeFrom` (`:core:domain`, pure) decides.** Local wins unless the remote is ahead by more
   than one percent of the duration, floored at 60s — one percent being exactly the resolution of the
-  number being compared. Blindly preferring YouTube would make resume *worse* on the device you
+  number being compared. At or under YouTube's own 10% floor it is not a position at all. Blindly preferring YouTube would make resume *worse* on the device you
   actually watch on: our own ping is what put that number there, rounded down on the way, so the
   remote is always slightly behind locally and would throw you back every time. **And it has to
   have MOVED** — a figure already acted on is old news; see below.
@@ -272,14 +287,19 @@ were both completely silent.
 
 ## Tests
 
-- `ResumeChoiceTest` — 14 cases: only-local, only-remote, remote ahead, remote behind, a lead inside
+- `ResumeChoiceTest` — 22 cases, among them: only-local, only-remote, remote ahead, remote behind, a lead inside
   one percent, a short item's floor, an unknown duration, and the four for old news (a figure already
   acted on losing, the same numbers without it still winning, a moved figure still winning, and
-  nothing local to protect). Proven to fail with the rule removed: `expected:<0> but was:<77700>`
+  nothing local to protect). Proven to fail with the rule removed: `expected:<0> but was:<77700>`.
+  Plus the 10% floor (2026-09-23): not a position with nothing here or a small position here, 11% still
+  a position, 0.1.496's own figure being the floor, an adopted floor being no position, this device's
+  own tenth being kept, and an adopted floor giving way to real progress. The old-news cases moved to 27% so they still
+  reach the rule they test; at 10% they would pass without it.
 - `AccountResumePositionsTest` — the fall-through for anything YouTube never saw, the cache, a
   failed inbound read still resuming locally, and the three for 0.1.496: a rewind surviving a figure
   that cannot move, progress made elsewhere still overruling one, and what was acted on outliving
-  the instance that used it
+  the instance that used it; and 0.1.514 end to end, the floor neither moving a six-second video nor
+  overwriting its local position (red with the floor check disabled)
 - `RoomPlaybackProgressStoreTest` (instrumented) — a rewind below the floor moving an existing
   position, a trivial position still creating nothing where there is none, and a short replay not
   un-playing a played item. Proven red: `expected:<1144> but was:<11273>`

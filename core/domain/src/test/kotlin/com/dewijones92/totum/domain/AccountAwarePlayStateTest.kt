@@ -21,6 +21,19 @@ class AccountAwarePlayStateTest {
         assertEquals(PlayState.InProgress(hour / 2, hour), state)
     }
 
+    /** Report 0.1.514: a video played for six seconds drew a 10% bar, because 10% is YouTube's floor. */
+    @Test
+    fun `YouTube's ten percent floor draws no progress`() {
+        assertEquals(PlayState.Unplayed, accountAwarePlayState(null, hour / 10, hour))
+    }
+
+    @Test
+    fun `nor does a floor this device adopted before the fix`() {
+        val adopted = PlayState.InProgress(hour / 10, hour)
+
+        assertEquals(PlayState.Unplayed, accountAwarePlayState(adopted, hour / 10, hour, hour / 10))
+    }
+
     @Test
     fun `nothing known anywhere is unplayed`() {
         assertEquals(PlayState.Unplayed, accountAwarePlayState(null, null, null))

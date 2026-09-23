@@ -49,9 +49,10 @@ class AccountResumeSurvivesTheProcessTest {
         ).build()
         progress = RoomPlaybackProgressStore(database.playbackProgressDao())
         reconciled = RoomReconciledAccountProgress(database.reconciledAccountProgressDao())
-        // Frozen, exactly as it was in the report: the outbound half was refused with 123 updates
-        // held, so this figure could never move however much he watched.
-        history.watched = mapOf(id.value to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        // Frozen, as it was in the report: the outbound half was refused with 123 updates held, so
+        // this figure could never move. The report's own 77700 was YouTube's 10% floor, which never
+        // reaches this rule now, so 27% stands in for it.
+        history.watched = mapOf(id.value to AccountProgress(positionMs = 209_790, durationMs = 777_000))
     }
 
     @After
@@ -73,7 +74,7 @@ class AccountResumeSurvivesTheProcessTest {
     fun aRewindOutlivesTheProcessThatMadeIt() = runBlocking {
         // He has watched a bit here before; the account is further on and rightly wins once.
         progress.save(id, positionMs = 11_273, durationMs = 777_000)
-        assertEquals(77_700L, positions().resumePositionMs(id))
+        assertEquals(209_790L, positions().resumePositionMs(id))
 
         // The rewind, as the seek listener now records it: chosen, so the floor cannot drop it.
         progress.save(id, positionMs = 0, durationMs = 777_000, chosen = Chosen.BY_SEEKING)
@@ -85,8 +86,8 @@ class AccountResumeSurvivesTheProcessTest {
     /** With nothing held here at all — the `local=none` half of the report. */
     @Test
     fun aRewindSticksForAnItemThisDeviceHadNeverPlayed() = runBlocking {
-        assertEquals(77_700L, positions().resumePositionMs(id))
-        assertEquals("the account's figure is adopted as ours", 77_700L, progress.resumePositionMs(id))
+        assertEquals(209_790L, positions().resumePositionMs(id))
+        assertEquals("the account's figure is adopted as ours", 209_790L, progress.resumePositionMs(id))
 
         progress.save(id, positionMs = 0, durationMs = 777_000, chosen = Chosen.BY_SEEKING)
 

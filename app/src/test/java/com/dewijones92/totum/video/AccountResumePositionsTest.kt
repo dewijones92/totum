@@ -128,7 +128,8 @@ class AccountResumePositionsTest {
      * THE bug in report 0.1.496, end to end: *"I have tried to rewind the video back to the start
      * but it is not working"*.
      *
-     * YouTube holds `vceHVwxOnhA` at 77700ms and cannot move — the outbound half was refused, so
+     * YouTube holds `vceHVwxOnhA` at 77700ms (here 209790ms, since 77700 of 777000 is YouTube's 10%
+     * floor, which never gets as far as this rule now) and cannot move — the outbound half was refused, so
      * `held=123` and the figure was frozen. The first play rightly takes it. He then rewinds to the
      * start, and the SECOND play must honour that: the same figure, already acted on, is not news
      * about what has happened here since. Before this it answered 77700 six times in a row.
@@ -138,10 +139,10 @@ class AccountResumePositionsTest {
      */
     @Test
     fun `a rewind survives a remote position that cannot move`() = runTest {
-        history.watched = mapOf("vceHVwxOnhA" to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        history.watched = mapOf("vceHVwxOnhA" to AccountProgress(positionMs = 209_790, durationMs = 777_000))
         localPositions["vceHVwxOnhA"] = 11_273
         val p = positions()
-        assertEquals(77_700L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+        assertEquals(209_790L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
 
         localPositions["vceHVwxOnhA"] = 0 // he rewound to the start
 
@@ -151,7 +152,7 @@ class AccountResumePositionsTest {
     /** Watching elsewhere MOVES the figure, and that must still win — it is the whole feature. */
     @Test
     fun `progress made elsewhere still overrules this device after a rewind`() = runTest {
-        history.watched = mapOf("abc" to AccountProgress(positionMs = 77_700, durationMs = hour44))
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 1_500_000, durationMs = hour44))
         localPositions["abc"] = 11_273
         val p = positions()
         p.resumePositionMs(MediaItemId("abc"))
@@ -166,7 +167,7 @@ class AccountResumePositionsTest {
     /** It has to survive the process, or a cold start hands the frozen figure its veto straight back. */
     @Test
     fun `what was acted on is remembered beyond the instance that used it`() = runTest {
-        history.watched = mapOf("abc" to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 209_790, durationMs = 777_000))
         localPositions["abc"] = 11_273
         positions().resumePositionMs(MediaItemId("abc"))
 
@@ -182,13 +183,53 @@ class AccountResumePositionsTest {
      */
     @Test
     fun `a rewind sticks even when this device had no position to begin with`() = runTest {
-        history.watched = mapOf("vceHVwxOnhA" to AccountProgress(positionMs = 77_700, durationMs = 777_000))
+        history.watched = mapOf("vceHVwxOnhA" to AccountProgress(positionMs = 209_790, durationMs = 777_000))
         val p = positions()
-        assertEquals(77_700L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+        assertEquals(209_790L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
 
         localPositions["vceHVwxOnhA"] = 0 // he rewound to the start
 
         assertEquals(0L, p.resumePositionMs(MediaItemId("vceHVwxOnhA")))
+    }
+
+    /**
+     * Report 0.1.514 end to end: played for six seconds, and YouTube's history came back at exactly 10%.
+     * That is its floor, not a position, so the video must not jump a tenth of the way in, and this
+     * device's own figure must not be overwritten with it.
+     */
+    /**
+     * The floor says nothing, so it is not recorded as acted on either. Recording it would overwrite a
+     * real figure acted on earlier, which would then count as news again and could overrule a rewind.
+     */
+    @Test
+    fun `the floor is not recorded as acted on`() = runTest {
+        reconciled.reconcile(MediaItemId("ux6Lafw7en0"), 610_200)
+        history.watched = mapOf("ux6Lafw7en0" to AccountProgress(positionMs = 226_000, durationMs = 2_260_000))
+        localPositions["ux6Lafw7en0"] = 5_854
+
+        positions().resumePositionMs(MediaItemId("ux6Lafw7en0"))
+
+        assertEquals(610_200L, reconciled.reconciledMs(MediaItemId("ux6Lafw7en0")))
+    }
+
+    /** Dewi's phone after 0.1.514: the floor already adopted and recorded, so his store holds it exactly. */
+    @Test
+    fun `a floor adopted before the fix no longer opens a tenth of the way in`() = runTest {
+        history.watched = mapOf("ux6Lafw7en0" to AccountProgress(positionMs = 226_000, durationMs = 2_260_000))
+        reconciled.reconcile(MediaItemId("ux6Lafw7en0"), 226_000)
+        localPositions["ux6Lafw7en0"] = 226_000
+
+        assertEquals(null, positions().resumePositionMs(MediaItemId("ux6Lafw7en0")))
+    }
+
+    @Test
+    fun `YouTube's ten percent floor does not move a barely watched video`() = runTest {
+        history.watched = mapOf("ux6Lafw7en0" to AccountProgress(positionMs = 226_000, durationMs = 2_260_000))
+        localPositions["ux6Lafw7en0"] = 5_854
+        val p = positions()
+
+        assertEquals(5_854L, p.resumePositionMs(MediaItemId("ux6Lafw7en0")))
+        assertEquals(5_854L, localPositions["ux6Lafw7en0"])
     }
 
     /**

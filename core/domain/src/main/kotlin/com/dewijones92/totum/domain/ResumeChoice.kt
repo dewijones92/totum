@@ -28,6 +28,12 @@ package com.dewijones92.totum.domain
  * [ReconciledAccountProgress]) is not knowledge about what has happened since; it is the echo of
  * the last decision, and it must not overrule a deliberate rewind for ever. A number that has
  * actually MOVED still wins, which is the forty-minutes-on-the-TV case intact.
+ *
+ * **And 10% is not a position at all.** Report 0.1.514 (2026-09-23), Dewi: *"why downloaded files
+ * have position of like 5% in to the video?"*. Five videos played for a few seconds each came back
+ * from YouTube at exactly 10%, and so did 12 of the 17 remote positions across every report so far,
+ * none of them lower. YouTube floors the percentage at 10, so a 10 says only "started". The 77700ms
+ * of 777000ms in 0.1.496 above was that floor too.
  */
 public fun resumeFrom(
     localMs: Long?,
@@ -36,6 +42,13 @@ public fun resumeFrom(
     remoteAlreadyUsedMs: Long? = null,
 ): ResumeChoice {
     if (remoteMs == null) return ResumeChoice(localMs, Because.ONLY_LOCAL)
+    // Before the floor was known it won, and was written into this device's store to the millisecond.
+    val ownMs = localMs.takeUnless { it == remoteAlreadyUsedMs && it != null && isYouTubesFloor(it, durationMs) }
+    return resumeFromOwn(ownMs, remoteMs, durationMs, remoteAlreadyUsedMs)
+}
+
+private fun resumeFromOwn(localMs: Long?, remoteMs: Long, durationMs: Long?, remoteAlreadyUsedMs: Long?): ResumeChoice {
+    if (isYouTubesFloor(remoteMs, durationMs)) return ResumeChoice(localMs, Because.REMOTE_ONLY_SAYS_STARTED)
     // Already acted on once, and unmoved since: whatever happened here happened later. Ahead of
     // the local-is-null case deliberately — a device with NO position for an item it has already
     // resumed once has had that position taken away (marked unplayed, or played to the end), and
@@ -51,6 +64,9 @@ public fun resumeFrom(
         ResumeChoice(localMs, Because.LOCAL_IS_AS_GOOD)
     }
 }
+
+private fun isYouTubesFloor(positionMs: Long, durationMs: Long?): Boolean =
+    durationMs != null && durationMs > 0 && positionMs * PERCENT <= durationMs * YOUTUBE_FLOOR_PERCENT
 
 /** The chosen position and why — the reason is logged, so a report can explain a surprising resume. */
 public data class ResumeChoice(val positionMs: Long?, val because: Because)
@@ -71,10 +87,16 @@ public enum class Because {
 
     /** The same remote number this device already acted on, so it says nothing about what came after. */
     REMOTE_IS_OLD_NEWS,
+
+    /** YouTube's 10% floor: the account has started it, and that is all the number says. */
+    REMOTE_ONLY_SAYS_STARTED,
 }
 
 /** YouTube reports whole percents, so one percent of the duration is the finest it can mean. */
 private const val PERCENT = 100
+
+/** The lowest `percentDurationWatched` YouTube reports, however little has been watched. */
+private const val YOUTUBE_FLOOR_PERCENT = 10
 
 /**
  * Below this, a percentage-derived difference says nothing. A short video's one percent is a couple
