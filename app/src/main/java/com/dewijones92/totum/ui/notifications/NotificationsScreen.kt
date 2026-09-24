@@ -31,6 +31,7 @@ import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowTint
 
 /**
@@ -61,6 +62,7 @@ fun NotificationsScreen(
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
+            val selection = rememberSelection("notifications")
             if (uploads.isEmpty()) {
                 Text(
                     text = stringResource(R.string.notifications_empty),
@@ -70,7 +72,7 @@ fun NotificationsScreen(
                 )
             } else {
                 FilterableList("notifications", uploads, { it.item.searchableText }) { shown, _ ->
-                    SelectableMediaList("notifications", uploads, shown, { it.item }) {
+                    SelectableMediaList("notifications", uploads, shown, { it.item }, hoisted = selection) {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             itemsIndexed(shown, key = { _, upload -> upload.item.id.value }) { index, upload ->
                                 // One divider between the unread run and the rest, so the boundary is

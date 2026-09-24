@@ -109,6 +109,20 @@ fun ChannelScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun ChannelTabs(selected: ChannelTab, onSelectTab: (ChannelTab) -> Unit) {
+    SecondaryTabRow(selectedTabIndex = selected.ordinal) {
+        ChannelTab.entries.forEach { tab ->
+            Tab(
+                selected = tab == selected,
+                onClick = { onSelectTab(tab) },
+                text = { Text(stringResource(tab.labelRes())) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 internal fun ChannelContent(
     state: ChannelViewModel.UiState,
     onBack: () -> Unit,
@@ -136,15 +150,7 @@ internal fun ChannelContent(
                 pillar = MediaKind.VIDEO,
                 artworkUrl = state.artworkUrl,
             )
-            SecondaryTabRow(selectedTabIndex = state.tab.ordinal) {
-                ChannelTab.entries.forEach { tab ->
-                    Tab(
-                        selected = tab == state.tab,
-                        onClick = { onSelectTab(tab) },
-                        text = { Text(stringResource(tab.labelRes())) },
-                    )
-                }
-            }
+            ChannelTabs(state.tab, onSelectTab)
             val videosFilter = rememberListFilter("channel ${state.title} videos", key = sourceKey)
             val shortsFilter = rememberListFilter("channel ${state.title} shorts", key = sourceKey)
             val playlistsFilter = rememberListFilter("channel ${state.title} playlists", key = sourceKey)
@@ -158,6 +164,7 @@ internal fun ChannelContent(
                     onDeleteDownload,
                     onAddToPlaylist,
                     onLoadMore,
+                    place = "channel videos", sourceKey = sourceKey,
                 )
                 ChannelTab.SHORTS -> MediaItemTab(
                     shortsFilter,
@@ -168,6 +175,7 @@ internal fun ChannelContent(
                     onDeleteDownload,
                     onAddToPlaylist,
                     onLoadMore,
+                    place = "channel shorts", sourceKey = sourceKey,
                 )
                 ChannelTab.PLAYLISTS -> PlaylistTab(playlistsFilter, state.playlists, onOpenPlaylist, onLoadMore)
                 ChannelTab.SEARCH -> SearchTab(
@@ -178,6 +186,7 @@ internal fun ChannelContent(
                     onDeleteDownload,
                     onAddToPlaylist,
                     onLoadMore,
+                    sourceKey,
                 )
             }
         }
@@ -194,6 +203,7 @@ private fun SearchTab(
     onDeleteDownload: (MediaItem) -> Unit,
     onAddToPlaylist: (MediaItem) -> Unit,
     onLoadMore: () -> Unit,
+    sourceKey: String,
 ) {
     Column {
         OutlinedTextField(
@@ -214,6 +224,7 @@ private fun SearchTab(
             onDeleteDownload,
             onAddToPlaylist,
             onLoadMore,
+            place = "channel search", sourceKey = "$sourceKey/${state.searchQuery}",
         )
     }
 }
@@ -235,6 +246,8 @@ private fun MediaItemTab(
     onDeleteDownload: (MediaItem) -> Unit,
     onAddToPlaylist: (MediaItem) -> Unit,
     onLoadMore: () -> Unit,
+    place: String = "channel tab",
+    sourceKey: String? = null,
 ) {
     val listState = rememberLazyListState()
     val shown = listFilter?.filter(tab.items, { it.searchableText }, pausesPaging = tab.canLoadMore) ?: tab.items
@@ -243,7 +256,7 @@ private fun MediaItemTab(
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
-        else -> SelectableMediaList("channel tab", tab.items, shown, { it }, key = listFilter?.place) {
+        else -> SelectableMediaList(place, tab.items, shown, { it }, key = sourceKey) {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 listFilter?.let { filterField(it, shown.size, tab.items.size) }
                 items(shown, key = { it.id.value }) { video ->

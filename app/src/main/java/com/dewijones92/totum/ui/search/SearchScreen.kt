@@ -140,6 +140,11 @@ internal fun SearchContent(
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    var submitted by rememberSaveable { mutableStateOf("") }
+    val submit: (String) -> Unit = {
+        submitted = it.trim()
+        onSearch(it)
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         OutlinedTextField(
@@ -151,9 +156,9 @@ internal fun SearchContent(
             label = { Text(stringResource(R.string.search_hint)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { onSearch(query) }),
+            keyboardActions = KeyboardActions(onSearch = { submit(query) }),
             trailingIcon = {
-                IconButton(onClick = { onSearch(query) }) {
+                IconButton(onClick = { submit(query) }) {
                     Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search_action))
                 }
             },
@@ -162,9 +167,9 @@ internal fun SearchContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
-        val runSearch: (String) -> Unit = { submitted ->
-            query = submitted
-            onSearch(submitted)
+        val runSearch: (String) -> Unit = { picked ->
+            query = picked
+            submit(picked)
         }
         when (val results = state.results) {
             Results.Idle -> SearchIdle(state.history, runSearch, onRemoveHistory, onClearHistory)
@@ -179,6 +184,7 @@ internal fun SearchContent(
                 actions,
                 onGoToChannel,
                 onLoadMoreVideos,
+                query = submitted,
             )
         }
     }
@@ -266,8 +272,10 @@ private fun SearchHistory(
 private fun labelled(emoji: String, titleRes: Int): String = "$emoji " + stringResource(titleRes)
 
 private fun Results.Loaded.selectableItems(): List<MediaItem> =
-    songs.itemsOrNull.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) } +
-        videos.itemsOrNull?.items.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_VIDEO_SOURCE) }
+    (
+        songs.itemsOrNull.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) } +
+            videos.itemsOrNull?.items.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_VIDEO_SOURCE) }
+        ).distinctBy { it.id }
 
 @Composable
 private fun ResultsList(
@@ -281,13 +289,14 @@ private fun ResultsList(
     onGoToChannel: (MediaItem) -> Unit,
     onLoadMoreVideos: () -> Unit,
     modifier: Modifier = Modifier,
+    query: String = "",
 ) {
     val listState = rememberLazyListState()
     // The same scroll trigger the account feeds and channel tabs use.
     val shownVideos = results.videos.itemsOrNull?.items?.size ?: 0
     LoadMoreOnScrollToEnd(listState, results.canLoadMore && !results.loadingMore, shownVideos, onLoadMoreVideos)
     val selectable = remember(results) { results.selectableItems() }
-    SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize()) {
+    SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize(), key = query) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             torrentSection(results, onPlayTorrent)
             hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {

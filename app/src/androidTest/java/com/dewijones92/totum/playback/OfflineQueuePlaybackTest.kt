@@ -84,6 +84,7 @@ class OfflineQueuePlaybackTest {
             controller.player?.stop()
             controller.player?.clearMediaItems()
             downloads.delete(ITEM_ID)
+            downloads.delete(MediaItemId(UNAVAILABLE_ID))
         }
     }
 
@@ -96,6 +97,7 @@ class OfflineQueuePlaybackTest {
             controller.player?.stop()
             controller.player?.clearMediaItems()
             downloads.delete(ITEM_ID)
+            downloads.delete(MediaItemId(UNAVAILABLE_ID))
         }
         runCatching { server.close() }
     }

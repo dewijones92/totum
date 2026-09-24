@@ -4,14 +4,17 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -32,6 +35,7 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ProvidePlayStates
+import com.dewijones92.totum.ui.common.SELECTION_ACTIONS_TAG
 import com.dewijones92.totum.ui.common.SELECTION_BAR_TAG
 import com.dewijones92.totum.ui.common.SelectableList
 import com.dewijones92.totum.ui.common.mediaBulkActions
@@ -289,7 +293,154 @@ class MultiSelectTest {
         composeTestRule.onAllNodesWithTag(SELECTION_BAR_TAG).assertCountEquals(0)
     }
 
+    @Test
+    fun `adding many to a playlist saves every one of them`() {
+        val base = com.dewijones92.totum.data.playlist.fake.InMemoryLocalPlaylistStore()
+        val slow = object : com.dewijones92.totum.data.playlist.LocalPlaylistStore by base {
+            override suspend fun addItem(id: com.dewijones92.totum.domain.PlaylistId, item: PlayableItem) {
+                kotlinx.coroutines.delay(DISK_WRITE_MS)
+                base.addItem(id, item)
+            }
+        }
+        val container = FakeAppContainer(localPlaylistStore = slow)
+        val many = (1..12).map { item("m$it", "Track $it") }
+        composeTestRule.setContent {
+            TotumTheme {
+                ProvidePlayStates(container, onOpenSource = {}) {
+                    val selection = rememberSelection("test")
+                    SelectableList(selection, many, many, { it.id.value }, mediaBulkActions()) {
+                        LazyColumn {
+                            items(
+                                many,
+                                key = { it.id.value }
+                            ) {
+                                MediaItemRow(
+                                    item = it,
+                                    subtitleLines = emptyList(),
+                                    pillar = MediaKind.PODCAST,
+                                    onPlay = {}
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        longPress("Track 1")
+        composeTestRule.onNodeWithText(activity.getString(R.string.select_all)).performClick()
+        composeTestRule.onNodeWithText(activity.getString(R.string.playlist_add_to)).performClick()
+        composeTestRule.onNodeWithText(activity.getString(R.string.playlist_new_name)).performTextInput("Mix")
+        composeTestRule.onNodeWithText(activity.getString(R.string.playlist_create_add)).performClick()
+        val store = container.localPlaylistStore
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            runBlocking {
+                store.observePlaylists().first().firstOrNull()?.let { store.observeItems(it.id).first().size } == 12
+            }
+        }
+    }
+
+    @Test
+    fun `select all in the queue leaves a collapsed group alone`() {
+        val container = FakeAppContainer()
+        val season = com.dewijones92.totum.data.queue.QueueGroup(id = "season-1", title = "A Season")
+        container.playbackQueue.playAll(
+            listOf("E01", "E02", "E03").map { PlayableItem(item(it, it), PlayHandle.Podcast()) },
+            group = season,
+        )
+        container.playbackQueue.playAll(listOf(PlayableItem(item("x", "Something else"), PlayHandle.Podcast())))
+        composeTestRule.setContent {
+            TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { QueueScreen(container) } }
+        }
+        composeTestRule.waitForIdle()
+        val visibleRows = container.playbackQueue.state.value.entries.count { it.group == null }
+
+        composeTestRule.onNodeWithTag(com.dewijones92.totum.ui.queue.queueGroupHeaderTag(season.id)).performClick()
+        composeTestRule.waitForIdle()
+        longPress("Something else")
+        composeTestRule.onNodeWithText(activity.getString(R.string.select_all)).performClick()
+
+        composeTestRule.onNodeWithText(count(visibleRows)).assertExists()
+        composeTestRule.onAllNodesWithText(activity.getString(R.string.queue_add)).assertCountEquals(0)
+    }
+
+    @Test
+    fun `bulk download fetches only what is not on disk yet`() {
+        val asked = mutableListOf<String>()
+        val recorder = object : com.dewijones92.totum.ui.common.ItemActions {
+            override fun queue(items: List<MediaItem>, next: Boolean) = Unit
+            override fun addToPlaylist(items: List<MediaItem>) = Unit
+            override fun peek(item: MediaItem) = Unit
+            override fun download(item: MediaItem, audioOnly: Boolean) { asked += item.id.value }
+            override fun deleteDownload(id: MediaItemId) = Unit
+            override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
+            override fun goToSource(item: MediaItem) = Unit
+            override fun canGoToSource(item: MediaItem) = false
+            override val audioMode: Boolean = false
+            override fun switchMode(item: MediaItem) = Unit
+        }
+        composeTestRule.setContent {
+            TotumTheme {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.dewijones92.totum.ui.common.LocalItemActions provides recorder,
+                    com.dewijones92.totum.ui.common.LocalDownloadStates provides
+                        mapOf(MediaItemId("a") to com.dewijones92.totum.domain.DownloadState.Downloaded("/x/a.mp3")),
+                ) {
+                    val selection = rememberSelection("test")
+                    SelectableList(selection, items, items, { it.id.value }, mediaBulkActions()) {
+                        LazyColumn {
+                            items(
+                                items,
+                                key = { it.id.value }
+                            ) {
+                                MediaItemRow(
+                                    item = it,
+                                    subtitleLines = emptyList(),
+                                    pillar = MediaKind.PODCAST,
+                                    onPlay = {}
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        longPress("Alpha episode")
+        composeTestRule.onNodeWithText("Beta episode").performClick()
+        val download = activity.getString(R.string.download)
+        composeTestRule.onNodeWithTag(SELECTION_ACTIONS_TAG).performScrollToNode(hasText(download))
+        composeTestRule.onNodeWithText(download).performClick()
+
+        assertEquals(listOf("b"), asked)
+    }
+
+    @Test
+    fun `a filter that briefly matches nothing does not lose the selection`() {
+        val container = FakeAppContainer()
+        runBlocking { items.forEach { container.playHistoryStore.record(PlayableItem(it, PlayHandle.Podcast())) } }
+        composeTestRule.setContent {
+            TotumTheme {
+                ProvidePlayStates(container, onOpenSource = {}) {
+                    com.dewijones92.totum.ui.history.PlayHistoryScreen(container, onBack = {})
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        longPress("Beta episode")
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput("zzzq")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription(activity.getString(R.string.filter_clear)).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(count(1)).assertExists()
+    }
+
     private companion object {
         const val TIMEOUT_MS = 5_000L
+        const val DISK_WRITE_MS = 30L
     }
 }

@@ -51,6 +51,8 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.pillar
 
 @Stable
 class Selection internal constructor(val place: String, private val state: MutableState<Set<String>>) {
@@ -64,6 +66,7 @@ class Selection internal constructor(val place: String, private val state: Mutab
         val before = state.value
         state.value = if (id in before) before - id else before + id
         if (before.isEmpty()) Diag.log("select", "$place selection started")
+        if (state.value.isEmpty()) Diag.log("select", "$place selection ended (last one unticked)")
     }
 
     fun selectAll(all: Collection<String>) {
@@ -79,7 +82,9 @@ class Selection internal constructor(val place: String, private val state: Mutab
 
     internal fun retainOnly(present: Set<String>) {
         val kept = state.value.intersect(present)
-        if (kept.size != state.value.size) state.value = kept
+        if (kept.size == state.value.size) return
+        Diag.log("select", "$place ${state.value.size - kept.size} selected item(s) left the list, ${kept.size} remain")
+        state.value = kept
     }
 }
 
@@ -88,7 +93,7 @@ fun rememberSelection(place: String, key: Any? = null): Selection {
     val state = rememberSaveable(
         key,
         saver = listSaver<MutableState<Set<String>>, String>(
-            save = { it.value.toList() },
+            save = { if (it.value.size > MAX_SAVED_SELECTION) emptyList() else it.value.toList() },
             restore = { mutableStateOf(it.toSet()) },
         ),
     ) { mutableStateOf(emptySet()) }
@@ -217,6 +222,7 @@ private fun SelectionBar(
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier.testTag(SELECTION_ACTIONS_TAG),
             ) {
                 items(actions, key = { it.label }) { action ->
                     val label = stringResource(action.label)
@@ -247,32 +253,49 @@ private fun ConfirmBulk(action: BulkAction, count: Int, onDismiss: () -> Unit, o
 }
 
 @Composable
-fun mediaBulkActions(): (List<MediaItem>) -> List<BulkAction> {
+fun mediaBulkActions(
+    queueing: Boolean = true,
+    downloadAudioOnly: Boolean = false
+): (List<MediaItem>) -> List<BulkAction> {
     val actions = LocalItemActions.current
     val downloads = LocalDownloadStates.current
     return { chosen ->
-        val common = actions?.let { a ->
-            val anyDownloaded = chosen.any { downloads[it.id] is DownloadState.Downloaded }
-            val anyMissing = chosen.any { downloads[it.id] !is DownloadState.Downloaded }
+        actions?.let { a ->
+            val onDisk = chosen.filter { downloads[it.id] is DownloadState.Downloaded }
+            val missing = chosen.filter { item ->
+                when (val state = downloads[item.id]) {
+                    is DownloadState.Downloading -> false
+                    is DownloadState.Downloaded ->
+                        state.audioOnly && !downloadAudioOnly && item.pillar == MediaKind.VIDEO
+                    else -> true
+                }
+            }
             listOfNotNull(
-                BulkAction(R.string.queue_play_next) { chosen.asReversed().forEach(a::playNext) },
-                BulkAction(R.string.queue_add) { chosen.forEach(a::addToQueue) },
+                BulkAction(R.string.queue_play_next) { a.queue(chosen, next = true) }.takeIf { queueing },
+                BulkAction(R.string.queue_add) { a.queue(chosen, next = false) }.takeIf { queueing },
                 BulkAction(R.string.playlist_add_to) { a.addToPlaylist(chosen) },
-                BulkAction(
-                    R.string.download
-                ) { chosen.forEach { a.download(it, audioOnly = false) } }.takeIf { anyMissing },
-                BulkAction(R.string.download_delete) {
-                    chosen.filter { downloads[it.id] is DownloadState.Downloaded }.forEach { a.deleteDownload(it.id) }
-                }.takeIf { anyDownloaded },
+                BulkAction(R.string.download) {
+                    val upgrades = missing.count { downloads[it.id] is DownloadState.Downloaded }
+                    Diag.log(
+                        "select",
+                        "downloading ${missing.size} of ${chosen.size} (audioOnly=$downloadAudioOnly, " +
+                            "$upgrades replacing an audio-only copy), the rest on disk or fetching",
+                    )
+                    missing.forEach { a.download(it, audioOnly = downloadAudioOnly) }
+                }.takeIf { missing.isNotEmpty() },
+                BulkAction(R.string.download_delete) { onDisk.forEach { a.deleteDownload(it.id) } }
+                    .takeIf { onDisk.isNotEmpty() },
                 BulkAction(R.string.mark_played) { chosen.forEach { a.setPlayed(it.id, true) } },
                 BulkAction(R.string.mark_unplayed) { chosen.forEach { a.setPlayed(it.id, false) } },
             )
         }.orEmpty()
-        common
     }
 }
 
 const val SELECTION_BAR_TAG: String = "selection-bar"
+const val SELECTION_ACTIONS_TAG: String = "selection-actions"
+
+private const val MAX_SAVED_SELECTION = 500
 
 @Composable
 fun <T> SelectableMediaList(
@@ -282,11 +305,14 @@ fun <T> SelectableMediaList(
     media: (T) -> MediaItem,
     modifier: Modifier = Modifier,
     key: Any? = null,
+    hoisted: Selection? = null,
+    queueing: Boolean = true,
+    downloadAudioOnly: Boolean = false,
     extra: (List<T>) -> List<BulkAction> = { emptyList() },
     content: @Composable () -> Unit,
 ) {
-    val selection = rememberSelection(place, key)
-    val bulk = mediaBulkActions()
+    val selection = hoisted ?: rememberSelection(place, key)
+    val bulk = mediaBulkActions(queueing, downloadAudioOnly)
     SelectableList(
         selection,
         items,

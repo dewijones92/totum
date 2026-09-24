@@ -50,8 +50,7 @@ private class ContainerItemActions(
     private val scope: CoroutineScope,
     private val onOpenSource: (MediaSource) -> Unit,
 ) : ItemActions {
-    override fun playNext(item: MediaItem) = rows.playNext(item)
-    override fun addToQueue(item: MediaItem) = rows.addToQueue(item)
+    override fun queue(items: List<MediaItem>, next: Boolean) = rows.queueAll(items, next)
     override fun addToPlaylist(items: List<MediaItem>) = rows.addToPlaylist(items)
     override fun peek(item: MediaItem) = rows.peek(item)
 

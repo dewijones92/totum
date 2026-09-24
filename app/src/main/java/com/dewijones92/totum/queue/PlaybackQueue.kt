@@ -227,6 +227,34 @@ class PlaybackQueue(
         mirror(item)
     }
 
+    fun enqueueAll(items: List<PlayableItem>) {
+        if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
+        mutate("add-to-end x${items.size}") { snapshot ->
+            items.fold(snapshot) { acc, item ->
+                acc.relocating(item) { without -> without.copy(entries = without.entries + QueueEntry(item, null)) }
+            }
+        }
+        mirrorAll(items)
+    }
+
+    fun playNextAll(items: List<PlayableItem>) {
+        if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
+        mutate("play-next x${items.size}") { snapshot ->
+            items.asReversed().fold(snapshot) { acc, item ->
+                acc.relocating(item) { without -> without.inserted(listOf(QueueEntry(item, null))) }
+            }
+        }
+        mirrorAll(items)
+    }
+
+    private fun mirrorAll(items: List<PlayableItem>) {
+        items.singleOrNull()?.let(::mirror)
+            ?: Diag.log(
+                "queue",
+                "not mirroring ${items.size} bulk-queued items to the account: a bulk add would bury Watch Later",
+            )
+    }
+
     /**
      * Fires the mirror without letting it affect queueing.
      *

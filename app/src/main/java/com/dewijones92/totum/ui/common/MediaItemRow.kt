@@ -93,8 +93,8 @@ fun MediaItemRow(
     // Everything an item can do defaults to the app-wide capability. A screen has to work
     // to REMOVE an action, never to remember one. Only genuinely contextual actions
     // (remove-from-playlist, move-within-queue) stay null, because they only exist somewhere.
-    onPlayNext: (() -> Unit)? = LocalItemActions.current.bind { playNext(item) },
-    onAddToQueue: (() -> Unit)? = LocalItemActions.current.bind { addToQueue(item) },
+    onPlayNext: (() -> Unit)? = LocalItemActions.current.bind { queue(listOf(item), next = true) },
+    onAddToQueue: (() -> Unit)? = LocalItemActions.current.bind { queue(listOf(item), next = false) },
     onAddToPlaylist: (() -> Unit)? = LocalItemActions.current.bind { addToPlaylist(listOf(item)) },
     onRemoveFromPlaylist: (() -> Unit)? = null,
     /**

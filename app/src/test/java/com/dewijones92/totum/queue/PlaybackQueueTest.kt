@@ -324,6 +324,59 @@ class PlaybackQueueTest {
         assertTrue("a bulk run must not touch Watch Later", mirrored.isEmpty())
     }
 
+    @Test
+    fun `bulk add to the end keeps the chosen order and moves what was already queued`() = runTest(dispatcher) {
+        val q = queue()
+        q.enqueue(podcast("a"))
+        q.enqueue(podcast("b"))
+
+        q.enqueueAll(listOf(podcast("c"), podcast("a"), podcast("d")))
+        advanceUntilIdle()
+
+        assertEquals(listOf("b", "c", "a", "d"), q.state.value.entries.map { it.item.item.id.value })
+    }
+
+    @Test
+    fun `bulk play next lands after the playing item in the chosen order`() = runTest(dispatcher) {
+        val q = queue()
+        q.playNow(podcast("a"))
+        q.enqueue(podcast("b"))
+        q.enqueue(podcast("c"))
+        advanceUntilIdle()
+
+        q.playNextAll(listOf(podcast("c"), podcast("d"), podcast("a")))
+        advanceUntilIdle()
+
+        assertEquals(listOf("a", "c", "d", "b"), q.state.value.entries.map { it.item.item.id.value })
+        assertEquals("a", q.state.value.current?.item?.item?.id?.value)
+    }
+
+    @Test
+    fun `bulk queueing of one item mirrors it and of many mirrors none`() = runTest(dispatcher) {
+        val q = queue()
+
+        q.enqueueAll(listOf(podcast("a")))
+        q.playNextAll(listOf(podcast("b")))
+        q.enqueueAll(listOf(podcast("c"), podcast("d")))
+        q.playNextAll(listOf(podcast("e"), podcast("f")))
+        advanceUntilIdle()
+
+        assertEquals(listOf("a", "b"), mirrored)
+    }
+
+    @Test
+    fun `bulk queueing nothing before the saved queue loads does not discard it`() = runTest(dispatcher) {
+        val saved = InMemoryQueueStore()
+        saved.save(QueueSnapshot(entries = listOf(podcast("a"), podcast("b")).map { QueueEntry(it) }, currentIndex = 0))
+
+        val q = queue(saved)
+        q.enqueueAll(emptyList())
+        q.playNextAll(emptyList())
+        advanceUntilIdle()
+
+        assertEquals(listOf("a", "b"), q.state.value.entries.map { it.item.item.id.value })
+    }
+
     /** playNow means "watching it now", which the watch-history sync already reports. */
     @Test
     fun `play now does not mirror`() = runTest(dispatcher) {

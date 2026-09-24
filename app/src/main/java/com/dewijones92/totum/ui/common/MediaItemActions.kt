@@ -95,6 +95,12 @@ class MediaItemActions internal constructor(
         item.toPlayableOrNull()?.let(queue::enqueue)
     }
 
+    fun queueAll(items: List<MediaItem>, next: Boolean) {
+        val playable = items.mapNotNull { it.toPlayableOrNull() }
+        Diag.log("queue", "bulk ${if (next) "play next" else "add"}: ${playable.size} of ${items.size} playable")
+        if (next) queue.playNextAll(playable) else queue.enqueueAll(playable)
+    }
+
     fun addToPlaylist(item: MediaItem) = addToPlaylist(listOf(item))
 
     fun addToPlaylist(items: List<MediaItem>) {

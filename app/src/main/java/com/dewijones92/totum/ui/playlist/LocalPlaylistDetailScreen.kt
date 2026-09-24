@@ -42,6 +42,7 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberSelection
 
 /** One local playlist: Play all, play from an item, remove items, rename/delete. */
 @Composable
@@ -92,6 +93,7 @@ private fun PlaylistBody(
     downloadStates: Map<com.dewijones92.totum.domain.MediaItemId, DownloadState>,
     viewModel: LocalPlaylistDetailViewModel,
 ) {
+    val selection = rememberSelection("local-playlist")
     if (items.isEmpty()) {
         Text(
             text = stringResource(R.string.playlist_empty),
@@ -116,6 +118,7 @@ private fun PlaylistBody(
             items,
             shown,
             { it.item },
+            hoisted = selection,
             extra = { chosen ->
                 listOf(BulkAction(R.string.playlist_remove_from) { chosen.forEach { viewModel.remove(it.item.id) } })
             },

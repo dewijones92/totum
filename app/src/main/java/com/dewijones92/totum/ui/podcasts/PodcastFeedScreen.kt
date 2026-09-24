@@ -153,8 +153,16 @@ fun PodcastFeedScreen(
                     CircularProgressIndicator()
                 }
                 page.failed -> FeedMessage(R.string.feed_error)
-                episodes.isEmpty() -> FeedMessage(R.string.feed_empty)
-                else -> EpisodeList(container, viewModel, state, episodes, settings.mediaFilter, listFilter)
+                page.episodes.isEmpty() -> FeedMessage(R.string.feed_empty)
+                else -> EpisodeList(
+                    container,
+                    viewModel,
+                    state,
+                    episodes,
+                    settings.mediaFilter,
+                    listFilter,
+                    source.id.value
+                )
             }
         }
     }
@@ -185,15 +193,16 @@ private fun EpisodeList(
     episodes: List<MediaItem>,
     filter: MediaFilter,
     listFilter: ListFilter,
+    selectionKey: String,
 ) {
     val actions = rememberMediaItemActions(container)
     val shown = listFilter.filter(episodes, { it.searchableText })
-    SelectableMediaList("podcast page", episodes, shown, { it }, key = listFilter.place) {
+    SelectableMediaList(listFilter.place, episodes, shown, { it }, key = selectionKey) {
         LazyColumn(Modifier.fillMaxSize()) {
             item {
                 MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
             }
-            filterField(listFilter, shown.size, episodes.size)
+            filterField(listFilter, shown.size, episodes.size) { FeedMessage(R.string.filter_hides_everything) }
             items(shown, key = { it.id.value }) { episode ->
                 MediaItemRow(
                     item = episode,

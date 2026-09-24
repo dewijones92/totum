@@ -17,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -57,7 +56,7 @@ public fun rememberPlaylistPicker(container: AppContainer): (List<MediaItem>) ->
 private fun AddToPlaylistDialog(container: AppContainer, items: List<MediaItem>, onDismiss: () -> Unit) {
     val store = container.localPlaylistStore
     val playlists by store.observePlaylists().collectAsStateWithLifecycle(emptyList())
-    val scope = rememberCoroutineScope()
+    val scope = container.applicationScope
     var newName by remember { mutableStateOf("") }
     val toAdd = remember(items) { items.mapNotNull { it.toPlayableOrNull() } }
     val addAll: suspend (PlaylistId) -> Unit = { id ->

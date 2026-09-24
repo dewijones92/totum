@@ -65,8 +65,9 @@ class ReorderState internal constructor(
 ) {
     internal var draggingIndex by mutableIntStateOf(NONE)
 
-    var gripHeld: Boolean by mutableStateOf(false)
-        private set
+    private var gripHolds by mutableIntStateOf(0)
+
+    val gripHeld: Boolean get() = gripHolds > 0
     private var accumulated by mutableFloatStateOf(0f)
 
     /**
@@ -159,15 +160,15 @@ class ReorderState internal constructor(
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    gripHeld = true
-                    Diag.log("reorder", "dewidebug grip down")
+                    gripHolds++
+                    Diag.log("reorder", "dewidebug grip down, holds=$gripHolds")
                     try {
                         do {
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                         } while (event.changes.any { it.pressed })
                     } finally {
-                        gripHeld = false
-                        Diag.log("reorder", "dewidebug grip up")
+                        gripHolds--
+                        Diag.log("reorder", "dewidebug grip up, holds=$gripHolds")
                     }
                 }
             }

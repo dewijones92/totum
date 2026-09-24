@@ -4,24 +4,20 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SmartDisplay
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,7 +50,6 @@ import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.shortsReelFrom
-import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
@@ -62,14 +57,11 @@ import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
-import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaSort
-import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.SelectableMediaList
-import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
@@ -359,17 +351,16 @@ private fun ChannelsAndVideos(
     val unwatchedFiltered = state.videos.filteredBy(filter) { playStates[it] ?: PlayState.Unplayed }
     val shown = listFilter.filter(unwatchedFiltered, { it.searchableText }, pausesPaging = state.canLoadMore)
     LoadMoreUnlessFiltered(listFilter, listState, state.canLoadMore && !state.loadingMore, shown.size, onLoadMore)
-    SelectableMediaList("videos", state.videos, shown, { it }, modifier.fillMaxSize()) {
+    SelectableMediaList(
+        "videos",
+        state.videos,
+        shown,
+        { it },
+        modifier.fillMaxSize(),
+        key = state.selected?.cacheKey()
+    ) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            if (state.subscriptions.isNotEmpty()) {
-                item { SubscriptionChips(state.subscriptions, onChannelClick) }
-            }
-            // Signed in OR holding groups. The account feeds need an account, but a group can be
-            // all podcasts and needs none — gating the whole selector on sign-in hid every group
-            // Dewi had made, which is a strange way to treat the one part that was still working.
-            if (state.signedIn || state.groups.isNotEmpty()) {
-                item { FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) }
-            }
+            feedHeader(state, onChannelClick) { FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) }
             when {
                 // Skeletons only when there is genuinely NOTHING to show. Cached items arrive
                 // while `feedLoading` is still true — that is the whole point of them — and this
@@ -380,14 +371,7 @@ private fun ChannelsAndVideos(
                 state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
                 state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
                 else -> {
-                    item {
-                        SectionHeaderWithSort(
-                            title = feedTitle(state.selected),
-                            sort = state.sort,
-                            onSetSort = onSetSort,
-                        )
-                    }
-                    item { MediaFilterChips(selected = filter, onSelect = onSetFilter) }
+                    sortAndFilter(state, onSetSort, filter, onSetFilter)
                     filterField(listFilter, shown.size, unwatchedFiltered.size) {
                         FeedMessage(stringResource(R.string.filter_hides_everything))
                     }
@@ -419,52 +403,6 @@ private fun ChannelsAndVideos(
 }
 
 @Composable
-private fun FeedSelector(
-    state: VideosViewModel.UiState,
-    onSelectFeed: (FeedChoice?) -> Unit,
-    onOpenPlaylists: () -> Unit,
-    onOpenShorts: () -> Unit,
-) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        modifier = Modifier.padding(top = 8.dp),
-    ) {
-        // YouTube's own feeds need a signed-in account; groups do not.
-        items(if (state.signedIn) AccountFeed.entries else emptyList()) { feed ->
-            FilterChip(
-                selected = state.selected == FeedChoice.Account(feed),
-                onClick = { onSelectFeed(FeedChoice.Account(feed)) },
-                label = { Text(stringResource(feedChipRes(feed))) },
-            )
-        }
-        // Dewi's own groups sit alongside YouTube's feeds rather than behind a sub-tab:
-        // they are the same kind of thing to choose between — "what am I looking at" —
-        // and a group he made is likelier to be what he wants than HISTORY.
-        items(state.groups, key = { it.id.value }) { group ->
-            FilterChip(
-                selected = (state.selected as? FeedChoice.Group)?.group?.id == group.id,
-                onClick = { onSelectFeed(FeedChoice.Group(group)) },
-                label = { Text(group.name) },
-            )
-        }
-        // Not feed filters — open the Shorts reel and the playlists list.
-        item {
-            AssistChip(
-                onClick = onOpenShorts,
-                label = { Text(stringResource(R.string.shorts_title)) },
-            )
-        }
-        item {
-            AssistChip(
-                onClick = onOpenPlaylists,
-                label = { Text(stringResource(R.string.playlists_title)) },
-            )
-        }
-    }
-}
-
-@Composable
 private fun FeedLoading() {
     // A skeleton rather than a spinner: it says what is coming and roughly how much, so the
     // screen reads as filling in rather than blocked, and nothing jumps when content lands.
@@ -481,44 +419,6 @@ private fun FeedMessage(text: String) {
             .fillMaxWidth()
             .padding(32.dp),
     )
-}
-
-private fun feedChipRes(feed: AccountFeed): Int = when (feed) {
-    AccountFeed.RECOMMENDED -> R.string.feed_home
-    AccountFeed.SUBSCRIPTIONS -> R.string.feed_subscriptions
-    AccountFeed.WATCH_LATER -> R.string.feed_watch_later
-    AccountFeed.HISTORY -> R.string.feed_history
-}
-
-/**
- * Where the Videos tab was, for the place trail.
- *
- * The item count is here for a reason: a restored scroll index cannot survive being applied
- * to an empty list, so "scroll=40 videos=0" and "scroll=0 videos=40" are different bugs
- * needing different fixes, and without the count they look identical in a report.
- */
-/** The horizontal strip of subscribed channels above the feed. */
-@Composable
-private fun SubscriptionChips(
-    subscriptions: List<MediaSource.VideoChannel>,
-    onChannelClick: (MediaSource.VideoChannel) -> Unit,
-) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-    ) {
-        items(subscriptions) { channel ->
-            SourceChip(channel, onClick = { onChannelClick(channel) })
-        }
-    }
-}
-
-@Composable
-private fun feedTitle(selected: FeedChoice?): String = when (selected) {
-    null -> stringResource(R.string.latest_videos)
-    is FeedChoice.Account -> stringResource(feedChipRes(selected.feed))
-    // The group's own name, which is the whole point of having named it.
-    is FeedChoice.Group -> selected.group.name
 }
 
 @Preview(showBackground = true)

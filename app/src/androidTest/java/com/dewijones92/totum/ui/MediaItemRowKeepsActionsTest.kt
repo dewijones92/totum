@@ -73,8 +73,7 @@ class MediaItemRowKeepsActionsTest {
     private val downloadsAsked = mutableListOf<Pair<MediaItemId, Boolean>>()
     private val deletesAsked = mutableListOf<MediaItemId>()
     private val actions = object : ItemActions {
-        override fun playNext(item: MediaItem) = Unit
-        override fun addToQueue(item: MediaItem) = Unit
+        override fun queue(items: List<MediaItem>, next: Boolean) = Unit
         override fun addToPlaylist(items: List<MediaItem>) = Unit
         override fun peek(item: MediaItem) = Unit
         override fun download(item: MediaItem, audioOnly: Boolean) { downloadsAsked += item.id to audioOnly }

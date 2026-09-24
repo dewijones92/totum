@@ -20,8 +20,7 @@ import com.dewijones92.totum.domain.MediaSource
  * remove from a playlist) stay explicit because they really do only exist somewhere.
  */
 internal interface ItemActions {
-    fun playNext(item: MediaItem)
-    fun addToQueue(item: MediaItem)
+    fun queue(items: List<MediaItem>, next: Boolean)
     fun addToPlaylist(items: List<MediaItem>)
     fun peek(item: MediaItem)
     fun download(item: MediaItem, audioOnly: Boolean)

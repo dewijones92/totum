@@ -32,6 +32,7 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
 /** Recently-played history across both pillars: tap to replay, or clear all. */
@@ -41,6 +42,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
     val items by viewModel.items.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
+    val selection = rememberSelection("history")
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -53,7 +55,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                 HistoryEmpty()
             } else {
                 FilterableList("history", items, { it.item.searchableText }) { shown, _ ->
-                    SelectableMediaList("history", items, shown, { it.item }) {
+                    SelectableMediaList("history", items, shown, { it.item }, hoisted = selection) {
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(shown, key = { it.item.id.value }) { entry ->
                                 MediaItemRow(

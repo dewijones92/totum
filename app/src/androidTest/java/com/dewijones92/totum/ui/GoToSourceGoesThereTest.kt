@@ -16,12 +16,14 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
 import com.dewijones92.totum.di.fake.FakeAppContainer
+import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import com.dewijones92.totum.playback.fake.InMemoryPlaybackProgressStore
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.ItemActions
@@ -29,6 +31,7 @@ import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.podcasts.PodcastFeedScreen
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -162,6 +165,33 @@ class GoToSourceGoesThereTest {
     }
 
     @Test
+    fun `a podcast page whose filter hides every episode keeps its filter chips`() {
+        val container = FakeAppContainer(
+            podcastRepository = FakePodcastRepository(
+                initialSubscriptions = listOf(Subscription(feed, Instant.EPOCH)),
+                initialEpisodes = listOf(episode),
+            ),
+            playbackProgressStore = InMemoryPlaybackProgressStore(),
+        )
+        container.appPreferences.setMediaFilter(MediaFilter.UNPLAYED)
+        runBlocking { container.playbackProgressStore.setPlayed(episode.id, true) }
+        composeTestRule.setContent {
+            TotumTheme {
+                ProvidePlayStates(container, onOpenSource = {}) {
+                    PodcastFeedScreen(container, feed, onBack = {})
+                }
+            }
+        }
+
+        val hidden = context.getString(R.string.filter_hides_everything)
+        composeTestRule.waitUntil(
+            TIMEOUT_MS
+        ) { composeTestRule.onAllNodesWithText(hidden).fetchSemanticsNodes().isNotEmpty() }
+        composeTestRule.onNodeWithText(context.getString(R.string.filter_all)).assertExists()
+        composeTestRule.onAllNodesWithText(context.getString(R.string.feed_empty)).assertCountEquals(0)
+    }
+
+    @Test
     fun `a feed you do not follow is previewed rather than shown empty`() {
         val repository = FakePodcastRepository().apply {
             previews[feedUrl] = PreviewResult.Loaded(feed.copy(title = "The Show, previewed"), listOf(episode))
@@ -218,8 +248,7 @@ class GoToSourceGoesThereTest {
     }
 
     private object InertActions : ItemActions {
-        override fun playNext(item: MediaItem) = Unit
-        override fun addToQueue(item: MediaItem) = Unit
+        override fun queue(items: List<MediaItem>, next: Boolean) = Unit
         override fun addToPlaylist(items: List<MediaItem>) = Unit
         override fun peek(item: MediaItem) = Unit
         override fun download(item: MediaItem, audioOnly: Boolean) = Unit

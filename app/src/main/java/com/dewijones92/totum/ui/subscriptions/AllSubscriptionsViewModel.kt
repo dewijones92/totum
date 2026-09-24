@@ -46,18 +46,20 @@ class AllSubscriptionsViewModel(
 
     fun unsubscribe(sources: List<MediaSource>) {
         (checkScope ?: viewModelScope).launch {
-            var channelsFailed = 0
+            val channelsFailed = mutableListOf<String>()
             sources.forEach { source ->
                 when (source) {
                     is MediaSource.PodcastFeed -> podcasts.unsubscribe(source.id)
-                    is MediaSource.VideoChannel -> if (!unsubscribeChannel(source)) channelsFailed++
+                    is MediaSource.VideoChannel -> if (!unsubscribeChannel(source)) channelsFailed += source.title
                 }
             }
             val shows = sources.count { it is MediaSource.PodcastFeed }
+            val named = channelsFailed.take(FAILED_NAMED).joinToString(prefix = " [", postfix = "]")
+                .takeIf { channelsFailed.isNotEmpty() }.orEmpty()
             Diag.log(
                 "subs",
                 "bulk unsubscribe: ${sources.size} (shows=$shows channels=${sources.size - shows} " +
-                    "channelsNotWrittenToAccount=$channelsFailed)",
+                    "channelsNotWrittenToAccount=${channelsFailed.size}$named)",
             )
         }
     }
@@ -109,6 +111,7 @@ class AllSubscriptionsViewModel(
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
         private const val TOP_LOGGED = 3
+        private const val FAILED_NAMED = 5
         private val SUBSCRIPTIONS_FEED = FeedChoice.Account(AccountFeed.SUBSCRIPTIONS)
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {

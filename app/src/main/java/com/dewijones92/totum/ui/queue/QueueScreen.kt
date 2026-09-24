@@ -231,6 +231,8 @@ private data class GroupCollapse(
 ) {
     fun isCollapsed(id: String): Boolean = id in collapsedIds
 
+    fun hides(entry: QueueEntry): Boolean = entry.group?.let { isCollapsed(it.id) } == true
+
     fun toggle(id: String) {
         onChange(if (id in collapsedIds) collapsedIds - id else collapsedIds + id)
     }
@@ -320,8 +322,10 @@ private fun FilterableQueue(
     SelectableMediaList(
         "queue",
         entries,
-        if (listFilter.filtering) matches.map { it.value } else entries,
+        if (listFilter.filtering) matches.map { it.value } else entries.filterNot { actions.groups.hides(it) },
         { it.item.item },
+        queueing = false,
+        downloadAudioOnly = true,
         extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }) },
     ) {
         if (!listFilter.filtering) {
