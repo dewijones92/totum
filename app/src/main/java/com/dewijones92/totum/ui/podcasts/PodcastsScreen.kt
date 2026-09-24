@@ -56,6 +56,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.PodcastFeedSaver
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
@@ -204,45 +205,47 @@ private fun SubscriptionsAndEpisodes(
 ) {
     val listFilter = rememberListFilter("podcasts")
     val shown = listFilter.filter(state.episodes, { it.searchableText })
-    LazyColumn(modifier = modifier.fillMaxSize()) {
-        if (state.refreshFailures.isNotEmpty()) {
-            item { RefreshFailureNotice(state.refreshFailures, onDismissRefreshFailures) }
-        }
-        item {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-            ) {
-                items(state.subscriptions) { subscription ->
-                    val feed = subscription.source as? MediaSource.PodcastFeed
-                    SourceChip(subscription.source, onClick = { feed?.let(onOpenFeed) })
+    SelectableMediaList("podcasts", state.episodes, shown, { it }, modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            if (state.refreshFailures.isNotEmpty()) {
+                item { RefreshFailureNotice(state.refreshFailures, onDismissRefreshFailures) }
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    items(state.subscriptions) { subscription ->
+                        val feed = subscription.source as? MediaSource.PodcastFeed
+                        SourceChip(subscription.source, onClick = { feed?.let(onOpenFeed) })
+                    }
                 }
             }
-        }
-        item {
-            SectionHeaderWithSort(
-                title = stringResource(R.string.latest_episodes),
-                sort = state.sort,
-                onSetSort = onSetSort,
-            )
-        }
-        filterField(listFilter, shown.size, state.episodes.size)
-        items(shown, key = { it.id.value }) { episode ->
-            MediaItemRow(
-                item = episode,
-                subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
-                downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
-                pillar = MediaKind.PODCAST,
-                onPlay = { onPlayEpisode(episode) },
-                onDownload = { onDownload(episode) },
-                onDeleteDownload = { onDeleteDownload(episode) },
-                onPlayNext = { onPlayNext(episode) },
-                onAddToQueue = { onEnqueue(episode) },
-                onAddToPlaylist = { onAddToPlaylist(episode) },
-                onPeek = { onPeek(episode) },
-                onGoToSource = { onGoToPodcast(episode) },
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            item {
+                SectionHeaderWithSort(
+                    title = stringResource(R.string.latest_episodes),
+                    sort = state.sort,
+                    onSetSort = onSetSort,
+                )
+            }
+            filterField(listFilter, shown.size, state.episodes.size)
+            items(shown, key = { it.id.value }) { episode ->
+                MediaItemRow(
+                    item = episode,
+                    subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
+                    downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
+                    pillar = MediaKind.PODCAST,
+                    onPlay = { onPlayEpisode(episode) },
+                    onDownload = { onDownload(episode) },
+                    onDeleteDownload = { onDeleteDownload(episode) },
+                    onPlayNext = { onPlayNext(episode) },
+                    onAddToQueue = { onEnqueue(episode) },
+                    onAddToPlaylist = { onAddToPlaylist(episode) },
+                    onPeek = { onPeek(episode) },
+                    onGoToSource = { onGoToPodcast(episode) },
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            }
         }
     }
 }

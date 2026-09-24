@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItem
@@ -39,38 +40,44 @@ import kotlinx.coroutines.launch
  */
 @Composable
 public fun rememberPlaylistAdder(container: AppContainer): (MediaItem) -> Unit {
-    var target by remember { mutableStateOf<MediaItem?>(null) }
-    target?.let { item ->
-        AddToPlaylistDialog(container, item, onDismiss = { target = null })
-    }
-    return { target = it }
+    val pick = rememberPlaylistPicker(container)
+    return { pick(listOf(it)) }
 }
 
 @Composable
-private fun AddToPlaylistDialog(container: AppContainer, item: MediaItem, onDismiss: () -> Unit) {
+public fun rememberPlaylistPicker(container: AppContainer): (List<MediaItem>) -> Unit {
+    var targets by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    if (targets.isNotEmpty()) {
+        AddToPlaylistDialog(container, targets, onDismiss = { targets = emptyList() })
+    }
+    return { targets = it }
+}
+
+@Composable
+private fun AddToPlaylistDialog(container: AppContainer, items: List<MediaItem>, onDismiss: () -> Unit) {
     val store = container.localPlaylistStore
     val playlists by store.observePlaylists().collectAsStateWithLifecycle(emptyList())
     val scope = rememberCoroutineScope()
     var newName by remember { mutableStateOf("") }
-    val toAdd = remember(item) { item.toPlayableOrNull() }
+    val toAdd = remember(items) { items.mapNotNull { it.toPlayableOrNull() } }
+    val addAll: suspend (PlaylistId) -> Unit = { id ->
+        toAdd.forEach { store.addItem(id, it) }
+        Diag.log("playlist", "added ${toAdd.size} of ${items.size} item(s) to playlist ${id.value}")
+    }
 
     val addExisting: (PlaylistId) -> Unit = { id ->
-        toAdd?.let { pi ->
-            scope.launch { store.addItem(id, pi) }
-            onDismiss()
-        }
+        scope.launch { addAll(id) }
+        onDismiss()
     }
     val createAndAdd: () -> Unit = {
-        toAdd?.let { pi ->
-            scope.launch { store.addItem(store.create(newName.trim()), pi) }
-            onDismiss()
-        }
+        scope.launch { addAll(store.create(newName.trim())) }
+        onDismiss()
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(enabled = newName.isNotBlank() && toAdd != null, onClick = createAndAdd) {
+            TextButton(enabled = newName.isNotBlank() && toAdd.isNotEmpty(), onClick = createAndAdd) {
                 Text(stringResource(R.string.playlist_create_add))
             }
         },

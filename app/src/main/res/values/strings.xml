@@ -427,4 +427,18 @@
         <item quantity="one">Filter %1$d item</item>
         <item quantity="other">Filter %1$d items</item>
     </plurals>
+    <string name="select_all">Select all</string>
+    <string name="select_done">Done selecting</string>
+    <plurals name="selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <plurals name="playlist_delete_confirm">
+        <item quantity="one">Delete %1$d playlist? Its items stay wherever else they are.</item>
+        <item quantity="other">Delete %1$d playlists? Their items stay wherever else they are.</item>
+    </plurals>
+    <plurals name="unsubscribe_confirm">
+        <item quantity="one">Unsubscribe from %1$d source? YouTube channels are unsubscribed on your account too.</item>
+        <item quantity="other">Unsubscribe from %1$d sources? YouTube channels are unsubscribed on your account too.</item>
+    </plurals>
 </resources>

@@ -29,6 +29,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,16 +55,19 @@ import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.unavailableOfflineNow
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterField
+import com.dewijones92.totum.ui.common.LocalLongPressHeldElsewhere
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.ReorderState
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
@@ -313,30 +317,58 @@ private fun FilterableQueue(
     val availability = QueueAvailability(downloads, container.isOffline())
     val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true)
     FilterField(listFilter, matches.size, entries.size)
-    if (!listFilter.filtering) {
-        LazyColumn(
-            state = listState,
-            // The container has to be known for a drag held at an edge to scroll the list;
-            // without it dragging still works, it just cannot reach past the screen.
-            modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
-        ) {
-            itemsWithGroupHeaders(
-                availability = availability,
-                entries = entries,
-                nowPlaying = nowPlaying,
-                reorder = reorder,
-                actions = actions,
-            )
-        }
-    } else if (matches.isEmpty()) {
-        NoFilterMatches(listFilter.query)
-    } else {
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
-                QueueRow(entry, index, entries, nowPlaying, availability, reorder = null, actions = actions)
+    SelectableMediaList(
+        "queue",
+        entries,
+        if (listFilter.filtering) matches.map { it.value } else entries,
+        { it.item.item },
+        extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }) },
+    ) {
+        if (!listFilter.filtering) {
+            CompositionLocalProvider(LocalLongPressHeldElsewhere provides { reorder.gripHeld }) {
+                LazyColumn(
+                    state = listState,
+                    // The container has to be known for a drag held at an edge to scroll the list;
+                    // without it dragging still works, it just cannot reach past the screen.
+                    modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
+                ) {
+                    itemsWithGroupHeaders(
+                        availability = availability,
+                        entries = entries,
+                        nowPlaying = nowPlaying,
+                        reorder = reorder,
+                        actions = actions,
+                    )
+                }
+            }
+        } else if (matches.isEmpty()) {
+            NoFilterMatches(listFilter.query)
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
+                    QueueRow(entry, index, entries, nowPlaying, availability, reorder = null, actions = actions)
+                }
             }
         }
     }
+}
+
+private fun queueBulkActions(queue: PlaybackQueue, ids: List<MediaItemId>): List<BulkAction> {
+    fun indexOf(id: MediaItemId) = queue.state.value.entries.indexOfFirst { it.item.item.id == id }
+    return listOf(
+        BulkAction(R.string.queue_remove) {
+            ids.forEach { id -> queue.state.value.entries.firstOrNull { it.item.item.id == id }?.let(queue::remove) }
+        },
+        BulkAction(R.string.queue_move_to_top) {
+            ids.asReversed().forEach { id -> indexOf(id).takeIf { it > 0 }?.let { queue.move(it, 0) } }
+        },
+        BulkAction(R.string.queue_move_to_bottom) {
+            ids.forEach { id ->
+                val last = queue.state.value.entries.lastIndex
+                indexOf(id).takeIf { it in 0 until last }?.let { queue.move(it, last) }
+            }
+        },
+    )
 }
 
 @Composable

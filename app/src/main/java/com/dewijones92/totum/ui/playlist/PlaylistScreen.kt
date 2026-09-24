@@ -34,6 +34,7 @@ import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
@@ -67,37 +68,39 @@ fun PlaylistScreen(
 
     Surface(modifier = modifier.fillMaxSize()) {
         PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = viewModel::refresh) {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                // The shared header rather than a hand-rolled Row: this screen had its own
-                // copy of back-arrow-plus-title, which is the same thing every layer under a
-                // tab needs and now gets from one place.
-                item { BackHeader(title = state.title, onBack = onBack) }
-                when {
-                    state.loading -> item { CenteredProgress() }
-                    state.error -> item { Message(stringResource(R.string.feed_error)) }
-                    state.videos.isEmpty() -> item { Message(stringResource(R.string.feed_empty)) }
-                    else -> {
-                        item {
-                            SectionHeaderWithSort(
-                                title = stringResource(R.string.latest_videos),
-                                sort = state.sort,
-                                onSetSort = viewModel::setSort,
-                            )
+            SelectableMediaList("account-playlist", state.videos, shown, { it }, key = playlist.browseId) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    // The shared header rather than a hand-rolled Row: this screen had its own
+                    // copy of back-arrow-plus-title, which is the same thing every layer under a
+                    // tab needs and now gets from one place.
+                    item { BackHeader(title = state.title, onBack = onBack) }
+                    when {
+                        state.loading -> item { CenteredProgress() }
+                        state.error -> item { Message(stringResource(R.string.feed_error)) }
+                        state.videos.isEmpty() -> item { Message(stringResource(R.string.feed_empty)) }
+                        else -> {
+                            item {
+                                SectionHeaderWithSort(
+                                    title = stringResource(R.string.latest_videos),
+                                    sort = state.sort,
+                                    onSetSort = viewModel::setSort,
+                                )
+                            }
+                            filterField(listFilter, shown.size, state.videos.size)
+                            items(shown, key = { it.id.value }) { video ->
+                                MediaItemRow(
+                                    item = video,
+                                    subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                                    downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                                    pillar = MediaKind.VIDEO,
+                                    onPlay = { viewModel.play(video) },
+                                    onDownload = { viewModel.download(video) },
+                                    onDeleteDownload = { viewModel.deleteDownload(video) },
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            }
+                            if (state.loadingMore) item { LoadingMoreFooter() }
                         }
-                        filterField(listFilter, shown.size, state.videos.size)
-                        items(shown, key = { it.id.value }) { video ->
-                            MediaItemRow(
-                                item = video,
-                                subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
-                                downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                                pillar = MediaKind.VIDEO,
-                                onPlay = { viewModel.play(video) },
-                                onDownload = { viewModel.download(video) },
-                                onDeleteDownload = { viewModel.deleteDownload(video) },
-                            )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        }
-                        if (state.loadingMore) item { LoadingMoreFooter() }
                     }
                 }
             }

@@ -63,6 +63,7 @@ import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.VideoChannelSaver
 import com.dewijones92.totum.ui.common.mediaFacts
 import com.dewijones92.totum.ui.common.mediaItemFacts
@@ -264,6 +265,10 @@ private fun SearchHistory(
 @Composable
 private fun labelled(emoji: String, titleRes: Int): String = "$emoji " + stringResource(titleRes)
 
+private fun Results.Loaded.selectableItems(): List<MediaItem> =
+    songs.itemsOrNull.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) } +
+        videos.itemsOrNull?.items.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_VIDEO_SOURCE) }
+
 @Composable
 private fun ResultsList(
     results: Results.Loaded,
@@ -279,60 +284,59 @@ private fun ResultsList(
 ) {
     val listState = rememberLazyListState()
     // The same scroll trigger the account feeds and channel tabs use.
-    LoadMoreOnScrollToEnd(
-        listState,
-        enabled = results.canLoadMore && !results.loadingMore,
-        shownCount = results.videos.itemsOrNull?.items?.size ?: 0,
-        loadMore = onLoadMoreVideos,
-    )
-    LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
-        torrentSection(results, onPlayTorrent)
-        hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
-                hit: SearchHit.Podcast ->
-            PodcastHitRow(
-                hit = hit,
-                subscribed = hit.feedUrl.value in state.subscribedFeeds,
-                onSubscribe = { onSubscribe(hit) },
-            )
-        }
-        hitSection({ labelled(FactEmoji.SONG, R.string.section_songs) }, results.songs) {
-                hit: SearchHit.Song ->
-            SongHitRow(
-                hit = hit,
-                resolving = state.resolving == hit.watchUrl.value,
-                onPlay = { onPlaySong(hit) },
-                actions = actions,
-            )
-        }
-        hitSection(
-            { labelled(FactEmoji.CHANNEL, R.string.destination_videos) },
-            results.videos.map { page -> page.items },
-        ) { hit: SearchHit.Video ->
-            VideoHitRow(
-                hit = hit,
-                resolving = state.resolving == hit.watchUrl.value,
-                onPlay = { onPlayVideo(hit) },
-                actions = actions,
-                onGoToChannel = onGoToChannel,
-            )
-        }
+    val shownVideos = results.videos.itemsOrNull?.items?.size ?: 0
+    LoadMoreOnScrollToEnd(listState, results.canLoadMore && !results.loadingMore, shownVideos, onLoadMoreVideos)
+    val selectable = remember(results) { results.selectableItems() }
+    SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            torrentSection(results, onPlayTorrent)
+            hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
+                    hit: SearchHit.Podcast ->
+                PodcastHitRow(
+                    hit = hit,
+                    subscribed = hit.feedUrl.value in state.subscribedFeeds,
+                    onSubscribe = { onSubscribe(hit) },
+                )
+            }
+            hitSection({ labelled(FactEmoji.SONG, R.string.section_songs) }, results.songs) {
+                    hit: SearchHit.Song ->
+                SongHitRow(
+                    hit = hit,
+                    resolving = state.resolving == hit.watchUrl.value,
+                    onPlay = { onPlaySong(hit) },
+                    actions = actions,
+                )
+            }
+            hitSection(
+                { labelled(FactEmoji.CHANNEL, R.string.destination_videos) },
+                results.videos.map { page -> page.items },
+            ) { hit: SearchHit.Video ->
+                VideoHitRow(
+                    hit = hit,
+                    resolving = state.resolving == hit.watchUrl.value,
+                    onPlay = { onPlayVideo(hit) },
+                    actions = actions,
+                    onGoToChannel = onGoToChannel,
+                )
+            }
 
-        if (results.loadingMore) {
-            item {
-                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            if (results.loadingMore) {
+                item {
+                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
                 }
             }
-        }
 
-        if (state.resolveFailed) {
-            item {
-                Text(
-                    text = stringResource(R.string.error_extraction),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(16.dp),
-                )
+            if (state.resolveFailed) {
+                item {
+                    Text(
+                        text = stringResource(R.string.error_extraction),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             }
         }
     }

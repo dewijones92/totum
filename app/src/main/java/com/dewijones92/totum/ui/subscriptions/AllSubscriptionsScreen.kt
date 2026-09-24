@@ -1,7 +1,6 @@
 package com.dewijones92.totum.ui.subscriptions
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,18 +35,26 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.channel.ChannelCheckProgress
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
+import com.dewijones92.totum.ui.common.SelectableList
+import com.dewijones92.totum.ui.common.SelectionCheckbox
 import com.dewijones92.totum.ui.common.SourceArtwork
+import com.dewijones92.totum.ui.common.isSelecting
+import com.dewijones92.totum.ui.common.orSelected
 import com.dewijones92.totum.ui.common.pillarRowTint
+import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.selectableClicks
 
 @Composable
 fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -61,6 +68,7 @@ fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier
         modifier = modifier,
         checking = checking,
         onRefresh = { viewModel.checkChannels(force = true) },
+        onUnsubscribe = viewModel::unsubscribe,
     )
 }
 
@@ -72,8 +80,10 @@ internal fun AllSubscriptionsContent(
     modifier: Modifier = Modifier,
     checking: ChannelCheckProgress? = null,
     onRefresh: () -> Unit = {},
+    onUnsubscribe: (List<MediaSource>) -> Unit = {},
     onOpen: ((SourceActivity) -> Unit)? = LocalOpenSource.current?.let { open -> { open(it.source) } },
 ) {
+    val selection = rememberSelection("subscriptions")
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(stringResource(R.string.all_subscriptions_title), onBack)
@@ -83,7 +93,19 @@ internal fun AllSubscriptionsContent(
                     SubscriptionsBody(sources, onOpen)
                 } else {
                     FilterableList("subscriptions", sources, { it.source.searchableText }) { shown, _ ->
-                        SubscriptionsBody(shown, onOpen)
+                        SelectableList(
+                            selection,
+                            sources,
+                            shown,
+                            { it.source.id.value },
+                            { chosen ->
+                                listOf(
+                                    BulkAction(R.string.channel_unsubscribe, confirm = R.plurals.unsubscribe_confirm) {
+                                        onUnsubscribe(chosen.map { it.source })
+                                    },
+                                )
+                            },
+                        ) { SubscriptionsBody(shown, onOpen) }
                     }
                 }
             }
@@ -134,8 +156,13 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(pillarRowTint(pillar))
-            .clickable(enabled = onOpen != null) { onOpen?.invoke(activity) }
+            .background(pillarRowTint(pillar).orSelected(source.id.value))
+            .selectableClicks(
+                source.id.value,
+                enabled = onOpen != null,
+                onClick = { onOpen?.invoke(activity) },
+                onLongClick = null
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         SourceArtwork(source.artworkUrl, pillar, Modifier.size(ARTWORK_SIZE))
@@ -153,6 +180,7 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (isSelecting()) SelectionCheckbox(source.id.value, source.title)
     }
 }
 

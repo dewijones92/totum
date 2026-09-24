@@ -54,7 +54,7 @@ interface ListenMode {
 
 class MediaItemActions internal constructor(
     private val queue: PlaybackQueue,
-    private val openPlaylistPicker: (MediaItem) -> Unit,
+    private val openPlaylistPicker: (List<MediaItem>) -> Unit,
     private val locator: SourceLocator,
     private val scope: CoroutineScope,
     private val mode: ListenMode,
@@ -95,8 +95,10 @@ class MediaItemActions internal constructor(
         item.toPlayableOrNull()?.let(queue::enqueue)
     }
 
-    fun addToPlaylist(item: MediaItem) {
-        openPlaylistPicker(item)
+    fun addToPlaylist(item: MediaItem) = addToPlaylist(listOf(item))
+
+    fun addToPlaylist(items: List<MediaItem>) {
+        openPlaylistPicker(items)
     }
 
     /**
@@ -155,7 +157,7 @@ fun rememberMediaItemActions(
     container: AppContainer,
     snackbar: SnackbarHostState? = null,
 ): MediaItemActions {
-    val adder = com.dewijones92.totum.ui.playlist.rememberPlaylistAdder(container)
+    val adder = com.dewijones92.totum.ui.playlist.rememberPlaylistPicker(container)
     // Two scopes, deliberately. Starting playback goes on the application scope so that
     // changing tabs mid-resolve cannot cancel it; only the snackbar — which genuinely has
     // nothing to say once its host is gone — stays tied to the composition.

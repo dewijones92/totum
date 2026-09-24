@@ -46,6 +46,7 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
@@ -187,26 +188,28 @@ private fun EpisodeList(
 ) {
     val actions = rememberMediaItemActions(container)
     val shown = listFilter.filter(episodes, { it.searchableText })
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
-        }
-        filterField(listFilter, shown.size, episodes.size)
-        items(shown, key = { it.id.value }) { episode ->
-            MediaItemRow(
-                item = episode,
-                subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
-                downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
-                pillar = MediaKind.PODCAST,
-                onPlay = { viewModel.play(episode) },
-                onDownload = { viewModel.download(episode) },
-                onDeleteDownload = { viewModel.deleteDownload(episode) },
-                onPlayNext = { viewModel.playNext(episode) },
-                onAddToQueue = { viewModel.enqueue(episode) },
-                onAddToPlaylist = { actions.addToPlaylist(episode) },
-                onGoToSource = null,
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+    SelectableMediaList("podcast page", episodes, shown, { it }, key = listFilter.place) {
+        LazyColumn(Modifier.fillMaxSize()) {
+            item {
+                MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
+            }
+            filterField(listFilter, shown.size, episodes.size)
+            items(shown, key = { it.id.value }) { episode ->
+                MediaItemRow(
+                    item = episode,
+                    subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
+                    downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
+                    pillar = MediaKind.PODCAST,
+                    onPlay = { viewModel.play(episode) },
+                    onDownload = { viewModel.download(episode) },
+                    onDeleteDownload = { viewModel.deleteDownload(episode) },
+                    onPlayNext = { viewModel.playNext(episode) },
+                    onAddToQueue = { viewModel.enqueue(episode) },
+                    onAddToPlaylist = { actions.addToPlaylist(episode) },
+                    onGoToSource = null,
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            }
         }
     }
 }

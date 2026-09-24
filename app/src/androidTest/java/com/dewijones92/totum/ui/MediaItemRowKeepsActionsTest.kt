@@ -75,7 +75,7 @@ class MediaItemRowKeepsActionsTest {
     private val actions = object : ItemActions {
         override fun playNext(item: MediaItem) = Unit
         override fun addToQueue(item: MediaItem) = Unit
-        override fun addToPlaylist(item: MediaItem) = Unit
+        override fun addToPlaylist(items: List<MediaItem>) = Unit
         override fun peek(item: MediaItem) = Unit
         override fun download(item: MediaItem, audioOnly: Boolean) { downloadsAsked += item.id to audioOnly }
         override fun deleteDownload(id: MediaItemId) { deletesAsked += id }

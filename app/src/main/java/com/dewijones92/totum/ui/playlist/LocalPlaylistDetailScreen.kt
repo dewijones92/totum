@@ -36,9 +36,11 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
 
 /** One local playlist: Play all, play from an item, remove items, rename/delete. */
@@ -109,20 +111,30 @@ private fun PlaylistBody(
         Text(stringResource(R.string.playlist_play_all), modifier = Modifier.padding(start = 8.dp))
     }
     FilterableList("local-playlist", items, { it.item.searchableText }) { shown, _ ->
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(shown, key = { it.item.id.value }) { playlistItem ->
-                val media = playlistItem.item
-                MediaItemRow(
-                    item = media,
-                    subtitleLines = mediaItemFacts(media, playlistItem.pillar, LocalNow.current),
-                    downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
-                    pillar = playlistItem.pillar,
-                    onPlay = { viewModel.playFrom(playlistItem) },
-                    onDownload = { viewModel.download(media) },
-                    onDeleteDownload = { viewModel.deleteDownload(media.id) },
-                    onRemoveFromPlaylist = { viewModel.remove(media.id) },
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SelectableMediaList(
+            "local-playlist",
+            items,
+            shown,
+            { it.item },
+            extra = { chosen ->
+                listOf(BulkAction(R.string.playlist_remove_from) { chosen.forEach { viewModel.remove(it.item.id) } })
+            },
+        ) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(shown, key = { it.item.id.value }) { playlistItem ->
+                    val media = playlistItem.item
+                    MediaItemRow(
+                        item = media,
+                        subtitleLines = mediaItemFacts(media, playlistItem.pillar, LocalNow.current),
+                        downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
+                        pillar = playlistItem.pillar,
+                        onPlay = { viewModel.playFrom(playlistItem) },
+                        onDownload = { viewModel.download(media) },
+                        onDeleteDownload = { viewModel.deleteDownload(media.id) },
+                        onRemoveFromPlaylist = { viewModel.remove(media.id) },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
             }
         }
     }

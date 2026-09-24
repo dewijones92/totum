@@ -30,7 +30,7 @@ internal fun ItemActionSheet(
         title = item.title,
         onPlayNext = { actions.playNext(item) },
         onAddToQueue = { actions.addToQueue(item) },
-        onAddToPlaylist = { actions.addToPlaylist(item) },
+        onAddToPlaylist = { actions.addToPlaylist(listOf(item)) },
         // All three belong to a list that has an index or a membership; nothing here has one.
         onRemoveFromPlaylist = null,
         onRemoveFromQueue = null,

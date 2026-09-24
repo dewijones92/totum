@@ -220,7 +220,7 @@ class GoToSourceGoesThereTest {
     private object InertActions : ItemActions {
         override fun playNext(item: MediaItem) = Unit
         override fun addToQueue(item: MediaItem) = Unit
-        override fun addToPlaylist(item: MediaItem) = Unit
+        override fun addToPlaylist(items: List<MediaItem>) = Unit
         override fun peek(item: MediaItem) = Unit
         override fun download(item: MediaItem, audioOnly: Boolean) = Unit
         override fun deleteDownload(id: MediaItemId) = Unit

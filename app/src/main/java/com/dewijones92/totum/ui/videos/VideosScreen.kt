@@ -68,6 +68,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
@@ -352,67 +353,66 @@ private fun ChannelsAndVideos(
     // cannot survive being applied to an empty list, so "scroll=40 videos=0" and
     // "scroll=0 videos=40" are different bugs that look identical without it.
     val listFilter = rememberListFilter("videos")
-    TrackPlace("videos") {
-        "feed=${state.selected} scroll=${listState.firstVisibleItemIndex}" +
-            "+${listState.firstVisibleItemScrollOffset} videos=${state.videos.size} filter=\"${listFilter.query}\""
-    }
+    TrackPlace("videos") { videosPlace(state, listState, listFilter) }
     // The SHOWN count, not state.videos.size: with a filter on, a page of arriving videos
     // can add nothing visible, and paging on the raw count never notices.
     val unwatchedFiltered = state.videos.filteredBy(filter) { playStates[it] ?: PlayState.Unplayed }
     val shown = listFilter.filter(unwatchedFiltered, { it.searchableText }, pausesPaging = state.canLoadMore)
     LoadMoreUnlessFiltered(listFilter, listState, state.canLoadMore && !state.loadingMore, shown.size, onLoadMore)
-    LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
-        if (state.subscriptions.isNotEmpty()) {
-            item { SubscriptionChips(state.subscriptions, onChannelClick) }
-        }
-        // Signed in OR holding groups. The account feeds need an account, but a group can be
-        // all podcasts and needs none — gating the whole selector on sign-in hid every group
-        // Dewi had made, which is a strange way to treat the one part that was still working.
-        if (state.signedIn || state.groups.isNotEmpty()) {
-            item { FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) }
-        }
-        when {
-            // Skeletons only when there is genuinely NOTHING to show. Cached items arrive
-            // while `feedLoading` is still true — that is the whole point of them — and this
-            // branch was hiding them behind placeholders: the log said 45 items and the screen
-            // said loading, which is exactly what a screenshot caught on 2026-07-31. The
-            // global BusyBar and pull-to-refresh still say work is in flight.
-            state.feedLoading && state.videos.isEmpty() -> item { FeedLoading() }
-            state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
-            state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
-            else -> {
-                item {
-                    SectionHeaderWithSort(
-                        title = feedTitle(state.selected),
-                        sort = state.sort,
-                        onSetSort = onSetSort,
-                    )
+    SelectableMediaList("videos", state.videos, shown, { it }, modifier.fillMaxSize()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            if (state.subscriptions.isNotEmpty()) {
+                item { SubscriptionChips(state.subscriptions, onChannelClick) }
+            }
+            // Signed in OR holding groups. The account feeds need an account, but a group can be
+            // all podcasts and needs none — gating the whole selector on sign-in hid every group
+            // Dewi had made, which is a strange way to treat the one part that was still working.
+            if (state.signedIn || state.groups.isNotEmpty()) {
+                item { FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) }
+            }
+            when {
+                // Skeletons only when there is genuinely NOTHING to show. Cached items arrive
+                // while `feedLoading` is still true — that is the whole point of them — and this
+                // branch was hiding them behind placeholders: the log said 45 items and the screen
+                // said loading, which is exactly what a screenshot caught on 2026-07-31. The
+                // global BusyBar and pull-to-refresh still say work is in flight.
+                state.feedLoading && state.videos.isEmpty() -> item { FeedLoading() }
+                state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
+                state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
+                else -> {
+                    item {
+                        SectionHeaderWithSort(
+                            title = feedTitle(state.selected),
+                            sort = state.sort,
+                            onSetSort = onSetSort,
+                        )
+                    }
+                    item { MediaFilterChips(selected = filter, onSelect = onSetFilter) }
+                    filterField(listFilter, shown.size, unwatchedFiltered.size) {
+                        FeedMessage(stringResource(R.string.filter_hides_everything))
+                    }
+                    items(shown, key = { it.id.value }) { video ->
+                        MediaItemRow(
+                            item = video,
+                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                            downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                            pillar = MediaKind.VIDEO,
+                            onPlay = { onPlay(video) },
+                            onDownload = { onDownload(video) },
+                            onDeleteDownload = { onDeleteDownload(video) },
+                            onPlayNext = { actions.playNext(video) },
+                            onAddToQueue = { actions.addToQueue(video) },
+                            onAddToPlaylist = { actions.addToPlaylist(video) },
+                            onPeek = { actions.peek(video) },
+                            onDownloadVideo = { onDownload(video) },
+                            onSwitchMode = { onSwitchMode(video) },
+                            audioMode = actions.audioMode,
+                            onGoToSource = { onGoToChannel(video) },
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    if (state.loadingMore) item { LoadingMoreFooter() }
                 }
-                item { MediaFilterChips(selected = filter, onSelect = onSetFilter) }
-                filterField(listFilter, shown.size, unwatchedFiltered.size) {
-                    FeedMessage(stringResource(R.string.filter_hides_everything))
-                }
-                items(shown, key = { it.id.value }) { video ->
-                    MediaItemRow(
-                        item = video,
-                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
-                        downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                        pillar = MediaKind.VIDEO,
-                        onPlay = { onPlay(video) },
-                        onDownload = { onDownload(video) },
-                        onDeleteDownload = { onDeleteDownload(video) },
-                        onPlayNext = { actions.playNext(video) },
-                        onAddToQueue = { actions.addToQueue(video) },
-                        onAddToPlaylist = { actions.addToPlaylist(video) },
-                        onPeek = { actions.peek(video) },
-                        onDownloadVideo = { onDownload(video) },
-                        onSwitchMode = { onSwitchMode(video) },
-                        audioMode = actions.audioMode,
-                        onGoToSource = { onGoToChannel(video) },
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                }
-                if (state.loadingMore) item { LoadingMoreFooter() }
             }
         }
     }

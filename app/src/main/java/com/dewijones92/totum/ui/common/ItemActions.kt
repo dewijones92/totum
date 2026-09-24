@@ -22,7 +22,7 @@ import com.dewijones92.totum.domain.MediaSource
 internal interface ItemActions {
     fun playNext(item: MediaItem)
     fun addToQueue(item: MediaItem)
-    fun addToPlaylist(item: MediaItem)
+    fun addToPlaylist(items: List<MediaItem>)
     fun peek(item: MediaItem)
     fun download(item: MediaItem, audioOnly: Boolean)
     fun deleteDownload(id: MediaItemId)

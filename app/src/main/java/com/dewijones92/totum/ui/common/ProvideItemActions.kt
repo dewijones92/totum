@@ -52,7 +52,7 @@ private class ContainerItemActions(
 ) : ItemActions {
     override fun playNext(item: MediaItem) = rows.playNext(item)
     override fun addToQueue(item: MediaItem) = rows.addToQueue(item)
-    override fun addToPlaylist(item: MediaItem) = rows.addToPlaylist(item)
+    override fun addToPlaylist(items: List<MediaItem>) = rows.addToPlaylist(items)
     override fun peek(item: MediaItem) = rows.peek(item)
 
     override fun download(item: MediaItem, audioOnly: Boolean) {

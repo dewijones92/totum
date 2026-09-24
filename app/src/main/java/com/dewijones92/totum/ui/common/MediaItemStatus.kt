@@ -215,6 +215,10 @@ internal fun pillarRowTint(pillar: MediaKind): Color {
     }
 }
 
+@Composable
+internal fun selectedRowTint(): Color = MaterialTheme.colorScheme.primary.copy(alpha = SELECTED_TINT_ALPHA)
+
+private const val SELECTED_TINT_ALPHA = 0.28f
 private const val VIDEO_TINT_ALPHA = 0.14f
 private const val VIDEO_TINT_ALPHA_ON_DARK = 0.30f
 private const val PODCAST_TINT_ALPHA = 0.18f

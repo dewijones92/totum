@@ -48,6 +48,7 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
@@ -242,23 +243,25 @@ private fun MediaItemTab(
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
-        else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            listFilter?.let { filterField(it, shown.size, tab.items.size) }
-            items(shown, key = { it.id.value }) { video ->
-                MediaItemRow(
-                    item = video,
-                    subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
-                    downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                    pillar = MediaKind.VIDEO,
-                    onPlay = { onPlay(video) },
-                    onDownload = { onDownload(video) },
-                    onDeleteDownload = { onDeleteDownload(video) },
-                    onAddToPlaylist = { onAddToPlaylist(video) },
-                    onGoToSource = null,
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        else -> SelectableMediaList("channel tab", tab.items, shown, { it }, key = listFilter?.place) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                listFilter?.let { filterField(it, shown.size, tab.items.size) }
+                items(shown, key = { it.id.value }) { video ->
+                    MediaItemRow(
+                        item = video,
+                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                        downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                        pillar = MediaKind.VIDEO,
+                        onPlay = { onPlay(video) },
+                        onDownload = { onDownload(video) },
+                        onDeleteDownload = { onDeleteDownload(video) },
+                        onAddToPlaylist = { onAddToPlaylist(video) },
+                        onGoToSource = null,
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
+                if (tab.loadingMore) item { LoadingMoreFooter() }
             }
-            if (tab.loadingMore) item { LoadingMoreFooter() }
         }
     }
 }

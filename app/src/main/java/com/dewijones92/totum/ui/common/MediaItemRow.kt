@@ -2,7 +2,6 @@ package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -96,7 +95,7 @@ fun MediaItemRow(
     // (remove-from-playlist, move-within-queue) stay null, because they only exist somewhere.
     onPlayNext: (() -> Unit)? = LocalItemActions.current.bind { playNext(item) },
     onAddToQueue: (() -> Unit)? = LocalItemActions.current.bind { addToQueue(item) },
-    onAddToPlaylist: (() -> Unit)? = LocalItemActions.current.bind { addToPlaylist(item) },
+    onAddToPlaylist: (() -> Unit)? = LocalItemActions.current.bind { addToPlaylist(listOf(item)) },
     onRemoveFromPlaylist: (() -> Unit)? = null,
     /**
      * Queue-only: drop this entry from the up-next order. Null everywhere else, like the move
@@ -146,13 +145,15 @@ fun MediaItemRow(
         downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed,
         onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
+    val id = item.id.value
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
             // Under the click, so the ripple still draws on top of it.
-            .background(tint)
-            .combinedClickable(
+            .background(tint.orSelected(id))
+            .selectableClicks(
+                id = id,
                 enabled = item.mediaUrl != null || hasMenu,
                 onClick = { if (item.mediaUrl != null) onPlay() },
                 onLongClick = if (hasMenu) ({ showSheet = true }) else null,
@@ -164,12 +165,9 @@ fun MediaItemRow(
         ThumbnailWithProgress(item, playState)
         Spacer(Modifier.width(14.dp))
         TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, Modifier.weight(1f))
-        if (hasMenu) {
-            IconButton(onClick = { showSheet = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
-            }
+        RowEnd(id, item.title, hasMenu, { showSheet = true }) {
+            TrailingControl(trailing, downloadState, onDownload, onDeleteDownload)
         }
-        TrailingControl(trailing, downloadState, onDownload, onDeleteDownload)
     }
     if (showSheet) {
         ActionSheet(
@@ -194,6 +192,20 @@ fun MediaItemRow(
             onDismiss = { showSheet = false },
         )
     }
+}
+
+@Composable
+private fun RowEnd(id: String, title: String, hasMenu: Boolean, onMenu: () -> Unit, trailing: @Composable () -> Unit) {
+    if (isSelecting()) {
+        SelectionCheckbox(id, title)
+        return
+    }
+    if (hasMenu) {
+        IconButton(onClick = onMenu) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
+        }
+    }
+    trailing()
 }
 
 /** "Download the video too" only makes sense once the local copy is audio-only. */

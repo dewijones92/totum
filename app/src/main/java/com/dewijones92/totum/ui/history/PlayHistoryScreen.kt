@@ -30,6 +30,7 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
@@ -52,19 +53,21 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                 HistoryEmpty()
             } else {
                 FilterableList("history", items, { it.item.searchableText }) { shown, _ ->
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(shown, key = { it.item.id.value }) { entry ->
-                            MediaItemRow(
-                                item = entry.item,
-                                subtitleLines = mediaItemFacts(entry.item, entry.pillar, LocalNow.current),
-                                downloadState = downloadStates[entry.item.id] ?: DownloadState.NotDownloaded,
-                                pillar = entry.pillar,
-                                onPlay = { viewModel.play(entry) },
-                                onDownload = { viewModel.download(entry.item) },
-                                onDeleteDownload = { viewModel.deleteDownload(entry.item.id) },
-                                onAddToPlaylist = { addToPlaylist(entry.item) },
-                            )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    SelectableMediaList("history", items, shown, { it.item }) {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(shown, key = { it.item.id.value }) { entry ->
+                                MediaItemRow(
+                                    item = entry.item,
+                                    subtitleLines = mediaItemFacts(entry.item, entry.pillar, LocalNow.current),
+                                    downloadState = downloadStates[entry.item.id] ?: DownloadState.NotDownloaded,
+                                    pillar = entry.pillar,
+                                    onPlay = { viewModel.play(entry) },
+                                    onDownload = { viewModel.download(entry.item) },
+                                    onDeleteDownload = { viewModel.deleteDownload(entry.item.id) },
+                                    onAddToPlaylist = { addToPlaylist(entry.item) },
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            }
                         }
                     }
                 }

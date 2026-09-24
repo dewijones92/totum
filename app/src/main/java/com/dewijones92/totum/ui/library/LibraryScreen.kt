@@ -57,6 +57,7 @@ import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
+import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
@@ -192,56 +193,58 @@ internal fun LibraryContent(
     val listFilter = rememberListFilter("downloads")
     val shown = listFilter.filter(downloaded, { it.item.searchableText })
     Column(modifier = modifier.fillMaxSize()) {
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            item { PlaylistsEntry(onOpenPlaylists) }
-            item {
-                LibraryNavEntry(
-                    Icons.Outlined.Subscriptions,
-                    R.string.all_subscriptions_title,
-                    onOpenSubscriptions,
-                )
-            }
-            item { HistoryEntry(onOpenHistory) }
-            item { AccountEntry(onOpenAccount) }
-            // In-progress FIRST, and outside the empty check: a fresh install with everything
-            // still downloading would otherwise show "nothing downloaded yet" while the phone
-            // was busily downloading, which is the most misleading thing this screen could say.
-            runningSection(inProgress, onCancel, onCancelAll)
-            failedSection(failed, onRetry, onDismiss)
-            if (downloaded.isEmpty() && inProgress.isEmpty() && failed.isEmpty()) {
-                item { DownloadsEmpty() }
-            } else if (downloaded.isNotEmpty()) {
+        SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                item { PlaylistsEntry(onOpenPlaylists) }
                 item {
-                    SectionHeaderWithSortOptions(
-                        title = stringResource(R.string.library_downloads),
-                        options = DownloadSort.ALL,
-                        current = sort,
-                        label = { it.labelRes },
-                        onSelect = onSetSort,
+                    LibraryNavEntry(
+                        Icons.Outlined.Subscriptions,
+                        R.string.all_subscriptions_title,
+                        onOpenSubscriptions,
                     )
                 }
-                item { StorageSummary(storage) }
-                filterField(listFilter, shown.size, downloaded.size)
-                items(shown, key = { it.item.id.value }) { entry ->
-                    MediaItemRow(
-                        item = entry.item,
-                        // The size sits with the item it belongs to; a total alone cannot
-                        // tell you which download is the one worth deleting. Its own line, like
-                        // every other fact — it used to be glued onto the end of the subtitle,
-                        // which is precisely where an ellipsis reached it first.
-                        subtitleLines = mediaItemFacts(entry.item, entry.media.pillar, LocalNow.current) +
-                            "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}",
-                        downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
-                        pillar = entry.media.pillar,
-                        onPlay = { onPlay(entry) },
-                        onDownload = { },
-                        onDeleteDownload = { onDelete(entry) },
-                        onAddToPlaylist = { onAddToPlaylist(entry) },
-                        // An audio-only copy of a video is still missing the picture,
-                        // and Library is exactly where you'd notice.
-                        onDownloadVideo = actions?.let { { it.download(entry.item, audioOnly = false) } },
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                item { HistoryEntry(onOpenHistory) }
+                item { AccountEntry(onOpenAccount) }
+                // In-progress FIRST, and outside the empty check: a fresh install with everything
+                // still downloading would otherwise show "nothing downloaded yet" while the phone
+                // was busily downloading, which is the most misleading thing this screen could say.
+                runningSection(inProgress, onCancel, onCancelAll)
+                failedSection(failed, onRetry, onDismiss)
+                if (downloaded.isEmpty() && inProgress.isEmpty() && failed.isEmpty()) {
+                    item { DownloadsEmpty() }
+                } else if (downloaded.isNotEmpty()) {
+                    item {
+                        SectionHeaderWithSortOptions(
+                            title = stringResource(R.string.library_downloads),
+                            options = DownloadSort.ALL,
+                            current = sort,
+                            label = { it.labelRes },
+                            onSelect = onSetSort,
+                        )
+                    }
+                    item { StorageSummary(storage) }
+                    filterField(listFilter, shown.size, downloaded.size)
+                    items(shown, key = { it.item.id.value }) { entry ->
+                        MediaItemRow(
+                            item = entry.item,
+                            // The size sits with the item it belongs to; a total alone cannot
+                            // tell you which download is the one worth deleting. Its own line, like
+                            // every other fact — it used to be glued onto the end of the subtitle,
+                            // which is precisely where an ellipsis reached it first.
+                            subtitleLines = mediaItemFacts(entry.item, entry.media.pillar, LocalNow.current) +
+                                "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}",
+                            downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
+                            pillar = entry.media.pillar,
+                            onPlay = { onPlay(entry) },
+                            onDownload = { },
+                            onDeleteDownload = { onDelete(entry) },
+                            onAddToPlaylist = { onAddToPlaylist(entry) },
+                            // An audio-only copy of a video is still missing the picture,
+                            // and Library is exactly where you'd notice.
+                            onDownloadVideo = actions?.let { { it.download(entry.item, audioOnly = false) } },
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
                 }
             }
         }

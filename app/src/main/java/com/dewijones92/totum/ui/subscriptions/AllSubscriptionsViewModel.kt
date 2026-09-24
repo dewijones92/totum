@@ -35,13 +35,32 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class AllSubscriptionsViewModel(
-    podcasts: PodcastRepository,
+    private val podcasts: PodcastRepository,
     channels: Flow<List<MediaSource.VideoChannel>>,
     private val feedCache: FeedCache,
     private val channelUploads: ChannelLatestUploads? = null,
     private val checkScope: CoroutineScope? = null,
     computation: CoroutineDispatcher = Dispatchers.Default,
+    private val unsubscribeChannel: suspend (MediaSource.VideoChannel) -> Boolean = { false },
 ) : ViewModel() {
+
+    fun unsubscribe(sources: List<MediaSource>) {
+        (checkScope ?: viewModelScope).launch {
+            var channelsFailed = 0
+            sources.forEach { source ->
+                when (source) {
+                    is MediaSource.PodcastFeed -> podcasts.unsubscribe(source.id)
+                    is MediaSource.VideoChannel -> if (!unsubscribeChannel(source)) channelsFailed++
+                }
+            }
+            val shows = sources.count { it is MediaSource.PodcastFeed }
+            Diag.log(
+                "subs",
+                "bulk unsubscribe: ${sources.size} (shows=$shows channels=${sources.size - shows} " +
+                    "channelsNotWrittenToAccount=$channelsFailed)",
+            )
+        }
+    }
 
     val checking: StateFlow<ChannelCheckProgress?> = channelUploads?.progress ?: MutableStateFlow(null)
 
@@ -100,6 +119,7 @@ class AllSubscriptionsViewModel(
                     feedCache = container.feedCache,
                     channelUploads = container.channelLatestUploads,
                     checkScope = container.applicationScope,
+                    unsubscribeChannel = { container.accountSubscriptions.setSubscribed(it, subscribed = false) },
                 )
             }
         }

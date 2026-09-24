@@ -1,7 +1,9 @@
 package com.dewijones92.totum.ui.videos
 
+import androidx.compose.foundation.lazy.LazyListState
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.innertube.feeds.AccountFeed
+import com.dewijones92.totum.ui.common.ListFilter
 
 /**
  * What the Videos tab is showing: one of YouTube's account feeds, or one of Dewi's own
@@ -28,3 +30,7 @@ internal fun FeedChoice.cacheKey(): String = when (this) {
     is FeedChoice.Account -> feed.name
     is FeedChoice.Group -> "group:${group.id.value}"
 }
+
+internal fun videosPlace(state: VideosViewModel.UiState, listState: LazyListState, listFilter: ListFilter): String =
+    "feed=${state.selected} scroll=${listState.firstVisibleItemIndex}" +
+        "+${listState.firstVisibleItemScrollOffset} videos=${state.videos.size} filter=\"${listFilter.query}\""

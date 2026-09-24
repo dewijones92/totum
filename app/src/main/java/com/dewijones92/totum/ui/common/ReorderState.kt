@@ -1,5 +1,7 @@
 package com.dewijones92.totum.ui.common
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
@@ -14,6 +16,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -61,6 +64,9 @@ class ReorderState internal constructor(
     private val scope: CoroutineScope,
 ) {
     internal var draggingIndex by mutableIntStateOf(NONE)
+
+    var gripHeld: Boolean by mutableStateOf(false)
+        private set
     private var accumulated by mutableFloatStateOf(0f)
 
     /**
@@ -150,6 +156,21 @@ class ReorderState internal constructor(
         val handleTop = remember { mutableFloatStateOf(0f) }
         return this
             .onGloballyPositioned { handleTop.floatValue = it.positionInWindow().y }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    gripHeld = true
+                    Diag.log("reorder", "dewidebug grip down")
+                    try {
+                        do {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                        } while (event.changes.any { it.pressed })
+                    } finally {
+                        gripHeld = false
+                        Diag.log("reorder", "dewidebug grip up")
+                    }
+                }
+            }
             .pointerInput(Unit) {
                 // Drag starts on TOUCH, not after a long press.
                 //

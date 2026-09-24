@@ -1,6 +1,6 @@
 package com.dewijones92.totum.ui.playlist
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,7 +37,14 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.FilterableList
+import com.dewijones92.totum.ui.common.SelectableList
+import com.dewijones92.totum.ui.common.SelectionCheckbox
+import com.dewijones92.totum.ui.common.isSelecting
+import com.dewijones92.totum.ui.common.orSelected
+import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.selectableClicks
 
 /** The user's local playlists: create one, or open one. */
 @Composable
@@ -75,7 +83,7 @@ fun LocalPlaylistsScreen(
                     )
                 }
             }
-            PlaylistList(playlists, onOpen)
+            PlaylistList(playlists, onOpen, onDelete = viewModel::delete)
         }
     }
 
@@ -97,7 +105,8 @@ private fun PlaylistRow(playlist: LocalPlaylist, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .background(Color.Transparent.orSelected(playlist.id.value))
+            .selectableClicks(playlist.id.value, enabled = true, onClick = onClick, onLongClick = null)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Icon(
@@ -121,6 +130,7 @@ private fun PlaylistRow(playlist: LocalPlaylist, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (isSelecting()) SelectionCheckbox(playlist.id.value, playlist.name)
     }
 }
 
@@ -154,7 +164,8 @@ internal fun NamePlaylistDialog(
 }
 
 @Composable
-private fun PlaylistList(playlists: List<LocalPlaylist>, onOpen: (PlaylistId) -> Unit) {
+private fun PlaylistList(playlists: List<LocalPlaylist>, onOpen: (PlaylistId) -> Unit, onDelete: (PlaylistId) -> Unit) {
+    val selection = rememberSelection("local-playlists")
     if (playlists.isEmpty()) {
         Text(
             text = stringResource(R.string.local_playlists_empty),
@@ -167,10 +178,24 @@ private fun PlaylistList(playlists: List<LocalPlaylist>, onOpen: (PlaylistId) ->
         return
     }
     FilterableList("local-playlists", playlists, { listOf(it.name) }) { shown, _ ->
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(shown, key = { it.id.value }) { playlist ->
-                PlaylistRow(playlist, onClick = { onOpen(playlist.id) })
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SelectableList(
+            selection,
+            playlists,
+            shown,
+            { it.id.value },
+            { chosen ->
+                listOf(
+                    BulkAction(R.string.playlist_delete, confirm = R.plurals.playlist_delete_confirm) {
+                        chosen.forEach { onDelete(it.id) }
+                    },
+                )
+            },
+        ) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(shown, key = { it.id.value }) { playlist ->
+                    PlaylistRow(playlist, onClick = { onOpen(playlist.id) })
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
             }
         }
     }
