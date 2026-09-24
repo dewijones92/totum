@@ -25,6 +25,20 @@ podcast feed etc) … check other menus also … also make the pictures show for
 | Subscription chips, source page headers | No picture at all — for either pillar | `MediaSource` had no artwork; the feed's own `itunes:image` / `<image>` was never parsed and YouTube's channel avatar was parsed then thrown away |
 | Episodes whose feed only has show-level art | Placeholder glyph | Episode thumbnail was the episode's own `itunes:image` only |
 
+### Found by the independent review (same day), fixed
+
+| Where | Symptom | Fix |
+|---|---|---|
+| The player's ⋮ for an audio-only copy of a video played from Library | Said "Go to podcast" and hid "Download video" | `PlayableItem.pillar` — a video if the ITEM is one, whatever handle it plays through; used by the player sheet and the Queue / History / playlist rows |
+| Subscribing from a podcast page | Left `subscribing = Done` in the shared view model, so the Podcasts tab's "+" dialog then closed instantly; a failure showed nowhere | The page shows progress, toasts a failure, and resets the state itself |
+| Opening a feed page you do not follow | Waited for up to 30 remote chapter files | `preview` skips remote chapters (inline ones still come through) |
+| Rows and playback of episodes queued / downloaded before the show had artwork | Placeholder for ever — those tables are written once | `withArtworkFrom` at render time (`LocalSourceArtwork`) and at the one play seam (`PlaybackQueue.route`), so the notification and lock screen get it too |
+| A torrent file | Offered "Go to podcast", which did nothing | `SourceLocator.canLocate` gates the action |
+| A followed feed's page opened before the Podcasts tab ever composed | Flashed a Subscribe button and started a preview | The page waits for the stored subscriptions to be known |
+| Peek from a shell page / Go to from the player or the Shorts reel | The player opened underneath the page / the page opened underneath the player | Shell pages draw below the player and reel; opening one closes both |
+
+Left as they are, on purpose: the Videos, Search and Podcasts tabs keep their own in-tab "go to", so a page opened from a tab stays in that tab; a backup does not carry artwork (the next refresh restores it).
+
 ## The seams
 
 - **`MediaSource.artworkUrl`** — one field for both pillars. Podcast: channel `itunes:image`, else

@@ -44,7 +44,13 @@ public sealed interface MediaSource {
          */
         val publisher: String? = null,
         override val artworkUrl: HttpUrl? = null,
-    ) : MediaSource
+    ) : MediaSource {
+        public companion object {
+            public fun idFor(feedUrl: HttpUrl): SourceId = SourceId(feedUrl.value)
+
+            public fun feedUrlOf(id: SourceId): HttpUrl? = HttpUrl.parse(id.value)
+        }
+    }
 }
 
 /**
@@ -108,10 +114,21 @@ public fun MediaSource.VideoChannel.isSameChannelAs(other: MediaSource.VideoChan
 public fun List<MediaSource.VideoChannel>.containsChannel(
     source: MediaSource.VideoChannel,
     resolvedId: String? = null,
-): Boolean = when (resolvedId) {
-    null -> any { it.isSameChannelAs(source) }
-    else -> any { it.youTubeChannelId == resolvedId || it.isSameChannelAs(source) }
+): Boolean = findChannel(source, resolvedId) != null
+
+public fun List<MediaSource.VideoChannel>.findChannel(
+    source: MediaSource.VideoChannel,
+    resolvedId: String? = null,
+): MediaSource.VideoChannel? = when (resolvedId) {
+    null -> firstOrNull { it.isSameChannelAs(source) }
+    else -> firstOrNull { it.youTubeChannelId == resolvedId || it.isSameChannelAs(source) }
 }
+
+public fun List<MediaSource>.artworkById(): Map<SourceId, HttpUrl> =
+    mapNotNull { source -> source.artworkUrl?.let { source.id to it } }.toMap()
+
+public fun MediaItem.withArtworkFrom(artwork: Map<SourceId, HttpUrl>): MediaItem =
+    if (thumbnailUrl != null) this else artwork[sourceId]?.let { copy(thumbnailUrl = it) } ?: this
 
 public val MediaSource.pillar: MediaKind
     get() = when (this) {

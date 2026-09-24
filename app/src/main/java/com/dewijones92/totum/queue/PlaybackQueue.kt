@@ -1,6 +1,7 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -14,8 +15,10 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.Refusal
+import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.routeNow
+import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
@@ -110,6 +113,7 @@ class PlaybackQueue(
      * decides to ask for it. Default false so tests and previews behave as before.
      */
     private val audioPreferred: () -> Boolean = { false },
+    private val sourceArtwork: suspend () -> Map<SourceId, HttpUrl> = { emptyMap() },
 ) {
     private val _state = MutableStateFlow(QueueSnapshot())
 
@@ -768,13 +772,22 @@ class PlaybackQueue(
      *
      * Whether a picture is shown is `PlaybackState.hasVideo`'s business, and always was.
      */
+    private suspend fun withSourceArtwork(playable: PlayableItem): PlayableItem {
+        if (playable.item.thumbnailUrl != null) return playable
+        val item = playable.item.withArtworkFrom(sourceArtwork())
+        val outcome = if (item.thumbnailUrl != null) "using its source's" else "its source has none either"
+        Diag.log("playback", "no artwork of its own for ${item.id.value} from ${item.sourceId.value}: $outcome")
+        return playable.copy(item = item)
+    }
+
     private suspend fun route(
-        queued: PlayableItem,
+        listed: PlayableItem,
         startPositionMs: Long,
         streamRefused: Boolean = false,
         /** Forces the audio-only route, for the rescue rung that IS "play this without its picture". */
         forceAudio: Boolean = false,
     ): Boolean {
+        val queued = withSourceArtwork(listed)
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
         // controller directly, so without claiming it here a streaming resolve still in flight
         // would land later and take playback back to the network — which is exactly what report

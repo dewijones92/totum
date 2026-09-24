@@ -66,7 +66,7 @@ fun SourceHeader(
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
         }
-        SourceArtwork(artworkUrl, title, pillar, Modifier.size(56.dp))
+        SourceArtwork(artworkUrl, pillar, Modifier.size(56.dp))
         Column(
             modifier = Modifier
                 .weight(1f)

@@ -23,6 +23,8 @@ public interface SourceLocator {
 
     /** Null when the source can't be determined (unknown feed, unresolvable video). */
     public suspend fun locate(item: MediaItem): MediaSource?
+
+    public fun canLocate(item: MediaItem): Boolean
 }
 
 /**
@@ -36,6 +38,11 @@ public class DefaultSourceLocator(
     private val engine: YtDlpEngine,
 ) : SourceLocator {
 
+    override fun canLocate(item: MediaItem): Boolean = when (item.pillar) {
+        MediaKind.PODCAST -> MediaSource.PodcastFeed.feedUrlOf(item.sourceId) != null
+        MediaKind.VIDEO -> item.sourceUrl != null || item.mediaUrl != null
+    }
+
     override suspend fun locate(item: MediaItem): MediaSource? =
         subscribedFeed(item) ?: when (item.pillar) {
             MediaKind.PODCAST -> unsubscribedFeed(item)
@@ -43,7 +50,7 @@ public class DefaultSourceLocator(
         }
 
     private fun unsubscribedFeed(item: MediaItem): MediaSource? {
-        val feedUrl = HttpUrl.parse(item.sourceId.value) ?: return null
+        val feedUrl = MediaSource.PodcastFeed.feedUrlOf(item.sourceId) ?: return null
         return MediaSource.PodcastFeed(
             id = item.sourceId,
             title = item.author.orEmpty().ifBlank { feedUrl.value },

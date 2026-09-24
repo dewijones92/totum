@@ -94,10 +94,10 @@ private const val PLACEHOLDER_GLYPH_FRACTION = 0.4f
 private const val CHIP_SCRIM = 0.72f
 
 @Composable
-fun SourceArtwork(url: HttpUrl?, title: String, pillar: MediaKind, modifier: Modifier = Modifier) {
+fun SourceArtwork(url: HttpUrl?, pillar: MediaKind, modifier: Modifier = Modifier) {
     MediaThumbnail(
         url = url,
-        contentDescription = title,
+        contentDescription = null,
         modifier = modifier,
         shape = when (pillar) {
             MediaKind.VIDEO -> CircleShape

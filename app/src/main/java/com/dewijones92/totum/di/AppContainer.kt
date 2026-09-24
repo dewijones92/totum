@@ -79,6 +79,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
+import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.importexport.SubscriptionImporter
@@ -298,6 +299,11 @@ interface AppContainer {
 
     /** The signed-in account's subscribed channels, read live (no local copy). */
     val accountSubscriptions: AccountSubscriptions
+
+    val sourceArtwork: Flow<Map<SourceId, HttpUrl>>
+        get() = combine(podcastRepository.observeSubscriptions(), accountSubscriptions.channels) { shows, channels ->
+            (shows.map { it.source } + channels).artworkById()
+        }
 
     /** The signed-in YouTube account seam (device-code login, token upkeep). */
     val youTubeAccount: YouTubeAccount
@@ -967,6 +973,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // itself errs the other way when unsure, which is the safe direction for data.
             offline = ::isOffline,
             refresh = { item -> readyAgain(item) },
+            sourceArtwork = { sourceArtwork.first() },
         )
     }
 

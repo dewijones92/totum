@@ -22,7 +22,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.containsChannel
-import com.dewijones92.totum.domain.isSameChannelAs
+import com.dewijones92.totum.domain.findChannel
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.channel.ChannelPlaylists
 import com.dewijones92.totum.innertube.channel.ChannelVideos
@@ -171,10 +171,8 @@ class ChannelViewModel(
 
     private var lastSubscribedDecision: String? = null
 
-    private fun List<MediaSource.VideoChannel>.artworkFor(c: Content): HttpUrl? {
-        val id = channelId ?: c.resolvedChannelId
-        return firstOrNull { (id != null && it.youTubeChannelId == id) || it.isSameChannelAs(source) }?.artworkUrl
-    }
+    private fun List<MediaSource.VideoChannel>.artworkFor(c: Content): HttpUrl? =
+        findChannel(source, channelId ?: c.resolvedChannelId)?.artworkUrl
 
     /** Adds this channel to [group], or removes it. The picker is a checklist of these. */
     fun toggleGroup(group: SourceGroup) {

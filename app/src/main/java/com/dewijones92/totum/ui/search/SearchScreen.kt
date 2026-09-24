@@ -58,8 +58,8 @@ import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
-import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalNow
+import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -344,7 +344,7 @@ private fun PodcastHitRow(
     subscribed: Boolean,
     onSubscribe: () -> Unit,
     modifier: Modifier = Modifier,
-    onOpen: (() -> Unit)? = LocalItemActions.current?.let { actions -> { actions.openSource(hit.toSource()) } },
+    onOpen: (() -> Unit)? = LocalOpenSource.current?.let { open -> { open(hit.toSource()) } },
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,

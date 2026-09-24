@@ -35,7 +35,7 @@ public class DefaultPodcastRepository(
     override fun observeEpisodes(): Flow<List<MediaItem>> = store.observeItems()
 
     override suspend fun subscribe(feedUrl: HttpUrl): SubscribeResult {
-        val id = SourceId(feedUrl.value)
+        val id = MediaSource.PodcastFeed.idFor(feedUrl)
         if (store.contains(id)) return SubscribeResult.AlreadySubscribed(id)
 
         val (source, items) = when (val loaded = load(feedUrl, "subscribe")) {
@@ -52,7 +52,7 @@ public class DefaultPodcastRepository(
     }
 
     override suspend fun preview(feedUrl: HttpUrl): PreviewResult =
-        when (val loaded = load(feedUrl, "preview")) {
+        when (val loaded = load(feedUrl, "preview", remoteChapters = false)) {
             is Loaded.Feed -> {
                 Diag.log(
                     "podcast",
@@ -71,7 +71,12 @@ public class DefaultPodcastRepository(
         data class Invalid(val detail: String) : Loaded
     }
 
-    private suspend fun load(feedUrl: HttpUrl, purpose: String, id: SourceId = SourceId(feedUrl.value)): Loaded {
+    private suspend fun load(
+        feedUrl: HttpUrl,
+        purpose: String,
+        id: SourceId = MediaSource.PodcastFeed.idFor(feedUrl),
+        remoteChapters: Boolean = true,
+    ): Loaded {
         val body = when (val fetched = fetcher.fetch(feedUrl)) {
             is FetchResult.Success -> fetched.body
             is FetchResult.Failure -> {
@@ -89,7 +94,8 @@ public class DefaultPodcastRepository(
         val source = parsed.toMediaSource(id, feedUrl)
         val decisions = mutableListOf<PublisherChoice>()
         val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(source, index, parsed, resolveChapters(episode, index), decisions)
+            val chapters = if (remoteChapters) resolveChapters(episode, index) else episode.chapters
+            episode.toMediaItem(source, index, parsed, chapters, decisions)
         }
         Diag.log("podcast", parsed.namingDecision(decisions))
         return Loaded.Feed(source, items)
@@ -243,8 +249,8 @@ public class DefaultPodcastRepository(
  * was written for. Every decision is now taken by [publisherFor] and tallied here, so what the
  * report says is what actually happened.
  *
- * One line per feed save, which is per subscribe and per refresh. Feeds refresh on the order of
- * hours, so this cannot crowd the bounded report buffer.
+ * One line per feed load: a subscribe, a refresh, or a preview (one per podcast page opened). Feeds
+ * refresh on the order of hours and pages open on a tap, so this cannot crowd the bounded report buffer.
  */
 private fun ParsedFeed.namingDecision(decisions: List<PublisherChoice>): String {
     val named = decisions.filterIsInstance<PublisherChoice.Named>()

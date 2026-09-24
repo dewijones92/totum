@@ -95,6 +95,9 @@ public data class PlayableItem(
      */
     public val fetchUrl: HttpUrl?
         get() = (handle as? PlayHandle.Video)?.watchUrl ?: item.mediaUrl
+
+    public val pillar: MediaKind
+        get() = if (item.pillar == MediaKind.VIDEO) MediaKind.VIDEO else handle.pillar
 }
 
 /**

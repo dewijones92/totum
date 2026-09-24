@@ -240,6 +240,30 @@ class DefaultPodcastRepositoryTest {
     }
 
     @Test
+    fun `a preview fetches the feed once and no remote chapter files`() = runTest {
+        val fetched = mutableListOf<HttpUrl>()
+        val xml = """
+            <rss version="2.0"><channel><title>Chaptered</title>
+              <item><title>Ep</title><guid>ep1</guid>
+                <enclosure url="https://cdn.example.com/ep.mp3"/>
+                <podcast:chapters url="https://chapters.example.com/ep.json" type="application/json+chapters"/>
+              </item>
+            </channel></rss>
+        """.trimIndent()
+        val repository = DefaultPodcastRepository(
+            fetcher = { url ->
+                fetched += url
+                FetchResult.Success(xml)
+            },
+            store = store,
+        )
+
+        repository.preview(feedUrl)
+
+        assertEquals(listOf(feedUrl), fetched)
+    }
+
+    @Test
     fun `a preview of an unreachable feed says why`() = runTest {
         val preview = repository(FetchResult.Failure("offline")).preview(feedUrl)
 

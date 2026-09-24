@@ -1,9 +1,11 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.SourceId
 
 /**
  * Play state for every item that has one, provided once at the app root.
@@ -29,3 +31,5 @@ internal val LocalSetPlayed = staticCompositionLocalOf<((MediaItemId, Boolean) -
  * wrongly.
  */
 internal val LocalDownloadStates = staticCompositionLocalOf<Map<MediaItemId, DownloadState>> { emptyMap() }
+
+internal val LocalSourceArtwork = staticCompositionLocalOf<Map<SourceId, HttpUrl>> { emptyMap() }

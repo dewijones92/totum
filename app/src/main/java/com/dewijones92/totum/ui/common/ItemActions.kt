@@ -31,7 +31,7 @@ internal interface ItemActions {
     /** Navigates to the item's channel/feed. Hosted once by the shell, so it works anywhere. */
     fun goToSource(item: MediaItem)
 
-    fun openSource(source: MediaSource)
+    fun canGoToSource(item: MediaItem): Boolean
 
     /** True while the app is in listen-only mode, so a row can label its switch action. */
     val audioMode: Boolean
@@ -41,6 +41,8 @@ internal interface ItemActions {
 
 /** Null only in previews and tests, where a row legitimately has nothing behind it. */
 internal val LocalItemActions = staticCompositionLocalOf<ItemActions?> { null }
+
+internal val LocalOpenSource = staticCompositionLocalOf<((MediaSource) -> Unit)?> { null }
 
 /**
  * Binds one action to a row callback, or null where no actions are provided.

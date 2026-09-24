@@ -17,7 +17,6 @@ fun SourceChip(source: MediaSource, onClick: () -> Unit, modifier: Modifier = Mo
         leadingIcon = {
             SourceArtwork(
                 url = source.artworkUrl,
-                title = source.title,
                 pillar = source.pillar,
                 modifier = Modifier.size(AssistChipDefaults.IconSize),
             )

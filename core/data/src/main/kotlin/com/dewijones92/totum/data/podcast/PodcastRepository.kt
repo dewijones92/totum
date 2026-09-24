@@ -19,7 +19,6 @@ public interface PodcastRepository {
     /** Fetches, parses, and stores [feedUrl]. Idempotent per URL. */
     public suspend fun subscribe(feedUrl: HttpUrl): SubscribeResult
 
-    /** Fetches and parses [feedUrl] WITHOUT subscribing or storing anything. */
     public suspend fun preview(feedUrl: HttpUrl): PreviewResult
 
     /** Removes the subscription and its episodes. */

@@ -106,6 +106,32 @@ class SourceLocatorTest {
     }
 
     @Test
+    fun `a torrent file has no source to go to, and says so before anyone asks`() {
+        val torrent = MediaItem(
+            id = MediaItemId("torrent:abc:0"),
+            sourceId = SourceId("torrent"),
+            title = "A film",
+            publishedAt = null,
+            duration = null,
+            mediaUrl = HttpUrl.of("http://home.example/stream/abc/0"),
+        )
+
+        assertEquals(false, locator.canLocate(torrent))
+        assertEquals(true, locator.canLocate(video("ytfeed:SUBSCRIPTIONS")))
+        assertEquals(
+            true,
+            locator.canLocate(
+                video(
+                    "x"
+                ).copy(
+                    mediaUrl = HttpUrl.of("https://cdn.example.com/e.mp3"),
+                    sourceId = SourceId("https://feeds.example.com/s.rss")
+                )
+            )
+        )
+    }
+
+    @Test
     fun `a video locates its uploader's channel through the engine`() = runTest {
         engine.registerMedia(watchUrl, metadata("https://www.youtube.com/channel/UCxyz"))
 

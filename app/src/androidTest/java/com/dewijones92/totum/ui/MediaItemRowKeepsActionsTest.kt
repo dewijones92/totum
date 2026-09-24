@@ -22,7 +22,6 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
-import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.ItemActions
@@ -82,7 +81,7 @@ class MediaItemRowKeepsActionsTest {
         override fun deleteDownload(id: MediaItemId) { deletesAsked += id }
         override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
         override fun goToSource(item: MediaItem) = Unit
-        override fun openSource(source: MediaSource) = Unit
+        override fun canGoToSource(item: MediaItem) = true
         override val audioMode: Boolean = false
         override fun switchMode(item: MediaItem) = Unit
     }

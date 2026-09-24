@@ -41,6 +41,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.withArtworkFrom
 
 /**
  * 16:9, and bigger than it was. Square podcast art centre-crops into it cleanly.
@@ -121,7 +122,8 @@ fun MediaItemRow(
     /** Queue-only: jump this entry to the front / back of the up-next order. */
     onMoveToTop: (() -> Unit)? = null,
     onMoveToBottom: (() -> Unit)? = null,
-    onGoToSource: (() -> Unit)? = LocalItemActions.current.bind { goToSource(item) },
+    onGoToSource: (() -> Unit)? =
+        LocalItemActions.current?.takeIf { it.canGoToSource(item) }.bind { goToSource(item) },
     /** Label for [onGoToSource] — the host knows its pillar ("channel" vs "podcast"). */
     /**
      * Replaces the download control for rows whose trailing affordances are about
@@ -224,7 +226,7 @@ private fun (() -> Unit)?.onlyWhenDownloaded(state: DownloadState): (() -> Unit)
 private fun ThumbnailWithProgress(item: MediaItem, playState: PlayState) {
     Column {
         MediaThumbnail(
-            url = item.thumbnailUrl,
+            url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
             contentDescription = item.title,
             modifier = Modifier.size(width = THUMBNAIL_WIDTH, height = THUMBNAIL_HEIGHT),
             durationLabel = durationLabel(item),

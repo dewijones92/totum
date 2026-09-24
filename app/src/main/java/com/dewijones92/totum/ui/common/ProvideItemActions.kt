@@ -30,7 +30,18 @@ internal fun ProvideItemActions(
     val actions = remember(container, rowActions, scope, onOpenSource) {
         ContainerItemActions(container, rowActions, scope, onOpenSource)
     }
-    CompositionLocalProvider(LocalItemActions provides actions, content = content)
+    val openSource: (MediaSource) -> Unit = remember(onOpenSource) {
+        {
+                source ->
+            Diag.log("nav", "open source \"${source.title}\" [pillar=${source.pillar} id=${source.id.value}]")
+            onOpenSource(source)
+        }
+    }
+    CompositionLocalProvider(
+        LocalItemActions provides actions,
+        LocalOpenSource provides openSource,
+        content = content,
+    )
 }
 
 private class ContainerItemActions(
@@ -60,10 +71,7 @@ private class ContainerItemActions(
         rows.goToSource(item, onOpenSource)
     }
 
-    override fun openSource(source: MediaSource) {
-        Diag.log("nav", "open source \"${source.title}\" [pillar=${source.pillar} id=${source.id.value}]")
-        onOpenSource(source)
-    }
+    override fun canGoToSource(item: MediaItem): Boolean = container.sourceLocator.canLocate(item)
 
     override val audioMode: Boolean get() = rows.audioMode
 

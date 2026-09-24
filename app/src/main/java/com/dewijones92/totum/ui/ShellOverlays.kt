@@ -3,6 +3,10 @@ package com.dewijones92.totum.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaSource
@@ -20,10 +24,12 @@ internal fun ShellOverlays(
     container: AppContainer,
     source: MediaSource?,
     onCloseSource: () -> Unit,
-    playlist: Playlist?,
-    onOpenPlaylist: (Playlist) -> Unit,
-    onClosePlaylist: () -> Unit,
 ) {
+    // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
+    // channel reached via "go to channel" listed its playlists and none of them would open.
+    var playlist by remember { mutableStateOf<Playlist?>(null) }
+    val onOpenPlaylist: (Playlist) -> Unit = { playlist = it }
+    val onClosePlaylist = { playlist = null }
     BackHandler(enabled = source != null) { onCloseSource() }
     when (source) {
         null -> Unit
@@ -50,10 +56,10 @@ internal fun ShellOverlays(
     }
     // A playlist opened from that channel overlay, on top of it. Same shape, same reason.
     BackHandler(enabled = playlist != null) { onClosePlaylist() }
-    playlist?.let { playlist ->
+    playlist?.let { open ->
         PlaylistScreen(
             container,
-            playlist,
+            open,
             onBack = { onClosePlaylist() },
             modifier = Modifier.safeDrawingPadding(),
         )

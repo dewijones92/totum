@@ -28,6 +28,7 @@ internal fun ProvidePlayStates(
     val states by remember(container) { container.rowPlayStates }.collectAsStateWithLifecycle(emptyMap())
     val downloads by remember(container) { container.downloadManager.observeDownloads() }
         .collectAsStateWithLifecycle(emptyMap())
+    val artwork by remember(container) { container.sourceArtwork }.collectAsStateWithLifecycle(emptyMap())
     val scope = rememberCoroutineScope()
     val setPlayed = remember(store, scope) {
         {
@@ -43,6 +44,7 @@ internal fun ProvidePlayStates(
         LocalPlayStates provides states,
         LocalDownloadStates provides downloads,
         LocalSetPlayed provides setPlayed,
+        LocalSourceArtwork provides artwork,
     ) {
         ProvideItemActions(container, onOpenSource, content)
     }

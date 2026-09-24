@@ -42,7 +42,7 @@ internal fun ItemActionSheet(
         onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
         onSwitchMode = { actions.switchMode(item) }.takeIf { video },
         audioMode = actions.audioMode,
-        onGoToSource = { actions.goToSource(item) },
+        onGoToSource = { actions.goToSource(item) }.takeIf { actions.canGoToSource(item) },
         sourcePillar = pillar,
         onMoveToTop = null,
         onMoveToBottom = null,

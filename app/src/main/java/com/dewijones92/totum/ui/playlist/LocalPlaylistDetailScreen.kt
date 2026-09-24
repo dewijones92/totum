@@ -111,9 +111,9 @@ private fun PlaylistBody(
             val media = playlistItem.item
             MediaItemRow(
                 item = media,
-                subtitleLines = mediaItemFacts(media, playlistItem.handle.pillar, LocalNow.current),
+                subtitleLines = mediaItemFacts(media, playlistItem.pillar, LocalNow.current),
                 downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
-                pillar = playlistItem.handle.pillar,
+                pillar = playlistItem.pillar,
                 onPlay = { viewModel.playFrom(playlistItem) },
                 onDownload = { viewModel.download(media) },
                 onDeleteDownload = { viewModel.deleteDownload(media.id) },

@@ -78,7 +78,7 @@ internal fun AddPodcastDialog(
     )
 }
 
-private fun Subscribing.Error.messageRes(): Int = when (this) {
+internal fun Subscribing.Error.messageRes(): Int = when (this) {
     Subscribing.Error.InvalidUrl -> R.string.error_invalid_url
     Subscribing.Error.Network -> R.string.error_network
     Subscribing.Error.InvalidFeed -> R.string.error_invalid_feed

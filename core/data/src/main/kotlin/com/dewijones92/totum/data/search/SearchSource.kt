@@ -4,7 +4,6 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.domain.MediaSource
-import com.dewijones92.totum.domain.SourceId
 
 /** A non-blank search query. */
 @JvmInline
@@ -115,7 +114,7 @@ public sealed interface SearchHit {
 }
 
 public fun SearchHit.Podcast.toSource(): MediaSource.PodcastFeed = MediaSource.PodcastFeed(
-    id = SourceId(feedUrl.value),
+    id = MediaSource.PodcastFeed.idFor(feedUrl),
     title = title,
     feedUrl = feedUrl,
     artworkUrl = artworkUrl,

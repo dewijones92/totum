@@ -144,10 +144,11 @@ class GoToSourceGoesThereTest {
 
     @Test
     fun `the page of a podcast does not offer to go to itself`() {
+        val container = subscribedContainer()
         composeTestRule.setContent {
             TotumTheme {
-                ProvidePlayStates(subscribedContainer(), onOpenSource = {}) {
-                    PodcastFeedScreen(subscribedContainer(), feed, onBack = {})
+                ProvidePlayStates(container, onOpenSource = {}) {
+                    PodcastFeedScreen(container, feed, onBack = {})
                 }
             }
         }
@@ -179,7 +180,41 @@ class GoToSourceGoesThereTest {
         }
         composeTestRule.onNodeWithText("The Show, previewed").assertExists()
         composeTestRule.onNodeWithText(context.getString(R.string.channel_subscribe)).assertExists()
-        composeTestRule.onNodeWithContentDescription("The Show, previewed").assertExists()
+    }
+
+    @Test
+    fun `the shell shows the page of a podcast it is handed`() {
+        val container = subscribedContainer()
+        composeTestRule.setContent {
+            TotumTheme {
+                ProvidePlayStates(container, onOpenSource = {}) {
+                    ShellOverlays(
+                        container = container,
+                        source = feed,
+                        onCloseSource = {},
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Episode one").assertExists()
+        composeTestRule.onNodeWithText(context.getString(R.string.channel_unsubscribe)).assertExists()
+    }
+
+    @Test
+    fun `a torrent file offers no go to at all`() {
+        val torrent = episode.copy(id = MediaItemId("torrent:abc:0"), sourceId = SourceId("torrent"))
+        composeTestRule.setContent {
+            TotumTheme {
+                ProvidePlayStates(FakeAppContainer(), onOpenSource = {}) {
+                    MediaItemRow(item = torrent, subtitleLines = emptyList(), pillar = MediaKind.PODCAST, onPlay = {})
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription(context.getString(R.string.queue_menu)).performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.queue_play_next)).assertExists()
+        composeTestRule.onAllNodesWithText(context.getString(R.string.go_to_podcast)).assertCountEquals(0)
     }
 
     private object InertActions : ItemActions {
@@ -191,7 +226,7 @@ class GoToSourceGoesThereTest {
         override fun deleteDownload(id: MediaItemId) = Unit
         override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
         override fun goToSource(item: MediaItem) = Unit
-        override fun openSource(source: MediaSource) = Unit
+        override fun canGoToSource(item: MediaItem) = true
         override val audioMode: Boolean = false
         override fun switchMode(item: MediaItem) = Unit
     }

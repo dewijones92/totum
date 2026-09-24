@@ -300,13 +300,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                 subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
                     listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
                 } else {
-                    mediaItemFacts(media, entry.item.handle.pillar, LocalNow.current)
+                    mediaItemFacts(media, entry.item.pillar, LocalNow.current)
                 },
                 // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
                 // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
                 modifier = Modifier.reorderable(reorder, index),
                 downloadState = downloadState,
-                pillar = entry.item.handle.pillar,
+                pillar = entry.item.pillar,
                 onPlay = { actions.onPlay(index) },
                 onDownload = { actions.onDownload(media) },
                 onDeleteDownload = { actions.onDeleteDownload(media.id) },

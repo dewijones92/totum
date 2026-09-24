@@ -37,7 +37,6 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
-import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
@@ -94,9 +93,6 @@ fun AppShell(
     var shortsReel by remember { mutableStateOf<ReelStart?>(null) }
     // "Go to channel" / "Go to podcast" work from ANY row because the shell hosts the destination once.
     var shellSource by remember { mutableStateOf<MediaSource?>(null) }
-    // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
-    // channel reached via "go to channel" listed its playlists and none of them would open.
-    var shellPlaylist by remember { mutableStateOf<Playlist?>(null) }
     val playbackState by container.playbackController.state.collectAsStateWithLifecycle()
     val controller = container.playbackController
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
@@ -124,7 +120,12 @@ fun AppShell(
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides { showFullPlayer = true },
     ) {
-        ProvidePlayStates(container, onOpenSource = { shellSource = it }) {
+        ProvidePlayStates(container, onOpenSource = { source ->
+            Diag.log("nav", "shell page over fullPlayer=$showFullPlayer shorts=${shortsReel != null}, closing both")
+            shellSource = source
+            showFullPlayer = false
+            shortsReel = null
+        }) {
             Box(modifier = modifier.fillMaxSize()) {
                 Scaffold(
                     bottomBar = {
@@ -141,6 +142,12 @@ fun AppShell(
                     TopLevelContent(container, selected, { shortsReel = it }, Modifier.padding(innerPadding))
                 }
 
+                // Same as the Videos tab's overlays: back should close the channel, not quit.
+                ShellOverlays(
+                    container = container,
+                    source = shellSource,
+                    onCloseSource = { shellSource = null },
+                )
                 // Full player overlays the whole app (above the mini player + nav) when
                 // expanded; the mini player keeps the audio/video running underneath.
                 playbackState?.takeIf { showFullPlayer }?.let { state ->
@@ -150,15 +157,6 @@ fun AppShell(
                 // The Shorts reel is a full-screen overlay (above the nav + mini player),
                 // so vertical swipes page between shorts without the app chrome in the way.
                 shortsReel?.let { ShortsReelScreen(container, it, onBack = { shortsReel = null }) }
-                // Same as the Videos tab's overlays: back should close the channel, not quit.
-                ShellOverlays(
-                    container = container,
-                    source = shellSource,
-                    onCloseSource = { shellSource = null },
-                    playlist = shellPlaylist,
-                    onOpenPlaylist = { shellPlaylist = it },
-                    onClosePlaylist = { shellPlaylist = null },
-                )
                 // Last in the Box so it draws over everything, including the full player and
                 // any overlay: "is the app doing something" is a question worth answering
                 // from whatever screen the user is on.
@@ -336,7 +334,7 @@ private fun PlayingItemSheet(
 ) {
     val item = playing?.item ?: return
     if (!visible) return
-    ItemActionSheet(item, onDismiss, pillar = playing.handle.pillar)
+    ItemActionSheet(item, onDismiss, pillar = playing.pillar)
 }
 
 private fun qualityControl(

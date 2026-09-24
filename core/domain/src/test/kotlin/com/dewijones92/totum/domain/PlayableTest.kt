@@ -34,6 +34,22 @@ class PlayableTest {
     }
 
     @Test
+    fun `an audio-only copy of a video playing from disk is still a video`() {
+        val fromDisk = PlayableItem(item(url = watchUrl), PlayHandle.Podcast("/files/abc123.m4a"))
+
+        assertEquals(MediaKind.PODCAST, fromDisk.handle.pillar)
+        assertEquals(MediaKind.VIDEO, fromDisk.pillar)
+    }
+
+    @Test
+    fun `an episode is a podcast however it plays`() {
+        val enclosure = HttpUrl.of("https://cdn.example.com/ep.mp3")
+
+        assertEquals(MediaKind.PODCAST, PlayableItem(item(url = enclosure), PlayHandle.Podcast()).pillar)
+        assertEquals(MediaKind.PODCAST, PlayableItem(item(url = enclosure), PlayHandle.Podcast("/e.mp3")).pillar)
+    }
+
+    @Test
     fun `a local video handle carries its path`() {
         assertEquals("/tmp/v.mkv", PlayHandle.LocalVideo("/tmp/v.mkv").localPath)
     }
