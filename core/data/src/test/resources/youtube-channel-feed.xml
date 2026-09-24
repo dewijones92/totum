@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UC9-y-6csu5WGm29I7JiwpnA"/>
+ <id>yt:channel:9-y-6csu5WGm29I7JiwpnA</id>
+ <yt:channelId>9-y-6csu5WGm29I7JiwpnA</yt:channelId>
+ <title>Computerphile</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA"/>
+ <author>
+  <name>Computerphile</name>
+  <uri>https://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA</uri>
+ </author>
+ <published>2009-04-10T21:59:58+00:00</published>
+ <entry>
+  <id>yt:video:giTmBaNGaHw</id>
+  <yt:videoId>giTmBaNGaHw</yt:videoId>
+  <yt:channelId>UC9-y-6csu5WGm29I7JiwpnA</yt:channelId>
+  <title>What the Labs Kept Secret: The German Wiki &amp; RubyGems Hacks - Computerphile</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=giTmBaNGaHw"/>
+  <author>
+   <name>Computerphile</name>
+   <uri>https://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA</uri>
+  </author>
+  <published>2026-09-23T13:00:20+00:00</published>
+  <updated>2026-09-23T13:04:55+00:00</updated>
+  <media:group>
+   <media:title>What the Labs Kept Secret: The German Wiki &amp; RubyGems Hacks - Computerphile</media:title>
+   <media:content url="https://www.youtube.com/v/giTmBaNGaHw?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/giTmBaNGaHw/hqdefault.jpg" width="480" height="360"/>
+   <media:description>trimmed</media:description>
+   <media:community>
+    <media:starRating count="1886" average="5.00" min="1" max="5"/>
+    <media:statistics views="110922"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:iuHddnIzKRA</id>
+  <yt:videoId>iuHddnIzKRA</yt:videoId>
+  <yt:channelId>UC9-y-6csu5WGm29I7JiwpnA</yt:channelId>
+  <title>The AI Language We Can't Read: Neuralese ft. Rob Miles - Computerphile</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=iuHddnIzKRA"/>
+  <author>
+   <name>Computerphile</name>
+   <uri>https://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA</uri>
+  </author>
+  <published>2026-09-10T12:56:17+00:00</published>
+  <updated>2026-09-22T10:33:23+00:00</updated>
+  <media:group>
+   <media:title>The AI Language We Can't Read: Neuralese ft. Rob Miles - Computerphile</media:title>
+   <media:content url="https://www.youtube.com/v/iuHddnIzKRA?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/iuHddnIzKRA/hqdefault.jpg" width="480" height="360"/>
+   <media:description>trimmed</media:description>
+   <media:community>
+    <media:starRating count="8528" average="5.00" min="1" max="5"/>
+    <media:statistics views="564891"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:kVXp6UNVPTo</id>
+  <yt:videoId>kVXp6UNVPTo</yt:videoId>
+  <yt:channelId>UC9-y-6csu5WGm29I7JiwpnA</yt:channelId>
+  <title>How Watermarks Track AI Generated Content - Computerphile</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=kVXp6UNVPTo"/>
+  <author>
+   <name>Computerphile</name>
+   <uri>https://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA</uri>
+  </author>
+  <published>2026-09-03T13:30:04+00:00</published>
+  <updated>2026-09-10T17:27:39+00:00</updated>
+  <media:group>
+   <media:title>How Watermarks Track AI Generated Content - Computerphile</media:title>
+   <media:content url="https://www.youtube.com/v/kVXp6UNVPTo?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/kVXp6UNVPTo/hqdefault.jpg" width="480" height="360"/>
+   <media:description>trimmed</media:description>
+   <media:community>
+    <media:starRating count="5918" average="5.00" min="1" max="5"/>
+    <media:statistics views="489635"/>
+   </media:community>
+  </media:group>
+ </entry>
+ </feed>

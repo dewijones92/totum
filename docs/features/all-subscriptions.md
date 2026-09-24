@@ -21,11 +21,34 @@ subscription list, signed in only), ranked by `latestUploadFirst` in `:core:doma
 - A source's newest upload is the newest DATED item that `isFrom` it — a podcast by `sourceId`, a
   channel by `sourceId` or by the `UC…` id in the item's `sourceUrl` (account feed items arrive under
   `ytfeed:SUBSCRIPTIONS`, not their channel).
-- Items come from what is already on the device: stored podcast episodes, and the cached account
-  Subscriptions feed (`FeedChoice.Account(SUBSCRIPTIONS).cacheKey()`, the same key the Videos tab
-  writes). No network on open. **So a channel with nothing in the last ~45 cached feed items reads
-  "No recent upload seen" and sorts below every dated source, by title** — YouTube does not tell a TV
-  client when you subscribed, and fetching 1,600 channel pages to find out is not an option.
+- Items come from stored podcast episodes, the cached account Subscriptions feed
+  (`FeedChoice.Account(SUBSCRIPTIONS).cacheKey()`, the key the Videos tab writes), and **each channel's
+  own public RSS feed** (below). Newest dated item wins per source.
+
+## Every channel's latest upload (added 2026-09-24, Dewi: "look in to it and test in emulator")
+
+The cached account feed only covers ~45 recent videos, so ~1,560 of 1,600 channels read "no recent
+upload". Options measured before building:
+
+| Option | Verdict |
+|---|---|
+| Page the account Subscriptions feed further | Chronological — only ever finds channels that posted recently; cost grows with how far back you go |
+| InnerTube browse per channel | Signed-in, heavy JSON, and a resolve per channel |
+| **Public per-channel RSS** `youtube.com/feeds/videos.xml?channel_id=UC…` | **Chosen.** No sign-in, ~5–7 KB gzip, ~45 ms, latest 15 uploads with exact `published` times, title, thumbnail. 304/304 requests at concurrency 8 returned 200 in 4.7 s |
+
+`ChannelLatestUploads` (`:core:data`) checks every channel not checked in the last **6 hours**, 6 at a
+time, upserting into `channel_latest_uploads` (Room, v24) in batches of 50 so the list fills as it goes.
+A failed fetch or an error page keeps what was known; a channel with no uploads is recorded as
+checked. Only one check runs at a time. The list starts a check when opened; **pull to refresh forces
+one**. Progress shows as "Checking channels… N of M".
+
+Measured on `totum-api35` (1,600 channels): **41 s, 0 failures, 1,565 with an upload, 35 that have never
+uploaded**; reopening within 6 h reports `0 due of 1600`. Network ≈ 1,600 × 6 KB ≈ 10 MB per full check.
+The v23→v24 migration was verified by rolling a live DB back to v23 and relaunching.
+
+Diagnostics: `[subs] channel check: N due of M …`, `channel check done: Done(due, skippedFresh,
+withUpload, neverUploaded, failed, decodedChars, elapsedMs)` (`decodedChars` is the text parsed, not
+bytes on the wire), and up to three `channel check failed <id>: <why>` lines.
 - Each row: the source's artwork, its name, and `📅 <age> · <latest title>`, tinted by pillar. Tapping
   opens the source page through the shell (`LocalOpenSource`).
 

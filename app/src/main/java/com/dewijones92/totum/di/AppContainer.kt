@@ -11,6 +11,7 @@ import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.DefaultChannelRepository
 import com.dewijones92.totum.data.content.ContentRefresher
@@ -52,6 +53,7 @@ import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.database.RoomAccountProgressOutbox
+import com.dewijones92.totum.database.RoomChannelLatestStore
 import com.dewijones92.totum.database.RoomDownloadStore
 import com.dewijones92.totum.database.RoomFeedCache
 import com.dewijones92.totum.database.RoomLocalPlaylistStore
@@ -237,6 +239,8 @@ interface AppContainer {
     /** Named groups of sources, read as one merged feed. */
     /** Last-known feed contents, so the Videos tab opens with something on it. */
     val feedCache: FeedCache
+
+    val channelLatestUploads: ChannelLatestUploads
 
     val sourceGroupStore: SourceGroupStore
 
@@ -652,6 +656,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val feedCache: FeedCache by lazy { RoomFeedCache(database.cachedFeedDao()) }
+
+    override val channelLatestUploads: ChannelLatestUploads by lazy {
+        ChannelLatestUploads(textFetcher, RoomChannelLatestStore(database.channelLatestDao()))
+    }
 
     override val sourceGroupStore: SourceGroupStore by lazy {
         RoomSourceGroupStore(database.sourceGroupDao())

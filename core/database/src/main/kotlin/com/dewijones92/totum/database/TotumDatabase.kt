@@ -22,10 +22,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CachedFeedItemEntity::class,
         AccountProgressOutboxEntity::class,
         ReconciledAccountProgressEntity::class,
+        ChannelLatestEntity::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = false,
 )
+@Suppress("TooManyFunctions")
 public abstract class TotumDatabase : RoomDatabase() {
 
     public abstract fun podcastDao(): PodcastDao
@@ -47,6 +49,8 @@ public abstract class TotumDatabase : RoomDatabase() {
     public abstract fun accountProgressOutboxDao(): AccountProgressOutboxDao
 
     public abstract fun reconciledAccountProgressDao(): ReconciledAccountProgressDao
+
+    public abstract fun channelLatestDao(): ChannelLatestDao
 
     public companion object {
         public fun build(context: Context): TotumDatabase =
@@ -79,7 +83,19 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_20_21,
                 MIGRATION_21_22,
                 MIGRATION_22_23,
+                MIGRATION_23_24,
             )
+
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `channel_latest_uploads` (" +
+                        "`channelId` TEXT NOT NULL, `checkedAtEpochMs` INTEGER NOT NULL, `itemId` TEXT, " +
+                        "`title` TEXT, `author` TEXT, `thumbnailUrl` TEXT, `mediaUrl` TEXT, " +
+                        "`publishedAtEpochMs` INTEGER, PRIMARY KEY(`channelId`))",
+                )
+            }
+        }
 
         private val MIGRATION_22_23 = object : Migration(22, 23) {
             override fun migrate(db: SupportSQLiteDatabase) {

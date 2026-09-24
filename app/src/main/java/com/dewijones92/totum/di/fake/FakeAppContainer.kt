@@ -2,7 +2,9 @@ package com.dewijones92.totum.di.fake
 
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
+import com.dewijones92.totum.data.channel.InMemoryChannelLatestStore
 import com.dewijones92.totum.data.channel.fake.FakeChannelRepository
 import com.dewijones92.totum.data.content.ContentRefresher
 import com.dewijones92.totum.data.content.SeenItemsTracker
@@ -18,6 +20,7 @@ import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
+import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.playlist.fake.InMemoryLocalPlaylistStore
 import com.dewijones92.totum.data.podcast.PodcastRepository
@@ -102,6 +105,10 @@ class FakeAppContainer(
     override val skipSegmentSource: SkipSegmentSource = SkipSegmentSource { emptyList() },
     override val downloadManager: DownloadManager = FakeDownloadManager(),
     override val feedCache: FeedCache = NoOpFeedCache,
+    override val channelLatestUploads: ChannelLatestUploads = ChannelLatestUploads(
+        fetcher = { FetchResult.Failure("no network in the fake") },
+        store = InMemoryChannelLatestStore(),
+    ),
     override val sourceGroupStore: SourceGroupStore = FakeSourceGroupStore(),
     override val groupFeed: GroupFeed = GroupFeed { emptyList() },
     override val videoResolver: VideoResolver = VideoResolver(ytDlpEngine, skipSegmentSource),

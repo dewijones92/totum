@@ -1,7 +1,11 @@
 package com.dewijones92.totum.ui.subscriptions
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.channel.ChannelLatestUploads
+import com.dewijones92.totum.data.channel.CheckedChannel
+import com.dewijones92.totum.data.channel.InMemoryChannelLatestStore
 import com.dewijones92.totum.data.feed.FeedCache
+import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -71,7 +75,12 @@ class AllSubscriptionsViewModelTest {
         )
         val video = item("vid", SourceId("ytfeed:SUBSCRIPTIONS"), "2026-09-23T00:00:00Z", channel.channelUrl)
         val viewModel =
-            AllSubscriptionsViewModel(podcasts, MutableStateFlow(listOf(channel)), cacheWith(listOf(video)), dispatcher)
+            AllSubscriptionsViewModel(
+                podcasts,
+                MutableStateFlow(listOf(channel)),
+                cacheWith(listOf(video)),
+                computation = dispatcher
+            )
         backgroundScope.launch { viewModel.sources.collect {} }
 
         advanceUntilIdle()
@@ -85,7 +94,12 @@ class AllSubscriptionsViewModelTest {
     fun `reopening the list reads the cached feed again rather than keeping the first read`() = runTest(dispatcher) {
         val podcasts = FakePodcastRepository()
         val viewModel =
-            AllSubscriptionsViewModel(podcasts, MutableStateFlow(listOf(channel)), cacheWith(emptyList()), dispatcher)
+            AllSubscriptionsViewModel(
+                podcasts,
+                MutableStateFlow(listOf(channel)),
+                cacheWith(emptyList()),
+                computation = dispatcher
+            )
 
         val first = launch { viewModel.sources.collect {} }
         advanceUntilIdle()
@@ -99,10 +113,48 @@ class AllSubscriptionsViewModelTest {
     }
 
     @Test
+    fun `a channel absent from the cached feed is ranked by the upload its own feed reported`() = runTest(dispatcher) {
+        val quiet = MediaSource.VideoChannel(
+            SourceId("https://www.youtube.com/channel/UCqqqqqqqqqqqqqqqqqqqqqq"),
+            "Quiet Channel",
+            HttpUrl.of("https://www.youtube.com/channel/UCqqqqqqqqqqqqqqqqqqqqqq"),
+        )
+        val store = InMemoryChannelLatestStore()
+        store.put(
+            listOf(
+                CheckedChannel(
+                    "UCqqqqqqqqqqqqqqqqqqqqqq",
+                    item("rss-vid", quiet.id, "2026-09-24T09:00:00Z", quiet.channelUrl),
+                    Instant.parse("2026-09-24T10:00:00Z"),
+                ),
+            ),
+        )
+        val uploads = ChannelLatestUploads(fetcher = { FetchResult.Failure("offline") }, store = store)
+        val viewModel = AllSubscriptionsViewModel(
+            FakePodcastRepository(),
+            MutableStateFlow(listOf(channel, quiet)),
+            cacheWith(emptyList()),
+            channelUploads = uploads,
+            computation = dispatcher,
+        )
+        val collecting = launch { viewModel.sources.collect {} }
+        advanceUntilIdle()
+        collecting.cancel()
+
+        assertEquals(listOf("Quiet Channel", "A Channel"), viewModel.sources.value.orEmpty().map { it.source.title })
+        assertEquals("rss-vid", viewModel.sources.value.orEmpty().first().latest?.id?.value)
+    }
+
+    @Test
     fun `signed out, the list is just the shows`() = runTest(dispatcher) {
         val podcasts = FakePodcastRepository(initialSubscriptions = listOf(Subscription(show, Instant.EPOCH)))
         val viewModel =
-            AllSubscriptionsViewModel(podcasts, MutableStateFlow(emptyList()), cacheWith(emptyList()), dispatcher)
+            AllSubscriptionsViewModel(
+                podcasts,
+                MutableStateFlow(emptyList()),
+                cacheWith(emptyList()),
+                computation = dispatcher
+            )
         backgroundScope.launch { viewModel.sources.collect {} }
 
         advanceUntilIdle()

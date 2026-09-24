@@ -16,11 +16,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.channel.ChannelCheckProgress
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PublishedAge
@@ -46,34 +51,68 @@ import com.dewijones92.totum.ui.common.pillarRowTint
 fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val viewModel: AllSubscriptionsViewModel = viewModel(factory = AllSubscriptionsViewModel.factory(container))
     val sources by viewModel.sources.collectAsStateWithLifecycle()
-    AllSubscriptionsContent(sources, onBack, modifier)
+    val checking by viewModel.checking.collectAsStateWithLifecycle()
+    LaunchedEffect(viewModel) { viewModel.checkChannels() }
+    AllSubscriptionsContent(
+        sources = sources,
+        onBack = onBack,
+        modifier = modifier,
+        checking = checking,
+        onRefresh = { viewModel.checkChannels(force = true) },
+    )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AllSubscriptionsContent(
     sources: List<SourceActivity>?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    checking: ChannelCheckProgress? = null,
+    onRefresh: () -> Unit = {},
     onOpen: ((SourceActivity) -> Unit)? = LocalOpenSource.current?.let { open -> { open(it.source) } },
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(stringResource(R.string.all_subscriptions_title), onBack)
-            if (sources == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            } else if (sources.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Outlined.Subscriptions,
-                    headline = stringResource(R.string.all_subscriptions_empty_headline),
-                    supportingText = stringResource(R.string.all_subscriptions_empty_supporting),
-                )
-            } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(sources, key = { it.source.id.value }) { activity ->
-                        SubscriptionRow(activity, onOpen)
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    }
-                }
+            checking?.let { CheckingChannels(it) }
+            PullToRefreshBox(isRefreshing = false, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+                SubscriptionsBody(sources, onOpen)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CheckingChannels(progress: ChannelCheckProgress) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            stringResource(R.string.all_subscriptions_checking, progress.checked, progress.total),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LinearProgressIndicator(
+            progress = { if (progress.total == 0) 0f else progress.checked.toFloat() / progress.total },
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun SubscriptionsBody(sources: List<SourceActivity>?, onOpen: ((SourceActivity) -> Unit)?) {
+    when {
+        sources == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        sources.isEmpty() -> EmptyState(
+            icon = Icons.Outlined.Subscriptions,
+            headline = stringResource(R.string.all_subscriptions_empty_headline),
+            supportingText = stringResource(R.string.all_subscriptions_empty_supporting),
+        )
+        else -> LazyColumn(Modifier.fillMaxSize()) {
+            items(sources, key = { it.source.id.value }) { activity ->
+                SubscriptionRow(activity, onOpen)
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
     }
