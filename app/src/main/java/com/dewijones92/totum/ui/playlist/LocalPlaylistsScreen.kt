@@ -36,6 +36,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.ui.common.FilterableList
 
 /** The user's local playlists: create one, or open one. */
 @Composable
@@ -74,23 +75,7 @@ fun LocalPlaylistsScreen(
                     )
                 }
             }
-            if (playlists.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.local_playlists_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                )
-            } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(playlists, key = { it.id.value }) { playlist ->
-                        PlaylistRow(playlist, onClick = { onOpen(playlist.id) })
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    }
-                }
-            }
+            PlaylistList(playlists, onOpen)
         }
     }
 
@@ -166,4 +151,27 @@ internal fun NamePlaylistDialog(
             )
         },
     )
+}
+
+@Composable
+private fun PlaylistList(playlists: List<LocalPlaylist>, onOpen: (PlaylistId) -> Unit) {
+    if (playlists.isEmpty()) {
+        Text(
+            text = stringResource(R.string.local_playlists_empty),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+        )
+        return
+    }
+    FilterableList("local-playlists", playlists, { listOf(it.name) }) { shown, _ ->
+        LazyColumn(Modifier.fillMaxSize()) {
+            items(shown, key = { it.id.value }) { playlist ->
+                PlaylistRow(playlist, onClick = { onOpen(playlist.id) })
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            }
+        }
+    }
 }

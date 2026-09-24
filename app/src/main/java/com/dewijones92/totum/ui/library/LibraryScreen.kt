@@ -48,6 +48,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BuildInfoFooter
@@ -57,7 +58,9 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.TrackPlace
+import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberFiltered
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
@@ -185,6 +188,8 @@ internal fun LibraryContent(
     modifier: Modifier = Modifier,
 ) {
     val actions = LocalItemActions.current
+    var query by rememberSaveable { mutableStateOf("") }
+    val shown = rememberFiltered("downloads", downloaded, query) { it.item.searchableText }
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { PlaylistsEntry(onOpenPlaylists) }
@@ -215,7 +220,8 @@ internal fun LibraryContent(
                     )
                 }
                 item { StorageSummary(storage) }
-                items(downloaded, key = { it.item.id.value }) { entry ->
+                filterField(query, { query = it }, shown.size, downloaded.size)
+                items(shown, key = { it.item.id.value }) { entry ->
                     MediaItemRow(
                         item = entry.item,
                         // The size sits with the item it belongs to; a total alone cannot

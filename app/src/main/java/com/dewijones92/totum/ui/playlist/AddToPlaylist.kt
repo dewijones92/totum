@@ -29,6 +29,7 @@ import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.ui.common.FilterableList
 import kotlinx.coroutines.launch
 
 /**
@@ -88,16 +89,18 @@ private fun AddToPlaylistBody(
 ) {
     Column {
         if (playlists.isNotEmpty()) {
-            LazyColumn(Modifier.heightIn(max = PICKER_MAX_HEIGHT)) {
-                items(playlists, key = { it.id.value }) { playlist ->
-                    Text(
-                        text = playlist.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(playlist.id) }
-                            .padding(vertical = 12.dp),
-                    )
+            FilterableList("add-to-playlist", playlists, { listOf(it.name) }, inset = 0.dp) { shown, _ ->
+                LazyColumn(Modifier.heightIn(max = PICKER_MAX_HEIGHT)) {
+                    items(shown, key = { it.id.value }) { playlist ->
+                        Text(
+                            text = playlist.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(playlist.id) }
+                                .padding(vertical = 12.dp),
+                        )
+                    }
                 }
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp))

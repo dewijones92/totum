@@ -16,6 +16,7 @@ alone until they need more.
 | Podcasts: subscribe, RSS parse, episodes, refresh | podcasts | shipped | — |
 | Menus go where they say; every source (show / channel) has its picture | ui | shipped | [menus-and-source-pages.md](menus-and-source-pages.md) |
 | Every subscription in one list (Library), newest upload first; rows tinted by pillar | subscriptions | shipped | [all-subscriptions.md](all-subscriptions.md) |
+| Fuzzy filter on every list (typos, abbreviations, accents) | ui | shipped | [list-filter.md](list-filter.md) |
 | A show's name AND its publisher, on every surface | podcasts | shipped | [show-and-publisher.md](show-and-publisher.md) |
 | Videos: signed-in feeds (Home/Subscriptions/Watch Later/History) | video | shipped | — |
 | YouTube TV device-code OAuth | auth | shipped | — |

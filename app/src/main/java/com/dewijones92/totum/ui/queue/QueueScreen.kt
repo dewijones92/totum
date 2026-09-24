@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -49,17 +50,22 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.unavailableOfflineNow
+import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.ReorderState
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberFiltered
 import com.dewijones92.totum.ui.common.rememberReorderState
 import com.dewijones92.totum.ui.common.reorderable
 import kotlinx.coroutines.CoroutineScope
@@ -115,21 +121,16 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     collapsedGroups = collapsedGroups,
                     onCollapsedChange = { collapsedGroups = it },
                 )
-                LazyColumn(
-                    state = listState,
-                    // The container has to be known for a drag held at an edge to scroll the list;
-                    // without it dragging still works, it just cannot reach past the screen.
-                    modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
-                ) {
-                    itemsWithGroupHeaders(
-                        availability = QueueAvailability(downloads, container.isOffline()),
-                        entries = entries,
-                        nowPlaying = NowPlaying(snapshot.currentIndex, playing?.progress, playing?.isPlaying == true),
-                        reorder = reorder,
-
-                        actions = actions,
-                    )
-                }
+                FilterableQueue(
+                    entries,
+                    downloads,
+                    container,
+                    snapshot.currentIndex,
+                    playing,
+                    listState,
+                    reorder,
+                    actions
+                )
             }
         }
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
@@ -289,40 +290,98 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
         // address the same item once it is shown again.
         if (group != null && groups.isCollapsed(group.id)) return@forEachIndexed
         item(key = entry.item.item.id.value) {
-            val media = entry.item.item
-            if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
-            val downloadState = availability.stateOf(media.id)
-            MediaItemRow(
-                item = media,
-                // Says why a row will be passed over, rather than leaving it to be discovered.
-                // It REPLACES the facts rather than joining them: "this will be skipped" is the
-                // only thing worth reading on a row you cannot play.
-                subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
-                    listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
-                } else {
-                    mediaItemFacts(media, entry.item.pillar, LocalNow.current)
-                },
-                // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
-                // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
-                modifier = Modifier.reorderable(reorder, index),
-                downloadState = downloadState,
-                pillar = entry.item.pillar,
-                onPlay = { actions.onPlay(index) },
-                onDownload = { actions.onDownload(media) },
-                onDeleteDownload = { actions.onDeleteDownload(media.id) },
-                onRemoveFromQueue = { actions.onRemove(entry) },
-                onAddToQueue = null,
-                onDownloadVideo = { actions.onDownloadVideo(media) },
-                onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
-                onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
-                    .takeIf { index < entries.lastIndex },
-                trailing = {
-                    with(reorder) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
-                },
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            QueueRow(entry, index, entries, nowPlaying, availability, reorder, actions)
         }
     }
+}
+
+@Composable
+private fun FilterableQueue(
+    entries: List<QueueEntry>,
+    downloads: Map<MediaItemId, DownloadState>,
+    container: AppContainer,
+    currentIndex: Int,
+    playing: PlaybackState?,
+    listState: LazyListState,
+    reorder: ReorderState,
+    actions: QueueActions,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val indexed = remember(entries) { entries.withIndex().toList() }
+    val matches = rememberFiltered("queue", indexed, query) { it.value.item.item.searchableText }
+    val availability = QueueAvailability(downloads, container.isOffline())
+    val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true)
+    FilterField(query, { query = it }, matches.size, entries.size)
+    if (query.isBlank()) {
+        LazyColumn(
+            state = listState,
+            // The container has to be known for a drag held at an edge to scroll the list;
+            // without it dragging still works, it just cannot reach past the screen.
+            modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
+        ) {
+            itemsWithGroupHeaders(
+                availability = availability,
+                entries = entries,
+                nowPlaying = nowPlaying,
+                reorder = reorder,
+                actions = actions,
+            )
+        }
+    } else if (matches.isEmpty()) {
+        NoFilterMatches(query)
+    } else {
+        LazyColumn(Modifier.fillMaxSize()) {
+            items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
+                QueueRow(entry, index, entries, nowPlaying, availability, reorder = null, actions = actions)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QueueRow(
+    entry: QueueEntry,
+    index: Int,
+    entries: List<QueueEntry>,
+    nowPlaying: NowPlaying,
+    availability: QueueAvailability,
+    reorder: ReorderState?,
+    actions: QueueActions,
+) {
+    val media = entry.item.item
+    if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
+    val downloadState = availability.stateOf(media.id)
+    MediaItemRow(
+        item = media,
+        // Says why a row will be passed over, rather than leaving it to be discovered.
+        // It REPLACES the facts rather than joining them: "this will be skipped" is the
+        // only thing worth reading on a row you cannot play.
+        subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
+            listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
+        } else {
+            mediaItemFacts(media, entry.item.pillar, LocalNow.current)
+        },
+        // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
+        // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
+        modifier = reorder?.let { Modifier.reorderable(it, index) } ?: Modifier,
+        downloadState = downloadState,
+        pillar = entry.item.pillar,
+        onPlay = { actions.onPlay(index) },
+        onDownload = { actions.onDownload(media) },
+        onDeleteDownload = { actions.onDeleteDownload(media.id) },
+        onRemoveFromQueue = { actions.onRemove(entry) },
+        onAddToQueue = null,
+        onDownloadVideo = { actions.onDownloadVideo(media) },
+        onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
+        onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
+            .takeIf { index < entries.lastIndex },
+        trailing = reorder?.let { state ->
+            {
+                with(state) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
+            }
+        },
+    )
+    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 }
 
 @Composable

@@ -51,6 +51,7 @@ instead).
 | Picking a colour from artwork | JVM unit | `:app` `ArtworkColourTest` — the traps that make naive versions produce mud |
 | Every "go to" lands on its source, the player sheet labels per pillar, a source page never offers itself, an unfollowed feed previews | instrumented | `:app` `GoToSourceGoesThereTest` |
 | Each channel's latest upload from its RSS feed: parse a real feed, skip fresh, keep on failure, cap concurrency, one at a time | JVM unit | `:core:data` `ChannelFeedParserTest`, `ChannelLatestUploadsTest` |
+| Fuzzy filtering: the matcher, and every list's field, paging pause and queue index mapping | JVM unit + instrumented | `:core:domain` `FuzzyMatchTest`, `:app` `ListFilterTest` |
 | One list of both pillars' subscriptions, newest upload first | JVM unit + instrumented | `:core:domain` `SourceActivityTest`, `:app` `AllSubscriptionsViewModelTest`, `AllSubscriptionsListTest` |
 | Rows wear their pillar's wash, with cyan on top when played (pixels, both themes) | instrumented | `:app` `PlayedRowIsTintedTest` |
 | Old rows and playback borrow the show's artwork | JVM unit | `:app` `AnEpisodeWithNoPictureWearsItsShowsTest`, `:core:domain` `SourceArtworkTest` |

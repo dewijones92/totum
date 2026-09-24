@@ -31,6 +31,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.innertube.playlists.Playlist
+import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaThumbnail
 
 /** The signed-in account's playlists; tapping one opens its videos. */
@@ -64,9 +65,11 @@ fun PlaylistsListScreen(
                     if (s.playlists.isEmpty()) {
                         Centered { Text(stringResource(R.string.playlists_empty)) }
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(s.playlists, key = { it.browseId }) { playlist ->
-                                PlaylistRow(playlist, onClick = { onOpen(playlist) })
+                        FilterableList("account-playlists", s.playlists, { listOf(it.title) }) { shown, _ ->
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                items(shown, key = { it.browseId }) { playlist ->
+                                    PlaylistRow(playlist, onClick = { onOpen(playlist) })
+                                }
                             }
                         }
                     }

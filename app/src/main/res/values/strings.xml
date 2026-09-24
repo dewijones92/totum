@@ -54,6 +54,10 @@
     <string name="playlists_empty">No playlists yet.</string>
     <string name="playlists_signed_out">Sign in to see your playlists.</string>
     <string name="history_title">History</string>
+    <string name="filter_hint">Filter this list</string>
+    <string name="filter_clear">Clear filter</string>
+    <string name="filter_count">%1$d of %2$d</string>
+    <string name="filter_no_matches">Nothing here matches “%1$s”</string>
     <string name="all_subscriptions_title">Subscriptions</string>
     <string name="all_subscriptions_empty_headline">No subscriptions yet</string>
     <string name="all_subscriptions_empty_supporting">Follow a podcast, or sign in to YouTube, and every channel and show you follow appears here, newest upload first.</string>

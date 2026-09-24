@@ -48,6 +48,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.LocalNow
@@ -58,7 +59,9 @@ import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
+import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberFiltered
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
@@ -198,6 +201,8 @@ private fun SubscriptionsAndEpisodes(
     onDismissRefreshFailures: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val shown = rememberFiltered("podcasts", state.episodes, query) { it.searchableText }
     LazyColumn(modifier = modifier.fillMaxSize()) {
         if (state.refreshFailures.isNotEmpty()) {
             item { RefreshFailureNotice(state.refreshFailures, onDismissRefreshFailures) }
@@ -220,7 +225,8 @@ private fun SubscriptionsAndEpisodes(
                 onSetSort = onSetSort,
             )
         }
-        items(state.episodes, key = { it.id.value }) { episode ->
+        filterField(query, { query = it }, shown.size, state.episodes.size)
+        items(shown, key = { it.id.value }) { episode ->
             MediaItemRow(
                 item = episode,
                 subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),

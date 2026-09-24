@@ -35,6 +35,8 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.mediaItemFacts
@@ -106,20 +108,22 @@ private fun PlaylistBody(
         Icon(Icons.Filled.PlayArrow, contentDescription = null)
         Text(stringResource(R.string.playlist_play_all), modifier = Modifier.padding(start = 8.dp))
     }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(items, key = { it.item.id.value }) { playlistItem ->
-            val media = playlistItem.item
-            MediaItemRow(
-                item = media,
-                subtitleLines = mediaItemFacts(media, playlistItem.pillar, LocalNow.current),
-                downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
-                pillar = playlistItem.pillar,
-                onPlay = { viewModel.playFrom(playlistItem) },
-                onDownload = { viewModel.download(media) },
-                onDeleteDownload = { viewModel.deleteDownload(media.id) },
-                onRemoveFromPlaylist = { viewModel.remove(media.id) },
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+    FilterableList("local-playlist", items, { it.item.searchableText }) { shown, _ ->
+        LazyColumn(Modifier.fillMaxSize()) {
+            items(shown, key = { it.item.id.value }) { playlistItem ->
+                val media = playlistItem.item
+                MediaItemRow(
+                    item = media,
+                    subtitleLines = mediaItemFacts(media, playlistItem.pillar, LocalNow.current),
+                    downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
+                    pillar = playlistItem.pillar,
+                    onPlay = { viewModel.playFrom(playlistItem) },
+                    onDownload = { viewModel.download(media) },
+                    onDeleteDownload = { viewModel.deleteDownload(media.id) },
+                    onRemoveFromPlaylist = { viewModel.remove(media.id) },
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            }
         }
     }
 }

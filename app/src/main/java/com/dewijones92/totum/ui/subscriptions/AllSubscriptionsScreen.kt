@@ -39,9 +39,11 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.SourceArtwork
@@ -77,7 +79,13 @@ internal fun AllSubscriptionsContent(
             BackHeader(stringResource(R.string.all_subscriptions_title), onBack)
             checking?.let { CheckingChannels(it) }
             PullToRefreshBox(isRefreshing = false, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-                SubscriptionsBody(sources, onOpen)
+                if (sources.isNullOrEmpty()) {
+                    SubscriptionsBody(sources, onOpen)
+                } else {
+                    FilterableList("subscriptions", sources, { it.source.searchableText }) { shown, _ ->
+                        SubscriptionsBody(shown, onOpen)
+                    }
+                }
             }
         }
     }

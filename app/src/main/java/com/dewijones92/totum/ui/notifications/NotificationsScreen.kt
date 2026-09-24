@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -66,27 +68,29 @@ fun NotificationsScreen(
                     modifier = Modifier.padding(32.dp),
                 )
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    itemsIndexed(uploads, key = { _, upload -> upload.item.id.value }) { index, upload ->
-                        // One divider between the unread run and the rest, so the boundary is
-                        // visible without a header shouting at you.
-                        if (index > 0 && !upload.unread && uploads[index - 1].unread) {
-                            SeenSince()
-                        }
-                        MediaItemRow(
-                            item = upload.item,
-                            subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO, LocalNow.current),
-                            pillar = MediaKind.VIDEO,
-                            onPlay = { viewModel.play(upload.item) },
-                            // Through the row's own tint rather than a background of our own:
-                            // two backgrounds composite, and a played unread row wore both.
-                            tint = rowTint(
+                FilterableList("notifications", uploads, { it.item.searchableText }) { shown, _ ->
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(shown, key = { _, upload -> upload.item.id.value }) { index, upload ->
+                            // One divider between the unread run and the rest, so the boundary is
+                            // visible without a header shouting at you.
+                            if (index > 0 && !upload.unread && shown[index - 1].unread) {
+                                SeenSince()
+                            }
+                            MediaItemRow(
+                                item = upload.item,
+                                subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO, LocalNow.current),
                                 pillar = MediaKind.VIDEO,
-                                playState = LocalPlayStates.current[upload.item.id] ?: PlayState.Unplayed,
-                                unread = upload.unread,
-                            ),
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                onPlay = { viewModel.play(upload.item) },
+                                // Through the row's own tint rather than a background of our own:
+                                // two backgrounds composite, and a played unread row wore both.
+                                tint = rowTint(
+                                    pillar = MediaKind.VIDEO,
+                                    playState = LocalPlayStates.current[upload.item.id] ?: PlayState.Unplayed,
+                                    unread = upload.unread,
+                                ),
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
                     }
                 }
             }

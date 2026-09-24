@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
@@ -47,7 +49,9 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SourceHeader
+import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberFiltered
 import com.dewijones92.totum.ui.group.GroupPicker
 import com.dewijones92.totum.ui.channel.ChannelViewModel.Tab as ChannelTab
 
@@ -222,13 +226,16 @@ private fun MediaItemTab(
     onLoadMore: () -> Unit,
 ) {
     val listState = rememberLazyListState()
-    LoadMoreOnScrollToEnd(listState, tab.canLoadMore, tab.items.size, onLoadMore)
+    var query by rememberSaveable { mutableStateOf("") }
+    val shown = rememberFiltered("channel-videos", tab.items, query) { it.searchableText }
+    LoadMoreOnScrollToEnd(listState, tab.canLoadMore && query.isBlank(), tab.items.size, onLoadMore)
     when {
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
         else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            items(tab.items, key = { it.id.value }) { video ->
+            filterField(query, { query = it }, shown.size, tab.items.size)
+            items(shown, key = { it.id.value }) { video ->
                 MediaItemRow(
                     item = video,
                     subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
@@ -250,13 +257,16 @@ private fun MediaItemTab(
 @Composable
 private fun PlaylistTab(tab: TabState<Playlist>, onOpen: (Playlist) -> Unit, onLoadMore: () -> Unit) {
     val listState = rememberLazyListState()
-    LoadMoreOnScrollToEnd(listState, tab.canLoadMore, tab.items.size, onLoadMore)
+    var query by rememberSaveable { mutableStateOf("") }
+    val shown = rememberFiltered("channel-playlists", tab.items, query) { listOf(it.title) }
+    LoadMoreOnScrollToEnd(listState, tab.canLoadMore && query.isBlank(), tab.items.size, onLoadMore)
     when {
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
         else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            items(tab.items, key = { it.browseId }) { playlist ->
+            filterField(query, { query = it }, shown.size, tab.items.size)
+            items(shown, key = { it.browseId }) { playlist ->
                 PlaylistRow(playlist, onClick = { onOpen(playlist) })
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }

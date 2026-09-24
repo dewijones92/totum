@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,12 +41,15 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.filteredBy
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SourceHeader
+import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberFiltered
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.podcasts.PodcastsViewModel.Subscribing
 
@@ -179,11 +183,14 @@ private fun EpisodeList(
     filter: MediaFilter,
 ) {
     val actions = rememberMediaItemActions(container)
+    var query by rememberSaveable { mutableStateOf("") }
+    val shown = rememberFiltered("podcast-page", episodes, query) { it.searchableText }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
         }
-        items(episodes, key = { it.id.value }) { episode ->
+        filterField(query, { query = it }, shown.size, episodes.size)
+        items(shown, key = { it.id.value }) { episode ->
             MediaItemRow(
                 item = episode,
                 subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
