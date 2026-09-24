@@ -131,11 +131,11 @@ fun MediaItemRow(
      */
     trailing: (@Composable () -> Unit)? = null,
     /**
-     * The row's background. Defaults to the played wash, which is what every list wants; a screen
-     * with a second state worth colouring passes [rowTint] instead, so there is still exactly one
-     * thing painting a background.
+     * The row's background: its pillar's wash with the played wash over it, which is what every list
+     * wants; a screen with a second state worth colouring passes [rowTint] with it, so there is still
+     * exactly one thing painting a background.
      */
-    tint: Color = playedRowTint(playState),
+    tint: Color = rowTint(pillar, playState),
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
@@ -151,7 +151,6 @@ fun MediaItemRow(
         modifier = modifier
             .fillMaxWidth()
             // Under the click, so the ripple still draws on top of it.
-            .background(pillarRowTint(pillar))
             .background(tint)
             .combinedClickable(
                 enabled = item.mediaUrl != null || hasMenu,

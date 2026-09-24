@@ -81,6 +81,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
+import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
@@ -159,11 +160,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.io.File
@@ -500,11 +503,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // stable), so record their history here; videos are recorded at the
             // launcher, which knows the stable watch URL.
             onPlay = { item, kind ->
-                if (kind == MediaKind.PODCAST) {
-                    applicationScope.launch {
-                        playHistoryStore.record(PlayableItem(item, PlayHandle.Podcast()))
-                    }
+                val handle = when (kind) {
+                    MediaKind.PODCAST -> PlayHandle.Podcast()
+                    MediaKind.VIDEO -> item.mediaUrl?.takeIf { item.pillar == MediaKind.VIDEO }?.let(PlayHandle::Video)
                 }
+                handle?.let { applicationScope.launch { playHistoryStore.record(PlayableItem(item, it)) } }
             },
         )
     }
@@ -973,9 +976,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // itself errs the other way when unsure, which is the safe direction for data.
             offline = ::isOffline,
             refresh = { item -> readyAgain(item) },
-            sourceArtwork = { sourceArtwork.first() },
+            sourceArtwork = { sourceArtworkNow.value },
         )
     }
+
+    private val sourceArtworkNow by lazy { sourceArtwork.stateIn(applicationScope, SharingStarted.Eagerly, emptyMap()) }
 
     override val localPlaylistStore: LocalPlaylistStore by lazy {
         RoomLocalPlaylistStore(database.localPlaylistDao())

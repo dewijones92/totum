@@ -37,6 +37,14 @@ podcast feed etc) … check other menus also … also make the pictures show for
 | A followed feed's page opened before the Podcasts tab ever composed | Flashed a Subscribe button and started a preview | The page waits for the stored subscriptions to be known |
 | Peek from a shell page / Go to from the player or the Shorts reel | The player opened underneath the page / the page opened underneath the player | Shell pages draw below the player and reel; opening one closes both |
 
+Second review, same day: Back on a shell page lost to a tab's own page hidden underneath (shell
+handlers are now re-registered, keyed on the page, so the page on screen wins — `BackFromPodcastPageTest`
+fails without it); a playlist opened from one channel stayed over the next; playback still told the
+player a Library-played audio copy of a video was a podcast, so YouTube never heard of it and history
+recorded it with a podcast handle (`PlaybackQueue` now passes `PlayableItem.pillar`, and the history
+hook records a video with its watch URL); the artwork lookup suspended before playback was claimed; and
+a subscribe from a page now reports to the page alone rather than through the Podcasts tab's dialog state.
+
 Left as they are, on purpose: the Videos, Search and Podcasts tabs keep their own in-tab "go to", so a page opened from a tab stays in that tab; a backup does not carry artwork (the next refresh restores it).
 
 ## The seams

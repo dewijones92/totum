@@ -13,6 +13,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -69,24 +70,47 @@ class AllSubscriptionsViewModelTest {
             initialEpisodes = listOf(item("ep", show.id, "2026-09-20T00:00:00Z")),
         )
         val video = item("vid", SourceId("ytfeed:SUBSCRIPTIONS"), "2026-09-23T00:00:00Z", channel.channelUrl)
-        val viewModel = AllSubscriptionsViewModel(podcasts, MutableStateFlow(listOf(channel)), cacheWith(listOf(video)))
+        val viewModel =
+            AllSubscriptionsViewModel(podcasts, MutableStateFlow(listOf(channel)), cacheWith(listOf(video)), dispatcher)
         backgroundScope.launch { viewModel.sources.collect {} }
 
         advanceUntilIdle()
 
-        assertEquals(listOf("A Channel", "The Show"), viewModel.sources.value.map { it.source.title })
-        assertEquals(listOf("vid", "ep"), viewModel.sources.value.map { it.latest?.id?.value })
+        assertEquals(listOf("A Channel", "The Show"), viewModel.sources.value.orEmpty().map { it.source.title })
+        assertEquals(listOf("vid", "ep"), viewModel.sources.value.orEmpty().map { it.latest?.id?.value })
         assertEquals("reads the feed the Videos tab caches", listOf("SUBSCRIPTIONS"), keysRead)
+    }
+
+    @Test
+    fun `reopening the list reads the cached feed again rather than keeping the first read`() = runTest(dispatcher) {
+        val podcasts = FakePodcastRepository()
+        val viewModel =
+            AllSubscriptionsViewModel(podcasts, MutableStateFlow(listOf(channel)), cacheWith(emptyList()), dispatcher)
+
+        val first = launch { viewModel.sources.collect {} }
+        advanceUntilIdle()
+        first.cancel()
+        advanceTimeBy(STOPPED_LONG_ENOUGH_MS)
+        val second = launch { viewModel.sources.collect {} }
+        advanceUntilIdle()
+        second.cancel()
+
+        assertEquals(listOf("SUBSCRIPTIONS", "SUBSCRIPTIONS"), keysRead)
     }
 
     @Test
     fun `signed out, the list is just the shows`() = runTest(dispatcher) {
         val podcasts = FakePodcastRepository(initialSubscriptions = listOf(Subscription(show, Instant.EPOCH)))
-        val viewModel = AllSubscriptionsViewModel(podcasts, MutableStateFlow(emptyList()), cacheWith(emptyList()))
+        val viewModel =
+            AllSubscriptionsViewModel(podcasts, MutableStateFlow(emptyList()), cacheWith(emptyList()), dispatcher)
         backgroundScope.launch { viewModel.sources.collect {} }
 
         advanceUntilIdle()
 
-        assertEquals(listOf("The Show"), viewModel.sources.value.map { it.source.title })
+        assertEquals(listOf("The Show"), viewModel.sources.value.orEmpty().map { it.source.title })
+    }
+
+    private companion object {
+        const val STOPPED_LONG_ENOUGH_MS = 10_000L
     }
 }

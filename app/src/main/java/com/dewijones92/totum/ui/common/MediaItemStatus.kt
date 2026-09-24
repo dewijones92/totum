@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -146,18 +147,24 @@ internal fun playedTitleAlpha(playState: PlayState): Float =
     if (playState.isPlayed) PLAYED_TITLE_ALPHA else 1f
 
 /**
- * The wash a row wears when more than one state wants one — **played wins**.
+ * The ONE background a row wears: its pillar's wash, with at most one state wash over it — **played
+ * wins** over unread.
  *
  * Two draw modifiers both painting a background do not choose between themselves, they composite:
  * the Notifications tab passed an unread wash through `modifier` and the row painted the played wash
  * on top of it, making a third colour that read as neither "new" nor "finished". Played wins because
- * it is the later fact about the item — an episode you have finished is not news any more.
+ * it is the later fact about the item — an episode you have finished is not news any more. Unread
+ * is the stronger `primary` rather than `primaryContainer`, because the video wash under it is
+ * `primaryContainer` already and more of the same colour does not read as a different state.
  */
 @Composable
-internal fun rowTint(playState: PlayState, unread: Boolean): Color = when {
-    playState.isPlayed -> playedRowTint(playState)
-    unread -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = UNREAD_TINT_ALPHA)
-    else -> Color.Transparent
+internal fun rowTint(pillar: MediaKind, playState: PlayState, unread: Boolean = false): Color {
+    val state = when {
+        playState.isPlayed -> playedRowTint(playState)
+        unread -> MaterialTheme.colorScheme.primary.copy(alpha = UNREAD_TINT_ALPHA)
+        else -> Color.Transparent
+    }
+    return state.compositeOver(pillarRowTint(pillar))
 }
 
 /**
@@ -223,7 +230,7 @@ private const val PLAYED_ROW_TINT_ALPHA = 0.08f
  * Unchanged at 0.35 — it is a container colour rather than a hue, so it can afford to be stronger
  * than the played wash.
  */
-private const val UNREAD_TINT_ALPHA = 0.35f
+private const val UNREAD_TINT_ALPHA = 0.15f
 private const val PLAYED_ROW_TINT_ALPHA_ON_DARK = 0.14f
 private const val DARK_SURFACE_LUMINANCE = 0.5f
 

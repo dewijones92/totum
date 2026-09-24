@@ -81,6 +81,7 @@ fun NotificationsScreen(
                             // Through the row's own tint rather than a background of our own:
                             // two backgrounds composite, and a played unread row wore both.
                             tint = rowTint(
+                                pillar = MediaKind.VIDEO,
                                 playState = LocalPlayStates.current[upload.item.id] ?: PlayState.Unplayed,
                                 unread = upload.unread,
                             ),

@@ -9,16 +9,29 @@ public fun MediaItem.isFrom(source: MediaSource): Boolean {
     return sourceUrl?.youTubeChannelId == id
 }
 
-public fun latestUploadFirst(sources: List<MediaSource>, items: List<MediaItem>): List<SourceActivity> =
-    sources
+public fun latestUploadFirst(sources: List<MediaSource>, items: List<MediaItem>): List<SourceActivity> {
+    val dated = items.filter { it.publishedAt != null }
+    val newestBySourceId = dated.newestBy { it.sourceId.value }
+    val newestByChannelId = dated.newestBy { it.sourceUrl?.youTubeChannelId }
+    return sources
         .distinctBy { it.id }
         .map { source ->
-            SourceActivity(
-                source = source,
-                latest = items.filter { it.isFrom(source) && it.publishedAt != null }.maxByOrNull { it.publishedAt!! },
-            )
+            val channelId = (source as? MediaSource.VideoChannel)?.youTubeChannelId
+            val candidates = listOfNotNull(newestBySourceId[source.id.value], channelId?.let(newestByChannelId::get))
+            SourceActivity(source, candidates.maxByOrNull { it.publishedAt!! })
         }
         .sortedWith(
             compareByDescending<SourceActivity> { it.latest?.publishedAt }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { it.source.title },
         )
+}
+
+private fun List<MediaItem>.newestBy(key: (MediaItem) -> String?): Map<String, MediaItem> {
+    val newest = HashMap<String, MediaItem>()
+    for (item in this) {
+        val k = key(item) ?: continue
+        val held = newest[k]
+        if (held == null || item.publishedAt!! > held.publishedAt!!) newest[k] = item
+    }
+    return newest
+}

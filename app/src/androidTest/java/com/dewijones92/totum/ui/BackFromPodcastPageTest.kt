@@ -1,6 +1,10 @@
 package com.dewijones92.totum.ui
 
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -16,6 +20,8 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,5 +61,34 @@ class BackFromPodcastPageTest {
 
         assertFalse("back left the app", activity.isFinishing)
         composeTestRule.onNodeWithText(latest).assertExists()
+    }
+
+    @Test
+    fun `back closes the page the shell opened even when a tab has its own page open beneath it`() {
+        val container = FakeAppContainer(
+            podcastRepository = FakePodcastRepository(
+                initialSubscriptions = listOf(Subscription(feed, Instant.EPOCH)),
+                initialEpisodes = listOf(FakePodcastRepository.sampleEpisode(feed.id)),
+            ),
+        )
+        var tabPageOpen by mutableStateOf(true)
+        var shellSource by mutableStateOf<MediaSource?>(null)
+        composeTestRule.setContent {
+            TotumTheme {
+                ProvidePlayStates(container, onOpenSource = {}) {
+                    ShellOverlays(container, source = shellSource, onCloseSource = { shellSource = null })
+                    BackHandler(enabled = tabPageOpen) { tabPageOpen = false }
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        shellSource = feed
+        composeTestRule.waitForIdle()
+
+        composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeTestRule.waitForIdle()
+
+        assertNull("the page on screen should have closed", shellSource)
+        assertTrue("the hidden tab page should still be open", tabPageOpen)
     }
 }

@@ -21,6 +21,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.pillarRowTint
+import com.dewijones92.totum.ui.common.rowTint
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -62,7 +63,7 @@ class PlayedRowIsTintedTest {
     )
 
     @Test
-    fun `a played row is tinted and an unplayed one is not - light theme`() {
+    fun `rows wear their pillar wash and a played row adds cyan - light theme`() {
         assertTinted(darkTheme = false)
     }
 
@@ -74,7 +75,7 @@ class PlayedRowIsTintedTest {
      * blue-gain bar below is not "any gain at all".
      */
     @Test
-    fun `a played row is tinted and an unplayed one is not - dark theme`() {
+    fun `rows wear their pillar wash and a played row adds cyan - dark theme`() {
         assertTinted(darkTheme = true)
     }
 
@@ -91,6 +92,8 @@ class PlayedRowIsTintedTest {
                     TestRow(PLAYED, PlayState.Played)
                     TestRow(UNPLAYED, PlayState.Unplayed)
                     TestRow(UNPLAYED_VIDEO, PlayState.Unplayed, MediaKind.VIDEO)
+                    TestRow(PLAYED_VIDEO, PlayState.Played, MediaKind.VIDEO)
+                    TestRow(UNREAD_VIDEO, PlayState.Unplayed, MediaKind.VIDEO, unread = true)
                     // Part-way, which Dewi decided should NOT be tinted: it already carries the
                     // progress sliver, and tinting it too would leave nothing untinted to compare
                     // against. Asserted because a decision nothing pins is a decision that drifts.
@@ -134,20 +137,52 @@ class PlayedRowIsTintedTest {
             bluerBy > MIN_BLUE_GAIN,
         )
 
+        assertVideoAndUnreadRows(theme, surface, unplayed)
+        val playedVideo = cornerOf(PLAYED_VIDEO)
+
         // And a TINGE: a wash the text cannot be read through is not what was asked for. Both washes
         // together must stay near the surface, so either one creeping up to a fill fails here.
         assertTrue(
-            "$theme: the washes should stay faint — $played is far from $surface",
-            maxOf(
-                abs(played.red - surface.red),
-                abs(played.green - surface.green),
-                abs(played.blue - surface.blue),
-            ) < MAX_SHIFT,
+            "$theme: the washes should stay faint — $played / $playedVideo is far from $surface",
+            listOf(played, playedVideo).all {
+                maxOf(abs(it.red - surface.red), abs(it.green - surface.green), abs(it.blue - surface.blue)) < MAX_SHIFT
+            },
         )
     }
 
+    private fun assertVideoAndUnreadRows(theme: String, surface: Color, unplayed: Color) {
+        val playedVideo = cornerOf(PLAYED_VIDEO)
+        val unplayedVideo = cornerOf(UNPLAYED_VIDEO)
+        assertTrue(
+            "$theme: cyan must show over the video wash too — blue gained only " +
+                "${(playedVideo.blue - playedVideo.red) - (unplayedVideo.blue - unplayedVideo.red)}",
+            (playedVideo.blue - playedVideo.red) - (unplayedVideo.blue - unplayedVideo.red) > MIN_BLUE_GAIN,
+        )
+        val unread = cornerOf(UNREAD_VIDEO)
+        assertTrue(
+            "$theme: an unread video row ($unread) must stand clear of a read one ($unplayedVideo)",
+            maxOf(
+                abs(unread.red - unplayedVideo.red),
+                abs(unread.green - unplayedVideo.green),
+                abs(unread.blue - unplayedVideo.blue),
+            ) > MIN_UNREAD_SHIFT,
+        )
+        listOf(unplayed, unplayedVideo).forEach { wash ->
+            assertTrue(
+                "$theme: a pillar wash alone must stay a tinge — $wash is far from $surface",
+                maxOf(abs(wash.red - surface.red), abs(wash.green - surface.green), abs(wash.blue - surface.blue)) <
+                    MAX_PILLAR_SHIFT,
+            )
+        }
+    }
+
     @Composable
-    private fun TestRow(tag: String, playState: PlayState, pillar: MediaKind = MediaKind.PODCAST) {
+    private fun TestRow(
+        tag: String,
+        playState: PlayState,
+        pillar: MediaKind = MediaKind.PODCAST,
+        unread: Boolean = false
+    ) {
         MediaItemRow(
             item = item,
             subtitleLines = listOf("🎙️ The Rest Is Politics", "🏷️ Goalhanger"),
@@ -163,6 +198,7 @@ class PlayedRowIsTintedTest {
             onSwitchMode = null,
             onGoToSource = null,
             onSetPlayed = null,
+            tint = rowTint(pillar, playState, unread),
             modifier = Modifier.testTag(tag),
         )
     }
@@ -182,6 +218,10 @@ class PlayedRowIsTintedTest {
         const val PLAYED = "row-played"
         const val UNPLAYED = "row-unplayed"
         const val UNPLAYED_VIDEO = "row-unplayed-video"
+        const val PLAYED_VIDEO = "row-played-video"
+        const val UNREAD_VIDEO = "row-unread-video"
+        const val MAX_PILLAR_SHIFT = 0.16f
+        const val MIN_UNREAD_SHIFT = 0.05f
         const val PART_WAY = "row-part-way"
         const val SAMPLE_INSET = 2
         const val TOLERANCE = 1f / 255f

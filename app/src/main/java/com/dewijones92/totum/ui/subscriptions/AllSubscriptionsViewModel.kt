@@ -16,23 +16,26 @@ import com.dewijones92.totum.domain.latestUploadFirst
 import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.ui.videos.FeedChoice
 import com.dewijones92.totum.ui.videos.cacheKey
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 class AllSubscriptionsViewModel(
     podcasts: PodcastRepository,
     channels: Flow<List<MediaSource.VideoChannel>>,
     private val feedCache: FeedCache,
+    computation: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
-    private val cachedVideos = MutableStateFlow<List<MediaItem>>(emptyList())
+    private val cachedVideos: Flow<List<MediaItem>> = flow { emit(feedCache.items(SUBSCRIPTIONS_FEED.cacheKey())) }
 
-    val sources: StateFlow<List<SourceActivity>> = combine(
+    val sources: StateFlow<List<SourceActivity>?> = combine(
         podcasts.observeSubscriptions(),
         podcasts.observeEpisodes(),
         channels,
@@ -41,15 +44,11 @@ class AllSubscriptionsViewModel(
         latestUploadFirst(shows.map { it.source } + subscribedChannels, episodes + videos).also { ranked ->
             describe(ranked, shows.size, subscribedChannels.size, videos.size)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+    }
+        .flowOn(computation)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
 
     private var lastDescription: String? = null
-
-    init {
-        viewModelScope.launch {
-            cachedVideos.value = feedCache.items(SUBSCRIPTIONS_FEED.cacheKey())
-        }
-    }
 
     private fun describe(ranked: List<SourceActivity>, shows: Int, channels: Int, videos: Int) {
         val dated = ranked.count { it.latest != null }

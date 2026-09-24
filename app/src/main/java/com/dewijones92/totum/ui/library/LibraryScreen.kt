@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.DownloadState
@@ -74,6 +76,24 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
     TrackPlace("library") {
         "playlists=$showPlaylists history=$showHistory subscriptions=$showSubscriptions account=$showAccount " +
             "playlist=$openPlaylistId"
+    }
+
+    val open = listOf(
+        "playlist" to (playlist != null),
+        "playlists" to showPlaylists,
+        "history" to showHistory,
+        "subscriptions" to showSubscriptions,
+        "account" to showAccount,
+    ).firstOrNull { it.second }?.first
+    BackHandler(enabled = open != null) {
+        Diag.log("nav", "back from library $open")
+        when {
+            playlist != null -> openPlaylistId = null
+            showPlaylists -> showPlaylists = false
+            showHistory -> showHistory = false
+            showSubscriptions -> showSubscriptions = false
+            else -> showAccount = false
+        }
     }
 
     when {

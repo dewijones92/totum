@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.subscriptions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Subscriptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -49,7 +51,7 @@ fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier
 
 @Composable
 internal fun AllSubscriptionsContent(
-    sources: List<SourceActivity>,
+    sources: List<SourceActivity>?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpen: ((SourceActivity) -> Unit)? = LocalOpenSource.current?.let { open -> { open(it.source) } },
@@ -57,7 +59,9 @@ internal fun AllSubscriptionsContent(
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(stringResource(R.string.all_subscriptions_title), onBack)
-            if (sources.isEmpty()) {
+            if (sources == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else if (sources.isEmpty()) {
                 EmptyState(
                     icon = Icons.Outlined.Subscriptions,
                     headline = stringResource(R.string.all_subscriptions_empty_headline),

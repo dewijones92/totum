@@ -40,6 +40,20 @@ row is pillar wash + cyan and an unread notification row still stands out (its p
 the video wash's 14%). The first lemon alpha (30%) moved the blue channel by 0.21 in the pixels and was
 cut to 18%.
 
+## Second review (2026-09-24), fixed
+
+- The ranking ran on the main thread and re-filtered every item per source (≈1,600 channels × a few
+  thousand items). Now one grouped pass (`newestBy` source id and `UC…` id), `flowOn(Default)`.
+- The cached feed was read once per ACTIVITY (the view model is activity-scoped); now it is re-read
+  each time the list is opened (a cold `flow {}` under `WhileSubscribed`). Pinned by a test that fails
+  on a read-once version.
+- **One function paints a row's background**: `rowTint(pillar, playState, unread)` = pillar wash with at
+  most one state wash over it. Unread moved from `primaryContainer` (the same colour as the video
+  wash) to `primary` at 15%, and the pixel test now pins cyan over the peach wash, unread standing
+  clear of read, and an upper bound on each pillar wash on its own.
+- A loading state instead of flashing "No subscriptions yet"; system Back inside Library's sub-screens
+  returns to Library instead of leaving the app.
+
 ## Found on the way
 
 **Every channel avatar was being dropped.** YouTube sends them protocol-relative (`//yt3.ggpht.com/…`),

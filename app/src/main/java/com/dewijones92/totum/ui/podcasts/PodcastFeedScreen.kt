@@ -17,8 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -118,7 +120,8 @@ fun PodcastFeedScreen(
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
     val playStates = LocalPlayStates.current
     val page = rememberFeedPage(container, source, state)
-    SubscribeOutcome(state.subscribing, viewModel::resetSubscribing)
+    var subscribing by remember(source.id) { mutableStateOf<Subscribing>(Subscribing.Idle) }
+    SubscribeOutcome(subscribing) { subscribing = Subscribing.Idle }
     val episodes = page.episodes.filteredBy(settings.mediaFilter) { playStates[it] ?: PlayState.Unplayed }
 
     Surface(modifier = modifier.fillMaxSize()) {
@@ -133,11 +136,11 @@ fun PodcastFeedScreen(
                     if (page.subscribed) {
                         viewModel.unsubscribe(source.id)
                     } else {
-                        viewModel.subscribe(source.feedUrl.value)
+                        viewModel.subscribe(source.feedUrl.value) { subscribing = it }
                     }
                 },
             )
-            if (state.subscribing == Subscribing.InProgress) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (subscribing == Subscribing.InProgress) LinearProgressIndicator(Modifier.fillMaxWidth())
             when {
                 page.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()

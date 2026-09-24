@@ -113,7 +113,7 @@ class PlaybackQueue(
      * decides to ask for it. Default false so tests and previews behave as before.
      */
     private val audioPreferred: () -> Boolean = { false },
-    private val sourceArtwork: suspend () -> Map<SourceId, HttpUrl> = { emptyMap() },
+    private val sourceArtwork: () -> Map<SourceId, HttpUrl> = { emptyMap() },
 ) {
     private val _state = MutableStateFlow(QueueSnapshot())
 
@@ -748,6 +748,14 @@ class PlaybackQueue(
         return play(item, positionMs, retry = true, streamRefused = true)
     }
 
+    private fun withSourceArtwork(playable: PlayableItem): PlayableItem {
+        if (playable.item.thumbnailUrl != null) return playable
+        val item = playable.item.withArtworkFrom(sourceArtwork())
+        val outcome = if (item.thumbnailUrl != null) "using its source's" else "its source has none either"
+        Diag.log("playback", "no artwork of its own for ${item.id.value} from ${item.sourceId.value}: $outcome")
+        return playable.copy(item = item)
+    }
+
     /**
      * Picks a route with [routeNow] and carries it out — the only place playback starts.
      *
@@ -772,14 +780,6 @@ class PlaybackQueue(
      *
      * Whether a picture is shown is `PlaybackState.hasVideo`'s business, and always was.
      */
-    private suspend fun withSourceArtwork(playable: PlayableItem): PlayableItem {
-        if (playable.item.thumbnailUrl != null) return playable
-        val item = playable.item.withArtworkFrom(sourceArtwork())
-        val outcome = if (item.thumbnailUrl != null) "using its source's" else "its source has none either"
-        Diag.log("playback", "no artwork of its own for ${item.id.value} from ${item.sourceId.value}: $outcome")
-        return playable.copy(item = item)
-    }
-
     private suspend fun route(
         listed: PlayableItem,
         startPositionMs: Long,
@@ -820,7 +820,7 @@ class PlaybackQueue(
             is PlayRoute.AudioFile -> {
                 controller.play(
                     route.playable.item,
-                    queued.handle.pillar,
+                    queued.pillar,
                     localPath = route.path,
                     startPositionMs = startPositionMs,
                 )
@@ -835,7 +835,7 @@ class PlaybackQueue(
                     audioOnly = queued.item.id.value in pictureGivenUpOn,
                 )
             is PlayRoute.AudioStream -> {
-                controller.play(route.playable.item, queued.handle.pillar, startPositionMs = startPositionMs)
+                controller.play(route.playable.item, queued.pillar, startPositionMs = startPositionMs)
                 true
             }
             is PlayRoute.Refused -> false

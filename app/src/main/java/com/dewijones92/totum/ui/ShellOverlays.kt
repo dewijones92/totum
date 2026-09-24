@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,10 +28,10 @@ internal fun ShellOverlays(
 ) {
     // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
     // channel reached via "go to channel" listed its playlists and none of them would open.
-    var playlist by remember { mutableStateOf<Playlist?>(null) }
+    var playlist by remember(source) { mutableStateOf<Playlist?>(null) }
     val onOpenPlaylist: (Playlist) -> Unit = { playlist = it }
     val onClosePlaylist = { playlist = null }
-    BackHandler(enabled = source != null) { onCloseSource() }
+    key(source) { BackHandler(enabled = source != null) { onCloseSource() } }
     when (source) {
         null -> Unit
         is MediaSource.PodcastFeed -> PodcastFeedScreen(
@@ -55,7 +56,7 @@ internal fun ShellOverlays(
         )
     }
     // A playlist opened from that channel overlay, on top of it. Same shape, same reason.
-    BackHandler(enabled = playlist != null) { onClosePlaylist() }
+    key(playlist) { BackHandler(enabled = playlist != null) { onClosePlaylist() } }
     playlist?.let { open ->
         PlaylistScreen(
             container,

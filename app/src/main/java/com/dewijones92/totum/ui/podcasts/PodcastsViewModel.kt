@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.podcast.FeedRefreshFailure
@@ -136,20 +137,22 @@ class PodcastsViewModel(
         viewModelScope.launch { downloads.delete(episode.id) }
     }
 
-    fun subscribe(rawUrl: String) {
+    fun subscribe(rawUrl: String, report: (Subscribing) -> Unit = { subscribing.value = it }) {
         val url = HttpUrl.parse(rawUrl)
         if (url == null) {
-            subscribing.value = Subscribing.Error.InvalidUrl
+            report(Subscribing.Error.InvalidUrl)
             return
         }
         viewModelScope.launch {
-            subscribing.value = Subscribing.InProgress
-            subscribing.value = when (repository.subscribe(url)) {
-                is SubscribeResult.Subscribed -> Subscribing.Done
-                is SubscribeResult.AlreadySubscribed -> Subscribing.Error.AlreadySubscribed
-                is SubscribeResult.Failure.Network -> Subscribing.Error.Network
-                is SubscribeResult.Failure.InvalidFeed -> Subscribing.Error.InvalidFeed
-            }
+            report(Subscribing.InProgress)
+            report(
+                when (repository.subscribe(url)) {
+                    is SubscribeResult.Subscribed -> Subscribing.Done
+                    is SubscribeResult.AlreadySubscribed -> Subscribing.Error.AlreadySubscribed
+                    is SubscribeResult.Failure.Network -> Subscribing.Error.Network
+                    is SubscribeResult.Failure.InvalidFeed -> Subscribing.Error.InvalidFeed
+                }.also { Diag.log("subs", "subscribe $url -> $it") },
+            )
         }
     }
 

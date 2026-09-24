@@ -108,6 +108,16 @@ class PlayedPillarIsTheItemsTest {
         assertEquals(trail(), MediaKind.VIDEO, controller.state.value?.kind)
     }
 
+    @Test
+    fun aVideoHandedInAlreadyAsItsFileFromTheLibraryKeepsItsPillar() = runTest(dispatcher) {
+        val fromLibrary = youTubeVideo().copy(handle = PlayHandle.Podcast("/downloads/$VIDEO_ID.m4a"))
+
+        queue().peek(fromLibrary)
+        advanceUntilIdle()
+
+        assertEquals(trail(), MediaKind.VIDEO, controller.state.value?.kind)
+    }
+
     /** The other half of the contract: a podcast must still be a podcast. */
     @Test
     fun aPodcastIsStillAPodcast() = runTest(dispatcher) {
