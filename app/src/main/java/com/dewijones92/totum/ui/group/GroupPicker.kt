@@ -67,7 +67,13 @@ internal fun GroupPicker(
                 if (groups.isEmpty()) {
                     Text(stringResource(R.string.groups_none_yet))
                 } else {
-                    FilterableList("groups", groups, { listOf(it.name) }, inset = 0.dp) { shown, _ ->
+                    FilterableList(
+                        "groups",
+                        groups,
+                        { listOf(it.name) },
+                        inset = 0.dp,
+                        fillsScreen = false
+                    ) { shown, _ ->
                         LazyColumn(modifier = Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
                             items(shown, key = { it.id.value }) { group ->
                                 GroupRow(

@@ -5,14 +5,15 @@ import kotlin.math.abs
 
 public class FuzzyText internal constructor(internal val words: List<String>, internal val phrases: List<String>) {
     internal val joinedStarts: List<Pair<String, IntArray>> = phrases.map { phrase ->
-        val parts = phrase.split(' ')
-        val starts = IntArray(parts.size)
-        var at = 0
-        parts.forEachIndexed { i, part ->
-            starts[i] = at
-            at += part.length
+        val joined = StringBuilder()
+        val starts = mutableListOf<Int>()
+        phrase.split(' ').forEach { part ->
+            part.forEachIndexed { i, c ->
+                if (i == 0 || c.isDigit() != part[i - 1].isDigit()) starts += joined.length
+                joined.append(c)
+            }
         }
-        parts.joinToString("") to starts
+        joined.toString() to starts.toIntArray()
     }
 }
 
@@ -23,8 +24,10 @@ public class FuzzyQuery internal constructor(internal val tokens: List<String>) 
 public object FuzzyMatch {
 
     public fun normalise(text: String): String =
-        Normalizer.normalize(text.replace("ß", "ss"), Normalizer.Form.NFD)
-            .replace(COMBINING_MARKS, "")
+        Normalizer.normalize(
+            Normalizer.normalize(text.replace("ß", "ss"), Normalizer.Form.NFD).replace(COMBINING_MARKS, ""),
+            Normalizer.Form.NFC,
+        )
             .lowercase()
             .replace(NOT_ALPHANUMERIC, " ")
             .trim()
@@ -44,12 +47,16 @@ public object FuzzyMatch {
     public fun matches(query: FuzzyQuery, text: FuzzyText): Boolean = query.tokens.all { token -> found(token, text) }
 
     private fun found(token: String, text: FuzzyText): Boolean = when {
-        token.any(Char::isDigit) -> text.words.any { it.startsWith(token) }
-        token.length < MIN_INFIX -> text.words.any { it.startsWith(token) || (it.isUnspaced() && token in it) }
+        token.any(Char::isDigit) -> text.startsAWord(token)
+        token.isUnspaced() -> text.phrases.any { token in it }
+        token.length < MIN_INFIX -> text.words.any { it.startsWith(token) }
         else -> text.phrases.any { token in it } ||
-            text.joinedStarts.any { (joined, starts) -> starts.any { joined.startsWith(token, it) } } ||
+            text.startsAWord(token) ||
             text.words.any { word -> WordSimilarity.close(token, word) }
     }
+
+    private fun FuzzyText.startsAWord(token: String): Boolean =
+        joinedStarts.any { (joined, starts) -> starts.any { joined.startsWith(token, it) } }
 
     private fun String.isUnspaced(): Boolean = any { Character.UnicodeScript.of(it.code) in UNSPACED_SCRIPTS }
 
@@ -118,7 +125,7 @@ private object WordSimilarity {
         a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1]
 
     private const val MIN_ABBREVIATION = 4
-    private const val VOWELS = "aeiou"
+    private const val VOWELS = "aeiouy"
     private const val MIN_TYPO_TOKEN = 5
     private const val MIN_PREFIX_TYPO = 6
     private const val LONG_TOKEN = 8

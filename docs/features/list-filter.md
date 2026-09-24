@@ -23,11 +23,15 @@ Dewi, 2026-09-24: *"put fuzzy search everywhere there's a list"*.
   - a typo, first letter right: one edit from 5 letters, two from 8. A 5-letter word may be one typo from
     a whole word ("tenis") or one missing/extra letter from the start of one ("briig"); from 6 letters any
     edit counts while typing. Words containing digits never match by typo ("2024" ≠ "2025").
-  - `ß` reads as `ss`; a query of only symbols filters nothing.
+  - `ß` reads as `ss`; a query of only symbols filters nothing; `y` counts as a vowel.
+  - Letters and digits written together or apart find each other ("gpt6" ↔ "GPT-6", "2024" ↔ "#Euro2024")
+    from the start of a word or a letter/digit change, never mid-number ("234" does not find "1234").
+  - Chinese/Japanese/Korean/Thai query words match anywhere; Latin ones never match inside them.
   - **The list keeps its own order** (queue order, newest first, …); the filter only hides.
 - **`MediaItem.searchableText`** = title, maker, publisher; **`MediaSource.searchableText`** = name,
   publisher. Every screen filters media by the same fields.
-- **UI** (`ui/common/ListFilter.kt`): `FilterField` (search icon, clear, "N of M"), `FilterableList`
+- **UI** (`ui/common/ListFilter.kt`): `FilterField` (search icon, "Filter N items", clear, "N of M" inside
+  the box so it never adds a line), `FilterableList`
   (field + list + "Nothing here matches"), and `LazyListScope.filterField` for lists whose header lives
   inside the `LazyColumn`. Queries survive rotation (`rememberSaveable`) and each list has its own.
 
@@ -39,6 +43,22 @@ and page) · New uploads · All subscriptions · Diagnostics (tags and messages)
 groups pickers.
 
 Deliberately not: **Search** (it is already a search box) and the player's **Related** strip.
+
+## Second review, same day — fixed
+
+A test typing "gama" stopped matching after the vowel rule and failed CI (the instrumented suite was not
+re-run after the last matcher change — now it is, in full, at CI's geometry); digit words were barred from
+joined text; Latin tokens matched inside Japanese; Korean syllables decomposed into letters (NFC restored);
+Diagnostics logged two contradictory lines (now `diagnostics vitals` / `diagnostics events`); a paused
+list logged "no more to fetch" on every keystroke (now silent, the filter line says it is paused); a false
+"cleared" line on switching source; a stale count after the list changed under a steady query; the
+podcast page lost its query when the media filter emptied it; a dialog's "no matches" could squeeze the
+create field (checked on the emulator: it does not, now it cannot).
+
+**The filter bar pushed rows off a small screen.** CI's emulator is 320×640 dp at 160 dpi, and
+`QueueGroupCollapseTest` failed there only (it passed at 1080×2400 and at 1080×1920 @ 480). The count
+line moved inside the field; the whole instrumented suite (156 tests) now passes at `wm size 320x640`,
+`wm density 160`.
 
 ## Two rules that are not obvious
 

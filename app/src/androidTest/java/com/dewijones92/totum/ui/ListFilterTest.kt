@@ -156,8 +156,9 @@ class ListFilterTest {
         }
         composeTestRule.waitForIdle()
 
-        type("gama")
+        type("gamma")
 
+        composeTestRule.onNodeWithText("Gamma show").assertExists()
         composeTestRule.onAllNodesWithText("Alpha show").assertCountEquals(0)
         composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_reorder)).assertCountEquals(0)
         composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_menu))[0].performClick()

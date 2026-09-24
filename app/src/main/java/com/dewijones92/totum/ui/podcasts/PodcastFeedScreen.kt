@@ -41,6 +41,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
@@ -124,6 +125,7 @@ fun PodcastFeedScreen(
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
     val playStates = LocalPlayStates.current
     val page = rememberFeedPage(container, source, state)
+    val listFilter = rememberListFilter("podcast page ${page.source.title}", key = source.id.value)
     var subscribing by remember(source.id) { mutableStateOf<Subscribing>(Subscribing.Idle) }
     SubscribeOutcome(subscribing) { subscribing = Subscribing.Idle }
     val episodes = page.episodes.filteredBy(settings.mediaFilter) { playStates[it] ?: PlayState.Unplayed }
@@ -151,7 +153,7 @@ fun PodcastFeedScreen(
                 }
                 page.failed -> FeedMessage(R.string.feed_error)
                 episodes.isEmpty() -> FeedMessage(R.string.feed_empty)
-                else -> EpisodeList(container, viewModel, state, episodes, settings.mediaFilter, page.source)
+                else -> EpisodeList(container, viewModel, state, episodes, settings.mediaFilter, listFilter)
             }
         }
     }
@@ -181,10 +183,9 @@ private fun EpisodeList(
     state: PodcastsViewModel.UiState,
     episodes: List<MediaItem>,
     filter: MediaFilter,
-    source: MediaSource.PodcastFeed,
+    listFilter: ListFilter,
 ) {
     val actions = rememberMediaItemActions(container)
-    val listFilter = rememberListFilter("podcast page ${source.title}", key = source.id.value)
     val shown = listFilter.filter(episodes, { it.searchableText })
     LazyColumn(Modifier.fillMaxSize()) {
         item {

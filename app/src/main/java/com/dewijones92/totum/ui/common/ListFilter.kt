@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -50,7 +51,12 @@ fun rememberListFilter(place: String, key: Any? = null): ListFilter {
 }
 
 @Composable
-fun <T> ListFilter.filter(items: List<T>, fields: (T) -> List<String?>, pausesPaging: Boolean = false): List<T> {
+fun <T> ListFilter.filter(
+    items: List<T>,
+    fields: (T) -> List<String?>,
+    pausesPaging: Boolean = false,
+    part: String? = null,
+): List<T> {
     val prepared = remember(items) { items.map { FuzzyMatch.text(fields(it)) } }
     val parsed = remember(query) { FuzzyMatch.query(query) }
     val shown = remember(items, parsed) {
@@ -59,15 +65,16 @@ fun <T> ListFilter.filter(items: List<T>, fields: (T) -> List<String?>, pausesPa
     val shownNow by rememberUpdatedState(shown.size)
     val totalNow by rememberUpdatedState(items.size)
     val active = parsed.hasTerms
-    LaunchedEffect(place, query) {
+    val name = part?.let { "$place $it" } ?: place
+    LaunchedEffect(name, query, items.size) {
         if (!active) return@LaunchedEffect
         delay(SETTLE_MS)
         val paging = if (pausesPaging) ", paging paused until cleared" else ""
-        Diag.log("filter", "$place \"$query\" shows $shownNow of $totalNow$paging")
+        Diag.log("filter", "$name \"$query\" shows $shownNow of $totalNow$paging")
     }
-    var wasActive by remember { mutableStateOf(false) }
-    LaunchedEffect(active) {
-        if (wasActive && !active) Diag.log("filter", "$place cleared, all $totalNow shown")
+    var wasActive by remember(name) { mutableStateOf(false) }
+    LaunchedEffect(name, active) {
+        if (wasActive && !active) Diag.log("filter", "$name cleared, all $totalNow shown")
         wasActive = active
     }
     return shown
@@ -79,7 +86,7 @@ fun FilterField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier =
         value = filter.query,
         onValueChange = { filter.query = it },
         singleLine = true,
-        placeholder = { Text(stringResource(R.string.filter_hint)) },
+        placeholder = { Text(pluralStringResource(R.plurals.filter_hint_count, total, total)) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = if (filter.query.isEmpty()) {
             null
@@ -90,14 +97,10 @@ fun FilterField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier =
                 }
             }
         },
-        supportingText = {
-            Text(
-                if (filter.filtering) {
-                    stringResource(R.string.filter_count, shown, total)
-                } else {
-                    stringResource(R.string.filter_total, total)
-                },
-            )
+        suffix = if (filter.filtering) {
+            { Text(stringResource(R.string.filter_count, shown, total)) }
+        } else {
+            null
         },
         modifier = modifier
             .fillMaxWidth()
@@ -124,14 +127,17 @@ fun <T> FilterableList(
     modifier: Modifier = Modifier,
     key: Any? = null,
     inset: Dp = 16.dp,
+    fillsScreen: Boolean = true,
     content: @Composable (shown: List<T>, filtering: Boolean) -> Unit,
 ) {
     val listFilter = rememberListFilter(place, key)
     val shown = listFilter.filter(items, fields)
     Column(modifier) {
         FilterField(listFilter, shown.size, items.size, inset = inset)
-        if (listFilter.filtering && shown.isEmpty()) {
+        if (listFilter.filtering && shown.isEmpty() && fillsScreen) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { NoFilterMatches(listFilter.query) }
+        } else if (listFilter.filtering && shown.isEmpty()) {
+            NoFilterMatches(listFilter.query)
         } else {
             content(shown, listFilter.filtering)
         }
@@ -159,7 +165,7 @@ fun LoadMoreUnlessFiltered(
     shownCount: Int,
     loadMore: () -> Unit,
 ) {
-    LoadMoreOnScrollToEnd(listState, enabled && filter?.filtering != true, shownCount, loadMore)
+    LoadMoreOnScrollToEnd(listState, enabled, shownCount, loadMore, pausedByFilter = filter?.filtering == true)
 }
 
 const val FILTER_FIELD_TAG: String = "list-filter"

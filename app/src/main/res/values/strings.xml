@@ -54,10 +54,8 @@
     <string name="playlists_empty">No playlists yet.</string>
     <string name="playlists_signed_out">Sign in to see your playlists.</string>
     <string name="history_title">History</string>
-    <string name="filter_hint">Filter this list</string>
     <string name="filter_clear">Clear filter</string>
     <string name="filter_count">%1$d of %2$d</string>
-    <string name="filter_total">%1$d in this list</string>
     <string name="filter_no_matches">Nothing here matches “%1$s”</string>
     <string name="all_subscriptions_title">Subscriptions</string>
     <string name="all_subscriptions_empty_headline">No subscriptions yet</string>
@@ -425,4 +423,8 @@
     <string name="status_downloading">Downloading…</string>
     <string name="status_downloading_percent">Downloading %1$d%%</string>
     <string name="status_online_only">Online only</string>
+    <plurals name="filter_hint_count">
+        <item quantity="one">Filter %1$d item</item>
+        <item quantity="other">Filter %1$d items</item>
+    </plurals>
 </resources>

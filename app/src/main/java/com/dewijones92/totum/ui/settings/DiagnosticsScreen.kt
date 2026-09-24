@@ -64,8 +64,8 @@ internal fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier
             }
         }
         val listFilter = rememberListFilter("diagnostics")
-        val shownVitals = listFilter.filter(vitals, { listOf(it.first, it.second) })
-        val shownEvents = listFilter.filter(events, { listOf(it.tag, it.message) })
+        val shownVitals = listFilter.filter(vitals, { listOf(it.first, it.second) }, part = "vitals")
+        val shownEvents = listFilter.filter(events, { listOf(it.tag, it.message) }, part = "events")
         FilterField(listFilter, shownVitals.size + shownEvents.size, vitals.size + events.size)
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { SectionLabel(stringResource(R.string.diagnostics_vitals)) }

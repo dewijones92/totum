@@ -44,6 +44,7 @@ internal fun LoadMoreOnScrollToEnd(
     enabled: Boolean,
     shownCount: Int,
     loadMore: () -> Unit,
+    pausedByFilter: Boolean = false,
 ) {
     val shouldLoad by remember(listState) {
         derivedStateOf {
@@ -59,7 +60,8 @@ internal fun LoadMoreOnScrollToEnd(
     // taken for exhausted, and paging stopped dead — permanently, until the screen was left and
     // re-entered. Home does page infinitely; it just never got the chance after a switch.
     if (shownCount < askedAt) askedAt = NEVER_ASKED
-    LaunchedEffect(listState, enabled, shownCount) {
+    LaunchedEffect(listState, enabled, shownCount, pausedByFilter) {
+        if (pausedByFilter) return@LaunchedEffect
         snapshotFlow { shouldLoad }
             .collect { near ->
                 if (!near) return@collect

@@ -118,6 +118,32 @@ class FuzzyMatchTest {
     }
 
     @Test
+    fun `letters and digits written together or apart find each other`() {
+        assertTrue(hit("gpt6", "GPT-6 Astra"))
+        assertTrue(hit("covid19", "COVID-19 update"))
+        assertTrue(hit("iphone15", "iPhone 15 review"))
+        assertTrue(hit("web3", "Web 3.0 explained"))
+        assertTrue(hit("ep12", "Ep. 12: The finale"))
+        assertTrue(hit("2024", "#Euro2024 highlights"))
+        assertTrue(hit("f1", "F1TV live"))
+        assertFalse(hit("234", "Episode 1234"))
+    }
+
+    @Test
+    fun `y counts as a vowel so real words are not read as abbreviations`() {
+        assertFalse(hit("sync", "Symphonic"))
+        assertFalse(hit("hymn", "Hydromania"))
+        assertTrue(hit("sync", "Sync your phone"))
+    }
+
+    @Test
+    fun `scripts without spaces are matched on their own terms`() {
+        assertFalse(hit("ub", "YouTubeチャンネル"))
+        assertFalse(hit("서울", "소울 음악"))
+        assertTrue(hit("서울", "서울 여행"))
+    }
+
+    @Test
     fun `unrelated text does not match`() {
         assertFalse(hit("tennis", "Football Daily", "BBC Radio 5 Live"))
         assertFalse(hit("xyzzy", "Anything at all"))

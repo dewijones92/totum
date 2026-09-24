@@ -89,7 +89,13 @@ private fun AddToPlaylistBody(
 ) {
     Column {
         if (playlists.isNotEmpty()) {
-            FilterableList("add-to-playlist", playlists, { listOf(it.name) }, inset = 0.dp) { shown, _ ->
+            FilterableList(
+                "add-to-playlist",
+                playlists,
+                { listOf(it.name) },
+                inset = 0.dp,
+                fillsScreen = false
+            ) { shown, _ ->
                 LazyColumn(Modifier.heightIn(max = PICKER_MAX_HEIGHT)) {
                     items(shown, key = { it.id.value }) { playlist ->
                         Text(
