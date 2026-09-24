@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,17 +60,20 @@ import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
+import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
 
 @Composable
 fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
     var showPlaylists by rememberSaveable { mutableStateOf(false) }
     var showHistory by rememberSaveable { mutableStateOf(false) }
+    var showSubscriptions by rememberSaveable { mutableStateOf(false) }
     var showAccount by rememberSaveable { mutableStateOf(false) }
     // The id is a value class over a String, so it saves as one and needs no saver.
     var openPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
     val playlist = openPlaylistId?.let(::PlaylistId)
     TrackPlace("library") {
-        "playlists=$showPlaylists history=$showHistory account=$showAccount playlist=$openPlaylistId"
+        "playlists=$showPlaylists history=$showHistory subscriptions=$showSubscriptions account=$showAccount " +
+            "playlist=$openPlaylistId"
     }
 
     when {
@@ -84,12 +88,15 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
             )
         showHistory ->
             PlayHistoryScreen(container, onBack = { showHistory = false }, modifier = modifier)
+        showSubscriptions ->
+            AllSubscriptionsScreen(container, onBack = { showSubscriptions = false }, modifier = modifier)
         showAccount ->
             AccountScreen(container, modifier = modifier, onBack = { showAccount = false })
         else -> LibraryHome(
             container,
             onOpenPlaylists = { showPlaylists = true },
             onOpenHistory = { showHistory = true },
+            onOpenSubscriptions = { showSubscriptions = true },
             onOpenAccount = { showAccount = true },
             modifier = modifier,
         )
@@ -101,6 +108,7 @@ private fun LibraryHome(
     container: AppContainer,
     onOpenPlaylists: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
     onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -124,6 +132,7 @@ private fun LibraryHome(
         sort = sort,
         onOpenPlaylists = onOpenPlaylists,
         onOpenHistory = onOpenHistory,
+        onOpenSubscriptions = onOpenSubscriptions,
         onOpenAccount = onOpenAccount,
         onPlay = viewModel::play,
         onDelete = viewModel::delete,
@@ -143,6 +152,7 @@ internal fun LibraryContent(
     sort: DownloadSort,
     onOpenPlaylists: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
     onOpenAccount: () -> Unit,
     onPlay: (LibraryViewModel.Entry) -> Unit,
     onDelete: (LibraryViewModel.Entry) -> Unit,
@@ -158,6 +168,13 @@ internal fun LibraryContent(
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { PlaylistsEntry(onOpenPlaylists) }
+            item {
+                LibraryNavEntry(
+                    Icons.Outlined.Subscriptions,
+                    R.string.all_subscriptions_title,
+                    onOpenSubscriptions,
+                )
+            }
             item { HistoryEntry(onOpenHistory) }
             item { AccountEntry(onOpenAccount) }
             // In-progress FIRST, and outside the empty check: a fresh install with everything

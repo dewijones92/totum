@@ -1,5 +1,6 @@
 package com.dewijones92.totum.innertube.subscriptions
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.innertube.browse.Continuations
@@ -79,9 +80,14 @@ internal object SubscriptionsResponseParser {
             ?.let { it["thumbnails"] as? JsonArray }
             ?: return null
         // Last entry is the highest resolution.
-        return thumbnails.lastOrNull()?.let { (it as? JsonObject)?.stringAt("url") }?.let(HttpUrl::parse)
+        val raw = thumbnails.lastOrNull()?.let { (it as? JsonObject)?.stringAt("url") } ?: return null
+        return HttpUrl.parse(raw) ?: HttpUrl.parse("https:$raw").also {
+            if (it == null) Diag.warn("subs", "unparseable channel avatar url \"${raw.take(RAW_URL_LOGGED)}\"")
+        }
     }
 
     private fun JsonObject.stringAt(key: String): String? =
         this[key]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
 }
+
+private const val RAW_URL_LOGGED = 120

@@ -50,6 +50,9 @@ instead).
 | ViewModels, queue | JVM unit | `:app` |
 | Picking a colour from artwork | JVM unit | `:app` `ArtworkColourTest` — the traps that make naive versions produce mud |
 | Every "go to" lands on its source, the player sheet labels per pillar, a source page never offers itself, an unfollowed feed previews | instrumented | `:app` `GoToSourceGoesThereTest` |
+| One list of both pillars' subscriptions, newest upload first | JVM unit + instrumented | `:core:domain` `SourceActivityTest`, `:app` `AllSubscriptionsViewModelTest`, `AllSubscriptionsListTest` |
+| Rows wear their pillar's wash, with cyan on top when played (pixels, both themes) | instrumented | `:app` `PlayedRowIsTintedTest` |
+| Old rows and playback borrow the show's artwork | JVM unit | `:app` `AnEpisodeWithNoPictureWearsItsShowsTest`, `:core:domain` `SourceArtworkTest` |
 | Back on a podcast page returns to the list | instrumented | `:app` `BackFromPodcastPageTest` — it quit the app |
 | Show artwork parsed, inherited by episodes, filled by refresh; preview stores nothing | JVM unit | `:core:data` `RssParserTest`, `DefaultPodcastRepositoryTest` |
 | Instrumented test names are dex-safe | python | `tools/ci/preflight_dex_names_test.py` — an apostrophe fails the whole androidTest build |

@@ -151,6 +151,7 @@ fun MediaItemRow(
         modifier = modifier
             .fillMaxWidth()
             // Under the click, so the ripple still draws on top of it.
+            .background(pillarRowTint(pillar))
             .background(tint)
             .combinedClickable(
                 enabled = item.mediaUrl != null || hasMenu,

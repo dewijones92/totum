@@ -22,3 +22,9 @@ sealed interface FeedChoice {
      */
     data class Group(val group: SourceGroup) : FeedChoice
 }
+
+/** One key per feed, so account feeds and groups share the cache without colliding. */
+internal fun FeedChoice.cacheKey(): String = when (this) {
+    is FeedChoice.Account -> feed.name
+    is FeedChoice.Group -> "group:${group.id.value}"
+}

@@ -102,6 +102,11 @@ class AccountSubscriptions(
         when (val result = subscriptions.list()) {
             is SubscriptionsResult.Success -> {
                 _channels.value = result.channels.map { it.toSource() }
+                Diag.log(
+                    "subs",
+                    "account channels=${result.channels.size} " +
+                        "withAvatar=${result.channels.count { it.avatarUrl != null }}",
+                )
                 // Stamped only on success, so a transient failure does not buy silence for a
                 // minute — the next caller should be allowed to try again straight away.
                 loadedAtMs = now()

@@ -195,6 +195,24 @@ internal fun playedRowTint(playState: PlayState): Color {
     return scheme.secondary.copy(alpha = alpha)
 }
 
+@Composable
+internal fun pillarRowTint(pillar: MediaKind): Color {
+    val scheme = MaterialTheme.colorScheme
+    val dark = scheme.surface.luminance() < DARK_SURFACE_LUMINANCE
+    return when (pillar) {
+        MediaKind.VIDEO -> scheme.primaryContainer.copy(
+            alpha = if (dark) VIDEO_TINT_ALPHA_ON_DARK else VIDEO_TINT_ALPHA
+        )
+        MediaKind.PODCAST ->
+            scheme.tertiaryContainer.copy(alpha = if (dark) PODCAST_TINT_ALPHA_ON_DARK else PODCAST_TINT_ALPHA)
+    }
+}
+
+private const val VIDEO_TINT_ALPHA = 0.14f
+private const val VIDEO_TINT_ALPHA_ON_DARK = 0.30f
+private const val PODCAST_TINT_ALPHA = 0.18f
+private const val PODCAST_TINT_ALPHA_ON_DARK = 0.30f
+
 private val STATUS_ICON_SIZE = 14.dp
 private val SLIVER_HEIGHT = 3.dp
 private const val PLAYED_TITLE_ALPHA = 0.65f

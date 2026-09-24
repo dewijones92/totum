@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
@@ -19,6 +20,7 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.pillarRowTint
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -26,10 +28,12 @@ import org.junit.runner.RunWith
 import kotlin.math.abs
 
 /**
- * A finished row wears a cyan wash, and an unfinished one wears nothing.
+ * A finished row wears a cyan wash over its pillar's, and an unfinished one wears its pillar's alone.
  *
  * Dewi, 2026-09-21: *"any played item I want the background color of it to have a tinge of a
- * colour"* — cyan, from the app's own palette, at his choosing.
+ * colour"* — cyan, from the app's own palette, at his choosing. Dewi, 2026-09-24: every row is also
+ * tinted by pillar — a faint peach for a video, a faint lemon for a podcast — with the cyan layered on
+ * top, so a played row still reads as played.
  *
  * Read off the PIXELS rather than asserted against the colour function, and that is the whole point
  * of putting this on a device. `playedRowTint` returning the right `Color` says nothing about
@@ -76,12 +80,17 @@ class PlayedRowIsTintedTest {
 
     private fun assertTinted(darkTheme: Boolean) {
         var surface = Color.Unspecified
+        var podcastWash = Color.Unspecified
+        var videoWash = Color.Unspecified
         composeTestRule.setContent {
             TotumTheme(darkTheme = darkTheme) {
                 surface = MaterialTheme.colorScheme.surface
+                podcastWash = pillarRowTint(MediaKind.PODCAST).compositeOver(surface)
+                videoWash = pillarRowTint(MediaKind.VIDEO).compositeOver(surface)
                 Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                     TestRow(PLAYED, PlayState.Played)
                     TestRow(UNPLAYED, PlayState.Unplayed)
+                    TestRow(UNPLAYED_VIDEO, PlayState.Unplayed, MediaKind.VIDEO)
                     // Part-way, which Dewi decided should NOT be tinted: it already carries the
                     // progress sliver, and tinting it too would leave nothing untinted to compare
                     // against. Asserted because a decision nothing pins is a decision that drifts.
@@ -94,11 +103,19 @@ class PlayedRowIsTintedTest {
         val unplayed = cornerOf(UNPLAYED)
         val theme = if (darkTheme) "dark" else "light"
 
-        // The control: an unplayed row is the surface it sits on, so "everything is tinted" and
-        // "nothing is" are distinguishable outcomes rather than one indistinguishable pass.
+        // The control: an unplayed row is exactly its pillar's wash over the surface, so "everything is
+        // tinted cyan" and "nothing is tinted" are distinguishable outcomes rather than one pass.
         assertTrue(
-            "$theme: an unplayed row should be the plain surface — was $unplayed against $surface",
-            unplayed.isNear(surface),
+            "$theme: an unplayed podcast row should be the lemon wash $podcastWash — was $unplayed",
+            unplayed.isNear(podcastWash, PILLAR_TOLERANCE),
+        )
+        assertTrue(
+            "$theme: an unplayed video row should be the peach wash $videoWash — was ${cornerOf(UNPLAYED_VIDEO)}",
+            cornerOf(UNPLAYED_VIDEO).isNear(videoWash, PILLAR_TOLERANCE),
+        )
+        assertTrue(
+            "$theme: a video row and a podcast row should not look alike — $videoWash vs $podcastWash",
+            !videoWash.isNear(podcastWash, PILLAR_TOLERANCE),
         )
         assertTrue(
             "$theme: a played row ($played) should differ from an unplayed one ($unplayed)",
@@ -117,10 +134,10 @@ class PlayedRowIsTintedTest {
             bluerBy > MIN_BLUE_GAIN,
         )
 
-        // And a TINGE: a wash the text cannot be read through is not what was asked for. 0.08 alpha
-        // over the surface moves no channel far, so a wash that has crept up to a fill fails here.
+        // And a TINGE: a wash the text cannot be read through is not what was asked for. Both washes
+        // together must stay near the surface, so either one creeping up to a fill fails here.
         assertTrue(
-            "$theme: the wash should stay faint — $played is far from $surface",
+            "$theme: the washes should stay faint — $played is far from $surface",
             maxOf(
                 abs(played.red - surface.red),
                 abs(played.green - surface.green),
@@ -130,11 +147,11 @@ class PlayedRowIsTintedTest {
     }
 
     @Composable
-    private fun TestRow(tag: String, playState: PlayState) {
+    private fun TestRow(tag: String, playState: PlayState, pillar: MediaKind = MediaKind.PODCAST) {
         MediaItemRow(
             item = item,
             subtitleLines = listOf("🎙️ The Rest Is Politics", "🏷️ Goalhanger"),
-            pillar = MediaKind.PODCAST,
+            pillar = pillar,
             onPlay = {},
             playState = playState,
             onDownload = null,
@@ -156,17 +173,19 @@ class PlayedRowIsTintedTest {
     }
 
     /** Equal to within a single 8-bit step, which is what a rasteriser is allowed to disagree by. */
-    private fun Color.isNear(other: Color): Boolean =
-        abs(red - other.red) <= TOLERANCE &&
-            abs(green - other.green) <= TOLERANCE &&
-            abs(blue - other.blue) <= TOLERANCE
+    private fun Color.isNear(other: Color, tolerance: Float = TOLERANCE): Boolean =
+        abs(red - other.red) <= tolerance &&
+            abs(green - other.green) <= tolerance &&
+            abs(blue - other.blue) <= tolerance
 
     private companion object {
         const val PLAYED = "row-played"
         const val UNPLAYED = "row-unplayed"
+        const val UNPLAYED_VIDEO = "row-unplayed-video"
         const val PART_WAY = "row-part-way"
         const val SAMPLE_INSET = 2
         const val TOLERANCE = 1f / 255f
+        const val PILLAR_TOLERANCE = 2f / 255f
         const val MAX_SHIFT = 0.2f
 
         /**

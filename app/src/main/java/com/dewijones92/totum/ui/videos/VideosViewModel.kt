@@ -231,12 +231,6 @@ class VideosViewModel(
         }
     }
 
-    /** One key per feed, so account feeds and groups share the cache without colliding. */
-    private fun FeedChoice.cacheKey(): String = when (this) {
-        is FeedChoice.Account -> feed.name
-        is FeedChoice.Group -> "group:${group.id.value}"
-    }
-
     private suspend fun accountFeedState(choice: FeedChoice.Account): FeedState =
         when (val result = loadFeed(choice.feed)) {
             is FeedResult.Success -> {

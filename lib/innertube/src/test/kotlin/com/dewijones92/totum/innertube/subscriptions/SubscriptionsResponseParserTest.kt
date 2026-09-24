@@ -31,6 +31,20 @@ class SubscriptionsResponseParserTest {
     }
 
     @Test
+    fun `a protocol-relative avatar, which is what YouTube actually sends, is kept`() {
+        val json = """
+            {"contents":[{"tileRenderer":{"contentType":"TILE_CONTENT_TYPE_CHANNEL",
+              "onSelectCommand":{"browseEndpoint":{"browseId":"UCrel"}},
+              "metadata":{"tileMetadataRenderer":{"title":{"simpleText":"Relative"}}},
+              "header":{"tileHeaderRenderer":{"thumbnail":{"thumbnails":[{"url":"//yt3.ggpht.com/rel=s176"}]}}}}}]}
+        """.trimIndent()
+
+        val channel = (SubscriptionsResponseParser.parse(json) as SubscriptionsResult.Success).channels.single()
+
+        assertEquals("https://yt3.ggpht.com/rel=s176", channel.avatarUrl?.value)
+    }
+
+    @Test
     fun `a channel with no title falls back to its id and tolerates no avatar`() {
         val titleless = (SubscriptionsResponseParser.parse(fixture()) as SubscriptionsResult.Success)
             .channels.first { it.channelId == "UCnotitle" }
