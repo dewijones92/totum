@@ -15,8 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,14 +29,15 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.common.BackHeader
-import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
+import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
-import com.dewijones92.totum.ui.common.rememberFiltered
+import com.dewijones92.totum.ui.common.rememberListFilter
 
 /** A playlist's videos, played/downloaded through the same shared row as everywhere else. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,11 +55,12 @@ fun PlaylistScreen(
         )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    var query by rememberSaveable(playlist.browseId) { mutableStateOf("") }
-    val shown = rememberFiltered("account-playlist", state.videos, query) { it.searchableText }
-    LoadMoreOnScrollToEnd(
+    val listFilter = rememberListFilter("account-playlist ${playlist.title}", key = playlist.browseId)
+    val shown = listFilter.filter(state.videos, { it.searchableText }, pausesPaging = state.canLoadMore)
+    LoadMoreUnlessFiltered(
+        listFilter,
         listState,
-        enabled = state.canLoadMore && !state.loadingMore && query.isBlank(),
+        enabled = state.canLoadMore && !state.loadingMore,
         shownCount = state.videos.size,
         loadMore = viewModel::loadMore,
     )
@@ -84,7 +84,7 @@ fun PlaylistScreen(
                                 onSetSort = viewModel::setSort,
                             )
                         }
-                        filterField(query, { query = it }, shown.size, state.videos.size)
+                        filterField(listFilter, shown.size, state.videos.size)
                         items(shown, key = { it.id.value }) { video ->
                             MediaItemRow(
                                 item = video,

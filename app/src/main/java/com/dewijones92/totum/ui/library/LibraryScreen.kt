@@ -58,9 +58,10 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.TrackPlace
+import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
-import com.dewijones92.totum.ui.common.rememberFiltered
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
@@ -188,8 +189,8 @@ internal fun LibraryContent(
     modifier: Modifier = Modifier,
 ) {
     val actions = LocalItemActions.current
-    var query by rememberSaveable { mutableStateOf("") }
-    val shown = rememberFiltered("downloads", downloaded, query) { it.item.searchableText }
+    val listFilter = rememberListFilter("downloads")
+    val shown = listFilter.filter(downloaded, { it.item.searchableText })
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { PlaylistsEntry(onOpenPlaylists) }
@@ -220,7 +221,7 @@ internal fun LibraryContent(
                     )
                 }
                 item { StorageSummary(storage) }
-                filterField(query, { query = it }, shown.size, downloaded.size)
+                filterField(listFilter, shown.size, downloaded.size)
                 items(shown, key = { it.item.id.value }) { entry ->
                     MediaItemRow(
                         item = entry.item,

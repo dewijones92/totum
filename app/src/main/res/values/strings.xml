@@ -57,6 +57,7 @@
     <string name="filter_hint">Filter this list</string>
     <string name="filter_clear">Clear filter</string>
     <string name="filter_count">%1$d of %2$d</string>
+    <string name="filter_total">%1$d in this list</string>
     <string name="filter_no_matches">Nothing here matches “%1$s”</string>
     <string name="all_subscriptions_title">Subscriptions</string>
     <string name="all_subscriptions_empty_headline">No subscriptions yet</string>

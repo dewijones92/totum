@@ -20,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,9 +46,10 @@ import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SourceHeader
+import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
-import com.dewijones92.totum.ui.common.rememberFiltered
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.podcasts.PodcastsViewModel.Subscribing
 
@@ -151,7 +151,7 @@ fun PodcastFeedScreen(
                 }
                 page.failed -> FeedMessage(R.string.feed_error)
                 episodes.isEmpty() -> FeedMessage(R.string.feed_empty)
-                else -> EpisodeList(container, viewModel, state, episodes, settings.mediaFilter)
+                else -> EpisodeList(container, viewModel, state, episodes, settings.mediaFilter, page.source)
             }
         }
     }
@@ -181,15 +181,16 @@ private fun EpisodeList(
     state: PodcastsViewModel.UiState,
     episodes: List<MediaItem>,
     filter: MediaFilter,
+    source: MediaSource.PodcastFeed,
 ) {
     val actions = rememberMediaItemActions(container)
-    var query by rememberSaveable { mutableStateOf("") }
-    val shown = rememberFiltered("podcast-page", episodes, query) { it.searchableText }
+    val listFilter = rememberListFilter("podcast page ${source.title}", key = source.id.value)
+    val shown = listFilter.filter(episodes, { it.searchableText })
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
         }
-        filterField(query, { query = it }, shown.size, episodes.size)
+        filterField(listFilter, shown.size, episodes.size)
         items(shown, key = { it.id.value }) { episode ->
             MediaItemRow(
                 item = episode,

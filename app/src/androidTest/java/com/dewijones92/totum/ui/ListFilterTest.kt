@@ -3,6 +3,10 @@ package com.dewijones92.totum.ui
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -16,6 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
@@ -24,6 +29,8 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.channel.ChannelContent
+import com.dewijones92.totum.ui.channel.ChannelViewModel
 import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ProvidePlayStates
@@ -186,6 +193,90 @@ class ListFilterTest {
             listOf("e2", "e0", "e1"),
             container.playbackQueue.state.value.entries.map { it.item.item.id.value },
         )
+    }
+
+    private fun channelContent(state: ChannelViewModel.UiState, sourceKey: String, onLoadMore: () -> Unit = {}) {
+        composeTestRule.setContent {
+            TotumTheme {
+                var key by remember { mutableStateOf(sourceKey) }
+                channelKey = { key = it }
+                ChannelContent(
+                    state = state,
+                    onBack = {},
+                    onOpenGroups = {},
+                    onToggleSubscribed = {},
+                    onSelectTab = {},
+                    onSearch = {},
+                    onPlay = {},
+                    onDownload = {},
+                    onDeleteDownload = {},
+                    onAddToPlaylist = {},
+                    onOpenPlaylist = {},
+                    onLoadMore = onLoadMore,
+                    sourceKey = key,
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private var channelKey: (String) -> Unit = {}
+
+    private fun channelState(vararg titles: String) = ChannelViewModel.UiState(
+        title = "A channel",
+        videos = ChannelViewModel.TabState(
+            loaded = true,
+            items = titles.mapIndexed { i, t -> item("c$i", t) },
+            next = PageToken("more"),
+        ),
+    )
+
+    @Test
+    fun `filtering a channel tab does not page on its own`() {
+        var pagesAsked = 0
+        channelContent(
+            channelState(*Array(30) { if (it == 29) "Tennis special" else "Upload $it" }),
+            "A"
+        ) { pagesAsked++ }
+        val before = pagesAsked
+
+        type("tennis")
+        composeTestRule.mainClock.advanceTimeBy(SETTLE_MS)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Tennis special").assertExists()
+        assertEquals(before, pagesAsked)
+    }
+
+    @Test
+    fun `a filter does not follow you to a different channel`() {
+        channelContent(channelState("Alpha upload", "Beta upload"), "channel-A")
+        type("alpha")
+        composeTestRule.onAllNodesWithText("Beta upload").assertCountEquals(0)
+
+        composeTestRule.runOnIdle { channelKey("channel-B") }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Beta upload").assertExists()
+    }
+
+    @Test
+    fun `tapping a filtered queue row plays that entry`() {
+        val container = FakeAppContainer()
+        val queued = listOf("Alpha show", "Beta match report", "Gamma show").mapIndexed { i, title ->
+            PlayableItem(item("e$i", title), PlayHandle.Podcast())
+        }
+        container.playbackQueue.playAll(queued)
+        composeTestRule.setContent {
+            TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { QueueScreen(container) } }
+        }
+        composeTestRule.waitForIdle()
+
+        type("gamma")
+        composeTestRule.onNodeWithText("Gamma show").performClick()
+        composeTestRule.waitUntil(TIMEOUT_MS) { container.playbackQueue.state.value.currentIndex == 2 }
+
+        assertEquals(2, container.playbackQueue.state.value.currentIndex)
     }
 
     private companion object {

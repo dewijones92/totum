@@ -38,7 +38,7 @@ class FuzzyMatchTest {
 
     @Test
     fun `a word can be abbreviated by its letters in order`() {
-        assertTrue(hit("fbl", "Football Daily"))
+        assertTrue(hit("ftbl", "Football Daily"))
         assertTrue(hit("cmptr", "Computerphile"))
         assertFalse(hit("bfl", "Football Daily"))
     }
@@ -56,6 +56,65 @@ class FuzzyMatchTest {
         assertFalse(hit("ai", "DAY DRINKER Official Trailer (2027) Johnny Depp", "ONE Media"))
         assertFalse(hit("ai", "Pure entertainment out there"))
         assertTrue(hit("ac", "AC/DC Power Up Tour"))
+    }
+
+    @Test
+    fun `a short word is not a typo of a different short word`() {
+        assertFalse(hit("live", "I like this"))
+        assertFalse(hit("live", "Love actually"))
+        assertFalse(hit("news", "What's new"))
+        assertFalse(hit("game", "Same again"))
+        assertFalse(hit("chess", "Cheese board"))
+        assertFalse(hit("tenn", "Teenage kicks"))
+    }
+
+    @Test
+    fun `numbers are matched exactly, never as typos`() {
+        assertFalse(hit("2024", "Best of 2025"))
+        assertFalse(hit("1234", "Episode 1239"))
+        assertFalse(hit("1234", "Episode 234"))
+        assertTrue(hit("2025", "Best of 2025"))
+        assertTrue(hit("episode 12", "Episode 123"))
+    }
+
+    @Test
+    fun `an extra letter mid-word still matches while typing`() {
+        assertTrue(hit("briig", "Brighton"))
+        assertTrue(hit("briigh", "Brighton"))
+        assertTrue(hit("briight", "Brighton"))
+    }
+
+    @Test
+    fun `three letters is not an abbreviation and joined words must start at a word`() {
+        assertFalse(hit("cat", "Create something"))
+        assertFalse(hit("cat", "Live chat"))
+        assertFalse(hit("heart", "The Art of War"))
+        assertFalse(hit("note", "Piano teacher"))
+        assertTrue(hit("theart", "The Art of War"))
+    }
+
+    @Test
+    fun `words in scripts without spaces match anywhere`() {
+        assertTrue(hit("京都", "今日は京都へ行く"))
+        assertTrue(hit("東京", "東京タワー"))
+    }
+
+    @Test
+    fun `a query of only symbols filters nothing`() {
+        assertTrue(hit("#", "anything"))
+        assertEquals(false, FuzzyMatch.hasTerms("# - !"))
+        assertEquals(true, FuzzyMatch.hasTerms("a"))
+    }
+
+    @Test
+    fun `sharp s reads as ss`() {
+        assertTrue(hit("strasse", "Straße"))
+    }
+
+    @Test
+    fun `a word with vowels is never read as an abbreviation`() {
+        assertFalse(hit("live", "leokimvideo"))
+        assertTrue(hit("brgtn", "Brighton"))
     }
 
     @Test

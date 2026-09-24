@@ -15,10 +15,15 @@ Dewi, 2026-09-24: *"put fuzzy search everywhere there's a list"*.
 - **`FuzzyMatch` / `fuzzyFiltered`** (`:core:domain`) — one pure rule for every list. Case, accents and
   punctuation ignored (`Gerónimo` = `geronimo`, `AC/DC` = `acdc`). **Every** query word must be found, in
   any order, in any field. A word is found when it is:
-  - inside a field (3+ letters) — so "ighto" finds Brighton as you type;
-  - the START of a word (1–2 letters) — "ai" finds "AI news", not "tr**ai**ler" (seen on the emulator);
-  - an abbreviation, letters in order from the first (3+ letters) — "fbl" finds Football;
-  - a typo: one edit for 4–7 letters, two for 8+, transpositions counted as one — "brigton", "tenis".
+  - inside a field (3+ letters) — so "ighto" finds Brighton as you type. Words run together match only
+    from the start of a word ("acdc" finds "AC/DC"; "heart" does not find "t**he art**");
+  - the START of a word (1–2 letters) — "ai" finds "AI news", not "tr**ai**ler" (seen on the emulator) —
+    except in scripts written without spaces (Chinese, Japanese, Korean, Thai), where it matches anywhere;
+  - an abbreviation: 4+ letters, **no vowels**, in order from the first letter — "ftbl", "cmptr", "brgtn";
+  - a typo, first letter right: one edit from 5 letters, two from 8. A 5-letter word may be one typo from
+    a whole word ("tenis") or one missing/extra letter from the start of one ("briig"); from 6 letters any
+    edit counts while typing. Words containing digits never match by typo ("2024" ≠ "2025").
+  - `ß` reads as `ss`; a query of only symbols filters nothing.
   - **The list keeps its own order** (queue order, newest first, …); the filter only hides.
 - **`MediaItem.searchableText`** = title, maker, publisher; **`MediaSource.searchableText`** = name,
   publisher. Every screen filters media by the same fields.
@@ -28,7 +33,7 @@ Dewi, 2026-09-24: *"put fuzzy search everywhere there's a list"*.
 
 ## Where
 
-Videos feed · Podcasts (episodes) · a podcast's page · a channel's Videos / Shorts / Search / Playlists
+Videos feed · Podcasts (episodes) · a podcast's page · a channel's Videos / Shorts / Playlists
 tabs · Queue · History · Library downloads · local playlists (list and page) · account playlists (list
 and page) · New uploads · All subscriptions · Diagnostics (tags and messages) · the add-to-playlist and
 groups pickers.
@@ -42,9 +47,28 @@ Deliberately not: **Search** (it is already a search box) and the player's **Rel
 - **The queue, filtered, is a plain list with no drag handles**, each row keeping its REAL queue index:
   play, move to top/bottom and remove act on the right entry. Dragging within a subset has no meaning.
 
+## Speed
+
+Each list's text is prepared once per list change (`ListFilter.filter` remembers it), and the query once
+per keystroke. Measured on the laptop JVM, warm: 1,600 items prepared in ~13 ms; **< 1 ms per keystroke
+for 1,600 sources, ~4 ms for 5,000 diagnostics events**. A phone is several times slower, which is still
+inside a frame for every list but possibly Diagnostics.
+
 ## Diagnostics
 
-`[filter] <place> "<query>" shows N of M`, once the query has been stable for 0.8 s.
+`[filter] <place> "<query>" shows N of M[, paging paused until cleared]` once the query has been stable
+for 0.8 s, and `[filter] <place> cleared, all M shown`. Places name the source (`channel <title> videos`,
+`podcast page <title>`, `account-playlist <title>`); the Videos place trail carries `filter="…"`.
+
+## Independent review, 2026-09-24 — fixed
+
+Too-loose typos ("live"→"like", "news"→"new", "2024"→"2025", "chess"→"cheese"); an extra letter
+mid-word failing while typing ("briig"); Chinese/Japanese two-character words failing; 3-letter
+abbreviations and joined-word matches adding noise ("cat"→"Create", "heart"→"The Art"); per-keystroke
+normalisation of every field; a query following you to a different channel or podcast (now keyed on the
+source); clears and paused paging unlogged; the channel Search tab getting a second box (removed); the
+count line appearing on the first keystroke and shifting the list (now always shown); an empty groups
+picker showing a filter; pull-to-refresh dead on "no matches".
 
 ## Tests
 

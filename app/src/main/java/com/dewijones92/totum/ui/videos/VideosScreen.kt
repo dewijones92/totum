@@ -58,7 +58,7 @@ import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
-import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
+import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
@@ -71,9 +71,10 @@ import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
+import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
-import com.dewijones92.totum.ui.common.rememberFiltered
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.notifications.NotificationsScreen
 import com.dewijones92.totum.ui.notifications.NotificationsViewModel
@@ -350,16 +351,16 @@ private fun ChannelsAndVideos(
     // The item count belongs in the trail as much as the offset: a restored scroll index
     // cannot survive being applied to an empty list, so "scroll=40 videos=0" and
     // "scroll=0 videos=40" are different bugs that look identical without it.
+    val listFilter = rememberListFilter("videos")
     TrackPlace("videos") {
         "feed=${state.selected} scroll=${listState.firstVisibleItemIndex}" +
-            "+${listState.firstVisibleItemScrollOffset} videos=${state.videos.size}"
+            "+${listState.firstVisibleItemScrollOffset} videos=${state.videos.size} filter=\"${listFilter.query}\""
     }
     // The SHOWN count, not state.videos.size: with a filter on, a page of arriving videos
     // can add nothing visible, and paging on the raw count never notices.
     val unwatchedFiltered = state.videos.filteredBy(filter) { playStates[it] ?: PlayState.Unplayed }
-    var query by rememberSaveable { mutableStateOf("") }
-    val shown = rememberFiltered("videos", unwatchedFiltered, query) { it.searchableText }
-    LoadMoreOnScrollToEnd(listState, state.canLoadMore && !state.loadingMore && query.isBlank(), shown.size, onLoadMore)
+    val shown = listFilter.filter(unwatchedFiltered, { it.searchableText }, pausesPaging = state.canLoadMore)
+    LoadMoreUnlessFiltered(listFilter, listState, state.canLoadMore && !state.loadingMore, shown.size, onLoadMore)
     LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
         if (state.subscriptions.isNotEmpty()) {
             item { SubscriptionChips(state.subscriptions, onChannelClick) }
@@ -388,7 +389,7 @@ private fun ChannelsAndVideos(
                     )
                 }
                 item { MediaFilterChips(selected = filter, onSelect = onSetFilter) }
-                filterField(query, { query = it }, shown.size, unwatchedFiltered.size) {
+                filterField(listFilter, shown.size, unwatchedFiltered.size) {
                     FeedMessage(stringResource(R.string.filter_hides_everything))
                 }
                 items(shown, key = { it.id.value }) { video ->

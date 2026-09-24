@@ -66,22 +66,23 @@ internal fun GroupPicker(
             Column {
                 if (groups.isEmpty()) {
                     Text(stringResource(R.string.groups_none_yet))
-                }
-                FilterableList("groups", groups, { listOf(it.name) }, inset = 0.dp) { shown, _ ->
-                    LazyColumn(modifier = Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-                        items(shown, key = { it.id.value }) { group ->
-                            GroupRow(
-                                group = group,
-                                member = sourceId in group,
-                                renaming = renaming == group.id,
-                                onToggle = { onToggle(group) },
-                                onStartRename = { renaming = group.id },
-                                onRename = { name ->
-                                    renaming = null
-                                    if (name.isNotBlank() && name != group.name) onRename(group, name)
-                                },
-                                onDelete = { onDelete(group) },
-                            )
+                } else {
+                    FilterableList("groups", groups, { listOf(it.name) }, inset = 0.dp) { shown, _ ->
+                        LazyColumn(modifier = Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
+                            items(shown, key = { it.id.value }) { group ->
+                                GroupRow(
+                                    group = group,
+                                    member = sourceId in group,
+                                    renaming = renaming == group.id,
+                                    onToggle = { onToggle(group) },
+                                    onStartRename = { renaming = group.id },
+                                    onRename = { name ->
+                                        renaming = null
+                                        if (name.isNotBlank() && name != group.name) onRename(group, name)
+                                    },
+                                    onDelete = { onDelete(group) },
+                                )
+                            }
                         }
                     }
                 }

@@ -64,8 +64,9 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.ReorderState
+import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.mediaItemFacts
-import com.dewijones92.totum.ui.common.rememberFiltered
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberReorderState
 import com.dewijones92.totum.ui.common.reorderable
 import kotlinx.coroutines.CoroutineScope
@@ -306,13 +307,13 @@ private fun FilterableQueue(
     reorder: ReorderState,
     actions: QueueActions,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
+    val listFilter = rememberListFilter("queue")
     val indexed = remember(entries) { entries.withIndex().toList() }
-    val matches = rememberFiltered("queue", indexed, query) { it.value.item.item.searchableText }
+    val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
     val availability = QueueAvailability(downloads, container.isOffline())
     val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true)
-    FilterField(query, { query = it }, matches.size, entries.size)
-    if (query.isBlank()) {
+    FilterField(listFilter, matches.size, entries.size)
+    if (!listFilter.filtering) {
         LazyColumn(
             state = listState,
             // The container has to be known for a drag held at an edge to scroll the list;
@@ -328,7 +329,7 @@ private fun FilterableQueue(
             )
         }
     } else if (matches.isEmpty()) {
-        NoFilterMatches(query)
+        NoFilterMatches(listFilter.query)
     } else {
         LazyColumn(Modifier.fillMaxSize()) {
             items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
