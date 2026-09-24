@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.playlist.PlaylistScreen
+import com.dewijones92.totum.ui.podcasts.PodcastFeedScreen
 
 /**
  * The shell's full-screen overlays — a channel reached from a row ("go to channel"), and a playlist
@@ -17,18 +18,25 @@ import com.dewijones92.totum.ui.playlist.PlaylistScreen
 @Composable
 internal fun ShellOverlays(
     container: AppContainer,
-    channel: MediaSource.VideoChannel?,
-    onCloseChannel: () -> Unit,
+    source: MediaSource?,
+    onCloseSource: () -> Unit,
     playlist: Playlist?,
     onOpenPlaylist: (Playlist) -> Unit,
     onClosePlaylist: () -> Unit,
 ) {
-    BackHandler(enabled = channel != null) { onCloseChannel() }
-    channel?.let { channel ->
-        ChannelScreen(
+    BackHandler(enabled = source != null) { onCloseSource() }
+    when (source) {
+        null -> Unit
+        is MediaSource.PodcastFeed -> PodcastFeedScreen(
             container,
-            channel,
-            onBack = { onCloseChannel() },
+            source,
+            onBack = { onCloseSource() },
+            modifier = Modifier.safeDrawingPadding(),
+        )
+        is MediaSource.VideoChannel -> ChannelScreen(
+            container,
+            source,
+            onBack = { onCloseSource() },
             onOpenPlaylist = onOpenPlaylist,
             // An overlay sits in the Box, OUTSIDE the Scaffold, so it never
             // receives the innerPadding that keeps tab content clear of the

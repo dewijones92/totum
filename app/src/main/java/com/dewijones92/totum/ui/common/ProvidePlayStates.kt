@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun ProvidePlayStates(
     container: AppContainer,
-    onOpenChannel: (MediaSource.VideoChannel) -> Unit,
+    onOpenSource: (MediaSource) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val store = container.playbackProgressStore
@@ -44,6 +44,6 @@ internal fun ProvidePlayStates(
         LocalDownloadStates provides downloads,
         LocalSetPlayed provides setPlayed,
     ) {
-        ProvideItemActions(container, onOpenChannel, content)
+        ProvideItemActions(container, onOpenSource, content)
     }
 }

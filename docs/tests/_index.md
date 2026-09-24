@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 
 # Testing
@@ -49,6 +49,10 @@ instead).
 | The same against a real YouTube stream | instrumented, live | `:app` `LiveStreamPlaysToItsEndTest` — via `tools/ci/live-test-via-home.sh`, allowed to skip. **Neither of these reproduces the reported stall** — see below |
 | ViewModels, queue | JVM unit | `:app` |
 | Picking a colour from artwork | JVM unit | `:app` `ArtworkColourTest` — the traps that make naive versions produce mud |
+| Every "go to" lands on its source, the player sheet labels per pillar, a source page never offers itself, an unfollowed feed previews | instrumented | `:app` `GoToSourceGoesThereTest` |
+| Back on a podcast page returns to the list | instrumented | `:app` `BackFromPodcastPageTest` — it quit the app |
+| Show artwork parsed, inherited by episodes, filled by refresh; preview stores nothing | JVM unit | `:core:data` `RssParserTest`, `DefaultPodcastRepositoryTest` |
+| Instrumented test names are dex-safe | python | `tools/ci/preflight_dex_names_test.py` — an apostrophe fails the whole androidTest build |
 | The shared row keeping every action through a restyle | instrumented | `:app` `MediaItemRowKeepsActionsTest` — ten screens depend on it |
 | The player keeping every control through a redesign | instrumented | `:app` `PlayerKeepsEveryControlTest` — written BEFORE the redesign, which is the whole point |
 | Search results streaming per section | JVM unit | `:app` `SearchStreamsPerSectionTest` — incl. the reported case, a slow torrent search not blocking YouTube |

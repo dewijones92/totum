@@ -47,6 +47,50 @@ class RssParserTest {
         assertEquals("Goalhanger", (RssParser().parse(xml) as RssParseResult.Success).feed.author)
     }
 
+    private fun channelImage(channelExtras: String): String? {
+        val xml = """
+            <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+              <channel><title>Show</title>
+                $channelExtras
+                <item><title>Ep</title><itunes:image href="https://img.example.com/episode.jpg"/></item>
+              </channel>
+            </rss>
+        """.trimIndent()
+        return (parser.parse(xml) as RssParseResult.Success).feed.imageUrl
+    }
+
+    @Test
+    fun `reads the show's itunes artwork`() {
+        assertEquals(
+            "https://img.example.com/show.jpg",
+            channelImage("""<itunes:image href="https://img.example.com/show.jpg"/>"""),
+        )
+    }
+
+    @Test
+    fun `falls back to the plain RSS image when there is no itunes artwork`() {
+        assertEquals(
+            "https://img.example.com/rss.png",
+            channelImage("<image><url>https://img.example.com/rss.png</url><title>Show</title></image>"),
+        )
+    }
+
+    @Test
+    fun `prefers itunes artwork over the plain RSS image`() {
+        assertEquals(
+            "https://img.example.com/show.jpg",
+            channelImage(
+                """<image><url>https://img.example.com/rss.png</url></image>""" +
+                    """<itunes:image href="https://img.example.com/show.jpg"/>""",
+            ),
+        )
+    }
+
+    @Test
+    fun `an episode's picture is never read as the show's`() {
+        assertNull(channelImage(""))
+    }
+
     /** A feed that names no author says null, rather than borrowing its own title. */
     @Test
     fun `a channel with no author is null`() {

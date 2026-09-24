@@ -81,6 +81,31 @@ class SourceLocatorTest {
     }
 
     @Test
+    fun `an episode of a feed you do not follow still locates that feed, without the engine`() = runTest {
+        val feedUrl = "https://feeds.example.com/show.rss"
+        val episode = MediaItem(
+            id = MediaItemId("ep-1"),
+            sourceId = SourceId(feedUrl),
+            title = "Episode one",
+            publishedAt = null,
+            duration = null,
+            author = "The Show",
+            publisher = "The Network",
+            mediaUrl = HttpUrl.of("https://cdn.example.com/ep1.mp3"),
+        )
+
+        val located = locator.locate(episode)
+
+        assertTrue("got $located", located is MediaSource.PodcastFeed)
+        located as MediaSource.PodcastFeed
+        assertEquals(feedUrl, located.feedUrl.value)
+        assertEquals(SourceId(feedUrl), located.id)
+        assertEquals("The Show", located.title)
+        assertEquals("The Network", located.publisher)
+        assertEquals("the engine must not be touched", 0, engine.extractCalls)
+    }
+
+    @Test
     fun `a video locates its uploader's channel through the engine`() = runTest {
         engine.registerMedia(watchUrl, metadata("https://www.youtube.com/channel/UCxyz"))
 

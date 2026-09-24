@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaSource
 
 /**
  * Everything you can do to a media item, available to any row without the screen wiring it.
@@ -29,6 +30,8 @@ internal interface ItemActions {
 
     /** Navigates to the item's channel/feed. Hosted once by the shell, so it works anywhere. */
     fun goToSource(item: MediaItem)
+
+    fun openSource(source: MediaSource)
 
     /** True while the app is in listen-only mode, so a row can label its switch action. */
     val audioMode: Boolean

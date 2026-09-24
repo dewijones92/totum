@@ -92,8 +92,8 @@ fun AppShell(
     var selected by rememberSaveable { mutableStateOf(TopLevelDestination.Videos) }
     var showFullPlayer by rememberSaveable { mutableStateOf(false) }
     var shortsReel by remember { mutableStateOf<ReelStart?>(null) }
-    // "Go to channel" works from ANY row because the shell hosts the destination once.
-    var shellChannel by remember { mutableStateOf<MediaSource.VideoChannel?>(null) }
+    // "Go to channel" / "Go to podcast" work from ANY row because the shell hosts the destination once.
+    var shellSource by remember { mutableStateOf<MediaSource?>(null) }
     // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
     // channel reached via "go to channel" listed its playlists and none of them would open.
     var shellPlaylist by remember { mutableStateOf<Playlist?>(null) }
@@ -124,7 +124,7 @@ fun AppShell(
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides { showFullPlayer = true },
     ) {
-        ProvidePlayStates(container, onOpenChannel = { shellChannel = it }) {
+        ProvidePlayStates(container, onOpenSource = { shellSource = it }) {
             Box(modifier = modifier.fillMaxSize()) {
                 Scaffold(
                     bottomBar = {
@@ -153,8 +153,8 @@ fun AppShell(
                 // Same as the Videos tab's overlays: back should close the channel, not quit.
                 ShellOverlays(
                     container = container,
-                    channel = shellChannel,
-                    onCloseChannel = { shellChannel = null },
+                    source = shellSource,
+                    onCloseSource = { shellSource = null },
                     playlist = shellPlaylist,
                     onOpenPlaylist = { shellPlaylist = it },
                     onClosePlaylist = { shellPlaylist = null },
@@ -336,7 +336,7 @@ private fun PlayingItemSheet(
 ) {
     val item = playing?.item ?: return
     if (!visible) return
-    ItemActionSheet(item, onDismiss)
+    ItemActionSheet(item, onDismiss, pillar = playing.handle.pillar)
 }
 
 private fun qualityControl(

@@ -30,6 +30,7 @@ public data class ParsedFeed(
     val description: String?,
     val websiteUrl: String?,
     val episodes: List<ParsedEpisode>,
+    val imageUrl: String? = null,
 )
 
 public data class ParsedEpisode(
@@ -78,6 +79,7 @@ public class RssParser {
                 description = channel.firstChildText("description"),
                 websiteUrl = channel.firstChildText("link"),
                 episodes = episodes,
+                imageUrl = channel.itunesImage() ?: channel.firstChildElement("image")?.firstChildText("url"),
             ),
         )
     }
@@ -90,10 +92,13 @@ public class RssParser {
         publishedAt = firstChildText("pubDate")?.let(::parseRfc1123OrNull),
         duration = firstChildText("itunes:duration")?.let(::parseItunesDurationOrNull),
         description = firstChildText("description"),
-        imageUrl = firstChildElement("itunes:image")?.getAttribute("href")?.ifBlank { null },
+        imageUrl = itunesImage(),
         chapters = parseChapters(),
         chaptersUrl = firstChildElement("podcast:chapters")?.getAttribute("url")?.ifBlank { null },
     )
+
+    private fun Element.itunesImage(): String? =
+        firstChildElement("itunes:image")?.getAttribute("href")?.trim()?.ifBlank { null }
 
     /** Inline Podlove Simple Chapters: `<psc:chapters><psc:chapter start=".." title=".."/>…`. */
     private fun Element.parseChapters(): List<Chapter> {

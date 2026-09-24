@@ -21,6 +21,8 @@ Checks, cheapest first:
 7. No UI text truncates: `TextOverflow.Ellipsis` is banned outright and a `maxLines` cap has to be
    declared with its reason. A Compose test cannot see this — a truncated `Text` still reports its
    whole string to the semantics tree — so a grep is the only thing that can.
+8. No instrumented test name holds a character dex cannot represent. A comma or an apostrophe in a
+   backtick name is legal Kotlin and fine on the JVM, and fails the WHOLE androidTest dex build.
 """
 import pathlib
 import re
@@ -328,6 +330,24 @@ def check_text_wraps_instead_of_truncating() -> int:
     return problems
 
 
+DEX_ILLEGAL_IN_NAME = ",'"
+BACKTICK_NAME = re.compile(r"fun\s+`([^`]*)`")
+
+
+def dex_illegal_test_names(source: str) -> list[str]:
+    return [name for name in BACKTICK_NAME.findall(source) if any(c in name for c in DEX_ILLEGAL_IN_NAME)]
+
+
+def check_instrumented_test_names_dex() -> int:
+    problems = 0
+    for path in sorted(ROOT.glob("*/src/androidTest/**/*.kt")) + sorted(ROOT.glob("*/*/src/androidTest/**/*.kt")):
+        for name in dex_illegal_test_names(path.read_text()):
+            problems += fail(f"{path.relative_to(ROOT)}: test name `{name}` has a character dex cannot hold ({DEX_ILLEGAL_IN_NAME!r})")
+    if not problems:
+        print("  ok: every instrumented test name is dex-safe")
+    return problems
+
+
 def main() -> int:
     print(f"preflight: {WORKFLOW.relative_to(ROOT)}")
     problems, workflow = check_yaml()
@@ -349,6 +369,7 @@ def main() -> int:
     problems += check_no_cross_line_variables(workflow)
     problems += check_shell_syntax(workflow)
     problems += check_text_wraps_instead_of_truncating()
+    problems += check_instrumented_test_names_dex()
     if problems:
         print(f"\npreflight FAILED with {problems} problem(s) — none of these would show up in the Gradle gate.")
         return 1

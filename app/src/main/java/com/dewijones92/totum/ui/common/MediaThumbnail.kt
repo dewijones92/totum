@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
@@ -20,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.MediaKind
 
 /**
  * The one thumbnail/artwork image in the app — used identically for podcast
@@ -90,3 +92,16 @@ private fun DurationChip(label: String, modifier: Modifier = Modifier) {
 
 private const val PLACEHOLDER_GLYPH_FRACTION = 0.4f
 private const val CHIP_SCRIM = 0.72f
+
+@Composable
+fun SourceArtwork(url: HttpUrl?, title: String, pillar: MediaKind, modifier: Modifier = Modifier) {
+    MediaThumbnail(
+        url = url,
+        contentDescription = title,
+        modifier = modifier,
+        shape = when (pillar) {
+            MediaKind.VIDEO -> CircleShape
+            MediaKind.PODCAST -> RoundedCornerShape(8.dp)
+        },
+    )
+}

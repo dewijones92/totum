@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.podcasts
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Podcasts
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.FeedRefreshFailure
 import com.dewijones92.totum.data.podcast.describe
@@ -54,6 +55,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.PodcastFeedSaver
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.mediaItemFacts
@@ -70,6 +72,10 @@ fun PodcastsScreen(container: AppContainer, modifier: Modifier = Modifier) {
 
     TrackPlace("podcasts") { "openFeed=${openFeed?.title ?: "-"} subs=${state.subscriptions.size}" }
 
+    BackHandler(enabled = openFeed != null) {
+        Diag.log("nav", "back from podcast \"${openFeed?.title}\" to the podcast list")
+        openFeed = null
+    }
     val feed = openFeed
     if (feed != null) {
         PodcastFeedScreen(container, feed, onBack = { openFeed = null }, modifier = modifier)
@@ -203,10 +209,7 @@ private fun SubscriptionsAndEpisodes(
             ) {
                 items(state.subscriptions) { subscription ->
                     val feed = subscription.source as? MediaSource.PodcastFeed
-                    AssistChip(
-                        onClick = { feed?.let(onOpenFeed) },
-                        label = { Text(subscription.source.title) },
-                    )
+                    SourceChip(subscription.source, onClick = { feed?.let(onOpenFeed) })
                 }
             }
         }

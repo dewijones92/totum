@@ -311,6 +311,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                 onDownload = { actions.onDownload(media) },
                 onDeleteDownload = { actions.onDeleteDownload(media.id) },
                 onRemoveFromQueue = { actions.onRemove(entry) },
+                onAddToQueue = null,
                 onDownloadVideo = { actions.onDownloadVideo(media) },
                 onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
                 onMoveToBottom = { actions.onMove(index, entries.lastIndex) }

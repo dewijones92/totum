@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.channel.ChannelRepository
@@ -21,6 +22,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.containsChannel
+import com.dewijones92.totum.domain.isSameChannelAs
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.channel.ChannelPlaylists
 import com.dewijones92.totum.innertube.channel.ChannelVideos
@@ -97,6 +99,7 @@ class ChannelViewModel(
         val groups: List<SourceGroup> = emptyList(),
         val downloadStates: Map<MediaItemId, DownloadState> = emptyMap(),
         val resolving: String? = null,
+        val artworkUrl: HttpUrl? = null,
     )
 
     private data class Content(
@@ -145,6 +148,7 @@ class ChannelViewModel(
             groups = groups,
             downloadStates = downloadStates,
             resolving = c.resolving,
+            artworkUrl = source.artworkUrl ?: subs.artworkFor(c),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), UiState(source.title))
 
@@ -166,6 +170,11 @@ class ChannelViewModel(
     }
 
     private var lastSubscribedDecision: String? = null
+
+    private fun List<MediaSource.VideoChannel>.artworkFor(c: Content): HttpUrl? {
+        val id = channelId ?: c.resolvedChannelId
+        return firstOrNull { (id != null && it.youTubeChannelId == id) || it.isSameChannelAs(source) }?.artworkUrl
+    }
 
     /** Adds this channel to [group], or removes it. The picker is a checklist of these. */
     fun toggleGroup(group: SourceGroup) {

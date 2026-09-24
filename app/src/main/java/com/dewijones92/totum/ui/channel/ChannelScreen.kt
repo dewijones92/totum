@@ -126,6 +126,7 @@ internal fun ChannelContent(
                 onToggleSubscribed = onToggleSubscribed,
                 onOpenGroups = onOpenGroups,
                 pillar = MediaKind.VIDEO,
+                artworkUrl = state.artworkUrl,
             )
             SecondaryTabRow(selectedTabIndex = state.tab.ordinal) {
                 ChannelTab.entries.forEach { tab ->
@@ -237,6 +238,7 @@ private fun MediaItemTab(
                     onDownload = { onDownload(video) },
                     onDeleteDownload = { onDeleteDownload(video) },
                     onAddToPlaylist = { onAddToPlaylist(video) },
+                    onGoToSource = null,
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }

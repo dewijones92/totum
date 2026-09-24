@@ -1,8 +1,10 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -18,6 +20,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.queue.QueueScreen
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -68,6 +71,21 @@ class QueueRemoveTest {
         composeTestRule.onAllNodesWithContentDescription(label(R.string.queue_menu))[index].performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(label(R.string.queue_remove)).performClick()
+    }
+
+    @Test
+    fun theQueueMenuDoesNotOfferToAddWhatIsAlreadyQueued() {
+        container.playbackQueue.playAll(listOf(playable("first"), playable("second"), playable("third")))
+        composeTestRule.setContent {
+            TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { QueueScreen(container) } }
+        }
+
+        composeTestRule.onAllNodesWithContentDescription(label(R.string.queue_menu))[1].performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(label(R.string.queue_play_next)).assertExists()
+        composeTestRule.onNodeWithText(label(R.string.queue_move_to_bottom)).assertExists()
+        composeTestRule.onAllNodesWithText(label(R.string.queue_add)).assertCountEquals(0)
     }
 
     @Test

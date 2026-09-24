@@ -67,6 +67,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.SourceChip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.mediaItemFacts
@@ -501,7 +502,7 @@ private fun SubscriptionChips(
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
         items(subscriptions) { channel ->
-            AssistChip(onClick = { onChannelClick(channel) }, label = { Text(channel.title) })
+            SourceChip(channel, onClick = { onChannelClick(channel) })
         }
     }
 }

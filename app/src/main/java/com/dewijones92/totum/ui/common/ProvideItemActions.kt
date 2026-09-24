@@ -4,29 +4,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.pillar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
  * Builds the app-wide [ItemActions] and provides it to every row beneath.
  *
- * [onOpenChannel] is the one genuinely screen-shaped piece — where "go to channel" lands —
+ * [onOpenSource] is the one genuinely screen-shaped piece — where "go to channel/podcast" lands —
  * so the shell supplies it once instead of each screen hosting its own channel overlay.
  */
 @Composable
 internal fun ProvideItemActions(
     container: AppContainer,
-    onOpenChannel: (MediaSource.VideoChannel) -> Unit,
+    onOpenSource: (MediaSource) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val rowActions = rememberMediaItemActions(container)
     val scope = rememberCoroutineScope()
-    val actions = remember(container, rowActions, scope, onOpenChannel) {
-        ContainerItemActions(container, rowActions, scope, onOpenChannel)
+    val actions = remember(container, rowActions, scope, onOpenSource) {
+        ContainerItemActions(container, rowActions, scope, onOpenSource)
     }
     CompositionLocalProvider(LocalItemActions provides actions, content = content)
 }
@@ -35,7 +37,7 @@ private class ContainerItemActions(
     private val container: AppContainer,
     private val rows: MediaItemActions,
     private val scope: CoroutineScope,
-    private val onOpenChannel: (MediaSource.VideoChannel) -> Unit,
+    private val onOpenSource: (MediaSource) -> Unit,
 ) : ItemActions {
     override fun playNext(item: MediaItem) = rows.playNext(item)
     override fun addToQueue(item: MediaItem) = rows.addToQueue(item)
@@ -55,7 +57,12 @@ private class ContainerItemActions(
     }
 
     override fun goToSource(item: MediaItem) {
-        rows.goToSource(item) { source -> (source as? MediaSource.VideoChannel)?.let(onOpenChannel) }
+        rows.goToSource(item, onOpenSource)
+    }
+
+    override fun openSource(source: MediaSource) {
+        Diag.log("nav", "open source \"${source.title}\" [pillar=${source.pillar} id=${source.id.value}]")
+        onOpenSource(source)
     }
 
     override val audioMode: Boolean get() = rows.audioMode

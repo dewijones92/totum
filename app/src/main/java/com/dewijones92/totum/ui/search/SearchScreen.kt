@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.map
+import com.dewijones92.totum.data.search.toSource
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
@@ -57,6 +58,7 @@ import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
+import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -342,11 +344,13 @@ private fun PodcastHitRow(
     subscribed: Boolean,
     onSubscribe: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpen: (() -> Unit)? = LocalItemActions.current?.let { actions -> { actions.openSource(hit.toSource()) } },
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            .clickable(enabled = onOpen != null) { onOpen?.invoke() }
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         MediaThumbnail(

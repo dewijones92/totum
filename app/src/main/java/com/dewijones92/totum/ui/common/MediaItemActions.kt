@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
@@ -127,7 +128,19 @@ class MediaItemActions internal constructor(
      * can't be determined.
      */
     fun goToSource(item: MediaItem, onResolved: (MediaSource) -> Unit) {
-        scope.launch { locator.locate(item)?.let(onResolved) }
+        scope.launch {
+            val source = locator.locate(item)
+            Diag.log(
+                "nav",
+                "go to source \"${item.title}\" [pillar=${item.pillar} sourceId=${item.sourceId.value}] -> " +
+                    when (source) {
+                        null -> "nothing found, not navigating"
+                        is MediaSource.VideoChannel -> "channel \"${source.title}\" ${source.channelUrl.value}"
+                        is MediaSource.PodcastFeed -> "podcast \"${source.title}\" ${source.feedUrl.value}"
+                    },
+            )
+            source?.let(onResolved)
+        }
     }
 }
 

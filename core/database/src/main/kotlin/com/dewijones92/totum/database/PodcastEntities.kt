@@ -24,6 +24,7 @@ public data class FeedEntity(
     val websiteUrl: String?,
     val subscribedAtEpochMs: Long,
     val origin: String = "manual",
+    val artworkUrl: String? = null,
 )
 
 /**

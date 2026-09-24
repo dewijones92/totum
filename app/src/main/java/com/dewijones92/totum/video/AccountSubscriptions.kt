@@ -139,6 +139,7 @@ class AccountSubscriptions(
         id = SourceId(channelUrl.value),
         title = title,
         channelUrl = channelUrl,
+        artworkUrl = avatarUrl,
     )
 
     private fun MediaSource.VideoChannel.channelId(): String? = youTubeChannelId

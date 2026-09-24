@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.pillar
 
 /**
  * The long-press menu for an item, built entirely from the app-wide capabilities —
@@ -20,10 +21,11 @@ import com.dewijones92.totum.domain.MediaKind
 internal fun ItemActionSheet(
     item: MediaItem,
     onDismiss: () -> Unit,
-    sourcePillar: MediaKind = MediaKind.VIDEO,
+    pillar: MediaKind = item.pillar,
 ) {
     val actions = LocalItemActions.current ?: return
     val local = LocalDownloadStates.current[item.id]
+    val video = pillar == MediaKind.VIDEO
     ActionSheet(
         title = item.title,
         onPlayNext = { actions.playNext(item) },
@@ -34,14 +36,14 @@ internal fun ItemActionSheet(
         onRemoveFromQueue = null,
         onPeek = { actions.peek(item) },
         onDownloadVideo = { actions.download(item, audioOnly = false) }
-            .takeIf { (local as? DownloadState.Downloaded)?.audioOnly == true },
+            .takeIf { video && (local as? DownloadState.Downloaded)?.audioOnly == true },
         onDownload = { actions.download(item, audioOnly = true) }
             .takeIf { local !is DownloadState.Downloaded && local !is DownloadState.Downloading },
         onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
-        onSwitchMode = { actions.switchMode(item) },
+        onSwitchMode = { actions.switchMode(item) }.takeIf { video },
         audioMode = actions.audioMode,
         onGoToSource = { actions.goToSource(item) },
-        sourcePillar = sourcePillar,
+        sourcePillar = pillar,
         onMoveToTop = null,
         onMoveToBottom = null,
         onSetPlayed = { played -> actions.setPlayed(item.id, played) },

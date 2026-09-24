@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.podcast.fake
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.PodcastRepository
+import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.podcast.RefreshReport
 import com.dewijones92.totum.data.podcast.SubscribeResult
 import com.dewijones92.totum.domain.MediaItem
@@ -40,6 +41,11 @@ public class FakePodcastRepository(
         episodes.update { it + sampleEpisode(id) }
         return SubscribeResult.Subscribed(source)
     }
+
+    public val previews: MutableMap<HttpUrl, PreviewResult> = mutableMapOf()
+
+    override suspend fun preview(feedUrl: HttpUrl): PreviewResult =
+        previews[feedUrl] ?: PreviewResult.Failed("no preview registered for $feedUrl")
 
     override suspend fun unsubscribe(id: SourceId) {
         subscriptions.update { list -> list.filterNot { it.source.id == id } }

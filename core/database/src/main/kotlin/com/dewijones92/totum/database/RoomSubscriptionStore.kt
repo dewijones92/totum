@@ -53,6 +53,7 @@ public class RoomSubscriptionStore(
             feedUrl = feedUrl.value,
             websiteUrl = websiteUrl?.value,
             subscribedAtEpochMs = subscribedAt.toEpochMilli(),
+            artworkUrl = artworkUrl?.value,
         )
         is MediaSource.VideoChannel -> FeedEntity(
             id = id.value,
@@ -61,6 +62,7 @@ public class RoomSubscriptionStore(
             feedUrl = channelUrl.value,
             websiteUrl = null,
             subscribedAtEpochMs = subscribedAt.toEpochMilli(),
+            artworkUrl = artworkUrl?.value,
         )
     }
 
@@ -70,6 +72,7 @@ public class RoomSubscriptionStore(
                 id = SourceId(id),
                 title = title,
                 channelUrl = HttpUrl.of(feedUrl),
+                artworkUrl = artworkUrl?.let(HttpUrl::parse),
             )
             else -> MediaSource.PodcastFeed(
                 id = SourceId(id),
@@ -77,6 +80,7 @@ public class RoomSubscriptionStore(
                 feedUrl = HttpUrl.of(feedUrl),
                 websiteUrl = websiteUrl?.let(HttpUrl::parse),
                 publisher = publisher,
+                artworkUrl = artworkUrl?.let(HttpUrl::parse),
             )
         }
         return Subscription(source = source, subscribedAt = Instant.ofEpochMilli(subscribedAtEpochMs))

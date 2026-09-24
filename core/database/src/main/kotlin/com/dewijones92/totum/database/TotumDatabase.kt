@@ -23,7 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AccountProgressOutboxEntity::class,
         ReconciledAccountProgressEntity::class,
     ],
-    version = 22,
+    version = 23,
     exportSchema = false,
 )
 public abstract class TotumDatabase : RoomDatabase() {
@@ -78,6 +78,7 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_19_20,
                 MIGRATION_20_21,
                 MIGRATION_21_22,
+                MIGRATION_22_23,
             )
 
         /**
@@ -114,6 +115,12 @@ public abstract class TotumDatabase : RoomDatabase() {
          * write. An unsubscribed feed's rows are left exactly as they were, which is honest:
          * there is nothing left to correct them from.
          */
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE podcast_feeds ADD COLUMN artworkUrl TEXT")
+            }
+        }
+
         private val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 val itemTables = listOf("queue_items", "play_history", "downloads", "local_playlist_items")

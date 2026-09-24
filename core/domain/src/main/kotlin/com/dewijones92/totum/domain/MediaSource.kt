@@ -19,10 +19,13 @@ public sealed interface MediaSource {
     public val id: SourceId
     public val title: String
 
+    public val artworkUrl: HttpUrl?
+
     public data class VideoChannel(
         override val id: SourceId,
         override val title: String,
         val channelUrl: HttpUrl,
+        override val artworkUrl: HttpUrl? = null,
     ) : MediaSource
 
     public data class PodcastFeed(
@@ -40,6 +43,7 @@ public sealed interface MediaSource {
          * second name, so this is podcast-only — like `feedUrl` itself.
          */
         val publisher: String? = null,
+        override val artworkUrl: HttpUrl? = null,
     ) : MediaSource
 }
 
@@ -108,3 +112,9 @@ public fun List<MediaSource.VideoChannel>.containsChannel(
     null -> any { it.isSameChannelAs(source) }
     else -> any { it.youTubeChannelId == resolvedId || it.isSameChannelAs(source) }
 }
+
+public val MediaSource.pillar: MediaKind
+    get() = when (this) {
+        is MediaSource.VideoChannel -> MediaKind.VIDEO
+        is MediaSource.PodcastFeed -> MediaKind.PODCAST
+    }

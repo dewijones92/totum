@@ -3,8 +3,10 @@ package com.dewijones92.totum.data.source
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import kotlinx.coroutines.flow.first
@@ -35,7 +37,20 @@ public class DefaultSourceLocator(
 ) : SourceLocator {
 
     override suspend fun locate(item: MediaItem): MediaSource? =
-        subscribedFeed(item) ?: statedSource(item) ?: uploaderChannel(item)
+        subscribedFeed(item) ?: when (item.pillar) {
+            MediaKind.PODCAST -> unsubscribedFeed(item)
+            MediaKind.VIDEO -> statedSource(item) ?: uploaderChannel(item)
+        }
+
+    private fun unsubscribedFeed(item: MediaItem): MediaSource? {
+        val feedUrl = HttpUrl.parse(item.sourceId.value) ?: return null
+        return MediaSource.PodcastFeed(
+            id = item.sourceId,
+            title = item.author.orEmpty().ifBlank { feedUrl.value },
+            feedUrl = feedUrl,
+            publisher = item.publisher,
+        )
+    }
 
     /**
      * The source the listing already named — free, instant, and the answer almost every time.

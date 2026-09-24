@@ -38,34 +38,61 @@ public class DefaultPodcastRepository(
         val id = SourceId(feedUrl.value)
         if (store.contains(id)) return SubscribeResult.AlreadySubscribed(id)
 
-        val body = when (val fetched = fetcher.fetch(feedUrl)) {
-            is FetchResult.Success -> fetched.body
-            is FetchResult.Failure -> {
-                Diag.warn("subs", "subscribe failed for $feedUrl: ${fetched.detail}")
-                return SubscribeResult.Failure.Network(fetched.detail)
-            }
+        val (source, items) = when (val loaded = load(feedUrl, "subscribe")) {
+            is Loaded.Feed -> loaded.source to loaded.items
+            is Loaded.Unreachable -> return SubscribeResult.Failure.Network(loaded.detail)
+            is Loaded.Invalid -> return SubscribeResult.Failure.InvalidFeed(loaded.detail)
         }
-
-        val parsed = when (val result = parser.parse(body)) {
-            is RssParseResult.Success -> result.feed
-            is RssParseResult.Failure -> {
-                Diag.warn("subs", "unparseable feed $feedUrl: ${result.detail}")
-                return SubscribeResult.Failure.InvalidFeed(result.detail)
-            }
-        }
-
-        val source = parsed.toMediaSource(id, feedUrl)
-        val decisions = mutableListOf<PublisherChoice>()
-        val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(source, index, parsed, resolveChapters(episode, index), decisions)
-        }
-        Diag.log("subs", "subscribed \"${source.title}\" (${parsed.episodes.size} episodes) $feedUrl")
-        Diag.log("podcast", parsed.namingDecision(decisions))
+        Diag.log("subs", "subscribed \"${source.title}\" (${items.size} episodes) $feedUrl")
         store.saveSource(
             subscription = Subscription(source = source, subscribedAt = clock.instant()),
             items = items,
         )
         return SubscribeResult.Subscribed(source)
+    }
+
+    override suspend fun preview(feedUrl: HttpUrl): PreviewResult =
+        when (val loaded = load(feedUrl, "preview")) {
+            is Loaded.Feed -> {
+                Diag.log(
+                    "podcast",
+                    "preview \"${loaded.source.title}\" episodes=${loaded.items.size} " +
+                        "artwork=${loaded.source.artworkUrl != null} $feedUrl",
+                )
+                PreviewResult.Loaded(loaded.source, loaded.items)
+            }
+            is Loaded.Unreachable -> PreviewResult.Failed(loaded.detail)
+            is Loaded.Invalid -> PreviewResult.Failed(loaded.detail)
+        }
+
+    private sealed interface Loaded {
+        data class Feed(val source: MediaSource.PodcastFeed, val items: List<MediaItem>) : Loaded
+        data class Unreachable(val detail: String) : Loaded
+        data class Invalid(val detail: String) : Loaded
+    }
+
+    private suspend fun load(feedUrl: HttpUrl, purpose: String, id: SourceId = SourceId(feedUrl.value)): Loaded {
+        val body = when (val fetched = fetcher.fetch(feedUrl)) {
+            is FetchResult.Success -> fetched.body
+            is FetchResult.Failure -> {
+                Diag.warn("subs", "$purpose failed for $feedUrl: ${fetched.detail}")
+                return Loaded.Unreachable(fetched.detail)
+            }
+        }
+        val parsed = when (val result = parser.parse(body)) {
+            is RssParseResult.Success -> result.feed
+            is RssParseResult.Failure -> {
+                Diag.warn("subs", "$purpose: unparseable feed $feedUrl: ${result.detail}")
+                return Loaded.Invalid(result.detail)
+            }
+        }
+        val source = parsed.toMediaSource(id, feedUrl)
+        val decisions = mutableListOf<PublisherChoice>()
+        val items = parsed.episodes.mapIndexed { index, episode ->
+            episode.toMediaItem(source, index, parsed, resolveChapters(episode, index), decisions)
+        }
+        Diag.log("podcast", parsed.namingDecision(decisions))
+        return Loaded.Feed(source, items)
     }
 
     override suspend fun unsubscribe(id: SourceId) {
@@ -118,28 +145,11 @@ public class DefaultPodcastRepository(
         val title = sub.source.title
         val source = sub.source as? MediaSource.PodcastFeed
             ?: return FeedRefreshFailure.NotAFeed(sub.source.id, title)
-        val fetched = fetcher.fetch(source.feedUrl)
-        val body = (fetched as? FetchResult.Success)?.body
-            ?: return FeedRefreshFailure.Unreachable(
-                source.id,
-                title,
-                (fetched as? FetchResult.Failure)?.detail ?: "no body",
-            )
-        val parsedResult = parser.parse(body)
-        val parsed = (parsedResult as? RssParseResult.Success)?.feed
-            ?: return FeedRefreshFailure.Unparseable(
-                source.id,
-                title,
-                (parsedResult as? RssParseResult.Failure)?.detail ?: "no feed",
-            )
-        // Built once, here: the items are keyed to it and the subscription is saved with it, so a
-        // second construction would be a second chance for the two to disagree about the show.
-        val refreshed = parsed.toMediaSource(source.id, source.feedUrl)
-        val decisions = mutableListOf<PublisherChoice>()
-        val items = parsed.episodes.mapIndexed { index, episode ->
-            episode.toMediaItem(refreshed, index, parsed, resolveChapters(episode, index), decisions)
+        val (refreshed, items) = when (val loaded = load(source.feedUrl, "refresh", source.id)) {
+            is Loaded.Feed -> loaded.source to loaded.items
+            is Loaded.Unreachable -> return FeedRefreshFailure.Unreachable(source.id, title, loaded.detail)
+            is Loaded.Invalid -> return FeedRefreshFailure.Unparseable(source.id, title, loaded.detail)
         }
-        Diag.log("podcast", parsed.namingDecision(decisions))
         store.saveSource(
             // The source is rebuilt from THIS parse, not carried over from storage. It used to be
             // the stored one, so a refresh could never teach an existing subscription anything the
@@ -155,49 +165,6 @@ public class DefaultPodcastRepository(
         )
         return null
     }
-
-    /**
-     * What this feed called itself, what it called its publisher, and what became of the second name
-     * — counted from the decisions the mapping ACTUALLY TOOK, handed in rather than re-derived.
-     *
-     * It re-derived them from `episodes` until an adversarial review pointed out that this is the
-     * same sin the paragraph below is about, one level up: identical inputs today, but a description
-     * of a second evaluation rather than of what was stored. The distinct count is back for the same
-     * reason — `shown=273` alone cannot tell one network across 273 episodes from 273 guest authors.
-     *
-     * The first version of this line inferred the reason from the channel-level author alone, and so
-     * said "the feed named no publisher" about a feed that named one on every episode and had it
-     * dropped as a repeat of the show — the opposite of the truth, in the commonest case the line
-     * was written for. Every decision is now taken by [publisherFor] and tallied here, so what the
-     * report says is what actually happened.
-     *
-     * One line per feed save, which is per subscribe and per refresh. Feeds refresh on the order of
-     * hours, so this cannot crowd the bounded report buffer.
-     */
-    private fun ParsedFeed.namingDecision(decisions: List<PublisherChoice>): String {
-        val named = decisions.filterIsInstance<PublisherChoice.Named>()
-        val repeats = decisions.filterIsInstance<PublisherChoice.RepeatsShow>()
-        val silent = decisions.count { it is PublisherChoice.NotGiven }
-        // Case-folded: `publisherFor` trims the ends but compares case-insensitively only against
-        // the SHOW, never among publishers — so a feed spelling its network "Goalhanger" on some
-        // episodes and "goalhanger" on others reported "(2 distinct)" where a person reads one.
-        val distinct = named.map { it.name }.distinctBy { it.lowercase() }
-        val example = (distinct.firstOrNull() ?: repeats.firstOrNull()?.name)
-            ?.let { " e.g. \"$it\"" }.orEmpty()
-        return "names show=\"$title\" channelAuthor=${author?.trim()?.ifEmpty { null } ?: "none"} " +
-            "episodes=${decisions.size} shown=${named.size} (${distinct.size} distinct) " +
-            "droppedAsRepeatOfTheShow=${repeats.size} named-nobody=$silent$example"
-    }
-
-    private fun ParsedFeed.toMediaSource(id: SourceId, feedUrl: HttpUrl) = MediaSource.PodcastFeed(
-        id = id,
-        title = title,
-        feedUrl = feedUrl,
-        websiteUrl = websiteUrl?.let(HttpUrl::parse),
-        // The channel-level author only. An episode's own is a fact about that episode, not about
-        // the show, and the same rule drops it when it merely repeats the title.
-        publisher = publisherFor(episodeAuthor = null, feedAuthor = author, show = title).nameOrNull,
-    )
 
     /**
      * Chapters for an episode: inline Podlove chapters if present, else the
@@ -250,7 +217,7 @@ public class DefaultPodcastRepository(
         author = feed.title,
         publisher = publisherFor(author, feed.author, feed.title).also { decisions += it }.nameOrNull,
         description = description,
-        thumbnailUrl = imageUrl?.let(HttpUrl::parse),
+        thumbnailUrl = imageUrl?.let(HttpUrl::parse) ?: source.artworkUrl,
         mediaUrl = enclosureUrl?.let(HttpUrl::parse),
         chapters = chapters,
     )
@@ -260,3 +227,47 @@ public class DefaultPodcastRepository(
         const val REMOTE_CHAPTERS_LIMIT = 30
     }
 }
+
+/**
+ * What this feed called itself, what it called its publisher, and what became of the second name
+ * — counted from the decisions the mapping ACTUALLY TOOK, handed in rather than re-derived.
+ *
+ * It re-derived them from `episodes` until an adversarial review pointed out that this is the
+ * same sin the paragraph below is about, one level up: identical inputs today, but a description
+ * of a second evaluation rather than of what was stored. The distinct count is back for the same
+ * reason — `shown=273` alone cannot tell one network across 273 episodes from 273 guest authors.
+ *
+ * The first version of this line inferred the reason from the channel-level author alone, and so
+ * said "the feed named no publisher" about a feed that named one on every episode and had it
+ * dropped as a repeat of the show — the opposite of the truth, in the commonest case the line
+ * was written for. Every decision is now taken by [publisherFor] and tallied here, so what the
+ * report says is what actually happened.
+ *
+ * One line per feed save, which is per subscribe and per refresh. Feeds refresh on the order of
+ * hours, so this cannot crowd the bounded report buffer.
+ */
+private fun ParsedFeed.namingDecision(decisions: List<PublisherChoice>): String {
+    val named = decisions.filterIsInstance<PublisherChoice.Named>()
+    val repeats = decisions.filterIsInstance<PublisherChoice.RepeatsShow>()
+    val silent = decisions.count { it is PublisherChoice.NotGiven }
+    // Case-folded: `publisherFor` trims the ends but compares case-insensitively only against
+    // the SHOW, never among publishers — so a feed spelling its network "Goalhanger" on some
+    // episodes and "goalhanger" on others reported "(2 distinct)" where a person reads one.
+    val distinct = named.map { it.name }.distinctBy { it.lowercase() }
+    val example = (distinct.firstOrNull() ?: repeats.firstOrNull()?.name)
+        ?.let { " e.g. \"$it\"" }.orEmpty()
+    return "names show=\"$title\" channelAuthor=${author?.trim()?.ifEmpty { null } ?: "none"} " +
+        "episodes=${decisions.size} shown=${named.size} (${distinct.size} distinct) " +
+        "droppedAsRepeatOfTheShow=${repeats.size} named-nobody=$silent$example"
+}
+
+private fun ParsedFeed.toMediaSource(id: SourceId, feedUrl: HttpUrl) = MediaSource.PodcastFeed(
+    id = id,
+    title = title,
+    feedUrl = feedUrl,
+    websiteUrl = websiteUrl?.let(HttpUrl::parse),
+    // The channel-level author only. An episode's own is a fact about that episode, not about
+    // the show, and the same rule drops it when it merely repeats the title.
+    publisher = publisherFor(episodeAuthor = null, feedAuthor = author, show = title).nameOrNull,
+    artworkUrl = imageUrl?.let(HttpUrl::parse),
+)

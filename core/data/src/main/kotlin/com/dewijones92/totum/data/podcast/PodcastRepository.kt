@@ -19,6 +19,9 @@ public interface PodcastRepository {
     /** Fetches, parses, and stores [feedUrl]. Idempotent per URL. */
     public suspend fun subscribe(feedUrl: HttpUrl): SubscribeResult
 
+    /** Fetches and parses [feedUrl] WITHOUT subscribing or storing anything. */
+    public suspend fun preview(feedUrl: HttpUrl): PreviewResult
+
     /** Removes the subscription and its episodes. */
     public suspend fun unsubscribe(id: SourceId)
 
@@ -77,6 +80,11 @@ public sealed interface FeedRefreshFailure {
         override val id: SourceId,
         override val title: String,
     ) : FeedRefreshFailure
+}
+
+public sealed interface PreviewResult {
+    public data class Loaded(val source: MediaSource.PodcastFeed, val episodes: List<MediaItem>) : PreviewResult
+    public data class Failed(val detail: String) : PreviewResult
 }
 
 /** Outcome of a subscribe attempt; expected failures are values. */

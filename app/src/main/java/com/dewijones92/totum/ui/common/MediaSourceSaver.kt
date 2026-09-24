@@ -31,14 +31,27 @@ private const val ID = 1
 private const val TITLE = 2
 private const val URL = 3
 private const val WEBSITE = 4
+private const val ARTWORK = 5
 
 private fun encode(source: MediaSource): List<String> = when (source) {
     is MediaSource.VideoChannel ->
-        listOf(CHANNEL, source.id.value, source.title, source.channelUrl.value)
+        listOf(CHANNEL, source.id.value, source.title, source.channelUrl.value, NONE, source.artworkUrl.encoded())
 
     is MediaSource.PodcastFeed ->
-        listOf(FEED, source.id.value, source.title, source.feedUrl.value, source.websiteUrl?.value ?: NONE)
+        listOf(
+            FEED,
+            source.id.value,
+            source.title,
+            source.feedUrl.value,
+            source.websiteUrl.encoded(),
+            source.artworkUrl.encoded(),
+        )
 }
+
+private fun HttpUrl?.encoded(): String = this?.value ?: NONE
+
+private fun List<String>.optionalUrl(index: Int): HttpUrl? =
+    getOrNull(index)?.takeIf { it != NONE }?.let(HttpUrl::parse)
 
 private fun decode(saved: List<String>): MediaSource? {
     val id = saved.getOrNull(ID) ?: return null
@@ -47,12 +60,13 @@ private fun decode(saved: List<String>): MediaSource? {
     // open" simply lands on the list, which is the same place a cold start would.
     val url = saved.getOrNull(URL)?.let(HttpUrl::parse) ?: return null
     return when (saved.getOrNull(TAG)) {
-        CHANNEL -> MediaSource.VideoChannel(SourceId(id), title, url)
+        CHANNEL -> MediaSource.VideoChannel(SourceId(id), title, url, artworkUrl = saved.optionalUrl(ARTWORK))
         FEED -> MediaSource.PodcastFeed(
             id = SourceId(id),
             title = title,
             feedUrl = url,
-            websiteUrl = saved.getOrNull(WEBSITE)?.takeIf { it != NONE }?.let(HttpUrl::parse),
+            websiteUrl = saved.optionalUrl(WEBSITE),
+            artworkUrl = saved.optionalUrl(ARTWORK),
         )
 
         else -> null
@@ -68,3 +82,5 @@ private inline fun <reified T : MediaSource> mediaSourceSaver(): Saver<T?, Any> 
 internal val PodcastFeedSaver: Saver<MediaSource.PodcastFeed?, Any> = mediaSourceSaver()
 
 internal val VideoChannelSaver: Saver<MediaSource.VideoChannel?, Any> = mediaSourceSaver()
+
+internal val MediaSourceSaver: Saver<MediaSource?, Any> = mediaSourceSaver()

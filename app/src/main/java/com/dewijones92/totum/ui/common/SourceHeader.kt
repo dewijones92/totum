@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Bookmarks
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaKind
 
 /**
@@ -53,6 +55,7 @@ fun SourceHeader(
      * half its callers is not something to leave sitting under a filter that depends on it.
      */
     pillar: MediaKind = MediaKind.PODCAST,
+    artworkUrl: HttpUrl? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -63,6 +66,7 @@ fun SourceHeader(
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
         }
+        SourceArtwork(artworkUrl, title, pillar, Modifier.size(56.dp))
         Column(
             modifier = Modifier
                 .weight(1f)

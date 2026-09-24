@@ -183,6 +183,70 @@ class DefaultPodcastRepositoryTest {
     """.trimIndent()
 
     @Test
+    fun `an episode with no picture of its own wears the show's artwork`() = runTest {
+        val xml = feed(
+            channelExtras = """<itunes:image href="https://img.example.com/show.jpg"/>""",
+            episodeExtras = "",
+        )
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        val (subscription, items) = checkNotNull(store.saved)
+        assertEquals("https://img.example.com/show.jpg", subscription.source.artworkUrl?.value)
+        assertEquals("https://img.example.com/show.jpg", items.single().thumbnailUrl?.value)
+    }
+
+    @Test
+    fun `an episode's own picture beats the show's`() = runTest {
+        val xml = feed(
+            channelExtras = """<itunes:image href="https://img.example.com/show.jpg"/>""",
+            episodeExtras = """<itunes:image href="https://img.example.com/ep214.jpg"/>""",
+        )
+
+        repository(FetchResult.Success(xml)).subscribe(feedUrl)
+
+        assertEquals("https://img.example.com/ep214.jpg", checkNotNull(store.saved).second.single().thumbnailUrl?.value)
+    }
+
+    @Test
+    fun `a refresh gives an existing subscription its artwork`() = runTest {
+        store.saveSource(
+            Subscription(MediaSource.PodcastFeed(SourceId(feedUrl.value), "The Rest Is Politics", feedUrl), now),
+            emptyList(),
+        )
+        val xml = feed(
+            channelExtras = """<itunes:image href="https://img.example.com/show.jpg"/>""",
+            episodeExtras = "",
+        )
+
+        repository(FetchResult.Success(xml)).refresh()
+
+        assertEquals("https://img.example.com/show.jpg", checkNotNull(store.saved).first.source.artworkUrl?.value)
+    }
+
+    @Test
+    fun `a preview reads the feed without subscribing to it`() = runTest {
+        val xml = feed(
+            channelExtras = """<itunes:image href="https://img.example.com/show.jpg"/>""",
+            episodeExtras = "",
+        )
+
+        val preview = repository(FetchResult.Success(xml)).preview(feedUrl) as PreviewResult.Loaded
+
+        assertEquals("The Rest Is Politics", preview.source.title)
+        assertEquals("https://img.example.com/show.jpg", preview.source.artworkUrl?.value)
+        assertEquals(listOf("Ep 214"), preview.episodes.map { it.title })
+        assertNull("a preview must store nothing", store.saved)
+    }
+
+    @Test
+    fun `a preview of an unreachable feed says why`() = runTest {
+        val preview = repository(FetchResult.Failure("offline")).preview(feedUrl)
+
+        assertEquals(PreviewResult.Failed("offline"), preview)
+    }
+
+    @Test
     fun `fetches remote Podcasting 2_0 chapters for an episode that links them`() = runTest {
         val chaptersUrl = "https://chapters.example.com/ep.json"
         val feedXml = """
