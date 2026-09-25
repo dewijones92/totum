@@ -6,6 +6,8 @@ import com.dewijones92.totum.data.channel.CheckedChannel
 import com.dewijones92.totum.data.channel.InMemoryChannelLatestStore
 import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.net.FetchResult
+import com.dewijones92.totum.data.podcast.PodcastRepository
+import com.dewijones92.totum.data.podcast.RefreshReport
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -88,6 +90,32 @@ class AllSubscriptionsViewModelTest {
         assertEquals(listOf("A Channel", "The Show"), viewModel.sources.value.orEmpty().map { it.source.title })
         assertEquals(listOf("vid", "ep"), viewModel.sources.value.orEmpty().map { it.latest?.id?.value })
         assertEquals("reads the feed the Videos tab caches", listOf("SUBSCRIPTIONS"), keysRead)
+    }
+
+    @Test
+    fun `pulling to refresh the one list refreshes the shows as well as the channels`() = runTest(dispatcher) {
+        var showsRefreshed = 0
+        val podcasts = object : PodcastRepository by FakePodcastRepository() {
+            override suspend fun refresh(): RefreshReport {
+                showsRefreshed++
+                return RefreshReport()
+            }
+        }
+        val viewModel = AllSubscriptionsViewModel(
+            podcasts,
+            MutableStateFlow(listOf(channel)),
+            cacheWith(emptyList()),
+            channelUploads = ChannelLatestUploads(fetcher = {
+                FetchResult.Failure("offline")
+            }, store = InMemoryChannelLatestStore()),
+            checkScope = backgroundScope,
+            computation = dispatcher,
+        )
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals("a pull on a two-pillar list refreshed only YouTube", 1, showsRefreshed)
     }
 
     @Test

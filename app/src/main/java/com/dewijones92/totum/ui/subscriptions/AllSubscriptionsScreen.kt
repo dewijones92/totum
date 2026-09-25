@@ -67,7 +67,7 @@ fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier
         onBack = onBack,
         modifier = modifier,
         checking = checking,
-        onRefresh = { viewModel.checkChannels(force = true) },
+        onRefresh = viewModel::refresh,
         onUnsubscribe = viewModel::unsubscribe,
     )
 }

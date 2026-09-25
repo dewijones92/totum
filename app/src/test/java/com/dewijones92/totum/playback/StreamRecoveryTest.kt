@@ -220,6 +220,7 @@ class StreamRecoveryTest {
     fun `a replay that cannot start is survivable`() = runTest {
         StreamRecovery(
             failures = failures,
+            onSabrStalled = {},
             replay = { false },
             moveOn = {
                 movedOn++

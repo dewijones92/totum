@@ -3,7 +3,7 @@ title: Every subscription in one list, and every row tinted by pillar
 kind: feature
 status: shipped
 area: subscriptions
-updated: 2026-09-24
+updated: 2026-09-25
 ---
 
 # Every subscription in one list, and every row tinted by pillar
@@ -40,7 +40,10 @@ upload". Options measured before building:
 time, upserting into `channel_latest_uploads` (Room, v24) in batches of 50 so the list fills as it goes.
 A failed fetch or an error page keeps what was known; a channel with no uploads is recorded as
 checked. Only one check runs at a time. The list starts a check when opened; **pull to refresh forces
-one**. Progress shows as "Checking channels… N of M".
+one and refreshes every podcast feed too** (until 2026-09-25 it refreshed only YouTube, a one-pillar
+gesture on a two-pillar list; logged as `pull to refresh: shows updated=… failed=…`). With no subscribed
+channels a check waits 10 s for them and then logs `no channel check` rather than waiting for ever.
+Progress shows as "Checking channels… N of M".
 
 Measured on `totum-api35` (1,600 channels): **41 s, 0 failures, 1,565 with an upload, 35 that have never
 uploaded**; reopening within 6 h reports `0 due of 1600`. Network ≈ 1,600 × 6 KB ≈ 10 MB per full check.

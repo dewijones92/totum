@@ -89,6 +89,30 @@ class ListFilterTest {
     }
 
     @Test
+    fun `an untouched filter does not read a single row and typing reads each row once`() {
+        val titles = (1..ROWS).map { "Row $it" }
+        var reads = 0
+        composeTestRule.setContent {
+            TotumTheme {
+                FilterableList("test", titles, {
+                    reads++
+                    listOf(it)
+                }) { shown, _ ->
+                    LazyColumn { items(shown) { Text(it) } }
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals("a long list paid for filtering nobody asked for", 0, reads)
+
+        type("row 1")
+        type("0")
+
+        assertEquals("rows should be prepared once, then reused as the query changes", ROWS, reads)
+    }
+
+    @Test
     fun `a query that matches nothing says so`() {
         composeTestRule.setContent {
             TotumTheme {
@@ -281,6 +305,7 @@ class ListFilterTest {
     }
 
     private companion object {
+        const val ROWS = 40
         const val SETTLE_MS = 2_000L
         const val TIMEOUT_MS = 5_000L
     }

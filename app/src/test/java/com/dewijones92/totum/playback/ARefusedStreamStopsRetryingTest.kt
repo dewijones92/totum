@@ -45,6 +45,7 @@ class ARefusedStreamStopsRetryingTest {
 
     private fun TestScope.recovery(): StreamRecovery = StreamRecovery(
         failures = failures,
+        onSabrStalled = {},
         replay = { at ->
             replayedFrom += at
             true

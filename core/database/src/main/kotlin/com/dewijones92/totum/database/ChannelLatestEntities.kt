@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.data.channel.ChannelLatestStore
 import com.dewijones92.totum.data.channel.CheckedChannel
 import com.dewijones92.totum.domain.MediaItem
@@ -62,7 +63,7 @@ public class RoomChannelLatestStore(private val dao: ChannelLatestDao) : Channel
     )
 
     private fun ChannelLatestEntity.toChecked(): CheckedChannel {
-        val channelUrl = HttpUrl.parse("https://www.youtube.com/channel/$channelId")
+        val channelUrl = youTubeChannelUrl(channelId)
         val latest = if (itemId != null && channelUrl != null) {
             MediaItem(
                 id = MediaItemId(itemId),

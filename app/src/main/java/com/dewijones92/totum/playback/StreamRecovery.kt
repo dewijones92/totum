@@ -149,7 +149,7 @@ internal class StreamRecovery(
      * to do, but it has no measured benefit and should not be cited as a fix for anything.
      */
     private val forgetHeldStreams: (MediaItemId) -> Unit = {},
-    private val onSabrStalled: (MediaItemId) -> Unit = {},
+    private val onSabrStalled: (MediaItemId) -> Unit,
     private val prefetchNext: suspend () -> Unit = {},
     private val awaitNetwork: suspend () -> Unit,
     private val scope: CoroutineScope,

@@ -57,10 +57,10 @@ fun <T> ListFilter.filter(
     pausesPaging: Boolean = false,
     part: String? = null,
 ): List<T> {
-    val prepared = remember(items) { items.map { FuzzyMatch.text(fields(it)) } }
+    val prepared = remember(items) { lazy { items.map { FuzzyMatch.text(fields(it)) } } }
     val parsed = remember(query) { FuzzyMatch.query(query) }
     val shown = remember(items, parsed) {
-        if (!parsed.hasTerms) items else items.filterIndexed { i, _ -> FuzzyMatch.matches(parsed, prepared[i]) }
+        if (!parsed.hasTerms) items else items.filterIndexed { i, _ -> FuzzyMatch.matches(parsed, prepared.value[i]) }
     }
     val shownNow by rememberUpdatedState(shown.size)
     val totalNow by rememberUpdatedState(items.size)

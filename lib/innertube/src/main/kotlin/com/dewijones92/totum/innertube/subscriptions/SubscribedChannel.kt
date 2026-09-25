@@ -1,6 +1,7 @@
 package com.dewijones92.totum.innertube.subscriptions
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeChannelUrl
 
 /**
  * A channel the signed-in user subscribes to. [channelUrl] is derived from
@@ -16,6 +17,6 @@ public data class SubscribedChannel(
     public companion object {
         /** Builds the canonical channel URL for a `UC…` id, or null if unusable. */
         public fun channelUrlFor(channelId: String): HttpUrl? =
-            HttpUrl.parse("https://www.youtube.com/channel/$channelId")
+            youTubeChannelUrl(channelId)
     }
 }

@@ -392,6 +392,12 @@ Two defects, both in our code:
 - **The rescue rung ignored the stall.** `resolveAsRescue` never consulted `sabrStalledOn`, so once
   recovery gave up, the rescue offered SABR a third time. It now declines for an item SABR stalled on.
 
+A third, found by the review of that change: **the stall memory was keyed by `MediaItemId.value` but
+looked up by bare video id**, and search results, songs and related videos use the full watch URL as
+their id, so for those items it never matched at all. It is now keyed by video id, and the check lives in
+`overSabrFrom`, which every SABR route passes through (including the player-response fallback after a
+failed extraction, which had no check). Tests in `SabrIsNotRetriedAfterItStallsTest`, each red first.
+
 Together they put HLS about 50 s into the run, after the 60 s watch had mostly gone. Tests:
 `StreamRecoveryTest` (the stall is recorded before the replay) and `SabrIsNotRetriedAfterItStallsTest`
 (the rescue declines); both failed at their named assertion first.

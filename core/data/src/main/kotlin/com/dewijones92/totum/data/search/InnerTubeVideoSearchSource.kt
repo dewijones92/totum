@@ -1,7 +1,7 @@
 package com.dewijones92.totum.data.search
 
-import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PageToken
+import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.innertube.search.SearchVideosResult
 import com.dewijones92.totum.innertube.search.YouTubeSearch
 
@@ -27,7 +27,7 @@ public class InnerTubeVideoSearchSource(private val search: YouTubeSearch) : Sea
                         viewsText = video.viewsText,
                         membersOnly = video.membersOnly,
                         channelUrl = video.channelId
-                            ?.let { HttpUrl.parse("https://www.youtube.com/channel/$it") },
+                            ?.let { youTubeChannelUrl(it) },
                     )
                 },
             )

@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.Chapter
@@ -486,7 +487,7 @@ class VideoResolver(
                 mediaUrl = streamUrl,
                 chapters = chaptersFromDescription(details?.description)
                     .map { (at, title) -> Chapter(at.seconds, title) },
-                sourceUrl = details?.channelId?.let { HttpUrl.parse("https://www.youtube.com/channel/$it") },
+                sourceUrl = details?.channelId?.let { youTubeChannelUrl(it) },
             ),
             skipSegments = skipSegments.segmentsFor(request.id),
             qualities = qualities,
@@ -510,7 +511,7 @@ class VideoResolver(
      */
     suspend fun resolveAsRescue(watchUrl: HttpUrl, sourceId: SourceId): Resolved? {
         val id = watchUrl.youTubeVideoId() ?: return null
-        if (id in sabrStalledOn) {
+        if (stalledOverSabr(id)) {
             Diag.log("resolve", "$id is not rescued over SABR: SABR already stalled on it this session")
             return null
         }
@@ -542,10 +543,16 @@ class VideoResolver(
 
     /** Records that SABR stalled on [id], so this session stops offering it that route. */
     public fun sabrStalled(id: MediaItemId) {
-        if (sabrStalledOn.add(id.value)) {
-            Diag.warn("resolve", "SABR stalled on ${id.value}; extracting for it from now on this session")
+        val videoId = HttpUrl.parse(id.value)?.youTubeVideoId() ?: id.value
+        if (sabrStalledOn.add(videoId)) {
+            Diag.warn(
+                "resolve",
+                "SABR stalled on $videoId (item ${id.value}); extracting for it from now on this session"
+            )
         }
     }
+
+    private fun stalledOverSabr(videoId: String): Boolean = videoId in sabrStalledOn
 
     private suspend fun overSabr(
         watchUrl: HttpUrl,
@@ -556,7 +563,7 @@ class VideoResolver(
         if (!sabrEnabled()) return null
         val fast = playerStreams ?: return null
         val id = watchUrl.youTubeVideoId() ?: return null
-        if (id in sabrStalledOn) {
+        if (stalledOverSabr(id)) {
             Diag.log("resolve", "$id stalled over SABR earlier; extracting instead")
             return null
         }
@@ -596,6 +603,10 @@ class VideoResolver(
         val watchUrl = request.watchUrl
         val asked = request.asked
         val startedAt = request.startedAt
+        if (stalledOverSabr(id)) {
+            Diag.log("resolve", "$id not resolved over SABR for $asked: SABR already stalled on it this session")
+            return null
+        }
         val wanted = wantedAudio(chosen = null)
         val prepared = SabrResolve.prepare(id, response.streaming, response.details, wanted, response.client)
             ?: return null
@@ -621,7 +632,7 @@ class VideoResolver(
                 chapters = chaptersFromDescription(prepared.details.description)
                     .map { (at, title) -> Chapter(at.seconds, title) },
                 sourceUrl = prepared.details.channelId
-                    ?.let { HttpUrl.parse("https://www.youtube.com/channel/$it") },
+                    ?.let { youTubeChannelUrl(it) },
             ),
             skipSegments = skipSegments.segmentsFor(id),
             // Quality switching is not offered over SABR yet: the ladder is real but the

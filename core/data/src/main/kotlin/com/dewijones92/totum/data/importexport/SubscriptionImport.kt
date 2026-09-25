@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.importexport
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.findYouTubeChannelId
+import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.data.xml.descendantsNamed
 import com.dewijones92.totum.data.xml.hardenedDocumentBuilderFactory
 import kotlinx.serialization.json.Json
@@ -75,7 +76,7 @@ public class SubscriptionImportParser {
     private fun Element.toImportedSource(): ImportedSource? {
         val feed = (attr("xmlUrl") ?: attr("xmlurl"))?.let(HttpUrl::parse) ?: return null
         val title = attr("text") ?: attr("title") ?: feed.value
-        return youTubeChannelUrl(feed.value)
+        return channelUrlIn(feed.value)
             ?.let { ImportedSource.YouTubeChannel(title, it) }
             ?: ImportedSource.Podcast(title, feed)
     }
@@ -88,7 +89,7 @@ public class SubscriptionImportParser {
             val serviceId = obj["service_id"]?.jsonPrimitive?.intOrNull
             if (serviceId != null && serviceId != YOUTUBE_SERVICE_ID) return@mapNotNull null
             val url = obj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-            val channelUrl = youTubeChannelUrl(url) ?: HttpUrl.parse(url) ?: return@mapNotNull null
+            val channelUrl = channelUrlIn(url) ?: HttpUrl.parse(url) ?: return@mapNotNull null
             val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: channelUrl.value
             ImportedSource.YouTubeChannel(name, channelUrl)
         }
@@ -99,9 +100,9 @@ public class SubscriptionImportParser {
         csv.lineSequence().mapNotNull { line ->
             val fields = csvFields(line)
             // The "Channel Id" column is a bare UC id, so match the URL column specifically.
-            val urlIndex = fields.indexOfFirst { HttpUrl.parse(it) != null && youTubeChannelUrl(it) != null }
+            val urlIndex = fields.indexOfFirst { HttpUrl.parse(it) != null && channelUrlIn(it) != null }
             if (urlIndex < 0) return@mapNotNull null
-            val channelUrl = youTubeChannelUrl(fields[urlIndex]) ?: return@mapNotNull null
+            val channelUrl = channelUrlIn(fields[urlIndex]) ?: return@mapNotNull null
             val title = fields.getOrNull(urlIndex + 1)?.ifBlank { null } ?: channelUrl.value
             ImportedSource.YouTubeChannel(title, channelUrl)
         }.toList()
@@ -116,9 +117,9 @@ public class SubscriptionImportParser {
 }
 
 /** A `UC…` channel id found anywhere in [raw] (bare id, channel URL, or feed URL), normalised to a channel URL. */
-internal fun youTubeChannelUrl(raw: String): HttpUrl? {
+internal fun channelUrlIn(raw: String): HttpUrl? {
     val id = raw.findYouTubeChannelId() ?: return null
-    return HttpUrl.parse("https://www.youtube.com/channel/$id")
+    return youTubeChannelUrl(id)
 }
 
 /** Splits one CSV line, honouring double-quoted fields and `""` escapes. */

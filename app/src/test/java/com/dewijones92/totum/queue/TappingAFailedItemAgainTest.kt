@@ -78,6 +78,7 @@ class TappingAFailedItemAgainTest {
      */
     private fun recoveryFor(queue: PlaybackQueue) = StreamRecovery(
         failures = controller.streamFailures,
+        onSabrStalled = {},
         replay = queue::replayCurrent,
         moveOn = { queue.playNextInQueue() },
         freshStarts = queue.freshStarts,

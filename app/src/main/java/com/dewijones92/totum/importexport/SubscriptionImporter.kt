@@ -1,6 +1,7 @@
 package com.dewijones92.totum.importexport
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.ChannelVideosResult
 import com.dewijones92.totum.data.importexport.ImportParseResult
@@ -94,7 +95,7 @@ class SubscriptionImporter(
     private suspend fun resolveChannelUrl(url: HttpUrl): HttpUrl? {
         if (url.value.contains("/channel/")) return url
         return when (val result = channelResolver.fetchChannelVideos(url)) {
-            is ChannelVideosResult.Success -> HttpUrl.parse("https://www.youtube.com/channel/${result.channelId}")
+            is ChannelVideosResult.Success -> youTubeChannelUrl(result.channelId)
             is ChannelVideosResult.Failure -> null
         }
     }

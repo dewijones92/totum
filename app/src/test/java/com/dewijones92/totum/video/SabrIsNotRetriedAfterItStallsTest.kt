@@ -56,6 +56,10 @@ class SabrIsNotRetriedAfterItStallsTest {
         )
     }
 
+    private class FailingEngine : YtDlpEngine by FakeYtDlpEngine() {
+        override suspend fun extract(url: HttpUrl) = ExtractionResult.Failure.Extractor("bot check")
+    }
+
     private fun sabrCapable() = PlayerResult.Success(
         streaming = StreamingData(
             formats = listOf(
@@ -110,6 +114,17 @@ class SabrIsNotRetriedAfterItStallsTest {
     }
 
     @Test
+    fun `without a stall the rescue rung does offer SABR`() = runTest {
+        val rescued = resolver().resolveAsRescue(url, source)
+
+        assertEquals(
+            "the control: a rescue that never works would pass the test below",
+            FROM_SABR,
+            rescued?.item?.title
+        )
+    }
+
+    @Test
     fun `after SABR stalls, the rescue rung does not offer SABR for that item either`() = runTest {
         val resolver = resolver()
         resolver.sabrStalled(MediaItemId(VIDEO_ID))
@@ -117,6 +132,37 @@ class SabrIsNotRetriedAfterItStallsTest {
         val rescued = resolver.resolveAsRescue(url, source)
 
         assertEquals("a rescue over the route that just stalled is the same failure again", null, rescued)
+    }
+
+    @Test
+    fun `a stall recorded under a watch URL id still stops SABR for that video`() = runTest {
+        val resolver = resolver()
+        resolver.resolve(url, source, asked = "play")
+
+        resolver.sabrStalled(MediaItemId(url.value))
+        resolver.forget(url)
+        val again = resolver.resolve(url, source, asked = "play")
+
+        assertEquals(
+            "a search result's id is its watch URL, not the bare video id",
+            FROM_EXTRACTION,
+            again?.item?.title
+        )
+    }
+
+    @Test
+    fun `when extraction fails after a stall the player response does not go back over SABR`() = runTest {
+        val resolver = VideoResolver(
+            engine = FailingEngine(),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = { sabrCapable() },
+            sabrEnabled = { true },
+        )
+        resolver.sabrStalled(MediaItemId(VIDEO_ID))
+
+        val resolved = resolver.resolve(url, source, asked = "play")
+
+        assertTrue("the fallback handed SABR back for an item it just stalled on", resolved?.item?.title != FROM_SABR)
     }
 
     /** A DIFFERENT item is unaffected — the memory is per item, not a global switch-off. */

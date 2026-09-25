@@ -3,7 +3,7 @@ title: Fuzzy filter on every list
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-24
+updated: 2026-09-25
 ---
 
 # Fuzzy filter on every list
@@ -69,8 +69,11 @@ line moved inside the field; the whole instrumented suite (156 tests) now passes
 
 ## Speed
 
-Each list's text is prepared once per list change (`ListFilter.filter` remembers it), and the query once
-per keystroke. Measured on the laptop JVM, warm: 1,600 items prepared in ~13 ms; **< 1 ms per keystroke
+Each list's text is prepared once per list change, **and only once something is typed** (`ListFilter.filter`
+holds it lazily), and the query once per keystroke. Until 2026-09-25 an untouched filter prepared every
+row on every list change, which on the Subscriptions list during a channel check meant 1,600 sources
+re-normalised on the main thread about 32 times; `ListFilterTest` now asserts an untouched filter reads
+no row at all. Measured on the laptop JVM, warm: 1,600 items prepared in ~13 ms; **< 1 ms per keystroke
 for 1,600 sources, ~4 ms for 5,000 diagnostics events**. A phone is several times slower, which is still
 inside a frame for every list but possibly Diagnostics.
 

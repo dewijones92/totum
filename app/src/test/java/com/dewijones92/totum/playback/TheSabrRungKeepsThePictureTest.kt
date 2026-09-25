@@ -60,6 +60,7 @@ class TheSabrRungKeepsThePictureTest {
 
     private fun TestScope.recovery(): StreamRecovery = StreamRecovery(
         failures = failures,
+        onSabrStalled = {},
         replay = { true },
         moveOn = {
             movedOn++

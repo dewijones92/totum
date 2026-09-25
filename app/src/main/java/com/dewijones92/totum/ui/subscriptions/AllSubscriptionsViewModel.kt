@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class AllSubscriptionsViewModel(
     private val podcasts: PodcastRepository,
@@ -70,11 +71,29 @@ class AllSubscriptionsViewModel(
 
     private val checkedUploads: Flow<List<MediaItem>> = channelUploads?.latest() ?: flowOf(emptyList())
 
+    fun refresh() {
+        checkChannels(force = true)
+        val scope = checkScope ?: return Diag.log("subs", "pull to refresh: no scope, shows not refreshed")
+        scope.launch {
+            val report = podcasts.refresh()
+            Diag.log(
+                "subs",
+                "pull to refresh: shows updated=${report.updated.size} failed=${report.failures.size} " +
+                    "allFailed=${report.allFailed}",
+            )
+        }
+    }
+
     fun checkChannels(force: Boolean = false) {
         val uploads = channelUploads ?: return
         val scope = checkScope ?: return
         scope.launch {
-            val ids = subscribedChannels.first { it.isNotEmpty() }.mapNotNull { it.youTubeChannelId }
+            val channels = withTimeoutOrNull(CHANNELS_WAIT_MS) { subscribedChannels.first { it.isNotEmpty() } }
+            if (channels == null) {
+                Diag.log("subs", "no channel check (force=$force): no subscribed channels after ${CHANNELS_WAIT_MS}ms")
+                return@launch
+            }
+            val ids = channels.mapNotNull { it.youTubeChannelId }
             Diag.log("subs", "checking ${ids.size} channels for their latest upload (force=$force)")
             uploads.refresh(ids, force)
         }
@@ -113,6 +132,7 @@ class AllSubscriptionsViewModel(
         private const val TOP_LOGGED = 3
         private const val FAILED_NAMED = 5
         private val SUBSCRIPTIONS_FEED = FeedChoice.Account(AccountFeed.SUBSCRIPTIONS)
+        private const val CHANNELS_WAIT_MS = 10_000L
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {

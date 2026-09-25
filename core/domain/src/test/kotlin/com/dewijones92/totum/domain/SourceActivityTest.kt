@@ -57,11 +57,18 @@ class SourceActivityTest {
     @Test
     fun `a channel matches its videos by channel id, not by the listing they arrived in`() {
         val fromFeed =
-            item("v", "ytfeed:SUBSCRIPTIONS", null, "https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa")
+            item(
+                "v",
+                "ytfeed:SUBSCRIPTIONS",
+                "2026-09-20T00:00:00Z",
+                "https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa"
+            )
 
-        assertEquals(true, fromFeed.isFrom(channel))
-        assertEquals(false, fromFeed.isFrom(quiet))
-        assertEquals(false, fromFeed.isFrom(show))
+        val ranked = latestUploadFirst(listOf(channel, quiet, show), listOf(fromFeed))
+
+        assertEquals("v", ranked.single { it.source == channel }.latest?.id?.value)
+        assertNull(ranked.single { it.source == quiet }.latest)
+        assertNull(ranked.single { it.source == show }.latest)
     }
 
     @Test
