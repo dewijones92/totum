@@ -12,6 +12,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.support.DeviceRadios.goOnline
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -113,11 +114,9 @@ class LiveStreamPlaysToItsEndTest {
     @Test
     fun `a real stream seeked near its end reaches the end`() = runBlocking(Dispatchers.Main) {
         queue.playNow(videoItem())
+        val itemId = MediaItemId(VIDEO_ID)
 
-        val started = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        } ?: false
+        val started = PlaybackWaits.awaitStateOf(controller, itemId, START_TIMEOUT_MS) { it.isPlaying } != null
         // ASSERTED, not assumed. This line used to read `assumeTrue("… an environment condition and
         // not this defect")`, and on 2026-08-17 it hit the real thing: YouTube had stopped serving
         // the app's streams entirely, this test met that exactly, reported a SKIP, and CI published a
@@ -137,26 +136,21 @@ class LiveStreamPlaysToItsEndTest {
             started,
         )
 
-        val duration = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while ((controller.state.value?.durationMs ?: 0) <= 0) delay(POLL_MS)
-            controller.state.value?.durationMs
-        }
+        val duration = PlaybackWaits.awaitStateOf(controller, itemId, START_TIMEOUT_MS) {
+            (it.durationMs ?: 0) > 0
+        }?.durationMs
         assumeTrue("the stream reported no duration, so there is no end to seek towards", duration != null)
 
         // Inside the last few seconds, which is where every reported stall happened.
         val target = (duration!! - FROM_THE_END_MS).coerceAtLeast(0)
         controller.seekTo(target)
 
-        val ended = withTimeoutOrNull(END_TIMEOUT_MS) {
-            while (controller.state.value?.hasEnded != true) delay(POLL_MS)
-            true
-        } ?: false
+        val ended = PlaybackWaits.awaitStateOf(controller, itemId, END_TIMEOUT_MS) { it.hasEnded } != null
 
         assertTrue(
             "a real stream seeked to ${target}ms of ${duration}ms never reached its end. This is the " +
                 "reported stall: the tail never arrives because the reader asks for a range past the " +
-                "end of the resource. Last state: buffered=" +
-                "${controller.state.value?.bufferedPositionMs} position=${controller.state.value?.positionMs}",
+                "end of the resource. The player is on ${PlaybackWaits.whatIsActuallyPlaying(controller)}",
             ended,
         )
     }

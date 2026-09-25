@@ -478,3 +478,22 @@ the stream ends prematurely and recovery takes over. That is attestation (see
 the embedded player refuses, since those are the ones that fall back to ANDROID. So SABR on such a video
 still stops about a minute in. This fix moved it from 9.5 s to about 62 s; it did not remove the limit.
 
+**The ~62 s wall is a SIGNED-OUT limit (measured 2026-09-25 on `totum-api35`, signed in, SABR on).** CI's
+emulator is signed out, so its SABR session comes from the anonymous ANDROID client. On a signed-in device
+`PlayerStreams.playerFor` asks the account first (`preferAccount`), and for this video the answer was:
+
+```
+[resolve] uSMGENDH_QI: the embedded player refused: ERROR: This video is unavailable; falling back to ANDROID
+[resolve] uSMGENDH_QI as downgraded TV -> 99 fetchable format(s)
+[resolve] uSMGENDH_QI resolved as the signed-in TV client
+[sabr] not using SABR for uSMGENDH_QI: no SABR endpoint — extracting instead
+no-rebuffer video via hls: rebuffers=0 buffered=240333ms of 60000ms (14067ms->254400ms) rendered=57556ms
+```
+
+The signed-in TV client offers plain URLs and no SABR endpoint, so the app extracts and plays HLS. It
+fetched media to **254 s**, far past the wall, with no rebuffers. So on Dewi's signed-in phone, a video
+the embedded player refuses never reaches the ANDROID endpoint's limit, and attestation work
+([po-token-minting.md](po-token-minting.md)) would only help signed-out use. Two caveats. The test watched
+60 s of PLAYBACK; the 254 s is fetched data, not seconds watched. And the resolve reported
+`6 qualities (0 durable)`, so a later lease expiry on those URLs is not ruled out by this run.
+

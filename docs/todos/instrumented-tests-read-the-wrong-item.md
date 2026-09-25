@@ -1,9 +1,9 @@
 ---
 title: Instrumented tests read the player without asking which item it is on
 kind: todo
-status: cause fixed and two tests scoped; fourteen more still read unscoped
+status: cause fixed and sixteen tests scoped; each still needs its live run to confirm
 area: testing
-updated: 2026-09-20
+updated: 2026-09-25
 ---
 
 # A green wait that was answered by the wrong video
@@ -37,20 +37,27 @@ have been acted on. That is the cost of a failure that does not name what it act
 - `SeekDeepIntoALongVideoTest` now uses it for all four waits.
 - `LiveStreamPlaysToItsEndTest` and `StreamPlaysToItsEndTest` turn `autoPlayNext` off for their
   duration, which removes the cause. Teardown cannot: the end has already happened by then.
+- 2026-09-25: converted every wait and every `controller.state.value` read feeding an assertion in
+  `LiveSabrDownloadTest`, `LiveDownloadedVideoOfflineTest`, `MeteredAudioSwitchDeviceTest`,
+  `FourKActuallyPlaysTest`, `StreamPlaysToItsEndTest`, `LiveStreamPlaysToItsEndTest`,
+  `SilenceStrategyDeviceTest`, `AnHourLongItemDoesNotRebufferTest`, `PlaysAcrossContentTypesTest`,
+  `SubtitlesArriveAndRenderTest`, and `TorrentQueuePlaybackTest`, plus the unscoped part of
+  `AutoAdvanceLoopTest`, `StalledStreamRecoveryTest` and `OfflineQueuePlaybackTest` (each already
+  had some correctly itemId-scoped waits, left alone). Where a read could not be scoped via
+  `awaitStateOf` (a `player.videoSize` read, and a couple of failure messages), it now names the
+  impostor with `whatIsActuallyPlaying()` instead of reading the ambient state directly.
+  `./gradlew detekt assembleDebugAndroidTest` and `tools/ci/preflight.py` are green, but none of
+  this has been run on a device or emulator — most of these are live YouTube tests this laptop
+  cannot execute, so each conversion still needs its live run to confirm the scoping is actually
+  correct and not just compiling.
 
 ## Still open
 
-Fourteen instrumented tests still read `controller.state.value` without checking `itemId`:
-
-`LiveSabrDownloadTest`, `LiveDownloadedVideoOfflineTest`, `MeteredAudioSwitchDeviceTest`,
-`FourKActuallyPlaysTest`, `StreamPlaysToItsEndTest`, `LiveStreamPlaysToItsEndTest`,
-`SilenceStrategyDeviceTest`, `AnHourLongItemDoesNotRebufferTest`, `PlaysAcrossContentTypesTest`,
-`SubtitlesArriveAndRenderTest`, `TorrentQueuePlaybackTest`, and partially
-`AutoAdvanceLoopTest`, `StalledStreamRecoveryTest`, `OfflineQueuePlaybackTest`.
-
-Each is a latent version of the same failure. They are not converted in one pass because they are
-live tests that cannot be verified from this laptop, and a wrong conversion is a red build with no
-local way to tell it from a real one. Convert them as each is next touched, using `PlaybackWaits`.
+Every listed test above is converted, but **none has been verified live** — that is the next
+step, via `tools/ci/live-test-via-home.sh` where the test needs it, or a local emulator run for
+the deterministic ones (`StreamPlaysToItsEndTest`, `SilenceStrategyDeviceTest`,
+`AutoAdvanceLoopTest`, `StalledStreamRecoveryTest`, `OfflineQueuePlaybackTest`,
+`TorrentQueuePlaybackTest`, `MeteredAudioSwitchDeviceTest`).
 
 ## The general rule
 

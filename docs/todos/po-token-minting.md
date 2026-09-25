@@ -1,10 +1,16 @@
 ---
 title: PO token minting works; it has not yet lifted the ceiling
 status: superseded 2026-09-06 — the ceiling was the request SHAPE, not attestation; see sabr-stops-at-one-megabyte.md
-updated: 2026-09-06
+updated: 2026-09-25
 ---
 
 # Minting a PO token: proven. Lifting the ceiling with it: not yet.
+
+> **2026-09-25: the remaining ceiling is signed-out only.** The embedded endpoint lifted the ~1 MB wall
+> (2026-09-07). For videos that refuse the embedded player, the anonymous ANDROID endpoint still stops at
+> about 62 s of media (`protection=status=3`). But a signed-in device never asks it: the signed-in TV
+> client answers with plain URLs, and the app streams past the wall over HLS. See the last section of
+> [sabr-cannot-seek.md](sabr-cannot-seek.md). A PO token would matter only for signed-out SABR.
 
 > ⚠️ **Re-measured 2026-09-06, and the ceiling stands.** The SmartTube capture's request SHAPE (sentinel
 > range, track bitfield, sticky resolution) looked like a 4.9MB wall break on the ANDROID endpoint; with a

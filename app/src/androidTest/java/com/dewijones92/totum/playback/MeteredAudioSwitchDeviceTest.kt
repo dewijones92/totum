@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.shell
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -167,7 +168,7 @@ class MeteredAudioSwitchDeviceTest {
 
     private fun videoClip() = PlayableItem(
         item = MediaItem(
-            id = MediaItemId("a-clip"),
+            id = MediaItemId(CLIP_ID),
             sourceId = SourceId("test"),
             title = "a clip with a picture",
             publishedAt = null,
@@ -177,10 +178,10 @@ class MeteredAudioSwitchDeviceTest {
         handle = PlayHandle.Podcast(clip.absolutePath),
     )
 
-    private suspend fun awaitPlayingVideo(): Boolean = withTimeoutOrNull(START_TIMEOUT_MS) {
-        while (controller.state.value?.let { it.isPlaying && it.hasVideo } != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitPlayingVideo(): Boolean =
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(CLIP_ID), START_TIMEOUT_MS) {
+            it.isPlaying && it.hasVideo
+        } != null
 
     private suspend fun awaitControllerConnected() {
         val connected = withTimeoutOrNull(START_TIMEOUT_MS) {
@@ -191,6 +192,7 @@ class MeteredAudioSwitchDeviceTest {
     }
 
     private companion object {
+        const val CLIP_ID = "a-clip"
         const val START_TIMEOUT_MS = 30_000L
 
         /** Must outlast the 15-second hold plus a 5-second sampling interval. */

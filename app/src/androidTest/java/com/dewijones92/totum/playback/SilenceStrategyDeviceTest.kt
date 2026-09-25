@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -75,10 +76,8 @@ class SilenceStrategyDeviceTest {
     /** A picture is being kept in sync, so samples must not be removed. */
     @Test
     fun `a video speeds through silence rather than cutting it`() = runBlocking(Dispatchers.Main) {
-        queue.playNow(item("a-clip", clip.absolutePath))
-        withTimeoutOrNull(TIMEOUT_MS) {
-            while (controller.state.value?.hasVideo != true) delay(POLL_MS)
-        }
+        queue.playNow(item(CLIP_ID, clip.absolutePath))
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(CLIP_ID), TIMEOUT_MS) { it.hasVideo }
         Breadcrumbs.clear()
         controller.setSkipSilence(true)
 
@@ -107,6 +106,7 @@ class SilenceStrategyDeviceTest {
             Breadcrumbs.snapshot().map { it.message }.filter { "silence" in it }
 
     private companion object {
+        const val CLIP_ID = "a-clip"
         const val TIMEOUT_MS = 20_000L
         const val POLL_MS = 200L
     }

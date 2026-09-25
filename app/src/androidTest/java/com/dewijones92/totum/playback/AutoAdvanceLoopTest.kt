@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -195,10 +196,7 @@ class AutoAdvanceLoopTest {
      */
     private suspend fun awaitPlaying(id: String) {
         assertEquals("$id must become the current item", id, awaitCurrent(id)?.value)
-        val playing = withTimeoutOrNull(TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        }
+        val playing = PlaybackWaits.awaitStateOf(controller, MediaItemId(id), TIMEOUT_MS) { it.isPlaying } != null
         assertEquals(
             "$id is loaded but not playing — on a device that usually means audio focus was " +
                 "refused, which happens when the screen is off or the app is not foreground",

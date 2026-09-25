@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -95,7 +96,8 @@ class FourKActuallyPlaysTest {
         )
 
         queue.playNow(item())
-        val playing = awaitPlaying()
+        val itemId = MediaItemId(FOUR_K_SIXTY)
+        val playing = awaitPlaying(itemId)
 
         // THE ASSERTION, and the only one: raising the cap must make the ladder ASK for the taller rung.
         // Whether YouTube then serves it is not ours — 2160p formats are the non-durable ones, so they are
@@ -123,8 +125,8 @@ class FourKActuallyPlaysTest {
 
         // Everything below is REPORTED. It is the evidence a reader wants months later, and none of it is
         // a promise the app can keep while YouTube refuses the streams it hands out.
-        val height = if (playing) awaitDecodedHeight() else 0
-        val sound = playing && awaitSound()
+        val height = if (playing) awaitDecodedHeight(itemId) else 0
+        val sound = playing && awaitSound(itemId)
         println(
             "[4k] asked for ${choseHeight}p (durable video=$durableVideo); " +
                 if (playing) {
@@ -138,25 +140,24 @@ class FourKActuallyPlaysTest {
         println("[4k] trail:\n    $trail")
     }
 
-    private suspend fun awaitPlaying(): Boolean = withTimeoutOrNull(START_MS) {
-        while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitPlaying(itemId: MediaItemId): Boolean =
+        PlaybackWaits.awaitStateOf(controller, itemId, START_MS) { it.isPlaying } != null
 
     /**
      * Off the PLAYER, not `PlaybackState`: the state carries `hasVideo` and an aspect ratio but no pixel
      * size, so it cannot answer "what resolution did I actually get".
      */
-    private suspend fun awaitDecodedHeight(): Int = withTimeoutOrNull(SIZE_MS) {
-        while ((controller.player?.videoSize?.height ?: 0) <= 0) delay(POLL_MS)
+    private suspend fun awaitDecodedHeight(itemId: MediaItemId): Int = withTimeoutOrNull(SIZE_MS) {
+        while (controller.state.value?.itemId != itemId || (controller.player?.videoSize?.height ?: 0) <= 0) {
+            delay(POLL_MS)
+        }
         controller.player?.videoSize?.height ?: 0
     } ?: 0
 
-    private suspend fun awaitSound(): Boolean = withTimeoutOrNull(SOUND_MS) {
-        val from = controller.state.value?.positionMs ?: 0
-        while ((controller.state.value?.positionMs ?: 0) < from + ADVANCE_MS) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitSound(itemId: MediaItemId): Boolean {
+        val from = controller.state.value?.takeIf { it.itemId == itemId }?.positionMs ?: 0
+        return PlaybackWaits.awaitStateOf(controller, itemId, SOUND_MS) { it.positionMs >= from + ADVANCE_MS } != null
+    }
 
     private fun item() = PlayableItem(
         item = MediaItem(

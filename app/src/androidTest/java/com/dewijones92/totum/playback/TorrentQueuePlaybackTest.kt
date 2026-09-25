@@ -18,6 +18,7 @@ import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.DeviceRadios.goOffline
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.hasNetwork
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -162,7 +163,10 @@ class TorrentQueuePlaybackTest {
                     "from \"${lastSource()}\"",
                 lastSource()?.contains("/ts/stream/") == true,
             )
-            assertTrue("torrent playback stalled at ${positionMs()}ms", awaitPositionBeyond(PROGRESS_MS))
+            assertTrue(
+                "torrent playback stalled. The player is on ${PlaybackWaits.whatIsActuallyPlaying(controller)}",
+                awaitPositionBeyond(PROGRESS_MS),
+            )
         }
 
     /**
@@ -302,8 +306,6 @@ class TorrentQueuePlaybackTest {
     private fun lastSource(): String? =
         controller.player?.currentMediaItem?.localConfiguration?.uri?.toString()
 
-    private fun positionMs(): Long? = controller.state.value?.positionMs
-
     private suspend fun awaitControllerConnected() {
         val connected = withTimeoutOrNull(START_TIMEOUT_MS) {
             while (controller.player == null) delay(POLL_MS)
@@ -312,10 +314,8 @@ class TorrentQueuePlaybackTest {
         assertEquals("the media controller never connected to the playback service", true, connected)
     }
 
-    private suspend fun awaitPlaying(): Boolean = withTimeoutOrNull(START_TIMEOUT_MS) {
-        while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitPlaying(): Boolean =
+        PlaybackWaits.awaitStateOf(controller, ITEM_ID, START_TIMEOUT_MS) { it.isPlaying } != null
 
     /**
      * Why it is not playing, for the failure message.
@@ -345,10 +345,7 @@ class TorrentQueuePlaybackTest {
     }
 
     private suspend fun awaitPositionBeyond(target: Long): Boolean =
-        withTimeoutOrNull(START_TIMEOUT_MS) {
-            while ((positionMs() ?: 0) <= target) delay(POLL_MS)
-            true
-        } ?: false
+        PlaybackWaits.awaitStateOf(controller, ITEM_ID, START_TIMEOUT_MS) { it.positionMs > target } != null
 
     private companion object {
         /**

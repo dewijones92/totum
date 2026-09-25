@@ -13,10 +13,10 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -96,17 +96,16 @@ class AnHourLongItemDoesNotRebufferTest {
     private fun playOn(mode: PlaybackMode, what: String) = runBlocking {
         container.appPreferences.setPlaybackMode(mode)
         queue.playNow(item())
+        val itemId = MediaItemId(VIDEO_ID)
 
-        val started = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        } ?: false
+        val started = PlaybackWaits.awaitStateOf(controller, itemId, START_TIMEOUT_MS) { it.isPlaying } != null
         assumeTrue("$what never started, which other tests cover", started)
 
         var rebuffers = 0
         var wasBuffering = false
-        val startedAt = controller.state.value?.bufferedPositionMs ?: 0L
-        val playedFrom = controller.state.value?.positionMs ?: 0L
+        val initial = controller.state.value?.takeIf { it.itemId == itemId }
+        val startedAt = initial?.bufferedPositionMs ?: 0L
+        val playedFrom = initial?.positionMs ?: 0L
         var reached = startedAt
         var played = playedFrom
         val stalls = mutableListOf<String>()
@@ -115,7 +114,7 @@ class AnHourLongItemDoesNotRebufferTest {
         val until = startedWatchingAt + WATCH_MS
         while (System.currentTimeMillis() < until) {
             delay(POLL_MS)
-            val state = controller.state.value ?: continue
+            val state = controller.state.value?.takeIf { it.itemId == itemId } ?: continue
             // A rebuffer is the EDGE into buffering after playback began, not the level — sampling a
             // level counts one stall many times and misses two that share a sample.
             if (state.isBuffering && !wasBuffering) {

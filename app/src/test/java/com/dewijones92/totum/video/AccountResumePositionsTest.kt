@@ -202,6 +202,19 @@ class AccountResumePositionsTest {
      * real figure acted on earlier, which would then count as news again and could overrule a rewind.
      */
     @Test
+    fun `a video watched to the end elsewhere plays from the start and a restart then sticks`() = runTest {
+        history.watched = mapOf("uSMGENDH_QI" to AccountProgress(positionMs = 5_806_000, durationMs = 5_806_000))
+        val p = positions()
+
+        val first = p.resumePositionMs(MediaItemId("uSMGENDH_QI"))
+        assertEquals("resuming at 5806000 of 5806000 ended it at once and autoplayed something else", null, first)
+        assertEquals(null, localPositions["uSMGENDH_QI"])
+
+        localPositions["uSMGENDH_QI"] = 55_966
+        assertEquals(55_966L, p.resumePositionMs(MediaItemId("uSMGENDH_QI")))
+    }
+
+    @Test
     fun `the floor is not recorded as acted on`() = runTest {
         reconciled.reconcile(MediaItemId("ux6Lafw7en0"), 610_200)
         history.watched = mapOf("ux6Lafw7en0" to AccountProgress(positionMs = 226_000, durationMs = 2_260_000))

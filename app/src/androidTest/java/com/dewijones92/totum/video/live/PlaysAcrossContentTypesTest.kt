@@ -12,10 +12,9 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -134,11 +133,9 @@ class PlaysAcrossContentTypesTest {
         controller.player?.stop()
         Breadcrumbs.clear()
         queue.playNow(fixture.item())
+        val itemId = MediaItemId(fixture.id)
 
-        val playing = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        } ?: false
+        val playing = PlaybackWaits.awaitStateOf(controller, itemId, START_TIMEOUT_MS) { it.isPlaying } != null
         // Position MOVING, not merely "isPlaying": a player reporting playing while stuck at one
         // millisecond is exactly what a refused stream looks like from the outside.
         //
@@ -146,20 +143,16 @@ class PlaysAcrossContentTypesTest {
         // stream silent on 2026-08-18 when the logs showed it playing perfectly: a live position is an
         // offset into a window that slides, so a re-resolve mid-play moved it from 14120ms to 11523ms.
         // Backwards. An assertion that only accepts forward motion measures VOD-ness, not playback.
-        val from = controller.state.value?.positionMs ?: 0
-        val advanced = playing && withTimeoutOrNull(ADVANCE_TIMEOUT_MS) {
-            while (abs((controller.state.value?.positionMs ?: 0) - from) < ADVANCE_MS) delay(POLL_MS)
-            true
-        } ?: false
+        val from = controller.state.value?.takeIf { it.itemId == itemId }?.positionMs ?: 0
+        val advanced = playing && PlaybackWaits.awaitStateOf(controller, itemId, ADVANCE_TIMEOUT_MS) {
+            abs(it.positionMs - from) >= ADVANCE_MS
+        } != null
 
         if (advanced) {
             // WAITED for, not sampled. `hasVideo` comes from the decoder's track list, which arrives
             // after playback starts — reading it the instant the position moves reported "no picture"
             // for a plain muxed clip that plainly had one. An absent reading is not proof of absence.
-            val picture = withTimeoutOrNull(PICTURE_TIMEOUT_MS) {
-                while (controller.state.value?.hasVideo != true) delay(POLL_MS)
-                true
-            } ?: false
+            val picture = PlaybackWaits.awaitStateOf(controller, itemId, PICTURE_TIMEOUT_MS) { it.hasVideo } != null
             return "sound=YES picture=${describePicture(picture)}"
         }
         val trail = lastTrail()
@@ -263,7 +256,6 @@ class PlaysAcrossContentTypesTest {
 
         /** Long enough for the track list to arrive, short enough that "no picture" still means no. */
         const val PICTURE_TIMEOUT_MS = 15_000L
-        const val POLL_MS = 250L
         const val TRAIL_LINES = 30
         const val TRAIL_CHARS = 150
     }

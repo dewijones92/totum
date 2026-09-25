@@ -10,12 +10,11 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.PlaybackWaits
 import com.dewijones92.totum.support.RangedMediaServer
 import com.dewijones92.totum.support.SilentWav
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -150,7 +149,7 @@ class StreamPlaysToItsEndTest {
 
     private fun hostedItem() = PlayableItem(
         item = MediaItem(
-            id = MediaItemId("plays-to-the-end"),
+            id = MediaItemId(ITEM_ID),
             sourceId = SourceId("test"),
             title = "an item that must finish",
             publishedAt = null,
@@ -161,17 +160,14 @@ class StreamPlaysToItsEndTest {
         handle = PlayHandle.Podcast(),
     )
 
-    private suspend fun awaitPlaying(): Boolean = withTimeoutOrNull(START_TIMEOUT_MS) {
-        while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitPlaying(): Boolean =
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(ITEM_ID), START_TIMEOUT_MS) { it.isPlaying } != null
 
-    private suspend fun awaitEnded(): Boolean = withTimeoutOrNull(END_TIMEOUT_MS) {
-        while (controller.state.value?.hasEnded != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitEnded(): Boolean =
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(ITEM_ID), END_TIMEOUT_MS) { it.hasEnded } != null
 
     private companion object {
+        const val ITEM_ID = "plays-to-the-end"
         const val MEDIA_SECONDS = 30
 
         /** Inside the last few seconds, which is exactly where the reported stalls happened. */
@@ -181,6 +177,5 @@ class StreamPlaysToItsEndTest {
 
         /** The remaining seconds at 1x, with room for a slow emulator — and finite, unlike the bug. */
         const val END_TIMEOUT_MS = 45_000L
-        const val POLL_MS = 200L
     }
 }

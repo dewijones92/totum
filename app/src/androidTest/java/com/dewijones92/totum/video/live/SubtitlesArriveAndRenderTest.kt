@@ -12,10 +12,9 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -85,11 +84,9 @@ class SubtitlesArriveAndRenderTest {
     fun subtitleTracksArriveAndAChoiceSticks() = runBlocking(Dispatchers.Main) {
         container.appPreferences.setPlaybackMode(PlaybackMode.VIDEO)
         queue.playNow(subtitledVideo())
+        val itemId = MediaItemId(VIDEO_ID)
 
-        val playing = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        } ?: false
+        val playing = PlaybackWaits.awaitStateOf(controller, itemId, START_TIMEOUT_MS) { it.isPlaying } != null
         // Nothing played at all: in a SABR-only session YouTube strips the direct URLs INCLUDING the
         // audio-only one, so there is no stream and no fallback either, and the item is genuinely
         // unplayable. That is policy, not a caption bug, and it is the trail that tells them apart —
@@ -103,10 +100,9 @@ class SubtitlesArriveAndRenderTest {
             return@runBlocking
         }
 
-        val tracks = withTimeoutOrNull(TRACKS_TIMEOUT_MS) {
-            while (controller.state.value?.subtitles.isNullOrEmpty()) delay(POLL_MS)
-            controller.state.value?.subtitles
-        }.orEmpty()
+        val tracks = PlaybackWaits.awaitStateOf(controller, itemId, TRACKS_TIMEOUT_MS) {
+            it.subtitles.isNotEmpty()
+        }?.subtitles.orEmpty()
         // Checked again here, because playback can START and then be refused a second later — which is
         // what happened on 2026-08-18: `isPlaying` went true, the route then reported `refused`, and the
         // absent captions were blamed on the caption path.
@@ -130,10 +126,9 @@ class SubtitlesArriveAndRenderTest {
         val wanted = tracks.first().languageCode
         controller.setSubtitleLanguage(wanted)
 
-        val applied = withTimeoutOrNull(APPLY_TIMEOUT_MS) {
-            while (controller.state.value?.subtitleLanguage != wanted) delay(POLL_MS)
-            true
-        } ?: false
+        val applied = PlaybackWaits.awaitStateOf(controller, itemId, APPLY_TIMEOUT_MS) {
+            it.subtitleLanguage == wanted
+        } != null
         assertTrue(
             "choosing \"$wanted\" of ${tracks.map { it.languageCode }} never took. A session command " +
                 "that is not advertised in onConnect is rejected in silence, which looks exactly like " +
@@ -174,7 +169,6 @@ class SubtitlesArriveAndRenderTest {
         const val START_TIMEOUT_MS = 180_000L
         const val TRACKS_TIMEOUT_MS = 30_000L
         const val APPLY_TIMEOUT_MS = 20_000L
-        const val POLL_MS = 250L
         const val TRAIL_LINES = 30
         const val TRAIL_CHARS = 150
     }

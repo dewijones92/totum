@@ -14,6 +14,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.support.DeviceRadios.goOffline
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.hasNetwork
+import com.dewijones92.totum.support.PlaybackWaits
 import com.dewijones92.totum.support.SilentWav
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -134,7 +135,10 @@ class OfflineQueuePlaybackTest {
             lastSource()?.contains(downloaded!!) == true,
         )
         val progressed = awaitPositionBeyond(PROGRESS_MS)
-        assertTrue("offline playback stalled at ${controller.state.value?.positionMs}ms", progressed)
+        assertTrue(
+            "offline playback stalled. The player is on ${PlaybackWaits.whatIsActuallyPlaying(controller)}",
+            progressed,
+        )
     }
 
     /**
@@ -233,8 +237,8 @@ class OfflineQueuePlaybackTest {
             lastSource()?.contains(path!!) == true,
         )
         assertTrue(
-            "offline playback of the downloaded video stalled at " +
-                "${controller.state.value?.positionMs}ms",
+            "offline playback of the downloaded video stalled. The player is on " +
+                "${PlaybackWaits.whatIsActuallyPlaying(controller)}",
             awaitPositionBeyond(PROGRESS_MS),
         )
     }
@@ -262,10 +266,7 @@ class OfflineQueuePlaybackTest {
     }
 
     private suspend fun awaitPlaying() {
-        val playing = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        }
+        val playing = PlaybackWaits.awaitStateOf(controller, ITEM_ID, START_TIMEOUT_MS) { it.isPlaying } != null
         assertEquals(
             "the downloaded item never started playing offline — if this is a focus problem the " +
                 "app was not foreground; if not, offline playback is broken",
@@ -275,10 +276,7 @@ class OfflineQueuePlaybackTest {
     }
 
     private suspend fun awaitPositionBeyond(target: Long): Boolean =
-        withTimeoutOrNull(START_TIMEOUT_MS) {
-            while ((controller.state.value?.positionMs ?: 0) <= target) delay(POLL_MS)
-            true
-        } ?: false
+        PlaybackWaits.awaitStateOf(controller, ITEM_ID, START_TIMEOUT_MS) { it.positionMs > target } != null
 
     private fun serveUntilClosed() {
         while (!server.isClosed) {

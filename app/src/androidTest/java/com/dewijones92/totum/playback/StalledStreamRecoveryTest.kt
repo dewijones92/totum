@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -125,8 +126,8 @@ class StalledStreamRecoveryTest {
             awaitPlaying()
             val frozen = awaitFrozenPosition()
             assertTrue(
-                "the stream should have stalled mid-item once the bytes stopped, but playback " +
-                    "reached ${controller.state.value?.positionMs}ms and kept going",
+                "the stream should have stalled mid-item once the bytes stopped, but it never " +
+                    "stalled. The player is on ${PlaybackWaits.whatIsActuallyPlaying(controller)}",
                 frozen != null,
             )
 
@@ -245,7 +246,7 @@ class StalledStreamRecoveryTest {
 
     private fun hostedItem() = PlayableItem(
         item = MediaItem(
-            id = MediaItemId("stalling"),
+            id = STALLING_ITEM_ID,
             sourceId = SourceId("test"),
             title = "a stream that goes quiet",
             publishedAt = null,
@@ -265,10 +266,9 @@ class StalledStreamRecoveryTest {
     }
 
     private suspend fun awaitPlaying() {
-        val playing = withTimeoutOrNull(START_TIMEOUT_MS) {
-            while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-            true
-        }
+        val playing = PlaybackWaits.awaitStateOf(controller, STALLING_ITEM_ID, START_TIMEOUT_MS) {
+            it.isPlaying
+        } != null
         assertEquals(whyItNeverPlayed(), true, playing)
     }
 
@@ -297,7 +297,12 @@ class StalledStreamRecoveryTest {
         var stillFor = 0L
         while (stillFor < FROZEN_MS) {
             delay(POLL_MS)
-            val now = controller.state.value?.positionMs ?: 0
+            val state = controller.state.value?.takeIf { it.itemId == STALLING_ITEM_ID }
+            if (state == null) {
+                stillFor = 0
+                continue
+            }
+            val now = state.positionMs
             stillFor = if (now == last) stillFor + POLL_MS else 0
             last = now
         }
@@ -341,6 +346,7 @@ class StalledStreamRecoveryTest {
     }
 
     private companion object {
+        val STALLING_ITEM_ID = MediaItemId("stalling")
         const val MEDIA_SECONDS = 120
 
         /** ~5 seconds of audio: enough to start playing, then nothing. */

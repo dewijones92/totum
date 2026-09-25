@@ -241,4 +241,26 @@ class ResumeChoiceTest {
         assertEquals(Because.REMOTE_IS_AHEAD, choice.because)
         assertEquals(2_400_000L, choice.positionMs)
     }
+
+    @Test
+    fun `a video YouTube says was watched to the end starts again from the beginning`() {
+        val choice = resumeFrom(localMs = null, remoteMs = 5_806_000, durationMs = 5_806_000)
+
+        assertEquals("resuming at the very end plays nothing and skips to something else", null, choice.positionMs)
+    }
+
+    @Test
+    fun `finished elsewhere after getting partway here also starts again`() {
+        val choice = resumeFrom(localMs = 2_400_000, remoteMs = hour44, durationMs = hour44)
+
+        assertEquals(null, choice.positionMs)
+    }
+
+    @Test
+    fun `a restart of a finished video keeps its new progress over the old hundred percent`() {
+        val choice =
+            resumeFrom(localMs = 55_966, remoteMs = 5_806_000, durationMs = 5_806_000, remoteAlreadyUsedMs = 5_806_000)
+
+        assertEquals(ResumeChoice(55_966, Because.REMOTE_IS_OLD_NEWS), choice)
+    }
 }

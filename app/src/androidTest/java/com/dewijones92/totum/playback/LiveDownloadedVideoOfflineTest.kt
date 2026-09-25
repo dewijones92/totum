@@ -15,6 +15,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.support.DeviceRadios.goOffline
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.hasNetwork
+import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -132,7 +133,7 @@ class LiveDownloadedVideoOfflineTest {
                 lastSource()?.contains(path) == true,
             )
             assertTrue(
-                "playback stalled at ${controller.state.value?.positionMs}ms",
+                "playback stalled. The player is on ${PlaybackWaits.whatIsActuallyPlaying(controller)}",
                 awaitPositionBeyond(PROGRESS_MS),
             )
         }
@@ -171,16 +172,13 @@ class LiveDownloadedVideoOfflineTest {
         assertEquals("the media controller never connected to the playback service", true, connected)
     }
 
-    private suspend fun awaitPlaying(): Boolean = withTimeoutOrNull(START_TIMEOUT_MS) {
-        while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitPlaying(): Boolean =
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), START_TIMEOUT_MS) { it.isPlaying } != null
 
     private suspend fun awaitPositionBeyond(target: Long): Boolean =
-        withTimeoutOrNull(START_TIMEOUT_MS) {
-            while ((controller.state.value?.positionMs ?: 0) <= target) delay(POLL_MS)
-            true
-        } ?: false
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), START_TIMEOUT_MS) {
+            it.positionMs > target
+        } != null
 
     private companion object {
         /** "Me at the zoo" — 19 seconds, the oldest video on the site, and unlikely to move. */

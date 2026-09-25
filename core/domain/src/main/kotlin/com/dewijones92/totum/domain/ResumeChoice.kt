@@ -54,6 +54,7 @@ private fun resumeFromOwn(localMs: Long?, remoteMs: Long, durationMs: Long?, rem
     // resumed once has had that position taken away (marked unplayed, or played to the end), and
     // an echo of an old decision must not put it back.
     if (remoteMs == remoteAlreadyUsedMs) return ResumeChoice(localMs, Because.REMOTE_IS_OLD_NEWS)
+    if (isWatchedToTheEnd(remoteMs, durationMs)) return ResumeChoice(null, Because.REMOTE_SAYS_FINISHED)
     if (localMs == null) return ResumeChoice(remoteMs, Because.ONLY_REMOTE)
     val granularity = ((durationMs ?: 0L) / PERCENT).coerceAtLeast(MIN_GAP_MS)
     return if (remoteMs - localMs > granularity) {
@@ -64,6 +65,9 @@ private fun resumeFromOwn(localMs: Long?, remoteMs: Long, durationMs: Long?, rem
         ResumeChoice(localMs, Because.LOCAL_IS_AS_GOOD)
     }
 }
+
+public fun isWatchedToTheEnd(positionMs: Long, durationMs: Long?): Boolean =
+    durationMs != null && durationMs > 0 && positionMs >= durationMs
 
 private fun isYouTubesFloor(positionMs: Long, durationMs: Long?): Boolean =
     durationMs != null && durationMs > 0 && positionMs * PERCENT <= durationMs * YOUTUBE_FLOOR_PERCENT
@@ -90,6 +94,9 @@ public enum class Because {
 
     /** YouTube's 10% floor: the account has started it, and that is all the number says. */
     REMOTE_ONLY_SAYS_STARTED,
+
+    /** YouTube says 100%: watched to the end elsewhere, so it plays again from the start. */
+    REMOTE_SAYS_FINISHED,
 }
 
 /** YouTube reports whole percents, so one percent of the duration is the finest it can mean. */

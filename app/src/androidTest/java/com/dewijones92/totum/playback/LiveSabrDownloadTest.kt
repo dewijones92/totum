@@ -19,10 +19,10 @@ import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.support.DeviceRadios.goOffline
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.hasNetwork
+import com.dewijones92.totum.support.PlaybackWaits
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -191,10 +191,8 @@ class LiveSabrDownloadTest {
     private fun lastSource(): String? =
         controller.player?.currentMediaItem?.localConfiguration?.uri?.toString()
 
-    private suspend fun awaitPlaying(): Boolean = withTimeoutOrNull(START_TIMEOUT_MS) {
-        while (controller.state.value?.isPlaying != true) delay(POLL_MS)
-        true
-    } ?: false
+    private suspend fun awaitPlaying(): Boolean =
+        PlaybackWaits.awaitStateOf(controller, MediaItemId(VIDEO_ID), START_TIMEOUT_MS) { it.isPlaying } != null
 
     private companion object {
         /** "Me at the zoo" — 19 seconds, the oldest video on the site, unlikely to move. */
@@ -203,7 +201,6 @@ class LiveSabrDownloadTest {
         /** A /player call, a SABR session and a real fetch, on an emulator. */
         const val FETCH_TIMEOUT_MS = 3 * 60 * 1000L
         const val START_TIMEOUT_MS = 30_000L
-        const val POLL_MS = 200L
 
         /** Enough that an empty or header-only file cannot pass as a download. */
         const val MIN_BYTES = 10_000L
