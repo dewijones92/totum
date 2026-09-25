@@ -424,12 +424,57 @@ seq 2 41,697, 1,411,564,633 B over 5,805,166 ms). It failed first with **exactly
 logs, and now asks for 10,000 ms. Its control, a response with no stated extent, still gives 429.
 
 **Written before the CI run that decides it. The prediction:** the video log gains
-`itag 137 format extent: ... endSegment=N` and `claim from segment count`, and fetch #2 asks for about
-10,000 ms instead of 429 ms and keeps segment 3.
+`itag 137 format extent (ours): ... endSegment=N` and `claim ... from segment count`. Fetch #2 asks for
+`2 × endTimeMs / endSegment` instead of 429 ms, and keeps segment 3. That is about 10,000 ms if video
+segments are about 5 s, which the 19,767 ms after four segments recorded above suggests. It is NOT a
+fixed number: the only extent on record is the AUDIO one (`endSegment=581`, 10 s segments), and video's
+may differ.
 
 **The falsifier:** the claim moves to ~10,000 ms and itag 137 is still served nothing, or is re-sent seq
 1 and 2 again. If so, a claim behind the frontier was not the cause, and this lead is closed. Two things
 are NOT assumed: that `end_segment_number` is present on the ANDROID endpoint (if absent, the new
 `claim from byte ratio` line says so), and that segments are equal in length (if they are not, the claim
 may land a little inside segment 3 or 2, and the next fetch shows which).
+
+**What an Opus review of that change found, all fixed with tests that failed first:**
+
+- **After a forward seek the new claim froze.** The run was measured from the first segment held (the
+  stale 1 to 2), so `maxOf` held the claim at the seek target. The claim now follows the run containing
+  the reader's offset. Finding it exposed a latent bug in `HeldSegments.contiguousLastFrom`: it walked
+  every key from the smallest rather than from its own start. That was harmless while every caller
+  started at the first key.
+- **The buffered ranges still used the byte ratio**, so one request claimed ~10 s while describing
+  0.06 s to 0.43 s. The range times now use the same segment-end rule as the claim.
+- **A sequence past the stated extent is no longer clamped to its end**, which would have frozen a live
+  stream's claim. It falls through to the ratio or the step.
+- **The diagnostics now answer the next question.** Every format's extent is logged once, marked ours or
+  ignored. The claim line reports the value actually SENT, and says when a derived value was behind it
+  and so kept.
+- The test fixture had two silent traps: a run id over 127 was truncated by `UmpFraming.media` and read
+  as an empty answer, and the itag guard was untested because audio's extent came first.
+
+**THE RESULT, CI run 36138351354 (8706584): the prediction held, and the falsifier did not fire.**
+
+```
+itag 137 format extent: itag=137 endTimeMs=5805167 endSegment=1121 durationUnits=89167360 timescale=15360
+fetch #1 itag 137 at 0ms -> 289189B response, 104401B kept
+itag 137 claim from segment count: 10357ms [lastContiguousSegment=2 extentSegments=1121 ...]
+fetch #2 itag 137 at 10357ms -> 1738961B response, 1538361B kept
+fetch #3 itag 137 at 20714ms -> 2828902B response, 2632636B kept
+...
+no-rebuffer video via sabr: rebuffers=0 buffered=52300ms of 60000ms rendered=59713ms stalls[]
+```
+
+The video extent was **1,121 segments (about 5.18 s each), not the 1,161 the unit test assumes**. That is
+why the prediction was written as a formula. `AnHourLongItemDoesNotRebufferTest` passed both cases, and
+the whole on-device job was green for the first time since at least `dec0a4e`. **So a claim behind the
+frontier was the cause of the 9.5 s stall.** The lead this file carried since 2026-09-20 is confirmed and
+closed.
+
+**The next wall, which the 60 s window stops just short of:** after about 62 s of media (13,130,734 B),
+the ANDROID endpoint answers `STREAM_PROTECTION_STATUS` with `status=3` and no media. Four empties later
+the stream ends prematurely and recovery takes over. That is attestation (see
+[po-token-minting.md](po-token-minting.md)), a different cause from this one, and it applies to videos
+the embedded player refuses, since those are the ones that fall back to ANDROID. So SABR on such a video
+still stops about a minute in. This fix moved it from 9.5 s to about 62 s; it did not remove the limit.
 

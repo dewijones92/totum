@@ -13,7 +13,8 @@ internal data class FormatInitialization(
     fun endOfSegmentMs(sequence: Int): Long? {
         val end = endTimeMs?.takeIf { it > 0 } ?: return null
         val segments = endSegment?.takeIf { it > 0 } ?: return null
-        return sequence.toLong().coerceIn(0, segments) * end / segments
+        if (sequence < 0 || sequence > segments) return null
+        return sequence * end / segments
     }
 
     override fun toString(): String =

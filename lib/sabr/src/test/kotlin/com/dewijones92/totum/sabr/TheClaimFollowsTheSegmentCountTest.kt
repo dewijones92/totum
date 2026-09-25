@@ -38,7 +38,7 @@ class TheClaimFollowsTheSegmentCountTest {
             UmpFraming.media(id, ByteArray(length.toInt()) { 2 })
 
     private fun openingAnswer(withExtent: Boolean): ByteArray =
-        (if (withExtent) extent(audio, AUDIO_SEGMENTS) + extent(video, VIDEO_SEGMENTS) else ByteArray(0)) +
+        (if (withExtent) extent(video, VIDEO_SEGMENTS) + extent(audio, AUDIO_SEGMENTS) else ByteArray(0)) +
             initSegment() +
             segment(1, 1, INIT_BYTES, SEQ_1_BYTES) +
             segment(2, 2, INIT_BYTES + SEQ_1_BYTES, SEQ_2_BYTES)
@@ -56,6 +56,61 @@ class TheClaimFollowsTheSegmentCountTest {
             2 * DURATION_MS / VIDEO_SEGMENTS,
             server.timesAsked[1],
         )
+    }
+
+    @Test
+    fun `the range described beside the claim uses the same segment times`() = runTest {
+        val server = FakeSabrServer(listOf(openingAnswer(withExtent = true)))
+        val stream = stream(server)
+
+        stream.read(from = 0)
+        runCatching { stream.read(from = HELD_BYTES) }
+
+        assertEquals(
+            listOf(DescribedRange(0, 2 * DURATION_MS / VIDEO_SEGMENTS, 1, 2)),
+            server.rangesAsked[1],
+        )
+    }
+
+    @Test
+    fun `after a forward seek the claim follows the run being read, not the first one held`() = runTest {
+        val total = VIDEO_SEGMENTS * EVEN_BYTES
+        fun even(sequence: Int) = segment(sequence % RUN_IDS, sequence, (sequence - 1) * EVEN_BYTES, EVEN_BYTES)
+        val server = FakeSabrServer(
+            listOf(
+                extent(video, VIDEO_SEGMENTS) + even(1) + even(2),
+                even(3),
+                even(SEEK_TO) + even(SEEK_TO + 1) + even(SEEK_TO + 2) + even(SEEK_TO + 3),
+            ),
+        )
+        val stream = SabrStream(
+            url = "https://example.test/videoplayback",
+            ustreamerConfig = byteArrayOf(1),
+            format = video,
+            kind = SabrTrackKind.VIDEO,
+            transport = server,
+            totalBytes = total,
+            durationMs = DURATION_MS,
+        )
+
+        stream.read(from = 0)
+        stream.read(from = 2 * EVEN_BYTES)
+        stream.read(from = (SEEK_TO - 1) * EVEN_BYTES)
+        runCatching { stream.read(from = (SEEK_TO + 3) * EVEN_BYTES) }
+
+        assertEquals(
+            "the claim froze at the seek target because it measured from segments 1 to 3",
+            (SEEK_TO + 3) * DURATION_MS / VIDEO_SEGMENTS,
+            server.timesAsked[3],
+        )
+    }
+
+    @Test
+    fun `a segment past the stated extent has no time, rather than the extent's end`() {
+        val extent = FormatInitialization(itag = 137, endTimeMs = DURATION_MS, endSegment = VIDEO_SEGMENTS, null, null)
+
+        assertEquals(null, extent.endOfSegmentMs(VIDEO_SEGMENTS.toInt() + 1))
+        assertEquals(DURATION_MS, extent.endOfSegmentMs(VIDEO_SEGMENTS.toInt()))
     }
 
     @Test
@@ -78,6 +133,9 @@ class TheClaimFollowsTheSegmentCountTest {
         const val SEQ_1_BYTES = 48_478L
         const val SEQ_2_BYTES = 41_697L
         const val HELD_BYTES = INIT_BYTES + SEQ_1_BYTES + SEQ_2_BYTES
+        const val EVEN_BYTES = 10_000L
+        const val SEEK_TO = 576
+        const val RUN_IDS = 100
 
         const val INIT_FORMAT_ID = 2
         const val INIT_END_TIME_MS = 3

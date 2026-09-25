@@ -64,14 +64,16 @@ internal class HeldSegments(private val format: SabrFormat) {
      * before the fix — identical numbers, which is what gave it away. A header that does carry times
      * is still preferred: it is more truthful than any ratio.
      */
-    fun asRanges(totalBytes: Long?, durationMs: Long?): List<BufferedRange> {
+    fun asRanges(totalBytes: Long?, durationMs: Long?, extent: FormatInitialization? = null): List<BufferedRange> {
         if (held.isEmpty()) return emptyList()
         val first = held.firstKey()
         val last = contiguousLastFrom(first)
         val from = held[first] ?: return emptyList()
         val to = held[last] ?: return emptyList()
-        val startMs = from.startMs ?: timeOfByte(from.startBytes, totalBytes, durationMs)
-        val endMs = to.endMs() ?: timeOfByte(to.startBytes + (to.contentLength ?: 0), totalBytes, durationMs)
+        val startMs = from.startMs ?: extent?.endOfSegmentMs(first - 1)
+            ?: timeOfByte(from.startBytes, totalBytes, durationMs)
+        val endMs = to.endMs() ?: extent?.endOfSegmentMs(last)
+            ?: timeOfByte(to.startBytes + (to.contentLength ?: 0), totalBytes, durationMs)
         if (startMs == null || endMs == null) return emptyList()
         return listOf(
             BufferedRange(
@@ -92,19 +94,26 @@ internal class HeldSegments(private val format: SabrFormat) {
      * is not — 6.4MB of a 720p30 file mapped to 46s when it covered 42s, the server served from 46s, and
      * the four seconds between became a hole the player starved on (Spring / Big Buck Bunny, 2026-09-07).
      */
-    fun contiguousEndMs(): Long? {
+    fun contiguousEndMs(reading: Long = 0): Long? {
         // `firstKey()` THROWS on an empty map; a header with no sequence number is never recorded here, so
         // "held nothing" is an ordinary state (APrematureSabrEndIsNotTheEndTest went red on it, 2026-09-07).
-        val first = held.keys.firstOrNull() ?: return null
+        val first = runStartFor(reading) ?: return null
         return held[contiguousLastFrom(first)]?.endMs()
     }
 
-    fun contiguousLastSegment(): Int? = held.keys.firstOrNull()?.let(::contiguousLastFrom)
+    fun contiguousLastSegment(reading: Long): Int? = runStartFor(reading)?.let(::contiguousLastFrom)
+
+    private fun runStartFor(byte: Long): Int? {
+        if (held.isEmpty()) return null
+        return held.entries.firstOrNull { it.value.covers(byte) }?.key
+            ?: held.entries.firstOrNull { byte > 0 && it.value.covers(byte - 1) }?.key
+            ?: held.firstKey().takeIf { held.values.all { it.startBytes >= byte } }
+    }
 
     /** The last segment number reachable from [first] without a gap. */
     private fun contiguousLastFrom(first: Int): Int {
         var last = first
-        for (index in held.keys) {
+        for (index in held.tailMap(first).keys) {
             if (index > last + 1) break
             last = index
         }
@@ -129,4 +138,9 @@ internal class HeldSegments(private val format: SabrFormat) {
         if (totalBytes <= 0 || durationMs <= 0) return null
         return offset * durationMs / totalBytes
     }
+}
+
+private fun MediaHeader.covers(byte: Long): Boolean {
+    val length = contentLength ?: return false
+    return byte >= startBytes && byte < startBytes + length
 }

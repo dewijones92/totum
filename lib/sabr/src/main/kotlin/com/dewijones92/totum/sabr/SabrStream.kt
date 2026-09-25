@@ -704,7 +704,7 @@ public class SabrStream(
     }
 
     /** What we hold, as the server wants to hear it — see [HeldSegments.asRanges]. */
-    private fun bufferedRanges(): List<BufferedRange> = segmentsHeld.asRanges(totalBytes, durationMs)
+    private fun bufferedRanges(): List<BufferedRange> = segmentsHeld.asRanges(totalBytes, durationMs, extent)
 
     /** Appends one MEDIA part to whichever run it names. Returns bytes kept. */
     private fun storeMedia(payload: ByteArray): Int {
@@ -721,6 +721,29 @@ public class SabrStream(
         chunks[offset] = (chunks[offset] ?: ByteArray(0)) + bytes
         furthestHeld = maxOf(furthestHeld, offset + bytes.size)
         return bytes.size
+    }
+
+    private var extent: FormatInitialization? = null
+    private val extentsSeen = mutableMapOf<Int?, FormatInitialization>()
+    private var claimNote: String? = null
+
+    private fun noteExtent(seen: FormatInitialization) {
+        if (extentsSeen[seen.itag] == seen) return
+        extentsSeen[seen.itag] = seen
+        val mine = seen.itag == format.itag
+        if (mine) extent = seen
+        Diag.log(
+            "sabr",
+            "itag ${format.itag} format extent ${if (mine) "(ours)" else "(another format's, ignored)"}: $seen"
+        )
+    }
+
+    private fun claimFromHeld(): Pair<Long?, String> {
+        segmentsHeld.contiguousEndMs(served)?.let { return it to "headers" }
+        segmentsHeld.contiguousLastSegment(served)?.let { extent?.endOfSegmentMs(it) }
+            ?.let { return it to "segment count" }
+        segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)?.let { return it to "byte ratio" }
+        return null to "step"
     }
 
     /**
@@ -750,22 +773,6 @@ public class SabrStream(
      * served is what stalled that stream. Only the final `?: (playerTimeMs + stepMs)` fallback is
      * live-stream-specific.
      */
-    private var extent: FormatInitialization? = null
-    private var claimBasis: String? = null
-
-    private fun noteExtent(seen: FormatInitialization) {
-        if (seen.itag != format.itag || seen == extent) return
-        extent = seen
-        Diag.log("sabr", "itag ${format.itag} format extent: $seen")
-    }
-
-    private fun claimFromHeld(): Pair<Long?, String> {
-        segmentsHeld.contiguousEndMs()?.let { return it to "headers" }
-        segmentsHeld.contiguousLastSegment()?.let { extent?.endOfSegmentMs(it) }?.let { return it to "segment count" }
-        segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)?.let { return it to "byte ratio" }
-        return null to "step"
-    }
-
     private fun advanceClaimedTime() {
         // FURTHEST HELD, and that is knowingly not what the field means -- see
         // docs/todos/sabr-stops-at-one-megabyte.md. `player_time_ms` is where PLAYBACK is, and the
@@ -788,19 +795,22 @@ public class SabrStream(
         // when they carry none. The ratio assumes a constant bitrate, which video is not, and a claim
         // past the contiguous frontier asks the server to serve from beyond a hole (2026-09-07).
         val (derived, basis) = claimFromHeld()
-        val lastSegment = segmentsHeld.contiguousLastSegment()
-        if (basis != claimBasis) {
-            claimBasis = basis
-            Diag.log(
-                "sabr",
-                "itag ${format.itag} claim from $basis: ${derived ?: (playerTimeMs + stepMs)}ms " +
-                    "[lastContiguousSegment=$lastSegment extentSegments=${extent?.endSegment} " +
-                    "extentMs=${extent?.endTimeMs} heldTo=${furthestHeld}B]",
-            )
-        }
+        val before = playerTimeMs
         // Nothing to derive from — a live stream — leaves stepping as all there is, which is the
         // case the old floor was really written for.
         playerTimeMs = derived?.let { maxOf(playerTimeMs, it) } ?: (playerTimeMs + stepMs)
+        val kept = derived != null && playerTimeMs == before && before > derived
+        val note = "$basis${if (kept) " kept" else ""}"
+        if (note != claimNote) {
+            claimNote = note
+            Diag.log(
+                "sabr",
+                "itag ${format.itag} claim ${playerTimeMs}ms from $basis" +
+                    (if (kept) " (derived ${derived}ms is behind it, so kept)" else "") +
+                    " [reading=${served}B lastContiguousSegment=${segmentsHeld.contiguousLastSegment(served)} " +
+                    "extentSegments=${extent?.endSegment} extentMs=${extent?.endTimeMs} heldTo=${furthestHeld}B]",
+            )
+        }
     }
 
     /** What a response actually contained, for when it contained nothing we wanted. */
