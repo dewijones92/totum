@@ -10,6 +10,7 @@ import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.SubscribeResult
+import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.video.AccountSubscriptions
@@ -68,8 +69,7 @@ class SubscriptionImporter(
     }
 
     suspend fun exportOpml(): String {
-        val podcastSources = podcasts.observeSubscriptions().first().map { it.source }
-        return exporter.export(podcastSources + channels.channels.value)
+        return exporter.export(subscribedSources(podcasts, channels.channels).first())
     }
 
     private suspend fun ImportSummary.applyPodcast(source: ImportedSource.Podcast): ImportSummary =

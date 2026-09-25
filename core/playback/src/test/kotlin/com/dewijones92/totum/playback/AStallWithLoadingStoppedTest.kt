@@ -12,6 +12,8 @@ import java.lang.reflect.Proxy
 
 class AStallWithLoadingStoppedTest {
 
+    private var clock = 0L
+
     @Before
     fun reset() {
         Vitals.clear()
@@ -43,29 +45,46 @@ class AStallWithLoadingStoppedTest {
         else -> null
     }
 
-    private fun stallWith(player: Player) {
-        PlaybackDiagnostics(player = { player }, now = { 0L }).onPlaybackStateChanged(Player.STATE_BUFFERING)
+    private fun stallFor(stalledMs: Long, player: Player, recovers: Boolean = true) {
+        val diagnostics = PlaybackDiagnostics(player = { player }, now = { clock })
+        diagnostics.onPlaybackStateChanged(Player.STATE_BUFFERING)
+        clock += stalledMs
+        diagnostics.onPlaybackStateChanged(if (recovers) Player.STATE_READY else Player.STATE_IDLE)
     }
 
+    private val dry = playerAt(positionMs = 3_693_444, bufferedMs = 3_693_514, durationMs = 3_728_366, loading = false)
+
     @Test
-    fun `a stall with loading stopped and the buffer dry says the tail is not coming`() {
-        stallWith(playerAt(positionMs = 3_693_444, bufferedMs = 3_693_514, durationMs = 3_728_366, loading = false))
+    fun `a stall that lasts with loading stopped and the buffer dry says the tail is not coming`() {
+        stallFor(20_000, dry, recovers = false)
 
         assertEquals("1", Vitals.snapshot()["playback.stallsWithLoadingStopped"])
         assertTrue(Breadcrumbs.snapshot().any { "the tail is not coming" in it.message })
     }
 
     @Test
-    fun `a seek's moment of buffering with minutes buffered is not that`() {
-        stallWith(playerAt(positionMs = 77_700, bufferedMs = 337_361, durationMs = 846_201, loading = false))
+    fun `a seek's masked moment of buffering that recovers at once is not that`() {
+        stallFor(40, playerAt(positionMs = 67_714, bufferedMs = 67_714, durationMs = 846_201, loading = false))
+
+        assertEquals(null, Vitals.snapshot()["playback.stallsWithLoadingStopped"])
+        assertEquals(null, Vitals.snapshot()["playback.stallsNotWaitingOnTheNetwork"])
+    }
+
+    @Test
+    fun `a dry buffer that is still loading is an ordinary stall`() {
+        stallFor(
+            20_000,
+            playerAt(positionMs = 3_693_444, bufferedMs = 3_693_514, durationMs = 3_728_366, loading = true)
+        )
 
         assertEquals(null, Vitals.snapshot()["playback.stallsWithLoadingStopped"])
     }
 
     @Test
-    fun `a dry buffer that is still loading is an ordinary stall`() {
-        stallWith(playerAt(positionMs = 3_693_444, bufferedMs = 3_693_514, durationMs = 3_728_366, loading = true))
+    fun `a lasting stall with seconds buffered and nothing loading is named as not the network`() {
+        stallFor(15_000, playerAt(positionMs = 600_000, bufferedMs = 612_000, durationMs = 3_600_000, loading = false))
 
-        assertEquals(null, Vitals.snapshot()["playback.stallsWithLoadingStopped"])
+        assertEquals("1", Vitals.snapshot()["playback.stallsNotWaitingOnTheNetwork"])
+        assertTrue(Breadcrumbs.snapshot().any { "not waiting on the network" in it.message })
     }
 }

@@ -36,6 +36,7 @@ import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.podcast.DefaultPodcastRepository
 import com.dewijones92.totum.data.podcast.PodcastRepository
+import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.search.FallbackSearchSource
 import com.dewijones92.totum.data.search.InnerTubeMusicSearchSource
@@ -143,7 +144,6 @@ import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.ui.common.toMediaItem
-import com.dewijones92.totum.ui.subscriptions.subscribedSources
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams

@@ -114,4 +114,16 @@ class AccountAwarePlayStateTest {
 
         assertEquals(PlayState.InProgress(hour / 2, hour), state)
     }
+
+    @Test
+    fun `a finished video restarted here shows the progress a tap resumes, not Played`() {
+        val state = accountAwarePlayState(
+            local = PlayState.InProgress(55_966, 5_806_000),
+            remotePositionMs = 5_806_000,
+            remoteDurationMs = 5_806_000,
+            remoteAlreadyUsedMs = 5_806_000,
+        )
+
+        assertEquals(PlayState.InProgress(55_966, 5_806_000), state)
+    }
 }

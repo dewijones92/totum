@@ -30,7 +30,8 @@ public fun accountAwarePlayState(
 ): PlayState {
     if (local is PlayState.Played) return local
     if (remotePositionMs == null) return local ?: PlayState.Unplayed
-    if (isWatchedToTheEnd(remotePositionMs, remoteDurationMs)) return PlayState.Played
+    val newsOfAFinish = remotePositionMs != remoteAlreadyUsedMs && isWatchedToTheEnd(remotePositionMs, remoteDurationMs)
+    if (newsOfAFinish) return PlayState.Played
     val localInProgress = local as? PlayState.InProgress
     val chosen = resumeFrom(localInProgress?.positionMs, remotePositionMs, remoteDurationMs, remoteAlreadyUsedMs)
         .positionMs

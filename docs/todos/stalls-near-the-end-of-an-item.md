@@ -177,6 +177,17 @@ ran dry. It logs `stalled at … with loading already stopped … the tail is no
 
 Tests: `LoadStopIsAFaultTest` (the seek numbers above are now a non-fault) and
 `AStallWithLoadingStoppedTest` (0.1.359's numbers are a fault, a seek is not, a buffer still loading is
-not). Both failed first. **If this recurs, the next report now says so in one line, instead of hiding
+not). Both failed first.
+
+**Corrected the same day, after an Opus review.** The first version of the stall check judged at the
+moment BUFFERING began. That is exactly when `MediaController` MASKS a seek: it reports
+`STATE_BUFFERING` at once, with the buffered position set to the new position and `isLoading`
+unchanged. So every rewind would have logged "the tail is not coming" again, under a new name. The
+unit test fed in the settled state and could not see that. Now the check snapshots the state at onset
+and judges only a stall that has LASTED at least 2 s (`STALL_WORTH_JUDGING_MS`); a masked seek recovers
+in milliseconds. A lasting stall with seconds buffered and nothing loading gets its own line:
+`… not waiting on the network, so the decoder or renderer is the suspect`
+(`playback.stallsNotWaitingOnTheNetwork`). The old rule used to mislabel that shape, the Fire Stick
+h264 wedge for example, as a lost tail. **If this recurs, the next report now says so in one line, instead of hiding
 it among forty false ones.**
 

@@ -138,14 +138,7 @@ class AccountResumePositions(
         val remoteWon = when (because) {
             Because.ONLY_REMOTE, Because.REMOTE_IS_AHEAD -> true
             Because.ONLY_LOCAL, Because.LOCAL_IS_AS_GOOD, Because.REMOTE_IS_OLD_NEWS -> false
-            Because.REMOTE_SAYS_FINISHED -> {
-                Diag.log(
-                    "yt-sync",
-                    "youtube=${remoteMs}ms for ${itemId.value} says watched to the end, so it starts again " +
-                        "from the beginning; recorded as acted on so the old 100% cannot undo a restart",
-                )
-                false
-            }
+            Because.REMOTE_SAYS_FINISHED -> false
             Because.REMOTE_ONLY_SAYS_STARTED -> {
                 Diag.log(
                     "yt-sync",
@@ -157,10 +150,14 @@ class AccountResumePositions(
         }
         if (remoteWon) adopt(itemId, remoteMs, remote.durationMs)
         reconciled.reconcile(itemId, remoteMs)
+        val outcome = when {
+            remoteWon -> " and adopted as this device's position"
+            because == Because.REMOTE_SAYS_FINISHED -> ", and it plays again from the beginning"
+            else -> ", but this device's won"
+        }
         Diag.log(
             "yt-sync",
-            "youtube=${remoteMs}ms for ${itemId.value} is now acted on (was ${alreadyUsedMs ?: "none"})" +
-                if (remoteWon) " and adopted as this device's position" else ", but this device's won",
+            "youtube=${remoteMs}ms for ${itemId.value} is now acted on (was ${alreadyUsedMs ?: "none"})$outcome"
         )
     }
 

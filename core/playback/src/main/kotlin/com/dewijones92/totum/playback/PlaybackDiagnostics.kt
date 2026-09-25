@@ -71,6 +71,8 @@ internal class PlaybackDiagnostics(
     private fun endStall(recovered: Boolean): Long? {
         val waited = stalledSince?.let { now() - it } ?: return null
         stalledSince = null
+        stallOnset?.takeIf { waited >= STALL_WORTH_JUDGING_MS }?.let { judgeStall(it, waited) }
+        stallOnset = null
         Vitals.add("playback.bufferingMs", waited)
         if (!recovered) {
             Vitals.add("playback.abandonedBufferingMs", waited)
@@ -128,18 +130,36 @@ internal class PlaybackDiagnostics(
         Vitals.add("playback.loadsStoppedShort")
     }
 
-    private fun noteStallWithLoadingStopped() {
-        val current = player() ?: return
-        if (current.isLoading) return
-        val ahead = current.bufferedPosition - current.currentPosition
-        val unfetched = current.duration.takeIf { it > 0 }?.minus(current.bufferedPosition)
-        if (!loadStopIsAFault(ahead, unfetched)) return
-        Diag.warn(
-            "playback",
-            "stalled at ${position()} with loading already stopped: ${ahead}ms buffered ahead and " +
-                "${unfetched}ms of the item never fetched — the tail is not coming",
-        )
-        Vitals.add("playback.stallsWithLoadingStopped")
+    private class StallOnset(player: Player) {
+        val atMs = player.currentPosition
+        val loading = player.isLoading
+        val aheadMs = player.bufferedPosition - player.currentPosition
+        val unfetchedMs = player.duration.takeIf { it > 0 }?.minus(player.bufferedPosition)
+    }
+
+    private var stallOnset: StallOnset? = null
+
+    private fun judgeStall(onset: StallOnset, waitedMs: Long) {
+        if (onset.loading) return
+        val facts = "${onset.aheadMs}ms buffered ahead and ${onset.unfetchedMs}ms of the item never fetched, " +
+            "stalled ${waitedMs}ms"
+        when {
+            loadStopIsAFault(onset.aheadMs, onset.unfetchedMs) -> {
+                Diag.warn(
+                    "playback",
+                    "stalled at ${onset.atMs}ms with loading already stopped: $facts — the tail is not coming",
+                )
+                Vitals.add("playback.stallsWithLoadingStopped")
+            }
+            onset.aheadMs > TOO_LITTLE_AHEAD_MS -> {
+                Diag.warn(
+                    "playback",
+                    "stalled at ${onset.atMs}ms with $facts and nothing loading — not waiting on the network, " +
+                        "so the decoder or renderer is the suspect",
+                )
+                Vitals.add("playback.stallsNotWaitingOnTheNetwork")
+            }
+        }
     }
 
     /** The lowest `ahead` any load stop has been seen at, for the gauge above. */
@@ -154,7 +174,7 @@ internal class PlaybackDiagnostics(
             Player.STATE_BUFFERING -> {
                 stalledSince = now()
                 Vitals.add("playback.stalls")
-                noteStallWithLoadingStopped()
+                stallOnset = player()?.let(::StallOnset)
                 val kbps = PlaybackVitals.kbps()
                 val vitals = Vitals.snapshot()
                 val outstanding = vitals["playback.loadsOutstanding"]
@@ -303,6 +323,7 @@ internal class PlaybackDiagnostics(
          * anything acts on — every handover is timed either way.
          */
         const val SLOW_HANDOVER_MS = 3_000L
+        const val STALL_WORTH_JUDGING_MS = 2_000L
         const val PERCENT = 100
     }
 }
@@ -314,11 +335,12 @@ internal class PlaybackDiagnostics(
  * Media3 `Player`, and the thresholds are the part that was wrong. See [LoadStopIsAFaultTest] for
  * the 33 false lines this replaces and the one real case it must keep catching.
  *
- * [isStalled] is the discriminator, not the buffer level. Loading stops constantly on a healthy
- * stream — the byte ceiling or the duration target is reached, the buffer drains, it resumes — and
- * with minutes of a long item still unfetched every one of those looks identical to a lost tail.
- * What is not ordinary is stopping while playback cannot continue, or stopping with so little ahead
- * that it is one hiccup from the same thing.
+ * The buffer level is the discriminator. Loading stops constantly on a healthy stream (the byte
+ * ceiling or the duration target is reached, the buffer drains, it resumes), and with minutes of a
+ * long item still unfetched every one of those looks identical to a lost tail. What is not ordinary is
+ * stopping with so little ahead that playback is one hiccup from stalling. Whether a STALL was a lost
+ * tail is judged separately, and only once it has lasted, because a seek's masked state reads as
+ * "buffering, nothing ahead, not loading" for the few milliseconds before the player catches up.
  */
 internal fun loadStopIsAFault(aheadMs: Long, unfetchedMs: Long?): Boolean {
     if (unfetchedMs == null || unfetchedMs <= SHORT_OF_THE_END_MS) return false
