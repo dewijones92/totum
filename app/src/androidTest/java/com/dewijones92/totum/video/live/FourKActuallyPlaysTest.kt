@@ -104,7 +104,7 @@ class FourKActuallyPlaysTest {
         // refused past the first megabyte, which docs/todos/youtube-requires-attestation.md measures.
         // Earlier versions asserted that it PLAYED and went red twice for exactly that reason: the fifth
         // and sixth times this repo asserted someone else's policy in a test.
-        val pick = Breadcrumbs.snapshot().lastOrNull { " stream " in it.message }?.message
+        val pick = Breadcrumbs.snapshot().lastOrNull { PICKED.containsMatchIn(it.message) }?.message
         val choseHeight = pick?.let { PICKED.find(it)?.groupValues?.get(1)?.toIntOrNull() } ?: 0
         val durableVideo = pick?.contains("durable video=true") == true
         val trail = Breadcrumbs.snapshot().joinToString("\n    ") { it.message.take(TRAIL_CHARS) }

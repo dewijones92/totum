@@ -63,3 +63,14 @@ the deterministic ones (`StreamPlaysToItsEndTest`, `SilenceStrategyDeviceTest`,
 
 A wait must name the thing it is waiting for. "Something is playing" is not the question any of
 these tests is asking, and it is the question all of them were putting.
+
+## Fallout, 2026-09-25: a scoped wait exposed a scraped fact
+
+`FourKActuallyPlaysTest` went red in CI run 36154193113 with "the launcher picked 0p", while the same
+log showed `aqz-KE-bpKQ stream 2160p vp09…`. The pick was right. The test read the LAST breadcrumb
+containing " stream " and parsed a height from it. Once its wait was scoped, it waited for the 4K item
+to be genuinely playing. On CI's software renderer that item then stalled, and recovery logged
+`…replaying it from there with a fresh stream (rescue 1 of 2)`, which has no height. The test now
+takes the last line that matches the pick pattern itself (`PICKED`). The unscoped wait had hidden this
+by returning early, before anything could stall.
+
