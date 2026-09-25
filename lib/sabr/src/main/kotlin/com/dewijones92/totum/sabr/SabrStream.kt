@@ -621,6 +621,7 @@ public class SabrStream(
                 UmpPart.MEDIA_HEADER -> remember(MediaHeader.parse(part.payload))
                 UmpPart.MEDIA -> added += storeMedia(part.payload)
                 UmpPart.SABR_CONTEXT_UPDATE -> noteContext(part.payload)
+                UmpPart.FORMAT_INITIALIZATION_METADATA -> noteExtent(FormatInitialization.parse(part.payload))
                 UmpPart.SNACKBAR_MESSAGE ->
                     Diag.warn("sabr", "server snackbar for itag ${format.itag}: ${part.payload.printableRuns()}")
                 // Named, not silently dropped. A part this class ignores is indistinguishable from one
@@ -749,6 +750,22 @@ public class SabrStream(
      * served is what stalled that stream. Only the final `?: (playerTimeMs + stepMs)` fallback is
      * live-stream-specific.
      */
+    private var extent: FormatInitialization? = null
+    private var claimBasis: String? = null
+
+    private fun noteExtent(seen: FormatInitialization) {
+        if (seen.itag != format.itag || seen == extent) return
+        extent = seen
+        Diag.log("sabr", "itag ${format.itag} format extent: $seen")
+    }
+
+    private fun claimFromHeld(): Pair<Long?, String> {
+        segmentsHeld.contiguousEndMs()?.let { return it to "headers" }
+        segmentsHeld.contiguousLastSegment()?.let { extent?.endOfSegmentMs(it) }?.let { return it to "segment count" }
+        segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)?.let { return it to "byte ratio" }
+        return null to "step"
+    }
+
     private fun advanceClaimedTime() {
         // FURTHEST HELD, and that is knowingly not what the field means -- see
         // docs/todos/sabr-stops-at-one-megabyte.md. `player_time_ms` is where PLAYBACK is, and the
@@ -770,8 +787,17 @@ public class SabrStream(
         // The headers' own times first — the end of what we hold contiguously — and the byte ratio only
         // when they carry none. The ratio assumes a constant bitrate, which video is not, and a claim
         // past the contiguous frontier asks the server to serve from beyond a hole (2026-09-07).
-        val derived = segmentsHeld.contiguousEndMs()
-            ?: segmentsHeld.timeOfByte(furthestHeld, totalBytes, durationMs)
+        val (derived, basis) = claimFromHeld()
+        val lastSegment = segmentsHeld.contiguousLastSegment()
+        if (basis != claimBasis) {
+            claimBasis = basis
+            Diag.log(
+                "sabr",
+                "itag ${format.itag} claim from $basis: ${derived ?: (playerTimeMs + stepMs)}ms " +
+                    "[lastContiguousSegment=$lastSegment extentSegments=${extent?.endSegment} " +
+                    "extentMs=${extent?.endTimeMs} heldTo=${furthestHeld}B]",
+            )
+        }
         // Nothing to derive from — a live stream — leaves stepping as all there is, which is the
         // case the old floor was really written for.
         playerTimeMs = derived?.let { maxOf(playerTimeMs, it) } ?: (playerTimeMs + stepMs)

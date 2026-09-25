@@ -99,6 +99,8 @@ internal class HeldSegments(private val format: SabrFormat) {
         return held[contiguousLastFrom(first)]?.endMs()
     }
 
+    fun contiguousLastSegment(): Int? = held.keys.firstOrNull()?.let(::contiguousLastFrom)
+
     /** The last segment number reachable from [first] without a gap. */
     private fun contiguousLastFrom(first: Int): Int {
         var last = first

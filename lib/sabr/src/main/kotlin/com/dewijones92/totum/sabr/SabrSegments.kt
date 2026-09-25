@@ -136,12 +136,7 @@ public class SabrSegments(
             // of the format in this session, and continuing means asking for a new one.
             val extent = UmpReader.read(response).parts
                 .lastOrNull { it.type == UmpPart.FORMAT_INITIALIZATION_METADATA }
-                ?.let { part ->
-                    val fields = Protobuf.read(part.payload)
-                    fun number(field: Int) = (fields[field]?.firstOrNull() as? Protobuf.Value.Number)?.value
-                    "endTimeMs=${number(INIT_END_TIME_MS)} endSegment=${number(INIT_END_SEGMENT)} " +
-                        "durationUnits=${number(INIT_DURATION_UNITS)} timescale=${number(INIT_TIMESCALE)}"
-                } ?: "no format metadata"
+                ?.let { part -> FormatInitialization.parse(part.payload).toString() } ?: "no format metadata"
             Diag.warn("sabr", "segments: format extent at ${atMs}ms -> $extent")
             val parts = UmpReader.read(response).parts
             Diag.warn(
@@ -185,11 +180,6 @@ public class SabrSegments(
     private companion object {
         /** A plausible connection speed, for the field SmartTube always fills in. */
         const val BANDWIDTH_GUESS_BPS = 2_000_000L
-
-        const val INIT_END_TIME_MS = 3
-        const val INIT_END_SEGMENT = 4
-        const val INIT_DURATION_UNITS = 9
-        const val INIT_TIMESCALE = 10
     }
 
     private fun collect(

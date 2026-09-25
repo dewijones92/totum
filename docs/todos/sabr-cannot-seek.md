@@ -409,3 +409,27 @@ stall. Expected after this change, and to be checked against the next CI run rat
 first stall, then extraction instead of SABR, so `rendered` rises well above 9.5 s while the rebuffer
 assertion still fails. A local run on `totum-api35` is no control for either: it never took SABR.
 
+### The claim now comes from the segment count when headers carry no times (2026-09-25)
+
+**The fix this file asked for** ("test it by fixing the claim"). `FORMAT_INITIALIZATION_METADATA` states
+each format's `end_time_ms` (field 3) and `end_segment_number` (field 4). Only the diagnostic reader
+(`SabrSegments`) ever read it; the stream that plays video listed it under `ignored parts`. The claim is
+now, in order: the headers' own times when present, then **the end of the last contiguous segment by
+count** (`sequence × end_time_ms / end_segment_number`), then the byte ratio, then the live-stream step.
+The part is taken only for the stream's own itag. The response carries one per format, and audio's
+segment count is different. One parser, `FormatInitialization`, now serves both readers.
+
+`TheClaimFollowsTheSegmentCountTest` is built from the recorded CI bytes (init 14,226, seq 1 48,478,
+seq 2 41,697, 1,411,564,633 B over 5,805,166 ms). It failed first with **exactly 429**, the number CI
+logs, and now asks for 10,000 ms. Its control, a response with no stated extent, still gives 429.
+
+**Written before the CI run that decides it. The prediction:** the video log gains
+`itag 137 format extent: ... endSegment=N` and `claim from segment count`, and fetch #2 asks for about
+10,000 ms instead of 429 ms and keeps segment 3.
+
+**The falsifier:** the claim moves to ~10,000 ms and itag 137 is still served nothing, or is re-sent seq
+1 and 2 again. If so, a claim behind the frontier was not the cause, and this lead is closed. Two things
+are NOT assumed: that `end_segment_number` is present on the ANDROID endpoint (if absent, the new
+`claim from byte ratio` line says so), and that segments are equal in length (if they are not, the claim
+may land a little inside segment 3 or 2, and the next fetch shows which).
+
