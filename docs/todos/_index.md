@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-09-23
+updated: 2026-09-25
 ---
 
 # Backlog
@@ -15,6 +15,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [sabr-serves-nothing-for-some-videos](sabr-serves-nothing-for-some-videos.md) | playback | — | **closed 2026-09-25**: not a separate failure; the ANDROID endpoint's ~60 s wall seen from the fresh stream recovery opens after it (identical 195,548 B signature); see po-token-minting |
 | [subtitles-fail-to-parse-over-sabr](subtitles-fail-to-parse-over-sabr.md) | playback | low | FIXED and confirmed in run 35529171153: asks=vtt, zero parse failures, and the loads verified to have actually run |
 | [instrumented-tests-read-the-wrong-item](instrumented-tests-read-the-wrong-item.md) | testing | medium | cause fixed and two tests scoped; fourteen more still read the player without asking which item it is on |
+| [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | medium | intermittent CI red (6/13 runs); stalls ~9.5 s in across three routes; not the UI; cause not established |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | not seen since 0.1.477 (10 phone reports, mostly local files); cause not established; its detector cried wolf on every seek and is fixed |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |
