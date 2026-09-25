@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.di.AppContainer
@@ -98,7 +100,8 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     // Hoisted so the header can collapse against it — the header sits outside the list, so
     // it cannot read a state the list owns privately.
     val listState = rememberLazyListState()
-    val listFilter = rememberListFilter("queue", key = entries.isEmpty())
+    val listFilter = rememberListFilter("queue")
+    ForgetTheFilterWhenTheQueueEmpties(entries.isEmpty(), listFilter)
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -421,6 +424,20 @@ private fun QueueRow(
             }
         },
     )
+}
+
+@Composable
+private fun ForgetTheFilterWhenTheQueueEmpties(empty: Boolean, listFilter: ListFilter) {
+    var hadEntries by remember { mutableStateOf(false) }
+    LaunchedEffect(empty) {
+        if (!empty) {
+            hadEntries = true
+        } else if (hadEntries && listFilter.fieldShown) {
+            Diag.log("filter", "queue emptied while filtered by \"${listFilter.query}\", clearing it")
+            listFilter.query = ""
+            listFilter.open = false
+        }
+    }
 }
 
 @Composable

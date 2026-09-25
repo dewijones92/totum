@@ -116,6 +116,14 @@ dark-surface check; one checked-options menu for sort and the tile pickers; ever
 `BackHeader`. Left as they are, by choice: the Videos bell scrolls away with the header, as the whole
 header does, and a row with both a menu and a download is taller than before because the two stack.
 
+**A second review, of the fixes (Opus).** It found the channel field drawn under the list (the fix put it
+in a Box), an open filter that could not be closed once its list was swapped for an empty state, the
+podcast page's field opening off-screen, the account playlist page still showing its field, and a guard
+that passed vacuously: "Play" matched the Auto-play tile and "Like" matched Dislike. All fixed, each with a
+test seen to fail first; the player guard now matches exact labels from resources, and was mutation-checked
+by making Dislike unclickable. The player tiles now sit in one keyed grid, so a tile keeps its state when
+Speed or Listen comes and goes.
+
 ## Deliberately not done
 
 - **Item entrance animations in lists.** They look good in a demo and cost frames on a 400-item feed,

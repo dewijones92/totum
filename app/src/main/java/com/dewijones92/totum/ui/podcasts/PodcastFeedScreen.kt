@@ -40,6 +40,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalNow
@@ -49,7 +50,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
-import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
@@ -199,27 +200,30 @@ private fun EpisodeList(
     val actions = rememberMediaItemActions(container)
     val shown = listFilter.filter(episodes, { it.searchableText })
     SelectableMediaList(listFilter.place, episodes, shown, { it }, key = selectionKey) {
-        LazyColumn(Modifier.fillMaxSize()) {
-            item {
-                MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
-            }
-            filterField(listFilter, shown.size, episodes.size, hosted = true) {
-                FeedMessage(R.string.filter_hides_everything)
-            }
-            items(shown, key = { it.id.value }) { episode ->
-                MediaItemRow(
-                    item = episode,
-                    subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
-                    downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
-                    pillar = MediaKind.PODCAST,
-                    onPlay = { viewModel.play(episode) },
-                    onDownload = { viewModel.download(episode) },
-                    onDeleteDownload = { viewModel.deleteDownload(episode) },
-                    onPlayNext = { viewModel.playNext(episode) },
-                    onAddToQueue = { viewModel.enqueue(episode) },
-                    onAddToPlaylist = { actions.addToPlaylist(episode) },
-                    onGoToSource = null,
-                )
+        Column {
+            FilterField(listFilter, shown.size, episodes.size, hosted = true)
+            LazyColumn(Modifier.fillMaxSize()) {
+                item {
+                    MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
+                }
+                filterOutcome(listFilter, shown.size, episodes.size) {
+                    FeedMessage(R.string.filter_hides_everything)
+                }
+                items(shown, key = { it.id.value }) { episode ->
+                    MediaItemRow(
+                        item = episode,
+                        subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
+                        downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
+                        pillar = MediaKind.PODCAST,
+                        onPlay = { viewModel.play(episode) },
+                        onDownload = { viewModel.download(episode) },
+                        onDeleteDownload = { viewModel.deleteDownload(episode) },
+                        onPlayNext = { viewModel.playNext(episode) },
+                        onAddToQueue = { viewModel.enqueue(episode) },
+                        onAddToPlaylist = { actions.addToPlaylist(episode) },
+                        onGoToSource = null,
+                    )
+                }
             }
         }
     }

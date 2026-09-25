@@ -275,23 +275,25 @@ private fun MediaItemTab(
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
         else -> SelectableMediaList(place, tab.items, shown, { it }, key = sourceKey) {
-            listFilter?.let { FilterField(it, shown.size, tab.items.size, hosted = true) }
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                listFilter?.let { filterOutcome(it, shown.size, tab.items.size) }
-                items(shown, key = { it.id.value }) { video ->
-                    MediaItemRow(
-                        item = video,
-                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
-                        downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                        pillar = MediaKind.VIDEO,
-                        onPlay = { onPlay(video) },
-                        onDownload = { onDownload(video) },
-                        onDeleteDownload = { onDeleteDownload(video) },
-                        onAddToPlaylist = { onAddToPlaylist(video) },
-                        onGoToSource = null,
-                    )
+            Column {
+                listFilter?.let { FilterField(it, shown.size, tab.items.size, hosted = true) }
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    listFilter?.let { filterOutcome(it, shown.size, tab.items.size) }
+                    items(shown, key = { it.id.value }) { video ->
+                        MediaItemRow(
+                            item = video,
+                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                            downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                            pillar = MediaKind.VIDEO,
+                            onPlay = { onPlay(video) },
+                            onDownload = { onDownload(video) },
+                            onDeleteDownload = { onDeleteDownload(video) },
+                            onAddToPlaylist = { onAddToPlaylist(video) },
+                            onGoToSource = null,
+                        )
+                    }
+                    if (tab.loadingMore) item { LoadingMoreFooter() }
                 }
-                if (tab.loadingMore) item { LoadingMoreFooter() }
             }
         }
     }

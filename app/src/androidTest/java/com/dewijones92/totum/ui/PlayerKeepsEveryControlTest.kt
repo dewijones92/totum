@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.domain.Chapter
@@ -143,14 +145,14 @@ class PlayerKeepsEveryControlTest {
         )
     }
 
-    private fun assertActionable(what: String, vararg labels: String) {
-        assertReachable(what, *labels)
+    private fun assertActionable(what: String, vararg labelRes: Int) {
+        val labels = labelRes.map { InstrumentationRegistry.getInstrumentation().targetContext.getString(it) }
         assertTrue(
-            "$what is on the player but can no longer be pressed (looked for ${labels.toList()}). " +
+            "$what can no longer be pressed on the player (looked for exactly $labels). " +
                 "On screen now: ${onScreenLabels()}",
             labels.any { label ->
-                val matcher = hasText(label, substring = true, ignoreCase = true)
-                    .or(hasContentDescription(label, substring = true, ignoreCase = true))
+                val matcher = hasText(label)
+                    .or(hasContentDescription(label))
                     .and(hasClickAction())
                 composeTestRule.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
             },
@@ -190,15 +192,15 @@ class PlayerKeepsEveryControlTest {
         assertReachable("the description", "Aaron Bastani")
         assertReachable("chapters", "The wealth gap", "Chapters")
         assertReachable("the up-next queue", "Up next", "Ceuta")
-        assertActionable("the sleep timer", "Sleep")
-        assertActionable("skip silence", "silence")
-        assertActionable("auto-play next", "Auto-play")
-        assertActionable("fast start", "Fast start")
-        assertActionable("volume boost", "Boost", "boost")
-        assertActionable("listen instead", "Listen")
-        assertActionable("like", "Like")
-        assertActionable("dislike", "Dislike")
-        assertActionable("watch later", "Watch later", "Save")
+        assertActionable("the sleep timer", R.string.sleep_timer)
+        assertActionable("skip silence", R.string.skip_silence)
+        assertActionable("auto-play next", R.string.auto_play_next)
+        assertActionable("fast start", R.string.sabr_playback)
+        assertActionable("volume boost", R.string.volume_boost)
+        assertActionable("listen instead", R.string.listen)
+        assertActionable("like", R.string.like)
+        assertActionable("dislike", R.string.dislike)
+        assertActionable("watch later", R.string.watch_later_save)
     }
 
     @Test
@@ -208,7 +210,7 @@ class PlayerKeepsEveryControlTest {
             quality = QualityControl.None.copy(canListen = true, listening = true),
         )
 
-        assertActionable("watch the video again", "Watch video")
+        assertActionable("watch the video again", R.string.watch_video)
     }
 
     /**
@@ -229,10 +231,10 @@ class PlayerKeepsEveryControlTest {
         assertReachable("volume boost", "Boost", "boost")
         assertReachable("auto-play next", "Auto-play")
         assertReachable("fast start", "Fast start")
-        assertActionable("play/pause", "Play", "Pause")
-        assertActionable("speed", "Speed")
-        assertActionable("the sleep timer", "Sleep")
-        assertActionable("skip silence", "silence")
+        assertActionable("play/pause", R.string.play, R.string.pause)
+        assertActionable("speed", R.string.playback_speed)
+        assertActionable("the sleep timer", R.string.sleep_timer)
+        assertActionable("skip silence", R.string.skip_silence)
         assertReachable("the description", "Aaron Bastani")
         assertReachable("the up-next queue", "Up next", "Ceuta")
     }

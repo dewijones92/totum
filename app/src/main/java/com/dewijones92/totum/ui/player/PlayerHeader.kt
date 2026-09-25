@@ -2,12 +2,11 @@ package com.dewijones92.totum.ui.player
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -86,6 +85,7 @@ internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun SecondaryControls(
     state: PlaybackState,
@@ -114,16 +114,14 @@ internal fun SecondaryControls(
     // Wrapping, not scrolling: every control stays visible and reachable at any text size,
     // where a horizontal scroller would hide some of them off the right-hand edge with nothing
     // to say they were there.
-    Column(
+    FlowRow(
+        maxItemsInEachRow = TILES_PER_ROW,
+        horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
         verticalArrangement = Arrangement.spacedBy(TILE_GAP),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        tiles.chunked(TILES_PER_ROW).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP), modifier = Modifier.height(IntrinsicSize.Min)) {
-                row.forEach { (name, tile) -> key(name) { tile(Modifier.weight(1f).fillMaxHeight()) } }
-                repeat(TILES_PER_ROW - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
+        tiles.forEach { (name, tile) -> key(name) { tile(Modifier.weight(1f).fillMaxRowHeight()) } }
+        if (tiles.size % TILES_PER_ROW != 0) Spacer(Modifier.weight(1f))
     }
 }
 

@@ -22,10 +22,19 @@ clearing it closes it. `ListFilter.open` is saved with the query, so rotation ke
   The first version asked for focus from the field itself, so scrolling a feed away and back, or
   switching tabs, popped the keyboard again (the review caught it; `ListFilterTest` pins it, and fails at
   that step with the old code).
-- **The toggle stays while the field is open**, even when the list empties under it, so an open field can
-  always be closed. It hides only when there is nothing to filter and the field is shut.
-- **A queue emptied while filtered comes back unfiltered**: the queue's filter is keyed on the queue being
-  empty, as it was when the filter lived inside the non-empty branch.
+- **The toggle stays while the field is open**, and tapping it then closes the field AND clears the query.
+  Many lists swap themselves for an empty state (a playlist emptied by a bulk remove, a channel tab with
+  nothing left), which takes the field's own ✕ with them; the toggle is the one control that is always
+  there, so it has to be able to undo a filter on its own. It hides only when there is nothing to filter
+  and the field is shut.
+- **A queue emptied while filtered comes back unfiltered**: the query is cleared when the queue goes from
+  something to nothing (logged). Keying the filter on emptiness was tried first and would have dropped a
+  restored query when the queue hydrates after process death.
+- **Where the field sits**: on the tabs it is a list item right under the header that holds its toggle.
+  On a podcast page and each channel tab the toggle is in the fixed header, so the field sits ABOVE the
+  list: as a list item it would open off-screen when the page is scrolled, and on the channel tabs the
+  first version drew it underneath the first row (`SelectableMediaList` is a Box, not a Column — the second
+  review caught it and `ListFilterTest` now compares the two bounds).
 - **Pickers keep the field open** (add to playlist, groups): in a picker, finding the entry is the task.
 
 ## The seam

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -57,6 +58,7 @@ import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.videos.VideosContent
 import com.dewijones92.totum.ui.videos.VideosViewModel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -121,7 +123,7 @@ class ListFilterTest {
         composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertExists()
 
         composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput("zz")
-        composeTestRule.onNode(toggle).performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertExists()
 
         composeTestRule.onNodeWithContentDescription(context.getString(R.string.filter_clear)).performClick()
@@ -172,6 +174,9 @@ class ListFilterTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNode(toggle).assertExists()
+        composeTestRule.onNode(toggle).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).assertCountEquals(0)
     }
 
     @Test
@@ -186,6 +191,7 @@ class ListFilterTest {
         }
         composeTestRule.waitForIdle()
         type("gamma")
+        composeTestRule.onAllNodesWithText("Alpha show").assertCountEquals(0)
 
         composeTestRule.runOnIdle { container.playbackQueue.clear() }
         composeTestRule.waitForIdle()
@@ -379,6 +385,42 @@ class ListFilterTest {
 
         composeTestRule.onNodeWithText("Tennis special").assertExists()
         assertEquals(before, pagesAsked)
+    }
+
+    @Test
+    fun `a channel tab filter field sits above its list rather than under it`() {
+        channelContent(channelState("Alpha upload", "Beta upload"), "A")
+
+        composeTestRule.onNode(hasContentDescription("Filter", substring = true) and hasClickAction()).performClick()
+        composeTestRule.waitForIdle()
+
+        val field = composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).getBoundsInRoot()
+        val firstRow = composeTestRule.onNodeWithText("Alpha upload").getBoundsInRoot()
+        assertTrue(
+            "the field ends at ${field.bottom} but the first row starts at ${firstRow.top}",
+            field.bottom <= firstRow.top
+        )
+    }
+
+    @Test
+    fun `tapping the toggle of an open filter clears it and closes it`() {
+        composeTestRule.setContent {
+            TotumTheme {
+                val filter = rememberListFilter("closing")
+                Column {
+                    FilterToggle(filter, total = 3)
+                    FilterField(filter, shown = 3, total = 3, hosted = true)
+                    Text(filter.query.ifEmpty { "no query" })
+                }
+            }
+        }
+        type("zz")
+
+        composeTestRule.onNode(hasContentDescription("Filter", substring = true) and hasClickAction()).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("no query").assertExists()
+        composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).assertCountEquals(0)
     }
 
     @Test

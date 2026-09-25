@@ -28,6 +28,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
@@ -83,9 +84,10 @@ fun PlaylistScreen(
                                     title = stringResource(R.string.latest_videos),
                                     sort = state.sort,
                                     onSetSort = viewModel::setSort,
+                                    extraActions = { FilterToggle(listFilter, state.videos.size) },
                                 )
                             }
-                            filterField(listFilter, shown.size, state.videos.size)
+                            filterField(listFilter, shown.size, state.videos.size, hosted = true)
                             items(shown, key = { it.id.value }) { video ->
                                 MediaItemRow(
                                     item = video,

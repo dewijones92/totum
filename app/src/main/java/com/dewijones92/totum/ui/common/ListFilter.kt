@@ -81,14 +81,17 @@ fun FilterToggle(filter: ListFilter, total: Int, modifier: Modifier = Modifier) 
     val state = stringResource(if (filter.fieldShown) R.string.filter_state_open else R.string.filter_state_closed)
     IconButton(
         onClick = {
-            if (filter.query.isEmpty()) {
-                filter.open = !filter.open
-                filter.focusPending = filter.open
-                Diag.log("filter", "${filter.place} field ${if (filter.open) "opened" else "closed"} from its toggle")
+            if (filter.fieldShown) {
+                val cleared = filter.query
+                filter.query = ""
+                filter.open = false
+                filter.focusPending = false
+                val what = if (cleared.isEmpty()) "" else ", clearing \"$cleared\""
+                Diag.log("filter", "${filter.place} field closed from its toggle$what")
             } else {
                 filter.open = true
                 filter.focusPending = true
-                Diag.log("filter", "${filter.place} toggle tapped while holding \"${filter.query}\", field kept open")
+                Diag.log("filter", "${filter.place} field opened from its toggle")
             }
         },
         modifier = modifier.semantics { stateDescription = state },
@@ -157,6 +160,7 @@ fun FilterField(
                 withFrameNanos { }
                 focus.requestFocus()
                 filter.focusPending = false
+                Diag.log("filter", "${filter.place} field focused after its toggle opened it")
             }
         }
     } else {
