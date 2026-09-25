@@ -12,10 +12,10 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [youtube-requires-attestation](youtube-requires-attestation.md) | playback | high | the ~1MB cap was the ANDROID/WEB endpoint, not attestation: SABR now resolves from the embedded player and streamed 4.2MB+ on device with no token (shipped 2026-09-07); the signed-in TV client is no longer refused (timestamp scale). Still open: quality tiers above what the embedded response offers, and seeking. Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
-| [sabr-serves-nothing-for-some-videos](sabr-serves-nothing-for-some-videos.md) | playback | high | SABR keeps 0 bytes of itag 251 while discarding 195KB, on a video that resolves and plays fine otherwise. Wrongly written off as a dead fixture first — the video is alive and CI resolved it in the same run |
+| [sabr-serves-nothing-for-some-videos](sabr-serves-nothing-for-some-videos.md) | playback | — | **closed 2026-09-25**: not a separate failure; the ANDROID endpoint's ~60 s wall seen from the fresh stream recovery opens after it (identical 195,548 B signature); see po-token-minting |
 | [subtitles-fail-to-parse-over-sabr](subtitles-fail-to-parse-over-sabr.md) | playback | low | FIXED and confirmed in run 35529171153: asks=vtt, zero parse failures, and the loads verified to have actually run |
 | [instrumented-tests-read-the-wrong-item](instrumented-tests-read-the-wrong-item.md) | testing | medium | cause fixed and two tests scoped; fourteen more still read the player without asking which item it is on |
-| [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | open — two defects fixed but disproven as the cause; instrumented for the next report |
+| [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | not seen since 0.1.477 (10 phone reports, mostly local files); cause not established; its detector cried wolf on every seek and is fixed |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |
 | [background-audio-listen-mode](background-audio-listen-mode.md) | playback | high | shipped |

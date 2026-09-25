@@ -1,9 +1,9 @@
 ---
 title: Buffers towards the end of the video
 kind: todo
-status: two real defects closed; they are NOT the cause — cause still open, instrumented
+status: not seen in the wild since 0.1.477 (10 phone reports); cause not established; the detector that should have caught a recurrence was crying wolf and is fixed
 area: playback
-updated: 2026-08-06
+updated: 2026-09-25
 ---
 
 # "Buffers towards the end of the video??????"
@@ -142,3 +142,41 @@ believing it was finished. If they stop, `streamsEndedEarly` says how often the 
 - `../features/streaming-reliability.md` — the ranged fetch this corrects.
 - `../features/offline-queue.md` — the preloader.
 - `high-quality-playback-fix.md` — the format choice that makes `gir=yes` streams the norm.
+
+## 2026-09-25: a month of phone reports, and an instrument that was crying wolf
+
+Every Pixel report on the Pi was read (92 in total; the ten from 0.1.477 to 0.1.514 are the ones that
+bear on this):
+
+| | 0.1.359 (the original) | 0.1.477 → 0.1.514 |
+|---|---|---|
+| `playback.abandonedBufferingMs` | 208,530 of 244,115 | at most **1,272** in any report; `-` (none) in most |
+| `gave up buffering … never recovered` near the end of an item | four in a row | none |
+
+So the end-of-item stall has **not recurred in a month**. That is weak evidence, not a fix. Most of
+that listening played **downloaded files** (`playing.route=a local file`, `downloads.onDisk=355`),
+which is not the streaming path the stall lived on, and no code change has been shown to remove the
+cause. The item stays open. Absence of a report is not a control.
+
+**What did change is that the instrument meant to catch a recurrence was producing only noise.**
+`loadsStoppedShort` was non-zero in almost every recent report, which read like the bug. Every line
+looked like this (0.1.496, 20 September):
+
+```
+09:06:55.708 stopped loading at 77700ms with only 247661ms buffered ahead … the tail is not coming
+09:06:57.096 stopped loading at 67714ms with only 244967ms buffered ahead …
+09:06:57.558 stopped loading at 37714ms …   (and three more, 150 ms apart)
+```
+
+That is four MINUTES buffered, and six lines inside two seconds at 10 s steps back: someone tapping
+rewind. `loadStopIsAFault` treated ANY load stop while the player was buffering as a fault, and every
+seek buffers for a moment with a full buffer. So it judges on the buffer alone now. A second check,
+at the moment a stall BEGINS, catches the original shape: loading had already stopped and the buffer
+ran dry. It logs `stalled at … with loading already stopped … the tail is not coming` and counts
+`playback.stallsWithLoadingStopped`.
+
+Tests: `LoadStopIsAFaultTest` (the seek numbers above are now a non-fault) and
+`AStallWithLoadingStoppedTest` (0.1.359's numbers are a fault, a seek is not, a buffer still loading is
+not). Both failed first. **If this recurs, the next report now says so in one line, instead of hiding
+it among forty false ones.**
+

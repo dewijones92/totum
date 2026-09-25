@@ -1,9 +1,9 @@
 ---
 title: SABR serves nothing at all for some videos, and the app blames the fixture
 kind: todo
-status: open — an APP failure, after being wrongly written off as a dead fixture
+status: closed 2026-09-25: it is the ANDROID endpoint's ~60 s wall, seen from the fresh stream recovery opens after it; tracked in po-token-minting.md
 area: playback
-updated: 2026-09-20
+updated: 2026-09-25
 ---
 
 # The failure, and the retraction that has to come first
@@ -52,3 +52,26 @@ It is still pinned in `WhatSabrWillServeTest`, which nobody has updated. A live 
 durable fixture by definition, so that one probably wants resolving at runtime from a known
 always-live channel rather than pinning an id that will rot again — **a judgement for Dewi, not a
 fix to make quietly.**
+
+# Resolved, 2026-09-25: this is the ~60 s wall, seen from the other side
+
+`SabrPlaysAcrossVideoTypesTest` passes in every run read today: 409f75d, a32957a, cccf25e and 8706584.
+The line that made this file is still in their logs, **identical to the original down to the byte**:
+
+```
+[sabr] giving up on gngPQ771Ahk:251: it served nothing before dying (itag=251 fetches=4 failed=0 ...
+       served=0B discarded=195548B (100% wasted) ... mediaTime=147248ms
+```
+
+Reading the whole conversation (run 36138351354) shows what that line is. The first stream for
+`gngPQ771Ahk:251` works: with the segment-count claim it asks 9,982, 19,964, ..., 49,911 ms, and keeps
+about 155 KB each time. At **59,893 ms it is sent nothing new**, the same wall the 97-minute VOD's audio
+(979,459 B) and video (13.1 MB, `protection=status=3`) hit at about a minute. Four empty answers end
+that stream. Recovery then opens a FRESH one partway through the file (asking 57 s from a byte ratio).
+That stream meets the same wall on its first fetch and "serves nothing".
+
+So the fresh stream is not a separate app failure. Both videos refuse the embedded player ("This video
+is unavailable"), fall back to the ANDROID endpoint, and that endpoint stops serving after about 60 s of
+media. The test passes because it only asks for 10 s. The wall itself belongs to
+[po-token-minting.md](po-token-minting.md).
+

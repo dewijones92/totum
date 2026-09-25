@@ -143,6 +143,7 @@ import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.ui.subscriptions.subscribedSources
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams
@@ -167,6 +168,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -308,9 +310,7 @@ interface AppContainer {
     val accountSubscriptions: AccountSubscriptions
 
     val sourceArtwork: Flow<Map<SourceId, HttpUrl>>
-        get() = combine(podcastRepository.observeSubscriptions(), accountSubscriptions.channels) { shows, channels ->
-            (shows.map { it.source } + channels).artworkById()
-        }
+        get() = subscribedSources(podcastRepository, accountSubscriptions.channels).map { it.artworkById() }
 
     /** The signed-in YouTube account seam (device-code login, token upkeep). */
     val youTubeAccount: YouTubeAccount

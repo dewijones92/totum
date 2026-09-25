@@ -102,13 +102,13 @@ class AllSubscriptionsViewModel(
     private val cachedVideos: Flow<List<MediaItem>> = flow { emit(feedCache.items(SUBSCRIPTIONS_FEED.cacheKey())) }
 
     val sources: StateFlow<List<SourceActivity>?> = combine(
-        podcasts.observeSubscriptions(),
+        subscribedSources(podcasts, channels),
         podcasts.observeEpisodes(),
-        channels,
         combine(cachedVideos, checkedUploads) { cached, checked -> cached + checked },
-    ) { shows, episodes, subscribedChannels, videos ->
-        latestUploadFirst(shows.map { it.source } + subscribedChannels, episodes + videos).also { ranked ->
-            describe(ranked, shows.size, subscribedChannels.size, videos.size)
+    ) { subscribed, episodes, videos ->
+        latestUploadFirst(subscribed, episodes + videos).also { ranked ->
+            val shows = subscribed.count { it is MediaSource.PodcastFeed }
+            describe(ranked, shows, subscribed.size - shows, videos.size)
         }
     }
         .flowOn(computation)

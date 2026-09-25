@@ -77,6 +77,51 @@ class ChannelLatestUploadsTest {
     }
 
     @Test
+    fun `a channel whose fetch just failed is not asked again on the next open, unless forced`() = runTest {
+        var at = now
+        val clock = object : Clock() {
+            override fun getZone() = ZoneOffset.UTC
+            override fun withZone(zone: java.time.ZoneId?) = this
+            override fun instant(): Instant = at
+        }
+        val failing = ChannelLatestUploads(
+            fetcher = { url: HttpUrl ->
+                synchronized(asked) { asked += url.value.substringAfter("channel_id=") }
+                FetchResult.Failure("429")
+            },
+            store = store,
+            clock = clock,
+            maxAge = Duration.ofHours(6),
+        )
+        failing.refresh(listOf("UCa"))
+        asked.clear()
+
+        val again = failing.refresh(listOf("UCa")) as ChannelCheckSummary.Done
+        assertEquals("a failure was re-asked on the very next open", emptyList<String>(), asked)
+        assertEquals(1, again.skippedFailedRecently)
+
+        at = now.plus(Duration.ofHours(1))
+        failing.refresh(listOf("UCa"))
+        assertEquals("after the retry window it is asked again", listOf("UCa"), asked)
+
+        asked.clear()
+        failing.refresh(listOf("UCa"), force = true)
+        assertEquals(listOf("UCa"), asked)
+    }
+
+    @Test
+    fun `a feed that briefly lists nothing does not wipe the upload that was known`() = runTest {
+        val known = checkNotNull(ChannelFeedParser.latest(realFeed))
+        store.put(listOf(CheckedChannel("UCa", known, now.minus(Duration.ofDays(1)))))
+
+        uploads(answer = { FetchResult.Success(emptyFeed) }).refresh(listOf("UCa"))
+
+        val row = store.observe().first().single()
+        assertEquals(known, row.latest)
+        assertEquals("still recorded as checked now", now, row.checkedAt)
+    }
+
+    @Test
     fun `a channel that never uploaded is checked, not failed`() = runTest {
         val summary = uploads(
             answer = { FetchResult.Success(emptyFeed) }

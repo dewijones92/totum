@@ -35,42 +35,40 @@ class LoadStopIsAFaultTest {
     /** Every one of the 33 lines from 0.1.390: a healthy buffer at the byte ceiling. */
     @Test
     fun `a pause with a healthy buffer while playing is not a fault`() {
-        assertFalse(loadStopIsAFault(aheadMs = 27_484, unfetchedMs = 402_334, isStalled = false))
-        assertFalse(loadStopIsAFault(aheadMs = 25_107, unfetchedMs = 574_767, isStalled = false))
-        assertFalse(loadStopIsAFault(aheadMs = 3_299, unfetchedMs = 385_167, isStalled = false))
+        assertFalse(loadStopIsAFault(aheadMs = 27_484, unfetchedMs = 402_334))
+        assertFalse(loadStopIsAFault(aheadMs = 25_107, unfetchedMs = 574_767))
+        assertFalse(loadStopIsAFault(aheadMs = 3_299, unfetchedMs = 385_167))
     }
 
     /** Report 0.1.359, which is what the line was added for. */
     @Test
     fun `stopping with nothing buffered and the item unfinished is a fault`() {
-        assertTrue(loadStopIsAFault(aheadMs = 70, unfetchedMs = 35_000, isStalled = true))
+        assertTrue(loadStopIsAFault(aheadMs = 70, unfetchedMs = 35_000))
     }
 
-    /**
-     * A stall is the discriminator, not the buffer level. If the player has stopped fetching and
-     * is stalled, the tail genuinely is not coming however much it thinks it holds.
-     */
     @Test
-    fun `stopping while stalled is a fault even with a buffer`() {
-        assertTrue(loadStopIsAFault(aheadMs = 20_000, unfetchedMs = 300_000, isStalled = true))
+    fun `a seek's moment of buffering with minutes already buffered is not a fault`() {
+        assertFalse(loadStopIsAFault(aheadMs = 259_687, unfetchedMs = 508_800))
+        assertFalse(loadStopIsAFault(aheadMs = 136_412, unfetchedMs = 18_080))
+        assertFalse(loadStopIsAFault(aheadMs = 20_000, unfetchedMs = 300_000))
     }
 
     /** Below the floor it is one hiccup from a stall, so it is worth saying even while playing. */
     @Test
     fun `stopping with almost nothing ahead is a fault even while playing`() {
-        assertTrue(loadStopIsAFault(aheadMs = 400, unfetchedMs = 300_000, isStalled = false))
+        assertTrue(loadStopIsAFault(aheadMs = 400, unfetchedMs = 300_000))
     }
 
     /** Fetched to the end. Nothing more is coming because there is nothing more. */
     @Test
     fun `stopping at the end of the item is never a fault`() {
-        assertFalse(loadStopIsAFault(aheadMs = 0, unfetchedMs = 0, isStalled = true))
-        assertFalse(loadStopIsAFault(aheadMs = 70, unfetchedMs = 4_000, isStalled = true))
+        assertFalse(loadStopIsAFault(aheadMs = 0, unfetchedMs = 0))
+        assertFalse(loadStopIsAFault(aheadMs = 70, unfetchedMs = 4_000))
     }
 
     /** A live stream has no duration to be short of, so there is no judgement to make. */
     @Test
     fun `an unknown duration is never a fault`() {
-        assertFalse(loadStopIsAFault(aheadMs = 0, unfetchedMs = null, isStalled = true))
+        assertFalse(loadStopIsAFault(aheadMs = 0, unfetchedMs = null))
     }
 }

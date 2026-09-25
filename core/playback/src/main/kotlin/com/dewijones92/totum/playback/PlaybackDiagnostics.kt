@@ -116,7 +116,7 @@ internal class PlaybackDiagnostics(
             leastAheadAtLoadStop = ahead
             Vitals.set("playback.leastAheadAtLoadStop", "${ahead}ms")
         }
-        if (!loadStopIsAFault(ahead, unfetched, isStalled = stalledSince != null)) {
+        if (!loadStopIsAFault(ahead, unfetched)) {
             Vitals.add("playback.loadPauses")
             return
         }
@@ -126,6 +126,20 @@ internal class PlaybackDiagnostics(
                 "${unfetched}ms of the item never fetched — the tail is not coming",
         )
         Vitals.add("playback.loadsStoppedShort")
+    }
+
+    private fun noteStallWithLoadingStopped() {
+        val current = player() ?: return
+        if (current.isLoading) return
+        val ahead = current.bufferedPosition - current.currentPosition
+        val unfetched = current.duration.takeIf { it > 0 }?.minus(current.bufferedPosition)
+        if (!loadStopIsAFault(ahead, unfetched)) return
+        Diag.warn(
+            "playback",
+            "stalled at ${position()} with loading already stopped: ${ahead}ms buffered ahead and " +
+                "${unfetched}ms of the item never fetched — the tail is not coming",
+        )
+        Vitals.add("playback.stallsWithLoadingStopped")
     }
 
     /** The lowest `ahead` any load stop has been seen at, for the gauge above. */
@@ -140,6 +154,7 @@ internal class PlaybackDiagnostics(
             Player.STATE_BUFFERING -> {
                 stalledSince = now()
                 Vitals.add("playback.stalls")
+                noteStallWithLoadingStopped()
                 val kbps = PlaybackVitals.kbps()
                 val vitals = Vitals.snapshot()
                 val outstanding = vitals["playback.loadsOutstanding"]
@@ -305,9 +320,9 @@ internal class PlaybackDiagnostics(
  * What is not ordinary is stopping while playback cannot continue, or stopping with so little ahead
  * that it is one hiccup from the same thing.
  */
-internal fun loadStopIsAFault(aheadMs: Long, unfetchedMs: Long?, isStalled: Boolean): Boolean {
+internal fun loadStopIsAFault(aheadMs: Long, unfetchedMs: Long?): Boolean {
     if (unfetchedMs == null || unfetchedMs <= SHORT_OF_THE_END_MS) return false
-    return isStalled || aheadMs <= TOO_LITTLE_AHEAD_MS
+    return aheadMs <= TOO_LITTLE_AHEAD_MS
 }
 
 /** Below this much left unfetched, the player is simply at the end of the item. */

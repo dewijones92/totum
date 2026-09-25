@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -43,6 +44,7 @@ public sealed interface ChannelCheckSummary {
         val withUpload: Int,
         val neverUploaded: Int,
         val failed: Int,
+        val skippedFailedRecently: Int = 0,
         val decodedChars: Long,
         val elapsedMs: Long,
     ) : ChannelCheckSummary
@@ -57,6 +59,7 @@ public class ChannelLatestUploads(
     private val batchSize: Int = DEFAULT_BATCH,
 ) {
     private val running = Mutex()
+    private val failedAt = java.util.concurrent.ConcurrentHashMap<String, Instant>()
     private val _progress = MutableStateFlow<ChannelCheckProgress?>(null)
 
     public val progress: StateFlow<ChannelCheckProgress?> = _progress.asStateFlow()
@@ -79,11 +82,13 @@ public class ChannelLatestUploads(
     private suspend fun check(ids: List<String>, force: Boolean): ChannelCheckSummary.Done {
         val started = clock.millis()
         val now = clock.instant()
-        val checkedAt = if (force) emptyMap() else store.checkedAt()
-        val due = ids.filter { id -> checkedAt[id]?.let { Duration.between(it, now) >= maxAge } ?: true }
+        val stale = staleOf(ids, force, now)
+        val due = if (force) stale else stale.filterNot { failedRecently(it, now) }
+        val known = store.observe().first().associate { it.channelId to it.latest }
         Diag.log(
             "subs",
-            "channel check: ${due.size} due of ${ids.size} (force=$force, fresh within $maxAge skipped)",
+            "channel check: ${due.size} due of ${ids.size} (force=$force, fresh within $maxAge skipped, " +
+                "${stale.size - due.size} failed within $FAILED_RETRY skipped)",
         )
         val done = AtomicInteger()
         val bytes = AtomicLong()
@@ -95,11 +100,17 @@ public class ChannelLatestUploads(
         val results = coroutineScope {
             due.map { id ->
                 async {
-                    val outcome = gate.withPermit { fetch(id, bytes) }
+                    val outcome = gate.withPermit { fetch(id, bytes, known[id]) }
                     lock.withLock {
                         when (outcome) {
-                            is Outcome.Checked -> pending += outcome.row
-                            is Outcome.Failed -> failures += "$id: ${outcome.detail}"
+                            is Outcome.Checked -> {
+                                pending += outcome.row
+                                failedAt.remove(id)
+                            }
+                            is Outcome.Failed -> {
+                                failures += "$id: ${outcome.detail}"
+                                failedAt[id] = now
+                            }
                         }
                         if (pending.size >= batchSize) flush(pending)
                     }
@@ -116,6 +127,7 @@ public class ChannelLatestUploads(
             withUpload = checked.count { it.row.latest != null },
             neverUploaded = checked.count { it.row.latest == null },
             failed = failures.size,
+            skippedFailedRecently = stale.size - due.size,
             decodedChars = bytes.get(),
             elapsedMs = clock.millis() - started,
         )
@@ -124,13 +136,21 @@ public class ChannelLatestUploads(
         return summary
     }
 
+    private suspend fun staleOf(ids: List<String>, force: Boolean, now: Instant): List<String> {
+        val checkedAt = if (force) emptyMap() else store.checkedAt()
+        return ids.filter { id -> checkedAt[id]?.let { Duration.between(it, now) >= maxAge } ?: true }
+    }
+
+    private fun failedRecently(id: String, now: Instant): Boolean =
+        failedAt[id]?.let { Duration.between(it, now) < FAILED_RETRY } == true
+
     private suspend fun flush(pending: MutableList<CheckedChannel>) {
         if (pending.isEmpty()) return
         store.put(pending.toList())
         pending.clear()
     }
 
-    private suspend fun fetch(channelId: String, bytes: AtomicLong): Outcome =
+    private suspend fun fetch(channelId: String, bytes: AtomicLong, known: MediaItem?): Outcome =
         when (val fetched = fetcher.fetch(ChannelFeedParser.feedUrlFor(channelId))) {
             is FetchResult.Failure -> Outcome.Failed(fetched.detail)
             is FetchResult.Success -> {
@@ -139,9 +159,11 @@ public class ChannelLatestUploads(
                 if (uploads == null) {
                     Outcome.Failed("not a channel feed")
                 } else {
-                    Outcome.Checked(
-                        CheckedChannel(channelId, uploads.maxByOrNull { it.publishedAt!! }, clock.instant()),
-                    )
+                    val newest = uploads.maxByOrNull { it.publishedAt!! }
+                    if (newest == null && known != null) {
+                        Diag.log("subs", "$channelId: its feed listed no uploads; keeping the known \"${known.title}\"")
+                    }
+                    Outcome.Checked(CheckedChannel(channelId, newest ?: known, clock.instant()))
                 }
             }
         }
@@ -156,6 +178,7 @@ public class ChannelLatestUploads(
         const val DEFAULT_BATCH = 50
         const val FAILURES_LOGGED = 3
         val DEFAULT_MAX_AGE: Duration = Duration.ofHours(6)
+        val FAILED_RETRY: Duration = Duration.ofMinutes(30)
     }
 }
 
