@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -88,7 +89,7 @@ class PlayerKeepsEveryControlTest {
         PlayHandle.Podcast(),
     )
 
-    private fun show(state: PlaybackState) {
+    private fun show(state: PlaybackState, quality: QualityControl = QualityControl.None.copy(canListen = true)) {
         composeTestRule.setContent {
             TotumTheme {
                 FullPlayerOverlay(
@@ -99,7 +100,7 @@ class PlayerKeepsEveryControlTest {
                     related = WatchViewModel.RelatedState.Loaded(emptyList()),
                     // canAct, so like / dislike / watch-later are all on screen to be checked.
                     watchActions = WatchActions.ReadOnly.copy(canAct = true),
-                    quality = QualityControl.None.copy(canListen = true),
+                    quality = quality,
                     sleepTimer = SleepTimerState.Off,
                     onDismiss = {},
                     onPlayRelated = {},
@@ -142,6 +143,20 @@ class PlayerKeepsEveryControlTest {
         )
     }
 
+    private fun assertActionable(what: String, vararg labels: String) {
+        assertReachable(what, *labels)
+        assertTrue(
+            "$what is on the player but can no longer be pressed (looked for ${labels.toList()}). " +
+                "On screen now: ${onScreenLabels()}",
+            labels.any { label ->
+                val matcher = hasText(label, substring = true, ignoreCase = true)
+                    .or(hasContentDescription(label, substring = true, ignoreCase = true))
+                    .and(hasClickAction())
+                composeTestRule.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+            },
+        )
+    }
+
     private fun Array<out String>.anyOnScreen(): Boolean = any { label ->
         val matcher = hasText(label, substring = true, ignoreCase = true)
             .or(hasContentDescription(label, substring = true, ignoreCase = true))
@@ -175,12 +190,25 @@ class PlayerKeepsEveryControlTest {
         assertReachable("the description", "Aaron Bastani")
         assertReachable("chapters", "The wealth gap", "Chapters")
         assertReachable("the up-next queue", "Up next", "Ceuta")
-        assertReachable("the sleep timer", "Sleep")
-        assertReachable("skip silence", "silence")
-        assertReachable("auto-play next", "Auto-play")
-        assertReachable("fast start", "Fast start")
-        assertReachable("volume boost", "Boost", "boost")
-        assertReachable("listen instead", "Listen")
+        assertActionable("the sleep timer", "Sleep")
+        assertActionable("skip silence", "silence")
+        assertActionable("auto-play next", "Auto-play")
+        assertActionable("fast start", "Fast start")
+        assertActionable("volume boost", "Boost", "boost")
+        assertActionable("listen instead", "Listen")
+        assertActionable("like", "Like")
+        assertActionable("dislike", "Dislike")
+        assertActionable("watch later", "Watch later", "Save")
+    }
+
+    @Test
+    fun `a video being listened to still offers the way back to the picture`() {
+        show(
+            video.copy(hasVideo = false),
+            quality = QualityControl.None.copy(canListen = true, listening = true),
+        )
+
+        assertActionable("watch the video again", "Watch video")
     }
 
     /**
@@ -201,6 +229,10 @@ class PlayerKeepsEveryControlTest {
         assertReachable("volume boost", "Boost", "boost")
         assertReachable("auto-play next", "Auto-play")
         assertReachable("fast start", "Fast start")
+        assertActionable("play/pause", "Play", "Pause")
+        assertActionable("speed", "Speed")
+        assertActionable("the sleep timer", "Sleep")
+        assertActionable("skip silence", "silence")
         assertReachable("the description", "Aaron Bastani")
         assertReachable("the up-next queue", "Up next", "Ceuta")
     }

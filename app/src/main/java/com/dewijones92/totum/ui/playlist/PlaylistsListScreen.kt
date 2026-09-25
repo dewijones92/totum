@@ -11,11 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,8 +27,11 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.innertube.playlists.Playlist
+import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.rememberListFilter
 
 /** The signed-in account's playlists; tapping one opens its videos. */
 @Composable
@@ -47,15 +46,9 @@ fun PlaylistsListScreen(
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(
-                    text = stringResource(R.string.playlists_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+            val listFilter = rememberListFilter("account-playlists")
+            BackHeader(stringResource(R.string.playlists_title), onBack) {
+                FilterToggle(listFilter, (state as? PlaylistsViewModel.UiState.Loaded)?.playlists?.size ?: 0)
             }
             when (val s = state) {
                 PlaylistsViewModel.UiState.Loading -> Centered { CircularProgressIndicator() }
@@ -65,7 +58,12 @@ fun PlaylistsListScreen(
                     if (s.playlists.isEmpty()) {
                         Centered { Text(stringResource(R.string.playlists_empty)) }
                     } else {
-                        FilterableList("account-playlists", s.playlists, { listOf(it.title) }) { shown, _ ->
+                        FilterableList(
+                            "account-playlists",
+                            s.playlists,
+                            { listOf(it.title) },
+                            filter = listFilter
+                        ) { shown, _ ->
                             LazyColumn(modifier = Modifier.fillMaxSize()) {
                                 items(shown, key = { it.browseId }) { playlist ->
                                     PlaylistRow(playlist, onClick = { onOpen(playlist) })

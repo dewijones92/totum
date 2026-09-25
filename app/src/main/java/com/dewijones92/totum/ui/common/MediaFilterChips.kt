@@ -15,12 +15,12 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaFilter
 
 /**
- * The progress filter, as chips above a feed. One row shared by every list, both pillars —
- * "hide what I have finished" means the same thing for a podcast episode and a video, so it
- * would be a design failure for each feed to grow its own.
+ * The progress filter, as segmented buttons above a feed. One row shared by every list, both
+ * pillars — "hide what I have finished" means the same thing for a podcast episode and a video, so
+ * it would be a design failure for each feed to grow its own.
  *
- * Horizontally scrollable rather than wrapped: three chips fit on any phone today, and a Row
- * that reflows would shift the feed down by a line the moment a fourth is added.
+ * Segments share the width equally, which suits three short labels; a fourth option would be the
+ * moment to reconsider, as the segments would get tight at large font sizes.
  */
 @Composable
 fun MediaFilterChips(

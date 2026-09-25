@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -97,30 +98,29 @@ internal fun SecondaryControls(
     onCancelSleep: () -> Unit,
     onSetSpeed: (Float) -> Unit,
 ) {
-    val tiles = buildList<@Composable (Modifier) -> Unit> {
-        add { m -> SleepTimerControl(sleepTimer, onStartSleep, onStopSleepAfterItem, onCancelSleep, m) }
-        add { m -> SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence, m) }
-        if (!controlsOverlaid) add { m -> SpeedTile(state.speed, onSetSpeed, m) }
-        add { m -> BoostTile(state.volumeBoost, toggles.onSetVolumeBoost, m) }
-        add { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) }
-        if (quality.canListen && (state.hasVideo || quality.listening)) {
-            add { m ->
-                ListenWatchToggle(
-                    quality,
-                    state.hasVideo,
-                    m
-                )
-            }
+    val tiles = buildList<Pair<String, @Composable (Modifier) -> Unit>> {
+        add("sleep" to { m -> SleepTimerControl(sleepTimer, onStartSleep, onStopSleepAfterItem, onCancelSleep, m) })
+        add("silence" to { m -> SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence, m) })
+        // Speed is already on the video overlay when there is a video; offering it twice would
+        // be two controls for one setting.
+        if (!controlsOverlaid) add("speed" to { m -> SpeedTile(state.speed, onSetSpeed, m) })
+        add("boost" to { m -> BoostTile(state.volumeBoost, toggles.onSetVolumeBoost, m) })
+        add("autoplay" to { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) })
+        if (quality.offersListenOrWatch(state.hasVideo)) {
+            add("listen" to { m -> ListenWatchToggle(quality, state.hasVideo, m) })
         }
-        add { m -> FastStartTile(toggles.sabrPlayback, toggles.onSetSabrPlayback, m) }
+        add("fast-start" to { m -> FastStartTile(toggles.sabrPlayback, toggles.onSetSabrPlayback, m) })
     }
+    // Wrapping, not scrolling: every control stays visible and reachable at any text size,
+    // where a horizontal scroller would hide some of them off the right-hand edge with nothing
+    // to say they were there.
     Column(
         verticalArrangement = Arrangement.spacedBy(TILE_GAP),
         modifier = Modifier.fillMaxWidth(),
     ) {
         tiles.chunked(TILES_PER_ROW).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP), modifier = Modifier.height(IntrinsicSize.Min)) {
-                row.forEach { tile -> tile(Modifier.weight(1f).fillMaxHeight()) }
+                row.forEach { (name, tile) -> key(name) { tile(Modifier.weight(1f).fillMaxHeight()) } }
                 repeat(TILES_PER_ROW - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }

@@ -54,6 +54,7 @@ internal fun RelatedSection(
                             subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
                             pillar = MediaKind.VIDEO,
                             onPlay = { onPlayRelated(video) },
+                            cardInset = 0.dp,
                         )
                     }
                 }

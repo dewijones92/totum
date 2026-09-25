@@ -99,9 +99,11 @@ fun SourceArtwork(url: HttpUrl?, pillar: MediaKind, modifier: Modifier = Modifie
         url = url,
         contentDescription = null,
         modifier = modifier,
-        shape = when (pillar) {
-            MediaKind.VIDEO -> CircleShape
-            MediaKind.PODCAST -> RoundedCornerShape(8.dp)
-        },
+        shape = sourceArtworkShape(pillar),
     )
+}
+
+internal fun sourceArtworkShape(pillar: MediaKind): Shape = when (pillar) {
+    MediaKind.VIDEO -> CircleShape
+    MediaKind.PODCAST -> RoundedCornerShape(8.dp)
 }

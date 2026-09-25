@@ -194,7 +194,7 @@ internal fun playedRowTint(playState: PlayState): Color {
     // "the same cyan behaving differently"; it is two washes, each chosen for its own surface.
     // Keyed off the surface's luminance rather than a dark-theme flag so a scheme that is neither of
     // ours — dynamic colour, if it is ever switched on — still gets a decision rather than a default.
-    val alpha = if (scheme.surface.luminance() < DARK_SURFACE_LUMINANCE) {
+    val alpha = if (isDarkSurface()) {
         PLAYED_ROW_TINT_ALPHA_ON_DARK
     } else {
         PLAYED_ROW_TINT_ALPHA
@@ -205,7 +205,7 @@ internal fun playedRowTint(playState: PlayState): Color {
 @Composable
 internal fun pillarRowTint(pillar: MediaKind): Color {
     val scheme = MaterialTheme.colorScheme
-    val dark = scheme.surface.luminance() < DARK_SURFACE_LUMINANCE
+    val dark = isDarkSurface()
     return when (pillar) {
         MediaKind.VIDEO -> scheme.primaryContainer.copy(
             alpha = if (dark) VIDEO_TINT_ALPHA_ON_DARK else VIDEO_TINT_ALPHA
@@ -237,6 +237,9 @@ private const val PLAYED_ROW_TINT_ALPHA = 0.08f
 private const val UNREAD_TINT_ALPHA = 0.15f
 private const val PLAYED_ROW_TINT_ALPHA_ON_DARK = 0.14f
 private const val DARK_SURFACE_LUMINANCE = 0.5f
+
+@Composable
+internal fun isDarkSurface(): Boolean = MaterialTheme.colorScheme.surface.luminance() < DARK_SURFACE_LUMINANCE
 
 /** Padding that keeps the status row visually attached to the text above it. */
 internal val StatusRowSpacing = Modifier.padding(top = 3.dp)

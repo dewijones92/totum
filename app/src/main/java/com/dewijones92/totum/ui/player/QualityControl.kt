@@ -57,7 +57,7 @@ data class QualityControl(
  */
 @Composable
 internal fun ListenWatchToggle(quality: QualityControl, hasVideo: Boolean, modifier: Modifier = Modifier) {
-    if (!quality.canListen || !(hasVideo || quality.listening)) return
+    if (!quality.offersListenOrWatch(hasVideo)) return
     if (quality.listening) {
         ControlTile(
             icon = Icons.Outlined.Videocam,
@@ -111,3 +111,5 @@ internal fun QualitySelector(quality: QualityControl, modifier: Modifier = Modif
         }
     }
 }
+
+internal fun QualityControl.offersListenOrWatch(hasVideo: Boolean): Boolean = canListen && (hasVideo || listening)

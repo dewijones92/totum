@@ -26,11 +26,13 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
@@ -42,10 +44,12 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
     val selection = rememberSelection("history")
+    val listFilter = rememberListFilter("history")
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(stringResource(R.string.history_title), onBack) {
+                FilterToggle(listFilter, items.size)
                 if (items.isNotEmpty()) {
                     TextButton(onClick = viewModel::clear) { Text(stringResource(R.string.history_clear)) }
                 }
@@ -53,7 +57,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
             if (items.isEmpty()) {
                 HistoryEmpty()
             } else {
-                FilterableList("history", items, { it.item.searchableText }) { shown, _ ->
+                FilterableList("history", items, { it.item.searchableText }, filter = listFilter) { shown, _ ->
                     SelectableMediaList("history", items, shown, { it.item }, hoisted = selection) {
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(shown, key = { it.item.id.value }) { entry ->

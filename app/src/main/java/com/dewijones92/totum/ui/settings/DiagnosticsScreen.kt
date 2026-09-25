@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -21,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,7 +27,9 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterField
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.rememberListFilter
 
@@ -50,23 +50,16 @@ internal fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier
     val events = remember(taken) { Breadcrumbs.snapshot().reversed() }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-            }
-            Text(
-                text = stringResource(R.string.diagnostics_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
-            )
+        val listFilter = rememberListFilter("diagnostics")
+        BackHeader(stringResource(R.string.diagnostics_title), onBack) {
+            FilterToggle(listFilter, vitals.size + events.size)
             IconButton(onClick = { taken++ }) {
                 Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.diagnostics_refresh))
             }
         }
-        val listFilter = rememberListFilter("diagnostics")
         val shownVitals = listFilter.filter(vitals, { listOf(it.first, it.second) }, part = "vitals")
         val shownEvents = listFilter.filter(events, { listOf(it.tag, it.message) }, part = "events")
-        FilterField(listFilter, shownVitals.size + shownEvents.size, vitals.size + events.size)
+        FilterField(listFilter, shownVitals.size + shownEvents.size, vitals.size + events.size, hosted = true)
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { SectionLabel(stringResource(R.string.diagnostics_vitals)) }
             if (vitals.isEmpty()) {

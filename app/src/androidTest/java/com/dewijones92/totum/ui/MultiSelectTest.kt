@@ -32,7 +32,6 @@ import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.SELECTION_ACTIONS_TAG
@@ -79,6 +78,8 @@ class MultiSelectTest {
     }
 
     private fun count(n: Int) = activity.resources.getQuantityString(R.plurals.selected_count, n, n)
+
+    private fun filterBy(text: String) = composeTestRule.typeInListFilter(text) { composeTestRule.waitForIdle() }
 
     private fun showPlainList(container: FakeAppContainer) {
         composeTestRule.setContent {
@@ -196,7 +197,7 @@ class MultiSelectTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput("gamma")
+        filterBy("gamma")
         composeTestRule.waitForIdle()
         longPress("Gamma episode")
         composeTestRule.onNodeWithText(activity.getString(R.string.select_all)).performClick()
@@ -431,7 +432,7 @@ class MultiSelectTest {
         composeTestRule.waitForIdle()
 
         longPress("Beta episode")
-        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput("zzzq")
+        filterBy("zzzq")
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithContentDescription(activity.getString(R.string.filter_clear)).performClick()
         composeTestRule.waitForIdle()

@@ -64,10 +64,12 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.innertube.comments.Comment
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
+import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
 import com.dewijones92.totum.ui.player.WatchViewModel.PostState
@@ -440,7 +442,7 @@ private fun UpNextSection(queue: QueueControls) {
                     .padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
             ) {
                 MediaThumbnail(
-                    url = item.thumbnailUrl,
+                    url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
                     contentDescription = null,
                     modifier = Modifier.size(width = UP_NEXT_THUMB_WIDTH, height = UP_NEXT_THUMB_HEIGHT),
                     shape = MaterialTheme.shapes.small,

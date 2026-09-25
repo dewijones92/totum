@@ -35,10 +35,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.DownloadState
@@ -57,7 +59,6 @@ import com.dewijones92.totum.domain.withArtworkFrom
  */
 private val THUMBNAIL_WIDTH = 128.dp
 private val THUMBNAIL_HEIGHT = 72.dp
-private val CARD_SHAPE = RoundedCornerShape(20.dp)
 private val UNPLAYED_DOT = 12.dp
 
 /**
@@ -143,6 +144,7 @@ fun MediaItemRow(
      * exactly one thing painting a background.
      */
     tint: Color = rowTint(pillar, playState),
+    cardInset: Dp = ROW_CARD_MARGIN_H,
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
@@ -158,10 +160,8 @@ fun MediaItemRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
-            .clip(CARD_SHAPE)
             // Under the click, so the ripple still draws on top of it.
-            .background(tint.orSelected(id))
+            .rowCard(tint.orSelected(id), MaterialTheme.shapes.large, cardInset)
             .selectableClicks(
                 id = id,
                 enabled = item.mediaUrl != null || hasMenu,
@@ -169,7 +169,7 @@ fun MediaItemRow(
                 onLongClick = if (hasMenu) ({ showSheet = true }) else null,
             )
             // Tighter vertically than horizontally: 16dp all round made every row a third taller
-            // than its artwork needed, so a screenful held five items where it now holds seven.
+            // than its artwork needed.
             .padding(start = 10.dp, end = 2.dp, top = 10.dp, bottom = 10.dp),
     ) {
         ThumbnailWithProgress(item, playState)
@@ -396,3 +396,8 @@ private fun DownloadControl(
 
 val ROW_CARD_MARGIN_H = 12.dp
 val ROW_CARD_MARGIN_V = 4.dp
+
+fun Modifier.rowCard(tint: Color, shape: Shape, inset: Dp = ROW_CARD_MARGIN_H): Modifier = this
+    .padding(horizontal = inset, vertical = ROW_CARD_MARGIN_V)
+    .clip(shape)
+    .background(tint)

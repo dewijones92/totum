@@ -1,24 +1,35 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
@@ -35,12 +46,12 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelContent
 import com.dewijones92.totum.ui.channel.ChannelViewModel
 import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
-import androidx.compose.foundation.layout.Column
-import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ProvidePlayStates
+import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.videos.VideosContent
@@ -58,14 +69,7 @@ class ListFilterTest {
 
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private fun type(text: String) {
-        if (composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).fetchSemanticsNodes().isEmpty()) {
-            composeTestRule.onNode(hasContentDescription("Filter", substring = true) and hasClickAction()).performClick()
-            composeTestRule.waitForIdle()
-        }
-        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput(text)
-        composeTestRule.waitForIdle()
-    }
+    private fun type(text: String) = composeTestRule.typeInListFilter(text) { composeTestRule.waitForIdle() }
 
     private fun item(id: String, title: String, author: String? = null) = MediaItem(
         id = MediaItemId(id),
@@ -123,6 +127,73 @@ class ListFilterTest {
         composeTestRule.onNodeWithContentDescription(context.getString(R.string.filter_clear)).performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).assertCountEquals(0)
+    }
+
+    @Test
+    fun `a hosted filter does not take the keyboard again when it scrolls back into view`() {
+        lateinit var focus: FocusManager
+        composeTestRule.setContent {
+            TotumTheme {
+                focus = LocalFocusManager.current
+                val filter = rememberListFilter("scrolled")
+                LazyColumn(Modifier.testTag(SCROLLED_LIST)) {
+                    item { FilterToggle(filter, total = ROWS) }
+                    filterField(filter, shown = ROWS, total = ROWS, hosted = true)
+                    items((1..ROWS).toList()) { Text("Row $it", Modifier.height(ROW_HEIGHT)) }
+                }
+            }
+        }
+        composeTestRule.onNode(hasContentDescription("Filter", substring = true) and hasClickAction()).performClick()
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertIsFocused()
+        composeTestRule.runOnIdle { focus.clearFocus() }
+
+        composeTestRule.onNodeWithTag(SCROLLED_LIST).performScrollToIndex(ROWS + 1)
+        composeTestRule.onNodeWithTag(SCROLLED_LIST).performScrollToIndex(0)
+
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertIsNotFocused()
+    }
+
+    @Test
+    fun `the toggle stays while its field is open even when nothing is left to filter`() {
+        var total by mutableIntStateOf(3)
+        composeTestRule.setContent {
+            TotumTheme {
+                val filter = rememberListFilter("emptied")
+                Column {
+                    FilterToggle(filter, total = total)
+                    FilterField(filter, shown = total, total = total, hosted = true)
+                }
+            }
+        }
+        val toggle = hasContentDescription("Filter", substring = true) and hasClickAction()
+        composeTestRule.onNode(toggle).performClick()
+
+        total = 0
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNode(toggle).assertExists()
+    }
+
+    @Test
+    fun `a queue emptied while filtered comes back unfiltered`() {
+        val container = FakeAppContainer()
+        val queued = listOf("Alpha show", "Beta match report", "Gamma show").mapIndexed { i, title ->
+            PlayableItem(item("e$i", title), PlayHandle.Podcast())
+        }
+        container.playbackQueue.playAll(queued)
+        composeTestRule.setContent {
+            TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { QueueScreen(container) } }
+        }
+        composeTestRule.waitForIdle()
+        type("gamma")
+
+        composeTestRule.runOnIdle { container.playbackQueue.clear() }
+        composeTestRule.waitForIdle()
+        composeTestRule.runOnIdle { container.playbackQueue.playAll(queued) }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Alpha show").assertExists()
+        composeTestRule.onNodeWithText("Beta match report").assertExists()
     }
 
     @Test
@@ -343,6 +414,8 @@ class ListFilterTest {
 
     private companion object {
         const val ROWS = 40
+        const val SCROLLED_LIST = "scrolled-list"
+        val ROW_HEIGHT = 64.dp
         const val SETTLE_MS = 2_000L
         const val TIMEOUT_MS = 5_000L
     }

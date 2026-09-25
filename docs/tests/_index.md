@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-24
+updated: 2026-09-25
 ---
 
 # Testing
@@ -52,7 +52,7 @@ instead).
 | Every "go to" lands on its source, the player sheet labels per pillar, a source page never offers itself, an unfollowed feed previews | instrumented | `:app` `GoToSourceGoesThereTest` |
 | Each channel's latest upload from its RSS feed: parse a real feed, skip fresh, keep on failure, cap concurrency, one at a time | JVM unit | `:core:data` `ChannelFeedParserTest`, `ChannelLatestUploadsTest` |
 | Multi-select: selecting, bulk actions and their order, confirmations, the queue grip | JVM unit + instrumented | `:app` `SelectionTest`, `MultiSelectTest` |
-| Fuzzy filtering: the matcher, and every list's field, paging pause and queue index mapping | JVM unit + instrumented | `:core:domain` `FuzzyMatchTest`, `:app` `ListFilterTest` |
+| Fuzzy filtering: the matcher, and every list's field, paging pause and queue index mapping; a hosted field hidden until its toggle opens it and closed when cleared | JVM unit + instrumented | `:core:domain` `FuzzyMatchTest`, `:app` `ListFilterTest` |
 | One list of both pillars' subscriptions, newest upload first | JVM unit + instrumented | `:core:domain` `SourceActivityTest`, `:app` `AllSubscriptionsViewModelTest`, `AllSubscriptionsListTest` |
 | Rows wear their pillar's wash, with cyan on top when played (pixels, both themes) | instrumented | `:app` `PlayedRowIsTintedTest` |
 | Old rows and playback borrow the show's artwork | JVM unit | `:app` `AnEpisodeWithNoPictureWearsItsShowsTest`, `:core:domain` `SourceArtworkTest` |
@@ -65,7 +65,7 @@ instead).
 | What each search section state looks like | instrumented | `:app` `SearchSectionStatesTest` |
 | The facts under every video title (maker, publisher, views, date — one per line) | JVM unit | `:app` `MediaItemSubtitleTest` — testable at all only because `@Composable` came off the formatter |
 | A show's name AND its publisher, never one instead of the other | JVM unit | `:core:data` `DefaultPodcastRepositoryTest`, `RssParserTest` — the assertion pinning the old `author ?: feedTitle` was seen to fail before it was rewritten |
-| A played row is washed cyan and an unplayed one is not, in BOTH themes | instrumented | `:app` `PlayedRowIsTintedTest` — reads the **corner pixel**, because a test of the colour function stays green if the modifier is dropped. Mutation-proven both ways |
+| A played row is washed cyan and an unplayed one is not, in BOTH themes | instrumented | `:app` `PlayedRowIsTintedTest` — reads a pixel inside the card's top padding (it read the corner until rows became inset cards, 2026-09-25), because a test of the colour function stays green if the modifier is dropped. Mutation-proven both ways, and again after the move |
 | Nothing in the app truncates text | preflight (grep) | `tools/ci/preflight.py` — deliberately not a Compose test: a truncated `Text` reports its whole string to the semantics tree, so no text assertion can see it |
 | The truncation guard's own holes (a `"*/*"` literal blinding it, a second `Ellipsis` spelling, a count-based allowance) | python | `tools/ci/preflight_text_test.py` — the guard is the only thing enforcing the rule, so it is guarded too |
 | A queue drag stepping by the height of the row it CROSSES, with rows of different heights | JVM unit | `:app` `ReorderStateTest` — every earlier case made rows uniform by construction, which is why uncapping titles broke the drag invisibly |

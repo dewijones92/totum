@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui.subscriptions
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +25,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,18 +42,19 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
-import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_H
-import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_V
 import com.dewijones92.totum.ui.common.SelectableList
 import com.dewijones92.totum.ui.common.SelectionCheckbox
 import com.dewijones92.totum.ui.common.SourceArtwork
 import com.dewijones92.totum.ui.common.isSelecting
 import com.dewijones92.totum.ui.common.orSelected
 import com.dewijones92.totum.ui.common.pillarRowTint
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.selectableClicks
 
 @Composable
@@ -88,13 +87,21 @@ internal fun AllSubscriptionsContent(
     val selection = rememberSelection("subscriptions")
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            BackHeader(stringResource(R.string.all_subscriptions_title), onBack)
+            val listFilter = rememberListFilter("subscriptions")
+            BackHeader(stringResource(R.string.all_subscriptions_title), onBack) {
+                FilterToggle(listFilter, sources?.size ?: 0)
+            }
             checking?.let { CheckingChannels(it) }
             PullToRefreshBox(isRefreshing = false, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
                 if (sources.isNullOrEmpty()) {
                     SubscriptionsBody(sources, onOpen)
                 } else {
-                    FilterableList("subscriptions", sources, { it.source.searchableText }) { shown, _ ->
+                    FilterableList(
+                        "subscriptions",
+                        sources,
+                        { it.source.searchableText },
+                        filter = listFilter
+                    ) { shown, _ ->
                         SelectableList(
                             selection,
                             sources,
@@ -157,9 +164,7 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
-            .clip(MaterialTheme.shapes.large)
-            .background(pillarRowTint(pillar).orSelected(source.id.value))
+            .rowCard(pillarRowTint(pillar).orSelected(source.id.value), MaterialTheme.shapes.large)
             .selectableClicks(
                 source.id.value,
                 enabled = onOpen != null,

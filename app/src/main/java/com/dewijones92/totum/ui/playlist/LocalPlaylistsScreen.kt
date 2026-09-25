@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material3.AlertDialog
@@ -37,12 +36,16 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.BulkAction
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
+import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.SelectableList
 import com.dewijones92.totum.ui.common.SelectionCheckbox
 import com.dewijones92.totum.ui.common.isSelecting
 import com.dewijones92.totum.ui.common.orSelected
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.selectableClicks
 
@@ -57,25 +60,12 @@ fun LocalPlaylistsScreen(
     val viewModel: LocalPlaylistsViewModel = viewModel(factory = LocalPlaylistsViewModel.factory(container))
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var creating by remember { mutableStateOf(false) }
+    val listFilter = rememberListFilter("local-playlists")
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(
-                    text = stringResource(R.string.playlists_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp),
-                )
+            BackHeader(stringResource(R.string.playlists_title), onBack) {
+                FilterToggle(listFilter, playlists.size)
                 IconButton(onClick = { creating = true }) {
                     Icon(
                         Icons.AutoMirrored.Filled.PlaylistAdd,
@@ -83,7 +73,7 @@ fun LocalPlaylistsScreen(
                     )
                 }
             }
-            PlaylistList(playlists, onOpen, onDelete = viewModel::delete)
+            PlaylistList(playlists, listFilter, onOpen, onDelete = viewModel::delete)
         }
     }
 
@@ -164,7 +154,12 @@ internal fun NamePlaylistDialog(
 }
 
 @Composable
-private fun PlaylistList(playlists: List<LocalPlaylist>, onOpen: (PlaylistId) -> Unit, onDelete: (PlaylistId) -> Unit) {
+private fun PlaylistList(
+    playlists: List<LocalPlaylist>,
+    listFilter: ListFilter,
+    onOpen: (PlaylistId) -> Unit,
+    onDelete: (PlaylistId) -> Unit,
+) {
     val selection = rememberSelection("local-playlists")
     if (playlists.isEmpty()) {
         Text(
@@ -177,7 +172,7 @@ private fun PlaylistList(playlists: List<LocalPlaylist>, onOpen: (PlaylistId) ->
         )
         return
     }
-    FilterableList("local-playlists", playlists, { listOf(it.name) }) { shown, _ ->
+    FilterableList("local-playlists", playlists, { listOf(it.name) }, filter = listFilter) { shown, _ ->
         SelectableList(
             selection,
             playlists,

@@ -31,6 +31,13 @@ internal fun FeedChoice.cacheKey(): String = when (this) {
     is FeedChoice.Group -> "group:${group.id.value}"
 }
 
+/**
+ * Where the Videos tab was, for the place trail.
+ *
+ * The item count is here for a reason: a restored scroll index cannot survive being applied
+ * to an empty list, so "scroll=40 videos=0" and "scroll=0 videos=40" are different bugs
+ * needing different fixes, and without the count they look identical in a report.
+ */
 internal fun videosPlace(state: VideosViewModel.UiState, listState: LazyListState, listFilter: ListFilter): String =
     "feed=${state.selected} scroll=${listState.firstVisibleItemIndex}" +
         "+${listState.firstVisibleItemScrollOffset} videos=${state.videos.size} filter=\"${listFilter.query}\""

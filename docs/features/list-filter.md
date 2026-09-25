@@ -10,6 +10,24 @@ updated: 2026-09-25
 
 Dewi, 2026-09-24: *"put fuzzy search everywhere there's a list"*.
 
+## Where the field lives (2026-09-25)
+
+Every list's field is **hidden behind a ⌕ toggle** in its header, Dewi's pick in the overhaul: the tabs
+(Videos, Podcasts, Queue, Library downloads), the sub-screens (history, new uploads, both playlist lists,
+a playlist, all subscriptions, diagnostics) and the source pages (a podcast, each channel tab, with the
+toggle following the tab you are on). It opens with the keyboard up, stays open while it holds text, and
+clearing it closes it. `ListFilter.open` is saved with the query, so rotation keeps it.
+
+- **The keyboard comes up once, when you open it** — not every time the field scrolls back into view.
+  The first version asked for focus from the field itself, so scrolling a feed away and back, or
+  switching tabs, popped the keyboard again (the review caught it; `ListFilterTest` pins it, and fails at
+  that step with the old code).
+- **The toggle stays while the field is open**, even when the list empties under it, so an open field can
+  always be closed. It hides only when there is nothing to filter and the field is shut.
+- **A queue emptied while filtered comes back unfiltered**: the queue's filter is keyed on the queue being
+  empty, as it was when the filter lived inside the non-empty branch.
+- **Pickers keep the field open** (add to playlist, groups): in a picker, finding the entry is the task.
+
 ## The seam
 
 - **`FuzzyMatch` / `fuzzyFiltered`** (`:core:domain`) — one pure rule for every list. Case, accents and

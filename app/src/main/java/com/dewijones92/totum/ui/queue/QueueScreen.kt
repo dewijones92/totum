@@ -98,7 +98,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     // Hoisted so the header can collapse against it — the header sits outside the list, so
     // it cannot read a state the list owns privately.
     val listState = rememberLazyListState()
-    val listFilter = rememberListFilter("queue")
+    val listFilter = rememberListFilter("queue", key = entries.isEmpty())
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {

@@ -55,6 +55,8 @@
     <string name="playlists_signed_out">Sign in to see your playlists.</string>
     <string name="history_title">History</string>
     <string name="filter_clear">Clear filter</string>
+    <string name="filter_state_open">Open</string>
+    <string name="filter_state_closed">Closed</string>
     <string name="filter_count">%1$d of %2$d</string>
     <string name="filter_no_matches">Nothing here matches “%1$s”</string>
     <string name="all_subscriptions_title">Subscriptions</string>

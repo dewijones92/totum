@@ -3,7 +3,7 @@ title: Totum — name, palette and icon
 kind: feature
 status: shipped
 area: branding
-updated: 2026-07-25
+updated: 2026-09-25
 ---
 
 # Totum
@@ -63,6 +63,18 @@ Two decisions worth their own note:
 The palette's single source of truth is `theme/Color.kt`. It is mirrored in exactly one
 other place — `ic_launcher_background.xml`, because a vector drawable can't reference
 Compose values — and that file says so.
+
+## Typeface (2026-09-25)
+
+**Bricolage Grotesque** (SIL Open Font License), bundled at `res/font/bricolage_grotesque.ttf` with its
+licence in `assets/licenses/OFL-BricolageGrotesque.txt`, as the OFL requires when the font ships.
+
+- One variable file, instanced with fontTools: the width axis pinned at 100 and subset to Latin and
+  Latin Extended-A plus punctuation, which took it from 399KB to 206KB. Weight and optical size stay
+  variable, so each style asks for its own weight through `FontVariation`.
+- Display and headline styles use optical size 48, titles and labels 16. Body text stays on the system
+  font: a characterful grotesk earns its place in a title and costs readability in a paragraph.
+- A glyph outside the subset falls back to the system font rather than to a box.
 
 ## Icon
 

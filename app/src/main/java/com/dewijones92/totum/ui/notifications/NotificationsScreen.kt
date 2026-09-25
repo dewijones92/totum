@@ -1,22 +1,16 @@
 package com.dewijones92.totum.ui.notifications
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -24,12 +18,15 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowTint
 
@@ -51,16 +48,8 @@ fun NotificationsScreen(
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(
-                    text = stringResource(R.string.notifications_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
+            val listFilter = rememberListFilter("notifications")
+            BackHeader(stringResource(R.string.notifications_title), onBack) { FilterToggle(listFilter, uploads.size) }
             val selection = rememberSelection("notifications")
             if (uploads.isEmpty()) {
                 Text(
@@ -70,7 +59,7 @@ fun NotificationsScreen(
                     modifier = Modifier.padding(32.dp),
                 )
             } else {
-                FilterableList("notifications", uploads, { it.item.searchableText }) { shown, _ ->
+                FilterableList("notifications", uploads, { it.item.searchableText }, filter = listFilter) { shown, _ ->
                     SelectableMediaList("notifications", uploads, shown, { it.item }, hoisted = selection) {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             itemsIndexed(shown, key = { _, upload -> upload.item.id.value }) { index, upload ->

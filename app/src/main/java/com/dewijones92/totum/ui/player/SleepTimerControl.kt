@@ -38,6 +38,7 @@ internal fun SleepTimerControl(
     val value = when (state) {
         SleepTimerState.Off -> stringResource(R.string.control_off)
         is SleepTimerState.Running -> formatTime(state.remaining.inWholeMilliseconds)
+        // No countdown to show — it ends when the item does.
         SleepTimerState.AfterCurrentItem -> stringResource(R.string.sleep_after_item_short)
     }
     Box(modifier) {

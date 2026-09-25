@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -41,6 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -61,6 +64,8 @@ class ListFilter internal constructor(
     val filtering: Boolean get() = FuzzyMatch.hasTerms(query)
 
     val fieldShown: Boolean get() = open || query.isNotEmpty()
+
+    internal var focusPending: Boolean by mutableStateOf(false)
 }
 
 @Composable
@@ -72,17 +77,21 @@ fun rememberListFilter(place: String, key: Any? = null): ListFilter {
 
 @Composable
 fun FilterToggle(filter: ListFilter, total: Int, modifier: Modifier = Modifier) {
-    if (total == 0 && filter.query.isEmpty()) return
+    if (total == 0 && !filter.fieldShown) return
+    val state = stringResource(if (filter.fieldShown) R.string.filter_state_open else R.string.filter_state_closed)
     IconButton(
         onClick = {
             if (filter.query.isEmpty()) {
                 filter.open = !filter.open
+                filter.focusPending = filter.open
                 Diag.log("filter", "${filter.place} field ${if (filter.open) "opened" else "closed"} from its toggle")
             } else {
                 filter.open = true
+                filter.focusPending = true
+                Diag.log("filter", "${filter.place} toggle tapped while holding \"${filter.query}\", field kept open")
             }
         },
-        modifier = modifier,
+        modifier = modifier.semantics { stateDescription = state },
     ) {
         Icon(
             imageVector = Icons.Filled.Search,
@@ -143,7 +152,12 @@ fun FilterField(
         ) {
             val focus = remember { FocusRequester() }
             FilterTextField(filter, shown, total, modifier.focusRequester(focus), inset)
-            LaunchedEffect(Unit) { if (filter.query.isEmpty()) focus.requestFocus() }
+            LaunchedEffect(filter.focusPending) {
+                if (!filter.focusPending) return@LaunchedEffect
+                withFrameNanos { }
+                focus.requestFocus()
+                filter.focusPending = false
+            }
         }
     } else {
         FilterTextField(filter, shown, total, modifier, inset)
@@ -203,12 +217,13 @@ fun <T> FilterableList(
     key: Any? = null,
     inset: Dp = 16.dp,
     fillsScreen: Boolean = true,
+    filter: ListFilter? = null,
     content: @Composable (shown: List<T>, filtering: Boolean) -> Unit,
 ) {
-    val listFilter = rememberListFilter(place, key)
+    val listFilter = filter ?: rememberListFilter(place, key)
     val shown = listFilter.filter(items, fields)
     Column(modifier) {
-        FilterField(listFilter, shown.size, items.size, inset = inset)
+        FilterField(listFilter, shown.size, items.size, inset = inset, hosted = filter != null)
         if (listFilter.filtering && shown.isEmpty() && fillsScreen) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { NoFilterMatches(listFilter.query) }
         } else if (listFilter.filtering && shown.isEmpty()) {
@@ -227,6 +242,15 @@ fun LazyListScope.filterField(
     nothingToFilter: (@Composable () -> Unit)? = null,
 ) {
     item { FilterField(filter, shown, total, hosted = hosted) }
+    filterOutcome(filter, shown, total, nothingToFilter)
+}
+
+fun LazyListScope.filterOutcome(
+    filter: ListFilter,
+    shown: Int,
+    total: Int,
+    nothingToFilter: (@Composable () -> Unit)? = null,
+) {
     when {
         total == 0 -> nothingToFilter?.let { item { it() } }
         filter.filtering && shown == 0 -> item { NoFilterMatches(filter.query) }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -73,8 +73,7 @@ fun Dock(
 @Composable
 internal fun dockColor(): Color {
     val scheme = MaterialTheme.colorScheme
-    val dark = scheme.surface.luminance() < DARK_LUMINANCE
-    return if (dark) scheme.surfaceContainerHigh else scheme.surfaceContainerLowest
+    return if (isDarkSurface()) scheme.surfaceContainerHigh else scheme.surfaceContainerLowest
 }
 
 @Composable
@@ -83,6 +82,7 @@ private fun DockNavigation(selected: TopLevelDestination, onSelect: (TopLevelDes
         horizontalArrangement = Arrangement.SpaceEvenly,
         modifier = Modifier
             .fillMaxWidth()
+            .selectableGroup()
             .padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
         TopLevelDestination.entries.forEach { destination ->
@@ -113,6 +113,9 @@ private fun DockItem(
         if (selected) scheme.primary else scheme.onSurfaceVariant,
         label = "dock-label"
     )
+    // A hair larger when selected — the filled/outlined swap alone is a small
+    // signal, and animating the size makes which tab you are on readable at a
+    // glance rather than something you have to look for.
     val scale by animateFloatAsState(if (selected) SELECTED_SCALE else 1f, label = "dock-scale")
     val label = stringResource(destination.labelRes)
     Column(
@@ -133,7 +136,7 @@ private fun DockItem(
         ) {
             Icon(
                 imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-                contentDescription = label,
+                contentDescription = null,
                 tint = iconTint,
             )
         }
@@ -150,7 +153,8 @@ private val DOCK_CORNER = 28.dp
 private val DOCK_GUTTER = 10.dp
 private val DOCK_SHADOW = 12.dp
 private const val DOCK_BORDER_ALPHA = 0.7f
-private const val DARK_LUMINANCE = 0.5f
 private val PILL_WIDTH = 56.dp
 private val PILL_HEIGHT = 32.dp
+
+/** Enough to notice, not enough to jump. */
 private const val SELECTED_SCALE = 1.06f

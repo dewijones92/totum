@@ -41,6 +41,8 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
+import com.dewijones92.totum.ui.common.FilterField
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
@@ -51,7 +53,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
-import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.group.GroupPicker
@@ -141,6 +143,9 @@ internal fun ChannelContent(
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+            val videosFilter = rememberListFilter("channel ${state.title} videos", key = sourceKey)
+            val shortsFilter = rememberListFilter("channel ${state.title} shorts", key = sourceKey)
+            val playlistsFilter = rememberListFilter("channel ${state.title} playlists", key = sourceKey)
             SourceHeader(
                 title = state.title,
                 subscribed = state.subscribed,
@@ -149,11 +154,9 @@ internal fun ChannelContent(
                 onOpenGroups = onOpenGroups,
                 pillar = MediaKind.VIDEO,
                 artworkUrl = state.artworkUrl,
+                actions = { ChannelFilterToggle(state, videosFilter, shortsFilter, playlistsFilter) },
             )
             ChannelTabs(state.tab, onSelectTab)
-            val videosFilter = rememberListFilter("channel ${state.title} videos", key = sourceKey)
-            val shortsFilter = rememberListFilter("channel ${state.title} shorts", key = sourceKey)
-            val playlistsFilter = rememberListFilter("channel ${state.title} playlists", key = sourceKey)
             when (state.tab) {
                 ChannelTab.VIDEOS -> MediaItemTab(
                     videosFilter,
@@ -229,6 +232,21 @@ private fun SearchTab(
     }
 }
 
+@Composable
+private fun ChannelFilterToggle(
+    state: ChannelViewModel.UiState,
+    videos: ListFilter,
+    shorts: ListFilter,
+    playlists: ListFilter,
+) {
+    when (state.tab) {
+        ChannelTab.VIDEOS -> FilterToggle(videos, state.videos.items.size)
+        ChannelTab.SHORTS -> FilterToggle(shorts, state.shorts.items.size)
+        ChannelTab.PLAYLISTS -> FilterToggle(playlists, state.playlists.items.size)
+        ChannelTab.SEARCH -> Unit
+    }
+}
+
 private fun ChannelTab.labelRes(): Int = when (this) {
     ChannelTab.VIDEOS -> R.string.channel_tab_videos
     ChannelTab.SHORTS -> R.string.channel_tab_shorts
@@ -257,8 +275,9 @@ private fun MediaItemTab(
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
         else -> SelectableMediaList(place, tab.items, shown, { it }, key = sourceKey) {
+            listFilter?.let { FilterField(it, shown.size, tab.items.size, hosted = true) }
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                listFilter?.let { filterField(it, shown.size, tab.items.size) }
+                listFilter?.let { filterOutcome(it, shown.size, tab.items.size) }
                 items(shown, key = { it.id.value }) { video ->
                     MediaItemRow(
                         item = video,
@@ -292,14 +311,28 @@ private fun PlaylistTab(
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
         tab.error -> Message(stringResource(R.string.feed_error))
         tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
-        else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            filterField(listFilter, shown.size, tab.items.size)
-            items(shown, key = { it.browseId }) { playlist ->
-                PlaylistRow(playlist, onClick = { onOpen(playlist) })
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            }
-            if (tab.loadingMore) item { LoadingMoreFooter() }
+        else -> Column {
+            FilterField(listFilter, shown.size, tab.items.size, hosted = true)
+            PlaylistRows(listState, listFilter, shown, tab, onOpen)
         }
+    }
+}
+
+@Composable
+private fun PlaylistRows(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    listFilter: ListFilter,
+    shown: List<Playlist>,
+    tab: TabState<Playlist>,
+    onOpen: (Playlist) -> Unit,
+) {
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        filterOutcome(listFilter, shown.size, tab.items.size)
+        items(shown, key = { it.browseId }) { playlist ->
+            PlaylistRow(playlist, onClick = { onOpen(playlist) })
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        }
+        if (tab.loadingMore) item { LoadingMoreFooter() }
     }
 }
 

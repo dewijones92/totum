@@ -1,14 +1,13 @@
 package com.dewijones92.totum.ui.playlist
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
@@ -24,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -35,12 +33,16 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.BulkAction
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
+import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 
 /** One local playlist: Play all, play from an item, remove items, rename/delete. */
@@ -58,6 +60,7 @@ fun LocalPlaylistDetailScreen(
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf(false) }
+    val listFilter = rememberListFilter("local-playlist")
 
     if (deleted) onBack()
 
@@ -68,8 +71,9 @@ fun LocalPlaylistDetailScreen(
                 onBack = onBack,
                 onRename = { renaming = true },
                 onDelete = viewModel::delete,
+                filterToggle = { FilterToggle(listFilter, items.size) },
             )
-            PlaylistBody(items, downloadStates, viewModel)
+            PlaylistBody(items, downloadStates, viewModel, listFilter)
         }
     }
 
@@ -91,6 +95,7 @@ private fun PlaylistBody(
     items: List<com.dewijones92.totum.domain.PlayableItem>,
     downloadStates: Map<com.dewijones92.totum.domain.MediaItemId, DownloadState>,
     viewModel: LocalPlaylistDetailViewModel,
+    listFilter: ListFilter,
 ) {
     val selection = rememberSelection("local-playlist")
     if (items.isEmpty()) {
@@ -111,7 +116,7 @@ private fun PlaylistBody(
         Icon(Icons.Filled.PlayArrow, contentDescription = null)
         Text(stringResource(R.string.playlist_play_all), modifier = Modifier.padding(start = 8.dp))
     }
-    FilterableList("local-playlist", items, { it.item.searchableText }) { shown, _ ->
+    FilterableList("local-playlist", items, { it.item.searchableText }, filter = listFilter) { shown, _ ->
         SelectableMediaList(
             "local-playlist",
             items,
@@ -142,42 +147,36 @@ private fun PlaylistBody(
 }
 
 @Composable
-private fun DetailHeader(name: String, onBack: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun DetailHeader(
+    name: String,
+    onBack: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    filterToggle: @Composable () -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-        }
-        Text(
-            text = name,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp),
-        )
-        IconButton(onClick = { menu = true }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
-        }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.playlist_rename)) },
-                onClick = {
-                    menu = false
-                    onRename()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.playlist_delete)) },
-                onClick = {
-                    menu = false
-                    onDelete()
-                },
-            )
+    BackHeader(name, onBack) {
+        filterToggle()
+        Box {
+            IconButton(onClick = { menu = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.playlist_rename)) },
+                    onClick = {
+                        menu = false
+                        onRename()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.playlist_delete)) },
+                    onClick = {
+                        menu = false
+                        onDelete()
+                    },
+                )
+            }
         }
     }
 }

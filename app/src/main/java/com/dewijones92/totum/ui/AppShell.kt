@@ -174,6 +174,7 @@ private fun WatchBindings(
     }
 }
 
+/** The mini player sitting above the tabs — one bar, so neither appears without the other. */
 @Composable
 private fun BottomBar(
     state: PlaybackState?,
@@ -186,6 +187,8 @@ private fun BottomBar(
     Dock(
         state = state,
         selected = selected,
+        // Logged because a real report could not answer "did this happen when I switched
+        // tabs?" — nothing recorded that the user had, so the question was unanswerable.
         onSelect = { destination ->
             Diag.log("nav", "tab $selected -> $destination")
             onSelect(destination)

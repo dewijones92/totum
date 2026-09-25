@@ -3,7 +3,7 @@ title: The player screen — tinted by what is playing
 kind: feature
 status: shipped
 area: player
-updated: 2026-08-07
+updated: 2026-09-25
 ---
 
 # The player screen
@@ -44,6 +44,18 @@ matching the shape the sleep timer already had.
 Everything stayed on the surface. An earlier version put speed and boost behind a sheet; the guard
 test flagged it, and on reflection a control whose *value* matters at a glance — Dewi listens at 1.5×
 — should not need a tap to read.
+
+## Tiles (2026-09-25)
+
+The control strip became a two-column grid of tiles: sleep timer, skip silences, speed (audio only; a
+video has it on the overlay), volume boost, auto-play next, listen/watch and fast start. A tile shows
+its value under its name and fills tangerine while it is on, so "what is set" reads at a glance.
+
+- Toggles are `toggleable` with the Switch role, so a screen reader hears on and off rather than a bare
+  button. Pickers open the same menus they did.
+- Fast start's label had run off the right-hand edge with its switch cut in half; it is now a title and
+  a detail line (`sabr_playback`, `sabr_playback_detail`).
+- Like and dislike are tonal buttons, and up next is a list of cards with artwork.
 
 ## Picking the colour
 

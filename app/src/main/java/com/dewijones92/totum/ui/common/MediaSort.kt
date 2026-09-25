@@ -131,25 +131,38 @@ fun <T> SortControl(
                 contentDescription = stringResource(R.string.sort_label),
             )
         }
-        DropdownMenu(
+        CheckedOptionsMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = MaterialTheme.shapes.medium
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(label(option))) },
-                    leadingIcon = {
-                        if (option == current) {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    },
-                    onClick = {
-                        onSelect(option)
-                        expanded = false
-                    },
-                )
-            }
+            onDismiss = { expanded = false },
+            options = options,
+            current = current,
+            label = { stringResource(label(it)) },
+            onSelect = onSelect,
+        )
+    }
+}
+
+@Composable
+fun <T> CheckedOptionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    options: List<T>,
+    current: T,
+    label: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, shape = MaterialTheme.shapes.medium) {
+        options.forEach { option ->
+            DropdownMenuItem(
+                text = { Text(label(option)) },
+                leadingIcon = {
+                    if (option == current) Icon(Icons.Filled.Check, contentDescription = null)
+                },
+                onClick = {
+                    onSelect(option)
+                    onDismiss()
+                },
+            )
         }
     }
 }

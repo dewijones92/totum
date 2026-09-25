@@ -43,6 +43,8 @@ internal fun speedLabel(speed: Float): String =
  * affordance on the video (see docs/todos/ui-polish.md).
  */
 
+// Both pillars now: silence is handled by raising the playback rate, which retimes
+// audio and video together, so the old audio-only restriction is gone.
 @Composable
 internal fun SkipSilenceTile(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     ToggleTile(Icons.Outlined.GraphicEq, stringResource(R.string.skip_silence), checked, onChange, modifier)
@@ -59,6 +61,8 @@ internal fun AutoPlayNextTile(checked: Boolean, onChange: (Boolean) -> Unit, mod
     )
 }
 
+// Experimental, and labelled as such: a ~150ms start against 2-4s, but SABR is asked for a
+// media time rather than a byte offset so it cannot seek yet.
 @Composable
 internal fun FastStartTile(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     ToggleTile(

@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -41,6 +39,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
 import com.dewijones92.totum.diagnostics.diagnosticsNote
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
 
 /** One selectable video-quality cap for the per-network preference. */
@@ -85,19 +84,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
         // Scrolls: the screen already ran past the bottom of a phone once the
         // SponsorBlock categories were added, and everything below was simply unreachable.
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(8.dp),
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(
-                    text = stringResource(R.string.settings),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
+            BackHeader(stringResource(R.string.settings), onBack)
             QualitySection(settings, prefs)
             DownloadSettings(settings, prefs)
             Text(

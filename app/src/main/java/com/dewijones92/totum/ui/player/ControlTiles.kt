@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.ui.common.CheckedOptionsMenu
 
 @Composable
 internal fun ControlTile(
@@ -131,20 +128,14 @@ internal fun <T> PickerTile(
             iconDescription = label,
             modifier = Modifier.fillMaxSize(),
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.medium) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(optionLabel(option)) },
-                    leadingIcon = {
-                        if (option == current) Icon(Icons.Filled.Check, contentDescription = null)
-                    },
-                    onClick = {
-                        onSelect(option)
-                        open = false
-                    },
-                )
-            }
-        }
+        CheckedOptionsMenu(
+            expanded = open,
+            onDismiss = { open = false },
+            options = options,
+            current = current,
+            label = optionLabel,
+            onSelect = onSelect,
+        )
     }
 }
 

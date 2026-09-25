@@ -3,7 +3,7 @@ title: Menus go where they say, and every source has its picture
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-24
+updated: 2026-09-25
 ---
 
 # Menus go where they say, and every source has its picture
@@ -55,8 +55,8 @@ Left as they are, on purpose: the Videos, Search and Podcasts tabs keep their ow
   `podcast_feeds.artworkUrl` (migration 22→23; that table holds both pillars). A refresh fills it for
   existing subscriptions.
 - **Episode thumbnail** = its own image, else the show's.
-- **`SourceArtwork` / `SourceChip`** — one composable each, round for a channel, rounded square for a
-  show, used by both tabs' chip strips and by `SourceHeader`.
+- **`SourceArtwork` / `SourceAvatar`** — one composable each, round for a channel, rounded square for a
+  show, used by both tabs' avatar strips and by `SourceHeader`.
 - **The shell hosts any source**: `ProvidePlayStates(onOpenSource: (MediaSource) -> Unit)` →
   `ShellOverlays` shows `ChannelScreen` or `PodcastFeedScreen` from an exhaustive `when`.
   `ItemActions.openSource` lets a non-row (a podcast search result) open a page the same way.

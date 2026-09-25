@@ -207,7 +207,9 @@ class PlayedRowIsTintedTest {
 
     private fun cornerOf(tag: String): Color {
         val pixels = composeTestRule.onNodeWithTag(tag).captureToImage().toPixelMap()
-        val insideTheCardsTopPadding = with(composeTestRule.density) { (ROW_CARD_MARGIN_V + CARD_PADDING_SAMPLE).roundToPx() }
+        val insideTheCardsTopPadding = with(
+            composeTestRule.density
+        ) { (ROW_CARD_MARGIN_V + CARD_PADDING_SAMPLE).roundToPx() }
         return pixels[pixels.width / 2, insideTheCardsTopPadding]
     }
 

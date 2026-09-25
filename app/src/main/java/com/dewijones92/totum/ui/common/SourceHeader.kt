@@ -59,6 +59,7 @@ fun SourceHeader(
      */
     pillar: MediaKind = MediaKind.PODCAST,
     artworkUrl: HttpUrl? = null,
+    actions: @Composable () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -69,6 +70,7 @@ fun SourceHeader(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             BackButton(onBack)
             Spacer(Modifier.weight(1f))
+            actions()
             onOpenGroups?.let { open ->
                 IconButton(onClick = open) {
                     Icon(Icons.Outlined.Bookmarks, contentDescription = stringResource(R.string.groups_add_to))
@@ -86,6 +88,9 @@ fun SourceHeader(
                     .padding(start = 16.dp),
             ) {
                 Text(text = title, style = MaterialTheme.typography.headlineSmall)
+                // Labelled 🎙️ and filtered by that label, not by position: this is a podcast page, and
+                // the default 📺 would only ever have shown if the positional drop mis-fired — so the
+                // failure mode was "a podcast page wearing a television".
                 val makerEmoji = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL
                 mediaFacts(author = title, publisher = publisher, dateText = null, authorEmoji = makerEmoji)
                     .filterNot { it.startsWith(makerEmoji) }

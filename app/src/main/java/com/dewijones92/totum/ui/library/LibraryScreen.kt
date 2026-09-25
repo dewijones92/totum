@@ -63,8 +63,6 @@ import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_H
-import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_V
 import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.SelectableMediaList
@@ -73,6 +71,7 @@ import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
@@ -336,6 +335,8 @@ private fun LibraryTiles(
                 onOpenHistory,
                 Modifier.weight(1f),
             )
+            // Account lives here rather than on the bottom bar: it's visited once to sign in,
+            // so it doesn't earn a permanent tab (the queue does).
             LibraryTile(
                 Icons.Outlined.AccountCircle,
                 R.string.destination_account,
@@ -415,9 +416,10 @@ private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDis
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = FAILED_CARD_ALPHA))
+            .rowCard(
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = FAILED_CARD_ALPHA),
+                MaterialTheme.shapes.large
+            )
             .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 4.dp),
     ) {
         Text(
@@ -454,9 +456,7 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .rowCard(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large)
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
