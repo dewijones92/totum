@@ -24,7 +24,7 @@ import kotlin.math.abs
  *   nothing, which is a bug shape this removes rather than fixes.
  *
  * Only 16-bit PCM is touched. Anything else passes through untouched rather than being reinterpreted
- * as samples, exactly as [SilenceDetectingAudioProcessor] does beside it in the same chain.
+ * as samples, exactly as [SilenceCuttingAudioProcessor] does beside it in the same chain.
  */
 @OptIn(markerClass = [UnstableApi::class])
 @UnstableApi
@@ -51,7 +51,8 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         // Rebuilt per configuration because the smoothing coefficients depend on the sample rate —
         // a boost tuned at 44.1kHz would attack twice as slowly at 22.05.
         boost = if (inputAudioFormat.encoding == ENCODING_16BIT) {
-            LoudnessBoost(inputAudioFormat.sampleRate).apply { level = this@BoostingAudioProcessor.level }
+            LoudnessBoost(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1))
+                .apply { level = this@BoostingAudioProcessor.level }
         } else {
             // Said out loud: silently passing audio through is indistinguishable from a boost that
             // does nothing, and "the booster stopped working" would have no other explanation.
@@ -65,7 +66,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         val remaining = inputBuffer.remaining()
         if (remaining == 0) return
         val active = boost
-        if (active == null || level == VolumeBoost.OFF) {
+        if (active == null) {
             // Straight through, byte for byte.
             replaceOutputBuffer(remaining).put(inputBuffer).flip()
             return
@@ -78,15 +79,27 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         // device and invisible in a type checker.
         val shorts = inputBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
         shorts.get(samples, 0, count)
-        active.process(samples, count)
-        report(active, count)
-
-        val output = replaceOutputBuffer(remaining).order(ByteOrder.LITTLE_ENDIAN)
-        output.asShortBuffer().put(samples, 0, count)
-        output.position(remaining)
-        output.flip()
         // The input has been consumed; the sink checks this rather than taking it on trust.
         inputBuffer.position(inputBuffer.limit())
+        write(active.process(samples, count), active.outputSamples)
+        if (level != VolumeBoost.OFF) report(active, count)
+    }
+
+    override fun onQueueEndOfStream() {
+        val active = boost ?: return
+        write(active.drain(), active.outputSamples)
+    }
+
+    override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
+        boost?.flushDelay()
+    }
+
+    private fun write(output: ShortArray, count: Int) {
+        if (count == 0) return
+        val buffer = replaceOutputBuffer(count * BYTES_PER_SAMPLE).order(ByteOrder.LITTLE_ENDIAN)
+        buffer.asShortBuffer().put(output, 0, count)
+        buffer.position(count * BYTES_PER_SAMPLE)
+        buffer.flip()
     }
 
     /**
@@ -115,7 +128,9 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         reportedClipped = clipped
 
         val line = "auto gain ${"%.1f".format(gainDb)}dB " +
-            "(level ${"%.4f".format(active.measuredLoudness)}) clipped=$clipped"
+            "(level ${"%.4f".format(active.measuredLoudness)}) " +
+            "limiter down to ${"%.1f".format(LoudnessBoost.decibels(active.deepestLimit))}dB clipped=$clipped"
+        active.forgetDeepestLimit()
         // Clipping is impossible by construction, so a non-zero count is a broken assumption, not
         // loud audio — it gets a warning rather than a note.
         if (clipped > 0) Diag.warn("boost", line) else Diag.log("boost", line)

@@ -24,15 +24,15 @@ import kotlin.math.ln
  * multiplied by the full boost for tens of milliseconds before the gain caught up, and all of it was
  * sliced: measured at **5428 samples (123 ms) at MAX and 2844 (64 ms) at MEDIUM**, per transient.
  *
- * The fix is an asymmetry, and it is the entire trick of a limiter: [applied] falls **instantly** and
- * recovers **slowly**. Because the fall is clamped per sample to `CEILING / |sample|`, the output is
- * bounded by construction — `|sample| * (CEILING / |sample|) = CEILING` — so nothing can reach full
- * scale, and [clippedSamples] is expected to stay at zero forever. It is reported anyway, because a
- * number that should always be zero is the cheapest possible alarm.
+ * The fix is a limiter that looks [LookaheadLimiter.LOOKAHEAD_MS] ms ahead: the gain ramps down over
+ * that window before a peak arrives and recovers slowly after it. Each sample's gain is an average of
+ * values that are all at or below that sample's own `CEILING / |sample|`, so the output is bounded by
+ * construction and [clippedSamples] is expected to stay at zero forever. It is reported anyway, because a number that
+ * should always be zero is the cheapest possible alarm.
  *
- * That per-sample clamp does not itself modulate the waveform: the gain can only *rise* at the slow
- * rate, so it settles just under the recent peak's requirement and sits there rather than following
- * the wave up and down.
+ * The version before this clamped at the peak sample itself, with no look-ahead. That never exceeded
+ * the ceiling, but it pinned the first rising edges of every loud onset flat against it: 12-15 flat
+ * tops and 1.4-2.1% harmonic distortion in the first 50 ms, measured 2026-09-26.
  *
  * ## Auto, rather than a number you pick
  *
@@ -46,14 +46,14 @@ import kotlin.math.ln
  *
  * - **It never turns anything down** ([MIN_GAIN] is 1). Quieter-than-expected is a surprise nobody
  *   asked for, and the ask was to hear quiet things.
- * - **It never applies more than [MAX_GAIN]**, +20 dB. Dewi's call over keeping the old +30:
- *   *"trade some maximum loudness for naturalness"*. Past about this point even a clean limiter
- *   leaves everything the same loudness, which sounds processed rather than loud.
+ * - **It never applies more than [MAX_GAIN]**, +30 dB. It was +20 until 2026-09-26, when Dewi asked
+ *   for any quiet audio to come up loud without distortion; the look-ahead limiter is what makes the
+ *   extra lift safe.
  *
  * Pure arithmetic on a `ShortArray`, deliberately: no Android, no platform effect, so it behaves the
  * same on every device and — the part that matters here — the maths can be proven on the JVM.
  */
-internal class LoudnessBoost(private val sampleRate: Int) {
+internal class LoudnessBoost(private val sampleRate: Int, private val channels: Int = 1) {
 
     /** Whether to do anything at all. Changing it mid-stream is picked up on the next sample. */
     var level: VolumeBoost = VolumeBoost.OFF
@@ -64,8 +64,21 @@ internal class LoudnessBoost(private val sampleRate: Int) {
     /** Recent peak: rises instantly, decays slowly. Sets the level below which audio is a pause. */
     private var recentPeak = 0f
 
-    /** The gain actually being applied: drifts up towards what is wanted, drops instantly to survive. */
+    /** The automatic gain: drifts towards what is wanted. The limiter keeps it off the ceiling. */
     private var applied = 1f
+
+    private val limiter = LookaheadLimiter(sampleRate, channels)
+    private var out = ShortArray(0)
+    private val write: (ShortArray, Int, Float) -> Unit = { source, at, gain ->
+        for (channel in 0 until channels) out[outputSamples++] = clamp(source[at + channel] / FULL_SCALE * gain)
+    }
+
+    var outputSamples: Int = 0
+        private set
+
+    val deepestLimit: Float get() = limiter.deepest
+
+    fun forgetDeepestLimit() = limiter.forgetDeepest()
 
     /** Samples of real audio seen so far, so the estimate can settle quickly at the start. */
     private var warmupSamples = 0L
@@ -107,52 +120,69 @@ internal class LoudnessBoost(private val sampleRate: Int) {
     private val warmupLimit = sampleRate.toLong() * WARMUP_SECONDS
 
     /**
-     * Boosts [count] samples of [samples] in place.
-     *
-     * In place because this sits in the sink's processing chain, where a copy per buffer is a copy
-     * per few milliseconds of audio for the whole of playback.
+     * Boosts [count] samples of [input], returning [outputSamples] of them from the returned array.
      */
-    fun process(samples: ShortArray, count: Int) {
+    fun process(input: ShortArray, count: Int): ShortArray {
+        val frames = count / channels
+        ensureRoom(frames + limiter.heldFrames)
+        outputSamples = 0
         // OFF is bit-exact passthrough, not a gain of one: a multiply-and-round on every sample of
         // every stream forever, to change nothing, is worth skipping.
-        if (level == VolumeBoost.OFF) return
-
-        for (i in 0 until count) {
-            val sample = samples[i] / FULL_SCALE
-            val magnitude = abs(sample)
-
-            // Track the recent peak, up at once and down slowly, so a pause is measured against the
-            // speech either side of it rather than against a fixed number.
-            recentPeak = if (magnitude > recentPeak) magnitude else recentPeak * peakDecay
-
-            if (magnitude > gateFor(recentPeak)) {
-                // Only real audio counts. Silence between sentences would otherwise drag the estimate
-                // down and wind the gain up, so every pause would end in a blast.
-                // The first couple of seconds settle fast, or an episode would start unboosted and
-                // audibly swell — the estimate has to be roughly right by the time speech begins.
-                val rate = if (warmupSamples < warmupLimit) loudnessWarmup else loudnessSettle
-                loudness += (magnitude - loudness) * rate
-                warmupSamples++
-            }
-
-            // Exactly the gain that brings this item to a comfortable level, and no more.
-            val wanted = if (loudness > EPSILON) {
-                (TARGET_LEVEL / loudness).coerceIn(MIN_GAIN, MAX_GAIN)
-            } else {
-                MIN_GAIN
-            }
-
-            // Drift towards it — slowly, so a change of level is never heard as the gain moving...
-            applied += (wanted - applied) * gainRise
-            // ...but come down AT ONCE if this very sample would otherwise breach the ceiling. This
-            // is the asymmetry that makes clipping impossible; the slow rise above is its release.
-            if (magnitude > EPSILON) {
-                val highestSafe = CEILING / magnitude
-                if (applied > highestSafe) applied = highestSafe
-            }
-
-            samples[i] = clamp(sample * applied)
+        if (level == VolumeBoost.OFF) {
+            limiter.releaseAll(applied, write)
+            input.copyInto(out, outputSamples, 0, frames * channels)
+            outputSamples += frames * channels
+            return out
         }
+        for (frame in 0 until frames) accept(input, frame * channels)
+        return out
+    }
+
+    fun drain(): ShortArray {
+        ensureRoom(limiter.heldFrames)
+        outputSamples = 0
+        limiter.releaseAll(applied, write)
+        return out
+    }
+
+    fun flushDelay() = limiter.reset()
+
+    private fun accept(input: ShortArray, at: Int) {
+        var peak = 0
+        for (channel in 0 until channels) peak = maxOf(peak, abs(input[at + channel].toInt()))
+        val magnitude = peak / FULL_SCALE
+
+        // Track the recent peak, up at once and down slowly, so a pause is measured against the
+        // speech either side of it rather than against a fixed number.
+        recentPeak = if (magnitude > recentPeak) magnitude else recentPeak * peakDecay
+
+        if (magnitude > gateFor(recentPeak)) {
+            // Only real audio counts. Silence between sentences would otherwise drag the estimate
+            // down and wind the gain up, so every pause would end in a blast.
+            // The first couple of seconds settle fast, or an episode would start unboosted and
+            // audibly swell — the estimate has to be roughly right by the time speech begins.
+            val rate = if (warmupSamples < warmupLimit) loudnessWarmup else loudnessSettle
+            loudness += (magnitude - loudness) * rate
+            warmupSamples++
+        }
+
+        // Exactly the gain that brings this item to a comfortable level, and no more.
+        val wanted = if (loudness > EPSILON) {
+            (TARGET_LEVEL / loudness).coerceIn(MIN_GAIN, MAX_GAIN)
+        } else {
+            MIN_GAIN
+        }
+
+        // Drift towards it — slowly, so a change of level is never heard as the gain moving...
+        applied += (wanted - applied) * gainRise
+        val allowed = if (magnitude > EPSILON) minOf(applied, CEILING / magnitude) else applied
+
+        limiter.push(input, at, allowed, applied, write)
+    }
+
+    private fun ensureRoom(frames: Int) {
+        val needed = frames * channels
+        if (out.size < needed) out = ShortArray(needed)
     }
 
     /**
@@ -194,16 +224,16 @@ internal class LoudnessBoost(private val sampleRate: Int) {
         /**
          * The average level to aim for, as a fraction of full scale.
          *
-         * Speech averaging around a tenth of full scale is comfortably loud without living against
-         * the ceiling, which leaves the limiter room to catch peaks without ever engaging hard.
+         * Speech averaging around an eighth of full scale is loud without living against the ceiling,
+         * which leaves the limiter room to catch peaks without engaging hard.
          */
-        private const val TARGET_LEVEL = 0.1f
+        private const val TARGET_LEVEL = 0.125f
 
         /** Never quieter than the recording: turning things down is a surprise nobody asked for. */
         private const val MIN_GAIN = 1f
 
-        /** +20 dB. Dewi's call, trading the old +30 for audio that does not sound crushed. */
-        private const val MAX_GAIN = 10f
+        /** +30 dB. */
+        private const val MAX_GAIN = 31.6f
 
         /** Slow: this is the limiter's release, and the rate the automatic gain drifts. */
         private const val GAIN_RISE_MS = 400f

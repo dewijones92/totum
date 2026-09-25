@@ -1,6 +1,5 @@
 package com.dewijones92.totum.playback
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -8,30 +7,19 @@ import java.io.File
 /**
  * The speed the UI shows is the speed the USER chose — never the one the player happens to be at.
  *
- * The two are genuinely different numbers whenever skip-silence is racing through dead air, and
+ * The two were genuinely different numbers whenever skip-silence raced through dead air, and
  * reporting the wrong one is what made the speed button flick to "4x" and back throughout any
  * video with silence in it (Dewi, 2026-08-09: *"the speed of the video isn't maintained"*).
  *
  * Two tests, because the claim has two halves and only one of them is arithmetic:
  *
- * - that the two numbers ARE different while racing, so reporting the player's is wrong ([racing]);
+ * - that the two numbers WERE different while racing, so reporting the player's was wrong;
  * - and that the state mapping reads the user's, which is a fact about a line of source and cannot
  *   be observed without a real MediaController and a real silent stretch. Guarding it at the source
  *   costs nothing and fails the moment someone puts `playbackParameters.speed` back — which is
  *   exactly how it got there in the first place. Same approach as `UnifiedRowArchitectureTest`.
  */
 class ReportedSpeedTest {
-
-    @Test
-    fun `while racing, what the player does and what the user asked for are different numbers`() {
-        val racer = SilenceRacer()
-        racer.userChose(CHOSEN)
-
-        racer.silence(silent = true)
-
-        assertEquals("the player really is racing", CHOSEN * SilenceRacer.SILENCE_MULTIPLIER, racer.speed, EXACT)
-        assertEquals("and this is the only one worth showing anybody", CHOSEN, racer.userSpeed, EXACT)
-    }
 
     @Test
     fun `the state mapping reports the chosen speed, not the player's`() {
@@ -81,8 +69,6 @@ class ReportedSpeedTest {
     }
 
     private companion object {
-        const val CHOSEN = 1.5f
-        const val EXACT = 0f
         const val SOURCE = "src/main/kotlin/com/dewijones92/totum/playback/Media3PlaybackController.kt"
         const val SERVICE = "src/main/kotlin/com/dewijones92/totum/playback/PlaybackService.kt"
     }

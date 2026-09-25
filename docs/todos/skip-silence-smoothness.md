@@ -3,11 +3,19 @@ title: Skip-silence as smooth as AntennaPod
 kind: todo
 area: playback
 priority: high
-status: shipped — sample removal for audio, speed-up kept for video
-updated: 2026-08-04
+status: superseded 2026-09-26 — see features/skip-silence.md
+updated: 2026-09-26
 ---
 
 # Skip-silence as smooth as AntennaPod
+
+> **The status below was wrong, and this page was unreliable.** Measured on 2026-09-25, the
+> sample removal described here **never ran**: the sink re-applied the player's own skip-silence
+> flag (never set) at every stream start, seek and speed change, and turned the processor off. A
+> 24-second test file with 16 seconds of silence took 23.8 seconds to play. "Shipped" rested on a
+> device test that checked the log line naming the strategy, not whether anything was cut. The
+> replacement, which cuts pauses the way PipePipe does and handles video without the speed-up, is
+> [`features/skip-silence.md`](../features/skip-silence.md). What follows is kept as the record.
 
 Dewi, 2026-08-04: *"make sure the skip silences thing is as smooth as other apps e.g. antennapod"*.
 

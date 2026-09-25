@@ -3,7 +3,7 @@ title: Settings that stay put
 kind: feature
 status: shipped
 area: playback
-updated: 2026-08-09
+updated: 2026-09-26
 ---
 
 # Nothing changes unless you change it
@@ -46,8 +46,9 @@ So changing speed during a silent stretch left the store holding 1.5 and the rac
 silent, this was reachable by simply changing speed at the wrong moment.
 
 Told, not inferred, now: `ACTION_USER_SPEED` carries it over the session, sent on every change
-**and on every item**, and [`SilenceRacer`](../../core/playback/src/main/kotlin/com/dewijones92/totum/playback/SilenceRacer.kt)
-owns the arithmetic so it can be tested without a device.
+**and on every item**. (`SilenceRacer`, which owned the racing arithmetic, went on 2026-09-26 with
+the speed-up mechanism itself: skip-silence now removes samples on video too and never touches the
+rate. See [skip-silence.md](skip-silence.md).)
 
 ## Quality and audio track were per-video
 
@@ -94,8 +95,7 @@ to do about it, which are different numbers whenever a silent stretch is in prog
 
 | Level | Where | What |
 |---|---|---|
-| unit | `core/playback/…/SilenceRacerTest` | 13 cases, including a rate chosen *during* a silence and 200 stretches in a row |
-| unit | `core/playback/…/ReportedSpeedTest` | that the two numbers differ while racing, and that the state mapping and the service still read the right one |
+| unit | `core/playback/…/ReportedSpeedTest` | that the state mapping and the service still read the chosen rate, not the player's |
 | unit | `app/…/StreamChoicesTest` | the height rules, the cap beating the choice, the fallback both ways |
 | unit | `app/…/ChoicesSurviveTheNextVideoTest` | end to end through the launcher's real auto-advance path |
 

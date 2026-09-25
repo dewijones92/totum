@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-09-25
+updated: 2026-09-26
 ---
 
 # Testing
@@ -226,13 +226,14 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | Real yt-dlp download → radios off → plays from that file | `LiveDownloadedVideoOfflineTest` | residential-egress tunnel |
 | The app fetching a stream ITSELF (SABR) → radios off → plays from that file | `LiveSabrDownloadTest` | residential-egress tunnel |
 | SABR playback against live YouTube | `SabrPlaybackTest` | residential-egress tunnel |
-| Auto-advance, stall recovery, metered switch, silence strategy | `AutoAdvanceLoopTest`, `StalledStreamRecoveryTest`, `MeteredAudioSwitchDeviceTest`, `SilenceStrategyDeviceTest` | every commit |
-| A quiet podcast is made loud with ZERO samples clipped, incl. across transients | `LoudnessBoostTest` (JVM maths), `BoostingAudioProcessorTest` (Media3 buffers) | every commit |
+| Auto-advance, stall recovery, metered switch | `AutoAdvanceLoopTest`, `StalledStreamRecoveryTest`, `MeteredAudioSwitchDeviceTest` | every commit |
+| Skip-silence really cuts: WAV/MP3/AAC podcasts, after a seek, at 2x, video, the drawn frames follow the sound, a boosted quiet podcast is still cut, and the sound breaks up at no more than one point | `SilenceIsReallyCutTest` (device), `SilenceCutterTest` (JVM: PipePipe's 150ms/40ms rule, bit-exact sound, faded join, exact skip count, chunk-size independence, heard-time accounting) | every commit |
+| A quiet podcast is made loud with ZERO samples clipped, incl. across transients; an onset keeps its shape (look-ahead limiter); 30 dB too quiet comes up to the target | `LoudnessBoostTest` (JVM maths), `BoostingAudioProcessorTest` (Media3 buffers) | every commit |
 | Screen brightness set by swipe survives going fullscreen and coming back | `BrightnessSurvivesFullscreenTest` | every commit |
 | A video with an auto-dub plays in your language, and the track menu overrides it | `AudioTrackTagTest`, `AudioLanguageSelectionTest`, `VideoQualityTest`, `AudioTrackSelectionTest`, `AudioTrackMenuTest` | every commit |
 | Fullscreen survives an auto-advance, including a stream that fails and re-resolves | `VideoPresenceTest`, `FullscreenSurvivesTheNextVideoTest` | every commit |
 | The swipe brightness applies in fullscreen and nowhere else | `ChosenBrightnessTest`, `BrightnessIsFullscreenOnlyTest` | every commit |
-| Speed, quality and audio track are still what you chose on the next video | `SilenceRacerTest`, `StreamChoicesTest`, `ChoicesSurviveTheNextVideoTest` | every commit |
+| Speed, quality and audio track are still what you chose on the next video | `ReportedSpeedTest`, `StreamChoicesTest`, `ChoicesSurviveTheNextVideoTest` | every commit |
 | The CLI parses what you type, picks the right stream and calls the player correctly | `CommandParsingTest`, `CliBehaviourTest`, `PlayerCommandTest`, `ProcessYtDlpEngineTest` | every commit |
 | The CLI against real python, real yt-dlp and live YouTube | `LiveExtractionTest` | `RUN_LIVE_EXTRACTION=1` only |
 | YouTube Music search parses, maps and reaches the screen above videos | `MusicSearchParserTest`, `InnerTubeMusicSearchSourceTest`, `SongSearchSectionTest` | every commit |
@@ -282,7 +283,6 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | The phone's own QuickJS produces a URL with a deciphered `n` | `DurableUrlsOnDeviceTest` | live phase — a fix measured with node on a laptop would otherwise be a no-op on the device with a green JVM suite |
 | SABR delivers the window it is offered, and stops only when the server SAYS so | `SabrCarriesAWholeStreamTest` | live phase — deliberately asserts our own machinery, not YouTube's policy: a test demanding 80% of a stream would be red every run until a PO token exists, and a permanently red build is what taught everyone to wave the last skip through |
 | The claimed SABR position never outruns the bytes in hand | `ClaimedTimeFollowsTheBytesTest` | every commit |
-| The silence detector hears BOTH channels, and refuses to judge a format it cannot read | `SilenceDetectorHearsBothChannelsTest` | every commit — instrumented, no device behaviour. Its stride shared a factor with the stereo frame size, so it only ever read channel 0 |
 | A refused stream tries SABR before giving up the picture — and the sound still saves it when SABR refuses too | `TheSabrRungKeepsThePictureTest` | every commit — incl. that a copy on disk still wins, and that hour-deep SABR is not offered at all (it cannot seek, and "succeeding" from the top would throw away your place) |
 | Every format `SabrResolve` is willing to choose actually delivers bytes | `SabrServesWhatWeChooseTest` | live phase — asserts ours, PRINTS what YouTube allows beyond the 1080p/30fps caps. A test that went red because YouTube RELAXED a restriction would be failing on good news |
 | A SABR stream opened part-way through asks for the matching media TIME, not the byte offset | `OpeningAtAnOffsetAsksForThatTimeTest` | every commit — and the opposite: sequential reading must NOT re-estimate, or the claim can move backwards and be read as a seek |

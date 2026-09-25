@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-09-25
+updated: 2026-09-26
 ---
 
 # Backlog
@@ -26,7 +26,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [url-share-target](url-share-target.md) | integration | medium | shipped |
 | [play-history-screen](play-history-screen.md) | library | medium | shipped |
 | [local-cross-pillar-playlists](local-cross-pillar-playlists.md) | library | high | shipped |
-| [skip-silence-on-video](skip-silence-on-video.md) | playback | medium | shipped |
+| [skip-silence-on-video](skip-silence-on-video.md) | playback | medium | superseded — video cuts samples, picture follows the sound |
 | [queue-first-playback](queue-first-playback.md) | playback | high | shipped (incl. drag-reorder) |
 | [auto-download-queue](auto-download-queue.md) | downloads | high | shipped |
 | [autoplay-next-guaranteed](autoplay-next-guaranteed.md) | playback | medium | shipped |
@@ -60,7 +60,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [torrents-through-the-unified-route](torrents-through-the-unified-route.md) | torrent | medium | answered + fixed; films no longer auto-fetched |
 | [metered-audio-switch](metered-audio-switch.md) | playback | high | shipped — proven with the radios toggled |
 | [prefetch-the-next-item](prefetch-the-next-item.md) | playback | medium | done — readiness and byte preload, Wi-Fi only |
-| [skip-silence-smoothness](skip-silence-smoothness.md) | playback | high | shipped — sample removal for audio, speed-up for video |
+| [skip-silence-smoothness](skip-silence-smoothness.md) | playback | high | superseded — it never cut anything; see features/skip-silence.md |
 | [offline-queue-e2e](offline-queue-e2e.md) | tests | high | done — in CI, and it found a real bug |
 | [buffering-defects-0.1.332](buffering-defects-0.1.332.md) | playback | high | all four fixed with tests |
 | [settings-only-change-when-asked](settings-only-change-when-asked.md) | settings | high | done — speed, boost and brightness hold, incl. across a fullscreen toggle (fixed 2026-08-08) |

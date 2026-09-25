@@ -105,7 +105,7 @@ public class Media3PlaybackController(
     private var subtitleLanguage: String? = null
 
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
-    private var userSpeed: Float = SilenceRacer.NORMAL
+    private var userSpeed: Float = 1f
     private var currentSourceId: SourceId? = null
     private var playGeneration = 0
     private var skipSilence = false
@@ -353,7 +353,7 @@ public class Media3PlaybackController(
      * Sets the rate AND tells the service it was the user's.
      *
      * Both halves matter. The player's own rate is not a reliable record of what was asked for —
-     * skip-silence races through dead air by raising it — so the service used to guess, and
+     * skip-silence used to race through dead air by raising it — so the service used to guess, and
      * ignored the guess while racing. A rate chosen during a silent stretch was therefore dropped
      * on the floor, and speech puts silence between sentences every few seconds.
      */
@@ -558,7 +558,7 @@ public class Media3PlaybackController(
             isPlaying = isPlaying,
             positionMs = currentPosition.coerceAtLeast(0),
             durationMs = duration.takeIf { it > 0 },
-            // The rate the USER chose, not the player's current one: skip-silence races through
+            // The rate the USER chose, not the player's current one: skip-silence used to race through
             // dead air at up to 8x, and reporting that made the speed button flick to "4x" during
             // every pause in speech — the app appearing to change a setting nobody touched.
             speed = userSpeed,

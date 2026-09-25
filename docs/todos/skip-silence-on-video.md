@@ -5,10 +5,15 @@ status: shipped
 area: playback
 priority: medium
 requested: 2026-07-24
-updated: 2026-07-25
+updated: 2026-09-26
 ---
 
 # Skip silence on videos (not just audio)
+
+> **Superseded 2026-09-26.** Video now removes samples like audio. The desync that ruled that out
+> was a wiring bug (see `skip-silence-smoothness.md`), and the remaining problem, the clock jumping
+> when a cut is made rather than when it is heard, is fixed by `HeardSilenceAudioSink`. The
+> speed-up described below has been deleted. See [`features/skip-silence.md`](../features/skip-silence.md).
 
 **Ask:** skip-silence should work on videos as well, not only audio.
 

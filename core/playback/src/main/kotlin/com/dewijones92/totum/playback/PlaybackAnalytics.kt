@@ -37,6 +37,7 @@ internal class PlaybackAnalytics : AnalyticsListener {
     private var outstanding = 0
     private var loads = 0L
     private var bytes = 0L
+    private var underruns = 0L
 
     /**
      * When each in-flight load began, so a HUNG one is visible while it is still hanging.
@@ -272,6 +273,27 @@ internal class PlaybackAnalytics : AnalyticsListener {
         Diag.log("playback", "dropped $droppedFrames frames over ${elapsedMs}ms")
     }
 
+    override fun onAudioUnderrun(
+        eventTime: AnalyticsListener.EventTime,
+        bufferSize: Int,
+        bufferSizeMs: Long,
+        elapsedSinceLastFeedMs: Long,
+    ) {
+        underruns++
+        Vitals.add("playback.audioUnderruns")
+        if (underruns <= UNDERRUNS_LOGGED_IN_FULL || underruns % UNDERRUN_LOG_EVERY == 0L) {
+            Diag.warn(
+                "playback",
+                "audio underrun #$underruns at ${eventTime.currentPlaybackPositionMs}ms: the output ran dry " +
+                    "(buffer ${bufferSizeMs}ms, ${elapsedSinceLastFeedMs}ms since it was last fed)",
+            )
+        }
+    }
+
+    override fun onSkipSilenceEnabledChanged(eventTime: AnalyticsListener.EventTime, skipSilenceEnabled: Boolean) {
+        Diag.log("playback", "the player's skip-silence is now $skipSilenceEnabled")
+    }
+
     override fun onBandwidthEstimate(
         eventTime: AnalyticsListener.EventTime,
         totalLoadTimeMs: Int,
@@ -365,6 +387,8 @@ internal class PlaybackAnalytics : AnalyticsListener {
     }
 
     private companion object {
+        const val UNDERRUNS_LOGGED_IN_FULL = 5L
+        const val UNDERRUN_LOG_EVERY = 50L
         const val BITS_PER_BYTE = 8L
         const val BITS_PER_KILOBIT = 1_000L
         const val BYTES_PER_KB = 1024L

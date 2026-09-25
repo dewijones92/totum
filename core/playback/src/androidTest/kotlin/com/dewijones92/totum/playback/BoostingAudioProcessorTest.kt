@@ -69,7 +69,9 @@ class BoostingAudioProcessorTest {
         val buffer = input.asBuffer()
         processor.queueInput(buffer)
         assertEquals("the processor must consume the whole input buffer", 0, buffer.remaining())
-        return processor.output.toShorts()
+        val first = processor.output.toShorts()
+        processor.queueEndOfStream()
+        return first + processor.output.toShorts()
     }
 
     /** THE POINT, through the real chain: quiet audio comes out loud. */
@@ -167,6 +169,24 @@ class BoostingAudioProcessorTest {
         val boosted = processor.output.toShorts().rms()
 
         assertTrue("the new level did not take effect: $unboosted -> $boosted", boosted > unboosted)
+    }
+
+    @Test
+    fun `a seek forgets the audio held back for the look-ahead`() {
+        val processor = BoostingAudioProcessor().apply { level = VolumeBoost.AUTO }
+        processor.configure(format())
+        processor.flush()
+        processor.queueInput(tone(MID).asBuffer())
+        processor.output
+
+        processor.flush()
+        processor.queueInput(ShortArray(rate).asBuffer())
+        val afterSeek = processor.output.toShorts()
+        processor.queueEndOfStream()
+        val rest = processor.output.toShorts()
+
+        assertTrue("audio from before the seek came out after it", (afterSeek + rest).all { it.toInt() == 0 })
+        assertEquals("and nothing else was lost or invented", rate, afterSeek.size + rest.size)
     }
 
     private companion object {

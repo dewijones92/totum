@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -50,13 +51,49 @@ class LoudnessBoostTest {
 
     private fun ShortArray.pinned(): Int = count { abs(it.toInt()) >= Short.MAX_VALUE - 1 }
 
+    private fun goertzel(x: ShortArray, from: Int, count: Int, hz: Double): Double {
+        val k = 2 * cos(2 * PI * hz / rate)
+        var s1 = 0.0
+        var s2 = 0.0
+        for (i in from until from + count) {
+            val s0 = x[i] + k * s1 - s2
+            s2 = s1
+            s1 = s0
+        }
+        return sqrt(s1 * s1 + s2 * s2 - k * s1 * s2)
+    }
+
+    private fun plateaus(x: ShortArray, from: Int, to: Int): Int {
+        var runs = 0
+        var run = 1
+        for (i in from + 1 until to) {
+            if (x[i] == x[i - 1] && abs(x[i].toInt()) >= CEILING_NEAR * FULL_SCALE) {
+                run++
+            } else {
+                if (run >= PLATEAU) runs++
+                run = 1
+            }
+        }
+        return runs
+    }
+
     private fun boost(level: VolumeBoost = VolumeBoost.AUTO): LoudnessBoost =
         LoudnessBoost(rate).apply { this.level = level }
 
-    private fun boosted(input: ShortArray, level: VolumeBoost = VolumeBoost.AUTO): ShortArray {
-        val copy = input.copyOf()
-        boost(level).process(copy, copy.size)
-        return copy
+    private fun boosted(input: ShortArray, level: VolumeBoost = VolumeBoost.AUTO): ShortArray = run(boost(level), input)
+
+    private fun run(boost: LoudnessBoost, input: ShortArray): ShortArray {
+        val out = ArrayList<Short>(input.size)
+        var at = 0
+        while (at < input.size) {
+            val end = minOf(input.size, at + CHUNK)
+            val result = boost.process(input.copyOfRange(at, end), end - at)
+            for (i in 0 until boost.outputSamples) out += result[i]
+            at = end
+        }
+        val tail = boost.drain()
+        for (i in 0 until boost.outputSamples) out += tail[i]
+        return out.toShortArray()
     }
 
     // ---- it must not distort --------------------------------------------------------------------
@@ -85,7 +122,7 @@ class LoudnessBoostTest {
         val input = tone(QUIET, seconds = 2f) + tone(LOUD, seconds = 1f)
         val boost = boost()
 
-        boost.process(input.copyOf().also { boost.process(it, it.size) }, input.size)
+        run(boost, input)
 
         assertEquals("clipped=0 is the claim this design makes", 0L, boost.clippedSamples)
     }
@@ -112,7 +149,73 @@ class LoudnessBoostTest {
         assertEquals("a wrapped sample inverts the waveform and is heard as a crack", 0, inversions)
     }
 
+    @Test
+    fun `a sudden loud passage keeps its shape`() {
+        val output = boosted(tone(QUIET, seconds = 2f) + tone(LOUD, seconds = 1f))
+        val onset = 2 * rate
+        val window = rate * ONSET_MS / 1_000
+
+        val fundamental = goertzel(output, onset, window, TONE_HZ)
+        val harmonics = sqrt((2..9).sumOf { goertzel(output, onset, window, TONE_HZ * it).let { g -> g * g } })
+        assertTrue("the onset is distorted by ${harmonics / fundamental * 100}%", harmonics / fundamental < CLEAN_THD)
+        assertEquals("peaks pressed flat against the ceiling", 0, plateaus(output, onset, onset + window))
+    }
+
+    @Test
+    fun `both channels get the same gain so the stereo image holds`() {
+        val left = tone(QUIET, seconds = 3f)
+        val right = tone(QUIET / 4, seconds = 3f, hz = 300f)
+        val stereo = ShortArray(left.size * 2) { if (it % 2 == 0) left[it / 2] else right[it / 2] }
+
+        val output = run(LoudnessBoost(rate, channels = 2).apply { level = VolumeBoost.AUTO }, stereo)
+
+        val leftOut = ShortArray(left.size) { output[it * 2] }
+        val rightOut = ShortArray(right.size) { output[it * 2 + 1] }
+        val leftGain = leftOut.rms(SETTLED) / left.rms(SETTLED)
+        val rightGain = rightOut.rms(SETTLED) / right.rms(SETTLED)
+        assertTrue("left x$leftGain, right x$rightGain", abs(leftGain / rightGain - 1) < LEFT_ALONE)
+    }
+
+    @Test
+    fun `switching it on and off mid-stream loses and repeats nothing`() {
+        val input = tone(QUIET, seconds = 3f)
+        val boost = boost(VolumeBoost.OFF)
+        val out = ArrayList<Short>(input.size)
+        var at = 0
+        var chunk = 0
+        while (at < input.size) {
+            boost.level = if (chunk++ % 3 == 1) VolumeBoost.AUTO else VolumeBoost.OFF
+            val end = minOf(input.size, at + CHUNK)
+            val result = boost.process(input.copyOfRange(at, end), end - at)
+            for (i in 0 until boost.outputSamples) out += result[i]
+            at = end
+        }
+        val tail = boost.drain()
+        for (i in 0 until boost.outputSamples) out += tail[i]
+
+        assertEquals("every sample comes out exactly once", input.size, out.size)
+        val lastOff = input.size - (input.size % CHUNK).let { if (it == 0) CHUNK else it }
+        assertArrayEquals(
+            "and a stretch played with it off is the recording itself",
+            input.copyOfRange(lastOff, input.size),
+            out.toShortArray().copyOfRange(lastOff, input.size),
+        )
+    }
+
     // ---- it must make quiet things audible -------------------------------------------------------
+
+    @Test
+    fun `a recording thirty decibels too quiet comes up as loud as one at the target`() {
+        val farTooQuiet = boosted(tone(AT_TARGET / THIRTY_DB, seconds = 4f))
+        val normal = boosted(tone(AT_TARGET, seconds = 4f))
+
+        assertTrue(
+            "far too quiet came up to ${farTooQuiet.rms(
+                SETTLED
+            ).toInt()} against a normal ${normal.rms(SETTLED).toInt()}",
+            farTooQuiet.rms(SETTLED) >= normal.rms(SETTLED) * AS_LOUD,
+        )
+    }
 
     /** THE POINT. Speech recorded far too quietly has to become properly audible. */
     @Test
@@ -175,7 +278,7 @@ class LoudnessBoostTest {
         )
     }
 
-    /** And never more than +20dB — Dewi's trade of top-end loudness for audio that sounds natural. */
+    /** And never more than +30dB. */
     @Test
     fun `the gain is capped so nothing ends up crushed`() {
         val nearlySilent = tone(0.001f, seconds = 3f)
@@ -183,7 +286,7 @@ class LoudnessBoostTest {
         val output = boosted(nearlySilent)
 
         val gain = output.rms(SETTLED) / nearlySilent.rms(SETTLED)
-        assertTrue("gain reached ${LoudnessBoost.decibels(gain.toFloat())}dB, past the +20 cap", gain <= MAX_GAIN)
+        assertTrue("gain reached ${LoudnessBoost.decibels(gain.toFloat())}dB, past the +30 cap", gain <= MAX_GAIN)
     }
 
     /**
@@ -357,7 +460,16 @@ class LoudnessBoostTest {
 
         /** The cap is 10x, so a quiet recording should be getting most of it. */
         const val MIN_LIFT = 8.0
-        const val MAX_GAIN = 10.5
+        const val MAX_GAIN = 32.0
+        const val CHUNK = 1_776
+        const val AT_TARGET = 0.196f
+        const val THIRTY_DB = 31.6f
+        const val AS_LOUD = 0.9
+        const val ONSET_MS = 50
+        const val CLEAN_THD = 0.005
+        const val CEILING_NEAR = 0.9f
+        const val PLATEAU = 3
+        const val TONE_HZ = 200.0
 
         /** A recording that needs no help should come through within a few percent of untouched. */
         const val LEFT_ALONE = 0.05

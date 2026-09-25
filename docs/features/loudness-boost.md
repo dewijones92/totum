@@ -3,7 +3,7 @@ title: Quiet podcasts made audible, automatically
 kind: feature
 area: playback
 status: shipped
-updated: 2026-08-08
+updated: 2026-09-26
 ---
 
 # Quiet podcasts made audible, automatically
@@ -17,7 +17,10 @@ app causes distortion … i dont want distortion, i want it to allow me to hear 
 podcasts well please … compression?? or sumin????"* — noticeable from **Medium upwards**, on
 earphones, on 0.1.371.
 
-This doc covers all three versions, because the mistakes are the interesting part and each one was
+**And (2026-09-25):** *"double check and maybe fix the volume boost, make sure it bring any quiet audio
+up to loud, dont distortion"*.
+
+This doc covers all four versions, because the mistakes are the interesting part and each one was
 caused by fixing the previous one too literally.
 
 ## The three versions, and why each was wrong
@@ -26,7 +29,34 @@ caused by fixing the previous one too literally.
 |---|---|---|
 | **1. `LoudnessEnhancer`** (to 2026-08-07) | Android's platform effect, one flat gain, capped at +12 dB | Too quiet. A flat gain **clips**, so past the point the loudest peak reaches full scale more gain buys distortion, not volume — the +12 cap was roughly the ceiling for a flat gain, not timidity |
 | **2. Fixed levels + limiter** (0.1.371) | Our own compressor/limiter, Off/+6/+12/+20/+30 dB | **Distorted.** The gain moved down as slowly as it moved up, so a loud moment after a quiet one was still being multiplied by the full boost for tens of ms while the gain wound down — every sample of it sliced flat |
-| **3. Automatic** (current) | Measures the item and applies the difference, capped at +20 dB, gain falls instantly | — |
+| **3. Automatic** (to 2026-09-25) | Measures the item and applies the difference, capped at +20 dB, gain falls instantly | Never exceeded the ceiling, but **pinned the first peaks of every loud onset flat against it**: 12-15 flat tops and 1.4-2.1% harmonic distortion in the first 50 ms. And +20 dB left a very quiet recording at about a third of normal loudness |
+| **4. Automatic + look-ahead limiter** (current) | The same measurement, capped at +30 dB, with a 5 ms look-ahead limiter that ramps the gain down *before* a peak | — |
+
+## Version 4: a limiter that sees the peak coming
+
+Version 3's clamp acted **at the peak sample itself**: when a sample times the gain would pass the
+ceiling, the gain dropped to exactly `CEILING / |sample|`. So every sample on the rising edge of a
+sudden loud passage came out at exactly the ceiling (31129, 31129, 31129…). That is a flat top, the
+same shape as clipping, and `clipped=0` could not see it because nothing went *over* the ceiling.
+Measured on a quiet passage followed by a loud one: onset distortion 2.11%, against 0.01-0.08% once
+settled. Speech is mostly onsets.
+
+[`LookaheadLimiter`](../../core/playback/src/main/kotlin/com/dewijones92/totum/playback/LookaheadLimiter.kt)
+delays the audio 5 ms and applies, to each sample, the **average** of the limits over the 5 ms
+around it. Each of those limits is at or below that sample's own `CEILING / |sample|`, so the
+average is too, and the output still cannot reach the ceiling. The gain ramps down over the 5 ms
+before a peak and recovers over 250 ms after it. Onset distortion is now under 0.5% and there are
+no flat tops. The two new tests fail on version 3 at the step they name.
+
+The delay changes nothing you can hear. It is 5 ms. Nothing is lost or repeated: switching the
+boost on holds the first 5 ms back instead of inventing silence, and switching it off releases
+them. A seek throws them away, so audio from before the seek never plays after it. Both channels
+get one gain, so the stereo image holds.
+
+**+30 dB, and a louder target.** The cap went from +20 dB to +30 dB, and the target from a
+mean level of 0.1 to 0.125 of full scale (about 2 dB louder). A recording 30 dB below the target
+now comes up to it. The limiter is what makes the extra lift safe, which is exactly what the +20
+cap was guarding against.
 
 ## "Won't a hard dB cap prevent distortion?"
 
@@ -64,9 +94,9 @@ So there is nothing to tune. The control is **Off / Auto**.
 - It measures a slow average of the item's level and applies exactly the gain that brings it to a
   comfortable target.
 - **It never turns anything down.** Quieter-than-expected is a surprise nobody asked for.
-- **It never applies more than +20 dB.** Dewi's call over keeping the +30 that version 2 offered:
-  *"trade some maximum loudness for naturalness"*. Past roughly this point, even a clean limiter
-  leaves everything the same loudness, which sounds processed rather than loud.
+- **It never applies more than +30 dB.** It was +20 dB (Dewi, 2026-08-08: *"trade some maximum
+  loudness for naturalness"*) until he asked on 2026-09-25 for any quiet audio to come up loud; the
+  look-ahead limiter in version 4 is what makes the extra lift clean.
 
 An old stored level (`LOW`…`MAX`) is migrated to `AUTO`, not to `OFF` — silently switching the boost
 off during an upgrade would be the app changing a setting nobody touched, which is
@@ -117,8 +147,12 @@ settle whether it worked **there**. The question this feature has to answer is t
 ear, so the report carries the two numbers that decide it:
 
 ```
-boost: auto gain 9.8dB (level 0.0321) clipped=0
+boost: auto gain 30.0dB (level 0.0039) limiter down to -6.2dB clipped=0
 ```
+
+`limiter down to` is how far the limiter had to pull the gain below the automatic gain since the
+last line. A number that is often large means the limiter is working hard, which would be the
+place to look if it ever sounds squashed.
 
 `clipped=0` is the claim the design makes, so a non-zero value is the entire diagnosis in one word —
 and it is logged as a **warning** rather than a note, because it would mean a broken assumption
@@ -134,8 +168,8 @@ app before.
 
 | Level | Test | Claim |
 |---|---|---|
-| JVM | `LoudnessBoostTest` (19) | **Not distorting:** a sudden loud passage after a quiet one clips zero samples, so does six alternating bursts, `clippedSamples` stays 0, nothing wraps. **Making quiet things audible:** a very quiet recording is lifted >8×, an already-loud one is left within 5% of untouched, gain falls monotonically as the input gets louder, nothing is ever attenuated, the cap holds at +20 dB, and it settles within half a second rather than swelling. **Not sounding processed:** a steady tone stays steady within 5%, a pause between sentences does not move the gain, the gap is not lifted more than the speech, quiet speech is amplified rather than gated, silence stays silent, OFF is bit-exact, and an old stored level migrates to AUTO |
-| Instrumented | `BoostingAudioProcessorTest` (6) | The plumbing Media3 actually drives: the whole input buffer is consumed, samples are read **little-endian** (proven by sign correlation — a byte-swapped read would sit near 50%), OFF passes bytes through, a non-16-bit format is left alone, an empty buffer is fine, and the setting can change mid-stream |
+| JVM | `LoudnessBoostTest` (24) | Version 4 adds: **a sudden loud passage keeps its shape** (under 0.5% distortion at the onset and no flat tops; 2.11% on version 3), **a recording 30 dB too quiet comes up as loud as one at the target** (a third as loud on version 3), both channels get one gain, and switching it on and off mid-stream loses and repeats nothing. And, from before: **Not distorting:** a sudden loud passage after a quiet one clips zero samples, so does six alternating bursts, `clippedSamples` stays 0, nothing wraps. **Making quiet things audible:** a very quiet recording is lifted >8×, an already-loud one is left within 5% of untouched, gain falls monotonically as the input gets louder, nothing is ever attenuated, the cap holds at +20 dB, and it settles within half a second rather than swelling. **Not sounding processed:** a steady tone stays steady within 5%, a pause between sentences does not move the gain, the gap is not lifted more than the speech, quiet speech is amplified rather than gated, silence stays silent, OFF is bit-exact, and an old stored level migrates to AUTO |
+| Instrumented | `BoostingAudioProcessorTest` (7) | Version 4 adds that a seek forgets the 5 ms held back for the look-ahead. And, from before: The plumbing Media3 actually drives: the whole input buffer is consumed, samples are read **little-endian** (proven by sign correlation — a byte-swapped read would sit near 50%), OFF passes bytes through, a non-16-bit format is left alone, an empty buffer is fine, and the setting can change mid-stream |
 
 **Why version 2's tests did not catch its bug, which is the lesson worth keeping.** All eleven of
 them used a **constant** tone, so the gain had always finished settling before anything was measured
