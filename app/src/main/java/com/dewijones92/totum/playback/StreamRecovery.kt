@@ -149,6 +149,7 @@ internal class StreamRecovery(
      * to do, but it has no measured benefit and should not be cited as a fix for anything.
      */
     private val forgetHeldStreams: (MediaItemId) -> Unit = {},
+    private val onSabrStalled: (MediaItemId) -> Unit = {},
     private val prefetchNext: suspend () -> Unit = {},
     private val awaitNetwork: suspend () -> Unit,
     private val scope: CoroutineScope,
@@ -220,6 +221,11 @@ internal class StreamRecovery(
         // the same item afterwards got a cache hit on the dead URL and failed before it began.
         runCatching { forgetResolved(failure.itemId) }
             .onFailure { Diag.warn("playback", "could not forget the failed stream for ${failure.itemId.value}", it) }
+        if (failure.sabrStalled) {
+            runCatching { onSabrStalled(failure.itemId) }
+                .onFailure { Diag.warn("playback", "could not record the SABR stall for ${failure.itemId.value}", it) }
+            Diag.log("playback", "${failure.itemId.value} stalled over SABR: recorded before any replay resolves it")
+        }
         // Stale failures do nothing beyond forgetting their dead URL above. `replay` acts on the
         // queue's CURRENT item, so acting on a failure for anything else replays the wrong item at
         // the wrong position — the cross-item leak. Only drop when we positively know it is stale;

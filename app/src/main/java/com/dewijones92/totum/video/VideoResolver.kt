@@ -510,6 +510,10 @@ class VideoResolver(
      */
     suspend fun resolveAsRescue(watchUrl: HttpUrl, sourceId: SourceId): Resolved? {
         val id = watchUrl.youTubeVideoId() ?: return null
+        if (id in sabrStalledOn) {
+            Diag.log("resolve", "$id is not rescued over SABR: SABR already stalled on it this session")
+            return null
+        }
         val fast = playerStreams ?: run {
             Diag.log("resolve", "$id cannot be rescued over SABR: there is no player-response client")
             return null

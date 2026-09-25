@@ -42,6 +42,10 @@ class StreamRecoveryTest {
     /** Items whose cached resolution was dropped, in order. */
     private val forgotten = mutableListOf<MediaItemId>()
 
+    /** Items recorded as having stalled over SABR, and what had been recorded at each replay. */
+    private val sabrStalled = mutableListOf<MediaItemId>()
+    private val stalledWhenReplayed = mutableListOf<MediaItemId>()
+
     /** Items whose HELD SABR conversations were dropped, in order. */
     private val heldStreamsDropped = mutableListOf<MediaItemId>()
 
@@ -54,6 +58,7 @@ class StreamRecoveryTest {
             failures = failures,
             replay = { at ->
                 replayedFrom += at
+                stalledWhenReplayed += sabrStalled.toList()
                 true
             },
             moveOn = {
@@ -69,6 +74,7 @@ class StreamRecoveryTest {
             isPlaying = { it == playingNow },
             forgetResolved = { forgotten += it },
             forgetHeldStreams = { heldStreamsDropped += it },
+            onSabrStalled = { sabrStalled += it },
             prefetchNext = { prefetched++ },
             awaitNetwork = {
                 waitedForNetwork++
@@ -87,6 +93,41 @@ class StreamRecoveryTest {
         runCurrent()
 
         assertEquals(listOf(1_261_405L), replayedFrom)
+    }
+
+    @Test
+    fun `a SABR stall is recorded before the replay that must not use SABR again`() = runTest {
+        recovery()
+        runCurrent()
+        freshStarts.emit(MediaItemId("a"))
+        runCurrent()
+
+        failures.emit(
+            StreamFailure(
+                MediaItemId("a"),
+                positionMs = 9_510,
+                reason = StreamFailure.Reason.Rejected,
+                sabrStalled = true
+            ),
+        )
+        runCurrent()
+
+        assertEquals("recovery must replay once", listOf(9_510L), replayedFrom)
+        assertEquals(
+            "the replay resolved before the stall was recorded, so it went straight back over SABR",
+            listOf(MediaItemId("a")),
+            stalledWhenReplayed,
+        )
+    }
+
+    @Test
+    fun `a failure that was not a SABR stall records none`() = runTest {
+        recovery()
+        runCurrent()
+        failures.emit(expired("a", at = 1_000))
+        runCurrent()
+
+        assertTrue("only a SABR stall should switch SABR off for an item", sabrStalled.isEmpty())
     }
 
     @Test

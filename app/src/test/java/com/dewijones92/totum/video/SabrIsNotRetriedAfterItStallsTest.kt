@@ -109,6 +109,16 @@ class SabrIsNotRetriedAfterItStallsTest {
         )
     }
 
+    @Test
+    fun `after SABR stalls, the rescue rung does not offer SABR for that item either`() = runTest {
+        val resolver = resolver()
+        resolver.sabrStalled(MediaItemId(VIDEO_ID))
+
+        val rescued = resolver.resolveAsRescue(url, source)
+
+        assertEquals("a rescue over the route that just stalled is the same failure again", null, rescued)
+    }
+
     /** A DIFFERENT item is unaffected — the memory is per item, not a global switch-off. */
     @Test
     fun `another item may still use SABR`() = runTest {

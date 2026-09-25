@@ -892,6 +892,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             },
             forgetResolved = playbackQueue::forgetResolved,
             forgetHeldStreams = { forgetLiveSabrStreamsFor(it.value) },
+            // A SABR stall must stop that item being resolved over SABR again. Without this, recovery
+            // forgets the resolution, `extractAndCache` asks overSabr() first (the setting is on), and the
+            // retry goes straight back to the route that just stalled -- burning the budget before the
+            // ladder can fall through to extraction, which is the route that can seek.
+            onSabrStalled = videoResolver::sabrStalled,
             // Started on the first failure, so the 20-25s extraction overlaps the retries
             // instead of following them. Report 0.1.277: 58s of silence, 28 of it after the app
             // had already given up on the dead stream.
@@ -899,15 +904,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             awaitNetwork = networkStatus::awaitOnline,
             scope = applicationScope,
         ).start()
-        // A SABR stall must stop that item being resolved over SABR again. Without this, recovery
-        // forgets the resolution, `extractAndCache` asks overSabr() first (the setting is on), and the
-        // retry goes straight back to the route that just stalled -- burning the budget before the
-        // ladder can fall through to extraction, which is the route that can seek.
-        applicationScope.launch {
-            playbackController.streamFailures.collect { failure ->
-                if (failure.sabrStalled) videoResolver.sabrStalled(failure.itemId)
-            }
-        }
     }
 
     /**

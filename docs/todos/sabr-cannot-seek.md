@@ -1,7 +1,7 @@
 ---
 title: SABR cannot be opened part-way through
 status: open — the server now serves a cold jump (embedded endpoint, 2026-09-07); the reader cannot consume one, which is the ChunkSource redesign
-updated: 2026-09-20
+updated: 2026-09-25
 ---
 
 # SABR cannot be opened part-way through
@@ -363,4 +363,43 @@ because the audio-only rung is reachable from the rescue ladder and not from the
 
 **Keep the test red.** It asserts something the app cannot currently deliver on this route, which is
 honest. Softening it is what turned a real breakage into five green days in August.
+
+### Recovery went back to SABR twice after the stall, and that part is fixed (2026-09-25)
+
+This is about what happens AFTER the stall above, not about the stall. The 429 ms claim is untouched and
+still the lead; this only changes how long the player spends on a route already known to be dead.
+
+Five main runs read (a32957a, 387d8fc, 70ea678 failing; 409f75d, 70df726 passing), from each run's
+per-test logcat in the `instrumented-reports` artifact. In all three failing runs the sequence is:
+
+```
+re-resolving after Rejected (attempt 1 of 1) from 9510ms
+prefetching uSMGENDH_QI
+SABR stalled on uSMGENDH_QI; extracting for it from now on this session   <- 0-1 ms LATER
+uSMGENDH_QI in 1182ms for prefetch OVER SABR                               <- so the check had already passed
+...
+stream still failing after 1 recoveries; giving up on the stream
+uSMGENDH_QI in 170ms for rescue OVER SABR                                  <- the rescue rung never checked
+```
+
+Two defects, both in our code:
+
+- **A race.** The stall was recorded by a second, independent collector of `streamFailures` in
+  `AppContainer`, while `StreamRecovery` collected the same flow and replays at once on attempt 1. Nothing
+  ordered them, and in all three runs recovery won, so the one re-resolve went back over SABR. The guard
+  (`stalled over SABR earlier; extracting instead`) only fired on the resolve after that. Now
+  `StreamRecovery` records the stall itself (`onSabrStalled`) before it replays.
+- **The rescue rung ignored the stall.** `resolveAsRescue` never consulted `sabrStalledOn`, so once
+  recovery gave up, the rescue offered SABR a third time. It now declines for an item SABR stalled on.
+
+Together they put HLS about 50 s into the run, after the 60 s watch had mostly gone. Tests:
+`StreamRecoveryTest` (the stall is recorded before the replay) and `SabrIsNotRetriedAfterItStallsTest`
+(the rescue declines); both failed at their named assertion first.
+
+**What this does NOT claim.** It does not make `AnHourLongItemDoesNotRebufferTest` pass: the stall at
+~9.5 s is still a rebuffer, and the test allows none. The passing runs did not pass because of recovery at
+all; they started on HLS or a direct URL (409f75d joined an extraction already running) and never met the
+stall. Expected after this change, and to be checked against the next CI run rather than assumed: the same
+first stall, then extraction instead of SABR, so `rendered` rises well above 9.5 s while the rebuffer
+assertion still fails. A local run on `totum-api35` is no control for either: it never took SABR.
 
