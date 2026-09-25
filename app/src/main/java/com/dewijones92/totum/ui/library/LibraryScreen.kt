@@ -1,24 +1,28 @@
 package com.dewijones92.totum.ui.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Subscriptions
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -32,6 +36,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -53,9 +59,13 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BuildInfoFooter
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_H
+import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_V
+import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.TrackPlace
@@ -195,16 +205,15 @@ internal fun LibraryContent(
     Column(modifier = modifier.fillMaxSize()) {
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item { PlaylistsEntry(onOpenPlaylists) }
+                item { ScreenHeader(stringResource(R.string.destination_library)) }
                 item {
-                    LibraryNavEntry(
-                        Icons.Outlined.Subscriptions,
-                        R.string.all_subscriptions_title,
-                        onOpenSubscriptions,
+                    LibraryTiles(
+                        onOpenPlaylists = onOpenPlaylists,
+                        onOpenSubscriptions = onOpenSubscriptions,
+                        onOpenHistory = onOpenHistory,
+                        onOpenAccount = onOpenAccount,
                     )
                 }
-                item { HistoryEntry(onOpenHistory) }
-                item { AccountEntry(onOpenAccount) }
                 // In-progress FIRST, and outside the empty check: a fresh install with everything
                 // still downloading would otherwise show "nothing downloaded yet" while the phone
                 // was busily downloading, which is the most misleading thing this screen could say.
@@ -220,10 +229,11 @@ internal fun LibraryContent(
                             current = sort,
                             label = { it.labelRes },
                             onSelect = onSetSort,
+                            extraActions = { FilterToggle(listFilter, downloaded.size) },
                         )
                     }
                     item { StorageSummary(storage) }
-                    filterField(listFilter, shown.size, downloaded.size)
+                    filterField(listFilter, shown.size, downloaded.size, hosted = true)
                     items(shown, key = { it.item.id.value }) { entry ->
                         MediaItemRow(
                             item = entry.item,
@@ -243,7 +253,6 @@ internal fun LibraryContent(
                             // and Library is exactly where you'd notice.
                             onDownloadVideo = actions?.let { { it.download(entry.item, audioOnly = false) } },
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
             }
@@ -263,49 +272,108 @@ private fun StorageSummary(storage: StorageUsage) {
     val text = storage.freeBytes
         ?.let { stringResource(R.string.library_storage_with_free, used, formatBytes(it)) }
         ?: stringResource(R.string.library_storage, used)
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-    )
+    Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp)) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        storage.freeBytes?.let { free ->
+            val total = storage.usedBytes + free
+            if (total > 0) {
+                LinearProgressIndicator(
+                    progress = { (storage.usedBytes.toFloat() / total).coerceIn(MIN_METER, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp)
+                        .height(6.dp)
+                        .clip(CircleShape),
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    gapSize = 0.dp,
+                    drawStopIndicator = {},
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun PlaylistsEntry(onOpen: () -> Unit) {
-    LibraryNavEntry(Icons.AutoMirrored.Filled.PlaylistPlay, R.string.playlists_title, onOpen)
-}
-
-@Composable
-private fun HistoryEntry(onOpen: () -> Unit) {
-    LibraryNavEntry(Icons.Outlined.History, R.string.history_title, onOpen)
-}
-
-// Account lives here rather than on the bottom bar: it's visited once to sign in,
-// so it doesn't earn a permanent tab (the queue does).
-@Composable
-private fun AccountEntry(onOpen: () -> Unit) {
-    LibraryNavEntry(Icons.Outlined.AccountCircle, R.string.destination_account, onOpen)
-}
-
-@Composable
-private fun LibraryNavEntry(icon: ImageVector, titleRes: Int, onOpen: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+private fun LibraryTiles(
+    onOpenPlaylists: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenAccount: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        verticalArrangement = Arrangement.spacedBy(TILE_GAP),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.padding(end = 16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+            LibraryTile(
+                Icons.AutoMirrored.Filled.PlaylistPlay,
+                R.string.playlists_title,
+                scheme.secondaryContainer,
+                scheme.onSecondaryContainer,
+                onOpenPlaylists,
+                Modifier.weight(1f),
+            )
+            LibraryTile(
+                Icons.Outlined.Subscriptions,
+                R.string.all_subscriptions_title,
+                scheme.primaryContainer,
+                scheme.onPrimaryContainer,
+                onOpenSubscriptions,
+                Modifier.weight(1f),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+            LibraryTile(
+                Icons.Outlined.History,
+                R.string.history_title,
+                scheme.tertiaryContainer,
+                scheme.onTertiaryContainer,
+                onOpenHistory,
+                Modifier.weight(1f),
+            )
+            LibraryTile(
+                Icons.Outlined.AccountCircle,
+                R.string.destination_account,
+                scheme.surfaceContainerHighest,
+                scheme.onSurface,
+                onOpenAccount,
+                Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryTile(
+    icon: ImageVector,
+    titleRes: Int,
+    container: Color,
+    content: Color,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        verticalArrangement = Arrangement.SpaceBetween,
+        modifier = modifier
+            .heightIn(min = TILE_HEIGHT)
+            .clip(MaterialTheme.shapes.large)
+            .background(container)
+            .clickable(onClick = onOpen)
+            .padding(16.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(28.dp))
         Text(
             text = stringResource(titleRes),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f),
+            color = content,
+            modifier = Modifier.padding(top = 12.dp),
         )
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
     }
-    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 }
 
 @Composable
@@ -344,7 +412,14 @@ private fun LibraryScreenPreview() {
  */
 @Composable
 private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDismiss: () -> Unit) {
-    Column(modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = FAILED_CARD_ALPHA))
+            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 4.dp),
+    ) {
         Text(
             text = entry.item.title,
             style = MaterialTheme.typography.bodyMedium,
@@ -376,7 +451,14 @@ private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDis
 @Composable
 private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> Unit) {
     val fraction = active.state.fraction
-    Column(modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 14.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 // The TITLE. This printed `active.id.value` — a raw media id like "chxbS3N3Llc" —
@@ -412,6 +494,10 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
 
 /** Fractions are 0..1; people read percentages. */
 private const val PERCENT = 100
+private const val MIN_METER = 0.02f
+private const val FAILED_CARD_ALPHA = 0.35f
+private val TILE_GAP = 12.dp
+private val TILE_HEIGHT = 104.dp
 
 /**
  * What is being fetched right now, with a way to stop it.
@@ -428,7 +514,7 @@ internal fun LazyListScope.runningSection(
         item {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 4.dp, top = 16.dp, bottom = 4.dp),
             ) {
                 Text(
                     text = pluralStringResource(
@@ -436,7 +522,7 @@ internal fun LazyListScope.runningSection(
                         inProgress.size,
                         inProgress.size,
                     ),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
                 // Only offered when there is more than one, because with a single download
@@ -450,7 +536,6 @@ internal fun LazyListScope.runningSection(
         }
         items(inProgress, key = { "downloading-${it.id.value}" }) { active ->
             DownloadingRow(active, onCancel = { onCancel(active.id) })
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
     }
 }
@@ -465,13 +550,12 @@ internal fun LazyListScope.failedSection(
         item {
             Text(
                 text = stringResource(R.string.downloads_failed_section),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
             )
         }
         items(failed, key = { "failed-${it.id.value}" }) { entry ->
             FailedRow(entry, onRetry = { onRetry(entry.id) }, onDismiss = { onDismiss(entry.id) })
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
     }
 }

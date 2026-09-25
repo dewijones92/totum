@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.player
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,14 +31,17 @@ import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.WatchLater
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +52,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -416,24 +422,35 @@ const val PLAYER_METADATA_TAG: String = "player-views-and-date"
 /** The up-next queue: a titled list, tap an entry to jump to it, X to remove it. */
 @Composable
 private fun UpNextSection(queue: QueueControls) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = stringResource(R.string.queue_up_next_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 4.dp),
         )
         queue.upNext.forEachIndexed { index, queued ->
+            val item = queued.item.item
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = UP_NEXT_ALPHA))
                     .clickable { queue.onPlay(index) }
-                    .padding(vertical = 6.dp),
+                    .padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
             ) {
+                MediaThumbnail(
+                    url = item.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(width = UP_NEXT_THUMB_WIDTH, height = UP_NEXT_THUMB_HEIGHT),
+                    shape = MaterialTheme.shapes.small,
+                )
                 Text(
-                    text = queued.item.item.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp),
                 )
                 IconButton(onClick = { queue.onRemove(index) }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.queue_remove))
@@ -442,6 +459,10 @@ private fun UpNextSection(queue: QueueControls) {
         }
     }
 }
+
+private const val UP_NEXT_ALPHA = 0.7f
+private val UP_NEXT_THUMB_WIDTH = 80.dp
+private val UP_NEXT_THUMB_HEIGHT = 45.dp
 
 /**
  * The scrollable extras below the controls: description/show notes, the chapter
@@ -509,33 +530,57 @@ data class CommentReplies(
 
 @Composable
 private fun WatchActionButtons(actions: WatchActions) {
-    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-        val liked = actions.rating == VideoRating.LIKE
-        val disliked = actions.rating == VideoRating.DISLIKE
-        TextButton(onClick = actions.onToggleLike) {
+    val scheme = MaterialTheme.colorScheme
+    val liked = actions.rating == VideoRating.LIKE
+    val disliked = actions.rating == VideoRating.DISLIKE
+    val saved = actions.inWatchLater
+    fun colors(on: Boolean): Pair<Color, Color> = if (on) {
+        scheme.primaryContainer to scheme.onPrimaryContainer
+    } else {
+        scheme.surfaceContainerHigh to scheme.onSurface
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        val (likeBg, likeFg) = colors(liked)
+        FilledTonalButton(
+            onClick = actions.onToggleLike,
+            colors = ButtonDefaults.filledTonalButtonColors(containerColor = likeBg, contentColor = likeFg),
+        ) {
             Icon(
                 imageVector = if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                 contentDescription = stringResource(R.string.like),
-                tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
             )
             Text(
                 text = stringResource(if (liked) R.string.liked else R.string.like),
-                modifier = Modifier.padding(start = 8.dp),
+                modifier = Modifier.padding(start = 8.dp)
             )
         }
-        TextButton(onClick = actions.onToggleDislike, modifier = Modifier.padding(start = 8.dp)) {
+        val (dislikeBg, dislikeFg) = colors(disliked)
+        FilledTonalIconButton(
+            onClick = actions.onToggleDislike,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = dislikeBg,
+                contentColor = dislikeFg
+            ),
+        ) {
             Icon(
                 imageVector = if (disliked) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                 contentDescription = stringResource(R.string.dislike),
-                tint = if (disliked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
             )
         }
-        val saved = actions.inWatchLater
-        TextButton(onClick = actions.onToggleWatchLater, modifier = Modifier.padding(start = 8.dp)) {
+        val (saveBg, saveFg) = colors(saved)
+        FilledTonalIconButton(
+            onClick = actions.onToggleWatchLater,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = saveBg, contentColor = saveFg),
+        ) {
             Icon(
                 imageVector = if (saved) Icons.Filled.WatchLater else Icons.Outlined.WatchLater,
                 contentDescription = stringResource(R.string.watch_later_save),
-                tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
             )
         }
     }
@@ -563,7 +608,7 @@ private fun DescriptionSection(description: String, onSeekTo: (Long) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = stringResource(R.string.description_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.height(8.dp))
         Text(

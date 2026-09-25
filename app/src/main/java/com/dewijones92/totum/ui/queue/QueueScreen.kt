@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +60,8 @@ import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterField
+import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalLongPressHeldElsewhere
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -97,10 +98,11 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     // Hoisted so the header can collapse against it — the header sits outside the list, so
     // it cannot read a state the list owns privately.
     val listState = rememberLazyListState()
+    val listFilter = rememberListFilter("queue")
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            QueueHeader(canClear = entries.isNotEmpty(), onClear = queue::clear, listState = listState)
+            QueueHeader(entries.size, onClear = queue::clear, listState = listState, listFilter = listFilter)
             if (entries.isEmpty()) {
                 EmptyState(
                     icon = Icons.AutoMirrored.Filled.QueueMusic,
@@ -127,6 +129,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     onCollapsedChange = { collapsedGroups = it },
                 )
                 FilterableQueue(
+                    listFilter,
                     entries,
                     downloads,
                     container,
@@ -304,6 +307,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
 
 @Composable
 private fun FilterableQueue(
+    listFilter: ListFilter,
     entries: List<QueueEntry>,
     downloads: Map<MediaItemId, DownloadState>,
     container: AppContainer,
@@ -313,12 +317,11 @@ private fun FilterableQueue(
     reorder: ReorderState,
     actions: QueueActions,
 ) {
-    val listFilter = rememberListFilter("queue")
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
     val availability = QueueAvailability(downloads, container.isOffline())
     val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true)
-    FilterField(listFilter, matches.size, entries.size)
+    FilterField(listFilter, matches.size, entries.size, hosted = true)
     SelectableMediaList(
         "queue",
         entries,
@@ -418,14 +421,21 @@ private fun QueueRow(
             }
         },
     )
-    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 }
 
 @Composable
-private fun QueueHeader(canClear: Boolean, onClear: () -> Unit, listState: LazyListState) {
+private fun QueueHeader(
+    count: Int,
+    onClear: () -> Unit,
+    listState: LazyListState,
+    listFilter: ListFilter,
+) {
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
-        if (canClear) {
-            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FilterToggle(listFilter, count)
+            if (count > 0) {
+                TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
+            }
         }
     }
 }

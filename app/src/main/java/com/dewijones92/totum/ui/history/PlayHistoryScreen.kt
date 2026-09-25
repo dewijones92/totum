@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -68,7 +67,6 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                                     onDeleteDownload = { viewModel.deleteDownload(entry.item.id) },
                                     onAddToPlaylist = { addToPlaylist(entry.item) },
                                 )
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }

@@ -1,14 +1,13 @@
 package com.dewijones92.totum.ui.videos
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -18,7 +17,6 @@ import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +51,7 @@ import com.dewijones92.totum.domain.shortsReelFrom
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
@@ -61,7 +60,9 @@ import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaSort
+import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.SortControl
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
@@ -236,43 +237,36 @@ internal fun VideosContent(
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
-        Column {
-            if (state.signedIn) {
-                VideosTopBar(newUploadsCount, onOpenNotifications)
-            }
-            PullToRefreshBox(
-                isRefreshing = state.refreshing,
-                onRefresh = onRefresh,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // Groups count as something to show. Signed out with no subscriptions, the
-                // whole list was replaced by "nothing here yet" — including the groups Dewi
-                // had made, which need no account and were the one thing still working.
-                if (state.subscriptions.isEmpty() && !state.signedIn && state.groups.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Outlined.SmartDisplay,
-                        headline = stringResource(R.string.videos_empty_headline),
-                        supportingText = stringResource(R.string.videos_empty_supporting),
-                    )
-                } else {
-                    ChannelsAndVideos(
-                        state,
-                        actions,
-                        onPlay,
-                        onDownload,
-                        onDeleteDownload,
-                        onSelectFeed,
-                        onChannelClick = onChannelClick,
-                        onSwitchMode = onSwitchMode,
-                        onGoToChannel = onGoToChannel,
-                        onOpenPlaylists = onOpenPlaylists,
-                        onOpenShorts = onOpenShorts,
-                        onSetSort = onSetSort,
-                        onLoadMore = onLoadMore,
-                        filter = filter,
-                        onSetFilter = onSetFilter,
-                    )
-                }
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            // Groups count as something to show. Signed out with no subscriptions, the
+            // whole list was replaced by "nothing here yet" — including the groups Dewi
+            // had made, which need no account and were the one thing still working.
+            if (state.subscriptions.isEmpty() && !state.signedIn && state.groups.isEmpty()) {
+                VideosEmpty()
+            } else {
+                ChannelsAndVideos(
+                    state,
+                    newUploadsCount,
+                    onOpenNotifications,
+                    actions,
+                    onPlay,
+                    onDownload,
+                    onDeleteDownload,
+                    onSelectFeed,
+                    onChannelClick = onChannelClick,
+                    onSwitchMode = onSwitchMode,
+                    onGoToChannel = onGoToChannel,
+                    onOpenPlaylists = onOpenPlaylists,
+                    onOpenShorts = onOpenShorts,
+                    onSetSort = onSetSort,
+                    onLoadMore = onLoadMore,
+                    filter = filter,
+                    onSetFilter = onSetFilter,
+                )
             }
         }
 
@@ -298,16 +292,40 @@ internal fun VideosContent(
     }
 }
 
-/** The top row with the new-uploads bell, shown when signed in. */
 @Composable
-private fun VideosTopBar(newUploadsCount: Int, onOpenNotifications: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.End,
-    ) {
-        NotificationsBell(newUploadsCount, onOpenNotifications)
+private fun VideosEmpty() {
+    Column {
+        ScreenHeader(stringResource(R.string.destination_videos))
+        EmptyState(
+            icon = Icons.Outlined.SmartDisplay,
+            headline = stringResource(R.string.videos_empty_headline),
+            supportingText = stringResource(R.string.videos_empty_supporting),
+        )
+    }
+}
+
+private fun LazyListScope.videosHeader(
+    state: VideosViewModel.UiState,
+    newUploadsCount: Int,
+    onOpenNotifications: () -> Unit,
+    onSetSort: (MediaSort) -> Unit,
+    filterToggle: @Composable () -> Unit,
+) {
+    item { VideosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, filterToggle) }
+}
+
+@Composable
+private fun VideosHeader(
+    state: VideosViewModel.UiState,
+    newUploadsCount: Int,
+    onOpenNotifications: () -> Unit,
+    onSetSort: (MediaSort) -> Unit,
+    filterToggle: @Composable () -> Unit,
+) {
+    ScreenHeader(title = feedTitle(state.selected)) {
+        filterToggle()
+        SortControl(options = MediaSort.entries, current = state.sort, label = { it.labelRes }, onSelect = onSetSort)
+        if (state.signedIn) NotificationsBell(newUploadsCount, onOpenNotifications)
     }
 }
 
@@ -323,6 +341,8 @@ private fun NotificationsBell(count: Int, onClick: () -> Unit) {
 @Composable
 private fun ChannelsAndVideos(
     state: VideosViewModel.UiState,
+    newUploadsCount: Int,
+    onOpenNotifications: () -> Unit,
     actions: MediaItemActions,
     onPlay: (MediaItem) -> Unit,
     onDownload: (MediaItem) -> Unit,
@@ -360,6 +380,9 @@ private fun ChannelsAndVideos(
         key = state.selected?.cacheKey()
     ) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            videosHeader(state, newUploadsCount, onOpenNotifications, onSetSort) {
+                FilterToggle(listFilter, unwatchedFiltered.size)
+            }
             feedHeader(state, onChannelClick) { FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) }
             when {
                 // Skeletons only when there is genuinely NOTHING to show. Cached items arrive
@@ -371,8 +394,8 @@ private fun ChannelsAndVideos(
                 state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
                 state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
                 else -> {
-                    sortAndFilter(state, onSetSort, filter, onSetFilter)
-                    filterField(listFilter, shown.size, unwatchedFiltered.size) {
+                    playStateFilter(filter, onSetFilter)
+                    filterField(listFilter, shown.size, unwatchedFiltered.size, hosted = true) {
                         FeedMessage(stringResource(R.string.filter_hides_everything))
                     }
                     items(shown, key = { it.id.value }) { video ->
@@ -393,7 +416,6 @@ private fun ChannelsAndVideos(
                             audioMode = actions.audioMode,
                             onGoToSource = { onGoToChannel(video) },
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     }
                     if (state.loadingMore) item { LoadingMoreFooter() }
                 }

@@ -23,6 +23,7 @@ internal fun TotumFab(
         onClick = onClick,
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
+        shape = MaterialTheme.shapes.large,
         modifier = modifier,
         content = content,
     )

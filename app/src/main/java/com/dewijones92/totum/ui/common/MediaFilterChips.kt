@@ -1,11 +1,11 @@
 package com.dewijones92.totum.ui.common
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -28,17 +28,22 @@ fun MediaFilterChips(
     onSelect: (MediaFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    val options = MediaFilter.entries
+    SingleChoiceSegmentedButtonRow(
         modifier = modifier
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
-        MediaFilter.entries.forEach { filter ->
-            FilterChip(
+        options.forEachIndexed { index, filter ->
+            SegmentedButton(
                 selected = filter == selected,
                 onClick = { onSelect(filter) },
-                label = { Text(stringResource(filter.labelRes())) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+                label = { Text(stringResource(filter.labelRes()), style = MaterialTheme.typography.labelLarge) },
             )
         }
     }

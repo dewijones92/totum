@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -69,6 +70,7 @@ fun SectionHeaderWithSort(
     sort: MediaSort,
     onSetSort: (MediaSort) -> Unit,
     modifier: Modifier = Modifier,
+    extraActions: @Composable () -> Unit = {},
 ) = SectionHeaderWithSortOptions(
     title = title,
     options = MediaSort.entries,
@@ -76,6 +78,7 @@ fun SectionHeaderWithSort(
     label = { it.labelRes },
     onSelect = onSetSort,
     modifier = modifier,
+    extraActions = extraActions,
 )
 
 /**
@@ -93,18 +96,20 @@ fun <T> SectionHeaderWithSortOptions(
     label: (T) -> Int,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    extraActions: @Composable () -> Unit = {},
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 4.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 8.dp),
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f),
         )
+        extraActions()
         SortControl(options = options, current = current, label = label, onSelect = onSelect)
     }
 }
@@ -119,26 +124,32 @@ fun <T> SortControl(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    IconButton(onClick = { expanded = true }, modifier = modifier) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.Sort,
-            contentDescription = stringResource(R.string.sort_label),
-        )
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        options.forEach { option ->
-            DropdownMenuItem(
-                text = { Text(stringResource(label(option))) },
-                leadingIcon = {
-                    if (option == current) {
-                        Icon(Icons.Filled.Check, contentDescription = null)
-                    }
-                },
-                onClick = {
-                    onSelect(option)
-                    expanded = false
-                },
+    Box {
+        IconButton(onClick = { expanded = true }, modifier = modifier) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Sort,
+                contentDescription = stringResource(R.string.sort_label),
             )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = MaterialTheme.shapes.medium
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(label(option))) },
+                    leadingIcon = {
+                        if (option == current) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                        }
+                    },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }

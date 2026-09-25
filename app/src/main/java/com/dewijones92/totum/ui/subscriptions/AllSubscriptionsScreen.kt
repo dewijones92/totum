@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +47,8 @@ import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
+import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_H
+import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_V
 import com.dewijones92.totum.ui.common.SelectableList
 import com.dewijones92.totum.ui.common.SelectionCheckbox
 import com.dewijones92.totum.ui.common.SourceArtwork
@@ -142,7 +144,6 @@ private fun SubscriptionsBody(sources: List<SourceActivity>?, onOpen: ((SourceAc
         else -> LazyColumn(Modifier.fillMaxSize()) {
             items(sources, key = { it.source.id.value }) { activity ->
                 SubscriptionRow(activity, onOpen)
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
     }
@@ -156,6 +157,8 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
+            .clip(MaterialTheme.shapes.large)
             .background(pillarRowTint(pillar).orSelected(source.id.value))
             .selectableClicks(
                 source.id.value,

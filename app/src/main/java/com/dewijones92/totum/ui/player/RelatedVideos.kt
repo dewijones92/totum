@@ -38,7 +38,7 @@ internal fun RelatedSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = stringResource(R.string.related_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 12.dp),
         )
         when (related) {

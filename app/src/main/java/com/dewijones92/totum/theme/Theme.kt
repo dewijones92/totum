@@ -28,8 +28,11 @@ private val LightColorScheme = lightColorScheme(
     onSurface = Sand10,
     surfaceVariant = Sand95,
     onSurfaceVariant = Sand30,
+    surfaceContainerLowest = Sand100,
+    surfaceContainerLow = Sand97,
     surfaceContainer = Sand95,
     surfaceContainerHigh = Sand90,
+    surfaceContainerHighest = Sand85,
     outline = Sand50,
     outlineVariant = Sand90,
     error = Red40,
@@ -57,8 +60,11 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = Sand95,
     surfaceVariant = Sand20,
     onSurfaceVariant = Sand90,
+    surfaceContainerLowest = Sand5,
+    surfaceContainerLow = Sand12,
     surfaceContainer = Sand15,
     surfaceContainerHigh = Sand20,
+    surfaceContainerHighest = Sand25,
     outline = Sand50,
     outlineVariant = Sand30,
     error = Red80,
@@ -88,5 +94,5 @@ fun TotumTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+    MaterialTheme(colorScheme = colorScheme, typography = Typography, shapes = Shapes, content = content)
 }

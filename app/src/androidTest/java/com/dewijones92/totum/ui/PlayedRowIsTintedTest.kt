@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -20,6 +21,7 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.ROW_CARD_MARGIN_V
 import com.dewijones92.totum.ui.common.pillarRowTint
 import com.dewijones92.totum.ui.common.rowTint
 import org.junit.Assert.assertTrue
@@ -43,8 +45,8 @@ import kotlin.math.abs
  * has shipped exactly that — eleven green queue-row tests over rows that rendered solid red
  * (cbf9916) — so the assertion is on what came out of the rasteriser.
  *
- * Sampled at the row's top-left, which is inside its 16dp/10dp padding: background only, with no
- * glyph, thumbnail or text anywhere near it.
+ * Sampled mid-width inside the card's top padding: background only, with no glyph, thumbnail or text
+ * anywhere near it, and clear of the margin the card sits in.
  */
 @RunWith(AndroidJUnit4::class)
 class PlayedRowIsTintedTest {
@@ -205,7 +207,8 @@ class PlayedRowIsTintedTest {
 
     private fun cornerOf(tag: String): Color {
         val pixels = composeTestRule.onNodeWithTag(tag).captureToImage().toPixelMap()
-        return pixels[SAMPLE_INSET, SAMPLE_INSET]
+        val insideTheCardsTopPadding = with(composeTestRule.density) { (ROW_CARD_MARGIN_V + CARD_PADDING_SAMPLE).roundToPx() }
+        return pixels[pixels.width / 2, insideTheCardsTopPadding]
     }
 
     /** Equal to within a single 8-bit step, which is what a rasteriser is allowed to disagree by. */
@@ -223,7 +226,7 @@ class PlayedRowIsTintedTest {
         const val MAX_PILLAR_SHIFT = 0.16f
         const val MIN_UNREAD_SHIFT = 0.05f
         const val PART_WAY = "row-part-way"
-        const val SAMPLE_INSET = 2
+        val CARD_PADDING_SAMPLE = 4.dp
         const val TOLERANCE = 1f / 255f
         const val PILLAR_TOLERANCE = 2f / 255f
         const val MAX_SHIFT = 0.2f

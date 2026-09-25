@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -63,13 +62,13 @@ fun CollapsingTitle(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(lerp(ExpandedHeight, CollapsedHeight, fraction))
-                .padding(start = 16.dp, end = 8.dp, bottom = 10.dp),
+                .padding(start = 20.dp, end = 8.dp, bottom = 10.dp),
         ) {
             Text(
                 text = title,
                 // Size changes, weight does not: animating both reads as two effects fighting
                 // rather than one title shrinking.
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineLarge,
                 fontSize = lerpFloat(EXPANDED_SP, COLLAPSED_SP, fraction).sp,
                 maxLines = 1,
                 modifier = Modifier.weight(1f),

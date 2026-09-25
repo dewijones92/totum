@@ -1,5 +1,10 @@
 package com.dewijones92.totum.ui.common
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -14,8 +20,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -27,6 +35,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -38,16 +49,51 @@ import com.dewijones92.totum.domain.FuzzyMatch
 import kotlinx.coroutines.delay
 
 @Stable
-class ListFilter internal constructor(val place: String, private val state: MutableState<String>) {
+class ListFilter internal constructor(
+    val place: String,
+    private val state: MutableState<String>,
+    private val openState: MutableState<Boolean>,
+) {
     var query: String by state
 
+    var open: Boolean by openState
+
     val filtering: Boolean get() = FuzzyMatch.hasTerms(query)
+
+    val fieldShown: Boolean get() = open || query.isNotEmpty()
 }
 
 @Composable
 fun rememberListFilter(place: String, key: Any? = null): ListFilter {
     val state = rememberSaveable(key) { mutableStateOf("") }
-    return remember(place, state) { ListFilter(place, state) }
+    val open = rememberSaveable(key) { mutableStateOf(false) }
+    return remember(place, state, open) { ListFilter(place, state, open) }
+}
+
+@Composable
+fun FilterToggle(filter: ListFilter, total: Int, modifier: Modifier = Modifier) {
+    if (total == 0 && filter.query.isEmpty()) return
+    IconButton(
+        onClick = {
+            if (filter.query.isEmpty()) {
+                filter.open = !filter.open
+                Diag.log("filter", "${filter.place} field ${if (filter.open) "opened" else "closed"} from its toggle")
+            } else {
+                filter.open = true
+            }
+        },
+        modifier = modifier,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Search,
+            contentDescription = pluralStringResource(R.plurals.filter_hint_count, total, total),
+            tint = if (filter.fieldShown) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
 }
 
 @Composable
@@ -81,8 +127,32 @@ fun <T> ListFilter.filter(
 }
 
 @Composable
-fun FilterField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier = Modifier, inset: Dp = 16.dp) {
-    OutlinedTextField(
+fun FilterField(
+    filter: ListFilter,
+    shown: Int,
+    total: Int,
+    modifier: Modifier = Modifier,
+    inset: Dp = 16.dp,
+    hosted: Boolean = false,
+) {
+    if (hosted) {
+        AnimatedVisibility(
+            visible = filter.fieldShown,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            val focus = remember { FocusRequester() }
+            FilterTextField(filter, shown, total, modifier.focusRequester(focus), inset)
+            LaunchedEffect(Unit) { if (filter.query.isEmpty()) focus.requestFocus() }
+        }
+    } else {
+        FilterTextField(filter, shown, total, modifier, inset)
+    }
+}
+
+@Composable
+private fun FilterTextField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier, inset: Dp) {
+    TextField(
         value = filter.query,
         onValueChange = { filter.query = it },
         singleLine = true,
@@ -92,7 +162,10 @@ fun FilterField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier =
             null
         } else {
             {
-                IconButton(onClick = { filter.query = "" }) {
+                IconButton(onClick = {
+                    filter.query = ""
+                    filter.open = false
+                }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.filter_clear))
                 }
             }
@@ -102,9 +175,11 @@ fun FilterField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier =
         } else {
             null
         },
+        shape = CircleShape,
+        colors = pillFieldColors(),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = inset, vertical = 4.dp)
+            .padding(horizontal = inset, vertical = 6.dp)
             .testTag(FILTER_FIELD_TAG),
     )
 }
@@ -148,9 +223,10 @@ fun LazyListScope.filterField(
     filter: ListFilter,
     shown: Int,
     total: Int,
+    hosted: Boolean = false,
     nothingToFilter: (@Composable () -> Unit)? = null,
 ) {
-    item { FilterField(filter, shown, total) }
+    item { FilterField(filter, shown, total, hosted = hosted) }
     when {
         total == 0 -> nothingToFilter?.let { item { it() } }
         filter.filtering && shown == 0 -> item { NoFilterMatches(filter.query) }
@@ -167,6 +243,14 @@ fun LoadMoreUnlessFiltered(
 ) {
     LoadMoreOnScrollToEnd(listState, enabled, shownCount, loadMore, pausedByFilter = filter?.filtering == true)
 }
+
+@Composable
+fun pillFieldColors(): TextFieldColors = TextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+)
 
 const val FILTER_FIELD_TAG: String = "list-filter"
 

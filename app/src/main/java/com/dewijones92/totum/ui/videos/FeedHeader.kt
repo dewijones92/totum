@@ -3,15 +3,19 @@ package com.dewijones92.totum.ui.videos
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -20,9 +24,7 @@ import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.ui.common.MediaFilterChips
-import com.dewijones92.totum.ui.common.MediaSort
-import com.dewijones92.totum.ui.common.SectionHeaderWithSort
-import com.dewijones92.totum.ui.common.SourceChip
+import com.dewijones92.totum.ui.common.SourceAvatarStrip
 
 internal fun LazyListScope.feedHeader(
     state: VideosViewModel.UiState,
@@ -30,7 +32,12 @@ internal fun LazyListScope.feedHeader(
     selector: @Composable () -> Unit,
 ) {
     if (state.subscriptions.isNotEmpty()) {
-        item { SubscriptionChips(state.subscriptions, onChannelClick) }
+        item {
+            SourceAvatarStrip(
+                state.subscriptions,
+                onClick = { (it as? MediaSource.VideoChannel)?.let(onChannelClick) }
+            )
+        }
     }
     // Signed in OR holding groups. The account feeds need an account, but a group can be
     // all podcasts and needs none — gating the whole selector on sign-in hid every group
@@ -50,7 +57,7 @@ internal fun FeedSelector(
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
-        modifier = Modifier.padding(top = 8.dp),
+        modifier = Modifier.padding(top = 4.dp),
     ) {
         // YouTube's own feeds need a signed-in account; groups do not.
         items(if (state.signedIn) AccountFeed.entries else emptyList()) { feed ->
@@ -75,12 +82,26 @@ internal fun FeedSelector(
             AssistChip(
                 onClick = onOpenShorts,
                 label = { Text(stringResource(R.string.shorts_title)) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Filled.Bolt,
+                        contentDescription = null,
+                        modifier = Modifier.size(AssistChipDefaults.IconSize)
+                    )
+                },
             )
         }
         item {
             AssistChip(
                 onClick = onOpenPlaylists,
                 label = { Text(stringResource(R.string.playlists_title)) },
+                leadingIcon = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.PlaylistPlay,
+                        contentDescription = null,
+                        modifier = Modifier.size(AssistChipDefaults.IconSize),
+                    )
+                },
             )
         }
     }
@@ -93,30 +114,6 @@ private fun feedChipRes(feed: AccountFeed): Int = when (feed) {
     AccountFeed.HISTORY -> R.string.feed_history
 }
 
-/**
- * Where the Videos tab was, for the place trail.
- *
- * The item count is here for a reason: a restored scroll index cannot survive being applied
- * to an empty list, so "scroll=40 videos=0" and "scroll=0 videos=40" are different bugs
- * needing different fixes, and without the count they look identical in a report.
- */
-/** The horizontal strip of subscribed channels above the feed. */
-
-@Composable
-private fun SubscriptionChips(
-    subscriptions: List<MediaSource.VideoChannel>,
-    onChannelClick: (MediaSource.VideoChannel) -> Unit,
-) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-    ) {
-        items(subscriptions) { channel ->
-            SourceChip(channel, onClick = { onChannelClick(channel) })
-        }
-    }
-}
-
 @Composable
 internal fun feedTitle(selected: FeedChoice?): String = when (selected) {
     null -> stringResource(R.string.latest_videos)
@@ -125,12 +122,6 @@ internal fun feedTitle(selected: FeedChoice?): String = when (selected) {
     is FeedChoice.Group -> selected.group.name
 }
 
-internal fun LazyListScope.sortAndFilter(
-    state: VideosViewModel.UiState,
-    onSetSort: (MediaSort) -> Unit,
-    filter: MediaFilter,
-    onSetFilter: (MediaFilter) -> Unit,
-) {
-    item { SectionHeaderWithSort(title = feedTitle(state.selected), sort = state.sort, onSetSort = onSetSort) }
+internal fun LazyListScope.playStateFilter(filter: MediaFilter, onSetFilter: (MediaFilter) -> Unit) {
     item { MediaFilterChips(selected = filter, onSelect = onSetFilter) }
 }

@@ -1,18 +1,12 @@
 package com.dewijones92.totum.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -24,8 +18,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -43,9 +35,9 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
-import com.dewijones92.totum.ui.common.MiniPlayerBar
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
@@ -182,7 +174,6 @@ private fun WatchBindings(
     }
 }
 
-/** The mini player sitting above the tabs — one bar, so neither appears without the other. */
 @Composable
 private fun BottomBar(
     state: PlaybackState?,
@@ -192,59 +183,17 @@ private fun BottomBar(
     onSelect: (TopLevelDestination) -> Unit,
     onSkipNext: () -> Unit,
 ) {
-    Column {
-        state?.let {
-            MiniPlayerBar(
-                state = it,
-                onTogglePlayPause = onTogglePlayPause,
-                onExpand = onExpand,
-                onSkipNext = onSkipNext,
-            )
-        }
-        TopLevelNavigationBar(
-            selected,
-            // Logged because a real report could not answer "did this happen when I switched
-            // tabs?" — nothing recorded that the user had, so the question was unanswerable.
-            onSelect = { destination ->
-                Diag.log("nav", "tab $selected -> $destination")
-                onSelect(destination)
-            },
-        )
-    }
-}
-
-@Composable
-private fun TopLevelNavigationBar(selected: TopLevelDestination, onSelect: (TopLevelDestination) -> Unit) {
-    NavigationBar {
-        TopLevelDestination.entries.forEach { destination ->
-            val isSelected = destination == selected
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onSelect(destination) },
-                icon = {
-                    val icon = if (isSelected) destination.selectedIcon else destination.unselectedIcon
-                    // A hair larger when selected — the filled/outlined swap alone is a small
-                    // signal, and animating the size makes which tab you are on readable at a
-                    // glance rather than something you have to look for.
-                    val scale by animateFloatAsState(
-                        targetValue = if (isSelected) SELECTED_ICON_SCALE else 1f,
-                        label = "nav-icon",
-                    )
-                    Icon(
-                        imageVector = icon,
-                        // Described, not null. The label below is decoration that a screen reader
-                        // may or may not reach; this is the tab's actual name.
-                        contentDescription = stringResource(destination.labelRes),
-                        modifier = Modifier.graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                    )
-                },
-                label = { Text(stringResource(destination.labelRes)) },
-            )
-        }
-    }
+    Dock(
+        state = state,
+        selected = selected,
+        onSelect = { destination ->
+            Diag.log("nav", "tab $selected -> $destination")
+            onSelect(destination)
+        },
+        onTogglePlayPause = onTogglePlayPause,
+        onExpand = onExpand,
+        onSkipNext = onSkipNext,
+    )
 }
 
 /** Hosts the full-player overlay, wiring it to the one playback controller. */
@@ -465,6 +414,3 @@ private fun FloatingVideo(state: PlaybackState?, player: androidx.media3.common.
         }
     }
 }
-
-/** Enough to notice, not enough to jump. */
-private const val SELECTED_ICON_SCALE = 1.15f

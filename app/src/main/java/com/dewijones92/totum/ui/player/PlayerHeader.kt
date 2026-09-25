@@ -2,16 +2,18 @@ package com.dewijones92.totum.ui.player
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -95,29 +97,38 @@ internal fun SecondaryControls(
     onCancelSleep: () -> Unit,
     onSetSpeed: (Float) -> Unit,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = CONTROL_SURFACE_ALPHA),
+    val tiles = buildList<@Composable (Modifier) -> Unit> {
+        add { m -> SleepTimerControl(sleepTimer, onStartSleep, onStopSleepAfterItem, onCancelSleep, m) }
+        add { m -> SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence, m) }
+        if (!controlsOverlaid) add { m -> SpeedTile(state.speed, onSetSpeed, m) }
+        add { m -> BoostTile(state.volumeBoost, toggles.onSetVolumeBoost, m) }
+        add { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) }
+        if (quality.canListen && (state.hasVideo || quality.listening)) {
+            add { m ->
+                ListenWatchToggle(
+                    quality,
+                    state.hasVideo,
+                    m
+                )
+            }
+        }
+        add { m -> FastStartTile(toggles.sabrPlayback, toggles.onSetSabrPlayback, m) }
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(TILE_GAP),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        // Wrapping, not scrolling: every control stays visible and reachable at any text size,
-        // where a horizontal scroller would hide some of them off the right-hand edge with nothing
-        // to say they were there.
-        FlowRow(
-            verticalArrangement = Arrangement.Center,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-        ) {
-            SleepTimerControl(sleepTimer, onStartSleep, onStopSleepAfterItem, onCancelSleep)
-            PlaybackTogglesRow(skipSilence = state.skipSilence, toggles = toggles)
-            // Speed is already on the video overlay when there is a video; offering it twice would
-            // be two controls for one setting.
-            if (!controlsOverlaid) SpeedPicker(state.speed, onSetSpeed)
-            BoostPicker(state.volumeBoost, toggles.onSetVolumeBoost)
-            ListenWatchToggle(quality, state.hasVideo)
+        tiles.chunked(TILES_PER_ROW).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP), modifier = Modifier.height(IntrinsicSize.Min)) {
+                row.forEach { tile -> tile(Modifier.weight(1f).fillMaxHeight()) }
+                repeat(TILES_PER_ROW - row.size) { Spacer(Modifier.weight(1f)) }
+            }
         }
     }
 }
+
+private const val TILES_PER_ROW = 2
+private val TILE_GAP = 10.dp
 
 /**
  * The channel's facts on the video page — views and date, **one per line**.

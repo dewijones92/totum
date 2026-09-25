@@ -271,7 +271,6 @@ private fun MediaItemTab(
                         onAddToPlaylist = { onAddToPlaylist(video) },
                         onGoToSource = null,
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 }
                 if (tab.loadingMore) item { LoadingMoreFooter() }
             }

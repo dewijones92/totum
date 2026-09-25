@@ -2,29 +2,22 @@ package com.dewijones92.totum.ui.player
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -50,30 +43,31 @@ internal fun speedLabel(speed: Float): String =
  * affordance on the video (see docs/todos/ui-polish.md).
  */
 
-/** The player's on/off preferences. */
 @Composable
-internal fun PlaybackTogglesRow(skipSilence: Boolean, toggles: PlaybackToggles) {
-    // Both pillars now: silence is handled by raising the playback rate, which retimes
-    // audio and video together, so the old audio-only restriction is gone.
-    PlayerToggle(
-        icon = Icons.Outlined.GraphicEq,
-        labelRes = R.string.skip_silence,
-        checked = skipSilence,
-        onCheckedChange = toggles.onSetSkipSilence,
+internal fun SkipSilenceTile(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    ToggleTile(Icons.Outlined.GraphicEq, stringResource(R.string.skip_silence), checked, onChange, modifier)
+}
+
+@Composable
+internal fun AutoPlayNextTile(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    ToggleTile(
+        Icons.AutoMirrored.Outlined.PlaylistPlay,
+        stringResource(R.string.auto_play_next),
+        checked,
+        onChange,
+        modifier
     )
-    PlayerToggle(
-        icon = Icons.AutoMirrored.Outlined.PlaylistPlay,
-        labelRes = R.string.auto_play_next,
-        checked = toggles.autoPlayNext,
-        onCheckedChange = toggles.onSetAutoPlayNext,
-    )
-    // Experimental, and labelled as such: a ~150ms start against 2-4s, but SABR is asked for a
-    // media time rather than a byte offset so it cannot seek yet.
-    PlayerToggle(
-        icon = Icons.Outlined.Bolt,
-        labelRes = R.string.sabr_playback,
-        checked = toggles.sabrPlayback,
-        onCheckedChange = toggles.onSetSabrPlayback,
+}
+
+@Composable
+internal fun FastStartTile(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    ToggleTile(
+        Icons.Outlined.Bolt,
+        stringResource(R.string.sabr_playback),
+        checked,
+        onChange,
+        modifier,
+        detail = stringResource(R.string.sabr_playback_detail),
     )
 }
 
@@ -148,72 +142,30 @@ private fun VolumeBoost.labelRes(): Int = when (this) {
     VolumeBoost.AUTO -> R.string.boost_auto
 }
 
-/**
- * Icon, current value, tap for the options — the shape the sleep timer already had.
- *
- * Speed and volume boost each used to be a full-width row of every option laid out at once, which is
- * two whole bands of the screen spent on settings that are changed rarely and read often. As a
- * picker they show the CURRENT value in one compact button and put the rest one tap away, which is
- * what lets five stacked control rows become a single strip.
- *
- * Shared rather than written twice, and shaped like `SleepTimerControl` on purpose: three controls
- * side by side that behave differently would be worse than the rows they replaced.
- */
 @Composable
-internal fun <T> CompactPicker(
-    icon: ImageVector,
-    label: String,
-    current: T,
-    options: List<T>,
-    optionLabel: @Composable (T) -> String,
-    onSelect: (T) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var open by remember { mutableStateOf(false) }
-    TextButton(onClick = { open = true }, modifier = modifier) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp))
-        Text(text = optionLabel(current), modifier = Modifier.padding(start = 6.dp))
-    }
-    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-        options.forEach { option ->
-            DropdownMenuItem(
-                text = { Text(optionLabel(option)) },
-                leadingIcon = {
-                    if (option == current) Icon(Icons.Filled.Check, contentDescription = null)
-                },
-                onClick = {
-                    onSelect(option)
-                    open = false
-                },
-            )
-        }
-    }
-}
-
-/** Speed as a compact picker — see [CompactPicker]. */
-@Composable
-internal fun SpeedPicker(speed: Float, onSetSpeed: (Float) -> Unit, modifier: Modifier = Modifier) {
-    CompactPicker(
+internal fun SpeedTile(speed: Float, onSetSpeed: (Float) -> Unit, modifier: Modifier = Modifier) {
+    PickerTile(
         icon = Icons.Outlined.Speed,
         label = stringResource(R.string.playback_speed),
         current = speed,
         options = PlaybackSpeeds,
         optionLabel = { speedLabel(it) },
         onSelect = onSetSpeed,
+        active = speed != 1f,
         modifier = modifier,
     )
 }
 
-/** Volume boost as a compact picker — see [CompactPicker]. */
 @Composable
-internal fun BoostPicker(boost: VolumeBoost, onSetBoost: (VolumeBoost) -> Unit, modifier: Modifier = Modifier) {
-    CompactPicker(
+internal fun BoostTile(boost: VolumeBoost, onSetBoost: (VolumeBoost) -> Unit, modifier: Modifier = Modifier) {
+    PickerTile(
         icon = Icons.AutoMirrored.Outlined.VolumeUp,
         label = stringResource(R.string.volume_boost),
         current = boost,
         options = VolumeBoost.entries,
         optionLabel = { stringResource(it.labelRes()) },
         onSelect = onSetBoost,
+        active = boost != VolumeBoost.OFF,
         modifier = modifier,
     )
 }

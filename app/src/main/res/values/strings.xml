@@ -158,7 +158,10 @@
     <!-- Says "about a minute" because that is measured, not cautious: YouTube stops serving
          and returns a protection status after roughly a minute of media, and the label
          promising only "no seeking" left the real limit to be discovered mid-video. -->
-    <string name="sabr_playback">Fast start (beta — no seeking, stops after about a minute)</string>
+    <string name="sabr_playback">Fast start (beta)</string>
+    <string name="sabr_playback_detail">No seeking, stops after about a minute</string>
+    <string name="control_on">On</string>
+    <string name="control_off">Off</string>
     <string name="playback_speed">Playback speed</string>
     <string name="volume_boost">Volume boost</string>
     <string name="boost_off">Off</string>
@@ -327,6 +330,7 @@
         <item quantity="other">%1$d new items from your subscriptions</item>
     </plurals>
     <string name="status_played">Played</string>
+    <string name="status_unplayed">Not played yet</string>
     <string name="mark_played">Mark as played</string>
     <string name="mark_unplayed">Mark as unplayed</string>
     <string name="download_channel_name">Downloads</string>

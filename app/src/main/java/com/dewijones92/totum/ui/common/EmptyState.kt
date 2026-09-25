@@ -2,8 +2,10 @@ package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -32,21 +34,41 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
-                .padding(24.dp)
-                .size(48.dp),
-        )
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(BLOB_AREA)) {
+            Box(
+                Modifier
+                    .offset(x = (-18).dp, y = (-14).dp)
+                    .size(112.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            )
+            Box(
+                Modifier
+                    .offset(x = 26.dp, y = 22.dp)
+                    .size(84.dp)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
+            )
+            Box(
+                Modifier
+                    .offset(x = 34.dp, y = (-38).dp)
+                    .size(26.dp)
+                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+            )
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .padding(20.dp)
+                    .size(40.dp),
+            )
+        }
         Text(
             text = headline,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 24.dp),
+            modifier = Modifier.padding(top = 20.dp),
         )
         Text(
             text = supportingText,
@@ -57,3 +79,5 @@ fun EmptyState(
         )
     }
 }
+
+private val BLOB_AREA = 180.dp

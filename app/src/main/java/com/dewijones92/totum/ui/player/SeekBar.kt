@@ -108,7 +108,7 @@ internal fun SponsorSegments(segments: List<SkipSegment>, modifier: Modifier = M
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = stringResource(R.string.sponsor_segments_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 8.dp),
         )
         segments.sortedBy { it.start }.forEach { segment ->
@@ -157,7 +157,7 @@ internal fun ChapterList(chapters: List<Chapter>, onSeekTo: (Long) -> Unit, modi
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = stringResource(R.string.chapters_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 8.dp),
         )
         chapters.sortedBy { it.start }.forEach { chapter ->

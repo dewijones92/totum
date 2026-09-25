@@ -3,9 +3,6 @@ package com.dewijones92.totum.ui.player
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -61,17 +58,24 @@ data class QualityControl(
 @Composable
 internal fun ListenWatchToggle(quality: QualityControl, hasVideo: Boolean, modifier: Modifier = Modifier) {
     if (!quality.canListen || !(hasVideo || quality.listening)) return
-    Spacer(Modifier.height(4.dp))
     if (quality.listening) {
-        TextButton(onClick = quality.onWatch, modifier = modifier) {
-            Icon(Icons.Outlined.Videocam, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(stringResource(R.string.watch_video), modifier = Modifier.padding(start = 8.dp))
-        }
+        ControlTile(
+            icon = Icons.Outlined.Videocam,
+            label = stringResource(R.string.watch_video),
+            value = null,
+            active = true,
+            onClick = quality.onWatch,
+            modifier = modifier,
+        )
     } else {
-        TextButton(onClick = quality.onListen, modifier = modifier) {
-            Icon(Icons.Outlined.Headphones, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(stringResource(R.string.listen), modifier = Modifier.padding(start = 8.dp))
-        }
+        ControlTile(
+            icon = Icons.Outlined.Headphones,
+            label = stringResource(R.string.listen),
+            value = null,
+            active = false,
+            onClick = quality.onListen,
+            modifier = modifier,
+        )
     }
 }
 

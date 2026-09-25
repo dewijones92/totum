@@ -36,7 +36,7 @@ internal fun CommentsSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = stringResource(R.string.comments_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 12.dp),
         )
         if (watchActions.canAct) {

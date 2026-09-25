@@ -1,15 +1,12 @@
 package com.dewijones92.totum.ui.podcasts
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -17,7 +14,6 @@ import androidx.compose.material.icons.outlined.Podcasts
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,13 +47,15 @@ import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.PodcastFeedSaver
-import com.dewijones92.totum.ui.common.SectionHeaderWithSort
+import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
-import com.dewijones92.totum.ui.common.SourceChip
+import com.dewijones92.totum.ui.common.SortControl
+import com.dewijones92.totum.ui.common.SourceAvatarStrip
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
@@ -142,11 +140,14 @@ internal fun PodcastsContent(
             modifier = Modifier.fillMaxSize(),
         ) {
             if (state.subscriptions.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Outlined.Podcasts,
-                    headline = stringResource(R.string.podcasts_empty_headline),
-                    supportingText = stringResource(R.string.podcasts_empty_supporting),
-                )
+                Column {
+                    ScreenHeader(stringResource(R.string.destination_podcasts))
+                    EmptyState(
+                        icon = Icons.Outlined.Podcasts,
+                        headline = stringResource(R.string.podcasts_empty_headline),
+                        supportingText = stringResource(R.string.podcasts_empty_supporting),
+                    )
+                }
             } else {
                 SubscriptionsAndEpisodes(
                     state,
@@ -207,28 +208,30 @@ private fun SubscriptionsAndEpisodes(
     val shown = listFilter.filter(state.episodes, { it.searchableText })
     SelectableMediaList("podcasts", state.episodes, shown, { it }, modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
+            item {
+                ScreenHeader(
+                    title = stringResource(R.string.destination_podcasts),
+                    supporting = stringResource(R.string.latest_episodes),
+                ) {
+                    FilterToggle(listFilter, state.episodes.size)
+                    SortControl(
+                        options = MediaSort.entries,
+                        current = state.sort,
+                        label = { it.labelRes },
+                        onSelect = onSetSort
+                    )
+                }
+            }
             if (state.refreshFailures.isNotEmpty()) {
                 item { RefreshFailureNotice(state.refreshFailures, onDismissRefreshFailures) }
             }
             item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                ) {
-                    items(state.subscriptions) { subscription ->
-                        val feed = subscription.source as? MediaSource.PodcastFeed
-                        SourceChip(subscription.source, onClick = { feed?.let(onOpenFeed) })
-                    }
-                }
-            }
-            item {
-                SectionHeaderWithSort(
-                    title = stringResource(R.string.latest_episodes),
-                    sort = state.sort,
-                    onSetSort = onSetSort,
+                SourceAvatarStrip(
+                    state.subscriptions.map { it.source },
+                    onClick = { source -> (source as? MediaSource.PodcastFeed)?.let(onOpenFeed) },
                 )
             }
-            filterField(listFilter, shown.size, state.episodes.size)
+            filterField(listFilter, shown.size, state.episodes.size, hosted = true)
             items(shown, key = { it.id.value }) { episode ->
                 MediaItemRow(
                     item = episode,
@@ -244,7 +247,6 @@ private fun SubscriptionsAndEpisodes(
                     onPeek = { onPeek(episode) },
                     onGoToSource = { onGoToPodcast(episode) },
                 )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
     }

@@ -17,8 +17,10 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,6 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -51,12 +55,12 @@ fun MiniPlayerBar(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onExpand),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = Color.Transparent,
     ) {
         Column {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 10.dp, bottom = 6.dp),
             ) {
                 // Artwork, because this bar is the app's most-seen surface and a row of text
                 // gives no sense of what is playing. The pillar glyph rides on the corner
@@ -75,7 +79,13 @@ fun MiniPlayerBar(
                             .semantics { contentDescription = buffering },
                     )
                 } else {
-                    IconButton(onClick = onTogglePlayPause) {
+                    FilledIconButton(
+                        onClick = onTogglePlayPause,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ) {
                         if (state.isPlaying) {
                             Icon(Icons.Filled.Pause, contentDescription = stringResource(R.string.pause))
                         } else {
@@ -96,9 +106,12 @@ fun MiniPlayerBar(
             LinearProgressIndicator(
                 progress = { state.progress ?: 0f },
                 modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp)
                     .fillMaxWidth()
-                    .height(PROGRESS_HEIGHT),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    .height(PROGRESS_HEIGHT)
+                    .clip(CircleShape),
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 gapSize = 0.dp,
                 drawStopIndicator = {},
             )
@@ -114,7 +127,7 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
             url = state.artworkUrl?.let(HttpUrl::parse),
             contentDescription = null,
             modifier = Modifier.size(ARTWORK),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(12.dp),
         )
         // Equaliser while playing, pillar glyph otherwise: the badge answers "what is this"
         // when stopped and "it is running" when not, which is the more useful thing at a
@@ -123,7 +136,7 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .size(PILLAR_BADGE)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+                .background(dockColor(), CircleShape)
                 .padding(BADGE_INSET),
             contentAlignment = Alignment.Center,
         ) {
@@ -149,7 +162,7 @@ private fun NowPlayingText(state: PlaybackState, modifier: Modifier = Modifier) 
     Column(modifier = modifier.padding(start = 12.dp)) {
         Text(
             text = state.title,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.titleSmall,
         )
         state.artist?.let { artist ->
             Text(
@@ -161,7 +174,7 @@ private fun NowPlayingText(state: PlaybackState, modifier: Modifier = Modifier) 
     }
 }
 
-private val ARTWORK = 40.dp
-private val PILLAR_BADGE = 16.dp
+private val ARTWORK = 48.dp
+private val PILLAR_BADGE = 18.dp
 private val BADGE_INSET = 3.dp
-private val PROGRESS_HEIGHT = 2.dp
+private val PROGRESS_HEIGHT = 3.dp

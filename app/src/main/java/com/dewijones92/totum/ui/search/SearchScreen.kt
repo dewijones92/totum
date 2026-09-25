@@ -12,23 +12,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,10 +66,12 @@ import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.VideoChannelSaver
 import com.dewijones92.totum.ui.common.mediaFacts
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.pillFieldColors
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.ui.playlist.PlaylistScreen
@@ -147,24 +152,14 @@ internal fun SearchContent(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = {
+        ScreenHeader(stringResource(R.string.destination_search))
+        SearchField(
+            query = query,
+            onQueryChange = {
                 query = it
                 onQueryChange(it)
             },
-            label = { Text(stringResource(R.string.search_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { submit(query) }),
-            trailingIcon = {
-                IconButton(onClick = { submit(query) }) {
-                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search_action))
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            onSubmit = { submit(query) },
         )
 
         val runSearch: (String) -> Unit = { picked ->
@@ -188,6 +183,40 @@ internal fun SearchContent(
             )
         }
     }
+}
+
+@Composable
+private fun SearchField(query: String, onQueryChange: (String) -> Unit, onSubmit: () -> Unit) {
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text(stringResource(R.string.search_hint)) },
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        shape = CircleShape,
+        colors = pillFieldColors(),
+        textStyle = MaterialTheme.typography.bodyLarge,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+        trailingIcon = {
+            FilledIconButton(
+                onClick = onSubmit,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier.padding(end = 4.dp),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = stringResource(R.string.search_action)
+                )
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
 /** Idle state: recent searches if any, otherwise the empty-state prompt. */
@@ -223,11 +252,11 @@ private fun SearchHistory(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 8.dp, top = 8.dp),
+                .padding(start = 20.dp, end = 8.dp, top = 8.dp),
         ) {
             Text(
                 text = stringResource(R.string.search_recent),
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onClear) { Text(stringResource(R.string.search_clear_all)) }

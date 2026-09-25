@@ -175,6 +175,12 @@ class PlayerKeepsEveryControlTest {
         assertReachable("the description", "Aaron Bastani")
         assertReachable("chapters", "The wealth gap", "Chapters")
         assertReachable("the up-next queue", "Up next", "Ceuta")
+        assertReachable("the sleep timer", "Sleep")
+        assertReachable("skip silence", "silence")
+        assertReachable("auto-play next", "Auto-play")
+        assertReachable("fast start", "Fast start")
+        assertReachable("volume boost", "Boost", "boost")
+        assertReachable("listen instead", "Listen")
     }
 
     /**
@@ -193,6 +199,8 @@ class PlayerKeepsEveryControlTest {
         assertReachable("the sleep timer", "Sleep")
         assertReachable("skip silence", "silence")
         assertReachable("volume boost", "Boost", "boost")
+        assertReachable("auto-play next", "Auto-play")
+        assertReachable("fast start", "Fast start")
         assertReachable("the description", "Aaron Bastani")
         assertReachable("the up-next queue", "Up next", "Ceuta")
     }

@@ -2,7 +2,9 @@ package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -33,6 +36,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.DownloadState
@@ -49,8 +55,10 @@ import com.dewijones92.totum.domain.withArtworkFrom
  * fastest thing to recognise in a list and it was the smallest thing in the row. 120x68 is close to
  * what YouTube and Pocket Casts use, and the ratio is kept exactly so nothing is cropped.
  */
-private val THUMBNAIL_WIDTH = 120.dp
-private val THUMBNAIL_HEIGHT = 68.dp
+private val THUMBNAIL_WIDTH = 128.dp
+private val THUMBNAIL_HEIGHT = 72.dp
+private val CARD_SHAPE = RoundedCornerShape(20.dp)
+private val UNPLAYED_DOT = 12.dp
 
 /**
  * One media item in a list — used identically for podcast episodes and any
@@ -150,6 +158,8 @@ fun MediaItemRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = ROW_CARD_MARGIN_H, vertical = ROW_CARD_MARGIN_V)
+            .clip(CARD_SHAPE)
             // Under the click, so the ripple still draws on top of it.
             .background(tint.orSelected(id))
             .selectableClicks(
@@ -160,10 +170,10 @@ fun MediaItemRow(
             )
             // Tighter vertically than horizontally: 16dp all round made every row a third taller
             // than its artwork needed, so a screenful held five items where it now holds seven.
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(start = 10.dp, end = 2.dp, top = 10.dp, bottom = 10.dp),
     ) {
         ThumbnailWithProgress(item, playState)
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, Modifier.weight(1f))
         RowEnd(id, item.title, hasMenu, { showSheet = true }) {
             TrailingControl(trailing, downloadState, onDownload, onDeleteDownload)
@@ -200,12 +210,14 @@ private fun RowEnd(id: String, title: String, hasMenu: Boolean, onMenu: () -> Un
         SelectionCheckbox(id, title)
         return
     }
-    if (hasMenu) {
-        IconButton(onClick = onMenu) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (hasMenu) {
+            IconButton(onClick = onMenu) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
+            }
         }
+        trailing()
     }
-    trailing()
 }
 
 /** "Download the video too" only makes sense once the local copy is audio-only. */
@@ -237,12 +249,15 @@ private fun (() -> Unit)?.onlyWhenDownloaded(state: DownloadState): (() -> Unit)
 @Composable
 private fun ThumbnailWithProgress(item: MediaItem, playState: PlayState) {
     Column {
-        MediaThumbnail(
-            url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
-            contentDescription = item.title,
-            modifier = Modifier.size(width = THUMBNAIL_WIDTH, height = THUMBNAIL_HEIGHT),
-            durationLabel = durationLabel(item),
-        )
+        Box {
+            MediaThumbnail(
+                url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
+                contentDescription = item.title,
+                modifier = Modifier.size(width = THUMBNAIL_WIDTH, height = THUMBNAIL_HEIGHT),
+                durationLabel = durationLabel(item),
+            )
+            if (playState == PlayState.Unplayed) UnplayedDot(Modifier.align(Alignment.TopStart).padding(6.dp))
+        }
         PlayProgressSliver(playState, Modifier.width(THUMBNAIL_WIDTH))
     }
 }
@@ -262,7 +277,9 @@ private fun TitleAndSubtitle(
             text = item.title,
             // titleSmall over bodyLarge: the title is the thing the eye lands on and it was set at
             // the same weight as the subtitle under it, so a row had no hierarchy at all.
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleSmall.let {
+                if (playState == PlayState.Unplayed) it.copy(fontWeight = FontWeight.Bold) else it
+            },
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.alpha(playedTitleAlpha(playState)),
         )
@@ -278,6 +295,19 @@ private fun TitleAndSubtitle(
         }
         MediaItemStatus(pillar, playState, downloadState, StatusRowSpacing)
     }
+}
+
+@Composable
+private fun UnplayedDot(modifier: Modifier = Modifier) {
+    val description = stringResource(R.string.status_unplayed)
+    Box(
+        modifier = modifier
+            .size(UNPLAYED_DOT)
+            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
+            .padding(2.dp)
+            .background(MaterialTheme.colorScheme.primary, CircleShape)
+            .semantics { contentDescription = description },
+    )
 }
 
 /**
@@ -363,3 +393,6 @@ private fun DownloadControl(
             }
     }
 }
+
+val ROW_CARD_MARGIN_H = 12.dp
+val ROW_CARD_MARGIN_V = 4.dp

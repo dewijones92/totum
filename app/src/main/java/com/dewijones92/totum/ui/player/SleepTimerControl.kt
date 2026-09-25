@@ -1,14 +1,13 @@
 package com.dewijones92.totum.ui.player
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.SleepTimerState
 import kotlin.time.Duration
@@ -37,37 +35,43 @@ internal fun SleepTimerControl(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val armed = state != SleepTimerState.Off
-    TextButton(
-        onClick = { if (armed) onCancel() else menuOpen = true },
-        modifier = modifier,
-    ) {
-        Icon(Icons.Outlined.Bedtime, contentDescription = null, modifier = Modifier.size(20.dp))
-        val label = when (state) {
-            SleepTimerState.Off -> stringResource(R.string.sleep_timer)
-            is SleepTimerState.Running -> formatTime(state.remaining.inWholeMilliseconds)
-            // No countdown to show — it ends when the item does.
-            SleepTimerState.AfterCurrentItem -> stringResource(R.string.sleep_after_item_short)
-        }
-        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+    val value = when (state) {
+        SleepTimerState.Off -> stringResource(R.string.control_off)
+        is SleepTimerState.Running -> formatTime(state.remaining.inWholeMilliseconds)
+        SleepTimerState.AfterCurrentItem -> stringResource(R.string.sleep_after_item_short)
     }
-    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-        // First, because it is the one you actually want falling asleep to a podcast:
-        // a fixed 30 minutes either cuts the episode off or runs on into the next.
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.sleep_after_item)) },
-            onClick = {
-                onStopAfterItem()
-                menuOpen = false
-            },
+    Box(modifier) {
+        ControlTile(
+            icon = Icons.Outlined.Bedtime,
+            label = stringResource(R.string.sleep_timer),
+            value = value,
+            active = armed,
+            onClick = { if (armed) onCancel() else menuOpen = true },
+            modifier = Modifier.fillMaxSize(),
         )
-        SLEEP_OPTIONS.forEach { minutes ->
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            shape = MaterialTheme.shapes.medium
+        ) {
+            // First, because it is the one you actually want falling asleep to a podcast:
+            // a fixed 30 minutes either cuts the episode off or runs on into the next.
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.duration_minutes, minutes)) },
+                text = { Text(stringResource(R.string.sleep_after_item)) },
                 onClick = {
-                    onStart(minutes.minutes)
+                    onStopAfterItem()
                     menuOpen = false
                 },
             )
+            SLEEP_OPTIONS.forEach { minutes ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.duration_minutes, minutes)) },
+                    onClick = {
+                        onStart(minutes.minutes)
+                        menuOpen = false
+                    },
+                )
+            }
         }
     }
 }

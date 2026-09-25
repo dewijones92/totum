@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -136,7 +135,6 @@ private fun PlaylistBody(
                         onDeleteDownload = { viewModel.deleteDownload(media.id) },
                         onRemoveFromPlaylist = { viewModel.remove(media.id) },
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
         }

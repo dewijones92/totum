@@ -9,6 +9,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -32,6 +35,10 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelContent
 import com.dewijones92.totum.ui.channel.ChannelViewModel
 import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
+import androidx.compose.foundation.layout.Column
+import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.FilterField
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
@@ -52,6 +59,10 @@ class ListFilterTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     private fun type(text: String) {
+        if (composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).fetchSemanticsNodes().isEmpty()) {
+            composeTestRule.onNode(hasContentDescription("Filter", substring = true) and hasClickAction()).performClick()
+            composeTestRule.waitForIdle()
+        }
         composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput(text)
         composeTestRule.waitForIdle()
     }
@@ -86,6 +97,32 @@ class ListFilterTest {
 
         composeTestRule.onNodeWithContentDescription(context.getString(R.string.filter_clear)).performClick()
         composeTestRule.onNodeWithText("Chelsea collapse").assertExists()
+    }
+
+    @Test
+    fun `a hosted filter stays hidden until its toggle opens it and closes once cleared`() {
+        composeTestRule.setContent {
+            TotumTheme {
+                val filter = rememberListFilter("hosted")
+                Column {
+                    FilterToggle(filter, total = 3)
+                    FilterField(filter, shown = 3, total = 3, hosted = true)
+                }
+            }
+        }
+        val toggle = hasContentDescription("Filter", substring = true) and hasClickAction()
+
+        composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).assertCountEquals(0)
+        composeTestRule.onNode(toggle).performClick()
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertExists()
+
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).performTextInput("zz")
+        composeTestRule.onNode(toggle).performClick()
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertExists()
+
+        composeTestRule.onNodeWithContentDescription(context.getString(R.string.filter_clear)).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag(FILTER_FIELD_TAG).assertCountEquals(0)
     }
 
     @Test
