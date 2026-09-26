@@ -38,6 +38,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.compose.PlayerSurface
 import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
 import com.dewijones92.totum.R
+import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
 import kotlinx.coroutines.delay
 
@@ -92,6 +93,7 @@ internal fun VideoStageWithControls(
     onSeekForward: () -> Unit,
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
+    val bufferAhead = rememberBufferAhead(state)
     // Auto-hide while playing; any toggle restarts the timer via the key change.
     LaunchedEffect(controlsVisible, state.isPlaying) {
         if (controlsVisible && state.isPlaying) {
@@ -148,6 +150,7 @@ internal fun VideoStageWithControls(
                 onSeekTo = onSeekTo,
                 onSeekBackward = onSeekBackward,
                 onSeekForward = onSeekForward,
+                bufferAhead = bufferAhead,
             )
         }
     }
@@ -165,6 +168,7 @@ private fun VideoControlsOverlay(
     onSeekTo: (Long) -> Unit,
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
+    bufferAhead: BufferAhead?,
 ) {
     // White content over a dark scrim so controls read against any frame.
     CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -191,6 +195,7 @@ private fun VideoControlsOverlay(
             SeekBar(
                 state = state,
                 onSeekTo = onSeekTo,
+                bufferAhead = bufferAhead,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(start = 12.dp, end = 48.dp, bottom = 8.dp),

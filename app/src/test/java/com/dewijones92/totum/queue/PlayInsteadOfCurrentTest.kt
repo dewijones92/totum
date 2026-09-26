@@ -32,6 +32,8 @@ class PlayInsteadOfCurrentTest {
     private val dispatcher = StandardTestDispatcher()
     private val controller = FakePlaybackController()
 
+    private var offline = false
+
     private fun queue(store: InMemoryQueueStore = InMemoryQueueStore()) = PlaybackQueue(
         controller,
         VideoPlaybackLauncher(
@@ -44,6 +46,7 @@ class PlayInsteadOfCurrentTest {
         store,
         onQueuedByUser = {},
         clock = { 0L },
+        offline = { offline },
     )
 
     @Test
@@ -98,6 +101,62 @@ class PlayInsteadOfCurrentTest {
     }
 
     @Test
+    fun `when the chosen entry ends, what was playing comes back`() = runTest(dispatcher) {
+        val q = queue()
+        advanceUntilIdle()
+        listOf("a", "b", "c").forEach { q.enqueue(podcast(it)) }
+        q.jumpTo(0)
+        advanceUntilIdle()
+        q.playInsteadOfCurrent(q.entry("c"))
+        advanceUntilIdle()
+
+        assertTrue(q.playNextInQueue())
+        advanceUntilIdle()
+
+        assertEquals("a", controller.state.value?.itemId?.value)
+    }
+
+    @Test
+    fun `a chosen entry that will not play leaves the queue as it was`() = runTest(dispatcher) {
+        val q = queue()
+        advanceUntilIdle()
+        q.enqueue(podcast("a", onDisk = true))
+        q.enqueue(podcast("b", onDisk = true))
+        q.enqueue(podcast("c"))
+        q.jumpTo(0)
+        advanceUntilIdle()
+        offline = true
+
+        assertFalse(q.playInsteadOfCurrent(q.entry("c")))
+        advanceUntilIdle()
+
+        assertEquals("a", controller.state.value?.itemId?.value)
+        assertEquals(listOf("a", "b", "c"), q.ids())
+        assertEquals("a", q.state.value.current?.item?.item?.id?.value)
+        assertTrue(q.playNextInQueue())
+        advanceUntilIdle()
+        assertEquals("b", controller.state.value?.itemId?.value)
+    }
+
+    @Test
+    fun `when the playing item has been taken out of the queue, nothing already heard is promoted`() =
+        runTest(dispatcher) {
+            val q = queue()
+            advanceUntilIdle()
+            listOf("a", "b", "c").forEach { q.enqueue(podcast(it)) }
+            q.jumpTo(1)
+            advanceUntilIdle()
+            q.remove(q.entry("b"))
+
+            assertTrue(q.playInsteadOfCurrent(q.entry("c")))
+            advanceUntilIdle()
+
+            assertEquals("c", controller.state.value?.itemId?.value)
+            assertEquals(listOf("a", "c"), q.ids())
+            assertEquals("c", q.state.value.current?.item?.item?.id?.value)
+        }
+
+    @Test
     fun `with nothing playing it just plays the entry where it is`() = runTest(dispatcher) {
         val q = queue()
         advanceUntilIdle()
@@ -147,7 +206,7 @@ class PlayInsteadOfCurrentTest {
 
     private fun PlaybackQueue.ids() = state.value.entries.map { it.item.item.id.value }
 
-    private fun podcast(id: String) = PlayableItem(
+    private fun podcast(id: String, onDisk: Boolean = false) = PlayableItem(
         MediaItem(
             id = MediaItemId(id),
             sourceId = SourceId("feed"),
@@ -156,6 +215,6 @@ class PlayInsteadOfCurrentTest {
             duration = null,
             mediaUrl = HttpUrl.of("https://feeds.example.com/$id.mp3"),
         ),
-        PlayHandle.Podcast(),
+        PlayHandle.Podcast(localPath = "/data/$id.mp3".takeIf { onDisk }),
     )
 }

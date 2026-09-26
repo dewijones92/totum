@@ -13,7 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,8 +31,10 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.Chapter
 import com.dewijones92.totum.domain.SkipSegment
+import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.BufferGauge
 import com.dewijones92.totum.playback.PlaybackState
+import kotlinx.coroutines.delay
 
 /**
  * The scrubber: a slider over the current position, the elapsed/total times,
@@ -38,7 +42,12 @@ import com.dewijones92.totum.playback.PlaybackState
  * Used both below the artwork (audio) and overlaid on the video.
  */
 @Composable
-internal fun SeekBar(state: PlaybackState, onSeekTo: (Long) -> Unit, modifier: Modifier = Modifier) {
+internal fun SeekBar(
+    state: PlaybackState,
+    onSeekTo: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+    bufferAhead: BufferAhead? = rememberBufferAhead(state),
+) {
     val duration = state.durationMs
     var dragValue by remember(state.positionMs) { mutableStateOf<Float?>(null) }
     val position = dragValue?.toLong() ?: state.positionMs
@@ -62,7 +71,7 @@ internal fun SeekBar(state: PlaybackState, onSeekTo: (Long) -> Unit, modifier: M
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(formatTime(position), style = MaterialTheme.typography.labelMedium)
-                BufferAheadLabel(state, Modifier.weight(1f).padding(horizontal = 8.dp))
+                BufferAheadLabel(bufferAhead, Modifier.weight(1f).padding(horizontal = 8.dp))
                 Text(formatTime(duration), style = MaterialTheme.typography.labelMedium)
             }
         } else {
@@ -208,9 +217,7 @@ private val ChapterMarkerColor = Color(0xFFFFC107) // amber — visible on light
  * loads, and showing it made the label blink under the scrubber every second (2026-09-26).
  */
 @Composable
-private fun BufferAheadLabel(state: PlaybackState, modifier: Modifier) {
-    val gauge = remember { BufferGauge() }
-    val ahead = gauge.update(state, SystemClock.elapsedRealtime())
+private fun BufferAheadLabel(ahead: BufferAhead?, modifier: Modifier) {
     Text(
         text = when {
             ahead == null -> ""
@@ -226,4 +233,20 @@ private fun BufferAheadLabel(state: PlaybackState, modifier: Modifier) {
         },
         modifier = modifier,
     )
+}
+
+@Composable
+internal fun rememberBufferAhead(state: PlaybackState): BufferAhead? {
+    val gauge = remember { BufferGauge() }
+    var wokenAt by remember { mutableLongStateOf(0L) }
+    val now = maxOf(SystemClock.elapsedRealtime(), wokenAt)
+    val ahead = gauge.update(state, now)
+    val waitMs = gauge.waitMs(now)
+    LaunchedEffect(waitMs == null, state.itemId) {
+        if (waitMs != null) {
+            delay(waitMs)
+            wokenAt = SystemClock.elapsedRealtime()
+        }
+    }
+    return ahead
 }

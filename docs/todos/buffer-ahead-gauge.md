@@ -97,3 +97,19 @@ Three failed against the old rule (shown for 149 ticks during healthy playback, 
 running out, 23 ticks after a seek), and the end-of-item case failed against the first fix. On
 the emulator, the old build moved the timestamp row from y=2142 to 2179 when the label appeared
 in an item's last seconds; the fixed build kept it at 2142 through the same stretch.
+
+### From the review of the fix (same day)
+
+Two holes, both proven with tests before being fixed:
+
+- **A real stall would never show the label.** The 2-second wait only completed if the screen was
+  redrawn after it, and during buffering the player's state stops changing (the controller's ticker
+  only emits while playing). So the label stayed hidden through the stall it exists for, then popped
+  up once playback resumed. `BufferGauge.waitMs` now says how long is left, and
+  `rememberBufferAhead` wakes the screen when it is over.
+- **In the video overlay the gauge was forgotten whenever the controls hid**, because it lived inside
+  the part of the screen that is removed. The video stage now keeps it above the controls and hands
+  the result down; the audio player keeps it where it was.
+
+The "next item" test also did not guard the reset (60s buffered hid the gauge anyway); it now starts
+the new item low, and removing the reset fails it.

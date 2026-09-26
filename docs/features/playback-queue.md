@@ -27,16 +27,24 @@ Tap a row to jump to it: the cursor moves there and nothing is reordered. The ro
 in to the position of the current in play one? And the current in play one just moves down one
 position"*):
 
-- Acts on the entry **by identity**, never by an index read at composition. That index is stale the
-  moment anything above it moves, which is how one swipe once removed several rows.
-- "What is playing" is the item the player has, or, when the player has nothing loaded (straight
-  after a restart), the entry the queue shows as **Now playing**. The screen and the action agree
-  on which one moves down; the first on-device try found that they did not.
+- Acts on the entry the row shows, matched **by item id** (as removal and de-duplication are), never
+  by an index read at composition. That index is stale the moment anything above it moves, which is
+  how one swipe once removed several rows.
+- "What is playing" is the item the player has, or, only when the player has nothing loaded
+  (straight after a restart), the entry the queue shows as **Now playing**. The screen and the action
+  agree on which one moves down; the first on-device try found that they did not. When the playing
+  item has been taken out of the queue, nothing already heard is promoted: the chosen entry plays
+  where it is.
+- **If the chosen entry will not play** (offline with no copy, a failed resolve), the queue is put
+  back as it was, with what is still playing as current, so it does not replay when it ends.
 - An entry that has already left the queue plays nothing. On the playing entry it changes nothing.
 - Every use logs `[queue] play-instead: …` with the slot the entry took, and whether the one moved
   down was playing or only marked as playing.
 
-Tests: `PlayInsteadOfCurrentTest` (6): after the current, before it, after a restart with nothing
-loaded, nothing marked at all, the playing entry itself, and an entry that has left. Two failed
-against what a tap does today (jump to it), and the restart case failed against the first version.
-Checked on the emulator: two rows swapped, the chosen one playing, the other next.
+Tests: `PlayInsteadOfCurrentTest` (9): after the current, before it, after a restart with nothing
+loaded, nothing marked at all, the playing entry itself, an entry that has left, what was playing
+coming back when the chosen entry ends, a chosen entry that will not play, and the playing row
+having been removed. Two failed against what a tap does today (jump to it); the restart case
+failed against the first version; the refusal and removed-row cases failed until the review fixes.
+Checked on the emulator twice: two rows swapped, and in a queue of three the chosen one took the
+playing slot with the playing one next.

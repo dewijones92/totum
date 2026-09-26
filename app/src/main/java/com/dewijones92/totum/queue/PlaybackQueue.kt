@@ -353,15 +353,21 @@ class PlaybackQueue(
     }
 
     suspend fun playInsteadOfCurrent(entry: QueueEntry): Boolean {
+        val id = entry.item.item.id
         val title = entry.item.item.title.take(TITLE_CHARS)
         val snapshot = _state.value
-        if (snapshot.entries.none { it === entry }) {
+        val chosenAt = snapshot.entries.indexOfFirst { it.item.item.id == id }
+        if (chosenAt < 0) {
             Diag.log("queue", "play-instead: \"$title\" has already left the queue — nothing played")
             return false
         }
-        val playingId = _nowPlaying.value?.item?.id
-        val playing = snapshot.entries.firstOrNull { it.item.item.id == playingId } ?: snapshot.current
-        if (playing === entry) {
+        val playingBefore = _nowPlaying.value
+        val playing = if (playingBefore != null) {
+            snapshot.entries.firstOrNull { it.item.item.id == playingBefore.item.id }
+        } else {
+            snapshot.current
+        }
+        if (playing?.item?.item?.id == id) {
             Diag.log("queue", "play-instead: \"$title\" is already playing — queue left alone")
             return true
         }
@@ -370,27 +376,63 @@ class PlaybackQueue(
                 "queue",
                 "play-instead: nothing in the queue is playing or marked as playing, so \"$title\" plays where it is",
             )
-            return playAt(snapshot.entries.indexOfFirst { it === entry })
+            return playAt(chosenAt)
         }
-        var index = NOTHING_PLAYING
-        mutate("play-instead") { now ->
-            val without = now.entries.filterNot { it === entry }
-            val at = without.indexOfFirst { it === playing }
-            if (at < 0) {
-                now
-            } else {
-                index = at
-                val reordered = without.toMutableList().apply { add(at, entry) }
-                now.copy(entries = reordered, currentIndex = reordered.indexOfFirst { it === playing })
-            }
-        }
+        return playBefore(entry.item, playing.item, chosenAt, playingBefore)
+    }
+
+    private suspend fun playBefore(
+        chosen: PlayableItem,
+        playing: PlayableItem,
+        chosenAt: Int,
+        playingBefore: PlayableItem?,
+    ): Boolean {
+        val id = chosen.item.id
+        val title = chosen.item.title.take(TITLE_CHARS)
+        val playingId = playing.item.id
+        val playingTitle = playing.item.title.take(TITLE_CHARS)
+        val cursorBefore = _state.value.currentIndex
+        mutate("play-instead") { now -> now.movingBefore(id, playingId) }
+        val index = _state.value.entries.indexOfFirst { it.item.item.id == id }
         Diag.log(
             "queue",
-            "play-instead: \"$title\" takes slot $index; \"${playing.item.item.title.take(TITLE_CHARS)}\" " +
-                "(${if (playing.item.item.id == playingId) "playing" else "marked as playing, not loaded"}) " +
+            "play-instead: \"$title\" takes slot $index; \"$playingTitle\" " +
+                "(${if (playingBefore != null) "playing" else "marked as playing, not loaded"}) " +
                 "moves to ${index + 1} and is up next",
         )
-        return index >= 0 && playAt(index)
+        if (playAt(index)) return true
+        Diag.log(
+            "queue",
+            "play-instead: \"$title\" would not play — putting it back at $chosenAt and " +
+                "\"$playingTitle\" back as playing",
+        )
+        mutate("play-instead-rolled-back") { now ->
+            now.movingTo(id, chosenAt, cursorOn = playingId, fallback = cursorBefore)
+        }
+        _nowPlaying.value = playingBefore
+        return false
+    }
+
+    private fun QueueSnapshot.movingBefore(id: MediaItemId, anchor: MediaItemId): QueueSnapshot {
+        val moving = entries.firstOrNull { it.item.item.id == id } ?: return this
+        val without = entries.filterNot { it.item.item.id == id }
+        val at = without.indexOfFirst { it.item.item.id == anchor }
+        if (at < 0) return this
+        val reordered = without.toMutableList().apply { add(at, moving) }
+        return copy(entries = reordered, currentIndex = reordered.indexOfFirst { it.item.item.id == anchor })
+    }
+
+    private fun QueueSnapshot.movingTo(
+        id: MediaItemId,
+        index: Int,
+        cursorOn: MediaItemId,
+        fallback: Int,
+    ): QueueSnapshot {
+        val moving = entries.firstOrNull { it.item.item.id == id } ?: return this
+        val without = entries.filterNot { it.item.item.id == id }
+        val reordered = without.toMutableList().apply { add(index.coerceIn(0, without.size), moving) }
+        val cursor = reordered.indexOfFirst { it.item.item.id == cursorOn }
+        return copy(entries = reordered, currentIndex = if (cursor >= 0) cursor else fallback)
     }
 
     fun removeAt(index: Int) {

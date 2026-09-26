@@ -65,11 +65,47 @@ class BufferGaugeTest {
     fun `the next item starts with nothing on screen`() {
         val run = Playback(speed = 1f)
         run.play(seconds = 20, loadingKbpsOfMedia = 0.5, from = 8_000)
-        run.nextItem(bufferedMs = 60_000)
-        run.play(seconds = 1, loadingKbpsOfMedia = 0.0)
+        run.nextItem(bufferedMs = 5_000)
+        run.play(seconds = 1, loadingKbpsOfMedia = 1.0)
 
         assertEquals("shown on the new item", 0, run.shownTicksThisItem)
     }
+
+    @Test
+    fun `a stall that freezes the player's state is shown once its wait is over`() {
+        val gauge = BufferGauge()
+        val stalled = state(positionMs = 60_000, bufferedMs = 60_300, playing = false)
+
+        val atStart = gauge.update(stalled, nowMs = 1_000)
+        val waitMs = gauge.waitMs(nowMs = 1_000)
+        val afterTheWait = gauge.update(stalled, nowMs = 1_000 + (waitMs ?: 0))
+
+        assertEquals(null, atStart)
+        assertEquals(BufferAhead.SHOW_AFTER_MS, waitMs)
+        assertEquals(0L, afterTheWait?.seconds)
+        assertEquals(null, gauge.waitMs(nowMs = 1_000 + (waitMs ?: 0)))
+    }
+
+    @Test
+    fun `nothing is waited for while the buffer is healthy`() {
+        val gauge = BufferGauge()
+
+        gauge.update(state(positionMs = 0, bufferedMs = 40_000, playing = true), nowMs = 0)
+
+        assertEquals(null, gauge.waitMs(nowMs = 0))
+    }
+
+    private fun state(positionMs: Long, bufferedMs: Long, playing: Boolean) = PlaybackState(
+        itemId = MediaItemId("item"),
+        title = "Title",
+        artist = null,
+        artworkUrl = null,
+        isPlaying = playing,
+        positionMs = positionMs,
+        durationMs = DURATION_MS,
+        speed = 1f,
+        bufferedPositionMs = bufferedMs,
+    )
 
     private class Playback(private val speed: Float, private val durationMs: Long = DURATION_MS) {
         private val gauge = BufferGauge()

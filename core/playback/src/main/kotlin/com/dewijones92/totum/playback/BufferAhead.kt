@@ -108,6 +108,12 @@ public class BufferGauge {
         return ahead.takeIf { shown }
     }
 
+    public fun waitMs(nowMs: Long): Long? {
+        val since = lowSinceMs ?: return null
+        if (shown) return null
+        return (BufferAhead.SHOW_AFTER_MS - (nowMs - since)).coerceAtLeast(0)
+    }
+
     private companion object {
         const val END_SLACK_MS = 1_000L
     }
