@@ -352,6 +352,47 @@ class PlaybackQueue(
         scope.launch { playAt(index) }
     }
 
+    suspend fun playInsteadOfCurrent(entry: QueueEntry): Boolean {
+        val title = entry.item.item.title.take(TITLE_CHARS)
+        val snapshot = _state.value
+        if (snapshot.entries.none { it === entry }) {
+            Diag.log("queue", "play-instead: \"$title\" has already left the queue — nothing played")
+            return false
+        }
+        val playingId = _nowPlaying.value?.item?.id
+        val playing = snapshot.entries.firstOrNull { it.item.item.id == playingId } ?: snapshot.current
+        if (playing === entry) {
+            Diag.log("queue", "play-instead: \"$title\" is already playing — queue left alone")
+            return true
+        }
+        if (playing == null) {
+            Diag.log(
+                "queue",
+                "play-instead: nothing in the queue is playing or marked as playing, so \"$title\" plays where it is",
+            )
+            return playAt(snapshot.entries.indexOfFirst { it === entry })
+        }
+        var index = NOTHING_PLAYING
+        mutate("play-instead") { now ->
+            val without = now.entries.filterNot { it === entry }
+            val at = without.indexOfFirst { it === playing }
+            if (at < 0) {
+                now
+            } else {
+                index = at
+                val reordered = without.toMutableList().apply { add(at, entry) }
+                now.copy(entries = reordered, currentIndex = reordered.indexOfFirst { it === playing })
+            }
+        }
+        Diag.log(
+            "queue",
+            "play-instead: \"$title\" takes slot $index; \"${playing.item.item.title.take(TITLE_CHARS)}\" " +
+                "(${if (playing.item.item.id == playingId) "playing" else "marked as playing, not loaded"}) " +
+                "moves to ${index + 1} and is up next",
+        )
+        return index >= 0 && playAt(index)
+    }
+
     fun removeAt(index: Int) {
         mutate("remove-at-$index") { snapshot ->
             if (index !in snapshot.entries.indices) {

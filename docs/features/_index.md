@@ -29,7 +29,7 @@ alone until they need more.
 | Playlists (account) | video | shipped | — |
 | Channel page (subscribe + uploads) | channel | shipped | — |
 | Chapters (yt-dlp + Podcasting 2.0 `psc`/remote) + seek-bar markers | playback | shipped | — |
-| Playback queue (unified up-next) | playback | shipped | — |
+| Playback queue (unified up-next; play a row in place of the current one) | playback | shipped | [playback-queue.md](playback-queue.md) |
 | Streaming reliability (chunked fetch, hardware-aware codec, expired-URL recovery, SABR's four false endings) | playback | shipped | [streaming-reliability.md](streaming-reliability.md) |
 | Permanent vs transient failure, and playback that goes nowhere (ended / failed / stalled / never asked) | playback | shipped | [failure-handling.md](failure-handling.md) |
 | Diagnostics: nav / place / view-model / queue-intent trails | diagnostics | shipped | — |

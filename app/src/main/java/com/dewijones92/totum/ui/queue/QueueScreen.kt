@@ -192,6 +192,7 @@ private fun rememberQueueActions(
     val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
     return QueueActions(
         onPlay = queue::jumpTo,
+        onPlayInstead = { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } },
         onRemove = onRemove,
         onRemoveGroup = queue::removeGroup,
         onMove = queue::move,
@@ -214,6 +215,7 @@ private fun rememberQueueActions(
 /** What a queue row can do — bundled so the row builder isn't a wall of lambdas. */
 private data class QueueActions(
     val onPlay: (Int) -> Unit,
+    val onPlayInstead: (QueueEntry) -> Unit,
     /** Removal hands over the entry, because the snackbar's Undo needs to put it back. */
     val onRemove: (QueueEntry) -> Unit,
     val onRemoveGroup: (String) -> Unit,
@@ -413,6 +415,8 @@ private fun QueueRow(
         onDownload = { actions.onDownload(media) },
         onDeleteDownload = { actions.onDeleteDownload(media.id) },
         onRemoveFromQueue = { actions.onRemove(entry) },
+        onPlayInsteadOfCurrent = { actions.onPlayInstead(entry) }
+            .takeIf { nowPlaying.index >= 0 && index != nowPlaying.index },
         onAddToQueue = null,
         onDownloadVideo = { actions.onDownloadVideo(media) },
         onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },

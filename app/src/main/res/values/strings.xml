@@ -146,6 +146,7 @@
     <string name="filter_in_progress">In progress</string>
     <string name="filter_hides_everything">Nothing matches this filter</string>
     <string name="queue_play_next">Play next</string>
+    <string name="queue_play_instead">Play now, then back to what\'s playing</string>
     <!-- Transport control, distinct from queue_play_next which ADDS an item to the queue. -->
     <string name="skip_to_next">Skip to next</string>
     <string name="queue_add">Add to queue</string>

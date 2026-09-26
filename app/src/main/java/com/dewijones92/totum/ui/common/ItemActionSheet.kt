@@ -28,6 +28,7 @@ internal fun ItemActionSheet(
     val video = pillar == MediaKind.VIDEO
     ActionSheet(
         title = item.title,
+        onPlayInsteadOfCurrent = null,
         onPlayNext = { actions.queue(listOf(item), next = true) },
         onAddToQueue = { actions.queue(listOf(item), next = false) },
         onAddToPlaylist = { actions.addToPlaylist(listOf(item)) },

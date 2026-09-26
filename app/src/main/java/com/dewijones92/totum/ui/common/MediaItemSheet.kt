@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -54,6 +55,7 @@ import com.dewijones92.totum.domain.MediaKind
 @Composable
 internal fun ActionSheet(
     title: String,
+    onPlayInsteadOfCurrent: (() -> Unit)?,
     onPlayNext: (() -> Unit)?,
     onAddToQueue: (() -> Unit)?,
     onAddToPlaylist: (() -> Unit)?,
@@ -101,6 +103,7 @@ internal fun ActionSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
+            SheetAction(onPlayInsteadOfCurrent, Icons.Filled.PlayCircle, R.string.queue_play_instead, onDismiss)
             SheetAction(onPlayNext, Icons.AutoMirrored.Filled.PlaylistPlay, R.string.queue_play_next, onDismiss)
             SheetAction(onAddToQueue, Icons.AutoMirrored.Filled.QueueMusic, R.string.queue_add, onDismiss)
             SheetAction(onAddToPlaylist, Icons.AutoMirrored.Filled.PlaylistAdd, R.string.playlist_add_to, onDismiss)

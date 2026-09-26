@@ -111,6 +111,7 @@ fun MediaItemRow(
      * actions — the queue is the only list an entry can be removed from by position.
      */
     onRemoveFromQueue: (() -> Unit)? = null,
+    onPlayInsteadOfCurrent: (() -> Unit)? = null,
     onPeek: (() -> Unit)? = LocalItemActions.current.bind { peek(item) },
     /**
      * Offered when the row's local copy is audio only (what the queue fetches
@@ -151,7 +152,8 @@ fun MediaItemRow(
     val sheetDownload = onDownload.onlyWhenTheControlIsTaken(trailing, downloadState)
     val sheetDeleteDownload = onDeleteDownload.onlyWhenDownloaded(downloadState)
     val hasMenu = listOfNotNull(
-        onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue, onPeek,
+        onPlayInsteadOfCurrent, onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue,
+        onPeek,
         downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed,
         onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
@@ -182,6 +184,7 @@ fun MediaItemRow(
     if (showSheet) {
         ActionSheet(
             title = item.title,
+            onPlayInsteadOfCurrent = onPlayInsteadOfCurrent,
             onPlayNext = onPlayNext,
             onAddToQueue = onAddToQueue,
             onAddToPlaylist = onAddToPlaylist,
