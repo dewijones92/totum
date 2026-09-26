@@ -77,16 +77,33 @@ with PipePipe's rule:
 
   The one case left alone is a quiet recording with heavy hiss (24 dB down, hiss at sigma 30):
   turned up to full volume that hiss would sit above 1024, so PipePipe would not cut it either.
-- **The trade-off that is left, and it is a choice rather than a bug.** For about 340ms after a
-  loud moment (a cough, a clap, a music sting, a loud host), the level stays where the loud moment
-  put it, so the start of *quiet* speech that follows can be cut. Measured on the real audiobook
-  24 dB down: about 320-330ms lost after an 80ms-1s burst, and about 245ms more at the start of
-  each turn of a quiet guest after a loud host (about 300ms at 30 dB down, about 47ms at 18 dB). PipePipe loses all of that quiet speech, not the first 250ms of
-  it. The alternative measured was a second, fast-recovering level (the median of the last ten
-  sound blocks, over three, used when that median falls below an eighth of the speech level): it
-  brings the loss after a burst down to about 50ms and the guest loss to about a third, but it also
-  judges breaths as speech, and pause removal on the loud audiobook falls
-  from 94% to 76%. Parity with PipePipe on normally mastered speech was the goal, so it is not on.
+- **Every frame is judged half a second ahead** (2026-09-26). The cutter holds 500ms of audio
+  and decides each frame with the lower of two cut levels: the level when the frame arrived, and
+  the level after it has heard the next 500ms. Before this, for about 340ms after a loud moment (a
+  cough, a clap, a music sting, a loud host) the level stayed where the loud moment put it and the
+  start of *quiet* speech that followed was cut; and the last words of a quiet guest before a loud
+  host went the same way. Measured on the real audiobook 24 dB down, speech lost:
+
+  | Case | Without look-ahead | With it |
+  |---|---|---|
+  | In the 3s after an 80ms burst | 323ms | 51ms |
+  | In the 3s after a 1s burst | 336ms | 53ms |
+  | A quiet guest (-24 dB) after a loud host, 12 turns | 3807ms | 432ms |
+  | The same guest at -30 dB | 5944ms | 1848ms |
+
+  **The cost, and it is a choice:** quieter speech coming up also lowers the level for the pause in
+  front of it, so on loudly mastered podcasts less of each pause goes. On five 3-minute excerpts of
+  real BBC and YouTube speech as mastered, 54-63% of pause time is removed, against 67-73% without
+  look-ahead and 96-97% for PipePipe's fixed 1024 (which on the same excerpts 18-24 dB quieter
+  deletes 53-165 seconds of speech). Rules that tried to win the removal back were measured and
+  dropped: lowering the level only on a 2x or 4x fall, and treating anything at the noise floor as
+  pause, bought 0-3 points and gave back most of the speech gain. Recovering the removal is the
+  job of the speech-detecting mode, which knows a pause from a word by what it is rather than how
+  loud it is.
+- **The alternative measured before look-ahead** was a second, fast-recovering level (the median
+  of the last ten sound blocks, used when it falls below an eighth of the speech level): it brought
+  the loss after a burst to about 50ms but judged breaths as speech, and pause removal on the loud
+  audiobook fell from 94% to 76%.
 - **A steady music bed** between the cut level and 1024 blocks the cut on a moderately quiet
   recording where a fixed 1024 would cut it (the audiobook 6 dB down under a 110 Hz bed at 900:
   nothing removed, against 11.3s for a fixed 1024). The unit test's bed was lowered from 900 to 600
@@ -187,6 +204,7 @@ item gets the bigger buffer from the next item.
 | JVM | `HeardClockTest` (16) | a flush straight after a seek back does not count cuts from where playback used to be; a cut already announced is not announced again after a flush; a flush noticed before the stream restarts is not stranded; a cut carried across a flush is announced when heard; two flushes before either is heard count each stretch's cuts separately; at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
 | JVM | `BoostAndSkipSilenceTogetherTest` | Media3's real processors in the chain's order, boost on, speech peaking at 3000 with hiss at 300 in its pauses: they are all cut. With the boost first (the committed-before wiring), 119ms of 6000ms |
 | JVM | `SilenceCutterTest` (23) | a matrix of quiet recordings (600-3000 peak, Gaussian hiss) after nothing, a click, a cough or 5s of music keeps at least 99% of its speech energy, and has at least 70% of its pause time removed wherever the hiss is 26 dB or more under the speech (fails with the round-3 latch); a quiet recording is cut the way PipePipe would cut it turned up to full volume, and hiss that would sit over 1024 is kept; a music bed well under the speech is cut; a quiet recording that talks straight away keeps its opening; a long cut is not reported as nothing to cut; quiet speech that follows 5s of loud music or one loud click at the start of a stream loses at most its opening word (the mid-stream case is the trade-off above); quiet speech (peaking at 197) is never cut away; a quiet recording with hiss (1000/120) still has its pauses cut; a normally mastered one (20000/800) is cut as PipePipe cuts it; pauses louder than 1024 are kept as PipePipe keeps them; pauses under 150ms untouched; every longer pause becomes 40ms; the sound either side is bit-exact; the join fades to near zero; the skipped count equals exactly what was removed; the same output in any chunk size; stereo is a pause only when both channels are quiet; 1025 is never a pause; a cut counts only once playback reaches it, and keeps counting while a long pause is still being cut; trailing pauses. Mutation-checked: removing the fade fails one test, miscounting skipped frames fails another |
+| JVM | `LookAheadCutTest` (4) | a quiet guest (700) after a loud host (14000) keeps the start of every turn, and before one keeps the end, within 60ms; a cough in a quiet recording does not cut the words after it; the pauses are still cut. Three fail with the look-ahead off (1051-1303ms lost), and "keeps the end" fails when only the level ahead is used (1362ms) |
 | Device | `SilenceIsReallyCutTest` (8) | WAV, MP3 and stereo AAC podcasts, after a seek, at 2x, a video, and a video whose drawn frames are checked against the sound; a quiet podcast with the boost on is still cut. Every case also asserts the sound broke up at no more than two separate points. Red on the old code at every case (table above), and the break-up guard fails at 4-5 points with a 250ms buffer |
 
 ### Honest caveats
@@ -205,5 +223,10 @@ item gets the bigger buffer from the next item.
   real YouTube streams have not been measured.
 - Pauses much longer than about five seconds can still make the sound break briefly on a slow
   device, while the decoder catches up. That break is logged as an underrun.
+- The half second of look-ahead has edges. At a speed change, a skip-silence toggle or an item
+  boundary the processor is drained, so the frames still held are judged without the audio after
+  them, as before look-ahead; such a change also takes about 500ms longer to be heard. A sink flush
+  that is not a seek (a stalled output being reset) now drops up to 500ms of held sound rather than
+  held silence. All rare, none measured on a device.
 - How it sounds is not verified by ear from here. What is measured is the timing, the join, the
   picture and the underruns.

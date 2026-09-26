@@ -48,7 +48,9 @@ internal class SilenceReport {
     }
 
     private fun levelsOf(cutter: SilenceCutter): String =
-        "cut level ${cutter.cutLevel}, noise floor ${cutter.levels.noiseFloor}, speech peak ${cutter.levels.speechPeak}"
+        "cut level ${cutter.cutLevel} as of ${millis(cutter.lookaheadFrames.toLong())}ms ahead " +
+            "(each frame is judged by the lower of it and the level when it arrived), " +
+            "noise floor ${cutter.levels.noiseFloor}, speech peak ${cutter.levels.speechPeak}"
 
     private fun millis(frames: Long): Long = frames * MILLIS_PER_SECOND / sampleRate.coerceAtLeast(1)
 
