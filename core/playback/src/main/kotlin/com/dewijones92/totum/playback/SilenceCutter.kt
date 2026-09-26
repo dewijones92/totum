@@ -2,7 +2,11 @@ package com.dewijones92.totum.playback
 
 import kotlin.math.abs
 
-internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
+internal class SilenceCutter(
+    sampleRate: Int,
+    private val channels: Int,
+    val levels: CutLevel = CutLevel(framesIn(BLOCK_MS, sampleRate).coerceAtLeast(1)),
+) {
 
     private val minSilentFrames = framesIn(MIN_SILENCE_MS, sampleRate)
     private val padFrames = framesIn(PAD_MS, sampleRate).coerceAtMost(minSilentFrames / 2)
@@ -21,8 +25,6 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
     private var out = ShortArray(0)
 
     val heard = HeardCuts()
-
-    val levels = CutLevel(framesIn(BLOCK_MS, sampleRate).coerceAtLeast(1))
 
     val cutLevel: Int get() = levels.level
 
@@ -98,6 +100,7 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
         skippedFrames++
         removedThisGap++
         heard.grow(skippedFrames)
+        levels.cutHappened()
     }
 
     private fun endCut() {
@@ -139,7 +142,7 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
         const val FLOOR = 32
         const val MIN_SILENCE_MS = 150
         const val PAD_MS = 20
-        private const val BLOCK_MS = 20
+        const val BLOCK_MS = 20
         private const val MILLIS_PER_SECOND = 1_000
 
         fun framesIn(milliseconds: Int, sampleRate: Int): Int =
@@ -175,10 +178,13 @@ internal class HeardCuts {
 
 internal class CutLevel(private val blockFrames: Int) {
 
-    private val blocks = IntArray(FLOOR_BLOCKS) { UNKNOWN }
+    private val blocks = IntArray(FLOOR_BLOCKS)
+    private var blockCount = 0
     private var blockAt = 0
-    private val sounds = IntArray(SOUND_BLOCKS) { UNKNOWN }
+    private val sounds = IntArray(SOUND_BLOCKS)
+    private var soundCount = 0
     private var soundAt = 0
+    private val sorted = IntArray(SOUND_BLOCKS)
     private var blockPeak = 0
     private var blockFill = 0
 
@@ -198,31 +204,52 @@ internal class CutLevel(private val blockFrames: Int) {
         framesSinceCut++
         blockPeak = maxOf(blockPeak, framePeak)
         if (++blockFill < blockFrames) return
-        blocks[blockAt] = blockPeak
-        blockAt = (blockAt + 1) % blocks.size
-        if (blockPeak > level) {
+        if (blockPeak >= DIGITAL_SILENCE) {
+            blocks[blockAt] = blockPeak
+            blockAt = (blockAt + 1) % blocks.size
+            blockCount = minOf(blockCount + 1, blocks.size)
+            noiseFloor = floorOf()
+        }
+        if (noiseFloor != UNKNOWN && blockPeak > maxOf(noiseFloor * SOUND_OVER_FLOOR, SilenceCutter.FLOOR)) {
             sounds[soundAt] = blockPeak
             soundAt = (soundAt + 1) % sounds.size
+            soundCount = minOf(soundCount + 1, sounds.size)
+            speechPeak = medianSound()
         }
         blockPeak = 0
         blockFill = 0
-        noiseFloor = blocks.filter { it != UNKNOWN }.minOrNull() ?: UNKNOWN
-        speechPeak = sounds.maxOrNull()?.takeIf { it != UNKNOWN } ?: UNKNOWN
-        val aboveFloor = if (noiseFloor == UNKNOWN) Int.MAX_VALUE else noiseFloor * ABOVE_FLOOR
-        val underSpeech = if (speechPeak == UNKNOWN) Int.MAX_VALUE else speechPeak / UNDER_SPEECH
-        level = minOf(aboveFloor, underSpeech).coerceIn(SilenceCutter.FLOOR, SilenceCutter.THRESHOLD)
+        level = if (speechPeak == UNKNOWN) {
+            SilenceCutter.FLOOR
+        } else {
+            minOf(noiseFloor * ABOVE_FLOOR, speechPeak / UNDER_SPEECH)
+                .coerceIn(SilenceCutter.FLOOR, SilenceCutter.THRESHOLD)
+        }
     }
 
     fun cutHappened() {
         framesSinceCut = 0
     }
 
+    private fun floorOf(): Int {
+        var lowest = Int.MAX_VALUE
+        for (i in 0 until blockCount) lowest = minOf(lowest, blocks[i])
+        return lowest
+    }
+
+    private fun medianSound(): Int {
+        sounds.copyInto(sorted, 0, 0, soundCount)
+        sorted.sort(0, soundCount)
+        return sorted[soundCount / 2]
+    }
+
     internal companion object {
         const val UNKNOWN = -1
         const val ABOVE_FLOOR = 8
         const val UNDER_SPEECH = 4
+        private const val SOUND_OVER_FLOOR = 2
+        private const val DIGITAL_SILENCE = 16
         private const val FLOOR_BLOCKS = 250
-        private const val SOUND_BLOCKS = 50
+        private const val SOUND_BLOCKS = 10
     }
 }
 

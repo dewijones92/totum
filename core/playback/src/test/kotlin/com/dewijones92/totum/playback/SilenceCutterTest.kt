@@ -223,12 +223,112 @@ class SilenceCutterTest {
     }
 
     @Test
-    fun `room tone before anyone speaks is cut`() {
-        val input = noise(2_000, level = 200) + bursts(speechPeak = 8_000, noise = 200, count = 2)
+    fun `quiet speech keeps its words and loses its pauses whatever came before it`() {
+        val before = mapOf(
+            "nothing" to ShortArray(0),
+            "a click" to ShortArray(1) { 30_000 },
+            "a cough" to cough(),
+            "5s of music" to ShortArray(frames(5_000)) { i ->
+                (20_000 * sin(2 * PI * 330 * i / RATE)).toInt().toShort()
+            },
+        )
+        val clearlyUnderTheSpeech = listOf(
+            600 to 20,
+            800 to 40,
+            1_000 to 60,
+            2_000 to 150,
+            3_000 to 250,
+            800 to 100,
+            1_000 to 140
+        )
+        val barelyUnderTheSpeech = listOf(800 to 150, 600 to 100)
+        for ((peak, hiss) in clearlyUnderTheSpeech + barelyUnderTheSpeech) {
+            val speech = spokenSentences(peak, hiss)
+            for ((what, lead) in before) {
+                val output = cut(lead + speech.audio)
+                val kept = output.size - lead.size
+                val energy = energyOf(output, from = lead.size) / energyOf(speech.audio)
+                assertTrue(
+                    "$peak/$hiss after $what: kept only ${"%.3f".format(energy)} of the speech's energy",
+                    energy >= ENERGY_KEPT,
+                )
+                if ((peak to hiss) in barelyUnderTheSpeech) continue
+                assertTrue(
+                    "$peak/$hiss after $what: removed only ${speech.totalMs - millisOf(kept)}ms " +
+                        "of ${speech.pauseMs}ms of pauses",
+                    speech.totalMs - millisOf(kept) >= speech.pauseMs * MOSTLY_CUT,
+                )
+            }
+        }
+    }
 
-        val removed = input.size - cut(input).size
+    @Test
+    fun `a music bed well under the speech lets its pauses be cut`() {
+        val bed = ShortArray(frames(30_000)) { i -> (900 * sin(2 * PI * 110 * i / RATE)).toInt().toShort() }
+        val speech = spokenSentences(peak = 8_000, hiss = 0)
+        val mixed = ShortArray(speech.audio.size) { (speech.audio[it] + bed[it % bed.size]).toShort() }
 
-        assertTrue("only $removed frames removed", removed >= frames(2_000 - KEPT_MS - SilenceCutter.MIN_SILENCE_MS))
+        val removedMs = millisOf(mixed.size - cut(mixed).size)
+
+        assertTrue("removed only ${removedMs}ms of ${speech.pauseMs}ms", removedMs >= speech.pauseMs * MOSTLY_CUT)
+    }
+
+    @Test
+    fun `a quiet recording that starts talking straight away keeps its opening`() {
+        val speech = spokenSentences(peak = 600, hiss = 100)
+
+        val energy = energyOf(cut(speech.audio)) / energyOf(speech.audio)
+
+        assertTrue("kept only ${"%.3f".format(energy)} of the speech's energy", energy >= ENERGY_KEPT)
+    }
+
+    @Test
+    fun `a long pause being cut is not mistaken for nothing to cut`() {
+        val cutter = SilenceCutter(RATE, 1)
+        val input = speech(TONE_MS) + silence(70_000)
+        cutter.process(input, input.size)
+
+        assertTrue(
+            "${cutter.levels.framesSinceCut} frames since the last cut, in the middle of one",
+            cutter.levels.framesSinceCut < frames(1_000),
+        )
+    }
+
+    private fun energyOf(samples: ShortArray, from: Int = 0): Double {
+        var sum = 0.0
+        for (i in from until samples.size) sum += samples[i].toDouble() * samples[i]
+        return sum
+    }
+
+    private class Spoken(val audio: ShortArray, val speechMs: Int, val pauseMs: Int) {
+        val totalMs: Int get() = speechMs + pauseMs
+    }
+
+    private fun spokenSentences(peak: Int, hiss: Int): Spoken {
+        val random = java.util.Random(SEED)
+        var audio = ShortArray(0)
+        var speechMs = 0
+        var pauseMs = 0
+        repeat(SENTENCES) {
+            repeat(WORDS) { word ->
+                val loudness = 0.6 + 0.4 * random.nextDouble()
+                audio += ShortArray(frames(WORD_MS)) { i ->
+                    val envelope = sin(PI * i / frames(WORD_MS))
+                    val voice = peak * loudness * envelope * sin(2 * PI * VOICE_HZ * i / RATE)
+                    (voice + hiss * random.nextGaussian() / GAUSSIAN_PEAK).toInt().toShort()
+                }
+                speechMs += WORD_MS
+                val gap = if (word == WORDS - 1) PAUSE_MS else WORD_GAP_MS
+                audio += ShortArray(frames(gap)) { (hiss * random.nextGaussian() / GAUSSIAN_PEAK).toInt().toShort() }
+                if (word == WORDS - 1) pauseMs += gap else speechMs += gap
+            }
+        }
+        return Spoken(audio, speechMs, pauseMs)
+    }
+
+    private fun cough(): ShortArray {
+        val random = java.util.Random(SEED)
+        return ShortArray(frames(COUGH_MS)) { (COUGH_PEAK * random.nextGaussian() / GAUSSIAN_PEAK).toInt().toShort() }
     }
 
     private fun sentences(speechPeak: Int, noise: Int, count: Int): ShortArray {
@@ -303,6 +403,13 @@ class SilenceCutterTest {
         const val TONE_MS = 500
         const val PAUSE_MS = 1_000
         const val WORDS = 5
+        const val SENTENCES = 8
+        const val SEED = 7L
+        const val GAUSSIAN_PEAK = 3.0
+        const val COUGH_MS = 300
+        const val COUGH_PEAK = 25_000
+        const val MOSTLY_CUT = 0.7
+        const val ENERGY_KEPT = 0.99
         const val WORD_MS = 250
         const val WORD_GAP_MS = 80
         const val SENTENCE_SPEECH_MS = WORDS * WORD_MS + (WORDS - 1) * WORD_GAP_MS

@@ -73,11 +73,12 @@ class BoostAndSkipSilenceTogetherTest {
         val pause = RATE * PAUSE_MS / MILLIS
         return ShortArray(PAUSES * (speech + pause)) { i ->
             val t = i % (speech + pause)
+            val hiss = if (t % 2 == 0) HISS else -HISS
             if (t < speech) {
                 val envelope = 0.5 + 0.5 * sin(2 * PI * SYLLABLE_HZ * t / RATE)
-                (SPEECH_PEAK * envelope * sin(2 * PI * VOICE_HZ * t / RATE)).toInt().toShort()
+                (SPEECH_PEAK * envelope * sin(2 * PI * VOICE_HZ * t / RATE) + hiss).toInt().toShort()
             } else {
-                (if (t % 2 == 0) HISS else -HISS).toShort()
+                hiss.toShort()
             }
         }
     }

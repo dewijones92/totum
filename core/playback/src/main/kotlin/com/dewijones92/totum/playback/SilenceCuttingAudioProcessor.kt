@@ -51,6 +51,7 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
         val previous = cutter
+        val previousRate = sampleRate
         previous?.let(report::banked)
         if (previous != null && previous.outputFrames + previous.skippedFrames > 0) {
             previousSkippedBy = skippedByOf(previous, sampleRate)
@@ -66,7 +67,10 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
                     "cut level ${CutLevel.ABOVE_FLOOR}x the noise floor, at most a quarter of the speech peak " +
                     "and ${SilenceCutter.THRESHOLD})",
             )
-            SilenceCutter(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1))
+            val blockFrames = SilenceCutter.framesIn(SilenceCutter.BLOCK_MS, inputAudioFormat.sampleRate)
+            val levels = previous?.levels?.takeIf { previousRate == inputAudioFormat.sampleRate }
+                ?: CutLevel(blockFrames.coerceAtLeast(1))
+            SilenceCutter(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1), levels)
         } else {
             null
         }
@@ -99,6 +103,7 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
     override fun onReset() {
         cutter?.let(report::banked)
         cutter = null
+        previousSkippedBy = NOTHING_CUT
         samples = ShortArray(0)
         enabled = false
     }

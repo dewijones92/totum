@@ -147,6 +147,38 @@ class HeardClockTest {
     }
 
     @Test
+    fun `a flush noticed before the stream restarts is not stranded`() {
+        clock.processorsFlushed(cutAt(outputUs = 1_000_000, removedUs = 2_000_000))
+        clock.processorsFlushed { 0L }
+        clock.streamStarts(START + 8_000_000)
+
+        assertEquals(START + 3_500_000, clock.position(START + 1_500_000, 0L) { 0L })
+        assertEquals(
+            "the new stream counts on its own once it is heard",
+            START + 8_100_000,
+            clock.position(
+                START + 8_100_000,
+                0L
+            ) {
+                0L
+            }
+        )
+    }
+
+    @Test
+    fun `a cut carried across a flush is announced when it is heard`() {
+        clock.processorsFlushed(cutAt(outputUs = 1_000_000, removedUs = 2_000_000))
+        clock.streamStarts(START + 8_000_000)
+
+        clock.position(START + 900_000, 0L) { 0L }
+        val before = clock.releasedUs
+        clock.position(START + 1_100_000, 0L) { 0L }
+
+        assertEquals(0L, before)
+        assertEquals(2_000_000L, clock.releasedUs)
+    }
+
+    @Test
     fun `the carried silence never pushes the clock past the start of the new stream`() {
         clock.processorsFlushed { 9_000_000L }
         clock.streamStarts(START + 20_000_000)

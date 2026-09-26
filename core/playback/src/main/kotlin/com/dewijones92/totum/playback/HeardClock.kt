@@ -32,7 +32,7 @@ internal class HeardClock {
     fun streamStarts(presentationTimeUs: Long) {
         if (baselineUs != null) return
         baselineUs = presentationTimeUs
-        checkpoints.lastOrNull()?.takeIf { it.baselineUs == null }?.baselineUs = presentationTimeUs
+        checkpoints.filter { it.baselineUs == null }.forEach { it.baselineUs = presentationTimeUs }
     }
 
     fun inputEnded() {
@@ -43,7 +43,11 @@ internal class HeardClock {
         releasedUs = 0L
         heardUs = countedUs - allSkippedUs
         while (checkpoints.firstOrNull()?.baselineUs?.let { heardUs >= it } == true) checkpoints.removeFirst()
-        checkpoints.firstOrNull()?.let { return it.positionBefore(heardUs) }
+        checkpoints.firstOrNull()?.let { checkpoint ->
+            val position = checkpoint.positionBefore(heardUs)
+            releasedUs = checkpoint.newlyCarriedUs
+            return position
+        }
         val baseline = baselineUs ?: return countedUs
         val skippedHeardUs = skippedHeardBy(heardUs - baseline + if (inputEnded) END_SLACK_US else 0L)
         val holdingUs = allSkippedUs - skippedHeardUs
@@ -60,9 +64,14 @@ internal class HeardClock {
 
     private class Checkpoint(val previousBaselineUs: Long?, val previousSkippedBy: (Long) -> Long) {
         var baselineUs: Long? = null
+        private var carriedUs = 0L
+        var newlyCarriedUs = 0L
+            private set
 
         fun positionBefore(heardUs: Long): Long {
             val carried = previousBaselineUs?.let { previousSkippedBy(heardUs - it) } ?: 0L
+            newlyCarriedUs = (carried - carriedUs).coerceAtLeast(0L)
+            carriedUs = maxOf(carriedUs, carried)
             val position = heardUs + carried
             return baselineUs?.let { minOf(position, it) } ?: position
         }
