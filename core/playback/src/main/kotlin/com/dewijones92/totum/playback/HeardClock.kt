@@ -25,7 +25,7 @@ internal class HeardClock {
     }
 
     fun processorsFlushed(previousSkippedBy: (Long) -> Long) {
-        val alreadyCountedUs = baselineUs?.let { previousSkippedBy(heardUs - it) } ?: 0L
+        val alreadyCountedUs = baselineUs?.takeIf { heardUs >= it }?.let { previousSkippedBy(heardUs - it) } ?: 0L
         checkpoints.addLast(Checkpoint(baselineUs, previousSkippedBy, alreadyCountedUs))
         restart()
     }
@@ -58,6 +58,7 @@ internal class HeardClock {
     }
 
     private fun restart() {
+        heardUs = 0L
         baselineUs = null
         heldBackUs = 0L
         inputEnded = false

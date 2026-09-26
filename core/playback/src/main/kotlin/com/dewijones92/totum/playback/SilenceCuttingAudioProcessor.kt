@@ -59,6 +59,7 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
             previousSkippedBy = skippedByOf(previous, sampleRate)
         }
         flushes++
+        val carry = previous != null && previousRate == inputAudioFormat.sampleRate && !relearnLevels
         cutter = if (isActive) {
             sampleRate = inputAudioFormat.sampleRate
             report.sampleRate = sampleRate
@@ -66,10 +67,11 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
                 "silence",
                 "cutting pauses over ${SilenceCutter.MIN_SILENCE_MS}ms to ${2 * SilenceCutter.PAD_MS}ms " +
                     "(rate=${inputAudioFormat.sampleRate} ch=${inputAudioFormat.channelCount}, " +
-                    "cut level an eighth of the speech level, at most ${SilenceCutter.THRESHOLD})",
+                    "cut level an eighth of the speech level, at most ${SilenceCutter.THRESHOLD}; " +
+                    "${if (carry) "keeping level ${previous?.cutLevel}" else "learning the level afresh"})",
             )
             val blockFrames = SilenceCutter.framesIn(SilenceCutter.BLOCK_MS, inputAudioFormat.sampleRate)
-            val carried = previous?.levels?.takeIf { previousRate == inputAudioFormat.sampleRate && !relearnLevels }
+            val carried = previous?.levels?.takeIf { carry }
             relearnLevels = false
             val levels = carried ?: CutLevel(blockFrames.coerceAtLeast(1))
             SilenceCutter(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1), levels)

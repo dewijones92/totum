@@ -193,6 +193,21 @@ class HeardClockTest {
     }
 
     @Test
+    fun `a flush straight after a seek back does not count cuts from where playback used to be`() {
+        val skips = cutAt(outputUs = 1_000_000, removedUs = 2_000_000)
+        clock.position(START + 5_000_000 + 2_000_000, 2_000_000) { skips(it) }
+        clock.seeked()
+        clock.streamStarts(START)
+
+        clock.processorsFlushed(skips)
+        clock.streamStarts(START + 9_000_000)
+
+        assertEquals("before the cut", START + 500_000, clock.position(START + 500_000, 0L) { 0L })
+        assertEquals("the cut, when it is heard", START + 3_100_000, clock.position(START + 1_100_000, 0L) { 0L })
+        assertEquals("and announced then", 2_000_000L, clock.releasedUs)
+    }
+
+    @Test
     fun `the carried silence never pushes the clock past the start of the new stream`() {
         clock.processorsFlushed { 9_000_000L }
         clock.streamStarts(START + 20_000_000)
