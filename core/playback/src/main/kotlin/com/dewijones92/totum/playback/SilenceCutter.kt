@@ -6,6 +6,7 @@ internal class SilenceCutter(
     sampleRate: Int,
     private val channels: Int,
     val levels: CutLevel = CutLevel(framesIn(BLOCK_MS, sampleRate).coerceAtLeast(1)),
+    val lookaheadFrames: Int = framesIn(LOOKAHEAD_MS, sampleRate),
 ) {
 
     private val minSilentFrames = framesIn(MIN_SILENCE_MS, sampleRate)
@@ -26,6 +27,8 @@ internal class SilenceCutter(
 
     val heard = HeardCuts()
 
+    private val ahead = LookAhead(lookaheadFrames, channels)
+
     val cutLevel: Int get() = levels.level
 
     var outputSamples: Int = 0
@@ -44,37 +47,53 @@ internal class SilenceCutter(
         private set
 
     fun process(input: ShortArray, frames: Int): ShortArray {
-        ensureRoom(frames + minSilentFrames + padFrames)
+        ensureRoom(frames + minSilentFrames + padFrames + lookaheadFrames)
         for (frame in 0 until frames) {
             val at = frame * channels
             val peak = framePeak(input, at, channels)
-            val silent = peak <= levels.level
+            val before = levels.level
             levels.track(peak)
-            when {
-                cutting && silent -> pushTail(input, at)
-                cutting -> {
-                    endCut()
-                    emit(input, at)
-                }
-                silent -> hold(input, at)
-                pendingFrames > 0 -> {
-                    releasePending()
-                    emit(input, at)
-                }
-                else -> emit(input, at)
+            if (lookaheadFrames == 0) {
+                decide(input, at, peak <= minOf(before, levels.level))
+                continue
             }
+            if (ahead.full) {
+                decide(ahead.samples, ahead.oldestAt, ahead.oldestPeak <= minOf(ahead.oldestLevel, levels.level))
+                ahead.drop()
+            }
+            ahead.push(input, at, peak, before)
         }
         return out
     }
 
     fun endOfStream(): ShortArray {
-        ensureRoom(minSilentFrames + padFrames)
+        ensureRoom(minSilentFrames + padFrames + lookaheadFrames)
+        while (ahead.held > 0) {
+            decide(ahead.samples, ahead.oldestAt, ahead.oldestPeak <= minOf(ahead.oldestLevel, levels.level))
+            ahead.drop()
+        }
         if (cutting) endCut()
         if (pendingFrames > 0) releasePending()
         return out
     }
 
     fun gapJustEnded(): Boolean = justEnded.also { justEnded = false }
+
+    private fun decide(source: ShortArray, at: Int, silent: Boolean) {
+        when {
+            cutting && silent -> pushTail(source, at)
+            cutting -> {
+                endCut()
+                emit(source, at)
+            }
+            silent -> hold(source, at)
+            pendingFrames > 0 -> {
+                releasePending()
+                emit(source, at)
+            }
+            else -> emit(source, at)
+        }
+    }
 
     private fun hold(input: ShortArray, at: Int) {
         input.copyInto(pending, pendingFrames * channels, at, at + channels)
@@ -141,12 +160,45 @@ internal class SilenceCutter(
         const val THRESHOLD = 1024
         const val FLOOR = 32
         const val MIN_SILENCE_MS = 150
+        const val LOOKAHEAD_MS = 500
         const val PAD_MS = 20
         const val BLOCK_MS = 20
         private const val MILLIS_PER_SECOND = 1_000
 
         fun framesIn(milliseconds: Int, sampleRate: Int): Int =
             (milliseconds.toLong() * sampleRate / MILLIS_PER_SECOND).toInt()
+    }
+}
+
+internal class LookAhead(private val capacity: Int, private val channels: Int) {
+
+    val samples = ShortArray(capacity.coerceAtLeast(1) * channels)
+    private val peaks = IntArray(capacity.coerceAtLeast(1))
+    private val levels = IntArray(capacity.coerceAtLeast(1))
+    private var start = 0
+
+    var held = 0
+        private set
+
+    val full: Boolean get() = held == capacity
+
+    val oldestAt: Int get() = start * channels
+
+    val oldestPeak: Int get() = peaks[start]
+
+    val oldestLevel: Int get() = levels[start]
+
+    fun push(input: ShortArray, at: Int, peak: Int, levelBefore: Int) {
+        val slot = (start + held) % capacity
+        input.copyInto(samples, slot * channels, at, at + channels)
+        peaks[slot] = peak
+        levels[slot] = levelBefore
+        held++
+    }
+
+    fun drop() {
+        start = (start + 1) % capacity
+        held--
     }
 }
 
