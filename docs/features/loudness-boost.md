@@ -23,7 +23,7 @@ up to loud, dont distortion"*.
 This doc covers all four versions, because the mistakes are the interesting part and each one was
 caused by fixing the previous one too literally.
 
-## The three versions, and why each was wrong
+## The four versions, and why each was wrong
 
 | | What it did | Why it failed |
 |---|---|---|
@@ -168,7 +168,7 @@ app before.
 
 | Level | Test | Claim |
 |---|---|---|
-| JVM | `LoudnessBoostTest` (24) | Version 4 adds: **a sudden loud passage keeps its shape** (under 0.5% distortion at the onset and no flat tops; 2.11% on version 3), **a recording 30 dB too quiet comes up as loud as one at the target** (a third as loud on version 3), both channels get one gain, and switching it on and off mid-stream loses and repeats nothing. And, from before: **Not distorting:** a sudden loud passage after a quiet one clips zero samples, so does six alternating bursts, `clippedSamples` stays 0, nothing wraps. **Making quiet things audible:** a very quiet recording is lifted >8×, an already-loud one is left within 5% of untouched, gain falls monotonically as the input gets louder, nothing is ever attenuated, the cap holds at +20 dB, and it settles within half a second rather than swelling. **Not sounding processed:** a steady tone stays steady within 5%, a pause between sentences does not move the gain, the gap is not lifted more than the speech, quiet speech is amplified rather than gated, silence stays silent, OFF is bit-exact, and an old stored level migrates to AUTO |
+| JVM | `LoudnessBoostTest` (24) | Version 4 adds: **a sudden loud passage keeps its shape** (under 0.5% distortion at the onset and no flat tops; 2.11% on version 3), **a recording 30 dB too quiet comes up as loud as one at the target** (a third as loud on version 3), both channels get one gain, and switching it on and off mid-stream loses and repeats nothing. And, from before: **Not distorting:** a sudden loud passage after a quiet one clips zero samples, so does six alternating bursts, `clippedSamples` stays 0, nothing wraps. **Making quiet things audible:** a very quiet recording is lifted >8×, an already-loud one is left within 5% of untouched, gain falls monotonically as the input gets louder, nothing is ever attenuated, the cap holds at +30 dB, and it settles within half a second rather than swelling. **Not sounding processed:** a steady tone stays steady within 5%, a pause between sentences does not move the gain, the gap is not lifted more than the speech, quiet speech is amplified rather than gated, silence stays silent, OFF is bit-exact, and an old stored level migrates to AUTO |
 | Instrumented | `BoostingAudioProcessorTest` (7) | Version 4 adds that a seek forgets the 5 ms held back for the look-ahead. And, from before: The plumbing Media3 actually drives: the whole input buffer is consumed, samples are read **little-endian** (proven by sign correlation — a byte-swapped read would sit near 50%), OFF passes bytes through, a non-16-bit format is left alone, an empty buffer is fine, and the setting can change mid-stream |
 
 **Why version 2's tests did not catch its bug, which is the lesson worth keeping.** All eleven of
@@ -182,6 +182,9 @@ with that, and assert exactly zero.
 
 What is verified is the arithmetic and the plumbing, by measurement. What cannot be verified from
 here is how it *sounds* to Dewi on his earphones — that needs ears. The numbers say a −40 dBFS
-recording comes up about 10× with not one sample clipped, and that a properly-mastered one is left
-alone. If it is still not loud enough in practice, the honest lever is the target level or the +30 dB
+recording comes up about 18× with not one sample clipped, and that a properly-mastered one is left
+alone. On real recordings (an audiobook, a comedy podcast, a TTS narration) turned down by 12, 24
+and 30 dB, each comes back within 0.5 dB of its mastered loudness with 0 clipped samples and no
+flat tops, the limiter pulling more than 3 dB on at most 2.1% of samples; at 36 dB down the +30 dB
+cap leaves it about 6 dB short (measured 2026-09-26). If it is still not loud enough in practice, the honest lever is the target level or the +30 dB
 cap, and the look-ahead limiter is what makes raising either safe to try.

@@ -27,12 +27,8 @@ import kotlin.math.ln
  * The fix is a limiter that looks [LookaheadLimiter.LOOKAHEAD_MS] ms ahead: the gain ramps down over
  * that window before a peak arrives and recovers slowly after it. Each sample's gain is an average of
  * values that are all at or below that sample's own `CEILING / |sample|`, so the output is bounded by
- * construction and [clippedSamples] is expected to stay at zero forever. It is reported anyway, because a number that
- * should always be zero is the cheapest possible alarm.
- *
- * The version before this clamped at the peak sample itself, with no look-ahead. That never exceeded
- * the ceiling, but it pinned the first rising edges of every loud onset flat against it: 12-15 flat
- * tops and 1.4-2.1% harmonic distortion in the first 50 ms, measured 2026-09-26.
+ * construction and [clippedSamples] is expected to stay at zero forever. It is reported anyway,
+ * because a number that should always be zero is the cheapest possible alarm.
  *
  * ## Auto, rather than a number you pick
  *
@@ -46,9 +42,7 @@ import kotlin.math.ln
  *
  * - **It never turns anything down** ([MIN_GAIN] is 1). Quieter-than-expected is a surprise nobody
  *   asked for, and the ask was to hear quiet things.
- * - **It never applies more than [MAX_GAIN]**, +30 dB. It was +20 until 2026-09-26, when Dewi asked
- *   for any quiet audio to come up loud without distortion; the look-ahead limiter is what makes the
- *   extra lift safe.
+ * - **It never applies more than [MAX_GAIN]**, +30 dB.
  *
  * Pure arithmetic on a `ShortArray`, deliberately: no Android, no platform effect, so it behaves the
  * same on every device and — the part that matters here — the maths can be proven on the JVM.

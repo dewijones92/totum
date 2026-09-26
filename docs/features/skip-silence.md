@@ -80,11 +80,12 @@ with PipePipe's rule:
 - **The trade-off that is left, and it is a choice rather than a bug.** For about 340ms after a
   loud moment (a cough, a clap, a music sting, a loud host), the level stays where the loud moment
   put it, so the start of *quiet* speech that follows can be cut. Measured on the real audiobook
-  24 dB down: about 330ms lost after an 80ms-1s burst, and about 250ms at the start of each turn of
-  a quiet guest after a loud host. PipePipe loses all of that quiet speech, not the first 250ms of
+  24 dB down: about 320-330ms lost after an 80ms-1s burst, and about 245ms more at the start of
+  each turn of a quiet guest after a loud host (about 300ms at 30 dB down, about 47ms at 18 dB). PipePipe loses all of that quiet speech, not the first 250ms of
   it. The alternative measured was a second, fast-recovering level (the median of the last ten
-  sound blocks, over three): it brings the loss after a burst down to about 45ms and the guest loss
-  to a quarter, but it also judges breaths as speech, and pause removal on the loud audiobook falls
+  sound blocks, over three, used when that median falls below an eighth of the speech level): it
+  brings the loss after a burst down to about 50ms and the guest loss to about a third, but it also
+  judges breaths as speech, and pause removal on the loud audiobook falls
   from 94% to 76%. Parity with PipePipe on normally mastered speech was the goal, so it is not on.
 - **A steady music bed** between the cut level and 1024 blocks the cut on a moderately quiet
   recording where a fixed 1024 would cut it (the audiobook 6 dB down under a 110 Hz bed at 900:
@@ -170,7 +171,7 @@ item gets the bigger buffer from the next item.
 | `skip-silence -> true (player now true)` and `the player's skip-silence is now true` | the setting reached the player and the player took it |
 | `sink applied skip-silence=true` | the sink applied it to the chain, the step that used to undo it |
 | `audio output buffer 1000ms (skip-silence=true)` | the output buffer that was chosen |
-| `cutting pauses over 150ms to 40ms (rate=… ch=…)` | the cutter is active for this stream |
+| `cutting pauses over 150ms to 40ms (rate=… ch=…, …; keeping level 999)` or `… learning the level afresh` | the cutter is active for this stream, and whether it kept what it had learned |
 | `cut pause #1 (removed 1960ms; 1s removed so far)` | first cut, then every 100th |
 | `cut #1 heard 1036ms into the stream: clock moved on 1960ms when it was heard, not when it was cut` | the clock correction is working |
 | `this stretch: cut 8 pause(s), removed 15687ms from 24000ms of audio` | per stream, at every seek or item change |
@@ -194,6 +195,8 @@ item gets the bigger buffer from the next item.
   and so is room tone before the first word. A music bed with its own dynamics can count as speech
   and keep pauses in (5-15% removed in a probe, against 99% for a fixed 1024); whether a pause under
   a music bed should be cut at all is a judgement, not a bug.
+- Extremely quiet speech with no hiss at all (peaks around 110, 42 dB down) sits near the lowest
+  cut level of 32 and loses about 3.5s per minute.
 - Hiss that hovers near the cut level can end a cut early, so a long pause may come out as two or
   three pieces with 40ms fades between them. PipePipe does the same near 1024.
 - A video pause is released as a jump in the clock. Frames more than 500ms late make the decoder
