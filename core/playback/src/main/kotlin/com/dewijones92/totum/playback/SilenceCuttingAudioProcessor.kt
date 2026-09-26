@@ -70,6 +70,7 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
         val previous = cutter
         val previousRate = sampleRate
         previous?.let(report::banked)
+        previous?.speech?.retire()
         if (previous != null && previous.outputFrames + previous.skippedFrames > 0) {
             previousSkippedBy = skippedByOf(previous, sampleRate)
         }
@@ -153,6 +154,7 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
 
     override fun onReset() {
         cutter?.let(report::banked)
+        cutter?.speech?.retire()
         cutter = null
         previousSkippedBy = NOTHING_CUT
         samples = ShortArray(0)

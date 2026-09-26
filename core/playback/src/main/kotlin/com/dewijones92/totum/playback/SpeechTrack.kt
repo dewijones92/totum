@@ -35,6 +35,11 @@ internal class SpeechTrack(
     @Volatile
     private var decidedUpTo = 0L
 
+    @Volatile
+    private var retired = false
+
+    private var lastWasDropped = false
+
     private val step = inputRate.toDouble() / SpeechModel.SAMPLE_RATE
     private val taps = lowPass(inputRate)
     private val history = FloatArray(taps.size * 2)
@@ -103,9 +108,15 @@ internal class SpeechTrack(
         block = FloatArray(BLOCK)
         blockFill = 0
         worker.submit {
-            for (k in 0 until count) resample(samples[k])
-            if (finishing) while (chunkFill != 0) emit(0f)
+            if (!retired) {
+                for (k in 0 until count) resample(samples[k])
+                if (finishing) while (chunkFill != 0) emit(0f)
+            }
         }
+    }
+
+    fun retire() {
+        retired = true
     }
 
     private fun resample(sample: Float) {
@@ -133,8 +144,14 @@ internal class SpeechTrack(
         val neededUntil = ((index + BEFORE_CHUNKS + 1) * chunkFrames).toLong() - delayFrames
         verdicts[(index % VERDICT_RING).toInt()] = if (neededUntil < decidedUpTo) {
             chunksDropped++
+            lastWasDropped = true
             UNKNOWN
         } else {
+            if (lastWasDropped) {
+                model.reset()
+                speaking = false
+                lastWasDropped = false
+            }
             judge()
         }
         chunksDone = index + 1

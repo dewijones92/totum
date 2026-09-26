@@ -107,6 +107,20 @@ class SmartCutTest {
     }
 
     @Test
+    fun `a track that has been replaced does no more work`() {
+        val held = ArrayList<Runnable>()
+        val cutter =
+            SilenceCutter(RATE, 1, speech = SpeechTrack(SpeechModel(weights), RATE, SpeechWorker { held += it }))
+        val old = requireNotNull(cutter.speech)
+        cutter.process(speech.copyOf(), speech.size)
+
+        cutter.speech = SpeechTrack(SpeechModel(weights), RATE)
+        held.forEach(Runnable::run)
+
+        assertEquals(0L, old.chunksHeard)
+    }
+
+    @Test
     fun `smart cuts a noisy pause that standard has to keep`() {
         val pauseMs = MILLIS
 
@@ -130,6 +144,21 @@ class SmartCutTest {
         }
 
         assertEquals(fromTheStart, switchedOn)
+    }
+
+    @Test
+    fun `smart switched on while audio is already flowing judges the frames that follow`() {
+        val cutter = SilenceCutter(RATE, 1)
+        val lead = withHiss(speech, BACKGROUND_HISS, SEED)
+        cutter.process(lead.copyOf(), lead.size)
+
+        cutter.speech = SpeechTrack(SpeechModel(weights), RATE)
+        val rest = hiss(seconds = 1f, sigma = NOISY_HISS) + withHiss(speech, BACKGROUND_HISS, SEED + 1)
+        cutter.process(rest.copyOf(), rest.size)
+        cutter.endOfStream()
+
+        assertTrue("${cutter.smart}", cutter.smart.notSpeechFrames > RATE / 2)
+        assertTrue("${cutter.smart}", cutter.smart.cutBeyondStandard > 0)
     }
 
     @Test

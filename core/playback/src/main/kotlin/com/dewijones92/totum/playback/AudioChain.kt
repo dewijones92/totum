@@ -38,13 +38,22 @@ internal object BundledSpeechModel {
     @Volatile
     private var weights: SpeechWeights? = null
 
+    @Volatile
     private var loading = false
 
-    fun get(context: Context): SpeechWeights? = weights ?: null.also { startLoading(context.applicationContext) }
+    @Volatile
+    private var failedAt = 0L
+
+    fun get(context: Context): SpeechWeights? {
+        weights?.let { return it }
+        val retryDue = failedAt == 0L || SystemClock.elapsedRealtime() - failedAt > RETRY_AFTER_MS
+        if (!loading && retryDue) startLoading(context.applicationContext)
+        return null
+    }
 
     @Synchronized
     private fun startLoading(context: Context) {
-        if (loading) return
+        if (loading || weights != null) return
         loading = true
         thread(name = "speech-model") {
             val started = SystemClock.elapsedRealtime()
@@ -53,7 +62,17 @@ internal object BundledSpeechModel {
                     weights = it
                     Diag.log("silence", "speech model loaded in ${SystemClock.elapsedRealtime() - started}ms")
                 }
-                .onFailure { Diag.warn("silence", "speech model could not be loaded; smart cuts as standard", it) }
+                .onFailure {
+                    failedAt = SystemClock.elapsedRealtime()
+                    Diag.warn(
+                        "silence",
+                        "speech model could not be loaded; smart cuts as standard and retries in a minute",
+                        it
+                    )
+                }
+            loading = false
         }
     }
+
+    private const val RETRY_AFTER_MS = 60_000L
 }

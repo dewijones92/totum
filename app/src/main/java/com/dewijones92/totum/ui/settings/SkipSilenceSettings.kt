@@ -16,10 +16,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.playback.PreviewResult
 import com.dewijones92.totum.playback.PreviewState
 import com.dewijones92.totum.playback.PreviewVariant
 import com.dewijones92.totum.playback.SilenceMode
@@ -95,13 +94,7 @@ private fun PreviewCard() {
     var preview by remember { mutableStateOf<SilencePreview?>(null) }
     DisposableEffect(Unit) { onDispose { preview?.release() } }
     val state = preview?.state?.collectAsState()?.value ?: PreviewState()
-    val results = remember { mutableStateMapOf<Pair<Boolean, PreviewVariant>, PreviewState>() }
     var noisy by remember { mutableStateOf(false) }
-    var lastPlaying by remember { mutableStateOf<PreviewVariant?>(null) }
-    LaunchedEffect(state.playing) {
-        lastPlaying?.takeIf { state.playing != it }?.let { finished -> results[state.noisy to finished] = state }
-        lastPlaying = state.playing
-    }
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.silence_preview_title), style = MaterialTheme.typography.titleSmall)
@@ -138,7 +131,7 @@ private fun PreviewCard() {
                 }
             }
             PreviewStatus(state)
-            PreviewResults(results.filterKeys { it.first == noisy }.mapKeys { it.key.second })
+            PreviewResults(state.results.filterKeys { it.first == noisy }.mapKeys { it.key.second })
         }
     }
 }
@@ -166,7 +159,7 @@ private fun PreviewStatus(state: PreviewState) {
 }
 
 @Composable
-private fun PreviewResults(results: Map<PreviewVariant, PreviewState>) {
+private fun PreviewResults(results: Map<PreviewVariant, PreviewResult>) {
     PreviewVariant.entries.filter { it != PreviewVariant.UNCUT }.mapNotNull { variant ->
         results[variant]?.let { variant to it }
     }.forEach { (variant, result) ->
@@ -180,7 +173,7 @@ private fun PreviewResults(results: Map<PreviewVariant, PreviewState>) {
                     result.pausesCut.toInt(),
                     result.pausesCut.toInt()
                 ),
-                clock(result.positionMs),
+                clock(result.heardMs),
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

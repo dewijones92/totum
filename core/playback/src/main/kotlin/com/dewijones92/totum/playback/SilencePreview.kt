@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 public enum class PreviewVariant { UNCUT, STANDARD, SMART }
 
+public data class PreviewResult(val savedMs: Long, val pausesCut: Long, val heardMs: Long)
+
 public data class PreviewState(
     val playing: PreviewVariant? = null,
     val positionMs: Long = 0,
@@ -25,6 +27,7 @@ public data class PreviewState(
     val savedMs: Long = 0,
     val pausesCut: Long = 0,
     val noisy: Boolean = false,
+    val results: Map<Pair<Boolean, PreviewVariant>, PreviewResult> = emptyMap(),
 )
 
 @OptIn(markerClass = [UnstableApi::class])
@@ -60,10 +63,13 @@ public class SilencePreview(context: Context) {
         player.addListener(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
-                        publish()
-                        Diag.log("silence", "preview ${_state.value.playing} finished: ${summary()}")
-                        _state.value = _state.value.copy(playing = null)
+                    if (playbackState == Player.STATE_ENDED) finish("finished")
+                }
+
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (!playWhenReady && _state.value.playing != null) {
+                        finish("paused by the system (reason $reason)")
+                        player.stop()
                     }
                 }
             },
@@ -71,6 +77,7 @@ public class SilencePreview(context: Context) {
     }
 
     public fun play(variant: PreviewVariant, noisy: Boolean = false) {
+        finish("replaced by ${variant.name.lowercase()}")
         skipping = variant != PreviewVariant.UNCUT
         cutter.mode = if (variant == PreviewVariant.SMART) SilenceMode.SMART else SilenceMode.STANDARD
         player.skipSilenceEnabled = skipping
@@ -78,7 +85,7 @@ public class SilencePreview(context: Context) {
         player.setMediaItem(MediaItem.fromUri(RawResourceDataSource.buildRawResourceUri(clip)))
         player.prepare()
         player.play()
-        _state.value = PreviewState(playing = variant, noisy = noisy)
+        _state.value = PreviewState(playing = variant, noisy = noisy, results = _state.value.results)
         Diag.log(
             "silence",
             "preview playing the ${if (noisy) "noisy" else "clean"} test clip ${variant.name.lowercase()}"
@@ -88,10 +95,20 @@ public class SilencePreview(context: Context) {
     }
 
     public fun stop() {
-        if (_state.value.playing != null) Diag.log("silence", "preview ${_state.value.playing} stopped: ${summary()}")
+        finish("stopped")
         player.stop()
+    }
+
+    private fun finish(how: String) {
+        val variant = _state.value.playing ?: return
         handler.removeCallbacks(tick)
-        _state.value = _state.value.copy(playing = null)
+        publish()
+        val now = _state.value
+        Diag.log("silence", "preview ${variant.name.lowercase()} $how: ${summary()}")
+        _state.value = now.copy(
+            playing = null,
+            results = now.results + ((now.noisy to variant) to now.asResult()),
+        )
     }
 
     public fun release() {
@@ -107,6 +124,8 @@ public class SilencePreview(context: Context) {
             pausesCut = cutter.gapsCut,
         )
     }
+
+    private fun PreviewState.asResult() = PreviewResult(savedMs, pausesCut, positionMs)
 
     private fun summary(): String = _state.value.let {
         "${it.pausesCut} pauses cut, ${it.savedMs}ms saved at ${it.positionMs}ms"

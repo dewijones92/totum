@@ -12,6 +12,7 @@ internal class SilenceCutter(
 
     var speech: SpeechTrack? = speech
         set(value) {
+            if (field !== value) field?.retire()
             field = value
             speechFrom = framesArrived
         }
