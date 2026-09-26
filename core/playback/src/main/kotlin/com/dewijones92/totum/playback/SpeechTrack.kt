@@ -38,7 +38,7 @@ internal class SpeechTrack(
     @Volatile
     private var retired = false
 
-    private var warmingUp = 0
+    private var warmingUp = WARM_UP_AFTER_GAP
 
     private val step = inputRate.toDouble() / SpeechModel.SAMPLE_RATE
     private val taps = lowPass(inputRate)
@@ -65,6 +65,10 @@ internal class SpeechTrack(
 
     @Volatile
     var chunksDropped: Long = 0L
+        private set
+
+    @Volatile
+    var chunksWithheld: Long = 0L
         private set
 
     @Volatile
@@ -161,6 +165,7 @@ internal class SpeechTrack(
         if (speaking) chunksSpeech++
         val trusted = warmingUp == 0
         if (!trusted) warmingUp--
+        if (!trusted && !speaking) chunksWithheld++
         return when {
             speaking -> SPEECH
             trusted -> NOT_SPEECH

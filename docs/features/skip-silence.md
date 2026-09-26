@@ -205,7 +205,7 @@ item gets the bigger buffer from the next item.
 | JVM | `BoostAndSkipSilenceTogetherTest` | Media3's real processors in the chain's order, boost on, speech peaking at 3000 with hiss at 300 in its pauses: they are all cut. With the boost first (the committed-before wiring), 119ms of 6000ms |
 | JVM | `SilenceCutterTest` (23) | a matrix of quiet recordings (600-3000 peak, Gaussian hiss) after nothing, a click, a cough or 5s of music keeps at least 99% of its speech energy, and has at least 70% of its pause time removed wherever the hiss is 26 dB or more under the speech (fails with the round-3 latch); a quiet recording is cut the way PipePipe would cut it turned up to full volume, and hiss that would sit over 1024 is kept; a music bed well under the speech is cut; a quiet recording that talks straight away keeps its opening; a long cut is not reported as nothing to cut; quiet speech that follows 5s of loud music or one loud click at the start of a stream loses at most its opening word (the mid-stream case is the trade-off above); quiet speech (peaking at 197) is never cut away; a quiet recording with hiss (1000/120) still has its pauses cut; a normally mastered one (20000/800) is cut as PipePipe cuts it; pauses louder than 1024 are kept as PipePipe keeps them; pauses under 150ms untouched; every longer pause becomes 40ms; the sound either side is bit-exact; the join fades to near zero; the skipped count equals exactly what was removed; the same output in any chunk size; stereo is a pause only when both channels are quiet; 1025 is never a pause; a cut counts only once playback reaches it, and keeps counting while a long pause is still being cut; trailing pauses. Mutation-checked: removing the fade fails one test, miscounting skipped frames fails another |
 | JVM | `SpeechModelTest` (6, incl. the filter bank being the windowed DFT the FFT replaces) | the Kotlin network gives ONNX Runtime's answers within 0.0001 over 64 chunks (synthetic tones, noise, silence, real speech); speech is told from silence; reset forgets; a wrong-sized chunk and a foreign file are refused. Mutation-checked: swapped LSTM gates, zero padding, and dropped context each fail it |
-| JVM | `SmartCutTest` (12) | plus: dropped-chunk gaps never turn speech into not-speech; switched on while audio is flowing it judges what follows (the review's mutant, ignoring the offset, judged 0 frames); a replaced track does no more work; until the detector answers a frame is cut exactly as Standard; a detector on its own thread reaches the same verdicts as inline; a chunk that arrives after its frames were decided is not modelled |
+| JVM | `SmartCutTest` (13) | plus: with dense gaps not-speech is withheld rather than guessed (fails with no warm-up), and with occasional gaps Smart still tells pauses from speech (fails with an absurd warm-up); switched on while audio is flowing it judges what follows (the review's mutant, ignoring the offset, judged 0 frames); a replaced track does no more work; until the detector answers a frame is cut exactly as Standard; a detector on its own thread reaches the same verdicts as inline; a chunk that arrives after its frames were decided is not modelled |
 | JVM | `SmartCutTest` (first 6) | the track says speech in speech and not in hiss, will not guess ahead of what it has heard, reads audio at 48 kHz as it does at 16 kHz; Smart cuts a noisy pause Standard must keep, never cuts a loud stretch that is not speech, and switched on after the cutter was made cuts the same as from the start (red at 0ms vs 1124ms before the fix) |
 | JVM, opt-in | `RealSpeechSmartTest` (6) | on the LibriVox clip: 75%+ of pause time as mastered, 85%+ at 18 dB down, never less than Standard at any level, a quiet guest keeps their words (fails at 956ms lost if the detector is ignored), the noisy demo clip saves 1.5x Standard's time, and a minute of audio is processed in well under 15s |
 | JVM | `LookAheadCutTest` (4) | a quiet guest (700) after a loud host (14000) keeps the start of every turn, and before one keeps the end, within 60ms; a cough in a quiet recording does not cut the words after it; the pauses are still cut. Three fail with the look-ahead off (1051-1303ms lost), and "keeps the end" fails when only the level ahead is used (1362ms) |
@@ -310,11 +310,18 @@ own workflow; see `docs/tests/_index.md`.
   quarter of the speech level, so a quiet music bed, intro or video ambience about 12 dB under the
   voice goes in a pause. That is the agreed rule; Standard is the choice for content where it
   should stay.
-- After chunks were skipped as too late, the detector keeps its memory (resetting it was tried and
-  measured worse: a cold start calls the first chunks of a word non-speech) but its "not speech"
-  verdicts are not trusted for the next six chunks, about 190 ms, so those frames are cut as
-  Standard would cut them; "speech" verdicts are always acted on. A test drops alternate blocks
-  and asserts no frame the steady detector calls speech comes back as not-speech (9 did before).
+- After chunks were skipped as too late, and at the start of every new track (a seek, a new item,
+  switching Smart on), the detector keeps running but its "not speech" verdicts are withheld for six
+  chunks, about 190 ms, so those frames are cut as Standard would cut them; "speech" is acted on at
+  once. Resetting the detector's memory after a gap was tried and measured worse (a cold start calls
+  the first chunks of a word non-speech). Two tests bracket the length: with dense gaps it must
+  withhold rather than guess (9 frames of speech came back as not-speech with no warm-up), and with
+  occasional gaps Smart must still tell pauses from speech (a warm-up of 1000 fails it, and two other
+  Smart tests). Six is a judgement between them, not a measured optimum. **What is left:** a review
+  probe of 58 drop patterns found 4 in which 3-4 frames (30-40 ms) still flipped 10-25 chunks after a
+  gap, because the detector's memory takes 0.6-0.8 s to catch up; too short on their own to make a
+  150 ms cut, but not proven harmless. The report counts `not-speech withheld while warming up`
+  separately from `not yet known`, so a phone report shows how often it happened.
   A replaced track (a seek, a new
   item, a mode change) stops using the detector's thread at once; a failed model load is retried a
   minute later rather than never.

@@ -121,26 +121,53 @@ class SmartCutTest {
     }
 
     @Test
-    fun `gaps where chunks were dropped never turn speech into not-speech`() {
+    fun `while chunks keep being dropped, not-speech is withheld rather than guessed`() {
         val input = withHiss(speech + speech + speech, BACKGROUND_HISS, SEED)
-        val steady = SpeechTrack(SpeechModel(weights), RATE)
-        input.forEach { steady.push(it / FULL_SCALE) }
-        steady.finish()
-        val gappy = SpeechTrack(SpeechModel(weights), RATE)
-        val block = SpeechTrack.BLOCK
-        for (start in input.indices step block) {
-            if ((start / block) % 2 == 0) gappy.isSpeech((start + block + SpeechModel.CHUNK * 3).toLong())
-            input.copyOfRange(start, minOf(input.size, start + block)).forEach { gappy.push(it / FULL_SCALE) }
-        }
-        gappy.finish()
+        val steady = steadyTrack(input)
+        val gappy = gappyTrack(input) { block -> block % 2 == 0 }
 
-        val judged = input.indices.filter { (it / block) % 2 == 1 }.filter { it % STEP == 0 }
-        val flipped = judged.count { frame ->
-            steady.isSpeech(frame.toLong()) == true && gappy.isSpeech(frame.toLong()) == false
-        }
-        assertTrue("dropped ${gappy.chunksDropped} chunks", gappy.chunksDropped > 0)
+        val flipped = flippedFrames(input, steady, gappy)
+
+        assertTrue("dropped ${gappy.chunksDropped}", gappy.chunksDropped > 0)
         assertEquals("frames the steady detector called speech that the gappy one called not-speech", 0, flipped)
     }
+
+    @Test
+    fun `an occasional dropped chunk leaves smart still telling pauses from speech`() {
+        val input = withHiss(speech + hiss(seconds = 1f, sigma = NOISY_HISS) + speech + speech, BACKGROUND_HISS, SEED)
+        val steady = steadyTrack(input)
+        val gappy = gappyTrack(input) { block -> block % DROP_EVERY_BLOCKS == 1 }
+
+        val flipped = flippedFrames(input, steady, gappy)
+
+        assertTrue("dropped ${gappy.chunksDropped}", gappy.chunksDropped > 0)
+        assertTrue(
+            "not-speech was never judged",
+            input.indices.any { it % STEP == 0 && gappy.isSpeech(it.toLong()) == false }
+        )
+        assertEquals("frames the steady detector called speech that the gappy one called not-speech", 0, flipped)
+    }
+
+    private fun steadyTrack(input: ShortArray): SpeechTrack = SpeechTrack(SpeechModel(weights), RATE).also { track ->
+        input.forEach { track.push(it / FULL_SCALE) }
+        track.finish()
+    }
+
+    private fun gappyTrack(input: ShortArray, dropBlock: (Int) -> Boolean): SpeechTrack {
+        val track = SpeechTrack(SpeechModel(weights), RATE)
+        val block = SpeechTrack.BLOCK
+        for (start in input.indices step block) {
+            if (dropBlock(start / block)) track.isSpeech((start + block + SpeechModel.CHUNK * 3).toLong())
+            input.copyOfRange(start, minOf(input.size, start + block)).forEach { track.push(it / FULL_SCALE) }
+        }
+        track.finish()
+        return track
+    }
+
+    private fun flippedFrames(input: ShortArray, steady: SpeechTrack, gappy: SpeechTrack): Int =
+        input.indices.filter { it % STEP == 0 }.count { frame ->
+            steady.isSpeech(frame.toLong()) == true && gappy.isSpeech(frame.toLong()) == false
+        }
 
     @Test
     fun `smart cuts a noisy pause that standard has to keep`() {
@@ -241,5 +268,6 @@ class SmartCutTest {
         const val MILLIS = 1_000L
         const val SEED = 3L
         const val TEN = 10L
+        const val DROP_EVERY_BLOCKS = 5
     }
 }
