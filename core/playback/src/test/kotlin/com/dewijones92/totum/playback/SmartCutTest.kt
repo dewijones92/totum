@@ -148,6 +148,38 @@ class SmartCutTest {
         assertEquals("frames the steady detector called speech that the gappy one called not-speech", 0, flipped)
     }
 
+    @Test
+    fun `a detector started mid-speech does not call the speech around it not-speech`() {
+        val input = withHiss(speech + speech, BACKGROUND_HISS, SEED)
+        val steady = steadyTrack(input)
+        val chunk = SpeechModel.CHUNK
+        var flipped = 0
+        for (startChunk in 0 until speech.size / chunk step FRESH_EVERY_CHUNKS) {
+            val from = startChunk * chunk
+            val fresh = SpeechTrack(SpeechModel(weights), RATE)
+            input.copyOfRange(from, input.size).forEach { fresh.push(it / FULL_SCALE) }
+            fresh.finish()
+            flipped += (0 until FIRST_CHUNKS * chunk step STEP).count { offset ->
+                steady.isSpeech((from + offset).toLong()) == true && fresh.isSpeech(offset.toLong()) == false
+            }
+        }
+
+        assertEquals("frames the steady detector called speech that a fresh one called not-speech", 0, flipped)
+    }
+
+    @Test
+    fun `withheld counts only verdicts that would have been not-speech`() {
+        val quiet = SpeechTrack(SpeechModel(weights), RATE)
+        hiss(seconds = 1f, sigma = BACKGROUND_HISS).forEach { quiet.push(it / FULL_SCALE) }
+        quiet.finish()
+        val talking = SpeechTrack(SpeechModel(weights), RATE)
+        speech.copyOfRange(SPEECH_START, speech.size).forEach { talking.push(it / FULL_SCALE) }
+        talking.finish()
+
+        assertEquals(SpeechTrack.WARM_UP_AFTER_GAP.toLong(), quiet.chunksWithheld)
+        assertEquals("withheld while every chunk was heard as speech", 0L, talking.chunksWithheld)
+    }
+
     private fun steadyTrack(input: ShortArray): SpeechTrack = SpeechTrack(SpeechModel(weights), RATE).also { track ->
         input.forEach { track.push(it / FULL_SCALE) }
         track.finish()
@@ -269,5 +301,8 @@ class SmartCutTest {
         const val SEED = 3L
         const val TEN = 10L
         const val DROP_EVERY_BLOCKS = 5
+        const val FRESH_EVERY_CHUNKS = 5
+        const val FIRST_CHUNKS = 12
+        const val SPEECH_START = 14_336
     }
 }

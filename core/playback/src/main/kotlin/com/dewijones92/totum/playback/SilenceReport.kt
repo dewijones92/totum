@@ -55,8 +55,8 @@ internal class SilenceReport {
                 cutter.speech?.let {
                     ", speech in ${it.chunksSpeech} of ${it.chunksHeard} 32ms chunks " +
                         "(${it.chunksDropped} dropped behind, " +
-                        "${it.chunksWithheld} not-speech withheld while warming up, " +
-                        "${it.microsPerChunk}us each); " +
+                        "${it.chunksWithheld} not-speech withheld while warming up after a start or a gap; " +
+                        "model ${it.microsPerChunk}us per chunk); " +
                         "${cutter.smart}"
                 } ?: ", not listening for speech"
                 )
