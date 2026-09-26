@@ -37,6 +37,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     private var reportedClipped = 0L
     private var samplesPerReport = 0L
     private var samplesBeforeFirstReport = 0L
+    private var rebuildOnFlush = false
 
     /** Set from the session command; takes effect on the next buffer, glided rather than switched. */
     var level: VolumeBoost = VolumeBoost.OFF
@@ -47,6 +48,11 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        rebuildOnFlush = true
+        return inputAudioFormat
+    }
+
+    private fun rebuild(inputAudioFormat: AudioProcessor.AudioFormat) {
         samplesPerReport = inputAudioFormat.sampleRate.toLong() * SECONDS_PER_REPORT
         samplesBeforeFirstReport = inputAudioFormat.sampleRate.toLong() * SECONDS_BEFORE_FIRST_REPORT
         reportedGainDb = Float.NaN
@@ -61,7 +67,6 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
             Diag.warn("boost", "encoding ${inputAudioFormat.encoding} is not 16-bit PCM; not boosting")
             null
         }
-        return inputAudioFormat
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
@@ -93,7 +98,12 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     }
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
-        boost?.flushDelay()
+        if (rebuildOnFlush) {
+            rebuildOnFlush = false
+            rebuild(inputAudioFormat)
+        } else {
+            boost?.flushDelay()
+        }
     }
 
     private fun write(output: ShortArray, count: Int) {
@@ -141,6 +151,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
 
     override fun onReset() {
         boost = null
+        rebuildOnFlush = false
         samples = ShortArray(0)
         samplesSinceReport = 0
         reportedGainDb = Float.NaN

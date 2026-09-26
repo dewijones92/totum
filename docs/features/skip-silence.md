@@ -53,11 +53,19 @@ stereo engages at a quarter of the configured duration and mono at half.
 So Totum has its own cutter, [`SilenceCutter`](../../core/playback/src/main/kotlin/com/dewijones92/totum/playback/SilenceCutter.kt),
 with PipePipe's rule:
 
-- A frame is quiet when every channel is at or below the **cut level**. That is 1024, the level
-  both players use, for anything mastered at a normal level. For a quiet recording it is an eighth
-  (-18 dB) of the recording's own recent peak. A fixed 1024 deletes quiet speech outright: a probe
-  of speech peaking at 197 lost 19.96s of 20s, and PipePipe does the same. The peak only decays
-  while there is sound, so a long pause cannot lower the level under its own hiss.
+- A frame is quiet when every channel is at or below the **cut level**: 18 dB above the
+  recording's **noise floor** (the quietest 20ms of the last 5 seconds), never more than a quarter of
+  its recent speech peak, and never more than 1024, the level both players use. A fixed 1024 deletes
+  quiet speech outright: a probe of speech peaking at 197 lost 19.96s of 20s, and PipePipe does the
+  same.
+- **Why the noise floor and not the peak.** The first version took an eighth of the recent peak,
+  and a second review showed what that does: after one loud click, a jingle or a cough the level sat
+  at 1024, quiet speech never counted as sound, so the level never came down, and 300 seconds of a
+  quiet speaker came out as 40ms. One loud sample cannot move a minimum. It could also leave pauses
+  that PipePipe cuts (speech peaking at 3000 with hiss at 500); the floor-based level cuts them.
+- **The one gap left:** straight after a loud passage, with no pause before the quiet speech starts,
+  the floor is first measured from that speech, so the opening word can be cut until the first gap
+  between words sets the floor. The test allows at most one word; PipePipe loses all of it.
 - A pause shorter than **150ms** is left exactly as it was, bit for bit.
 - A longer pause becomes **40ms**: 20ms either side of the cut. Those 20ms fade to zero and back,
   so the join cannot click. PipePipe splices hard.
@@ -93,8 +101,11 @@ pure Kotlin and tested on the JVM. Two details matter:
 
 - **A speed change or a skip-silence toggle mid-item flushes the processors**, and a new cutter
   starts at zero skipped. The sink adds only the current count, so until the new stream is heard,
-  the position would lose every pause cut so far and freeze for up to the buffer's length. The clock
-  carries the old total until then. A seek carries nothing, because the old audio is thrown away.
+  the position would lose every pause cut so far and freeze for up to the buffer's length. Each flush
+  now leaves a checkpoint holding the previous stretch's own cut ledger, so its cuts count exactly
+  as they are heard, across any number of flushes (tapping speed twice used to lose them all: 12059ms
+  became 4578ms). An empty stretch between two flushes inside one buffer does not overwrite the
+  ledger. A seek carries nothing, because the old audio is thrown away.
 - **The player is told when a cut is heard.** The sink reports a skip ~100ms after it is *made*,
   and the media session sends positions to the app only on events and every 3s, so the app's
   position (the scrubber, SponsorBlock's skip check, saved progress) lagged behind. The wrapper
@@ -141,15 +152,17 @@ item gets the bigger buffer from the next item.
 
 | Level | Test | Claim |
 |---|---|---|
-| JVM | `HeardClockTest` (11) | at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
+| JVM | `HeardSilenceAudioSinkTest` (3) | the wrapper's wiring through a scripted inner sink and the real cutter: the sink's early skip report is swallowed and the player told once when the cut is heard; one, two or three flushes in a row give the same position; after `playToEndOfStream` the last cut counts. Each fails when its piece of wiring is removed |
+| JVM | `HeardClockTest` (12) | two flushes before either is heard count each stretch's cuts separately; at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
 | JVM | `BoostAndSkipSilenceTogetherTest` | Media3's real processors in the chain's order, boost on, speech peaking at 3000 with hiss at 300 in its pauses: they are all cut. With the boost first (the committed-before wiring), 119ms of 6000ms |
-| JVM | `SilenceCutterTest` (16) | quiet speech (peaking at 197) is never cut away; a quiet recording with hiss (1000/120) still has its pauses cut; a normally mastered one (20000/800) is cut as PipePipe cuts it; pauses louder than 1024 are kept as PipePipe keeps them; pauses under 150ms untouched; every longer pause becomes 40ms; the sound either side is bit-exact; the join fades to near zero; the skipped count equals exactly what was removed; the same output in any chunk size; stereo is a pause only when both channels are quiet; 1025 is never a pause; a cut counts only once playback reaches it, and keeps counting while a long pause is still being cut; trailing pauses. Mutation-checked: removing the fade fails one test, miscounting skipped frames fails another |
+| JVM | `SilenceCutterTest` (20) | quiet speech after 5s of loud music, or after one loud click, loses at most its opening word (both fail with a peak-based level); pauses PipePipe cuts at 3000/500, 6000/800 and 8000/900 are cut; room tone before anyone speaks is cut; quiet speech (peaking at 197) is never cut away; a quiet recording with hiss (1000/120) still has its pauses cut; a normally mastered one (20000/800) is cut as PipePipe cuts it; pauses louder than 1024 are kept as PipePipe keeps them; pauses under 150ms untouched; every longer pause becomes 40ms; the sound either side is bit-exact; the join fades to near zero; the skipped count equals exactly what was removed; the same output in any chunk size; stereo is a pause only when both channels are quiet; 1025 is never a pause; a cut counts only once playback reaches it, and keeps counting while a long pause is still being cut; trailing pauses. Mutation-checked: removing the fade fails one test, miscounting skipped frames fails another |
 | Device | `SilenceIsReallyCutTest` (8) | WAV, MP3 and stereo AAC podcasts, after a seek, at 2x, a video, and a video whose drawn frames are checked against the sound; a quiet podcast with the boost on is still cut. Every case also asserts the sound broke up at no more than one point. Red on the old code at every case (table above), and the break-up guard fails at 4-5 points with a 250ms buffer |
 
 ### Honest caveats
 
-- A pause whose hiss is within 18 dB of the speech's peak, or above 1024, is not cut. The
-  `no pause long enough` line says so, with the cut level it was using.
+- A pause whose hiss is above 1024, or less than 12 dB under the speech's peak, is not cut. The
+  `no pause long enough` line says so, with the cut level, noise floor and speech peak it was using,
+  and the per-100 cut line carries the same three numbers.
 - A video pause is released as a jump in the clock. Frames more than 500ms late make the decoder
   drop to the previous keyframe and decode forward, so on a stream with keyframes seconds apart a
   long pause may show as a short freeze of the picture. The test video has a keyframe every second;

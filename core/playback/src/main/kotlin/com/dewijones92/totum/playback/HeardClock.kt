@@ -2,8 +2,8 @@ package com.dewijones92.totum.playback
 
 internal class HeardClock {
 
+    private val checkpoints = ArrayDeque<Checkpoint>()
     private var baselineUs: Long? = null
-    private var carriedUs = 0L
     private var heldBackUs = 0L
     private var inputEnded = false
 
@@ -15,19 +15,24 @@ internal class HeardClock {
 
     val sinceStartUs: Long get() = heardUs - (baselineUs ?: heardUs)
 
+    val waitingOnFlushes: Int get() = checkpoints.size
+
+    val started: Boolean get() = baselineUs != null
+
     fun seeked() {
-        processorsFlushed(carriedSkipUs = 0L)
+        checkpoints.clear()
+        restart()
     }
 
-    fun processorsFlushed(carriedSkipUs: Long) {
-        baselineUs = null
-        carriedUs = carriedSkipUs
-        heldBackUs = 0L
-        inputEnded = false
+    fun processorsFlushed(previousSkippedBy: (Long) -> Long) {
+        checkpoints.addLast(Checkpoint(previousBaselineUs = baselineUs, previousSkippedBy = previousSkippedBy))
+        restart()
     }
 
     fun streamStarts(presentationTimeUs: Long) {
-        if (baselineUs == null) baselineUs = presentationTimeUs
+        if (baselineUs != null) return
+        baselineUs = presentationTimeUs
+        checkpoints.lastOrNull()?.takeIf { it.baselineUs == null }?.baselineUs = presentationTimeUs
     }
 
     fun inputEnded() {
@@ -36,15 +41,31 @@ internal class HeardClock {
 
     fun position(countedUs: Long, allSkippedUs: Long, skippedHeardBy: (Long) -> Long): Long {
         releasedUs = 0L
-        val baseline = baselineUs ?: return countedUs + carriedUs
         heardUs = countedUs - allSkippedUs
-        if (heardUs < baseline) return minOf(heardUs + carriedUs, baseline)
-        carriedUs = 0L
+        while (checkpoints.firstOrNull()?.baselineUs?.let { heardUs >= it } == true) checkpoints.removeFirst()
+        checkpoints.firstOrNull()?.let { return it.positionBefore(heardUs) }
+        val baseline = baselineUs ?: return countedUs
         val skippedHeardUs = skippedHeardBy(heardUs - baseline + if (inputEnded) END_SLACK_US else 0L)
         val holdingUs = allSkippedUs - skippedHeardUs
         if (holdingUs < heldBackUs) releasedUs = heldBackUs - holdingUs
         heldBackUs = holdingUs
         return heardUs + skippedHeardUs
+    }
+
+    private fun restart() {
+        baselineUs = null
+        heldBackUs = 0L
+        inputEnded = false
+    }
+
+    private class Checkpoint(val previousBaselineUs: Long?, val previousSkippedBy: (Long) -> Long) {
+        var baselineUs: Long? = null
+
+        fun positionBefore(heardUs: Long): Long {
+            val carried = previousBaselineUs?.let { previousSkippedBy(heardUs - it) } ?: 0L
+            val position = heardUs + carried
+            return baselineUs?.let { minOf(position, it) } ?: position
+        }
     }
 
     private companion object {

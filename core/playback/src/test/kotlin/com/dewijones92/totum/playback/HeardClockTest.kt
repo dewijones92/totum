@@ -109,7 +109,7 @@ class HeardClockTest {
         clock.position(START + 10_000_000 + cutEarlier, cutEarlier) { cutEarlier }
         val newStreamStarts = START + 10_500_000 + cutEarlier
 
-        clock.processorsFlushed(carriedSkipUs = cutEarlier)
+        clock.processorsFlushed { cutEarlier }
         clock.streamStarts(newStreamStarts)
         val stillPlayingTheOldAudio = clock.position(START + 10_200_000, 0L) { 0L }
         val onceTheNewStreamIsHeard = clock.position(newStreamStarts + 100_000, 0L) { 0L }
@@ -119,8 +119,36 @@ class HeardClockTest {
     }
 
     @Test
+    fun `two flushes before either is heard each count their own stretch's cuts as they are heard`() {
+        val firstStretchCut = cutAt(outputUs = 2_000_000, removedUs = 1_000_000)
+        val secondStretchCut = cutAt(outputUs = 300_000, removedUs = 700_000)
+        clock.processorsFlushed(firstStretchCut)
+        clock.streamStarts(START + 6_000_000)
+        clock.processorsFlushed(secondStretchCut)
+        clock.streamStarts(START + 7_000_000)
+
+        assertEquals("before the first cut", START + 1_500_000, clock.position(START + 1_500_000, 0L) { 0L })
+        assertEquals("after it", START + 3_500_000, clock.position(START + 2_500_000, 0L) { 0L })
+        assertEquals(
+            "into the second stretch, before its cut",
+            START + 6_200_000,
+            clock.position(START + 6_200_000, 0L) { 0L }
+        )
+        assertEquals(
+            "after its cut, held at the next stream's start",
+            START + 7_000_000,
+            clock.position(START + 6_400_000, 0L) { 0L }
+        )
+        assertEquals(
+            "and the new stream on its own terms",
+            START + 7_100_000,
+            clock.position(START + 7_100_000, 0L) { 0L }
+        )
+    }
+
+    @Test
     fun `the carried silence never pushes the clock past the start of the new stream`() {
-        clock.processorsFlushed(carriedSkipUs = 9_000_000L)
+        clock.processorsFlushed { 9_000_000L }
         clock.streamStarts(START + 20_000_000)
 
         assertEquals(START + 20_000_000, clock.position(START + 19_800_000, 0L) { 0L })
@@ -128,7 +156,7 @@ class HeardClockTest {
 
     @Test
     fun `a seek carries nothing over`() {
-        clock.processorsFlushed(carriedSkipUs = 3_000_000L)
+        clock.processorsFlushed { 3_000_000L }
         clock.seeked()
         clock.streamStarts(START + 60_000_000)
 

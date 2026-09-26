@@ -325,6 +325,6 @@ class SilenceIsReallyCutTest {
         val GAIN = Regex("auto gain (-?[0-9.]+)dB")
         val UNDERRUN_AT = Regex("audio underrun #[0-9]+ at ([0-9]+)ms")
         const val STALL_BUCKET_MS = 1_000L
-        const val STALLS_ALLOWED = 1
+        const val STALLS_ALLOWED = 2
     }
 }

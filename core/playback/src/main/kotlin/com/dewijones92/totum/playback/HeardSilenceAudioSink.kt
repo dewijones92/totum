@@ -50,13 +50,22 @@ internal class HeardSilenceAudioSink(
     override fun flush() {
         super.flush()
         seenFlushes = cutter.flushes
+        cutter.takePreviousSkippedBy()
         clock.seeked()
     }
 
     private fun noticeFlush() {
         if (cutter.flushes == seenFlushes) return
         seenFlushes = cutter.flushes
-        clock.processorsFlushed(cutter.carriedUs)
+        val midStream = clock.started
+        clock.processorsFlushed(cutter.takePreviousSkippedBy())
+        if (midStream) {
+            Diag.log(
+                "silence",
+                "processors flushed mid-stream: the previous stretch's cuts count as they are heard " +
+                    "(${clock.waitingOnFlushes} flush(es) not yet heard)",
+            )
+        }
     }
 
     private fun cutHeard() {

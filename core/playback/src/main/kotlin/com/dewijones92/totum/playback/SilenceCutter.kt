@@ -2,7 +2,7 @@ package com.dewijones92.totum.playback
 
 import kotlin.math.abs
 
-internal class SilenceCutter(sampleRate: Int, private val channels: Int, startLevel: Float = 0f) {
+internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
 
     private val minSilentFrames = framesIn(MIN_SILENCE_MS, sampleRate)
     private val padFrames = framesIn(PAD_MS, sampleRate).coerceAtMost(minSilentFrames / 2)
@@ -20,16 +20,11 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int, startLe
 
     private var out = ShortArray(0)
 
-    private val levelDecay = 1f - LoudnessBoost.coefficientFor(LEVEL_DECAY_MS, sampleRate)
-
-    var level: Float = startLevel
-        private set
-
-    val cutLevel: Int get() = (level / LEVEL_TO_CUT).toInt().coerceIn(FLOOR, THRESHOLD)
-
     val heard = HeardCuts()
 
-    val quiet = QuietestBlock(framesIn(QUIET_BLOCK_MS, sampleRate).coerceAtLeast(1))
+    val levels = CutLevel(framesIn(BLOCK_MS, sampleRate).coerceAtLeast(1))
+
+    val cutLevel: Int get() = levels.level
 
     var outputSamples: Int = 0
         private set
@@ -51,13 +46,8 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int, startLe
         for (frame in 0 until frames) {
             val at = frame * channels
             val peak = framePeak(input, at, channels)
-            quiet.track(peak)
-            val silent = peak <= cutLevel
-            level = when {
-                peak > level -> peak.toFloat()
-                silent -> level
-                else -> level * levelDecay
-            }
+            val silent = peak <= levels.level
+            levels.track(peak)
             when {
                 cutting && silent -> pushTail(input, at)
                 cutting -> {
@@ -118,7 +108,7 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int, startLe
         gapsCut++
         lastGapRemovedFrames = removedThisGap
         removedThisGap = 0
-        quiet.cutHappened()
+        levels.cutHappened()
         heard.close()
         justEnded = true
     }
@@ -147,11 +137,9 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int, startLe
     internal companion object {
         const val THRESHOLD = 1024
         const val FLOOR = 32
-        const val LEVEL_TO_CUT = 8f
-        private const val LEVEL_DECAY_MS = 10_000f
         const val MIN_SILENCE_MS = 150
         const val PAD_MS = 20
-        private const val QUIET_BLOCK_MS = 50
+        private const val BLOCK_MS = 20
         private const val MILLIS_PER_SECOND = 1_000
 
         fun framesIn(milliseconds: Int, sampleRate: Int): Int =
@@ -185,12 +173,22 @@ internal class HeardCuts {
     private class Cut(val outputFrame: Long, var skippedAfter: Long)
 }
 
-internal class QuietestBlock(private val blockFrames: Int) {
+internal class CutLevel(private val blockFrames: Int) {
 
+    private val blocks = IntArray(FLOOR_BLOCKS) { UNKNOWN }
+    private var blockAt = 0
+    private val sounds = IntArray(SOUND_BLOCKS) { UNKNOWN }
+    private var soundAt = 0
     private var blockPeak = 0
     private var blockFill = 0
 
-    var peak: Int = Int.MAX_VALUE
+    var level: Int = SilenceCutter.FLOOR
+        private set
+
+    var noiseFloor: Int = UNKNOWN
+        private set
+
+    var speechPeak: Int = UNKNOWN
         private set
 
     var framesSinceCut: Long = 0L
@@ -199,19 +197,32 @@ internal class QuietestBlock(private val blockFrames: Int) {
     fun track(framePeak: Int) {
         framesSinceCut++
         blockPeak = maxOf(blockPeak, framePeak)
-        if (++blockFill == blockFrames) {
-            peak = minOf(peak, blockPeak)
-            blockPeak = 0
-            blockFill = 0
+        if (++blockFill < blockFrames) return
+        blocks[blockAt] = blockPeak
+        blockAt = (blockAt + 1) % blocks.size
+        if (blockPeak > level) {
+            sounds[soundAt] = blockPeak
+            soundAt = (soundAt + 1) % sounds.size
         }
+        blockPeak = 0
+        blockFill = 0
+        noiseFloor = blocks.filter { it != UNKNOWN }.minOrNull() ?: UNKNOWN
+        speechPeak = sounds.maxOrNull()?.takeIf { it != UNKNOWN } ?: UNKNOWN
+        val aboveFloor = if (noiseFloor == UNKNOWN) Int.MAX_VALUE else noiseFloor * ABOVE_FLOOR
+        val underSpeech = if (speechPeak == UNKNOWN) Int.MAX_VALUE else speechPeak / UNDER_SPEECH
+        level = minOf(aboveFloor, underSpeech).coerceIn(SilenceCutter.FLOOR, SilenceCutter.THRESHOLD)
     }
 
     fun cutHappened() {
         framesSinceCut = 0
     }
 
-    fun forget() {
-        peak = Int.MAX_VALUE
+    internal companion object {
+        const val UNKNOWN = -1
+        const val ABOVE_FLOOR = 8
+        const val UNDER_SPEECH = 4
+        private const val FLOOR_BLOCKS = 250
+        private const val SOUND_BLOCKS = 50
     }
 }
 

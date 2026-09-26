@@ -189,6 +189,67 @@ class SilenceCutterTest {
         assertEquals(input.size, cut(input).size)
     }
 
+    @Test
+    fun `quiet speech after loud music loses at most its opening word`() {
+        val music = ShortArray(frames(5_000)) { i -> (20_000 * sin(2 * PI * 330 * i / RATE)).toInt().toShort() }
+
+        val output = cut(music + sentences(speechPeak = 600, noise = 30, count = 4))
+
+        assertTrue(
+            "kept ${millisOf(output.size - music.size)}ms after the music, of ${4 * SENTENCE_SPEECH_MS}ms of speech",
+            output.size - music.size >= frames(4 * SENTENCE_SPEECH_MS - WORD_MS),
+        )
+    }
+
+    @Test
+    fun `one loud click does not make the quiet speech after it disappear`() {
+        val output = cut(ShortArray(1) { 30_000 } + sentences(speechPeak = 600, noise = 30, count = 4))
+
+        assertTrue(
+            "kept ${millisOf(output.size)}ms of ${4 * SENTENCE_SPEECH_MS}ms of speech",
+            output.size >= frames(4 * SENTENCE_SPEECH_MS - WORD_MS),
+        )
+    }
+
+    @Test
+    fun `pauses PipePipe cuts in a moderately quiet recording are cut too`() {
+        for ((peak, noise) in listOf(3_000 to 500, 6_000 to 800, 8_000 to 900)) {
+            val input = bursts(speechPeak = peak, noise = noise, count = 6)
+
+            val removed = input.size - cut(input).size
+
+            assertTrue("$peak/$noise: only $removed frames removed", removed >= frames(5 * (PAUSE_MS - KEPT_MS)))
+        }
+    }
+
+    @Test
+    fun `room tone before anyone speaks is cut`() {
+        val input = noise(2_000, level = 200) + bursts(speechPeak = 8_000, noise = 200, count = 2)
+
+        val removed = input.size - cut(input).size
+
+        assertTrue("only $removed frames removed", removed >= frames(2_000 - KEPT_MS - SilenceCutter.MIN_SILENCE_MS))
+    }
+
+    private fun sentences(speechPeak: Int, noise: Int, count: Int): ShortArray {
+        var all = ShortArray(0)
+        repeat(count) {
+            repeat(WORDS) { word ->
+                all += ShortArray(frames(WORD_MS)) { i ->
+                    (speechPeak * sin(2 * PI * VOICE_HZ * i / RATE)).toInt().toShort()
+                }
+                all += noise(if (word == WORDS - 1) PAUSE_MS else WORD_GAP_MS, noise)
+            }
+        }
+        return all
+    }
+
+    private fun millisOf(samples: Int): Int = samples * 1_000 / RATE
+
+    private fun noise(ms: Int, level: Int) = ShortArray(
+        frames(ms)
+    ) { i -> (if (i % 2 == 0) level else -level).toShort() }
+
     private fun bursts(speechPeak: Int, noise: Int, count: Int): ShortArray {
         var all = ShortArray(0)
         repeat(count) {
@@ -241,6 +302,10 @@ class SilenceCutterTest {
         const val RATE = 44_100
         const val TONE_MS = 500
         const val PAUSE_MS = 1_000
+        const val WORDS = 5
+        const val WORD_MS = 250
+        const val WORD_GAP_MS = 80
+        const val SENTENCE_SPEECH_MS = WORDS * WORD_MS + (WORDS - 1) * WORD_GAP_MS
         const val SHORT_PAUSE_MS = 120
         const val KEPT_MS = 2 * SilenceCutter.PAD_MS
         const val AMPLITUDE = 8_000.0

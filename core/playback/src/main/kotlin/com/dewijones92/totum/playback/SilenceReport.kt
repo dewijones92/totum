@@ -20,19 +20,17 @@ internal class SilenceReport {
                 Diag.log(
                     "silence",
                     "cut pause #$gaps (removed ${millis(active.lastGapRemovedFrames)}ms; " +
-                        "${removed / MILLIS_PER_SECOND}s removed so far)",
+                        "${removed / MILLIS_PER_SECOND}s removed so far; ${levelsOf(active)})",
                 )
             }
             saidNothingToCut = false
         }
-        if (!saidNothingToCut && active.quiet.framesSinceCut > sampleRate.toLong() * NOTHING_TO_CUT_SECONDS) {
+        if (!saidNothingToCut && active.levels.framesSinceCut > sampleRate.toLong() * NOTHING_TO_CUT_SECONDS) {
             saidNothingToCut = true
             Diag.log(
                 "silence",
-                "no pause long enough to cut in ${NOTHING_TO_CUT_SECONDS}s of audio " +
-                    "(quietest 50ms peaked at ${active.quiet.peak}, cut level ${active.cutLevel})",
+                "no pause long enough to cut in ${NOTHING_TO_CUT_SECONDS}s of audio (${levelsOf(active)})"
             )
-            active.quiet.forget()
         }
     }
 
@@ -44,10 +42,13 @@ internal class SilenceReport {
             Diag.log(
                 "silence",
                 "this stretch: cut ${previous.gapsCut} pause(s), removed ${millis(previous.skippedFrames)}ms " +
-                    "from ${millis(previous.outputFrames + previous.skippedFrames)}ms of audio",
+                    "from ${millis(previous.outputFrames + previous.skippedFrames)}ms of audio (${levelsOf(previous)})",
             )
         }
     }
+
+    private fun levelsOf(cutter: SilenceCutter): String =
+        "cut level ${cutter.cutLevel}, noise floor ${cutter.levels.noiseFloor}, speech peak ${cutter.levels.speechPeak}"
 
     private fun millis(frames: Long): Long = frames * MILLIS_PER_SECOND / sampleRate.coerceAtLeast(1)
 
