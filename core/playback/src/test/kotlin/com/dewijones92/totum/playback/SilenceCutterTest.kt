@@ -212,13 +212,22 @@ class SilenceCutterTest {
     }
 
     @Test
-    fun `pauses PipePipe cuts in a moderately quiet recording are cut too`() {
-        for ((peak, noise) in listOf(3_000 to 500, 6_000 to 800, 8_000 to 900)) {
+    fun `a quiet recording is cut the way PipePipe would cut it turned up to full volume`() {
+        for ((peak, noise) in listOf(3_000 to 150, 1_000 to 50, 6_000 to 400)) {
             val input = bursts(speechPeak = peak, noise = noise, count = 6)
 
             val removed = input.size - cut(input).size
 
             assertTrue("$peak/$noise: only $removed frames removed", removed >= frames(5 * (PAUSE_MS - KEPT_MS)))
+        }
+        for ((peak, noise) in listOf(3_000 to 500, 1_000 to 200)) {
+            val input = bursts(speechPeak = peak, noise = noise, count = 6)
+
+            assertEquals(
+                "$peak/$noise: hiss that would sit over 1024 at full volume stays",
+                input.size,
+                cut(input).size
+            )
         }
     }
 
@@ -232,16 +241,15 @@ class SilenceCutterTest {
                 (20_000 * sin(2 * PI * 330 * i / RATE)).toInt().toShort()
             },
         )
-        val clearlyUnderTheSpeech = listOf(
-            600 to 20,
-            800 to 40,
-            1_000 to 60,
+        val clearlyUnderTheSpeech = listOf(600 to 20, 800 to 40, 1_000 to 60, 2_000 to 100, 3_000 to 150)
+        val barelyUnderTheSpeech = listOf(
             2_000 to 150,
             3_000 to 250,
             800 to 100,
-            1_000 to 140
+            1_000 to 140,
+            800 to 150,
+            600 to 100,
         )
-        val barelyUnderTheSpeech = listOf(800 to 150, 600 to 100)
         for ((peak, hiss) in clearlyUnderTheSpeech + barelyUnderTheSpeech) {
             val speech = spokenSentences(peak, hiss)
             for ((what, lead) in before) {
@@ -264,7 +272,7 @@ class SilenceCutterTest {
 
     @Test
     fun `a music bed well under the speech lets its pauses be cut`() {
-        val bed = ShortArray(frames(30_000)) { i -> (900 * sin(2 * PI * 110 * i / RATE)).toInt().toShort() }
+        val bed = ShortArray(frames(30_000)) { i -> (600 * sin(2 * PI * 110 * i / RATE)).toInt().toShort() }
         val speech = spokenSentences(peak = 8_000, hiss = 0)
         val mixed = ShortArray(speech.audio.size) { (speech.audio[it] + bed[it % bed.size]).toShort() }
 

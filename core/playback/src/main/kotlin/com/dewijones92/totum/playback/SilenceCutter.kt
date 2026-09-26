@@ -221,7 +221,7 @@ internal class CutLevel(private val blockFrames: Int) {
         level = if (speechPeak == UNKNOWN) {
             SilenceCutter.FLOOR
         } else {
-            minOf(noiseFloor * ABOVE_FLOOR, speechPeak / UNDER_SPEECH)
+            (speechPeak / UNDER_SPEECH)
                 .coerceIn(SilenceCutter.FLOOR, SilenceCutter.THRESHOLD)
         }
     }
@@ -239,17 +239,18 @@ internal class CutLevel(private val blockFrames: Int) {
     private fun medianSound(): Int {
         sounds.copyInto(sorted, 0, 0, soundCount)
         sorted.sort(0, soundCount)
-        return sorted[soundCount / 2]
+        return sorted[soundCount * SPEECH_PERCENTILE / PERCENT]
     }
 
     internal companion object {
         const val UNKNOWN = -1
-        const val ABOVE_FLOOR = 8
-        const val UNDER_SPEECH = 4
+        const val UNDER_SPEECH = 8
         private const val SOUND_OVER_FLOOR = 2
         private const val DIGITAL_SILENCE = 16
         private const val FLOOR_BLOCKS = 250
-        private const val SOUND_BLOCKS = 10
+        private const val SOUND_BLOCKS = 20
+        private const val SPEECH_PERCENTILE = 80
+        private const val PERCENT = 100
     }
 }
 

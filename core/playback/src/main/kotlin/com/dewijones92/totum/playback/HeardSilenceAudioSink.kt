@@ -48,6 +48,7 @@ internal class HeardSilenceAudioSink(
     }
 
     override fun flush() {
+        cutter.relearnLevels = true
         super.flush()
         seenFlushes = cutter.flushes
         cutter.takePreviousSkippedBy()

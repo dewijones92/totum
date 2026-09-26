@@ -36,6 +36,10 @@ class HeardSilenceAudioSinkTest {
                 onBuffer()
                 true
             }
+            "flush" -> {
+                cutter.flush(AudioProcessor.StreamMetadata.DEFAULT)
+                null
+            }
             "setListener" -> {
                 innerListener = args[0] as AudioSink.Listener
                 null
@@ -98,6 +102,29 @@ class HeardSilenceAudioSinkTest {
         val atTheEnd = sink.getCurrentPositionUs(true)
 
         assertEquals(FIRST_CUT_US - 1_000 + skippedUs, atTheEnd)
+    }
+
+    @Test
+    fun `a seek or a new item learns the cut level again but a speed change keeps it`() {
+        play(
+            ShortArray(RATE * 6) { i ->
+                val voice = if (i % RATE < RATE / 2) PEAK * sin(2 * PI * VOICE_HZ * i / RATE) else 0.0
+                (voice + if (i % 2 == 0) HISS else -HISS).toInt().toShort()
+            },
+        )
+        val learned = cutter.cutLevel
+
+        cutter.queueEndOfStream()
+        cutter.output
+        cutter.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        val afterASpeedChange = cutter.cutLevel
+        sink.flush()
+        cutter.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        val afterASeek = cutter.cutLevel
+
+        assertTrue("something was learned ($learned)", learned > SilenceCutter.FLOOR)
+        assertEquals("a speed change keeps what was learned", learned, afterASpeedChange)
+        assertEquals("a seek or a new item starts again", SilenceCutter.FLOOR, afterASeek)
     }
 
     private fun positionAfterFlushes(flushes: Int): Long {
@@ -174,6 +201,7 @@ class HeardSilenceAudioSinkTest {
         const val PAUSE_US = 1_000_000L
         const val FIRST_CUT_US = SPEECH_US + SilenceCutter.PAD_MS * 1_000L
         const val PEAK = 8_000.0
+        const val HISS = 100
         const val VOICE_HZ = 180.0
     }
 }

@@ -179,6 +179,20 @@ class HeardClockTest {
     }
 
     @Test
+    fun `a cut already announced is not announced again after a flush`() {
+        val skips = cutAt(outputUs = 1_000_000, removedUs = 2_000_000)
+        clock.position(START + 900_000 + 2_000_000, 2_000_000) { skips(it) }
+        clock.position(START + 1_100_000 + 2_000_000, 2_000_000) { skips(it) }
+        assertEquals("announced once when heard", 2_000_000L, clock.releasedUs)
+
+        clock.processorsFlushed(skips)
+        clock.streamStarts(START + 9_000_000)
+        clock.position(START + 1_200_000, 0L) { 0L }
+
+        assertEquals("and not again after the flush", 0L, clock.releasedUs)
+    }
+
+    @Test
     fun `the carried silence never pushes the clock past the start of the new stream`() {
         clock.processorsFlushed { 9_000_000L }
         clock.streamStarts(START + 20_000_000)
