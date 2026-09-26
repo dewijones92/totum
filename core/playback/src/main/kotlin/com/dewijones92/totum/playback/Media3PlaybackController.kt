@@ -59,6 +59,7 @@ public class Media3PlaybackController(
     private val speedStore: PlaybackSpeedStore = NoOpPlaybackSpeedStore,
     private val boostStore: VolumeBoostStore = NoOpVolumeBoostStore,
     private val onPlay: (MediaItem, MediaKind) -> Unit = { _, _ -> },
+    private val silenceMode: StateFlow<SilenceMode> = MutableStateFlow(SilenceMode.DEFAULT),
 ) : PlaybackController {
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
@@ -124,6 +125,7 @@ public class Media3PlaybackController(
                 // 1x on a cold start until the first play() lands — the app appearing to have
                 // forgotten a setting it had not.
                 scope.launch { userSpeed = speedStore.speed().coerceIn(MIN_SPEED, MAX_SPEED) }
+                scope.launch { silenceMode.collect { mode -> applySilenceMode(connected, mode) } }
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
@@ -295,6 +297,7 @@ public class Media3PlaybackController(
                 // Re-applied on EVERY item, and told to the service too: the rate the user chose
                 // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).
                 applyUserSpeed(controller, speed)
+                applySilenceMode(controller, silenceMode.value)
                 applySubtitleLanguage(controller)
                 if (boost != volumeBoost) setVolumeBoost(boost)
                 controller.prepare()
@@ -363,6 +366,13 @@ public class Media3PlaybackController(
         controller.sendCustomCommand(
             SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY),
             bundleOf(EXTRA_USER_SPEED to speed),
+        )
+    }
+
+    private fun applySilenceMode(controller: MediaController, mode: SilenceMode) {
+        controller.sendCustomCommand(
+            SessionCommand(ACTION_SILENCE_MODE, Bundle.EMPTY),
+            bundleOf(EXTRA_SILENCE_MODE to mode.name)
         )
     }
 

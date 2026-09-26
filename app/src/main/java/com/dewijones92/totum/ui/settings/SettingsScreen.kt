@@ -86,6 +86,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             BackHeader(stringResource(R.string.settings), onBack)
             QualitySection(settings, prefs)
+            SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
             DownloadSettings(settings, prefs)
             Text(
                 text = stringResource(R.string.settings_subscriptions_section),

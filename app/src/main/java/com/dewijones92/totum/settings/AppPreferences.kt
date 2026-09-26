@@ -8,6 +8,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.domain.MediaFilter
+import com.dewijones92.totum.playback.SilenceMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,6 +77,7 @@ interface AppPreferences {
 
     /** Which SponsorBlock categories are skipped, in playback and in downloads alike. */
     fun setSkipCategories(categories: Set<SkipCategory>)
+    fun setSilenceMode(mode: SilenceMode)
 
     data class Settings(
         val wifiMaxHeight: Int = DEFAULT_WIFI_MAX_HEIGHT,
@@ -133,6 +135,7 @@ interface AppPreferences {
         val mediaFilter: MediaFilter = MediaFilter.ALL,
         /** SponsorBlock categories to skip; see SponsorBlockSegmentSource.DEFAULT_CATEGORIES. */
         val skipCategories: Set<SkipCategory> = SponsorBlockSegmentSource.DEFAULT_CATEGORIES,
+        val silenceMode: SilenceMode = SilenceMode.DEFAULT,
     )
 
     companion object {
@@ -178,6 +181,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             skipCategories = prefs.getStringSet(KEY_SKIP_CATEGORIES, null)
                 ?.mapNotNullTo(mutableSetOf()) { SkipCategory.fromId(it) }
                 ?: SponsorBlockSegmentSource.DEFAULT_CATEGORIES,
+            silenceMode = SilenceMode.fromStoredName(prefs.getString(KEY_SILENCE_MODE, null)),
         ),
     )
     override val settings: StateFlow<AppPreferences.Settings> = _settings.asStateFlow()
@@ -242,6 +246,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             it.copy(mediaFilter = filter)
         }
 
+    override fun setSilenceMode(mode: SilenceMode): Unit =
+        change("silenceMode", mode, { putString(KEY_SILENCE_MODE, mode.name) }) { it.copy(silenceMode = mode) }
+
     /**
      * One path for every setting: persist, publish, and record it. A settings change is
      * often the answer to "it started behaving differently" — a report that lists the
@@ -271,6 +278,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_PLAYBACK_MODE = "playback_mode"
         const val KEY_MEDIA_FILTER = "media_filter"
         const val KEY_SKIP_CATEGORIES = "skip_categories"
+        const val KEY_SILENCE_MODE = "silence_mode"
     }
 }
 
@@ -295,4 +303,6 @@ class InMemoryAppPreferences : AppPreferences {
         _settings.update { it.copy(skipCategories = categories) }
 
     override fun setMediaFilter(filter: MediaFilter) = _settings.update { it.copy(mediaFilter = filter) }
+
+    override fun setSilenceMode(mode: SilenceMode) = _settings.update { it.copy(silenceMode = mode) }
 }

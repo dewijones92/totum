@@ -76,6 +76,7 @@ internal class DiagnosticSnapshot(
         runCatching {
             val settings = live.settings()
             put("settings.playbackMode", settings.playbackMode.name)
+            put("settings.silenceMode", settings.silenceMode.name)
             put("settings.autoPlayNext", settings.autoPlayNext.toString())
             put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
             put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())

@@ -2,6 +2,9 @@ package com.dewijones92.totum.playback.audioquality
 
 import com.dewijones92.totum.playback.LoudnessBoost
 import com.dewijones92.totum.playback.SilenceCutter
+import com.dewijones92.totum.playback.SpeechModel
+import com.dewijones92.totum.playback.SpeechTrack
+import com.dewijones92.totum.playback.SpeechWeights
 import com.dewijones92.totum.playback.VolumeBoost
 import java.io.File
 import java.nio.ByteBuffer
@@ -96,6 +99,12 @@ internal object RealSpeech {
         return out
     }
 
+    val speechWeights: SpeechWeights by lazy {
+        File("src/main/res/raw/silero_vad.bin").inputStream().use(SpeechWeights::read)
+    }
+
+    fun smartCutter(): SilenceCutter = SilenceCutter(RATE, 1, speech = SpeechTrack(SpeechModel(speechWeights), RATE))
+
     fun removedBy(samples: ShortArray, cutter: SilenceCutter = SilenceCutter(RATE, 1)): BooleanArray {
         val removed = BooleanArray(samples.size)
         val pad = SilenceCutter.framesIn(SilenceCutter.PAD_MS, RATE)
@@ -122,7 +131,7 @@ internal object RealSpeech {
         var pauseRemoved = 0
         var lost = 0.0
         var total = 0.0
-        for (k in removed.indices) {
+        for (k in 0 until minOf(removed.size, truth.size, speech.size)) {
             val energy = truth[k].toDouble() * truth[k]
             if (speech[k]) total += energy
             if (!removed[k]) continue
@@ -132,7 +141,9 @@ internal object RealSpeech {
         return Judgement(
             pausePercent = pauseRemoved * PERCENT / pauses.count { it }.coerceAtLeast(1),
             speechEnergyLost = lost / total.coerceAtLeast(1.0),
-            speechFramesLostMs = millisOf(removed.indices.count { removed[it] && speech[it] }),
+            speechFramesLostMs = millisOf(
+                (0 until minOf(removed.size, speech.size)).count { removed[it] && speech[it] }
+            ),
         )
     }
 
@@ -167,8 +178,15 @@ internal object RealSpeech {
         return DECIBELS_PER_POWER * log10(signal / maxOf(residual, 1e-9))
     }
 
-    fun cut(samples: ShortArray, channels: Int = 1, chunkFrames: (Int) -> Int = { 4096 }): Cut {
-        val cutter = SilenceCutter(RATE, channels)
+    fun cut(samples: ShortArray, channels: Int = 1, chunkFrames: (Int) -> Int = { 4096 }): Cut =
+        cutWith(samples, SilenceCutter(RATE, channels), channels, chunkFrames)
+
+    fun cutWith(
+        samples: ShortArray,
+        cutter: SilenceCutter,
+        channels: Int = 1,
+        chunkFrames: (Int) -> Int = { 4096 },
+    ): Cut {
         val out = ArrayList<Short>(samples.size)
         var at = 0
         var call = 0

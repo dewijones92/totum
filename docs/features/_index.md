@@ -35,7 +35,7 @@ alone until they need more.
 | Diagnostics: nav / place / view-model / queue-intent trails | diagnostics | shipped | — |
 | Tabs remember where you were (per-destination saved state) | ui | shipped | — |
 | Shorts reel (full-screen vertical pager) | video | shipped | — |
-| Skip-silence: pauses over 150ms cut to 40ms, podcasts and video, picture follows the sound | playback | shipped | [skip-silence.md](skip-silence.md) |
+| Skip-silence: pauses over 150ms cut to 40ms, podcasts and video, picture follows the sound; Standard and Smart (speech-detecting) modes with a test player in Settings | playback | shipped | [skip-silence.md](skip-silence.md) |
 | Sleep timer | playback | shipped | — |
 | Per-source playback-speed memory | playback | shipped | — |
 | New-content notifications (background refresh, both pillars) | notifications | shipped | — |

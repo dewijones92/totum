@@ -32,6 +32,7 @@ change coverage → update `docs/tests/`. Bump each doc's `updated`.
 | CI/CD | GitHub Actions; signed APKs on GitHub Releases | No Play Store (yt-dlp app) |
 | YouTube account (July 2026) | Own minimal InnerTube client (`:lib:innertube`) + **TV device-code OAuth**, SmartTube-style; yt-dlp stays for extraction/playback | Signed-in features (subs, history, comments, likes) need auth + writes; yt-dlp is read-only and removed OAuth login; Google blocks WebView logins, and the device flow is the login it expects from TVs |
 | UI bar | Genuinely nice, modern | Material 3 expressive, dark/light, edge-to-edge, considered motion — never template-default |
+| Voice detection (Sep 2026) | **Silero VAD run in plain Kotlin** (`SpeechModel`), weights exported to `res/raw/silero_vad.bin` | Smart skip-silence needs a neural speech detector; ONNX Runtime's arm64 library alone is ~12 MB compressed / 33 MB installed, about twice the agreed budget. The network is small (filter bank, 4 convs, one LSTM), and `SpeechModelTest` pins the Kotlin to ONNX Runtime's outputs |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
 
 ## Quality bar (from the brief, non-negotiable)

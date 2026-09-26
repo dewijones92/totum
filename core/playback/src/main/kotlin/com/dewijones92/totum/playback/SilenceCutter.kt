@@ -7,7 +7,18 @@ internal class SilenceCutter(
     private val channels: Int,
     val levels: CutLevel = CutLevel(framesIn(BLOCK_MS, sampleRate).coerceAtLeast(1)),
     val lookaheadFrames: Int = framesIn(LOOKAHEAD_MS, sampleRate),
+    speech: SpeechTrack? = null,
 ) {
+
+    var speech: SpeechTrack? = speech
+        set(value) {
+            field = value
+            speechFrom = framesArrived
+        }
+
+    private var speechFrom = 0L
+
+    private var framesArrived = 0L
 
     private val minSilentFrames = framesIn(MIN_SILENCE_MS, sampleRate)
     private val padFrames = framesIn(PAD_MS, sampleRate).coerceAtMost(minSilentFrames / 2)
@@ -28,6 +39,10 @@ internal class SilenceCutter(
     val heard = HeardCuts()
 
     private val ahead = LookAhead(lookaheadFrames, channels)
+
+    private var decidedFrames = 0L
+
+    val smart = SmartTally()
 
     val cutLevel: Int get() = levels.level
 
@@ -53,14 +68,13 @@ internal class SilenceCutter(
             val peak = framePeak(input, at, channels)
             val before = levels.level
             levels.track(peak)
+            speech?.push(frameMean(input, at, channels))
+            framesArrived++
             if (lookaheadFrames == 0) {
                 decide(input, at, peak <= minOf(before, levels.level))
                 continue
             }
-            if (ahead.full) {
-                decide(ahead.samples, ahead.oldestAt, ahead.oldestPeak <= minOf(ahead.oldestLevel, levels.level))
-                ahead.drop()
-            }
+            if (ahead.full) decideOldest()
             ahead.push(input, at, peak, before)
         }
         return out
@@ -68,16 +82,29 @@ internal class SilenceCutter(
 
     fun endOfStream(): ShortArray {
         ensureRoom(minSilentFrames + padFrames + lookaheadFrames)
-        while (ahead.held > 0) {
-            decide(ahead.samples, ahead.oldestAt, ahead.oldestPeak <= minOf(ahead.oldestLevel, levels.level))
-            ahead.drop()
-        }
+        speech?.finish()
+        while (ahead.held > 0) decideOldest()
         if (cutting) endCut()
         if (pendingFrames > 0) releasePending()
         return out
     }
 
     fun gapJustEnded(): Boolean = justEnded.also { justEnded = false }
+
+    private val decideOldest: () -> Unit = {
+        val level = minOf(ahead.oldestLevel, levels.level)
+        val quiet = ahead.oldestPeak <= level
+        val heard = decidedFrames - speechFrom
+        val track = this.speech
+        val verdict = if (heard >= 0) track?.isSpeech(heard) else null
+        val notSpeech = verdict == false
+        val extra = !quiet && notSpeech && ahead.oldestPeak <= levels.nonSpeechLevel
+        if (track != null) smart.count(verdict, extra)
+        val silent = quiet || extra
+        decide(ahead.samples, ahead.oldestAt, silent)
+        ahead.drop()
+        decidedFrames++
+    }
 
     private fun decide(source: ShortArray, at: Int, silent: Boolean) {
         when {
@@ -170,6 +197,30 @@ internal class SilenceCutter(
     }
 }
 
+internal class SmartTally {
+    var speechFrames = 0L
+        private set
+    var notSpeechFrames = 0L
+        private set
+    var unknownFrames = 0L
+        private set
+    var cutBeyondStandard = 0L
+        private set
+
+    fun count(verdict: Boolean?, extra: Boolean) {
+        when (verdict) {
+            true -> speechFrames++
+            false -> notSpeechFrames++
+            null -> unknownFrames++
+        }
+        if (extra) cutBeyondStandard++
+    }
+
+    override fun toString(): String =
+        "smart judged $speechFrames frames speech, $notSpeechFrames not, $unknownFrames not yet known; " +
+            "$cutBeyondStandard cut beyond standard"
+}
+
 internal class LookAhead(private val capacity: Int, private val channels: Int) {
 
     val samples = ShortArray(capacity.coerceAtLeast(1) * channels)
@@ -249,6 +300,9 @@ internal class CutLevel(private val blockFrames: Int) {
     var speechPeak: Int = UNKNOWN
         private set
 
+    val nonSpeechLevel: Int
+        get() = if (speechPeak == UNKNOWN) SilenceCutter.FLOOR else speechPeak / UNDER_SPEECH_WHEN_NOT_SPEECH
+
     var framesSinceCut: Long = 0L
         private set
 
@@ -297,6 +351,7 @@ internal class CutLevel(private val blockFrames: Int) {
     internal companion object {
         const val UNKNOWN = -1
         const val UNDER_SPEECH = 8
+        const val UNDER_SPEECH_WHEN_NOT_SPEECH = 4
         private const val SOUND_OVER_FLOOR = 2
         private const val DIGITAL_SILENCE = 16
         private const val FLOOR_BLOCKS = 250
@@ -305,6 +360,14 @@ internal class CutLevel(private val blockFrames: Int) {
         private const val PERCENT = 100
     }
 }
+
+private fun frameMean(input: ShortArray, at: Int, channels: Int): Float {
+    var sum = 0
+    for (channel in 0 until channels) sum += input[at + channel]
+    return sum / (channels * FULL_SCALE)
+}
+
+private const val FULL_SCALE = 32_768f
 
 private fun framePeak(input: ShortArray, at: Int, channels: Int): Int {
     var peak = 0

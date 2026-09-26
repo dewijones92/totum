@@ -23,6 +23,8 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
 
     val skippedFrames: Long get() = cutter?.skippedFrames ?: 0L
 
+    val gapsCut: Long get() = cutter?.gapsCut ?: 0L
+
     val heard: HeardCuts? get() = cutter?.heard
 
     var flushes: Long = 0L
@@ -33,6 +35,19 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
     fun takePreviousSkippedBy(): (Long) -> Long = previousSkippedBy.also { previousSkippedBy = NOTHING_CUT }
 
     var relearnLevels = false
+
+    @Volatile
+    var mode: SilenceMode = SilenceMode.DEFAULT
+        set(value) {
+            if (field != value) Diag.log("silence", "mode -> $value")
+            field = value
+        }
+
+    var speechWeights: () -> SpeechWeights? = { null }
+
+    private var trackedMode: SilenceMode? = null
+
+    private var saidModelMissing = false
 
     val cutLevel: Int get() = cutter?.cutLevel ?: SilenceCutter.THRESHOLD
 
@@ -76,8 +91,38 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
             relearnLevels = false
             val levels = carried ?: CutLevel(blockFrames.coerceAtLeast(1))
             SilenceCutter(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1), levels)
+                .also { trackedMode = null }
         } else {
             null
+        }
+    }
+
+    private val followMode: (SilenceCutter) -> Unit = { active ->
+        val wanted = mode
+        val weights = if (wanted == SilenceMode.SMART) speechWeights() else null
+        when {
+            trackedMode == wanted -> Unit
+            wanted == SilenceMode.SMART && weights == null -> {
+                if (!saidModelMissing) {
+                    Diag.log(
+                        "silence",
+                        "smart wanted, speech model not loaded yet: cutting as standard until it is"
+                    )
+                }
+                saidModelMissing = true
+                if (active.speech != null) active.speech = null
+            }
+            else -> {
+                saidModelMissing = false
+                active.speech = weights?.let { SpeechTrack(SpeechModel(it), sampleRate, SpeechWorker.BACKGROUND) }
+                trackedMode = wanted
+                val how = if (weights != null) {
+                    " (listening for speech; non-speech cut up to a quarter of the speech level)"
+                } else {
+                    ""
+                }
+                Diag.log("silence", "cutting as ${wanted.name.lowercase()}$how")
+            }
         }
     }
 
@@ -89,6 +134,7 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
             replaceOutputBuffer(remaining).put(inputBuffer).flip()
             return
         }
+        followMode(active)
         val channels = inputAudioFormat.channelCount.coerceAtLeast(1)
         val count = remaining / BYTES_PER_SAMPLE
         val frames = count / channels

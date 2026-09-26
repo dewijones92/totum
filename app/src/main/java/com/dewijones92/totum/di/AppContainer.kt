@@ -513,6 +513,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 }
                 handle?.let { applicationScope.launch { playHistoryStore.record(PlayableItem(item, it)) } }
             },
+            silenceMode = appPreferences.settings
+                .map { it.silenceMode }
+                .stateIn(applicationScope, SharingStarted.Eagerly, appPreferences.settings.value.silenceMode),
         )
     }
 

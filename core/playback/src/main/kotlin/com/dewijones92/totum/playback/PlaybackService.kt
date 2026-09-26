@@ -1,7 +1,6 @@
 package com.dewijones92.totum.playback
 
 import android.app.PendingIntent
-import android.content.Context
 import android.os.Bundle
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.SessionAvailabilityListener
@@ -12,10 +11,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
@@ -76,23 +72,9 @@ public class PlaybackService : MediaSessionService() {
         super.onCreate()
         // A custom audio sink whose processor chain carries the silence skipper
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
-        val renderersFactory = object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean,
-            ): AudioSink {
-                val sink = DefaultAudioSink.Builder(context)
-                    .setEnableFloatOutput(enableFloatOutput)
-                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessorChain(
-                        SilenceCuttingAudioProcessorChain(silenceCutter, after = arrayOf(booster)),
-                    )
-                    .setAudioTrackBufferSizeProvider(SkipSilenceOutputBuffer { skipSilenceEnabled })
-                    .build()
-                return HeardSilenceAudioSink(sink, silenceCutter)
-            }
-        }
+        silenceCutter.speechWeights = { BundledSpeechModel.get(this) }
+        BundledSpeechModel.get(this)
+        val renderersFactory = silenceAwareRenderers(this, silenceCutter, booster) { skipSilenceEnabled }
         // Held so stalls can be reported with the throughput at the time. Without it a
         // stall is just "it stopped": a stream delivering 60 kbps and a 1080p stream that
         // needs more than the connection has look identical, and the fixes are opposite.
@@ -199,6 +181,7 @@ public class PlaybackService : MediaSessionService() {
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_VOLUME_BOOST, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_SILENCE_MODE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY))
                         .build(),
@@ -234,6 +217,10 @@ public class PlaybackService : MediaSessionService() {
             }
             if (customCommand.customAction == ACTION_USER_SPEED) {
                 applyUserSpeed(args.getFloat(EXTRA_USER_SPEED, NORMAL_SPEED))
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            if (customCommand.customAction == ACTION_SILENCE_MODE) {
+                silenceCutter.mode = SilenceMode.fromStoredName(args.getString(EXTRA_SILENCE_MODE))
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_SKIP_SILENCE) {
@@ -364,6 +351,8 @@ internal const val EXTRA_PRELOAD_URI: String = "uri"
 
 /** The item a nomination is FOR; what the preloader releases on. See [NextItemPreloader]. */
 internal const val EXTRA_PRELOAD_ITEM_ID: String = "item_id"
+internal const val ACTION_SILENCE_MODE: String = "com.dewijones92.totum.SILENCE_MODE"
+internal const val EXTRA_SILENCE_MODE: String = "silence_mode"
 internal const val ACTION_VOLUME_BOOST: String = "com.dewijones92.totum.VOLUME_BOOST"
 internal const val EXTRA_VOLUME_BOOST_LEVEL: String = "boost_level"
 

@@ -204,8 +204,73 @@ item gets the bigger buffer from the next item.
 | JVM | `HeardClockTest` (16) | a flush straight after a seek back does not count cuts from where playback used to be; a cut already announced is not announced again after a flush; a flush noticed before the stream restarts is not stranded; a cut carried across a flush is announced when heard; two flushes before either is heard count each stretch's cuts separately; at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
 | JVM | `BoostAndSkipSilenceTogetherTest` | Media3's real processors in the chain's order, boost on, speech peaking at 3000 with hiss at 300 in its pauses: they are all cut. With the boost first (the committed-before wiring), 119ms of 6000ms |
 | JVM | `SilenceCutterTest` (23) | a matrix of quiet recordings (600-3000 peak, Gaussian hiss) after nothing, a click, a cough or 5s of music keeps at least 99% of its speech energy, and has at least 70% of its pause time removed wherever the hiss is 26 dB or more under the speech (fails with the round-3 latch); a quiet recording is cut the way PipePipe would cut it turned up to full volume, and hiss that would sit over 1024 is kept; a music bed well under the speech is cut; a quiet recording that talks straight away keeps its opening; a long cut is not reported as nothing to cut; quiet speech that follows 5s of loud music or one loud click at the start of a stream loses at most its opening word (the mid-stream case is the trade-off above); quiet speech (peaking at 197) is never cut away; a quiet recording with hiss (1000/120) still has its pauses cut; a normally mastered one (20000/800) is cut as PipePipe cuts it; pauses louder than 1024 are kept as PipePipe keeps them; pauses under 150ms untouched; every longer pause becomes 40ms; the sound either side is bit-exact; the join fades to near zero; the skipped count equals exactly what was removed; the same output in any chunk size; stereo is a pause only when both channels are quiet; 1025 is never a pause; a cut counts only once playback reaches it, and keeps counting while a long pause is still being cut; trailing pauses. Mutation-checked: removing the fade fails one test, miscounting skipped frames fails another |
+| JVM | `SpeechModelTest` (6, incl. the filter bank being the windowed DFT the FFT replaces) | the Kotlin network gives ONNX Runtime's answers within 0.0001 over 64 chunks (synthetic tones, noise, silence, real speech); speech is told from silence; reset forgets; a wrong-sized chunk and a foreign file are refused. Mutation-checked: swapped LSTM gates, zero padding, and dropped context each fail it |
+| JVM | `SmartCutTest` (9) | plus: until the detector answers a frame is cut exactly as Standard; a detector on its own thread reaches the same verdicts as inline; a chunk that arrives after its frames were decided is not modelled |
+| JVM | `SmartCutTest` (first 6) | the track says speech in speech and not in hiss, will not guess ahead of what it has heard, reads audio at 48 kHz as it does at 16 kHz; Smart cuts a noisy pause Standard must keep, never cuts a loud stretch that is not speech, and switched on after the cutter was made cuts the same as from the start (red at 0ms vs 1124ms before the fix) |
+| JVM, opt-in | `RealSpeechSmartTest` (6) | on the LibriVox clip: 75%+ of pause time as mastered, 85%+ at 18 dB down, never less than Standard at any level, a quiet guest keeps their words (fails at 956ms lost if the detector is ignored), the noisy demo clip saves 1.5x Standard's time, and a minute of audio is processed in well under 15s |
 | JVM | `LookAheadCutTest` (4) | a quiet guest (700) after a loud host (14000) keeps the start of every turn, and before one keeps the end, within 60ms; a cough in a quiet recording does not cut the words after it; the pauses are still cut. Three fail with the look-ahead off (1051-1303ms lost), and "keeps the end" fails when only the level ahead is used (1362ms) |
 | Device | `SilenceIsReallyCutTest` (8) | WAV, MP3 and stereo AAC podcasts, after a seek, at 2x, a video, and a video whose drawn frames are checked against the sound; a quiet podcast with the boost on is still cut. Every case also asserts the sound broke up at no more than two separate points. Red on the old code at every case (table above), and the break-up guard fails at 4-5 points with a 250ms buffer |
+
+## Two modes: Standard and Smart (2026-09-26)
+
+Dewi chose, from a written comparison: a neural voice detector (Silero VAD), a test clip built in
+plus the live item, and **Smart as the default**. Settings → *Skip silence* has the choice and a
+*Hear the difference* card; the mode applies at once, to whatever is playing too, because the
+processor attaches or detaches the speech track on the live cutter without dropping the half second
+it holds.
+
+- **Standard** is everything above: loudness only, judged half a second ahead.
+- **Smart** is Standard's cut **plus**, wherever the detector hears no speech, cutting up to a
+  quarter of the speech level (Standard stops at an eighth, capped at 1024). A frame the detector
+  calls speech, or cannot judge yet, is decided exactly as Standard would, so Smart can only take
+  out more, never touch a word Standard keeps. Measured before settling this: "never cut anything
+  called speech" removed 21-46% of pause time, because the detector's verdict lingers through short
+  gaps; the union removes more than Standard everywhere.
+
+| On real speech | Standard | Smart | PipePipe (fixed 1024) |
+|---|---|---|---|
+| Pause time removed, as mastered (five recordings + the LibriVox clip) | 54-70% | 73-81% | 96-97% |
+| Pause time removed, 18 dB down with hiss | 80-96% | 91-97% | 99% |
+| Speech energy lost | under 0.02% | under 0.06% | 0.05% as mastered, 7-71% at 18 dB down |
+| The LibriVox clip with room noise (the demo) | saves 6.3s | saves 11.4s | |
+
+**The detector, and why it is plain Kotlin.** Silero VAD v6.2.3 (MIT, 16 kHz model): a 256-point
+filter bank, four 3-tap convolutions, one LSTM cell of 128, a sigmoid. ONNX Runtime 1.30's arm64
+library alone is 33 MB (about 12 MB compressed), roughly twice the size budget that was agreed, so
+`SpeechModel` runs the network itself from a 1.24 MB weight file (`res/raw/silero_vad.bin`,
+exported once from the `.onnx`). A numpy transcription matched ONNX Runtime to 0.0000024 over all
+1,875 chunks of the clip, and `SpeechModelTest` pins the Kotlin version to ONNX Runtime's own
+outputs within 0.0001 on every commit. About 55x real time on a laptop JVM. `SpeechTrack` feeds it:
+mono downmix, a 15-tap low-pass and linear resampling to 16 kHz, 512-sample chunks with 64 of
+context, hysteresis (speech from 0.5, until below 0.35), and one chunk of guard either side of a
+word. The cutter's half-second look-ahead is what lets the verdict arrive before a frame is
+decided. The licence is in `app/src/main/assets/licenses/MIT-SileroVAD.txt`.
+
+**Off the audio thread.** The first device run put the model on the audio thread and the sound
+broke up after cuts: the audio thread races through the silence it has just removed, and doing the
+filtering, resampling and model there made that catch-up late. Now the audio thread only stores one
+number per frame and hands over blocks of 2,048; a single low-priority `speech-detector` thread
+resamples, runs the model, and publishes each verdict. A frame whose verdict is not back yet is cut as
+Standard would cut it, and a chunk whose frames have already been decided is not modelled at all
+(counted as `dropped behind`), so a slow device loses only the extra cutting, never the sound. The
+model measured 0.4-3.2 ms per 32 ms chunk on the emulator (`us each` in the report); 200 us on a
+laptop JVM after replacing the filter bank with an FFT (the model's filter bank is exactly a
+periodic-Hann-windowed DFT, which `SpeechModelTest` checks) and restructuring the first convolution.
+On the emulator, with it that starved (a gigabyte of swap), the device suite failed 0, 4 and 2 of 8
+tests in Standard and 1, 2 and 0 in Smart: indistinguishable, where the first, on-thread version
+failed 3 and 3 while Standard passed.
+
+**Found on the device, not by the JVM tests:** Smart first cut exactly what Standard cut on the
+phone. The JVM tests handed the speech track to the cutter's constructor; the app attaches it
+afterwards, and a lambda property inside the cutter read the constructor parameter (null) instead
+of the property. The report's new line, `smart judged N frames speech, M not, K not yet known; X
+cut beyond standard`, said `0 frames` and gave it away. `SmartCutTest` now attaches it the way the
+app does.
+
+**Proving it in the wild:** the `silence` log says `cutting as smart (listening for speech ...)` or
+`cutting as standard`, `mode -> …` on every change, `speech model loaded in Nms` (or a warning, and
+Standard until it loads), and every stretch reports how many 32 ms chunks were speech and how many
+frames Smart cut beyond Standard. `settings.silenceMode` is in every report's state block.
 
 ### On real speech, in CI
 

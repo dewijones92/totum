@@ -448,4 +448,25 @@
         <item quantity="one">Unsubscribe from %1$d source? YouTube channels are unsubscribed on your account too.</item>
         <item quantity="other">Unsubscribe from %1$d sources? YouTube channels are unsubscribed on your account too.</item>
     </plurals>
+    <string name="settings_silence_section">Skip silence</string>
+    <string name="settings_silence_supporting">How pauses are found when skip silence is on. A change applies straight away, to whatever is playing too.</string>
+    <string name="silence_mode_standard">Standard</string>
+    <string name="silence_mode_standard_summary">Cuts the quiet between words by how loud it is. Never touches a quiet voice, but leaves breaths and room noise in.</string>
+    <string name="silence_mode_smart">Smart (recommended)</string>
+    <string name="silence_mode_smart_summary">Also listens for speech, so breaths, rustles and room noise go too. A quiet voice is still left alone.</string>
+    <string name="silence_applies_now">Applies to “%1$s” now.</string>
+    <string name="silence_preview_title">Hear the difference</string>
+    <string name="silence_preview_supporting">A minute of a public-domain LibriVox reading, played three ways. Try the noisy room to hear what Smart adds.</string>
+    <string name="silence_preview_clean">Clean reading</string>
+    <string name="silence_preview_noisy">Noisy room</string>
+    <string name="silence_preview_uncut">Uncut</string>
+    <string name="silence_preview_standard">Standard</string>
+    <string name="silence_preview_smart">Smart</string>
+    <string name="silence_preview_stop">Stop</string>
+    <string name="silence_preview_playing">%1$s · %2$s of %3$s · %4$s · %5$s saved</string>
+    <string name="silence_preview_result">%1$s saved %2$s (%3$s) by %4$s</string>
+    <plurals name="silence_preview_pauses">
+        <item quantity="one">%d pause cut</item>
+        <item quantity="other">%d pauses cut</item>
+    </plurals>
 </resources>
