@@ -207,6 +207,19 @@ item gets the bigger buffer from the next item.
 | JVM | `LookAheadCutTest` (4) | a quiet guest (700) after a loud host (14000) keeps the start of every turn, and before one keeps the end, within 60ms; a cough in a quiet recording does not cut the words after it; the pauses are still cut. Three fail with the look-ahead off (1051-1303ms lost), and "keeps the end" fails when only the level ahead is used (1362ms) |
 | Device | `SilenceIsReallyCutTest` (8) | WAV, MP3 and stereo AAC podcasts, after a seek, at 2x, a video, and a video whose drawn frames are checked against the sound; a quiet podcast with the boost on is still cut. Every case also asserts the sound broke up at no more than two separate points. Red on the old code at every case (table above), and the break-up guard fails at 4-5 points with a 250ms buffer |
 
+### On real speech, in CI
+
+`…playback.audioquality.*` measures the cutter (and the boost) on a committed public-domain clip:
+60 seconds of *How the Camel Got His Hump* from LibriVox's dramatic reading of Kipling's *Just So
+Stories* (archive.org `justsostories_1602_librivox`, Public Domain Mark), 4:30-5:30, several
+readers 10 dB apart, 33 pauses, mono Ogg Opus at 32 kb/s (232 KB), in
+`core/playback/src/main/res/raw/silence_test_clip.ogg` so the Settings preview can play the same
+file. Measured on it with the look-ahead: 70% of pause time removed as mastered, 80% at 18 dB down
+with hiss, 96% at 30 dB down, with under 0.1% of speech energy lost in every case; at 24 dB down
+with heavy hiss only 39%, because the hiss peaks sit at the cut level (no words lost). That last
+case is what speech detection is meant to fix. The suite runs only when this area changes, in its
+own workflow; see `docs/tests/_index.md`.
+
 ### Honest caveats
 
 - A pause whose hiss would sit above 1024 with the recording turned up to full volume is left in,

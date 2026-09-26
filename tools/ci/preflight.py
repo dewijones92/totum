@@ -24,6 +24,7 @@ Checks, cheapest first:
 8. No instrumented test name holds a character dex cannot represent. A comma or an apostrophe in a
    backtick name is legal Kotlin and fine on the JVM, and fails the WHOLE androidTest dex build.
 """
+import fnmatch
 import pathlib
 import re
 import subprocess
@@ -348,6 +349,35 @@ def check_instrumented_test_names_dex() -> int:
     return problems
 
 
+AUDIO_WORKFLOW = ROOT / ".github/workflows/audio-quality.yml"
+AUDIO_TESTS = ROOT / "core/playback/src/test/kotlin/com/dewijones92/totum/playback/audioquality"
+PLAYBACK_MAIN = "core/playback/src/main/kotlin/com/dewijones92/totum/playback"
+PLAYBACK_IMPORT = re.compile(r"^import com\.dewijones92\.totum\.playback\.([A-Z]\w*)", re.M)
+
+
+def guarded_sources(test_texts, exists) -> list:
+    names = sorted({name for text in test_texts for name in PLAYBACK_IMPORT.findall(text)})
+    return [path for path in (f"{PLAYBACK_MAIN}/{name}.kt" for name in names) if exists(path)]
+
+
+def uncovered_by(paths, globs) -> list:
+    return [path for path in paths if not any(fnmatch.fnmatchcase(path, glob) for glob in globs)]
+
+
+def check_audio_quality_paths() -> int:
+    if not AUDIO_WORKFLOW.exists() or not AUDIO_TESTS.exists():
+        return fail("the audio-quality workflow or its test package is missing")
+    workflow = yaml.safe_load(AUDIO_WORKFLOW.read_text())
+    globs = (workflow.get(True) or workflow.get("on") or {}).get("push", {}).get("paths", [])
+    tests = [path.read_text() for path in AUDIO_TESTS.glob("*.kt")]
+    missing = uncovered_by(guarded_sources(tests, lambda path: (ROOT / path).exists()), globs)
+    for path in missing:
+        fail(f"{path} is used by the audio-quality suite but a change to it would not trigger audio-quality.yml")
+    if not missing:
+        print("  ok: every source the audio-quality suite uses triggers its workflow")
+    return len(missing)
+
+
 def main() -> int:
     print(f"preflight: {WORKFLOW.relative_to(ROOT)}")
     problems, workflow = check_yaml()
@@ -370,6 +400,7 @@ def main() -> int:
     problems += check_shell_syntax(workflow)
     problems += check_text_wraps_instead_of_truncating()
     problems += check_instrumented_test_names_dex()
+    problems += check_audio_quality_paths()
     if problems:
         print(f"\npreflight FAILED with {problems} problem(s) — none of these would show up in the Gradle gate.")
         return 1

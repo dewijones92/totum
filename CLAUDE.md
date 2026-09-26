@@ -93,7 +93,13 @@ change coverage → update `docs/tests/`. Bump each doc's `updated`.
 python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run before every push
 ./gradlew detekt lint test koverVerify assembleDebugAndroidTest   # the full local gate (matches CI)
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
+./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```
+
+The audio-quality suite (`…playback.audioquality.*`) is excluded from `test` and runs in CI only when a
+push touches the silence/boost code (`.github/workflows/audio-quality.yml`), so run it yourself whenever
+you change that code, and name any new source file in this area so the workflow's `paths:` match it
+(preflight fails otherwise).
 
 **detekt autocorrects and still fails the run that found the issue**, per module and fail-fast: a
 gate that is red on `ImportOrdering`/`Indentation`/`ArgumentListWrapping` alone usually goes green on

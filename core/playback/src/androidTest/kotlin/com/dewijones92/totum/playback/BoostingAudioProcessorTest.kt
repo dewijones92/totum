@@ -77,14 +77,15 @@ class BoostingAudioProcessorTest {
     /** THE POINT, through the real chain: quiet audio comes out loud. */
     @Test
     fun `a quiet buffer comes out much louder`() {
-        val quiet = tone(QUIET)
+        val quiet = tone(QUIET, count = 2 * rate)
+        val lastHalfSecond = quiet.size - SETTLED
 
         val out = run(quiet, VolumeBoost.AUTO)
 
         assertEquals("no samples may be lost or invented", quiet.size, out.size)
         assertTrue(
-            "expected a large lift, got ${quiet.rms(SETTLED).toInt()} -> ${out.rms(SETTLED).toInt()}",
-            out.rms(SETTLED) > quiet.rms(SETTLED) * MIN_LIFT,
+            "expected a large lift, got ${quiet.rms(lastHalfSecond).toInt()} -> ${out.rms(lastHalfSecond).toInt()}",
+            out.rms(lastHalfSecond) > quiet.rms(lastHalfSecond) * MIN_LIFT,
         )
     }
 

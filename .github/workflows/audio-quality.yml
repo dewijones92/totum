@@ -1,0 +1,60 @@
+name: Audio quality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/Silence*.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/*Boost*.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/Lookahead*.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/Speech*.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/Vad*.kt"
+      - "core/playback/src/main/res/raw/**"
+      - "core/playback/src/test/kotlin/com/dewijones92/totum/playback/audioquality/**"
+      - "build.gradle.kts"
+      - ".github/workflows/audio-quality.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audio-quality:
+    name: Silence cutter + volume boost on real speech
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Run the audio-quality suite
+        run: ./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests --no-daemon
+
+      - name: Summarise
+        if: always()
+        run: python3 tools/ci/test-summary.py "Audio quality" core/playback/build/test-results/testDebugUnitTest
+
+      - name: Refuse a run that tested nothing
+        run: |
+          count=$(python3 -c "import glob,re; print(sum(int(re.search(r'tests=\"(\d+)\"', open(f).read()).group(1)) for f in glob.glob('core/playback/build/test-results/testDebugUnitTest/TEST-*.audioquality.*.xml')))")
+          echo "audio-quality tests run: $count"
+          test "$count" -gt 0
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: audio-quality-reports
+          path: core/playback/build/reports/tests/
+          if-no-files-found: ignore

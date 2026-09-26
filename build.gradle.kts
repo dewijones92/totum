@@ -55,6 +55,11 @@ val androidDefaults: com.android.build.api.dsl.CommonExtension.() -> Unit = {
  */
 val liveTestsRequested = providers.gradleProperty("totum.liveTests").isPresent
 
+val optInTestPhases = mapOf(
+  "com.dewijones92.totum.*.live.*" to liveTestsRequested,
+  "com.dewijones92.totum.*.audioquality.*" to providers.gradleProperty("totum.audioQualityTests").isPresent,
+)
+
 // Every module gets the same static-analysis gate; adding a module adds its gate.
 subprojects {
   apply(plugin = "io.gitlab.arturbosch.detekt")
@@ -82,10 +87,11 @@ subprojects {
   // same rule rather than by remembering to configure its module.
   tasks.withType<Test>().configureEach {
     filter {
-      if (liveTestsRequested) {
-        includeTestsMatching("com.dewijones92.totum.*.live.*")
+      val requested = optInTestPhases.filterValues { it }.keys
+      if (requested.isNotEmpty()) {
+        requested.forEach(::includeTestsMatching)
       } else {
-        excludeTestsMatching("com.dewijones92.totum.*.live.*")
+        optInTestPhases.keys.forEach(::excludeTestsMatching)
       }
       // BOTH branches. Most modules hold no live tests at all, so in the live phase their filter
       // matches nothing — and Gradle treats that as a failure. It killed `:core:domain:test` in CI
