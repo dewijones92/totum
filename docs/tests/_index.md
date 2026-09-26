@@ -43,6 +43,7 @@ instead).
 | The `/player` ladder keeping your audio track | JVM unit | `:app` `ASecondOpinionRungKeepsYourTrackTest` — the rule lived on the yt-dlp ladder only, so the degraded path served the wrong language |
 | Room DAOs / stores | instrumented | `:core:database` |
 | `Media3PlaybackController` / service | instrumented + on-device | `:core:playback` |
+| The buffered-ahead label under the scrub bar only appears for a buffer that is really running out, and never blinks | JVM unit | `:core:playback` `BufferGaugeTest` — tick-by-tick playback: healthy drain at 2x, running out, after a seek, hovering at the mark, the end of an item; `BufferAheadTest` for the number itself |
 | Ranged fetch arithmetic + stopping rule (`ChunkedRead`) | JVM unit | `:core:playback` — 18 cases; the class every stream flows through, previously untested |
 | `ChunkedDataSource` over a googlevideo-shaped stand-in | instrumented | `:core:playback` — no network; resumed reads, past-the-end ranges, truncated resources |
 | An item resumed near its end reaches its end | instrumented | `:app` `StreamPlaysToItsEndTest` — real player over a localhost ranged server |

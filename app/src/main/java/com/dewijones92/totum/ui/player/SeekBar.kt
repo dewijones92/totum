@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.player
 
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,22 +13,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.Chapter
 import com.dewijones92.totum.domain.SkipSegment
-import com.dewijones92.totum.playback.BufferAhead
+import com.dewijones92.totum.playback.BufferGauge
 import com.dewijones92.totum.playback.PlaybackState
 
 /**
@@ -52,14 +54,15 @@ internal fun SeekBar(state: PlaybackState, onSeekTo: (Long) -> Unit, modifier: M
                 },
                 valueRange = 0f..duration.toFloat(),
             )
-            BufferAheadLabel(state)
             SkipSegmentBar(state.skipSegments, duration)
             ChapterMarkerBar(state.chapters, duration)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(formatTime(position), style = MaterialTheme.typography.labelMedium)
+                BufferAheadLabel(state, Modifier.weight(1f).padding(horizontal = 8.dp))
                 Text(formatTime(duration), style = MaterialTheme.typography.labelMedium)
             }
         } else {
@@ -196,33 +199,31 @@ private val ChapterMarkerColor = Color(0xFFFFC107) // amber — visible on light
  * How many seconds of the file you actually hold ahead of the playhead.
  *
  * Dewi, 2026-08-02: *"lets make it clear in the gui how much of the 'future' of the file is
- * downloaded"*. Shown only when it is LOW or SHRINKING, because a healthy buffer is not news —
- * a permanent "312s buffered" would be noise on every well-behaved video and would stop being
- * read long before the one time it mattered.
+ * downloaded"*. Shown only once it has been LOW for a moment, because a healthy buffer is not
+ * news — a permanent "312s buffered" would be noise on every well-behaved video and would stop
+ * being read long before the one time it mattered.
  *
- * The direction is the point. A small buffer that is filling will be fine; a large one that is
- * draining will not, and a bare number cannot tell those apart — which is exactly the question
- * being asked of a stalling torrent.
+ * The direction is the point once it is low. A small buffer that is filling will be fine; one
+ * that is draining will not. A LARGE buffer draining is the player's ordinary cycle between
+ * loads, and showing it made the label blink under the scrubber every second (2026-09-26).
  */
 @Composable
-private fun BufferAheadLabel(state: PlaybackState) {
-    // Remembered per item, so a new video does not inherit the previous one's direction.
-    var previous by remember(state.itemId) { mutableStateOf<BufferAhead?>(null) }
-    val ahead = BufferAhead.of(state, previous)
-    LaunchedEffect(ahead?.seconds, state.itemId) { previous = ahead }
-
-    if (ahead == null || !(ahead.low || ahead.falling)) return
+private fun BufferAheadLabel(state: PlaybackState, modifier: Modifier) {
+    val gauge = remember { BufferGauge() }
+    val ahead = gauge.update(state, SystemClock.elapsedRealtime())
     Text(
-        text = if (ahead.falling) {
-            stringResource(R.string.buffer_ahead_falling, ahead.seconds)
-        } else {
-            stringResource(R.string.buffer_ahead, ahead.seconds)
+        text = when {
+            ahead == null -> ""
+            ahead.falling -> stringResource(R.string.buffer_ahead_falling, ahead.seconds)
+            else -> stringResource(R.string.buffer_ahead, ahead.seconds)
         },
         style = MaterialTheme.typography.labelSmall,
-        color = if (ahead.falling) {
+        textAlign = TextAlign.Center,
+        color = if (ahead?.falling == true) {
             MaterialTheme.colorScheme.error
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
+        modifier = modifier,
     )
 }

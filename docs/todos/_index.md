@@ -64,7 +64,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [offline-queue-e2e](offline-queue-e2e.md) | tests | high | done — in CI, and it found a real bug |
 | [buffering-defects-0.1.332](buffering-defects-0.1.332.md) | playback | high | all four fixed with tests |
 | [settings-only-change-when-asked](settings-only-change-when-asked.md) | settings | high | done — speed, boost and brightness hold, incl. across a fullscreen toggle (fixed 2026-08-08) |
-| [buffer-ahead-gauge](buffer-ahead-gauge.md) | playback | medium | shipped — seconds-ahead gauge on the scrub bar |
+| [buffer-ahead-gauge](buffer-ahead-gauge.md) | playback | medium | shipped — seconds-ahead gauge on the scrub bar; flicker fixed 2026-09-26 |
 | [tab-state-preservation](tab-state-preservation.md) | navigation | high | shipped |
 | [diagnostics-triage-state](diagnostics-triage-state.md) | diagnostics | high | shipped |
 | [a-recovery-resumes-the-next-item-at-the-last-items-position](a-recovery-resumes-the-next-item-at-the-last-items-position.md) | playback | high | fixed 2026-09-06 — StreamRecovery drops stale failures |

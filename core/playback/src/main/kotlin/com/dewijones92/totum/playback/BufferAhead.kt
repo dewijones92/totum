@@ -1,5 +1,8 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.MediaItemId
+
 /**
  * How much of the future of the file you actually hold, and which way it is going.
  *
@@ -31,6 +34,10 @@ public data class BufferAhead(
         /** Roughly a rebuffer away. Below this the number stops being reassurance. */
         public const val LOW_SECONDS: Long = 10
 
+        public const val CLEAR_SECONDS: Long = 15
+
+        public const val SHOW_AFTER_MS: Long = 2_000
+
         private const val MILLIS = 1_000L
 
         /**
@@ -48,8 +55,60 @@ public data class BufferAhead(
                 // Strictly fewer seconds than last time. Equal is not falling: a buffer holding
                 // steady while playing is being refilled at exactly the rate it drains, which is
                 // the healthy case and must not be reported as a problem.
-                falling = previous != null && ahead < previous.seconds,
+                falling = when {
+                    previous == null -> false
+                    ahead != previous.seconds -> ahead < previous.seconds
+                    else -> previous.falling
+                },
             )
         }
+    }
+}
+
+public class BufferGauge {
+
+    private var item: MediaItemId? = null
+    private var previous: BufferAhead? = null
+    private var lowSinceMs: Long? = null
+    private var shown = false
+
+    public fun update(state: PlaybackState, nowMs: Long): BufferAhead? {
+        if (state.itemId != item) {
+            item = state.itemId
+            previous = null
+            lowSinceMs = null
+            shown = false
+        }
+        val ahead = BufferAhead.of(state, previous)
+        previous = ahead
+        val loadedToEnd = state.durationMs != null && state.bufferedPositionMs >= state.durationMs - END_SLACK_MS
+        val low = ahead != null && !loadedToEnd &&
+            ahead.seconds <= if (shown) BufferAhead.CLEAR_SECONDS else BufferAhead.LOW_SECONDS
+        if (!low) {
+            if (shown) {
+                Diag.log(
+                    "buffer",
+                    "gauge hidden: ${ahead?.seconds}s ahead, " +
+                        if (loadedToEnd) "loaded to the end of the item" else "clear of ${BufferAhead.CLEAR_SECONDS}s",
+                )
+            }
+            lowSinceMs = null
+            shown = false
+            return null
+        }
+        val since = lowSinceMs ?: nowMs.also { lowSinceMs = it }
+        if (!shown && nowMs - since >= BufferAhead.SHOW_AFTER_MS) {
+            shown = true
+            Diag.log(
+                "buffer",
+                "gauge shown: ${ahead.seconds}s ahead${if (ahead.falling) ", falling" else ""}, " +
+                    "at or under ${BufferAhead.LOW_SECONDS}s for ${nowMs - since}ms",
+            )
+        }
+        return ahead.takeIf { shown }
+    }
+
+    private companion object {
+        const val END_SLACK_MS = 1_000L
     }
 }
