@@ -299,14 +299,86 @@ class LoudnessBoostTest {
      */
     @Test
     fun `it settles within the first moments rather than swelling`() {
-        val output = boosted(tone(QUIET, seconds = 3f))
+        val output = boosted(words(peak = QUIET * WORD_OVER_TONE, seconds = 3.5f, emphasised = false))
 
-        val early = output.copyOfRange(rate / 2, rate).rms()
-        val settled = output.copyOfRange(output.size - rate / 2, output.size).rms()
+        val cycle = rate / 4 + rate / 10
+        val early = output.copyOfRange(cycle, 3 * cycle).rms()
+        val settled = output.copyOfRange(output.size - 2 * cycle, output.size).rms()
         assertTrue(
             "still climbing after half a second: $early vs $settled",
             early > settled * MOSTLY_THERE,
         )
+    }
+
+    @Test
+    fun `an item that opens with room tone does not squash its first words`() {
+        val input = roomTone(seconds = 0.5f) + words(peak = 0.5f, seconds = 3f)
+        val output = boosted(input)
+
+        val start = (rate * 0.5f).toInt()
+        val firstWords = cleanness(input, output, start, start + rate)
+        val later = cleanness(input, output, start + 2 * rate, input.size)
+        assertTrue("first second of speech ${firstWords}dB clean, later ${later}dB", firstWords > CLEAN_DB)
+    }
+
+    @Test
+    fun `a quiet item still comes up loud once the boost has learnt its level`() {
+        val boost = boost()
+        val output = run(boost, words(peak = 0.02f, seconds = 6f))
+
+        val early = output.copyOfRange(rate, 2 * rate).rms()
+        val settled = output.copyOfRange(output.size - 2 * rate, output.size).rms()
+        assertTrue(
+            "gain ${LoudnessBoost.decibels(boost.currentGain)}dB",
+            LoudnessBoost.decibels(boost.currentGain) > MOSTLY_LIFTED_DB
+        )
+        assertTrue("still climbing after a second: $early vs $settled", early > settled * MOSTLY_THERE)
+    }
+
+    private fun roomTone(seconds: Float): ShortArray {
+        val random = java.util.Random(ROOM_SEED)
+        return ShortArray((rate * seconds).toInt()) { (random.nextGaussian() * ROOM_SIGMA).toInt().toShort() }
+    }
+
+    private operator fun ShortArray.plus(other: ShortArray): ShortArray =
+        ShortArray(size + other.size) { if (it < size) this[it] else other[it - size] }
+
+    private fun cleanness(input: ShortArray, output: ShortArray, from: Int, to: Int): Double {
+        val window = rate / 100
+        var signal = 0.0
+        var residual = 0.0
+        var at = from
+        while (at + window <= to) {
+            var cross = 0.0
+            var power = 0.0
+            for (k in at until at + window) {
+                cross += input[k].toDouble() * output[k]
+                power += input[k].toDouble() * input[k]
+            }
+            val gain = if (power > 0) cross / power else 0.0
+            for (k in at until at + window) {
+                val error = output[k] - gain * input[k]
+                residual += error * error
+                signal += output[k].toDouble() * output[k]
+            }
+            at += window
+        }
+        return DECIBELS_PER_POWER_DECADE * kotlin.math.log10(signal / maxOf(residual, 1e-9))
+    }
+
+    private fun words(peak: Float, seconds: Float, emphasised: Boolean = true): ShortArray {
+        val word = rate / 4
+        val gap = rate / 10
+        return ShortArray((rate * seconds).toInt()) { i ->
+            val at = i % (word + gap)
+            if (at >= word) {
+                0
+            } else {
+                val envelope = sin(PI * at / word)
+                val emphasis = if (!emphasised || (i / (word + gap)) % 3 == 0) 1.0 else 0.35
+                (sin(2 * PI * 180 * i / rate) * envelope * emphasis * peak * FULL_SCALE).toInt().toShort()
+            }
+        }
     }
 
     // ---- and it must not sound processed ---------------------------------------------------------
@@ -442,6 +514,12 @@ class LoudnessBoostTest {
 
     private companion object {
         const val FULL_SCALE = 32_767f
+        const val CLEAN_DB = 45.0
+        const val WORD_OVER_TONE = 2f
+        const val ROOM_SIGMA = 30.0
+        const val ROOM_SEED = 7L
+        const val DECIBELS_PER_POWER_DECADE = 10.0
+        const val MOSTLY_LIFTED_DB = 20f
 
         /** About -40 dBFS: a podcast mastered far too quietly, which is the case this is all for. */
         const val QUIET = 0.01f

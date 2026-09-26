@@ -124,6 +124,40 @@ roar, and it was a downward expander that ate the quiet ends of words. Automatic
 need: the lift is proportionate to the item, so its noise floor rises with its speech, exactly as it
 would if you turned the volume up.
 
+## The first second of every item was squashed (found 2026-09-26)
+
+Found by measuring a public-domain LibriVox reading second by second, not by ear or by a report.
+Cleanness here is how far the output departs from a clean change of gain, measured per 10 ms window
+(the residual after fitting the best single gain to each window, in dB below the signal):
+
+| Second of the item | 1 | 2 | 3 | 4 | after 5s |
+|---|---|---|---|---|---|
+| Before | 22 dB | 30 dB | 56 dB | 67 dB | 62 dB |
+| After | 42 dB | 31 dB | 58 dB | 67 dB | 62 dB |
+
+The whole minute went from 34 dB to 45 dB. **The cause:** recordings open with room tone, and the
+booster, which judged "is this content?" only against the loudest thing heard lately, measured that
+room tone as the item. It asked for +22 dB before the first word, so the limiter had to crush the
+first words by up to 14 dB while the gain slid back down to the +8.5 dB it should have had. The
+report from Dewi's phone at 06:10 that morning shows exactly that shape: `auto gain 16.9dB …
+limiter down to -11.8dB` two seconds in, `10.0dB … -0.3dB` four seconds later.
+
+**The fix:** the booster does not start measuring until it has heard contrast, a 20 ms block four
+times (12 dB) louder than the quietest one so far, or until half a second of audio has passed with
+none, so a genuinely steady recording is still boosted. The moment it starts is logged as `boost:
+measuring from Nms in: …` with which of the two it was.
+
+**Tried and rejected, measured:** bounding the warm-up gain by the loudest peak heard (no effect:
+room tone's peak is small); letting the gain fall fast while learning (worse, 25-27 dB: the gain
+then chases syllables, which is modulation); re-learning when a sound 30x the estimate arrives (never
+fired, the room tone was still inside the warm-up); requiring 200 ms of contrast rather than 20 ms
+(slightly cleaner, 49 dB overall, but the start then audibly fades up).
+
+**What is left:** a lead-in with a breath in it. The breath is contrast, so the booster learns from
+the breath and the next second is still squashed (31 dB above). The real fix is for the booster to
+estimate from further ahead, the way the silence cutter now judges each frame half a second ahead;
+not done yet.
+
 ## The seam
 
 Unified by construction — it is in the **sink's processing chain**, so every byte of audio the app
@@ -168,7 +202,8 @@ app before.
 
 | Level | Test | Claim |
 |---|---|---|
-| JVM | `LoudnessBoostTest` (24) | Version 4 adds: **a sudden loud passage keeps its shape** (under 0.5% distortion at the onset and no flat tops; 2.11% on version 3), **a recording 30 dB too quiet comes up as loud as one at the target** (a third as loud on version 3), both channels get one gain, and switching it on and off mid-stream loses and repeats nothing. And, from before: **Not distorting:** a sudden loud passage after a quiet one clips zero samples, so does six alternating bursts, `clippedSamples` stays 0, nothing wraps. **Making quiet things audible:** a very quiet recording is lifted >8×, an already-loud one is left within 5% of untouched, gain falls monotonically as the input gets louder, nothing is ever attenuated, the cap holds at +30 dB, and it settles within half a second rather than swelling. **Not sounding processed:** a steady tone stays steady within 5%, a pause between sentences does not move the gain, the gap is not lifted more than the speech, quiet speech is amplified rather than gated, silence stays silent, OFF is bit-exact, and an old stored level migrates to AUTO |
+| JVM | `LoudnessBoostTest` (26) | 2026-09-26 adds: **an item that opens with room tone does not squash its first words** (first second of speech at least 45 dB clean; 29 dB before the fix), and **a quiet item still comes up loud once the boost has learnt its level**. "It settles within half a second" now feeds speech-like words rather than a tone from sample zero, because a steady tone from the first sample is indistinguishable from room tone and is the one input the booster now deliberately waits on; with the warm-up slowed it still fails. |
+| JVM | `LoudnessBoostTest` (earlier) | Version 4 adds: **a sudden loud passage keeps its shape** (under 0.5% distortion at the onset and no flat tops; 2.11% on version 3), **a recording 30 dB too quiet comes up as loud as one at the target** (a third as loud on version 3), both channels get one gain, and switching it on and off mid-stream loses and repeats nothing. And, from before: **Not distorting:** a sudden loud passage after a quiet one clips zero samples, so does six alternating bursts, `clippedSamples` stays 0, nothing wraps. **Making quiet things audible:** a very quiet recording is lifted >8×, an already-loud one is left within 5% of untouched, gain falls monotonically as the input gets louder, nothing is ever attenuated, the cap holds at +30 dB, and it settles within half a second rather than swelling. **Not sounding processed:** a steady tone stays steady within 5%, a pause between sentences does not move the gain, the gap is not lifted more than the speech, quiet speech is amplified rather than gated, silence stays silent, OFF is bit-exact, and an old stored level migrates to AUTO |
 | Instrumented | `BoostingAudioProcessorTest` (7) | Version 4 adds that a seek forgets the 5 ms held back for the look-ahead. And, from before: The plumbing Media3 actually drives: the whole input buffer is consumed, samples are read **little-endian** (proven by sign correlation — a byte-swapped read would sit near 50%), OFF passes bytes through, a non-16-bit format is left alone, an empty buffer is fine, and the setting can change mid-stream |
 
 **Why version 2's tests did not catch its bug, which is the lesson worth keeping.** All eleven of

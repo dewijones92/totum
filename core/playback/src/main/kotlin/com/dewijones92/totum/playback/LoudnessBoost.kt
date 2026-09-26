@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.common.Diag
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
@@ -77,6 +78,14 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     /** Samples of real audio seen so far, so the estimate can settle quickly at the start. */
     private var warmupSamples = 0L
 
+    private var heardDynamics = false
+    private var quietestBlock = Float.MAX_VALUE
+    private var blockPeak = 0f
+    private var blockFill = 0
+    private var audibleFrames = 0L
+    private val blockFrames = framesOf(DYNAMICS_BLOCK_MS).toInt().coerceAtLeast(1)
+    private val dynamicsTimeout = framesOf(DYNAMICS_TIMEOUT_MS)
+
     /**
      * Samples that hit the rail. Expected to be zero for the life of the app: the look-ahead limiter
      * makes exceeding the ceiling arithmetically impossible, so anything here is a broken assumption
@@ -150,7 +159,9 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         // speech either side of it rather than against a fixed number.
         recentPeak = if (magnitude > recentPeak) magnitude else recentPeak * peakDecay
 
-        if (magnitude > gateFor(recentPeak)) {
+        noteDynamics(magnitude)
+
+        if (heardDynamics && magnitude > gateFor(recentPeak)) {
             // Only real audio counts. Silence between sentences would otherwise drag the estimate
             // down and wind the gain up, so every pause would end in a blast.
             // The first couple of seconds settle fast, or an episode would start unboosted and
@@ -173,6 +184,34 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
 
         limiter.push(input, at, allowed, applied, write)
     }
+
+    private fun noteDynamics(magnitude: Float) {
+        if (heardDynamics) return
+        blockPeak = maxOf(blockPeak, magnitude)
+        if (++blockFill < blockFrames) return
+        if (blockPeak > SILENCE_FLOOR) {
+            quietestBlock = minOf(quietestBlock, blockPeak)
+            audibleFrames += blockFill
+        }
+        val contrast = blockPeak > quietestBlock * DYNAMICS_OVER_QUIETEST
+        val waitedLongEnough = audibleFrames >= dynamicsTimeout
+        if (contrast || waitedLongEnough) {
+            heardDynamics = true
+            val why = if (contrast) {
+                "a sound ${DYNAMICS_OVER_QUIETEST.toInt()}x over the quietest so far"
+            } else {
+                "no contrast, steady audio"
+            }
+            Diag.log(
+                "boost",
+                "measuring from ${audibleFrames * MILLIS_PER_SECOND.toLong() / sampleRate.coerceAtLeast(1)}ms in: $why"
+            )
+        }
+        blockPeak = 0f
+        blockFill = 0
+    }
+
+    private fun framesOf(milliseconds: Long): Long = sampleRate.toLong() * milliseconds / MILLIS_PER_SECOND.toLong()
 
     private fun ensureRoom(frames: Int) {
         val needed = frames * channels
@@ -228,6 +267,10 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
 
         /** +30 dB. */
         private const val MAX_GAIN = 31.6f
+
+        private const val DYNAMICS_OVER_QUIETEST = 4f
+        private const val DYNAMICS_BLOCK_MS = 20L
+        private const val DYNAMICS_TIMEOUT_MS = 500L
 
         /** Slow: the rate the automatic gain drifts. The limiter has its own release. */
         private const val GAIN_RISE_MS = 400f
