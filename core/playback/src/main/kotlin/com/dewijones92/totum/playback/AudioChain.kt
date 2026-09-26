@@ -53,7 +53,8 @@ internal object BundledSpeechModel {
 
     @Synchronized
     private fun startLoading(context: Context) {
-        if (loading || weights != null) return
+        val retryDue = failedAt == 0L || SystemClock.elapsedRealtime() - failedAt > RETRY_AFTER_MS
+        if (loading || weights != null || !retryDue) return
         loading = true
         thread(name = "speech-model") {
             val started = SystemClock.elapsedRealtime()

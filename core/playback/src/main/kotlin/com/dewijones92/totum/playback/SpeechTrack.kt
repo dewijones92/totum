@@ -38,7 +38,7 @@ internal class SpeechTrack(
     @Volatile
     private var retired = false
 
-    private var lastWasDropped = false
+    private var warmingUp = 0
 
     private val step = inputRate.toDouble() / SpeechModel.SAMPLE_RATE
     private val taps = lowPass(inputRate)
@@ -144,14 +144,9 @@ internal class SpeechTrack(
         val neededUntil = ((index + BEFORE_CHUNKS + 1) * chunkFrames).toLong() - delayFrames
         verdicts[(index % VERDICT_RING).toInt()] = if (neededUntil < decidedUpTo) {
             chunksDropped++
-            lastWasDropped = true
+            warmingUp = WARM_UP_AFTER_GAP
             UNKNOWN
         } else {
-            if (lastWasDropped) {
-                model.reset()
-                speaking = false
-                lastWasDropped = false
-            }
             judge()
         }
         chunksDone = index + 1
@@ -164,7 +159,13 @@ internal class SpeechTrack(
         chunksModelled++
         speaking = if (speaking) probability >= STOP else probability >= START
         if (speaking) chunksSpeech++
-        return if (speaking) SPEECH else NOT_SPEECH
+        val trusted = warmingUp == 0
+        if (!trusted) warmingUp--
+        return when {
+            speaking -> SPEECH
+            trusted -> NOT_SPEECH
+            else -> UNKNOWN
+        }
     }
 
     private fun lowPass(rate: Int): FloatArray {
@@ -186,6 +187,7 @@ internal class SpeechTrack(
         const val BEFORE_CHUNKS = 1
         const val AFTER_CHUNKS = 1
         const val BLOCK = 2_048
+        const val WARM_UP_AFTER_GAP = 6
         private const val VERDICT_RING = 256
         private const val CUTOFF_HZ = 7_000.0
         private const val LOW_PASS_TAPS = 15

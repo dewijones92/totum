@@ -68,7 +68,7 @@ public class SilencePreview(context: Context) {
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     if (!playWhenReady && _state.value.playing != null) {
-                        finish("paused by the system (reason $reason)")
+                        finish("paused by the system: ${pauseReason(reason)}")
                         player.stop()
                     }
                 }
@@ -104,10 +104,14 @@ public class SilencePreview(context: Context) {
         handler.removeCallbacks(tick)
         publish()
         val now = _state.value
-        Diag.log("silence", "preview ${variant.name.lowercase()} $how: ${summary()}")
+        val heardEnough = now.positionMs >= MIN_HEARD_MS
+        Diag.log(
+            "silence",
+            "preview ${variant.name.lowercase()} $how: ${summary()}${if (heardEnough) "" else " (too short to keep)"}"
+        )
         _state.value = now.copy(
             playing = null,
-            results = now.results + ((now.noisy to variant) to now.asResult()),
+            results = if (heardEnough) now.results + ((now.noisy to variant) to now.asResult()) else now.results,
         )
     }
 
@@ -127,12 +131,20 @@ public class SilencePreview(context: Context) {
 
     private fun PreviewState.asResult() = PreviewResult(savedMs, pausesCut, positionMs)
 
+    private fun pauseReason(reason: Int): String = when (reason) {
+        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "audio focus lost to another app"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "headphones unplugged"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "asked to pause"
+        else -> "reason code $reason"
+    }
+
     private fun summary(): String = _state.value.let {
         "${it.pausesCut} pauses cut, ${it.savedMs}ms saved at ${it.positionMs}ms"
     }
 
     private companion object {
         const val TICK_MS = 250L
+        const val MIN_HEARD_MS = 1_000L
         const val MICROS_PER_MILLI = 1_000L
     }
 }
