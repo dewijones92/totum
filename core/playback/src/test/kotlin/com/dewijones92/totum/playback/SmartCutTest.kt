@@ -177,6 +177,10 @@ class SmartCutTest {
         talking.finish()
 
         assertEquals(SpeechTrack.WARM_UP_AFTER_GAP.toLong(), quiet.chunksWithheld)
+        assertTrue(
+            "the premise: speech heard in ${talking.chunksSpeech} chunks",
+            talking.chunksSpeech >= SpeechTrack.WARM_UP_AFTER_GAP
+        )
         assertEquals("withheld while every chunk was heard as speech", 0L, talking.chunksWithheld)
     }
 
@@ -303,6 +307,6 @@ class SmartCutTest {
         const val DROP_EVERY_BLOCKS = 5
         const val FRESH_EVERY_CHUNKS = 5
         const val FIRST_CHUNKS = 12
-        const val SPEECH_START = 14_336
+        const val SPEECH_START = 14_848
     }
 }
