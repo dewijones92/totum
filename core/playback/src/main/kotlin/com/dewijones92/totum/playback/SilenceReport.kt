@@ -30,7 +30,7 @@ internal class SilenceReport {
             Diag.log(
                 "silence",
                 "no pause long enough to cut in ${NOTHING_TO_CUT_SECONDS}s of audio " +
-                    "(quietest 50ms peaked at ${active.quiet.peak}, cut level ${SilenceCutter.THRESHOLD})",
+                    "(quietest 50ms peaked at ${active.quiet.peak}, cut level ${active.cutLevel})",
             )
             active.quiet.forget()
         }

@@ -146,6 +146,60 @@ class SilenceCutterTest {
         assertArrayEquals(input, cut(input))
     }
 
+    @Test
+    fun `quiet speech is never cut away as if it were silence`() {
+        val input = bursts(speechPeak = 197, noise = 0, count = 6)
+
+        val output = cut(input)
+
+        assertTrue(
+            "lost ${input.size - output.size} of ${frames(6 * TONE_MS)} frames of speech",
+            output.size >= frames(6 * TONE_MS)
+        )
+    }
+
+    @Test
+    fun `a quiet recording with hiss in its pauses still has them cut`() {
+        val input = bursts(speechPeak = 1_000, noise = 120, count = 6)
+
+        val output = cut(input)
+
+        assertTrue(
+            "only ${input.size - output.size} frames removed",
+            input.size - output.size >= frames(5 * (PAUSE_MS - KEPT_MS))
+        )
+    }
+
+    @Test
+    fun `a normally mastered recording is cut the way PipePipe cuts it`() {
+        val input = bursts(speechPeak = 20_000, noise = 800, count = 6)
+
+        val output = cut(input)
+
+        assertTrue(
+            "only ${input.size - output.size} frames removed",
+            input.size - output.size >= frames(5 * (PAUSE_MS - KEPT_MS))
+        )
+    }
+
+    @Test
+    fun `pauses louder than PipePipe's cut level are kept, as PipePipe keeps them`() {
+        val input = bursts(speechPeak = 20_000, noise = 1_500, count = 6)
+
+        assertEquals(input.size, cut(input).size)
+    }
+
+    private fun bursts(speechPeak: Int, noise: Int, count: Int): ShortArray {
+        var all = ShortArray(0)
+        repeat(count) {
+            all += ShortArray(frames(TONE_MS)) { i ->
+                (speechPeak * sin(2 * PI * VOICE_HZ * i / RATE)).toInt().toShort()
+            }
+            all += ShortArray(frames(PAUSE_MS)) { i -> (if (i % 2 == 0) noise else -noise).toShort() }
+        }
+        return all
+    }
+
     private fun cut(input: ShortArray): ShortArray = drive(SilenceCutter(RATE, 1), input, chunk = 1_024)
 
     private fun drive(cutter: SilenceCutter, input: ShortArray, chunk: Int, channels: Int = 1): ShortArray {
@@ -186,6 +240,7 @@ class SilenceCutterTest {
     private companion object {
         const val RATE = 44_100
         const val TONE_MS = 500
+        const val PAUSE_MS = 1_000
         const val SHORT_PAUSE_MS = 120
         const val KEPT_MS = 2 * SilenceCutter.PAD_MS
         const val AMPLITUDE = 8_000.0

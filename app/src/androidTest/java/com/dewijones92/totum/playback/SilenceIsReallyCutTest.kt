@@ -49,6 +49,7 @@ class SilenceIsReallyCutTest {
     private lateinit var mp3: File
     private lateinit var aac: File
     private lateinit var quiet: File
+    private var autoPlayNextBefore = true
 
     @Before
     fun setUp() {
@@ -62,6 +63,7 @@ class SilenceIsReallyCutTest {
         runBlocking(Dispatchers.Main) {
             withTimeoutOrNull(TIMEOUT_MS) { while (controller.player == null) delay(PlaybackWaits.POLL_MS) }
             assertNotNull("the media controller never connected", controller.player)
+            autoPlayNextBefore = container.appPreferences.settings.value.autoPlayNext
             container.appPreferences.setAutoPlayNext(false)
             controller.setSpeed(1f)
             queue.clear()
@@ -75,6 +77,7 @@ class SilenceIsReallyCutTest {
         controller.setSkipSilence(false)
         controller.setVolumeBoost(VolumeBoost.OFF)
         controller.setSpeed(1f)
+        container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
         queue.clear()
         controller.player?.stop()
         controller.player?.clearMediaItems()
@@ -303,8 +306,8 @@ class SilenceIsReallyCutTest {
         const val SEEK_TO_MS = 3_000L
         const val SOUND_AFTER_SEEK_MS = ((BURSTS - 1) * TONE_MS).toLong()
         const val FAST = 2f
-        const val KEPT_PER_GAP_MS = 250L
-        const val STARTUP_SLACK_MS = 1_500L
+        const val KEPT_PER_GAP_MS = 100L
+        const val STARTUP_SLACK_MS = 1_200L
         const val TIMEOUT_MS = 60_000L
         const val FRAME_EDGE = 64
         const val READER_IMAGES = 4

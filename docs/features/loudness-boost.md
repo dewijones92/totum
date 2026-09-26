@@ -71,15 +71,15 @@ Version 2 did turn the gain down — over 30 ms, at the same rate it turned up. 
 passage followed by full-level audio: **5,428 samples (123 ms) clipped at Max and 2,844 (64 ms) at
 Medium**, per transient. Which is exactly where he said he heard it.
 
-The fix is an asymmetry, and it is the entire trick of a limiter: the gain **falls instantly and
+Version 3's fix was an asymmetry, the basic trick of a limiter: the gain **falls instantly and
 recovers slowly**. Because the fall is clamped per sample to `CEILING / |sample|`, the output is
 bounded by construction — `|sample| × (CEILING / |sample|) = CEILING`. Not "rarely clips": **cannot**.
 That is why `clippedSamples` is reported, and why a non-zero value in a report is a broken assumption
 rather than loud audio.
 
-The per-sample clamp does not itself modulate the waveform, which would be its own distortion: the
-gain can only *rise* at the slow rate, so it settles just under what the recent peak requires and
-sits there rather than following the wave up and down.
+The per-sample clamp was supposed not to modulate the waveform, because the gain could only *rise*
+at the slow rate. That held once the gain had settled, and failed at every onset — see version 4
+above, where the fall itself now happens over the 5 ms before a peak instead of at it.
 
 ## Automatic, rather than a number you pick
 
@@ -133,7 +133,7 @@ plays passes through it: both pillars, every screen, streamed or from disk.
 |---|---|---|
 | `LoudnessBoost` | `:core:playback` | The arithmetic. Pure Kotlin on a `ShortArray` — no Android, no platform effect, so it behaves identically on every device **and the maths is provable on the JVM** |
 | `BoostingAudioProcessor` | `:core:playback` | A Media3 `BaseAudioProcessor` wrapping it, plus the reporting. Only 16-bit PCM is touched; anything else passes through untouched rather than being reinterpreted as samples |
-| Chain wiring | `PlaybackService` | The booster sits **after** the silence detector, so silence detection still judges the raw recording rather than a boosted one |
+| Chain wiring | `PlaybackService` | The booster sits **after** the silence cutter (`SilenceCuttingAudioProcessorChain(cutter, after = [booster])`), so skip-silence judges the recording itself, not a boosted one |
 | `VolumeBoost` | `:core:playback` | `OFF` / `AUTO`, plus `fromStoredName` for the migration |
 | `VolumeBoostStore` | `:core:playback` | One setting for the app, moved only by the control |
 
@@ -183,5 +183,5 @@ with that, and assert exactly zero.
 What is verified is the arithmetic and the plumbing, by measurement. What cannot be verified from
 here is how it *sounds* to Dewi on his earphones — that needs ears. The numbers say a −40 dBFS
 recording comes up about 10× with not one sample clipped, and that a properly-mastered one is left
-alone. If it is still not loud enough in practice, the honest lever is the target level or the +20 dB
-cap, and the limiter is what makes raising either safe to try.
+alone. If it is still not loud enough in practice, the honest lever is the target level or the +30 dB
+cap, and the look-ahead limiter is what makes raising either safe to try.

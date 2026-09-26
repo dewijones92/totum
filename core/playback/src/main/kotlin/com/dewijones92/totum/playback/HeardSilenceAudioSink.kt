@@ -14,51 +14,83 @@ internal class HeardSilenceAudioSink(
     private val cutter: SilenceCuttingAudioProcessor,
 ) : ForwardingAudioSink(sink) {
 
-    private var baselineUs: Long? = null
+    private val clock = HeardClock()
     private var seenFlushes = -1L
-    private var heldBackUs = 0L
     private var released = 0L
+    private var listener: AudioSink.Listener? = null
+
+    override fun setListener(listener: AudioSink.Listener) {
+        this.listener = listener
+        super.setListener(SkipsReportedWhenHeard(listener))
+    }
 
     override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
-        if (cutter.flushes != seenFlushes) baselineUs = null
+        noticeFlush()
         val handled = super.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
-        if (cutter.flushes != seenFlushes || baselineUs == null) {
-            seenFlushes = cutter.flushes
-            baselineUs = presentationTimeUs
-        }
+        noticeFlush()
+        clock.streamStarts(presentationTimeUs)
         return handled
     }
 
     override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
         val counted = super.getCurrentPositionUs(sourceEnded)
-        val baseline = baselineUs
-        if (counted == AudioSink.CURRENT_POSITION_NOT_SET || baseline == null || cutter.flushes != seenFlushes) {
-            return counted
+        if (counted == AudioSink.CURRENT_POSITION_NOT_SET || cutter.flushes != seenFlushes) return counted
+        val position = clock.position(counted, cutter.framesToUs(cutter.skippedFrames)) { heardUs ->
+            cutter.framesToUs(cutter.heard?.skippedBy(cutter.usToFrames(heardUs)) ?: 0L)
         }
-        val allSkippedUs = cutter.framesToUs(cutter.skippedFrames)
-        if (allSkippedUs == 0L) return counted
-        val heardUs = counted - allSkippedUs
-        val heardFrames = cutter.usToFrames(heardUs - baseline)
-        val heardSkippedUs = cutter.framesToUs(cutter.heard?.skippedBy(heardFrames) ?: 0L)
-        val holdingUs = allSkippedUs - heardSkippedUs
-        if (holdingUs < heldBackUs) {
-            released++
-            if (released == 1L || released % RELEASE_LOG_EVERY == 0L) {
-                Diag.log(
-                    "silence",
-                    "cut #$released heard ${(heardUs - baseline) / MICROS_PER_MS}ms into the stream: clock moved on " +
-                        "${(heldBackUs - holdingUs) / MICROS_PER_MS}ms when it was heard, not when it was cut",
-                )
-            }
-        }
-        heldBackUs = holdingUs
-        return heardUs + heardSkippedUs
+        if (clock.releasedUs > 0) cutHeard()
+        return position
+    }
+
+    override fun playToEndOfStream() {
+        super.playToEndOfStream()
+        clock.inputEnded()
     }
 
     override fun flush() {
         super.flush()
-        baselineUs = null
-        heldBackUs = 0L
+        seenFlushes = cutter.flushes
+        clock.seeked()
+    }
+
+    private fun noticeFlush() {
+        if (cutter.flushes == seenFlushes) return
+        seenFlushes = cutter.flushes
+        clock.processorsFlushed(cutter.carriedUs)
+    }
+
+    private fun cutHeard() {
+        released++
+        listener?.onSilenceSkipped()
+        if (released == 1L || released % RELEASE_LOG_EVERY == 0L) {
+            Diag.log(
+                "silence",
+                "cut #$released heard ${clock.sinceStartUs / MICROS_PER_MS}ms into the stream: clock moved on " +
+                    "${clock.releasedUs / MICROS_PER_MS}ms when it was heard, not when it was cut",
+            )
+        }
+    }
+
+    @Suppress("TooManyFunctions")
+    private class SkipsReportedWhenHeard(private val outer: AudioSink.Listener) : AudioSink.Listener {
+        override fun onPositionDiscontinuity() = outer.onPositionDiscontinuity()
+        override fun onPositionAdvancing(
+            playoutStartSystemTimeMs: Long
+        ) = outer.onPositionAdvancing(playoutStartSystemTimeMs)
+        override fun onUnderrun(bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) =
+            outer.onUnderrun(bufferSize, bufferSizeMs, elapsedSinceLastFeedMs)
+        override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) =
+            outer.onSkipSilenceEnabledChanged(skipSilenceEnabled)
+        override fun onOffloadBufferEmptying() = outer.onOffloadBufferEmptying()
+        override fun onOffloadBufferFull() = outer.onOffloadBufferFull()
+        override fun onAudioSinkError(audioSinkError: Exception) = outer.onAudioSinkError(audioSinkError)
+        override fun onAudioCapabilitiesChanged() = outer.onAudioCapabilitiesChanged()
+        override fun onAudioTrackInitialized(audioTrackConfig: AudioSink.AudioTrackConfig) =
+            outer.onAudioTrackInitialized(audioTrackConfig)
+        override fun onAudioTrackReleased(audioTrackConfig: AudioSink.AudioTrackConfig) =
+            outer.onAudioTrackReleased(audioTrackConfig)
+        override fun onSilenceSkipped() = Unit
+        override fun onAudioSessionIdChanged(audioSessionId: Int) = outer.onAudioSessionIdChanged(audioSessionId)
     }
 
     private companion object {

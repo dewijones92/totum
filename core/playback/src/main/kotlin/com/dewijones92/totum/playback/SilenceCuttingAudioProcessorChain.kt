@@ -11,12 +11,12 @@ import com.dewijones92.totum.common.Diag
 @OptIn(markerClass = [UnstableApi::class])
 @UnstableApi
 internal class SilenceCuttingAudioProcessorChain(
-    before: Array<AudioProcessor>,
     private val cutter: SilenceCuttingAudioProcessor,
+    after: Array<AudioProcessor>,
     private val sonic: SonicAudioProcessor = SonicAudioProcessor(),
 ) : AudioProcessorChain {
 
-    private val processors: Array<AudioProcessor> = before + arrayOf(cutter, sonic)
+    private val processors: Array<AudioProcessor> = arrayOf<AudioProcessor>(cutter) + after + sonic
 
     override fun getAudioProcessors(): Array<AudioProcessor> = processors
 

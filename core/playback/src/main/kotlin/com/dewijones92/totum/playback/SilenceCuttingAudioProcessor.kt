@@ -28,6 +28,11 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
     var flushes: Long = 0L
         private set
 
+    var carriedUs: Long = 0L
+        private set
+
+    val cutLevel: Int get() = cutter?.cutLevel ?: SilenceCutter.THRESHOLD
+
     fun framesToUs(frames: Long): Long = if (sampleRate <= 0) 0L else frames * MICROS_PER_SECOND / sampleRate
 
     fun usToFrames(us: Long): Long = if (sampleRate <= 0) 0L else us * sampleRate / MICROS_PER_SECOND
@@ -44,7 +49,9 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
     }
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
-        cutter?.let(report::banked)
+        val previous = cutter
+        previous?.let(report::banked)
+        carriedUs = framesToUs(previous?.skippedFrames ?: 0L)
         flushes++
         cutter = if (isActive) {
             sampleRate = inputAudioFormat.sampleRate
@@ -52,9 +59,14 @@ internal class SilenceCuttingAudioProcessor : BaseAudioProcessor() {
             Diag.log(
                 "silence",
                 "cutting pauses over ${SilenceCutter.MIN_SILENCE_MS}ms to ${2 * SilenceCutter.PAD_MS}ms " +
-                    "(rate=${inputAudioFormat.sampleRate} ch=${inputAudioFormat.channelCount})",
+                    "(rate=${inputAudioFormat.sampleRate} ch=${inputAudioFormat.channelCount}, " +
+                    "cut level ${previous?.cutLevel ?: SilenceCutter.FLOOR} of at most ${SilenceCutter.THRESHOLD})",
             )
-            SilenceCutter(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1))
+            SilenceCutter(
+                inputAudioFormat.sampleRate,
+                inputAudioFormat.channelCount.coerceAtLeast(1),
+                startLevel = previous?.level ?: 0f,
+            )
         } else {
             null
         }

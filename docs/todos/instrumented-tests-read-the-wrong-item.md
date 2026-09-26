@@ -40,7 +40,7 @@ have been acted on. That is the cost of a failure that does not name what it act
 - 2026-09-25: converted every wait and every `controller.state.value` read feeding an assertion in
   `LiveSabrDownloadTest`, `LiveDownloadedVideoOfflineTest`, `MeteredAudioSwitchDeviceTest`,
   `FourKActuallyPlaysTest`, `StreamPlaysToItsEndTest`, `LiveStreamPlaysToItsEndTest`,
-  `SilenceStrategyDeviceTest`, `AnHourLongItemDoesNotRebufferTest`, `PlaysAcrossContentTypesTest`,
+  `SilenceStrategyDeviceTest` (deleted 2026-09-26), `AnHourLongItemDoesNotRebufferTest`, `PlaysAcrossContentTypesTest`,
   `SubtitlesArriveAndRenderTest`, and `TorrentQueuePlaybackTest`, plus the unscoped part of
   `AutoAdvanceLoopTest`, `StalledStreamRecoveryTest` and `OfflineQueuePlaybackTest` (each already
   had some correctly itemId-scoped waits, left alone). Where a read could not be scoped via

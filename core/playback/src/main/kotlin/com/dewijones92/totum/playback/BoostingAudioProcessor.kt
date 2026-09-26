@@ -36,6 +36,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     private var reportedGainDb = Float.NaN
     private var reportedClipped = 0L
     private var samplesPerReport = 0L
+    private var samplesBeforeFirstReport = 0L
 
     /** Set from the session command; takes effect on the next buffer, glided rather than switched. */
     var level: VolumeBoost = VolumeBoost.OFF
@@ -47,6 +48,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         samplesPerReport = inputAudioFormat.sampleRate.toLong() * SECONDS_PER_REPORT
+        samplesBeforeFirstReport = inputAudioFormat.sampleRate.toLong() * SECONDS_BEFORE_FIRST_REPORT
         reportedGainDb = Float.NaN
         // Rebuilt per configuration because the smoothing coefficients depend on the sample rate —
         // a boost tuned at 44.1kHz would attack twice as slowly at 22.05.
@@ -117,7 +119,8 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
      */
     private fun report(active: LoudnessBoost, count: Int) {
         samplesSinceReport += count
-        if (samplesSinceReport < samplesPerReport) return
+        val due = if (reportedGainDb.isNaN()) samplesBeforeFirstReport else samplesPerReport
+        if (samplesSinceReport < due) return
         samplesSinceReport = 0
 
         val gainDb = LoudnessBoost.decibels(active.currentGain)
@@ -151,6 +154,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
 
         /** How often the gain is even considered for reporting. */
         const val SECONDS_PER_REPORT = 15
+        const val SECONDS_BEFORE_FIRST_REPORT = 2
 
         /** ...and how far it must have moved to be worth a line. Below this, nothing has changed. */
         const val REPORT_WHEN_DB_MOVES = 2f

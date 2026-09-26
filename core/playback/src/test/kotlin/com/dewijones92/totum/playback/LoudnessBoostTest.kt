@@ -106,8 +106,9 @@ class LoudnessBoostTest {
      * MAX and 2844 (64 ms) at MEDIUM**, on every transient. A hard cap is not protection from
      * distortion, it IS the distortion.
      *
-     * Now the gain falls instantly and only recovers slowly, and the fall is clamped per sample to
-     * `CEILING / |sample|`, so the output is bounded by construction. Not "rarely clips" — cannot.
+     * Now a look-ahead limiter brings the gain down over the 5 ms before a peak and recovers slowly,
+     * and every sample's gain is at or below `CEILING / |sample|`, so the output is bounded by
+     * construction. Not "rarely clips" — cannot.
      */
     @Test
     fun `a sudden loud passage after a quiet one is not clipped`() {
@@ -314,8 +315,8 @@ class LoudnessBoostTest {
      * A steady tone comes out steady.
      *
      * Recomputing the gain per sample and applying it immediately modulates the waveform at audio
-     * rate, which is heard as distortion rather than as level control. The per-sample ceiling clamp
-     * is allowed to pull the gain down instantly, but it must not then chase the waveform back up.
+     * rate, which is heard as distortion rather than as level control. The limiter may pull the gain
+     * down ahead of a peak, but it must not then chase the waveform back up.
      */
     @Test
     fun `a steady tone comes out steady rather than modulated`() {
@@ -452,7 +453,7 @@ class LoudnessBoostTest {
         /** Tape hiss, a room, the gap between sentences — quiet RELATIVE to the speech around it. */
         const val HISS = 0.002f
 
-        /** Softly recorded speech: quiet enough to need help, loud enough not to hit the +20dB cap. */
+        /** Softly recorded speech: quiet enough to need help, loud enough not to hit the +30dB cap. */
         const val SOFT = 0.05f
 
         /** Samples to skip before measuring, so the gain has settled. */

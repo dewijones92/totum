@@ -2,7 +2,7 @@ package com.dewijones92.totum.playback
 
 import kotlin.math.abs
 
-internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
+internal class SilenceCutter(sampleRate: Int, private val channels: Int, startLevel: Float = 0f) {
 
     private val minSilentFrames = framesIn(MIN_SILENCE_MS, sampleRate)
     private val padFrames = framesIn(PAD_MS, sampleRate).coerceAtMost(minSilentFrames / 2)
@@ -19,6 +19,13 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
     private var justEnded = false
 
     private var out = ShortArray(0)
+
+    private val levelDecay = 1f - LoudnessBoost.coefficientFor(LEVEL_DECAY_MS, sampleRate)
+
+    var level: Float = startLevel
+        private set
+
+    val cutLevel: Int get() = (level / LEVEL_TO_CUT).toInt().coerceIn(FLOOR, THRESHOLD)
 
     val heard = HeardCuts()
 
@@ -45,13 +52,19 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
             val at = frame * channels
             val peak = framePeak(input, at, channels)
             quiet.track(peak)
+            val silent = peak <= cutLevel
+            level = when {
+                peak > level -> peak.toFloat()
+                silent -> level
+                else -> level * levelDecay
+            }
             when {
-                cutting && peak <= THRESHOLD -> pushTail(input, at)
+                cutting && silent -> pushTail(input, at)
                 cutting -> {
                     endCut()
                     emit(input, at)
                 }
-                peak <= THRESHOLD -> hold(input, at)
+                silent -> hold(input, at)
                 pendingFrames > 0 -> {
                     releasePending()
                     emit(input, at)
@@ -133,6 +146,9 @@ internal class SilenceCutter(sampleRate: Int, private val channels: Int) {
 
     internal companion object {
         const val THRESHOLD = 1024
+        const val FLOOR = 32
+        const val LEVEL_TO_CUT = 8f
+        private const val LEVEL_DECAY_MS = 10_000f
         const val MIN_SILENCE_MS = 150
         const val PAD_MS = 20
         private const val QUIET_BLOCK_MS = 50

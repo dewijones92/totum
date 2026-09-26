@@ -84,7 +84,7 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     private var warmupSamples = 0L
 
     /**
-     * Samples that hit the rail. Expected to be zero for the life of the app: the per-sample clamp
+     * Samples that hit the rail. Expected to be zero for the life of the app: the look-ahead limiter
      * makes exceeding the ceiling arithmetically impossible, so anything here is a broken assumption
      * rather than loud audio, and is worth a line in a report from Dewi's phone.
      */
@@ -235,7 +235,7 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         /** +30 dB. */
         private const val MAX_GAIN = 31.6f
 
-        /** Slow: this is the limiter's release, and the rate the automatic gain drifts. */
+        /** Slow: the rate the automatic gain drifts. The limiter has its own release. */
         private const val GAIN_RISE_MS = 400f
 
         /** How fast the item's level estimate follows the audio once it has settled. */

@@ -1,0 +1,148 @@
+package com.dewijones92.totum.playback
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class HeardClockTest {
+
+    private val clock = HeardClock().apply {
+        seeked()
+        streamStarts(START)
+    }
+
+    private fun cutAt(outputUs: Long, removedUs: Long): (Long) -> Long =
+        { heardUs -> if (heardUs >= outputUs) removedUs else 0L }
+
+    @Test
+    fun `with nothing cut the position is the sink's own`() {
+        assertEquals(START + 5_000, clock.position(START + 5_000, 0L) { 0L })
+    }
+
+    @Test
+    fun `a cut that has been made but not heard does not move the clock`() {
+        val removed = 1_960_000L
+        val heardSoFar = 700_000L
+
+        val position = clock.position(
+            START + heardSoFar + removed,
+            removed,
+            cutAt(outputUs = 1_000_000, removedUs = removed)
+        )
+
+        assertEquals("the sink counted the skip the moment it was cut", START + heardSoFar, position)
+        assertEquals(0L, clock.releasedUs)
+    }
+
+    @Test
+    fun `the clock moves on when the cut is heard and says so once`() {
+        val removed = 1_960_000L
+        val skips = cutAt(outputUs = 1_000_000, removedUs = removed)
+        clock.position(START + 900_000 + removed, removed, skips)
+
+        val position = clock.position(START + 1_000_000 + removed, removed, skips)
+        val released = clock.releasedUs
+        clock.position(START + 1_100_000 + removed, removed, skips)
+
+        assertEquals(START + 1_000_000 + removed, position)
+        assertEquals("the jump is announced when it happens", removed, released)
+        assertEquals("and only then", 0L, clock.releasedUs)
+    }
+
+    @Test
+    fun `it never goes backwards while cuts are made and heard`() {
+        var skipped = 0L
+        var last = Long.MIN_VALUE
+        val cuts = mutableListOf<Pair<Long, Long>>()
+        for (heard in 0L..20_000_000L step 50_000L) {
+            if (heard % 2_000_000L == 0L) {
+                skipped += 1_500_000L
+                cuts += (heard + 300_000L) to skipped
+            }
+            val position = clock.position(
+                START + heard + skipped,
+                skipped
+            ) { h -> cuts.lastOrNull { it.first <= h }?.second ?: 0L }
+            assertTrue("went back from $last to $position at $heard", position >= last)
+            last = position
+        }
+    }
+
+    @Test
+    fun `once the last of the audio has been handed over every cut counts as heard`() {
+        val removed = 1_960_000L
+        val skips = cutAt(outputUs = 8_300_000, removedUs = removed)
+        clock.position(START + 8_200_000 + removed, removed, skips)
+        clock.inputEnded()
+
+        val atTheEnd = clock.position(START + 8_299_000 + removed, removed, skips)
+
+        assertEquals(
+            "a cut 1ms past the last position the sink reports must not be left behind",
+            START + 8_299_000 + removed,
+            atTheEnd,
+        )
+        assertEquals(removed, clock.releasedUs)
+    }
+
+    @Test
+    fun `at the end a cut further ahead than the last moments is still held back`() {
+        val removed = 1_960_000L
+        val skips = cutAt(outputUs = 8_300_000, removedUs = removed)
+        clock.inputEnded()
+
+        assertEquals(START + 7_500_000, clock.position(START + 7_500_000 + removed, removed, skips))
+    }
+
+    @Test
+    fun `a seek after the end starts holding cuts back again`() {
+        clock.inputEnded()
+        clock.seeked()
+        clock.streamStarts(START)
+
+        assertEquals(START + 100_000, clock.position(START + 100_000 + 500_000, 500_000L, cutAt(1_000_000, 500_000)))
+    }
+
+    @Test
+    fun `a speed change mid-item keeps the silence already cut until the new stream is heard`() {
+        val cutEarlier = 5_000_000L
+        clock.position(START + 10_000_000 + cutEarlier, cutEarlier) { cutEarlier }
+        val newStreamStarts = START + 10_500_000 + cutEarlier
+
+        clock.processorsFlushed(carriedSkipUs = cutEarlier)
+        clock.streamStarts(newStreamStarts)
+        val stillPlayingTheOldAudio = clock.position(START + 10_200_000, 0L) { 0L }
+        val onceTheNewStreamIsHeard = clock.position(newStreamStarts + 100_000, 0L) { 0L }
+
+        assertEquals(START + 10_200_000 + cutEarlier, stillPlayingTheOldAudio)
+        assertEquals(newStreamStarts + 100_000, onceTheNewStreamIsHeard)
+    }
+
+    @Test
+    fun `the carried silence never pushes the clock past the start of the new stream`() {
+        clock.processorsFlushed(carriedSkipUs = 9_000_000L)
+        clock.streamStarts(START + 20_000_000)
+
+        assertEquals(START + 20_000_000, clock.position(START + 19_800_000, 0L) { 0L })
+    }
+
+    @Test
+    fun `a seek carries nothing over`() {
+        clock.processorsFlushed(carriedSkipUs = 3_000_000L)
+        clock.seeked()
+        clock.streamStarts(START + 60_000_000)
+
+        assertEquals(START + 60_000_000, clock.position(START + 60_000_000, 0L) { 0L })
+    }
+
+    @Test
+    fun `before the stream has a start the sink's position passes through`() {
+        val fresh = HeardClock()
+
+        assertEquals(1_234L, fresh.position(1_234L, 0L) { 0L })
+    }
+
+    private companion object {
+        const val START = 1_000_000_000_000L
+    }
+}

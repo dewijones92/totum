@@ -86,7 +86,7 @@ public class PlaybackService : MediaSessionService() {
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .setAudioProcessorChain(
-                        SilenceCuttingAudioProcessorChain(arrayOf(booster), silenceCutter),
+                        SilenceCuttingAudioProcessorChain(silenceCutter, after = arrayOf(booster)),
                     )
                     .setAudioTrackBufferSizeProvider(SkipSilenceOutputBuffer { skipSilenceEnabled })
                     .build()
