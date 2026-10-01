@@ -37,6 +37,15 @@ in [exsurge-ideas](exsurge-ideas.md).
 - **Extras:** streak and stats, a Quick Settings tile, escalation if ignored (60s, twice), and
   a mid-break voice cue.
 - **Everything configurable** in the app's Settings screen.
+- **An always-there sticky banner** (Dewi, 2026-10-01: *"make the banner notification for this
+  always sticky and there"*). While the module is on, one ongoing notification is always shown,
+  with Surgius in his current mood: during active hours "Next summons 14:32 · sat 17 min ·
+  3 laurels today" with a sitting-clock progress bar; outside them "Surgius sleeps · back
+  Mon 09:00". Android 14 lets the user swipe away even an ongoing notification, so "sticky"
+  means ongoing plus an instant re-post from its delete intent. That is the same technique as
+  Hanzi Practice's `BannerManager`, re-posted after reboot and APK update too. The banner is
+  also the foreground-service notification that keeps the step listener alive during active
+  hours, which answers how the sitting clock hears your steps (open question 5 → option a).
 - **Tests:** the full pyramid, but run only when this area's code changes (a path-filtered
   workflow like `audio-quality.yml`, plus a preflight paths check).
 - **Decisions get ADRs:** a new `docs/adr/` folder, and a CLAUDE.md rule to create, update or
@@ -57,14 +66,14 @@ in [exsurge-ideas](exsurge-ideas.md).
 - The Kover 75% gate applies to `:lib:*`, so the filtered workflow owns `:lib:exsurge`'s
   koverVerify.
 
-## Open questions (waiting on Dewi)
+## Open questions (waiting on Dewi: 1–4; 5 settled)
 
 1. Mascot name: Marcus Surgius Disco, or Astra's "Quintus"?
 2. Add the optional "display over other apps" grant for a takeover even while the phone is in use?
 3. Voice: Latin only or with an English gloss, and Italian *Diego* or British *Ryan*?
 4. Streak: a weekday counts when no summons was skipped or missed?
-5. Who watches steps between breaks: an ongoing health foreground service with a countdown
-   notification (recommended), Google Activity Recognition, or no sitting clock at all?
+5. ~~Who watches steps between breaks?~~ Settled by the sticky banner: it is the health
+   foreground service's notification during active hours.
 
 **Done when:** a summons on Dewi's phone takes over, GO opens Hanzi practice, 20 steps start
 the timer, playback pauses and resumes, "Liber es!" plays, and the next diagnostics report
