@@ -106,7 +106,11 @@ public object ExsurgeMachine {
                 ExsurgeEvent.PauseHour -> pauseHour()
                 is ExsurgeEvent.StepsCounted -> steps(event.total)
             }
-            if (memory.state != before) note("${event.label()}: ${before.label()} -> ${memory.state.label()}")
+            if (memory.state.label() != before.label()) {
+                note(
+                    "${event.label()}: ${before.label()} -> ${memory.state.label()}"
+                )
+            }
         }
 
         private fun become(state: ExsurgeState) {

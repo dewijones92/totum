@@ -16,7 +16,7 @@
     <string name="exsurge_banner_summoned">EXSURGE! Time to stand up</string>
     <string name="exsurge_banner_summoned_detail">Call %1$d · snoozes left: %2$d</string>
     <string name="exsurge_banner_snoozed">Snoozed until %1$s</string>
-    <string name="exsurge_banner_rising">Stand up and walk · steps: %1$d of %2$d</string>
+    <string name="exsurge_banner_rising">Up! Steps: %1$d/%2$d</string>
     <string name="exsurge_banner_rising_no_steps">Stand up: the break is starting</string>
     <string name="exsurge_banner_break">On break until %1$s</string>
     <string name="exsurge_banner_break_detail">Steps so far: %1$d · then Liber es!</string>

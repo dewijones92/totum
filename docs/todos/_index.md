@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [stall-rescue-overrides-a-pause](stall-rescue-overrides-a-pause.md) | playback | medium | open: a stall rescue that finishes after a pause plays the item again (26 s window seen on the emulator); cause established, fix needs Dewi's OK |
 | [exsurge-et-disce](exsurge-et-disce.md) | side-quest | medium | built 2026-10-01 → [features/exsurge-et-disce.md](../features/exsurge-et-disce.md); awaiting a real day on the phone |
 | [exsurge-ideas](exsurge-ideas.md) | side-quest | low | proposed: 24 ideas waiting on keep / cut / later |
 | [youtube-requires-attestation](youtube-requires-attestation.md) | playback | high | the ~1MB cap was the ANDROID/WEB endpoint, not attestation: SABR now resolves from the embedded player and streamed 4.2MB+ on device with no token (shipped 2026-09-07); the signed-in TV client is no longer refused (timestamp scale). Still open: quality tiers above what the embedded response offers, and seeking. Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |

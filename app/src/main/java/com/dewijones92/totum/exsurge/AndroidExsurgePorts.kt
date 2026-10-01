@@ -9,6 +9,8 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.VibratorManager
@@ -46,7 +48,12 @@ class AndroidExsurgePorts(
     }
 
     override fun showTakeover(request: TakeoverRequest) {
-        notifications.showSummons(request)
+        if (TakeoverActivity.resumed) {
+            val call = request.call
+            Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover already on screen; no heads-up for call $call")
+        } else {
+            notifications.showSummons(request)
+        }
         val overApps = request.overOtherApps && Settings.canDrawOverlays(context)
         val fullScreen = context.getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
         Diag.log(
@@ -90,11 +97,12 @@ class AndroidExsurgePorts(
     override fun openDestination(settings: ExsurgeSettings): Boolean {
         val launch = context.packageManager.getLaunchIntentForPackage(settings.destinationPackage)
         if (launch == null) {
-            Toast.makeText(
-                context,
-                context.getString(R.string.exsurge_destination_missing, settings.destinationPackage),
-                Toast.LENGTH_LONG
-            ).show()
+            val message = context.getString(R.string.exsurge_destination_missing, settings.destinationPackage)
+            Handler(Looper.getMainLooper()).post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+            Diag.log(
+                ExsurgeController.TAG,
+                "dewidebug exsurge destination ${settings.destinationPackage} not installed"
+            )
             return false
         }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

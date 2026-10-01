@@ -67,7 +67,12 @@ class PlaybackInterruptionTest {
         controller.setPlaying(false)
         observeCurrent()
         val released = interruption.release()
-        assertEquals(PlaybackInterruption.Released.LeftAlone("superseded: resumed by hand"), released)
+        assertEquals(
+            PlaybackInterruption.Released.LeftAlone(
+                "superseded: playback was resumed by something else (a tap, or a recovery replaying it)",
+            ),
+            released
+        )
         assertFalse(controller.state.value!!.wantsToPlay)
     }
 

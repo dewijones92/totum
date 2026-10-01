@@ -76,6 +76,17 @@ class TakeoverActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        ExsurgeNotifications(this).cancelSummons()
+    }
+
+    override fun onPause() {
+        resumed = false
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(EXTRA_GO, false)) go()
@@ -88,7 +99,7 @@ class TakeoverActivity : ComponentActivity() {
 
     private fun destinationLabel(packageName: String): String = runCatching {
         packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
-    }.getOrDefault(packageName)
+    }.getOrDefault(if (packageName == LOQUAX_PACKAGE) "Loquax" else packageName)
 
     private fun go() {
         val keyguard = getSystemService(KeyguardManager::class.java)
@@ -116,6 +127,10 @@ class TakeoverActivity : ComponentActivity() {
     companion object {
         private const val EXTRA_GO = "exsurge.go"
         private var current: WeakReference<Activity>? = null
+
+        @Volatile
+        var resumed: Boolean = false
+            private set
 
         fun intent(context: Context, go: Boolean = false): Intent = Intent(context, TakeoverActivity::class.java)
             .addFlags(
@@ -197,6 +212,8 @@ private fun TakeoverButtons(
         Text(
             stringResource(R.string.exsurge_action_go_to, destination),
             fontSize = 32.sp,
+            lineHeight = 38.sp,
+            textAlign = TextAlign.Center,
             fontWeight = FontWeight.ExtraBold
         )
     }

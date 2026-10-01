@@ -34,7 +34,7 @@ public class PlaybackInterruption(private val controller: PlaybackController, pr
         val reason = when {
             state == null -> "playback ended"
             state.itemId != item -> "item changed to ${state.itemId.value}"
-            state.wantsToPlay -> "resumed by hand"
+            state.wantsToPlay -> "playback was resumed by something else (a tap, or a recovery replaying it)"
             else -> null
         } ?: return
         held = null

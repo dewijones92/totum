@@ -77,6 +77,7 @@ class ExsurgeController(
     private val stepWindow = StepWindow()
     private var simulatedSteps = false
     private var stepReadings = 0L
+    private var lastStepTotal: Long? = null
     private var lastEvent = "none"
 
     private val _view = MutableStateFlow(viewAt(clock()))
@@ -116,6 +117,10 @@ class ExsurgeController(
         }
         transition.effects.forEach { execute(it) }
         publish(at)
+        val seed = lastStepTotal
+        if (event == ExsurgeEvent.Go && memory.state is ExsurgeState.Rising && seed != null) {
+            dispatch(ExsurgeEvent.StepsCounted(seed), "baseline at GO")
+        }
     }
 
     @Synchronized
@@ -131,6 +136,7 @@ class ExsurgeController(
     @Synchronized
     fun onStepCounter(total: Long, source: String = "sensor") {
         stepReadings++
+        lastStepTotal = total
         val at = clock()
         val inWindow = stepWindow.record(at, total)
         if (stepReadings % STEP_LOG_EVERY == 1L) {

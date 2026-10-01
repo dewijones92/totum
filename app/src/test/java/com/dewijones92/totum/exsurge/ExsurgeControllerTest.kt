@@ -69,6 +69,18 @@ class ExsurgeControllerTest {
     }
 
     @Test
+    fun `steps already counted when GO is pressed are the baseline, not the first reading after it`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(1000)
+        advance(minutes = 30)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        exsurge.dispatch(ExsurgeEvent.Go, "takeover")
+        exsurge.onStepCounter(1020)
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.OnBreak)
+    }
+
+    @Test
     fun `the second call offers one snooze fewer`() {
         val exsurge = controller()
         exsurge.turnOn()

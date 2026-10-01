@@ -59,9 +59,35 @@ rank and the settings.
 
 ## Verified
 
-- ✅ 56 JVM tests on the state machine and its support code (96% line coverage), 12 on the
+- ✅ **JVM:** 56 tests on the state machine and its support code (96% line coverage), 13 on the
   controller, and 8 on `PlaybackInterruption`.
-- ⏳ Instrumented: voice clips decode, notifications carry the takeover and its actions, the banner
-  text, the destination launch, the face rendering, and GO and Skip from the real takeover.
-- ⏳ On the emulator: see the todo for the run. On Dewi's phone: not yet, and the step counter can
-  only be proven there.
+- ✅ **Instrumented, on `totum-api35`:** 8 of 8. Voice clips decode, the summons notification
+  carries the full-screen intent and its GO/Snooze/Skip actions, the banner text, the destination
+  launch, every face renders, and GO and Skip work from the real takeover.
+- ✅ **On the emulator by hand (2026-10-01):**
+  - The settings screen, a summons from the home screen taking over via the overlay grant, and
+    the takeover all screenshotted and looked at.
+  - The voice cues fired on exact alarms within 0.6 s of their deadlines ("Duo minuta restant",
+    "Liber es!").
+  - The banner showed "On break until 13:29" with Surgius counting. A swipe re-posted it
+    (`REPOST`).
+  - A reinstall mid-break kept the state, and `MY_PACKAGE_REPLACED` re-armed the alarm
+    (`dumpsys alarm`).
+  - Simulated steps took GO → rising → 21 steps → break.
+  - The break paused a video meant to be playing.
+- ⏳ **On Dewi's phone:** not yet. The step counter, Loquax opening at `/practice`, and audio focus
+  with the banner service running can only be proven there.
+
+## Known limits, seen on the emulator
+
+- **Without the foreground service, the voice gets no audio focus** (`voice focus=0`): without the
+  Physical activity grant the banner service does not run, and Android refuses focus to a
+  background app. The clip still plays; it just does not duck other audio.
+- **A stall rescue in flight overrides the break's pause.** That is a pre-existing playback race,
+  not Exsurge's: see [stall-rescue-overrides-a-pause](../todos/stall-rescue-overrides-a-pause.md).
+- **One unexplained ANR:** the first visit to the settings screen after a fresh install hung the
+  main thread in continuous recomposition for about 50 s. It could not be reproduced after a
+  force-stop, on the same build (main-thread CPU on that screen then measured 2 ticks in 4 s). If
+  it recurs, take `debuggerd -j` of the main thread straight away.
+- **The step baseline:** steps taken between GO and the next sensor report used to be missed. The
+  last reading before GO is now the baseline (test written red first).
