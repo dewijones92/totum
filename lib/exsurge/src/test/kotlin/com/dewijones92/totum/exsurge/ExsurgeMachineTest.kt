@@ -442,10 +442,45 @@ class ExsurgeMachineTest {
     }
 
     @Test
-    fun `restart clock is ignored mid-summons and mid-break`() {
-        assertTrue(apply(summoned(), ExsurgeEvent.RestartClock, mondayTen).memory.state is Summoned)
-        val breaking = ExsurgeMemory(OnBreak(Summons(7, mondayTen), mondayTen, 0, 20, true))
-        assertEquals(breaking, apply(breaking, ExsurgeEvent.RestartClock, mondayTen.plusSeconds2(5)).memory)
+    fun `restart clock mid-summons ends it as a quiet skip and restarts the clock`() {
+        val at = mondayTen.plusSeconds2(40)
+        val result = apply(summoned(), ExsurgeEvent.RestartClock, at)
+        assertEquals(Sitting(at, OutcomeKind.SKIPPED), result.memory.state)
+        assertEquals(OutcomeKind.SKIPPED, (result.effects.single { it is Record } as Record).outcome.kind)
+        assertTrue(HideTakeover in result.effects)
+        assertTrue(result.effects.none { it == Speak(Cue.SKIPPED) })
+    }
+
+    @Test
+    fun `restart clock while walking to the steps skips it and resumes what GO paused`() {
+        val rising = apply(summoned(), ExsurgeEvent.Go, mondayTen).memory
+        val at = mondayTen.plusMinutes(1)
+        val result = apply(rising, ExsurgeEvent.RestartClock, at)
+        assertEquals(Sitting(at, OutcomeKind.SKIPPED), result.memory.state)
+        assertTrue(ResumePlayback in result.effects)
+        assertEquals(OutcomeKind.SKIPPED, (result.effects.single { it is Record } as Record).outcome.kind)
+    }
+
+    @Test
+    fun `restart clock mid-break ends it early as a completed break`() {
+        val breaking =
+            ExsurgeMemory(OnBreak(Summons(7, mondayTen), mondayTen, 0, 25, stepsProven = true, stepsRequired = true))
+        val at = mondayTen.plusMinutes(2)
+        val result = apply(breaking, ExsurgeEvent.RestartClock, at)
+        assertEquals(Sitting(at, OutcomeKind.COMPLETED), result.memory.state)
+        val outcome = (result.effects.single { it is Record } as Record).outcome
+        assertEquals(OutcomeKind.COMPLETED, outcome.kind)
+        assertTrue(outcome.credited)
+        assertTrue(Speak(Cue.FREE) in result.effects)
+        assertTrue(ResumePlayback in result.effects)
+    }
+
+    @Test
+    fun `restart clock mid-summons in the evening leaves a one-off clock`() {
+        val evening = ZonedDateTime.of(2026, 10, 5, 20, 0, 0, 0, zone).toInstant()
+        val memory = ExsurgeMemory(Summoned(Summons(7, evening, oneOff = true), 1, evening, evening))
+        val result = apply(memory, ExsurgeEvent.RestartClock, evening.plusSeconds2(10))
+        assertEquals(Sitting(evening.plusSeconds2(10), OutcomeKind.SKIPPED, oneOff = true), result.memory.state)
     }
 
     @Test

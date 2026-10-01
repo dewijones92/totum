@@ -41,8 +41,11 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Restart clock** (banner, Exsurge screen) means "I've just sat down": the sitting limit starts
   again from now. Dewi's case, 2026-10-01: *"I go to sit and play piano for half an hour then I
   wanna get up"*. Outside active hours it arms a **one-off** summons after the sitting limit,
-  which can be snoozed as usual, and then goes back to sleep. It ends a pause and does nothing
-  mid-summons or mid-break.
+  which can be snoozed as usual, and then goes back to sleep. It ends a pause. **Mid-summons**
+  (summoned, snoozed, or walking to the 20 steps) it ends that summons as a quiet skip (recorded,
+  no "Et tu"). **Mid-break** it ends the break early as completed. Dewi chose both on 2026-10-01,
+  after his first report on 0.1.554 showed Restart clock being ignored at `rising#5/7` while the
+  banner kept counting steps.
 - **The summons notification** carries GO, Just walk and Snooze, or GO, Just walk and Skip when no
   snoozes are left. Android shows three actions at most, and the takeover always has all four.
 - **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking

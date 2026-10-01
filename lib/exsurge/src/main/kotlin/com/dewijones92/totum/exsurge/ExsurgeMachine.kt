@@ -191,7 +191,17 @@ public object ExsurgeMachine {
                     )
                     become(Sitting(at, oneOff = true))
                 }
-                else -> note("restart ignored at state=${state.label()}")
+                is Summoned -> abandonForSitting(state.summons, resume = false)
+                is Snoozed -> abandonForSitting(state.summons, resume = false)
+                is Rising -> abandonForSitting(state.summons, resume = true)
+                is OnBreak -> {
+                    note(
+                        "clock restarted mid-break: ended early with ${state.steps} steps, proven=${state.stepsProven}"
+                    )
+                    completeBreak(state)
+                    sitDownNow(OutcomeKind.COMPLETED)
+                }
+                Off -> note("restart ignored: Exsurge is off")
             }
         }
 
@@ -232,20 +242,36 @@ public object ExsurgeMachine {
             val end = state.startedAt + settings.breakLength
             if (!at.isBefore(end)) {
                 note("break done: ${state.steps} steps, proven=${state.stepsProven}")
-                emit(
-                    Speak(Cue.FREE),
-                    Buzz(Haptic.RELEASE),
-                    ResumePlayback,
-                    Record(
-                        outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven)
-                            .copy(stepsRequired = state.stepsRequired),
-                    ),
-                )
+                completeBreak(state)
                 arrive(OutcomeKind.COMPLETED)
             } else if (midCueDue(state, settings) && !at.isBefore(end - settings.midCueBeforeEnd)) {
                 become(state.copy(midCueSpoken = true))
                 emit(Speak(Cue.TWO_MINUTES))
             }
+        }
+
+        private fun completeBreak(state: OnBreak) {
+            emit(
+                Speak(Cue.FREE),
+                Buzz(Haptic.RELEASE),
+                ResumePlayback,
+                Record(
+                    outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven)
+                        .copy(stepsRequired = state.stepsRequired),
+                ),
+            )
+        }
+
+        private fun sitDownNow(after: OutcomeKind?) {
+            become(Sitting(at, after, oneOff = !active()))
+        }
+
+        private fun abandonForSitting(summons: Summons, resume: Boolean) {
+            note("clock restarted mid-summons #${summons.id}: counted as a skip")
+            emit(HideTakeover)
+            if (resume) emit(ResumePlayback)
+            emit(Record(outcome(summons, OutcomeKind.SKIPPED)))
+            sitDownNow(OutcomeKind.SKIPPED)
         }
 
         private fun healEnabled() {
