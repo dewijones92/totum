@@ -312,13 +312,21 @@ public class Media3PlaybackController(
             // tapping pause during a spinner called play() -- the button was inert exactly when someone
             // most wants it, on a stalling stream. Same confusion the stall watchdog had: "is it moving"
             // and "is it meant to be playing" are different questions.
-            if (it.playWhenReady) {
-                it.pause()
-                saveProgress(it) // capture where we paused straight away
-            } else {
-                it.play()
-            }
+            if (it.playWhenReady) pauseNow(it) else it.play()
         }
+    }
+
+    override fun pause() {
+        withController { if (it.playWhenReady) pauseNow(it) }
+    }
+
+    private fun pauseNow(controller: MediaController) {
+        controller.pause()
+        saveProgress(controller) // capture where we paused straight away
+    }
+
+    override fun resume() {
+        withController { it.play() }
     }
 
     override fun seekTo(positionMs: Long) {

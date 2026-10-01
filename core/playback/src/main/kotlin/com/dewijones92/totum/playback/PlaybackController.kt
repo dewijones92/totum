@@ -81,6 +81,12 @@ public interface PlaybackController {
     /** Toggles play/pause of the current item; no-op when nothing is queued. */
     public fun togglePlayPause()
 
+    /** Pauses the current item if it is meant to be playing; no-op otherwise. */
+    public fun pause()
+
+    /** Resumes the current item; no-op when nothing is queued. */
+    public fun resume()
+
     /** Seeks the current item to [positionMs] (clamped to [0, duration]). */
     public fun seekTo(positionMs: Long)
 
