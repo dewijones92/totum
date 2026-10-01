@@ -20,6 +20,7 @@ detail and keep it current.
 | [`features/`](features/_index.md) | One doc per feature — status, seam, files, tests | `<feature>.md` + `_index.md` |
 | [`todos/`](todos/_index.md) | The live backlog — one file per item | `<slug>.md` + `_index.md` |
 | [`tests/`](tests/_index.md) | Testing strategy + coverage map | one file |
+| [`adr/`](adr/_index.md) | Architecture decision records — one per decision | `NNNN-title.md` + `_index.md` |
 
 ## Frontmatter
 

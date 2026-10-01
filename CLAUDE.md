@@ -19,6 +19,13 @@ Keeping them current is part of "done": ship/change a feature → update
 `docs/features/<name>.md`; start/finish/drop a backlog item → update `docs/todos/`;
 change coverage → update `docs/tests/`. Bump each doc's `updated`.
 
+**CRUD the ADRs** (Dewi, 2026-10-01: *"remember to CRUD any ADR"*). Decisions live in
+`docs/adr/` (`NNNN-title.md`; status, date, context, decision, consequences). Making a decision
+creates its ADR; changing one updates it; reversing one marks it `superseded by NNNN` and writes the
+new one, all **in the same change as the code**. A Decisions-table row below whose decision has an
+ADR links to it, and a new decision gets both. Read the relevant ADRs before changing an area: they
+say why it is the way it is.
+
 ## Decisions (agreed with Dewi, July 2026)
 
 | Decision | Choice | Why |
@@ -33,6 +40,7 @@ change coverage → update `docs/tests/`. Bump each doc's `updated`.
 | YouTube account (July 2026) | Own minimal InnerTube client (`:lib:innertube`) + **TV device-code OAuth**, SmartTube-style; yt-dlp stays for extraction/playback | Signed-in features (subs, history, comments, likes) need auth + writes; yt-dlp is read-only and removed OAuth login; Google blocks WebView logins, and the device flow is the login it expects from TVs |
 | UI bar | Genuinely nice, modern | Material 3 expressive, dark/light, edge-to-edge, considered motion — never template-default |
 | Voice detection (Sep 2026) | **Silero VAD run in plain Kotlin** (`SpeechModel`), weights exported to `res/raw/silero_vad.bin` | Smart skip-silence needs a neural speech detector; ONNX Runtime's arm64 library alone is ~12 MB compressed / 33 MB installed, about twice the agreed budget. The network is small (filter bank, 4 convs, one LSTM), and `SpeechModelTest` pins the Kotlin to ONNX Runtime's outputs |
+| Exsurge et Disce (Oct 2026) | A **side-quest module**, pure `:lib:exsurge` + Android adapters; exact alarms; a sticky health-FGS banner holds the step counter; the voice is an alarm, not media; tests opt-in and path-filtered | Dewi's stand-up-and-study nudge into Loquax. See [ADRs 2–7](docs/adr/_index.md) |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
 
 ## Quality bar (from the brief, non-negotiable)
@@ -333,6 +341,15 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   storage; access token ~1h, refresh token long-lived, `invalid_grant` on
   refresh = signed out, re-login). Token value classes redact themselves in
   `toString()` so credentials can't leak into logs. Fakes for tests/previews.
+- `:lib:exsurge` — **Exsurge et Disce**, the side quest (not a pillar): after 30 minutes of
+  sitting, Surgius (a Roman-orator mascot) takes over the screen and sends Dewi into Loquax
+  (`dev.hanzi.hanzi_practice`) for five minutes. Pure JVM: one sealed state machine and the stats.
+  `app/…/exsurge/` holds the Android adapters. Two things here are deliberately not the shared
+  seam: its **voice clips play on their own `MediaPlayer`** (alarm sounds, never media; ADR 3), and
+  its **state is not in Room** (ADR 2). It pauses and resumes playback only through
+  `PlaybackController.setPlaying` and `PlaybackInterruption` (ADR 4). Its tests are an opt-in phase
+  (`-Ptotum.exsurgeTests`) with their own workflow (ADR 7). Feature doc:
+  `docs/features/exsurge-et-disce.md`.
 - `:lib:common` — pure-Kotlin utility module with no app dependencies, shared
   by app modules and standalone libraries alike (it would be published
   alongside `:lib:ytdlp`, like the old youtubedl-android's `common` module).

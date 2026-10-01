@@ -1,12 +1,14 @@
 ---
 title: Exsurge et Disce — stand up and study every 30 minutes
 kind: todo
-status: planned — design agreed in part, nothing built
+status: built — awaiting a real day on Dewi's phone; see features/exsurge-et-disce.md
 area: side-quest
 priority: medium
 requested: 2026-10-01
 updated: 2026-10-01
 ---
+
+> **Built 2026-10-01.** The feature doc is [features/exsurge-et-disce](../features/exsurge-et-disce.md) and the decisions are [ADRs 2–7](../adr/_index.md). Two departures from the plan, both recorded in ADR 5: `setExactAndAllowWhileIdle` rather than `setAlarmClock` (so it does not take over the clock's "next alarm"), and "Pause 1 hour" capped at once a day.
 
 # Exsurge et Disce ("rise up and learn")
 
