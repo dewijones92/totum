@@ -106,12 +106,16 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
 
 @Composable
 private fun TestButtons(exsurge: ExsurgeController, view: ExsurgeView) {
-    Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(
             onClick = { exsurge.dispatch(ExsurgeEvent.SummonNow, "settings") },
             enabled = view.settings.enabled,
             modifier = Modifier.testTag("exsurge-summon-now"),
         ) { Text(stringResource(R.string.exsurge_action_summon_now)) }
+        OutlinedButton(
+            onClick = { exsurge.dispatch(ExsurgeEvent.RestartClock, "settings") },
+            enabled = view.settings.enabled,
+        ) { Text(stringResource(R.string.exsurge_action_restart_clock)) }
         OutlinedButton(
             onClick = { exsurge.dispatch(ExsurgeEvent.PauseHour, "settings") },
             enabled = view.pauseAvailable,

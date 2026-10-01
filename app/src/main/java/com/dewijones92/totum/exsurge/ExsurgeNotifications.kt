@@ -132,13 +132,20 @@ class ExsurgeNotifications(private val context: Context) {
 
     private fun actions(view: ExsurgeView): List<Notification.Action> = buildList {
         when (view.memory.state) {
-            is ExsurgeState.Sitting, is ExsurgeState.Dormant, is ExsurgeState.Paused ->
+            is ExsurgeState.Sitting, is ExsurgeState.Dormant, is ExsurgeState.Paused -> {
                 add(
                     action(
                         context.getString(R.string.exsurge_action_summon_now),
                         ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SUMMON_NOW)
                     )
                 )
+                add(
+                    action(
+                        context.getString(R.string.exsurge_action_restart_clock),
+                        ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.RESTART_CLOCK),
+                    ),
+                )
+            }
             is ExsurgeState.Snoozed ->
                 add(action(context.getString(R.string.exsurge_action_go), TakeoverActivity.pending(context, go = true)))
             else -> Unit

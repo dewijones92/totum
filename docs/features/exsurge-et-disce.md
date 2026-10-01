@@ -38,6 +38,11 @@ everything configurable. The backlog item, with the agreed design and the open i
   window, snooze length and count, call-again interval (missed after three calls), rise timeout,
   the break cue's minutes before the end, and the pause length.
 - **Pause 1 hour:** from the banner, once a day.
+- **Restart clock** (banner, Exsurge screen) means "I've just sat down": the sitting limit starts
+  again from now. Dewi's case, 2026-10-01: *"I go to sit and play piano for half an hour then I
+  wanna get up"*. Outside active hours it arms a **one-off** summons after the sitting limit,
+  which can be snoozed as usual, and then goes back to sleep. It ends a pause and does nothing
+  mid-summons or mid-break.
 - **The summons notification** carries GO, Just walk and Snooze, or GO, Just walk and Skip when no
   snoozes are left. Android shows three actions at most, and the takeover always has all four.
 - **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking

@@ -95,7 +95,7 @@ class ExsurgeAndroidPortsTest {
         assertTrue(banner.flags and android.app.Notification.FLAG_ONGOING_EVENT != 0)
         assertNotNull(banner.deleteIntent)
         assertEquals(ExsurgeNotifications.screenIntent(context), banner.contentIntent)
-        assertEquals(listOf("Summon now", "Pause 1 hour"), banner.actions.map { it.title.toString() })
+        assertEquals(listOf("Summon now", "Restart clock", "Pause 1 hour"), banner.actions.map { it.title.toString() })
     }
 
     @Test

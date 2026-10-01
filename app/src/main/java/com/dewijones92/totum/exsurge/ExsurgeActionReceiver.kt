@@ -20,6 +20,7 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
             SNOOZE -> exsurge.dispatch(ExsurgeEvent.Snooze, "notification")
             SKIP -> exsurge.dispatch(ExsurgeEvent.Skip, "notification")
             JUST_WALK -> exsurge.dispatch(ExsurgeEvent.JustWalk, "notification")
+            RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock, "banner")
             SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
             PAUSE_HOUR -> exsurge.dispatch(ExsurgeEvent.PauseHour, "banner")
             REPOST -> exsurge.refresh()
@@ -53,7 +54,8 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
         const val PAUSE_HOUR = "com.dewijones92.totum.exsurge.PAUSE_HOUR"
         const val REPOST = "com.dewijones92.totum.exsurge.REPOST"
         const val JUST_WALK = "com.dewijones92.totum.exsurge.JUST_WALK"
-        private val requestCodes = listOf(TICK, SNOOZE, SKIP, SUMMON_NOW, PAUSE_HOUR, REPOST, JUST_WALK)
+        const val RESTART_CLOCK = "com.dewijones92.totum.exsurge.RESTART_CLOCK"
+        private val requestCodes = listOf(TICK, SNOOZE, SKIP, SUMMON_NOW, PAUSE_HOUR, REPOST, JUST_WALK, RESTART_CLOCK)
 
         fun pending(context: Context, action: String): PendingIntent = PendingIntent.getBroadcast(
             context,

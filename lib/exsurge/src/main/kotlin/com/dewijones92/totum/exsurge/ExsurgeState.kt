@@ -9,7 +9,13 @@ import java.time.Instant
 import java.time.LocalDate
 
 @Serializable
-public data class Summons(val id: Long, val firstCalledAt: Instant, val snoozes: Int = 0, val practise: Boolean = true)
+public data class Summons(
+    val id: Long,
+    val firstCalledAt: Instant,
+    val snoozes: Int = 0,
+    val practise: Boolean = true,
+    val oneOff: Boolean = false,
+)
 
 @Serializable
 public sealed interface ExsurgeState {
@@ -28,7 +34,11 @@ public sealed interface ExsurgeState {
 
     @Serializable
     @SerialName("sitting")
-    public data class Sitting(val since: Instant, val after: OutcomeKind? = null) : ExsurgeState
+    public data class Sitting(
+        val since: Instant,
+        val after: OutcomeKind? = null,
+        val oneOff: Boolean = false
+    ) : ExsurgeState
 
     @Serializable
     @SerialName("summoned")
@@ -79,6 +89,7 @@ public sealed interface ExsurgeEvent {
     public data object SummonNow : ExsurgeEvent
     public data object Go : ExsurgeEvent
     public data object JustWalk : ExsurgeEvent
+    public data object RestartClock : ExsurgeEvent
     public data object Snooze : ExsurgeEvent
     public data object Skip : ExsurgeEvent
     public data object Walked : ExsurgeEvent

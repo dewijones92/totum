@@ -58,7 +58,11 @@ public object ExsurgeMachine {
             Off -> null
             is Dormant -> state.resumesAt
             is Paused -> state.until
-            is Sitting -> minOf(state.since + settings.sitting, settings.activeEndAfter(state.since, context.zone))
+            is Sitting -> if (state.oneOff) {
+                state.since + settings.sitting
+            } else {
+                minOf(state.since + settings.sitting, settings.activeEndAfter(state.since, context.zone))
+            }
             is Summoned -> {
                 val missAt = state.waveStartedAt + settings.missAfter
                 val canCallAgain = settings.escalate && state.call < MAX_CALLS
@@ -100,6 +104,7 @@ public object ExsurgeMachine {
                 ExsurgeEvent.SummonNow -> summonNow()
                 ExsurgeEvent.Go -> go(practise = true)
                 ExsurgeEvent.JustWalk -> go(practise = false)
+                ExsurgeEvent.RestartClock -> restartClock()
                 ExsurgeEvent.Snooze -> snooze()
                 ExsurgeEvent.Skip -> skip()
                 ExsurgeEvent.Walked -> walked()
@@ -161,15 +166,32 @@ public object ExsurgeMachine {
         private fun tickSitting(state: Sitting) {
             val sat = Duration.between(state.since, at)
             when {
-                !active() -> {
+                !active() && !state.oneOff -> {
                     note("active hours over after sitting ${sat.toMinutes()}m; no summons")
                     arrive()
                 }
                 sat >= settings.sitting -> {
                     note("sat ${sat.toMinutes()}m of ${settings.sittingMinutes}m: summoning")
-                    summon(Summons(memory.nextSummonsId, at))
+                    summon(Summons(memory.nextSummonsId, at, oneOff = state.oneOff))
                     memory = memory.copy(nextSummonsId = memory.nextSummonsId + 1)
                 }
+            }
+        }
+
+        private fun restartClock() {
+            when (val state = memory.state) {
+                is Sitting, is Paused -> {
+                    note("clock restarted by hand (was ${state.label()})")
+                    become(Sitting(at))
+                }
+                is Dormant -> {
+                    note(
+                        "clock restarted outside active hours: one summons in " +
+                            "${settings.sittingMinutes}m, then back to sleep"
+                    )
+                    become(Sitting(at, oneOff = true))
+                }
+                else -> note("restart ignored at state=${state.label()}")
             }
         }
 
@@ -197,7 +219,7 @@ public object ExsurgeMachine {
 
         private fun tickSnoozed(state: Snoozed) {
             if (at.isBefore(state.until)) return
-            if (active()) {
+            if (active() || state.summons.oneOff) {
                 note("snooze over: summons #${state.summons.id} again (snoozes used ${state.summons.snoozes})")
                 summon(state.summons)
             } else {
@@ -243,7 +265,7 @@ public object ExsurgeMachine {
                     become(Off)
                 }
                 settings.enabled && state == Off -> arrive()
-                state is Dormant || state is Sitting && !active() -> arrive()
+                state is Dormant || state is Sitting && !active() && !state.oneOff -> arrive()
             }
         }
 
@@ -316,7 +338,7 @@ public object ExsurgeMachine {
             val state = memory.state as? Sitting ?: return
             val sat = Duration.between(state.since, at).toMinutes()
             note("walked ${settings.walkResetSteps}+ steps after sitting ${sat}m: clock reset")
-            become(Sitting(at, state.after))
+            become(state.copy(since = at))
         }
 
         private fun pauseHour() {
@@ -397,6 +419,7 @@ private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.SummonNow -> "summonNow"
     ExsurgeEvent.Go -> "go"
     ExsurgeEvent.JustWalk -> "justWalk"
+    ExsurgeEvent.RestartClock -> "restartClock"
     ExsurgeEvent.Snooze -> "snooze"
     ExsurgeEvent.Skip -> "skip"
     ExsurgeEvent.Walked -> "walked"

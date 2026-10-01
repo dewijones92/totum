@@ -404,4 +404,57 @@ class ExsurgeMachineTest {
         assertEquals(false, outcome.stepsProven)
         assertEquals(true, outcome.stepsRequired)
     }
+
+    @Test
+    fun `restart clock while sitting starts the sitting limit again from now`() {
+        val at = mondayTen.plusMinutes(20)
+        val result = apply(sitting(), ExsurgeEvent.RestartClock, at)
+        assertEquals(Sitting(at), result.memory.state)
+        assertEquals(at.plusMinutes(30), ExsurgeMachine.nextWake(result.memory.state, context))
+    }
+
+    @Test
+    fun `restart clock in the evening arms a one-off summons, then sleeps again`() {
+        val evening = ZonedDateTime.of(2026, 10, 5, 20, 0, 0, 0, zone).toInstant()
+        val armed = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock, evening)
+        assertEquals(Sitting(evening, oneOff = true), armed.memory.state)
+        assertEquals(evening.plusMinutes(30), ExsurgeMachine.nextWake(armed.memory.state, context))
+        val summoned = apply(armed.memory, ExsurgeEvent.Tick, evening.plusMinutes(30))
+        assertTrue(summoned.memory.state is Summoned)
+        val skipped = apply(summoned.memory, ExsurgeEvent.Skip, evening.plusMinutes(31))
+        assertTrue(skipped.memory.state is Dormant)
+    }
+
+    @Test
+    fun `a one-off summons can still be snoozed out of hours`() {
+        val evening = ZonedDateTime.of(2026, 10, 5, 20, 0, 0, 0, zone).toInstant()
+        val armed = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock, evening).memory
+        val summoned = apply(armed, ExsurgeEvent.Tick, evening.plusMinutes(30)).memory
+        val snoozed = apply(summoned, ExsurgeEvent.Snooze, evening.plusMinutes(30)).memory
+        val again = apply(snoozed, ExsurgeEvent.Tick, evening.plusMinutes(35))
+        assertTrue(again.memory.state is Summoned)
+    }
+
+    @Test
+    fun `restart clock ends a pause`() {
+        val paused = ExsurgeMemory(Paused(mondayTen.plusMinutes(60)))
+        assertEquals(Sitting(mondayTen), apply(paused, ExsurgeEvent.RestartClock, mondayTen).memory.state)
+    }
+
+    @Test
+    fun `restart clock is ignored mid-summons and mid-break`() {
+        assertTrue(apply(summoned(), ExsurgeEvent.RestartClock, mondayTen).memory.state is Summoned)
+        val breaking = ExsurgeMemory(OnBreak(Summons(7, mondayTen), mondayTen, 0, 20, true))
+        assertEquals(breaking, apply(breaking, ExsurgeEvent.RestartClock, mondayTen.plusSeconds2(5)).memory)
+    }
+
+    @Test
+    fun `a one-off evening clock survives a settings change and a walk`() {
+        val evening = ZonedDateTime.of(2026, 10, 5, 20, 0, 0, 0, zone).toInstant()
+        val armed = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock, evening).memory
+        val changed = apply(armed, ExsurgeEvent.SettingsChanged, evening.plusMinutes(5)).memory
+        assertEquals(Sitting(evening, oneOff = true), changed.state)
+        val walked = apply(changed, ExsurgeEvent.Walked, evening.plusMinutes(10)).memory
+        assertEquals(Sitting(evening.plusMinutes(10), oneOff = true), walked.state)
+    }
 }

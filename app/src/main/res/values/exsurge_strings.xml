@@ -31,6 +31,7 @@
     <string name="exsurge_action_skip">Skip this one</string>
     <string name="exsurge_action_summon_now">Summon now</string>
     <string name="exsurge_action_pause_hour">Pause 1 hour</string>
+    <string name="exsurge_action_restart_clock">Restart clock</string>
 
     <string name="exsurge_takeover_title">EXSURGE!</string>
     <string name="exsurge_takeover_subtitle">Sitting: %1$d min. Up for %2$d min: walk, and practise if you like.</string>
