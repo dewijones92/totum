@@ -34,6 +34,11 @@ public data class ExsurgeSettings(
     val takeoverOverApps: Boolean = true,
     val destinationPackage: String = LOQUAX_PACKAGE,
     val destinationRoute: String = LOQUAX_PRACTICE_ROUTE,
+    val callIntervalSeconds: Int = 60,
+    val riseTimeoutMinutes: Int = 3,
+    val walkWindowMinutes: Int = 5,
+    val pauseMinutes: Int = 60,
+    val midCueMinutes: Int = 2,
 ) {
     public fun validated(): ExsurgeSettings = copy(
         startMinuteOfDay = startMinuteOfDay.coerceIn(0, LAST_MINUTE_OF_DAY),
@@ -47,11 +52,22 @@ public data class ExsurgeSettings(
         voiceVolumePercent = voiceVolumePercent.coerceIn(0, PERCENT),
         destinationPackage = destinationPackage.trim().ifEmpty { LOQUAX_PACKAGE },
         destinationRoute = destinationRoute.trim(),
+        callIntervalSeconds = callIntervalSeconds.coerceIn(CALL_INTERVAL_RANGE),
+        riseTimeoutMinutes = riseTimeoutMinutes.coerceIn(RISE_TIMEOUT_RANGE),
+        walkWindowMinutes = walkWindowMinutes.coerceIn(WALK_WINDOW_RANGE),
+        pauseMinutes = pauseMinutes.coerceIn(PAUSE_RANGE),
+        midCueMinutes = midCueMinutes.coerceIn(MID_CUE_RANGE),
     )
 
     public val sitting: Duration get() = Duration.ofMinutes(sittingMinutes.toLong())
     public val breakLength: Duration get() = Duration.ofMinutes(breakMinutes.toLong())
     public val snooze: Duration get() = Duration.ofMinutes(snoozeMinutes.toLong())
+    public val callInterval: Duration get() = Duration.ofSeconds(callIntervalSeconds.toLong())
+    public val missAfter: Duration get() = callInterval.multipliedBy(ExsurgeMachine.MAX_CALLS.toLong())
+    public val riseTimeout: Duration get() = Duration.ofMinutes(riseTimeoutMinutes.toLong())
+    public val walkWindow: Duration get() = Duration.ofMinutes(walkWindowMinutes.toLong())
+    public val pauseLength: Duration get() = Duration.ofMinutes(pauseMinutes.toLong())
+    public val midCueBeforeEnd: Duration get() = Duration.ofMinutes(midCueMinutes.toLong())
 
     public fun isActiveAt(at: Instant, zone: ZoneId): Boolean {
         if (endMinuteOfDay <= startMinuteOfDay) return false
@@ -71,19 +87,32 @@ public data class ExsurgeSettings(
             .firstOrNull { it.isAfter(after) }
     }
 
-    public fun activeEndAfter(at: Instant, zone: ZoneId): Instant =
-        at.atZone(zone).toLocalDate().atTime(timeOf(endMinuteOfDay)).atZone(zone).toInstant()
-            .let { if (it.isAfter(at)) it else at }
+    public fun activeEndAfter(at: Instant, zone: ZoneId): Instant {
+        var day = at.atZone(zone).toLocalDate()
+        var hops = 0
+        while (continuesPastMidnight(day) && hops < DAYS_TO_SEARCH) {
+            day = day.plusDays(1)
+            hops++
+        }
+        val end = endOn(day, zone)
+        return if (end.isAfter(at)) end else at
+    }
+
+    private fun continuesPastMidnight(day: LocalDate): Boolean =
+        endMinuteOfDay >= MINUTES_PER_DAY && startMinuteOfDay == 0 && day.plusDays(1).dayOfWeek in activeDays
+
+    private fun endOn(day: LocalDate, zone: ZoneId): Instant =
+        if (endMinuteOfDay >= MINUTES_PER_DAY) {
+            day.plusDays(1).atStartOfDay(zone).toInstant()
+        } else {
+            day.atTime(timeOf(endMinuteOfDay)).atZone(zone).toInstant()
+        }
 
     private fun startOn(day: LocalDate, zone: ZoneId): Instant =
         day.atTime(timeOf(startMinuteOfDay)).atZone(zone).toInstant()
 
     private fun timeOf(minuteOfDay: Int): LocalTime =
-        if (minuteOfDay >= MINUTES_PER_DAY) {
-            LocalTime.MAX
-        } else {
-            LocalTime.of(minuteOfDay / MINUTES_PER_HOUR, minuteOfDay % MINUTES_PER_HOUR)
-        }
+        LocalTime.of(minuteOfDay / MINUTES_PER_HOUR, minuteOfDay % MINUTES_PER_HOUR)
 
     public companion object {
         public val WEEKDAYS: Set<DayOfWeek> = DayOfWeek.entries.filter { it <= DayOfWeek.FRIDAY }.toSet()
@@ -93,6 +122,11 @@ public data class ExsurgeSettings(
         public val WALK_RESET_RANGE: IntRange = 0..1000
         public val SNOOZE_RANGE: IntRange = 1..15
         public val MAX_SNOOZE_RANGE: IntRange = 0..5
+        public val CALL_INTERVAL_RANGE: IntRange = 30..300
+        public val RISE_TIMEOUT_RANGE: IntRange = 1..10
+        public val WALK_WINDOW_RANGE: IntRange = 1..15
+        public val PAUSE_RANGE: IntRange = 15..240
+        public val MID_CUE_RANGE: IntRange = 1..5
         public const val MINUTES_PER_HOUR: Int = 60
         private const val DEFAULT_START_MINUTE = 9 * MINUTES_PER_HOUR
         private const val DEFAULT_END_MINUTE = 18 * MINUTES_PER_HOUR

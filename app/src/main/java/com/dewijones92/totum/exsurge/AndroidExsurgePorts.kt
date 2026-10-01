@@ -32,7 +32,7 @@ class AndroidExsurgePorts(
 
     @SuppressLint("MissingPermission")
     override fun scheduleWake(at: Instant?) {
-        if (at == scheduled) return
+        if (at == scheduled && at?.isAfter(Instant.now()) != false) return
         val tick = ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.TICK)
         if (at == null) {
             alarms.cancel(tick)
@@ -95,25 +95,17 @@ class AndroidExsurgePorts(
     }
 
     override fun openDestination(settings: ExsurgeSettings): Boolean {
-        val launch = context.packageManager.getLaunchIntentForPackage(settings.destinationPackage)
+        val launch = destinationIntent(context, settings)
         if (launch == null) {
             val message = context.getString(R.string.exsurge_destination_missing, settings.destinationPackage)
             Handler(Looper.getMainLooper()).post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
-            Diag.log(
-                ExsurgeController.TAG,
-                "dewidebug exsurge destination ${settings.destinationPackage} not installed"
-            )
+            val missing = settings.destinationPackage
+            Diag.log(ExsurgeController.TAG, "dewidebug exsurge destination $missing not installed")
             return false
         }
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (settings.destinationRoute.isNotEmpty()) launch.putExtra(LOQUAX_ROUTE_EXTRA, settings.destinationRoute)
         return runCatching { context.startActivity(launch) }
             .onFailure {
-                Diag.warn(
-                    ExsurgeController.TAG,
-                    "dewidebug exsurge could not open ${settings.destinationPackage}",
-                    it
-                )
+                Diag.warn(ExsurgeController.TAG, "dewidebug exsurge could not open ${settings.destinationPackage}", it)
             }
             .isSuccess
     }
@@ -132,6 +124,12 @@ class AndroidExsurgePorts(
         private val SUMMONS_BUZZ = longArrayOf(0, 600, 200, 200, 200, 600)
         private val STEPS_BUZZ = longArrayOf(0, 80, 80, 80)
         private val RELEASE_BUZZ = longArrayOf(0, 100, 120, 200, 120, 400)
+
+        fun destinationIntent(context: Context, settings: ExsurgeSettings): Intent? =
+            context.packageManager.getLaunchIntentForPackage(settings.destinationPackage)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (settings.destinationRoute.isNotEmpty()) putExtra(LOQUAX_ROUTE_EXTRA, settings.destinationRoute)
+            }
 
         fun destinationInstalled(context: Context, packageName: String): Boolean =
             context.packageManager.getLaunchIntentForPackage(packageName) != null

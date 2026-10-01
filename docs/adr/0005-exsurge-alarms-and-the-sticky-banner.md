@@ -28,9 +28,18 @@ updated: 2026-10-01
 - **Re-arming:** the alarm is re-armed after boot, an APK update and a time or zone change
   (`ExsurgeActionReceiver`), and on every process start.
 - **Banner and steps:** during active hours, `ExsurgeBannerService` runs as a `health` foreground
-  service. Its ongoing notification is the banner, and it holds the step-counter listener. Outside
-  active hours the service stops with `STOP_FOREGROUND_DETACH`, and the same notification stays as
-  a plain ongoing one.
+  service. Its ongoing notification is the banner, and it holds the step-counter listener (the
+  wake-up variant where the device has one). Outside active hours the service is sent a `REST`
+  action and detaches its own notification (`stopForeground(STOP_FOREGROUND_DETACH)`, then
+  `stopSelf`), so the same notification stays as a plain ongoing one.
+  - It was `stopService` plus a detach in `onDestroy` until the 2026-10-01 review. By `onDestroy`
+    the system has already dropped the foreground record and queued a cancel of the notification,
+    which races the re-post.
+- **Steps before a tick:** before each alarm tick the step sensor is flushed and the tick waits
+  750 ms. Otherwise, steps walked with the screen off can sit in the hardware buffer until after
+  the summons they should have prevented.
+- **Re-arming:** the alarm is re-armed even when the deadline is unchanged, if that deadline has
+  passed. The old "unchanged, skip" check could leave nothing scheduled.
 - **Sticky:** the banner's delete intent re-posts it the moment it is swiped, the same technique as
   Loquax's `BannerManager`.
 - **No permission:** without the Physical activity grant, the service is not started, the banner

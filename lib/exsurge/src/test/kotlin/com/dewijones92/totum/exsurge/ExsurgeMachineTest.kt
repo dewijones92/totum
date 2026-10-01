@@ -111,7 +111,7 @@ class ExsurgeMachineTest {
     @Test
     fun `with escalation off a summons is missed after three minutes without repeating`() {
         val quiet = context.copy(settings = on.copy(escalate = false))
-        assertEquals(mondayTen.plus(ExsurgeMachine.MISS_AFTER), ExsurgeMachine.nextWake(summoned().state, quiet))
+        assertEquals(mondayTen.plus(on.missAfter), ExsurgeMachine.nextWake(summoned().state, quiet))
         val result = apply(summoned(), ExsurgeEvent.Tick, mondayTen.plusSeconds2(90), quiet)
         assertTrue(result.effects.isEmpty())
     }
@@ -175,7 +175,8 @@ class ExsurgeMachineTest {
         assertEquals(12, (partway.memory.state as Rising).steps)
         val at = mondayTen.plusSeconds2(25)
         val risen = apply(partway.memory, ExsurgeEvent.StepsCounted(5020), at)
-        assertEquals(OnBreak(Summons(7, mondayTen), at, 5000, 20, stepsProven = true), risen.memory.state)
+        val expected = OnBreak(Summons(7, mondayTen), at, 5000, 20, stepsProven = true, stepsRequired = true)
+        assertEquals(expected, risen.memory.state)
         assertEquals(listOf(Speak(Cue.RISEN), Buzz(Haptic.STEPS_ACCEPTED)), risen.effects)
     }
 
@@ -200,9 +201,10 @@ class ExsurgeMachineTest {
     @Test
     fun `no steps within three minutes starts the break unproven`() {
         val rising = ExsurgeMemory(Rising(Summons(7, mondayTen), mondayTen, 100, 4))
-        val at = mondayTen.plus(ExsurgeMachine.RISE_TIMEOUT)
+        val at = mondayTen.plus(on.riseTimeout)
         val result = apply(rising, ExsurgeEvent.Tick, at)
-        assertEquals(OnBreak(Summons(7, mondayTen), at, 100, 4, stepsProven = false), result.memory.state)
+        val expected = OnBreak(Summons(7, mondayTen), at, 100, 4, stepsProven = false, stepsRequired = true)
+        assertEquals(expected, result.memory.state)
     }
 
     @Test
@@ -346,5 +348,40 @@ class ExsurgeMachineTest {
         val result = apply(sitting(), ExsurgeEvent.Tick, mondayTen.plusMinutes(30))
         assertTrue(result.notes.any { it == "tick: sitting -> summoned#7/call1" })
         assertTrue(result.notes.any { it.startsWith("sat 30m of 30m") })
+    }
+
+    @Test
+    fun `an all-day window carries the sitting clock across midnight`() {
+        val allDay = context.copy(settings = on.copy(startMinuteOfDay = 0, endMinuteOfDay = 24 * 60))
+        val since = ZonedDateTime.of(2026, 10, 5, 23, 50, 0, 0, zone).toInstant()
+        val midnight = ZonedDateTime.of(2026, 10, 6, 0, 0, 0, 0, zone).toInstant()
+        val result = apply(ExsurgeMemory(Sitting(since)), ExsurgeEvent.Tick, midnight, allDay)
+        assertEquals(Sitting(since), result.memory.state)
+        assertEquals(since.plusMinutes(30), ExsurgeMachine.nextWake(result.memory.state, allDay))
+        assertTrue(result.notes.none { it.startsWith("tick loop stopped") })
+    }
+
+    @Test
+    fun `settings that say on with a state that says off heal on the next event`() {
+        val result = apply(ExsurgeMemory(Off), ExsurgeEvent.Tick, mondayTen)
+        assertEquals(Sitting(mondayTen), result.memory.state)
+    }
+
+    @Test
+    fun `settings that say off with a live state heal on the next event`() {
+        val off = context.copy(settings = on.copy(enabled = false))
+        val result = apply(sitting(), ExsurgeEvent.Tick, mondayTen.plusMinutes(40), off)
+        assertEquals(Off, result.memory.state)
+        assertTrue(result.effects.none { it is ShowTakeover })
+    }
+
+    @Test
+    fun `a break that started without the steps it needed is recorded as unproven and required`() {
+        val rising = ExsurgeMemory(Rising(Summons(7, mondayTen), mondayTen, 100, 4))
+        val started = apply(rising, ExsurgeEvent.Tick, mondayTen.plus(on.riseTimeout)).memory
+        val done = apply(started, ExsurgeEvent.Tick, mondayTen.plus(on.riseTimeout).plusMinutes(5))
+        val outcome = (done.effects.single { it is Record } as Record).outcome
+        assertEquals(false, outcome.stepsProven)
+        assertEquals(true, outcome.stepsRequired)
     }
 }

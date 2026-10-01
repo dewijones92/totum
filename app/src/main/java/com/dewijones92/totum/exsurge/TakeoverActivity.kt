@@ -9,14 +9,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -157,40 +161,46 @@ class TakeoverActivity : ComponentActivity() {
 @Composable
 fun TakeoverScreen(view: ExsurgeView, destination: String, onGo: () -> Unit, onSnooze: () -> Unit, onSkip: () -> Unit) {
     val summoned = view.memory.state as? ExsurgeState.Summoned
-    val used = summoned?.summons?.snoozes ?: view.settings.maxSnoozes
-    val snoozesLeft = (view.settings.maxSnoozes - used).coerceAtLeast(0)
+    val snoozesLeft = snoozesLeft(view.memory.state, view.settings)
     val sat = (view.memory.state as? ExsurgeState.Summoned)?.let {
         Duration.between(it.summons.firstCalledAt, view.at).toMinutes() + view.settings.sittingMinutes
     }
         ?: view.settings.sittingMinutes.toLong()
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.safeDrawingPadding().padding(24.dp),
-        ) {
-            SurgiusFace(Mood.SUMMONING, stringResource(R.string.exsurge_surgius), Modifier.size(220.dp))
-            Spacer(Modifier.height(16.dp))
-            Text(
-                stringResource(R.string.exsurge_takeover_title),
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-            )
-            summoned?.let {
+        BoxWithConstraints(Modifier.safeDrawingPadding()) {
+            val faceSize = minOf(FACE_SIZE, maxHeight * FACE_SHARE_OF_HEIGHT)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = maxHeight)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+            ) {
+                SurgiusFace(Mood.SUMMONING, stringResource(R.string.exsurge_surgius), Modifier.size(faceSize))
+                Spacer(Modifier.height(16.dp))
                 Text(
-                    stringResource(R.string.exsurge_takeover_call, it.call),
-                    style = MaterialTheme.typography.titleMedium
+                    stringResource(R.string.exsurge_takeover_title),
+                    style = MaterialTheme.typography.displayLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
                 )
+                summoned?.let {
+                    Text(
+                        stringResource(R.string.exsurge_takeover_call, it.call),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.exsurge_takeover_subtitle, sat.toInt(), view.settings.breakMinutes),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(32.dp))
+                TakeoverButtons(destination, snoozesLeft, view.settings.snoozeMinutes, onGo, onSnooze, onSkip)
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.exsurge_takeover_subtitle, sat.toInt(), view.settings.breakMinutes),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(32.dp))
-            TakeoverButtons(destination, snoozesLeft, view.settings.snoozeMinutes, onGo, onSnooze, onSkip)
         }
     }
 }
@@ -231,3 +241,6 @@ private fun TakeoverButtons(
         Text(stringResource(R.string.exsurge_action_skip))
     }
 }
+
+private val FACE_SIZE = 220.dp
+private const val FACE_SHARE_OF_HEIGHT = 0.3f

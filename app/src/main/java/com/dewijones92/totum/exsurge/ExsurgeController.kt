@@ -60,8 +60,7 @@ data class ExsurgeView(
     val context: ExsurgeContext get() = ExsurgeContext(settings, zone, stepsAvailable)
     val mood: Mood get() = moodOf(memory.state, at)
     val banner: BannerLine get() = bannerLineOf(memory.state, at, context)
-    val pauseAvailable: Boolean get() =
-        memory.state is ExsurgeState.Sitting && memory.pauseUsedOn != at.atZone(zone).toLocalDate()
+    val pauseAvailable: Boolean get() = ExsurgeMachine.canPause(memory, at, zone)
 }
 
 class ExsurgeController(
@@ -70,11 +69,12 @@ class ExsurgeController(
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val sensorStepsAvailable: () -> Boolean,
+    private val maxOutcomes: Int = MAX_OUTCOMES,
 ) {
     private var settings = store.loadSettings()
     private var memory = store.loadMemory()
     private var outcomes = store.loadOutcomes()
-    private val stepWindow = StepWindow()
+    private var stepWindow = StepWindow(settings.walkWindow)
     private var simulatedSteps = false
     private var stepReadings = 0L
     private var lastStepTotal: Long? = null
@@ -99,10 +99,19 @@ class ExsurgeController(
 
     @Synchronized
     fun dispatch(event: ExsurgeEvent, source: String) {
+        lastEvent = "$event from $source at ${clock()}"
+        apply(event, source)
+        val seed = lastStepTotal
+        if (event == ExsurgeEvent.Go && memory.state is ExsurgeState.Rising && seed != null) {
+            Diag.log(TAG, "dewidebug exsurge GO baseline = last step reading, total=$seed")
+            apply(ExsurgeEvent.StepsCounted(seed), "baseline at GO")
+        }
+    }
+
+    private fun apply(event: ExsurgeEvent, source: String) {
         val at = clock()
-        val context = ExsurgeContext(settings, zone(), stepsAvailable())
+        val context = ExsurgeContext(settings, zone(), stepsAvailable)
         val transition = ExsurgeMachine.apply(memory, event, at, context)
-        lastEvent = "$event from $source at $at"
         val changed = transition.memory != memory
         memory = transition.memory
         if (changed) store.saveMemory(memory)
@@ -117,10 +126,6 @@ class ExsurgeController(
         }
         transition.effects.forEach { execute(it) }
         publish(at)
-        val seed = lastStepTotal
-        if (event == ExsurgeEvent.Go && memory.state is ExsurgeState.Rising && seed != null) {
-            dispatch(ExsurgeEvent.StepsCounted(seed), "baseline at GO")
-        }
     }
 
     @Synchronized
@@ -128,6 +133,7 @@ class ExsurgeController(
         val next = transform(settings).validated()
         if (next == settings) return
         Diag.log(TAG, "dewidebug exsurge settings from=$source ${diff(settings, next)}")
+        if (next.walkWindow != settings.walkWindow) stepWindow = StepWindow(next.walkWindow)
         settings = next
         store.saveSettings(settings)
         dispatch(ExsurgeEvent.SettingsChanged, source)
@@ -166,7 +172,7 @@ class ExsurgeController(
     @Synchronized
     fun refresh() = publish(clock())
 
-    private fun stepsAvailable() = simulatedSteps || sensorStepsAvailable()
+    private val stepsAvailable: Boolean get() = simulatedSteps || sensorStepsAvailable()
 
     private fun execute(effect: ExsurgeEffect) {
         when (effect) {
@@ -182,7 +188,7 @@ class ExsurgeController(
                 TakeoverRequest(
                     summonsId = effect.summonsId,
                     call = effect.call,
-                    snoozesLeft = snoozesLeft(memory, settings),
+                    snoozesLeft = snoozesLeft(memory.state, settings),
                     snoozeMinutes = settings.snoozeMinutes,
                     overOtherApps = settings.takeoverOverApps,
                 ),
@@ -209,11 +215,23 @@ class ExsurgeController(
     }
 
     private fun record(outcome: BreakOutcome) {
-        val before = outcomes
-        outcomes = (outcomes + outcome).takeLast(MAX_OUTCOMES)
+        val all = outcomes + outcome
+        val promotion = ExsurgeStats.promoted(outcomes, all)
+        val trimmed = all.size - maxOutcomes
+        if (trimmed > 0) {
+            val archived = all.take(trimmed).count { it.credited }
+            memory = memory.copy(archivedLaurels = memory.archivedLaurels + archived)
+            store.saveMemory(memory)
+            Diag.log(
+                TAG,
+                "dewidebug exsurge archived $trimmed old outcome(s), $archived laurel(s); " +
+                    "total archived ${memory.archivedLaurels}",
+            )
+        }
+        outcomes = all.takeLast(maxOutcomes)
         store.saveOutcomes(outcomes)
-        Diag.log(TAG, "dewidebug exsurge recorded $outcome")
-        ExsurgeStats.promoted(before, outcomes)?.let { rank ->
+        Diag.log(TAG, "dewidebug exsurge recorded $outcome credited=${outcome.credited}")
+        promotion?.let { rank ->
             Diag.log(TAG, "dewidebug exsurge promoted to ${rank.latin}")
             if (!settings.quietOffice) ports.speak(Cue.PROMOTED, outcome.summonsId, settings.voiceVolumePercent)
         }
@@ -228,11 +246,11 @@ class ExsurgeController(
 
     private fun viewAt(at: Instant): ExsurgeView {
         val zone = zone()
-        val available = stepsAvailable()
+        val available = stepsAvailable
         return ExsurgeView(
             settings = settings,
             memory = memory,
-            stats = ExsurgeStats.of(outcomes, at, zone),
+            stats = ExsurgeStats.of(outcomes, at, zone, memory.archivedLaurels),
             nextWake = ExsurgeMachine.nextWake(memory.state, ExsurgeContext(settings, zone, available)),
             stepsAvailable = available,
             at = at,
@@ -245,11 +263,6 @@ class ExsurgeController(
         private const val STEP_LOG_EVERY = 50L
         private const val MAX_OUTCOMES = 5000
     }
-}
-
-private fun snoozesLeft(memory: ExsurgeMemory, settings: ExsurgeSettings): Int {
-    val used = (memory.state as? ExsurgeState.Summoned)?.summons?.snoozes ?: settings.maxSnoozes
-    return (settings.maxSnoozes - used).coerceAtLeast(0)
 }
 
 private fun summonsIdOf(state: ExsurgeState, fallback: Long): Long = when (state) {

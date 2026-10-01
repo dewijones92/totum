@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -49,7 +50,7 @@ class ExsurgeTakeoverFlowTest {
     fun goFromTheTakeoverStartsTheBreak() {
         assertTrue(exsurge.view.value.memory.state is ExsurgeState.Summoned)
         ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
-            compose.onNodeWithTag("exsurge-go").performClick()
+            compose.onNodeWithTag("exsurge-go").performScrollTo().performClick()
             compose.waitUntil(5_000) { exsurge.view.value.memory.state !is ExsurgeState.Summoned }
         }
         val state = exsurge.view.value.memory.state
@@ -62,7 +63,7 @@ class ExsurgeTakeoverFlowTest {
     @Test
     fun skipFromTheTakeoverRecordsItAndRestartsTheClock() {
         ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
-            compose.onNodeWithTag("exsurge-skip").performClick()
+            compose.onNodeWithTag("exsurge-skip").performScrollTo().performClick()
             compose.waitUntil(5_000) {
                 val state = exsurge.view.value.memory.state
                 state is ExsurgeState.Sitting || state is ExsurgeState.Dormant

@@ -29,6 +29,8 @@ notification actions and a Quick Settings tile.
 - The Android side (`app/…/exsurge/`) only feeds events in and carries effects out, through
   `ExsurgeController` and the `ExsurgePorts` interface. No Android piece decides eligibility,
   remaining time or stats for itself.
+- A disagreement between the settings and the state (on, but the state is `Off`, or the reverse,
+  which a store that fails to decode can produce) heals on the next event, whatever it is.
 - State lives in its own SharedPreferences file and an outcomes JSON file, **not in Room**, so the
   side quest can never put the main database's schema at risk.
 

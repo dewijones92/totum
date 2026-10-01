@@ -37,12 +37,7 @@ public data class Transition(
 )
 
 public object ExsurgeMachine {
-    public val MISS_AFTER: Duration = Duration.ofMinutes(3)
-    public val CALL_INTERVAL: Duration = Duration.ofSeconds(60)
     public const val MAX_CALLS: Int = 3
-    public val RISE_TIMEOUT: Duration = Duration.ofMinutes(3)
-    public val MID_CUE_BEFORE_END: Duration = Duration.ofMinutes(2)
-    public val PAUSE_LENGTH: Duration = Duration.ofHours(1)
     private const val MAX_TICKS_PER_APPLY = 12
 
     public fun apply(memory: ExsurgeMemory, event: ExsurgeEvent, at: Instant, context: ExsurgeContext): Transition {
@@ -65,21 +60,24 @@ public object ExsurgeMachine {
             is Paused -> state.until
             is Sitting -> minOf(state.since + settings.sitting, settings.activeEndAfter(state.since, context.zone))
             is Summoned -> {
-                val missAt = state.waveStartedAt + MISS_AFTER
+                val missAt = state.waveStartedAt + settings.missAfter
                 val canCallAgain = settings.escalate && state.call < MAX_CALLS
-                if (canCallAgain) minOf(state.lastCallAt + CALL_INTERVAL, missAt) else missAt
+                if (canCallAgain) minOf(state.lastCallAt + settings.callInterval, missAt) else missAt
             }
             is Snoozed -> state.until
-            is Rising -> state.since + RISE_TIMEOUT
+            is Rising -> state.since + settings.riseTimeout
             is OnBreak -> {
                 val end = state.startedAt + settings.breakLength
-                if (midCueDue(state, settings)) end - MID_CUE_BEFORE_END else end
+                if (midCueDue(state, settings)) end - settings.midCueBeforeEnd else end
             }
         }
     }
 
+    public fun canPause(memory: ExsurgeMemory, at: Instant, zone: ZoneId): Boolean =
+        memory.state is Sitting && memory.pauseUsedOn != at.atZone(zone).toLocalDate()
+
     private fun midCueDue(state: OnBreak, settings: ExsurgeSettings): Boolean =
-        settings.midBreakCue && !state.midCueSpoken && settings.breakLength > MID_CUE_BEFORE_END
+        settings.midBreakCue && !state.midCueSpoken && settings.breakLength > settings.midCueBeforeEnd
 
     @Suppress("TooManyFunctions")
     private class Run(var memory: ExsurgeMemory, val at: Instant, val context: ExsurgeContext) {
@@ -94,6 +92,7 @@ public object ExsurgeMachine {
         }
 
         fun handle(event: ExsurgeEvent) {
+            if (event != ExsurgeEvent.SettingsChanged) healEnabled()
             val before = memory.state
             when (event) {
                 ExsurgeEvent.Tick -> tick()
@@ -146,13 +145,13 @@ public object ExsurgeMachine {
                 is Sitting -> tickSitting(state)
                 is Summoned -> tickSummoned(state)
                 is Snoozed -> tickSnoozed(state)
-                is Rising -> if (!at.isBefore(state.since + RISE_TIMEOUT)) {
+                is Rising -> if (!at.isBefore(state.since + settings.riseTimeout)) {
                     note(
-                        "no ${context.stepsToRise} steps within ${RISE_TIMEOUT.toMinutes()}m " +
+                        "no ${context.stepsToRise} steps within ${settings.riseTimeoutMinutes}m " +
                             "(counted ${state.steps}); " +
                             "starting the break anyway, unproven",
                     )
-                    startBreak(state.summons, state.baselineSteps, state.steps, proven = false)
+                    startBreak(state.summons, state.baselineSteps, state.steps, proven = false, required = true)
                 }
                 is OnBreak -> tickBreak(state)
             }
@@ -180,12 +179,13 @@ public object ExsurgeMachine {
 
         private fun tickSummoned(state: Summoned) {
             when {
-                !at.isBefore(state.waveStartedAt + MISS_AFTER) -> {
+                !at.isBefore(state.waveStartedAt + settings.missAfter) -> {
                     note("summons #${state.summons.id} unanswered after ${state.call} call(s): missed")
                     emit(HideTakeover, Record(outcome(state.summons, OutcomeKind.MISSED)))
                     arrive(OutcomeKind.MISSED)
                 }
-                settings.escalate && state.call < MAX_CALLS && !at.isBefore(state.lastCallAt + CALL_INTERVAL) -> {
+                settings.escalate && state.call < MAX_CALLS &&
+                    !at.isBefore(state.lastCallAt + settings.callInterval) -> {
                     val call = state.call + 1
                     become(state.copy(call = call, lastCallAt = at))
                     val cue = if (call >= MAX_CALLS) Cue.SUMMON_ORATION else Cue.SUMMON_LOUDER
@@ -214,14 +214,22 @@ public object ExsurgeMachine {
                     Buzz(Haptic.RELEASE),
                     ResumePlayback,
                     Record(
-                        outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven),
+                        outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven)
+                            .copy(stepsRequired = state.stepsRequired),
                     ),
                 )
                 arrive(OutcomeKind.COMPLETED)
-            } else if (midCueDue(state, settings) && !at.isBefore(end - MID_CUE_BEFORE_END)) {
+            } else if (midCueDue(state, settings) && !at.isBefore(end - settings.midCueBeforeEnd)) {
                 become(state.copy(midCueSpoken = true))
                 emit(Speak(Cue.TWO_MINUTES))
             }
+        }
+
+        private fun healEnabled() {
+            val state = memory.state
+            if (settings.enabled == (state != Off)) return
+            note("healing: settings say enabled=${settings.enabled} but the state was ${state.label()}")
+            settingsChanged()
         }
 
         private fun settingsChanged() {
@@ -263,14 +271,23 @@ public object ExsurgeMachine {
                     "GO: no steps required (setting=${settings.stepsToRise}, sensor=${context.stepsAvailable}); " +
                         "break starts now",
                 )
-                startBreak(summons, null, 0, proven = false)
+                startBreak(summons, null, 0, proven = false, required = false)
             } else {
                 become(Rising(summons, since = at))
             }
         }
 
-        private fun startBreak(summons: Summons, baseline: Long?, steps: Int, proven: Boolean) {
-            become(OnBreak(summons, startedAt = at, baselineSteps = baseline, steps = steps, stepsProven = proven))
+        private fun startBreak(summons: Summons, baseline: Long?, steps: Int, proven: Boolean, required: Boolean) {
+            become(
+                OnBreak(
+                    summons,
+                    at,
+                    baselineSteps = baseline,
+                    steps = steps,
+                    stepsProven = proven,
+                    stepsRequired = required,
+                ),
+            )
         }
 
         private fun snooze() {
@@ -304,10 +321,10 @@ public object ExsurgeMachine {
             val today = at.atZone(context.zone).toLocalDate()
             when {
                 memory.state !is Sitting -> note("pause ignored at state=${memory.state.label()}")
-                memory.pauseUsedOn == today -> note("pause refused: already used today")
+                !canPause(memory, at, context.zone) -> note("pause refused: already used today")
                 else -> {
                     memory = memory.copy(pauseUsedOn = today)
-                    become(Paused(at + PAUSE_LENGTH))
+                    become(Paused(at + settings.pauseLength))
                 }
             }
         }
@@ -319,7 +336,7 @@ public object ExsurgeMachine {
                     if (counted >= context.stepsToRise) {
                         note("risen: $counted steps (needed ${context.stepsToRise})")
                         emit(Speak(Cue.RISEN), Buzz(Haptic.STEPS_ACCEPTED))
-                        startBreak(state.summons, baseline, counted, proven = true)
+                        startBreak(state.summons, baseline, counted, proven = true, required = true)
                     } else {
                         become(state.copy(baselineSteps = baseline, steps = counted))
                     }
@@ -363,6 +380,13 @@ public fun ExsurgeState.label(): String = when (this) {
 }
 
 private fun ExsurgeEvent.label(): String = when (this) {
+    ExsurgeEvent.Tick -> "tick"
+    ExsurgeEvent.SettingsChanged -> "settingsChanged"
+    ExsurgeEvent.SummonNow -> "summonNow"
+    ExsurgeEvent.Go -> "go"
+    ExsurgeEvent.Snooze -> "snooze"
+    ExsurgeEvent.Skip -> "skip"
+    ExsurgeEvent.Walked -> "walked"
+    ExsurgeEvent.PauseHour -> "pauseHour"
     is ExsurgeEvent.StepsCounted -> "steps($total)"
-    else -> this::class.simpleName.orEmpty().replaceFirstChar { it.lowercase() }
 }

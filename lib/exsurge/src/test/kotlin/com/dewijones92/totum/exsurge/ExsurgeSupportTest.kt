@@ -240,4 +240,32 @@ class ExsurgeSupportTest {
         assertEquals(BannerLine.Sleeping(null), bannerLineOf(ExsurgeState.Dormant(null), now, context))
         assertEquals(BannerLine.Off, bannerLineOf(ExsurgeState.Off, now, context))
     }
+
+    @Test
+    fun `an unproven break that needed steps earns no laurel and breaks the streak`() {
+        val dodged = outcome(6, OutcomeKind.COMPLETED).copy(stepsProven = false, stepsRequired = true)
+        val stats = ExsurgeStats.of(listOf(outcome(5, OutcomeKind.COMPLETED), dodged), at(6, 12), zone)
+        assertEquals(1, stats.laurels)
+        assertEquals(0, stats.streakDays)
+    }
+
+    @Test
+    fun `an unproven break with no sensor still counts`() {
+        val noSensor = outcome(6, OutcomeKind.COMPLETED).copy(stepsProven = false, stepsRequired = false)
+        assertEquals(1, ExsurgeStats.of(listOf(noSensor), at(6, 12), zone).laurels)
+    }
+
+    @Test
+    fun `laurels archived out of the outcome log still count`() {
+        val stats = ExsurgeStats.of(listOf(outcome(5, OutcomeKind.COMPLETED)), at(5, 12), zone, archivedLaurels = 49)
+        assertEquals(50, stats.laurels)
+        assertEquals(Rank.CENTURIO, stats.rank)
+    }
+
+    @Test
+    fun `the banner promises no summons that active hours will end before`() {
+        val context = ExsurgeContext(settings, zone, stepsAvailable = true)
+        val line = bannerLineOf(ExsurgeState.Sitting(at(5, 17, 45)), at(5, 17, 50), context)
+        assertNull((line as BannerLine.Sitting).summonsAt)
+    }
 }

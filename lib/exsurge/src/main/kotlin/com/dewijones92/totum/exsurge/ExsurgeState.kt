@@ -61,6 +61,7 @@ public sealed interface ExsurgeState {
         val steps: Int,
         val stepsProven: Boolean,
         val midCueSpoken: Boolean = false,
+        val stepsRequired: Boolean = false,
     ) : ExsurgeState
 }
 
@@ -69,6 +70,7 @@ public data class ExsurgeMemory(
     val state: ExsurgeState = ExsurgeState.Off,
     val nextSummonsId: Long = 1,
     val pauseUsedOn: LocalDate? = null,
+    val archivedLaurels: Int = 0,
 )
 
 public sealed interface ExsurgeEvent {
@@ -110,4 +112,16 @@ public data class BreakOutcome(
     val breakStartedAt: Instant? = null,
     val steps: Int = 0,
     val stepsProven: Boolean = false,
-)
+    val stepsRequired: Boolean = false,
+) {
+    val credited: Boolean get() = kind == OutcomeKind.COMPLETED && (stepsProven || !stepsRequired)
+}
+
+public fun snoozesLeft(state: ExsurgeState, settings: ExsurgeSettings): Int {
+    val used = when (state) {
+        is ExsurgeState.Summoned -> state.summons.snoozes
+        is ExsurgeState.Snoozed -> state.summons.snoozes
+        else -> return 0
+    }
+    return (settings.maxSnoozes - used).coerceAtLeast(0)
+}

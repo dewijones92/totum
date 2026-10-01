@@ -12,6 +12,7 @@
     <string name="exsurge_banner_sleeping_never">Surgius sleeps · no active days set</string>
     <string name="exsurge_banner_paused">Paused until %1$s</string>
     <string name="exsurge_banner_sitting">Next summons %1$s</string>
+    <string name="exsurge_banner_no_more_today">No more summons today</string>
     <string name="exsurge_banner_sitting_detail">Sat %1$d of %2$d min · laurels today: %3$d · %4$s</string>
     <string name="exsurge_banner_summoned">EXSURGE! Time to stand up</string>
     <string name="exsurge_banner_summoned_detail">Call %1$d · snoozes left: %2$d</string>
@@ -39,6 +40,7 @@
     <string name="exsurge_tile_off">Off</string>
     <string name="exsurge_tile_sleeping">Sleeping</string>
     <string name="exsurge_tile_next">Next %1$s</string>
+    <string name="exsurge_tile_done">Done for today</string>
     <string name="exsurge_tile_now">Rise now!</string>
     <string name="exsurge_tile_break">On break</string>
 
@@ -52,14 +54,19 @@
     <string name="exsurge_settings_sitting">Sitting limit (minutes)</string>
     <string name="exsurge_settings_break">Break length (minutes)</string>
     <string name="exsurge_settings_steps">Steps to prove you are up</string>
-    <string name="exsurge_settings_walk">Steps in 5 minutes that reset the clock</string>
+    <string name="exsurge_settings_walk">Steps in the walking window that reset the clock</string>
     <string name="exsurge_settings_snooze">Snooze length (minutes)</string>
+    <string name="exsurge_settings_call_interval">Call again after (seconds)</string>
+    <string name="exsurge_settings_rise_timeout">Wait for steps before starting anyway (minutes)</string>
+    <string name="exsurge_settings_walk_window">Walking window (minutes)</string>
+    <string name="exsurge_settings_mid_cue_minutes">Break cue: minutes before the end</string>
+    <string name="exsurge_settings_pause_minutes">Pause length (minutes)</string>
     <string name="exsurge_settings_max_snoozes">Snoozes per summons</string>
     <string name="exsurge_settings_behaviour">Behaviour</string>
     <string name="exsurge_settings_escalate">Escalate if ignored</string>
     <string name="exsurge_settings_escalate_summary">Calls again after a minute, then once more, then counts it as missed</string>
     <string name="exsurge_settings_mid_cue">Two-minutes-left cue</string>
-    <string name="exsurge_settings_mid_cue_summary">Surgius says "Duo minuta restant"</string>
+    <string name="exsurge_settings_mid_cue_summary">Surgius says "Duo minuta restant" (worded for two)</string>
     <string name="exsurge_settings_quiet">Quiet office</string>
     <string name="exsurge_settings_quiet_summary">No voice: vibration only</string>
     <string name="exsurge_settings_volume">Voice volume (%)</string>

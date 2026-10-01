@@ -17,6 +17,9 @@ on:
       - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackController.kt"
       - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackInterruption.kt"
       - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/fake/FakePlaybackController.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/Media3PlaybackController.kt"
+      - "lib/common/**"
+      - "gradle/libs.versions.toml"
       - "tools/exsurge/**"
       - "build.gradle.kts"
       - "app/build.gradle.kts"
@@ -95,6 +98,12 @@ jobs:
       - name: Summarise
         if: always()
         run: python3 tools/ci/test-summary.py "Exsurge instrumented tests" app/build/outputs/androidTest-results
+
+      - name: Refuse a run that tested nothing
+        run: |
+          count=$(python3 -c "import glob,re; print(sum(len(re.findall(r'<testcase ', open(f).read())) for f in glob.glob('app/build/outputs/androidTest-results/connected/**/*.xml', recursive=True)))")
+          echo "exsurge instrumented tests run: $count"
+          test "$count" -gt 0
 
       - name: Upload reports
         if: always()

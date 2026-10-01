@@ -32,13 +32,12 @@ class ExsurgeTileService : TileService() {
         tile.icon = Icon.createWithBitmap(SurgiusPainter.glyphBitmap(ICON_PX))
         tile.label = getString(R.string.exsurge_tile_label)
         tile.state = if (view.settings.enabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.subtitle = when (val state = view.memory.state) {
+        tile.subtitle = when (view.memory.state) {
             ExsurgeState.Off -> getString(R.string.exsurge_tile_off)
             is ExsurgeState.Dormant, is ExsurgeState.Paused -> getString(R.string.exsurge_tile_sleeping)
-            is ExsurgeState.Sitting -> {
-                val next = state.since.plus(view.settings.sitting).atZone(view.zone)
-                getString(R.string.exsurge_tile_next, TIME.format(next))
-            }
+            is ExsurgeState.Sitting -> (view.banner as? BannerLine.Sitting)?.summonsAt
+                ?.let { getString(R.string.exsurge_tile_next, TIME.format(it.atZone(view.zone))) }
+                ?: getString(R.string.exsurge_tile_done)
             is ExsurgeState.Summoned, is ExsurgeState.Snoozed -> getString(R.string.exsurge_tile_now)
             is ExsurgeState.Rising, is ExsurgeState.OnBreak -> getString(R.string.exsurge_tile_break)
         }

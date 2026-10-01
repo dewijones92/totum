@@ -16,8 +16,15 @@ class ExsurgeControllerTest {
     private val ports = RecordingPorts()
     private val store = InMemoryExsurgeStore()
 
-    private fun controller(steps: Boolean = true) =
-        ExsurgeController(store, ports, clock = { now }, zone = { zone }, sensorStepsAvailable = { steps })
+    private fun controller(steps: Boolean = true, maxOutcomes: Int = 5000) =
+        ExsurgeController(
+            store,
+            ports,
+            clock = { now },
+            zone = { zone },
+            sensorStepsAvailable = { steps },
+            maxOutcomes = maxOutcomes,
+        )
 
     private fun advance(minutes: Long = 0, seconds: Long = 0) {
         now = now.plus(Duration.ofMinutes(minutes)).plusSeconds(seconds)
@@ -78,6 +85,21 @@ class ExsurgeControllerTest {
         exsurge.dispatch(ExsurgeEvent.Go, "takeover")
         exsurge.onStepCounter(1020)
         assertTrue(exsurge.view.value.memory.state is ExsurgeState.OnBreak)
+    }
+
+    @Test
+    fun `laurels trimmed out of the history are archived, so they never go down`() {
+        store.outcomes = (1L..3L).map {
+            BreakOutcome(it, now.minus(Duration.ofDays(1)), now.minus(Duration.ofDays(1)), OutcomeKind.COMPLETED, 0)
+        }
+        val exsurge = controller(steps = false, maxOutcomes = 3)
+        exsurge.turnOn()
+        advance(minutes = 30)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        exsurge.dispatch(ExsurgeEvent.Skip, "takeover")
+        assertEquals(3, store.outcomes.size)
+        assertEquals(1, store.memory.archivedLaurels)
+        assertEquals(3, exsurge.view.value.stats.laurels)
     }
 
     @Test

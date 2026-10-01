@@ -23,3 +23,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 5 | [Exsurge wakes with exact alarms, and a health foreground service holds the step counter](0005-exsurge-alarms-and-the-sticky-banner.md) | Accepted |
 | 6 | [The takeover uses a full-screen intent, plus "display over other apps" when granted](0006-exsurge-takeover-over-other-apps.md) | Accepted |
 | 7 | [Exsurge's tests run only when its area changes](0007-exsurge-tests-run-only-when-touched.md) | Accepted |
+| 8 | [An unproven break earns no laurel](0008-an-unproven-break-earns-no-laurel.md) | Accepted |

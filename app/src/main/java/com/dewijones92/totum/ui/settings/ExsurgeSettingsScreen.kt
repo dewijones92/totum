@@ -153,6 +153,31 @@ private val TIMING = listOf(
     StepperSpec(R.string.exsurge_settings_max_snoozes, 1, ExsurgeSettings.MAX_SNOOZE_RANGE, { it.maxSnoozes }) {
         copy(maxSnoozes = it)
     },
+    StepperSpec(
+        R.string.exsurge_settings_call_interval,
+        15,
+        ExsurgeSettings.CALL_INTERVAL_RANGE,
+        { it.callIntervalSeconds },
+    ) {
+        copy(callIntervalSeconds = it)
+    },
+    StepperSpec(
+        R.string.exsurge_settings_rise_timeout,
+        1,
+        ExsurgeSettings.RISE_TIMEOUT_RANGE,
+        { it.riseTimeoutMinutes },
+    ) {
+        copy(riseTimeoutMinutes = it)
+    },
+    StepperSpec(R.string.exsurge_settings_walk_window, 1, ExsurgeSettings.WALK_WINDOW_RANGE, { it.walkWindowMinutes }) {
+        copy(walkWindowMinutes = it)
+    },
+    StepperSpec(R.string.exsurge_settings_mid_cue_minutes, 1, ExsurgeSettings.MID_CUE_RANGE, { it.midCueMinutes }) {
+        copy(midCueMinutes = it)
+    },
+    StepperSpec(R.string.exsurge_settings_pause_minutes, 15, ExsurgeSettings.PAUSE_RANGE, { it.pauseMinutes }) {
+        copy(pauseMinutes = it)
+    },
 )
 
 private val VOLUME = StepperSpec(R.string.exsurge_settings_volume, 10, 0..100, { it.voiceVolumePercent }) {

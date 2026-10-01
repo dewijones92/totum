@@ -384,6 +384,8 @@ EXSURGE_SEAMS = [
     "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackInterruption.kt",
     "app/src/main/java/com/dewijones92/totum/di/AppContainer.kt",
     "app/src/main/AndroidManifest.xml",
+    "core/playback/src/main/kotlin/com/dewijones92/totum/playback/Media3PlaybackController.kt",
+    "gradle/libs.versions.toml",
 ]
 
 

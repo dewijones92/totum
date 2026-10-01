@@ -24,7 +24,12 @@ class SharedPrefsExsurgeStore(context: Context) : ExsurgePersistence {
     override fun loadOutcomes(): List<BreakOutcome> {
         if (!outcomesFile.exists()) return emptyList()
         return runCatching { ExsurgeCodec.decodeOutcomes(outcomesFile.readText()) }
-            .onFailure { Diag.warn(ExsurgeController.TAG, "dewidebug exsurge outcomes unreadable, starting empty", it) }
+            .onFailure {
+                val kept = File(outcomesFile.parentFile, "outcomes.corrupt-${System.currentTimeMillis()}.json")
+                val moved = outcomesFile.renameTo(kept)
+                val note = "dewidebug exsurge outcomes unreadable; kept aside as ${kept.name} moved=$moved"
+                Diag.warn(ExsurgeController.TAG, note, it)
+            }
             .getOrDefault(emptyList())
     }
 

@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 
@@ -14,7 +16,7 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
         val action = intent.action.orEmpty()
         Diag.log(ExsurgeController.TAG, "dewidebug exsurge receiver action=$action")
         when (action) {
-            TICK -> exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+            TICK -> tickAfterFlush(exsurge)
             SNOOZE -> exsurge.dispatch(ExsurgeEvent.Snooze, "notification")
             SKIP -> exsurge.dispatch(ExsurgeEvent.Skip, "notification")
             SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
@@ -29,7 +31,20 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun tickAfterFlush(exsurge: ExsurgeController) {
+        if (!ExsurgeBannerService.flushSteps()) return exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        val pending = goAsync()
+        Handler(Looper.getMainLooper()).postDelayed(
+            {
+                exsurge.dispatch(ExsurgeEvent.Tick, "alarm, after flushing steps")
+                pending.finish()
+            },
+            FLUSH_WAIT_MS,
+        )
+    }
+
     companion object {
+        private const val FLUSH_WAIT_MS = 750L
         const val TICK = "com.dewijones92.totum.exsurge.TICK"
         const val SNOOZE = "com.dewijones92.totum.exsurge.SNOOZE"
         const val SKIP = "com.dewijones92.totum.exsurge.SKIP"

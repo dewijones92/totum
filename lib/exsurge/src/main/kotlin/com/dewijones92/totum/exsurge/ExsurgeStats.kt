@@ -29,8 +29,9 @@ public data class DayTally(
     val missed: Int = 0,
     val steps: Int = 0,
     val minutesStanding: Long = 0,
+    val unproven: Int = 0,
 ) {
-    val summons: Int get() = completed + skipped + missed
+    val summons: Int get() = completed + skipped + missed + unproven
 }
 
 public data class ExsurgeStats(
@@ -43,11 +44,16 @@ public data class ExsurgeStats(
     val laurelsToNextRank: Int? get() = rank.next?.let { it.laurels - laurels }
 
     public companion object {
-        public fun of(outcomes: List<BreakOutcome>, now: Instant, zone: ZoneId): ExsurgeStats {
+        public fun of(
+            outcomes: List<BreakOutcome>,
+            now: Instant,
+            zone: ZoneId,
+            archivedLaurels: Int = 0,
+        ): ExsurgeStats {
             val byDay = outcomes.groupBy { it.resolvedAt.atZone(zone).toLocalDate() }
             val today = now.atZone(zone).toLocalDate()
             val week = (0L until DAYS_IN_WEEK).map { today.minusDays(it) }
-            val laurels = outcomes.count { it.kind == OutcomeKind.COMPLETED }
+            val laurels = archivedLaurels + outcomes.count { it.credited }
             return ExsurgeStats(
                 today = tally(byDay[today].orEmpty()),
                 lastSevenDays = tally(week.flatMap { byDay[it].orEmpty() }),
@@ -58,15 +64,16 @@ public data class ExsurgeStats(
         }
 
         public fun promoted(before: List<BreakOutcome>, after: List<BreakOutcome>): Rank? {
-            val was = Rank.forLaurels(before.count { it.kind == OutcomeKind.COMPLETED })
-            val now = Rank.forLaurels(after.count { it.kind == OutcomeKind.COMPLETED })
+            val was = Rank.forLaurels(before.count { it.credited })
+            val now = Rank.forLaurels(after.count { it.credited })
             return now.takeIf { it > was }
         }
 
         private const val DAYS_IN_WEEK = 7L
 
         private fun tally(outcomes: List<BreakOutcome>) = DayTally(
-            completed = outcomes.count { it.kind == OutcomeKind.COMPLETED },
+            completed = outcomes.count { it.credited },
+            unproven = outcomes.count { it.kind == OutcomeKind.COMPLETED && !it.credited },
             skipped = outcomes.count { it.kind == OutcomeKind.SKIPPED },
             missed = outcomes.count { it.kind == OutcomeKind.MISSED },
             steps = outcomes.sumOf { it.steps },
@@ -83,7 +90,7 @@ public data class ExsurgeStats(
                 val outcomes = byDay[day].orEmpty()
                 when {
                     outcomes.isEmpty() -> Unit
-                    outcomes.all { it.kind == OutcomeKind.COMPLETED } -> streak++
+                    outcomes.all { it.credited } -> streak++
                     day == today -> return 0
                     else -> return streak
                 }

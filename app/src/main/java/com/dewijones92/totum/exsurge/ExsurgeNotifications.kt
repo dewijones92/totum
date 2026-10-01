@@ -193,17 +193,7 @@ class BannerText(private val context: Context) {
                 streak,
                 null
             )
-            is BannerLine.Sitting -> Triple(
-                context.getString(R.string.exsurge_banner_sitting, time(line.summonsAt, view.zone)),
-                context.getString(
-                    R.string.exsurge_banner_sitting_detail,
-                    line.satMinutes.toInt(),
-                    line.limitMinutes,
-                    stats.today.completed,
-                    stats.rank.latin
-                ),
-                line.satMinutes.toInt() to line.limitMinutes,
-            )
+            is BannerLine.Sitting -> sitting(line, view)
             is BannerLine.Summoned -> Triple(
                 context.getString(R.string.exsurge_banner_summoned),
                 context.getString(R.string.exsurge_banner_summoned_detail, line.call, line.snoozesLeft),
@@ -223,16 +213,31 @@ class BannerText(private val context: Context) {
                 streak,
                 if (line.needed > 0) line.steps to line.needed else null,
             )
-            is BannerLine.OnBreak -> {
-                val total = view.settings.breakMinutes * SECONDS_PER_MINUTE
-                val left = ChronoUnit.SECONDS.between(view.at, line.endsAt).toInt().coerceIn(0, total)
-                Triple(
-                    context.getString(R.string.exsurge_banner_break, time(line.endsAt, view.zone)),
-                    context.getString(R.string.exsurge_banner_break_detail, line.steps),
-                    total - left to total,
-                )
-            }
+            is BannerLine.OnBreak -> onBreak(line, view)
         }
+    }
+
+    private fun sitting(line: BannerLine.Sitting, view: ExsurgeView): Triple<String, String, Pair<Int, Int>?> = Triple(
+        line.summonsAt?.let { context.getString(R.string.exsurge_banner_sitting, time(it, view.zone)) }
+            ?: context.getString(R.string.exsurge_banner_no_more_today),
+        context.getString(
+            R.string.exsurge_banner_sitting_detail,
+            line.satMinutes.toInt(),
+            line.limitMinutes,
+            view.stats.today.completed,
+            view.stats.rank.latin,
+        ),
+        line.satMinutes.toInt() to line.limitMinutes,
+    )
+
+    private fun onBreak(line: BannerLine.OnBreak, view: ExsurgeView): Triple<String, String, Pair<Int, Int>?> {
+        val total = view.settings.breakMinutes * SECONDS_PER_MINUTE
+        val left = ChronoUnit.SECONDS.between(view.at, line.endsAt).toInt().coerceIn(0, total)
+        return Triple(
+            context.getString(R.string.exsurge_banner_break, time(line.endsAt, view.zone)),
+            context.getString(R.string.exsurge_banner_break_detail, line.steps),
+            total - left to total,
+        )
     }
 
     private fun time(at: Instant, zone: ZoneId): String = TIME.format(at.atZone(zone))
