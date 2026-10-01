@@ -316,17 +316,18 @@ public class Media3PlaybackController(
         }
     }
 
-    override fun pause() {
-        withController { if (it.playWhenReady) pauseNow(it) }
+    override fun setPlaying(wanted: Boolean) {
+        withController {
+            when {
+                wanted -> it.play()
+                it.playWhenReady -> pauseNow(it)
+            }
+        }
     }
 
     private fun pauseNow(controller: MediaController) {
         controller.pause()
         saveProgress(controller) // capture where we paused straight away
-    }
-
-    override fun resume() {
-        withController { it.play() }
     }
 
     override fun seekTo(positionMs: Long) {

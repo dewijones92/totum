@@ -55,9 +55,12 @@ val androidDefaults: com.android.build.api.dsl.CommonExtension.() -> Unit = {
  */
 val liveTestsRequested = providers.gradleProperty("totum.liveTests").isPresent
 
+val exsurgeTestsRequested = providers.gradleProperty("totum.exsurgeTests").isPresent
+
 val optInTestPhases = mapOf(
   "com.dewijones92.totum.*.live.*" to liveTestsRequested,
   "com.dewijones92.totum.*.audioquality.*" to providers.gradleProperty("totum.audioQualityTests").isPresent,
+  "com.dewijones92.totum.exsurge.*" to exsurgeTestsRequested,
 )
 
 // Every module gets the same static-analysis gate; adding a module adds its gate.
@@ -122,10 +125,12 @@ subprojects {
   val koverExemptAdapters = setOf(":core:database", ":lib:ytdlp-chaquopy", ":core:playback")
   if ((path.startsWith(":core") || path.startsWith(":lib")) && path !in koverExemptAdapters) {
     apply(plugin = "org.jetbrains.kotlinx.kover")
+    val optInOnly = path == ":lib:exsurge" && !exsurgeTestsRequested
     extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
       reports {
         verify {
           rule {
+            disabled.set(optInOnly)
             minBound(MIN_LOGIC_MODULE_COVERAGE_PERCENT)
           }
         }

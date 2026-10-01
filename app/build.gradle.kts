@@ -13,6 +13,9 @@ android {
         // Our own runner, only so POST_NOTIFICATIONS is granted before any test plays anything.
         // See TotumTestRunner for why it cannot be a shell script or a per-test rule.
         testInstrumentationRunner = "com.dewijones92.totum.TotumTestRunner"
+        if (!project.hasProperty("totum.exsurgeTests")) {
+            testInstrumentationRunnerArguments["notPackage"] = "com.dewijones92.totum.exsurge"
+        }
         // CI passes monotonically increasing values (-PversionCode / -PversionName)
         // so Obtainium sees every main-tip build as an upgrade.
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
@@ -103,6 +106,7 @@ dependencies {
   implementation(project(":core:domain"))
   implementation(project(":lib:ytdlp-chaquopy"))
   implementation(project(":lib:innertube"))
+  implementation(project(":lib:exsurge"))
 
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)

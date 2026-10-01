@@ -16,5 +16,15 @@
             android:name="androidx.activity.ComponentActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
             tools:replace="android:configChanges" />
+        <receiver
+            android:name="com.dewijones92.totum.exsurge.ExsurgeDebugReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.dewijones92.totum.exsurge.DEBUG_STEPS" />
+                <action android:name="com.dewijones92.totum.exsurge.DEBUG_TICK" />
+                <action android:name="com.dewijones92.totum.exsurge.DEBUG_SUMMON" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

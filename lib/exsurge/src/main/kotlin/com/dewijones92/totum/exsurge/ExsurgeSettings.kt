@@ -18,8 +18,8 @@ public const val LOQUAX_PRACTICE_ROUTE: String = "/practice"
 public data class ExsurgeSettings(
     val enabled: Boolean = false,
     val activeDays: Set<DayOfWeek> = WEEKDAYS,
-    val startMinuteOfDay: Int = 9 * MINUTES_PER_HOUR,
-    val endMinuteOfDay: Int = 18 * MINUTES_PER_HOUR,
+    val startMinuteOfDay: Int = DEFAULT_START_MINUTE,
+    val endMinuteOfDay: Int = DEFAULT_END_MINUTE,
     val sittingMinutes: Int = 30,
     val breakMinutes: Int = 5,
     val stepsToRise: Int = 20,
@@ -79,7 +79,11 @@ public data class ExsurgeSettings(
         day.atTime(timeOf(startMinuteOfDay)).atZone(zone).toInstant()
 
     private fun timeOf(minuteOfDay: Int): LocalTime =
-        if (minuteOfDay >= MINUTES_PER_DAY) LocalTime.MAX else LocalTime.of(minuteOfDay / MINUTES_PER_HOUR, minuteOfDay % MINUTES_PER_HOUR)
+        if (minuteOfDay >= MINUTES_PER_DAY) {
+            LocalTime.MAX
+        } else {
+            LocalTime.of(minuteOfDay / MINUTES_PER_HOUR, minuteOfDay % MINUTES_PER_HOUR)
+        }
 
     public companion object {
         public val WEEKDAYS: Set<DayOfWeek> = DayOfWeek.entries.filter { it <= DayOfWeek.FRIDAY }.toSet()
@@ -89,10 +93,15 @@ public data class ExsurgeSettings(
         public val WALK_RESET_RANGE: IntRange = 0..1000
         public val SNOOZE_RANGE: IntRange = 1..15
         public val MAX_SNOOZE_RANGE: IntRange = 0..5
-        private const val MINUTES_PER_HOUR = 60
+        public const val MINUTES_PER_HOUR: Int = 60
+        private const val DEFAULT_START_MINUTE = 9 * MINUTES_PER_HOUR
+        private const val DEFAULT_END_MINUTE = 18 * MINUTES_PER_HOUR
         private const val MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
         private const val LAST_MINUTE_OF_DAY = MINUTES_PER_DAY - 1
         private const val PERCENT = 100
         private const val DAYS_TO_SEARCH = 8
     }
 }
+
+public fun clockText(minuteOfDay: Int): String =
+    "%02d:%02d".format(minuteOfDay / ExsurgeSettings.MINUTES_PER_HOUR, minuteOfDay % ExsurgeSettings.MINUTES_PER_HOUR)

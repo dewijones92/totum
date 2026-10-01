@@ -18,12 +18,13 @@ public class PlaybackInterruption(private val controller: PlaybackController, pr
     public fun interrupt(): Boolean {
         val state = controller.state.value
         if (state == null || !state.wantsToPlay) {
-            Diag.log(tag, "dewidebug interrupt: nothing to pause (state=${state?.let { "wantsToPlay=false item=${it.itemId.value}" } ?: "nothing queued"})")
+            val seen = state?.let { "wantsToPlay=false item=${it.itemId.value}" } ?: "nothing queued"
+            Diag.log(tag, "dewidebug interrupt: nothing to pause ($seen)")
             return false
         }
         held = state.itemId
         supersededBy = null
-        controller.pause()
+        controller.setPlaying(false)
         Diag.log(tag, "dewidebug interrupt: paused item=${state.itemId.value} at ${state.positionMs}ms")
         return true
     }
@@ -48,7 +49,7 @@ public class PlaybackInterruption(private val controller: PlaybackController, pr
             item == null -> Released.LeftAlone(supersededBy?.let { "superseded: $it" } ?: "nothing was paused")
             controller.state.value?.itemId != item -> Released.LeftAlone("item changed before release")
             else -> {
-                controller.resume()
+                controller.setPlaying(true)
                 Released.Resumed(item)
             }
         }

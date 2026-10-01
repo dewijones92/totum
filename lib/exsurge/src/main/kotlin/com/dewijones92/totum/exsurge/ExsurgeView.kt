@@ -18,7 +18,7 @@ public enum class Mood { CONTENT, SUMMONING, CHEERING, COUNTING, FREEING, WOUNDE
 public fun moodOf(state: ExsurgeState, at: Instant): Mood = when (state) {
     Off, is Dormant, is Paused -> Mood.SLEEPING
     is Sitting -> when {
-        state.after == OutcomeKind.COMPLETED && Duration.between(state.since, at) < Duration.ofMinutes(1) -> Mood.FREEING
+        state.after == OutcomeKind.COMPLETED && Duration.between(state.since, at) < FREEING_FOR -> Mood.FREEING
         state.after == OutcomeKind.SKIPPED || state.after == OutcomeKind.MISSED -> Mood.WOUNDED
         else -> Mood.CONTENT
     }
@@ -26,6 +26,8 @@ public fun moodOf(state: ExsurgeState, at: Instant): Mood = when (state) {
     is Rising -> Mood.CHEERING
     is OnBreak -> Mood.COUNTING
 }
+
+private val FREEING_FOR: Duration = Duration.ofMinutes(1)
 
 public sealed interface BannerLine {
     public data object Off : BannerLine
@@ -65,8 +67,10 @@ public object ExsurgeCodec {
 
     public fun encodeMemory(memory: ExsurgeMemory): String = json.encodeToString(ExsurgeMemory.serializer(), memory)
     public fun decodeMemory(text: String): ExsurgeMemory = json.decodeFromString(ExsurgeMemory.serializer(), text)
-    public fun encodeSettings(settings: ExsurgeSettings): String = json.encodeToString(ExsurgeSettings.serializer(), settings)
-    public fun decodeSettings(text: String): ExsurgeSettings = json.decodeFromString(ExsurgeSettings.serializer(), text).validated()
+    public fun encodeSettings(settings: ExsurgeSettings): String =
+        json.encodeToString(ExsurgeSettings.serializer(), settings)
+    public fun decodeSettings(text: String): ExsurgeSettings =
+        json.decodeFromString(ExsurgeSettings.serializer(), text).validated()
     public fun encodeOutcomes(list: List<BreakOutcome>): String = json.encodeToString(outcomes, list)
     public fun decodeOutcomes(text: String): List<BreakOutcome> = json.decodeFromString(outcomes, text)
 }

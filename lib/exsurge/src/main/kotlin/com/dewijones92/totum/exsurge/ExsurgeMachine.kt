@@ -19,6 +19,8 @@ import com.dewijones92.totum.exsurge.ExsurgeState.Summoned
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
 
 public data class ExsurgeContext(
     val settings: ExsurgeSettings,
@@ -64,7 +66,8 @@ public object ExsurgeMachine {
             is Sitting -> minOf(state.since + settings.sitting, settings.activeEndAfter(state.since, context.zone))
             is Summoned -> {
                 val missAt = state.waveStartedAt + MISS_AFTER
-                if (settings.escalate && state.call < MAX_CALLS) minOf(state.lastCallAt + CALL_INTERVAL, missAt) else missAt
+                val canCallAgain = settings.escalate && state.call < MAX_CALLS
+                if (canCallAgain) minOf(state.lastCallAt + CALL_INTERVAL, missAt) else missAt
             }
             is Snoozed -> state.until
             is Rising -> state.since + RISE_TIMEOUT
@@ -78,6 +81,7 @@ public object ExsurgeMachine {
     private fun midCueDue(state: OnBreak, settings: ExsurgeSettings): Boolean =
         settings.midBreakCue && !state.midCueSpoken && settings.breakLength > MID_CUE_BEFORE_END
 
+    @Suppress("TooManyFunctions")
     private class Run(var memory: ExsurgeMemory, val at: Instant, val context: ExsurgeContext) {
         private val effects = mutableListOf<ExsurgeEffect>()
         private val notes = mutableListOf<String>()
@@ -120,14 +124,15 @@ public object ExsurgeMachine {
                 become(Sitting(at, after))
             } else {
                 become(Dormant(settings.nextActiveStart(at, context.zone)))
-                note("outside active hours (${describeHours()}), dormant until ${(memory.state as Dormant).resumesAt ?: "never"}")
+                val resumesAt = (memory.state as Dormant).resumesAt ?: "never"
+                note("outside active hours (${describeHours()}), dormant until $resumesAt")
             }
         }
 
-        private fun describeHours() =
-            "days=${settings.activeDays.sorted().joinToString(",") { it.name.take(3) }} " +
-                "${settings.startMinuteOfDay / 60}:${"%02d".format(settings.startMinuteOfDay % 60)}" +
-                "-${settings.endMinuteOfDay / 60}:${"%02d".format(settings.endMinuteOfDay % 60)}"
+        private fun describeHours(): String {
+            val days = settings.activeDays.sorted().joinToString(",") { it.getDisplayName(TextStyle.SHORT, Locale.UK) }
+            return "days=$days ${clockText(settings.startMinuteOfDay)}-${clockText(settings.endMinuteOfDay)}"
+        }
 
         private fun tick() {
             when (val state = memory.state) {
@@ -138,7 +143,11 @@ public object ExsurgeMachine {
                 is Summoned -> tickSummoned(state)
                 is Snoozed -> tickSnoozed(state)
                 is Rising -> if (!at.isBefore(state.since + RISE_TIMEOUT)) {
-                    note("no ${context.stepsToRise} steps within ${RISE_TIMEOUT.toMinutes()}m (counted ${state.steps}); starting the break anyway, unproven")
+                    note(
+                        "no ${context.stepsToRise} steps within ${RISE_TIMEOUT.toMinutes()}m " +
+                            "(counted ${state.steps}); " +
+                            "starting the break anyway, unproven",
+                    )
                     startBreak(state.summons, state.baselineSteps, state.steps, proven = false)
                 }
                 is OnBreak -> tickBreak(state)
@@ -175,7 +184,8 @@ public object ExsurgeMachine {
                 settings.escalate && state.call < MAX_CALLS && !at.isBefore(state.lastCallAt + CALL_INTERVAL) -> {
                     val call = state.call + 1
                     become(state.copy(call = call, lastCallAt = at))
-                    emit(ShowTakeover(state.summons.id, call), Speak(if (call >= MAX_CALLS) Cue.SUMMON_ORATION else Cue.SUMMON_LOUDER), Buzz(Haptic.SUMMONS))
+                    val cue = if (call >= MAX_CALLS) Cue.SUMMON_ORATION else Cue.SUMMON_LOUDER
+                    emit(ShowTakeover(state.summons.id, call), Speak(cue), Buzz(Haptic.SUMMONS))
                 }
             }
         }
@@ -199,7 +209,9 @@ public object ExsurgeMachine {
                     Speak(Cue.FREE),
                     Buzz(Haptic.RELEASE),
                     ResumePlayback,
-                    Record(outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven)),
+                    Record(
+                        outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven),
+                    ),
                 )
                 arrive(OutcomeKind.COMPLETED)
             } else if (midCueDue(state, settings) && !at.isBefore(end - MID_CUE_BEFORE_END)) {
@@ -243,7 +255,10 @@ public object ExsurgeMachine {
             emit(HideTakeover, Speak(Cue.GO), OpenDestination)
             if (settings.pausePlayback) emit(PausePlayback)
             if (context.stepsToRise == 0) {
-                note("GO: no steps required (setting=${settings.stepsToRise}, sensor=${context.stepsAvailable}); break starts now")
+                note(
+                    "GO: no steps required (setting=${settings.stepsToRise}, sensor=${context.stepsAvailable}); " +
+                        "break starts now",
+                )
                 startBreak(summons, null, 0, proven = false)
             } else {
                 become(Rising(summons, since = at))
@@ -276,7 +291,8 @@ public object ExsurgeMachine {
 
         private fun walked() {
             val state = memory.state as? Sitting ?: return
-            note("walked ${settings.walkResetSteps}+ steps after sitting ${Duration.between(state.since, at).toMinutes()}m: clock reset")
+            val sat = Duration.between(state.since, at).toMinutes()
+            note("walked ${settings.walkResetSteps}+ steps after sitting ${sat}m: clock reset")
             become(Sitting(at, state.after))
         }
 

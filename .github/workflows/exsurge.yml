@@ -1,0 +1,107 @@
+name: Exsurge et Disce
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/exsurge/**"
+      - "app/src/*/java/com/dewijones92/totum/exsurge/**"
+      - "app/src/main/java/com/dewijones92/totum/ui/settings/ExsurgeSettingsScreen.kt"
+      - "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt"
+      - "app/src/main/java/com/dewijones92/totum/di/AppContainer.kt"
+      - "app/src/main/java/com/dewijones92/totum/TotumApplication.kt"
+      - "app/src/main/res/values/exsurge_strings.xml"
+      - "app/src/main/res/raw/exsurge_*"
+      - "app/src/main/AndroidManifest.xml"
+      - "app/src/debug/AndroidManifest.xml"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackController.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackInterruption.kt"
+      - "core/playback/src/main/kotlin/com/dewijones92/totum/playback/fake/FakePlaybackController.kt"
+      - "tools/exsurge/**"
+      - "build.gradle.kts"
+      - "app/build.gradle.kts"
+      - ".github/workflows/exsurge.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Exsurge unit tests + coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run the Exsurge suite
+        run: ./gradlew :lib:exsurge:test :lib:exsurge:koverVerify :app:testDebugUnitTest -Ptotum.exsurgeTests --no-daemon
+
+      - name: Summarise
+        if: always()
+        run: python3 tools/ci/test-summary.py "Exsurge unit tests" lib/exsurge/build/test-results/test app/build/test-results/testDebugUnitTest
+
+      - name: Refuse a run that tested nothing
+        run: |
+          count=$(python3 -c "import glob,re; print(sum(int(re.search(r'tests=\"(\d+)\"', open(f).read()).group(1)) for f in glob.glob('lib/exsurge/build/test-results/test/TEST-*.xml') + glob.glob('app/build/test-results/testDebugUnitTest/TEST-*.exsurge.*.xml')))")
+          echo "exsurge unit tests run: $count"
+          test "$count" -gt 0
+
+  instrumented:
+    name: Exsurge instrumented tests (emulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the Exsurge instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          script: |
+            adb shell input keyevent 82
+            adb shell svc power stayon true
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            sh -c './gradlew :app:connectedDebugAndroidTest --no-daemon -Ptotum.exsurgeTests -Pandroid.testInstrumentationRunnerArguments.package=com.dewijones92.totum.exsurge; rc=$?; mkdir -p build/ci-logs; adb logcat -d > build/ci-logs/logcat.txt 2>/dev/null || true; exit $rc'
+
+      - name: Summarise
+        if: always()
+        run: python3 tools/ci/test-summary.py "Exsurge instrumented tests" app/build/outputs/androidTest-results
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: exsurge-instrumented-reports
+          path: |
+            app/build/reports/androidTests/**
+            app/build/outputs/androidTest-results/**
+            build/ci-logs/**

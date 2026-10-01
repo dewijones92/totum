@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exsurge_name">Exsurge et Disce</string>
+    <string name="exsurge_motto">Surge, disce, liber esto · rise, learn, be free</string>
+    <string name="exsurge_surgius">Surgius, the Roman orator</string>
+
+    <string name="exsurge_channel_banner">Exsurge et Disce: status</string>
+    <string name="exsurge_channel_summons">Exsurge et Disce: summons</string>
+
+    <string name="exsurge_banner_off">Exsurge et Disce is off</string>
+    <string name="exsurge_banner_sleeping">Surgius sleeps · back %1$s</string>
+    <string name="exsurge_banner_sleeping_never">Surgius sleeps · no active days set</string>
+    <string name="exsurge_banner_paused">Paused until %1$s</string>
+    <string name="exsurge_banner_sitting">Next summons %1$s</string>
+    <string name="exsurge_banner_sitting_detail">Sat %1$d of %2$d min · laurels today: %3$d · %4$s</string>
+    <string name="exsurge_banner_summoned">EXSURGE! Time to stand up</string>
+    <string name="exsurge_banner_summoned_detail">Call %1$d · snoozes left: %2$d</string>
+    <string name="exsurge_banner_snoozed">Snoozed until %1$s</string>
+    <string name="exsurge_banner_rising">Stand up and walk · steps: %1$d of %2$d</string>
+    <string name="exsurge_banner_rising_no_steps">Stand up: the break is starting</string>
+    <string name="exsurge_banner_break">On break until %1$s</string>
+    <string name="exsurge_banner_break_detail">Steps so far: %1$d · then Liber es!</string>
+    <string name="exsurge_banner_streak">Streak: %1$d · %2$s</string>
+
+    <string name="exsurge_action_go">GO</string>
+    <string name="exsurge_action_go_to">GO → %1$s</string>
+    <string name="exsurge_action_snooze">Snooze %1$d min (left: %2$d)</string>
+    <string name="exsurge_action_snooze_none">No snoozes left</string>
+    <string name="exsurge_action_skip">Skip this one</string>
+    <string name="exsurge_action_summon_now">Summon now</string>
+    <string name="exsurge_action_pause_hour">Pause 1 hour</string>
+
+    <string name="exsurge_takeover_title">EXSURGE!</string>
+    <string name="exsurge_takeover_subtitle">Sitting: %1$d min. Up, walk and practise for %2$d min.</string>
+    <string name="exsurge_takeover_call">Call %1$d of 3</string>
+    <string name="exsurge_destination_missing">%1$s is not installed</string>
+
+    <string name="exsurge_tile_label">Exsurge</string>
+    <string name="exsurge_tile_off">Off</string>
+    <string name="exsurge_tile_sleeping">Sleeping</string>
+    <string name="exsurge_tile_next">Next %1$s</string>
+    <string name="exsurge_tile_now">Rise now!</string>
+    <string name="exsurge_tile_break">On break</string>
+
+    <string name="exsurge_settings_row">Exsurge et Disce: stand up and study</string>
+    <string name="exsurge_settings_enabled">Summon me to stand up</string>
+    <string name="exsurge_settings_enabled_summary">After sitting a while, Surgius takes over the screen and sends you to Loquax for a walking break</string>
+    <string name="exsurge_settings_hours">Active hours</string>
+    <string name="exsurge_settings_from">From</string>
+    <string name="exsurge_settings_until">Until</string>
+    <string name="exsurge_settings_timing">Timing</string>
+    <string name="exsurge_settings_sitting">Sitting limit (minutes)</string>
+    <string name="exsurge_settings_break">Break length (minutes)</string>
+    <string name="exsurge_settings_steps">Steps to prove you are up</string>
+    <string name="exsurge_settings_walk">Steps in 5 minutes that reset the clock</string>
+    <string name="exsurge_settings_snooze">Snooze length (minutes)</string>
+    <string name="exsurge_settings_max_snoozes">Snoozes per summons</string>
+    <string name="exsurge_settings_behaviour">Behaviour</string>
+    <string name="exsurge_settings_escalate">Escalate if ignored</string>
+    <string name="exsurge_settings_escalate_summary">Calls again after a minute, then once more, then counts it as missed</string>
+    <string name="exsurge_settings_mid_cue">Two-minutes-left cue</string>
+    <string name="exsurge_settings_mid_cue_summary">Surgius says "Duo minuta restant"</string>
+    <string name="exsurge_settings_quiet">Quiet office</string>
+    <string name="exsurge_settings_quiet_summary">No voice: vibration only</string>
+    <string name="exsurge_settings_volume">Voice volume (%)</string>
+    <string name="exsurge_settings_pause_playback">Pause Totum during the break</string>
+    <string name="exsurge_settings_pause_playback_summary">Resumes afterwards, only if the break paused it</string>
+    <string name="exsurge_settings_over_apps">Take over even while using the phone</string>
+    <string name="exsurge_settings_over_apps_summary">Needs "Display over other apps"; without it you get a banner while the phone is unlocked</string>
+    <string name="exsurge_settings_destination">Destination</string>
+    <string name="exsurge_settings_package">App package</string>
+    <string name="exsurge_settings_route">Loquax route</string>
+    <string name="exsurge_settings_permissions">Permissions</string>
+    <string name="exsurge_perm_notifications">Notifications</string>
+    <string name="exsurge_perm_full_screen">Full-screen takeover</string>
+    <string name="exsurge_perm_activity">Physical activity (steps)</string>
+    <string name="exsurge_perm_overlay">Display over other apps</string>
+    <string name="exsurge_perm_battery">Not battery-optimised</string>
+    <string name="exsurge_perm_exact">Exact alarms</string>
+    <string name="exsurge_perm_sensor">Step sensor on this phone</string>
+    <string name="exsurge_perm_destination">%1$s installed</string>
+    <string name="exsurge_perm_grant">Grant</string>
+    <string name="exsurge_settings_stats">Cursus honorum</string>
+    <string name="exsurge_stats_rank">%1$s · laurels: %2$d</string>
+    <string name="exsurge_stats_next_rank">%2$s in: %1$d</string>
+    <string name="exsurge_stats_top_rank">The highest rank in Rome</string>
+    <string name="exsurge_stats_today">Today · done: %1$d · skipped: %2$d · missed: %3$d · steps: %4$d</string>
+    <string name="exsurge_stats_week">Last 7 days · done: %1$d · minutes standing: %2$d</string>
+    <string name="exsurge_stats_streak">Streak (days): %1$d</string>
+</resources>

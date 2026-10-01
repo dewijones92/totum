@@ -86,6 +86,8 @@ import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.exsurge.ExsurgeController
+import com.dewijones92.totum.exsurge.exsurgeController
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
 import com.dewijones92.totum.innertube.actions.YouTubeActions
@@ -251,6 +253,8 @@ interface AppContainer {
 
     /** Sleep timer that pauses playback after a chosen delay. */
     val sleepTimer: SleepTimer
+
+    val exsurge: ExsurgeController
 
     /** The unified up-next queue (what plays after the current item), both pillars. */
     val playbackQueue: PlaybackQueue
@@ -727,6 +731,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         SleepTimer(playbackController, applicationScope)
     }
 
+    override val exsurge: ExsurgeController by lazy { exsurgeController(context, playbackController, applicationScope) }
+
     override val queueStore: QueueStore by lazy { RoomQueueStore(database.queueDao()) }
 
     private val crashReporter by lazy { CrashReporter(context, stateProviders = ::diagnosticState) }
@@ -934,6 +940,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
                 isMetered = networkStatus::isMetered,
+                exsurge = { exsurge.diagnostics },
             ),
         )
     }

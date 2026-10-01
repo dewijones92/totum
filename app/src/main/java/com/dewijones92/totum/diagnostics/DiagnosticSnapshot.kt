@@ -37,6 +37,7 @@ internal class DiagnosticSnapshot(
         /** The outbox rows that keep failing, worst first — the one risk the new design carries. */
         val stuckAccountUpdates: () -> String,
         val isMetered: () -> Boolean,
+        val exsurge: () -> Map<String, String> = { emptyMap() },
     )
 
     fun capture(): Map<String, String> = buildMap {
@@ -98,6 +99,7 @@ internal class DiagnosticSnapshot(
         }
         runCatching { putAccountState(entries) }
         runCatching { put("network.metered", live.isMetered().toString()) }
+        runCatching { putAll(live.exsurge()) }
     }
 
     /** The account block: who is signed in, whether listening reaches them, and what has been acted on. */

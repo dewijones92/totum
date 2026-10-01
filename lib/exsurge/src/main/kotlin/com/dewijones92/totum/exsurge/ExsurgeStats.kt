@@ -5,6 +5,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Suppress("MagicNumber")
 public enum class Rank(public val laurels: Int, public val latin: String) {
     TIRO(0, "Tiro"),
     LEGIONARIUS(10, "Legionarius"),
@@ -45,7 +46,7 @@ public data class ExsurgeStats(
         public fun of(outcomes: List<BreakOutcome>, now: Instant, zone: ZoneId): ExsurgeStats {
             val byDay = outcomes.groupBy { it.resolvedAt.atZone(zone).toLocalDate() }
             val today = now.atZone(zone).toLocalDate()
-            val week = (0L..6L).map { today.minusDays(it) }
+            val week = (0L until DAYS_IN_WEEK).map { today.minusDays(it) }
             val laurels = outcomes.count { it.kind == OutcomeKind.COMPLETED }
             return ExsurgeStats(
                 today = tally(byDay[today].orEmpty()),
@@ -62,12 +63,16 @@ public data class ExsurgeStats(
             return now.takeIf { it > was }
         }
 
+        private const val DAYS_IN_WEEK = 7L
+
         private fun tally(outcomes: List<BreakOutcome>) = DayTally(
             completed = outcomes.count { it.kind == OutcomeKind.COMPLETED },
             skipped = outcomes.count { it.kind == OutcomeKind.SKIPPED },
             missed = outcomes.count { it.kind == OutcomeKind.MISSED },
             steps = outcomes.sumOf { it.steps },
-            minutesStanding = outcomes.sumOf { o -> o.breakStartedAt?.let { Duration.between(it, o.resolvedAt).toMinutes() } ?: 0 },
+            minutesStanding = outcomes.sumOf { o ->
+                o.breakStartedAt?.let { Duration.between(it, o.resolvedAt).toMinutes() } ?: 0
+            },
         )
 
         private fun streak(byDay: Map<LocalDate, List<BreakOutcome>>, today: LocalDate): Int {

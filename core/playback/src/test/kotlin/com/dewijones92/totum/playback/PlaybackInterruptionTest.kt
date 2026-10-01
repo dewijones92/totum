@@ -62,9 +62,9 @@ class PlaybackInterruptionTest {
     fun `resumed by hand then paused again is not resumed by the break`() {
         controller.emitState(playing())
         interruption.interrupt()
-        controller.resume()
+        controller.setPlaying(true)
         observeCurrent()
-        controller.pause()
+        controller.setPlaying(false)
         observeCurrent()
         val released = interruption.release()
         assertEquals(PlaybackInterruption.Released.LeftAlone("superseded: resumed by hand"), released)
@@ -94,7 +94,7 @@ class PlaybackInterruptionTest {
         controller.emitState(playing())
         interruption.interrupt()
         interruption.release()
-        controller.pause()
+        controller.setPlaying(false)
         assertTrue(interruption.release() is PlaybackInterruption.Released.LeftAlone)
         assertFalse(controller.state.value!!.wantsToPlay)
     }

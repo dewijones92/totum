@@ -186,7 +186,8 @@ class ExsurgeMachineTest {
         val state = result.memory.state as Rising
         assertEquals(8, state.steps)
         assertEquals(-5L, state.baselineSteps)
-        assertEquals(10, (apply(result.memory, ExsurgeEvent.StepsCounted(5), mondayTen.plusSeconds2(12)).memory.state as Rising).steps)
+        val next = apply(result.memory, ExsurgeEvent.StepsCounted(5), mondayTen.plusSeconds2(12))
+        assertEquals(10, (next.memory.state as Rising).steps)
     }
 
     @Test
@@ -321,7 +322,8 @@ class ExsurgeMachineTest {
         assertTrue(again.memory.state is Sitting)
         assertEquals("pause refused: already used today", again.notes.single())
         val tomorrow = mondayTen.plus(Duration.ofDays(1))
-        assertTrue(apply(again.memory.copy(state = Sitting(tomorrow)), ExsurgeEvent.PauseHour, tomorrow).memory.state is Paused)
+        val nextDay = apply(again.memory.copy(state = Sitting(tomorrow)), ExsurgeEvent.PauseHour, tomorrow)
+        assertTrue(nextDay.memory.state is Paused)
     }
 
     @Test

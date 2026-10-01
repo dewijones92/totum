@@ -70,9 +70,14 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
     val settings by prefs.settings.collectAsStateWithLifecycle()
     var showImportExport by rememberSaveable { mutableStateOf(false) }
     var showDiagnostics by rememberSaveable { mutableStateOf(false) }
+    var showExsurge by rememberSaveable { mutableStateOf(false) }
 
     if (showImportExport) {
         ImportExportScreen(container, onBack = { showImportExport = false }, modifier = modifier)
+        return
+    }
+    if (showExsurge) {
+        ExsurgeSettingsScreen(container.exsurge, onBack = { showExsurge = false }, modifier = modifier)
         return
     }
     if (showDiagnostics) {
@@ -88,6 +93,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
             QualitySection(settings, prefs)
             SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
             DownloadSettings(settings, prefs)
+            NavRow(label = stringResource(R.string.exsurge_settings_row), onClick = { showExsurge = true })
             Text(
                 text = stringResource(R.string.settings_subscriptions_section),
                 style = MaterialTheme.typography.titleMedium,
@@ -325,7 +331,7 @@ private fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String) -> Uni
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+internal fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
@@ -334,7 +340,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun SwitchRow(
+internal fun SwitchRow(
     label: String,
     summary: String,
     checked: Boolean,
@@ -360,7 +366,7 @@ private fun SwitchRow(
 }
 
 @Composable
-private fun NavRow(label: String, onClick: () -> Unit) {
+internal fun NavRow(label: String, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,

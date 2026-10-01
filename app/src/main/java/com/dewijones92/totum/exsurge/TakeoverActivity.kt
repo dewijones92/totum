@@ -1,0 +1,216 @@
+package com.dewijones92.totum.exsurge
+
+import android.app.Activity
+import android.app.KeyguardManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dewijones92.totum.R
+import com.dewijones92.totum.TotumApplication
+import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.theme.TotumTheme
+import java.lang.ref.WeakReference
+import java.time.Duration
+
+class TakeoverActivity : ComponentActivity() {
+    private val exsurge get() = (application as TotumApplication).container.exsurge
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setShowWhenLocked(true)
+        setTurnScreenOn(true)
+        current = WeakReference(this)
+        val goNow = intent.getBooleanExtra(EXTRA_GO, false)
+        val state = exsurge.view.value.memory.state.label()
+        Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover shown state=$state go=$goNow")
+        if (goNow) go()
+        setContent {
+            TotumTheme(darkTheme = false) {
+                val view by exsurge.view.collectAsStateWithLifecycle()
+                LaunchedEffect(view.memory.state) {
+                    val state = view.memory.state
+                    val summoning = state is ExsurgeState.Summoned || state is ExsurgeState.Snoozed
+                    if (!summoning) finish()
+                }
+                val destination =
+                    remember(view.settings.destinationPackage) { destinationLabel(view.settings.destinationPackage) }
+                TakeoverScreen(
+                    view = view,
+                    destination = destination,
+                    onGo = ::go,
+                    onSnooze = { exsurge.dispatch(ExsurgeEvent.Snooze, "takeover") },
+                    onSkip = { exsurge.dispatch(ExsurgeEvent.Skip, "takeover") },
+                )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_GO, false)) go()
+    }
+
+    override fun onDestroy() {
+        if (current?.get() === this) current = null
+        super.onDestroy()
+    }
+
+    private fun destinationLabel(packageName: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
+    }.getOrDefault(packageName)
+
+    private fun go() {
+        val keyguard = getSystemService(KeyguardManager::class.java)
+        if (!keyguard.isKeyguardLocked) return goNow("unlocked")
+        keyguard.requestDismissKeyguard(
+            this,
+            object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() = goNow("keyguard dismissed")
+                override fun onDismissCancelled() {
+                    Diag.log(ExsurgeController.TAG, "dewidebug exsurge GO waiting: unlock cancelled")
+                }
+                override fun onDismissError() {
+                    Diag.warn(ExsurgeController.TAG, "dewidebug exsurge GO: keyguard dismiss failed; going anyway")
+                    goNow("keyguard error")
+                }
+            },
+        )
+    }
+
+    private fun goNow(how: String) {
+        exsurge.dispatch(ExsurgeEvent.Go, "takeover ($how)")
+        finish()
+    }
+
+    companion object {
+        private const val EXTRA_GO = "exsurge.go"
+        private var current: WeakReference<Activity>? = null
+
+        fun intent(context: Context, go: Boolean = false): Intent = Intent(context, TakeoverActivity::class.java)
+            .addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION
+            )
+            .putExtra(EXTRA_GO, go)
+
+        fun pending(context: Context, go: Boolean = false): PendingIntent = PendingIntent.getActivity(
+            context,
+            if (go) REQUEST_GO else REQUEST_SHOW,
+            intent(context, go),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+        fun finishAll() {
+            current?.get()?.finish()
+        }
+
+        private const val REQUEST_SHOW = 7330
+        private const val REQUEST_GO = 7331
+    }
+}
+
+@Composable
+fun TakeoverScreen(view: ExsurgeView, destination: String, onGo: () -> Unit, onSnooze: () -> Unit, onSkip: () -> Unit) {
+    val summoned = view.memory.state as? ExsurgeState.Summoned
+    val used = summoned?.summons?.snoozes ?: view.settings.maxSnoozes
+    val snoozesLeft = (view.settings.maxSnoozes - used).coerceAtLeast(0)
+    val sat = (view.memory.state as? ExsurgeState.Summoned)?.let {
+        Duration.between(it.summons.firstCalledAt, view.at).toMinutes() + view.settings.sittingMinutes
+    }
+        ?: view.settings.sittingMinutes.toLong()
+    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.safeDrawingPadding().padding(24.dp),
+        ) {
+            SurgiusFace(Mood.SUMMONING, stringResource(R.string.exsurge_surgius), Modifier.size(220.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.exsurge_takeover_title),
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+            )
+            summoned?.let {
+                Text(
+                    stringResource(R.string.exsurge_takeover_call, it.call),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.exsurge_takeover_subtitle, sat.toInt(), view.settings.breakMinutes),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(32.dp))
+            TakeoverButtons(destination, snoozesLeft, view.settings.snoozeMinutes, onGo, onSnooze, onSkip)
+        }
+    }
+}
+
+@Composable
+private fun TakeoverButtons(
+    destination: String,
+    snoozesLeft: Int,
+    snoozeMinutes: Int,
+    onGo: () -> Unit,
+    onSnooze: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    Button(
+        onClick = onGo,
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        modifier = Modifier.fillMaxWidth().height(96.dp).testTag("exsurge-go"),
+    ) {
+        Text(
+            stringResource(R.string.exsurge_action_go_to, destination),
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+    }
+    Spacer(Modifier.height(16.dp))
+    TextButton(onClick = onSnooze, enabled = snoozesLeft > 0, modifier = Modifier.testTag("exsurge-snooze")) {
+        Text(
+            if (snoozesLeft > 0) {
+                stringResource(R.string.exsurge_action_snooze, snoozeMinutes, snoozesLeft)
+            } else {
+                stringResource(R.string.exsurge_action_snooze_none)
+            },
+        )
+    }
+    TextButton(onClick = onSkip, modifier = Modifier.testTag("exsurge-skip")) {
+        Text(stringResource(R.string.exsurge_action_skip))
+    }
+}

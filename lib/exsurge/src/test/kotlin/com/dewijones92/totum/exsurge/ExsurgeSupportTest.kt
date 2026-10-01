@@ -123,7 +123,11 @@ class ExsurgeSupportTest {
 
     @Test
     fun `today's tally counts each kind, steps and minutes standing`() {
-        val list = listOf(outcome(5, OutcomeKind.COMPLETED), outcome(5, OutcomeKind.SKIPPED, 2), outcome(5, OutcomeKind.MISSED, 3))
+        val list = listOf(
+            outcome(5, OutcomeKind.COMPLETED),
+            outcome(5, OutcomeKind.SKIPPED, 2),
+            outcome(5, OutcomeKind.MISSED, 3),
+        )
         val stats = ExsurgeStats.of(list, at(5, 12), zone)
         assertEquals(DayTally(completed = 1, skipped = 1, missed = 1, steps = 300, minutesStanding = 5), stats.today)
         assertEquals(3, stats.today.summons)
@@ -143,7 +147,11 @@ class ExsurgeSupportTest {
 
     @Test
     fun `a skip today breaks the streak at once`() {
-        val list = listOf(outcome(5, OutcomeKind.COMPLETED), outcome(6, OutcomeKind.COMPLETED), outcome(6, OutcomeKind.SKIPPED, 99))
+        val list = listOf(
+            outcome(5, OutcomeKind.COMPLETED),
+            outcome(6, OutcomeKind.COMPLETED),
+            outcome(6, OutcomeKind.SKIPPED, 99),
+        )
         assertEquals(0, ExsurgeStats.of(list, at(6, 12), zone).streakDays)
     }
 
@@ -197,7 +205,8 @@ class ExsurgeSupportTest {
 
     @Test
     fun `stored settings from an older build fill in new fields with defaults`() {
-        assertEquals(ExsurgeSettings(enabled = true), ExsurgeCodec.decodeSettings("""{"enabled":true,"someOldField":3}"""))
+        val stored = """{"enabled":true,"someOldField":3}"""
+        assertEquals(ExsurgeSettings(enabled = true), ExsurgeCodec.decodeSettings(stored))
     }
 
     @Test
@@ -221,10 +230,13 @@ class ExsurgeSupportTest {
             BannerLine.Sitting(summonsAt = at(5, 10, 30), satMinutes = 17, limitMinutes = 30),
             bannerLineOf(ExsurgeState.Sitting(at(5, 10)), now, context),
         )
-        assertEquals(BannerLine.Summoned(call = 2, snoozesLeft = 1), bannerLineOf(ExsurgeState.Summoned(Summons(1, now, 1), 2, now, now), now, context))
-        assertEquals(BannerLine.Rising(3, 20), bannerLineOf(ExsurgeState.Rising(Summons(1, now), now, 0, 3), now, context))
-        assertEquals(BannerLine.Rising(3, 0), bannerLineOf(ExsurgeState.Rising(Summons(1, now), now, 0, 3), now, context.copy(stepsAvailable = false)))
-        assertEquals(BannerLine.OnBreak(at(5, 10, 22), 40), bannerLineOf(ExsurgeState.OnBreak(Summons(1, now), now, 0, 40, true), now, context))
+        val summoned = ExsurgeState.Summoned(Summons(1, now, 1), 2, now, now)
+        assertEquals(BannerLine.Summoned(call = 2, snoozesLeft = 1), bannerLineOf(summoned, now, context))
+        val rising = ExsurgeState.Rising(Summons(1, now), now, 0, 3)
+        assertEquals(BannerLine.Rising(3, 20), bannerLineOf(rising, now, context))
+        assertEquals(BannerLine.Rising(3, 0), bannerLineOf(rising, now, context.copy(stepsAvailable = false)))
+        val onBreak = ExsurgeState.OnBreak(Summons(1, now), now, 0, 40, true)
+        assertEquals(BannerLine.OnBreak(at(5, 10, 22), 40), bannerLineOf(onBreak, now, context))
         assertEquals(BannerLine.Sleeping(null), bannerLineOf(ExsurgeState.Dormant(null), now, context))
         assertEquals(BannerLine.Off, bannerLineOf(ExsurgeState.Off, now, context))
     }

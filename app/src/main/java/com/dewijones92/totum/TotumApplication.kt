@@ -7,6 +7,7 @@ import coil3.SingletonImageLoader
 import coil3.request.crossfade
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
+import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.notifications.NewContentWorker
 
 class TotumApplication : Application(), SingletonImageLoader.Factory {
@@ -28,6 +29,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         container.startDownloadNotifications()
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
+        container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")
     }
 
     /**

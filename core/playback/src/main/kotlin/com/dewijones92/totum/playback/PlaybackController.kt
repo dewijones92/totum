@@ -17,6 +17,7 @@ import java.time.Instant
  * episode and an extracted video are just [MediaItem]s whose [MediaItem.mediaUrl]
  * points at something playable.
  */
+@Suppress("TooManyFunctions")
 public interface PlaybackController {
 
     /** Null when nothing has been queued this session. */
@@ -81,11 +82,8 @@ public interface PlaybackController {
     /** Toggles play/pause of the current item; no-op when nothing is queued. */
     public fun togglePlayPause()
 
-    /** Pauses the current item if it is meant to be playing; no-op otherwise. */
-    public fun pause()
-
-    /** Resumes the current item; no-op when nothing is queued. */
-    public fun resume()
+    /** Pauses (false) or resumes (true) the current item; no-op when nothing is queued. */
+    public fun setPlaying(wanted: Boolean)
 
     /** Seeks the current item to [positionMs] (clamped to [0, duration]). */
     public fun seekTo(positionMs: Long)

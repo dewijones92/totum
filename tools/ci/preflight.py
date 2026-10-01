@@ -378,6 +378,39 @@ def check_audio_quality_paths() -> int:
     return len(missing)
 
 
+EXSURGE_WORKFLOW = ROOT / ".github/workflows/exsurge.yml"
+EXSURGE_SEAMS = [
+    "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackController.kt",
+    "core/playback/src/main/kotlin/com/dewijones92/totum/playback/PlaybackInterruption.kt",
+    "app/src/main/java/com/dewijones92/totum/di/AppContainer.kt",
+    "app/src/main/AndroidManifest.xml",
+]
+
+
+def exsurge_sources(paths) -> list:
+    return sorted(
+        path for path in paths
+        if "exsurge" in path.lower() and not path.startswith(("docs/", "tools/ci/"))
+    ) + [seam for seam in EXSURGE_SEAMS if seam in paths]
+
+
+def check_exsurge_paths() -> int:
+    if not EXSURGE_WORKFLOW.exists():
+        return fail("the exsurge workflow is missing")
+    workflow = yaml.safe_load(EXSURGE_WORKFLOW.read_text())
+    globs = (workflow.get(True) or workflow.get("on") or {}).get("push", {}).get("paths", [])
+    listed = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout.split()
+    missing = uncovered_by(exsurge_sources(set(listed)), globs)
+    for path in missing:
+        fail(f"{path} is part of Exsurge et Disce but a change to it would not trigger exsurge.yml")
+    if not missing:
+        print("  ok: every Exsurge source triggers its workflow")
+    return len(missing)
+
+
 def main() -> int:
     print(f"preflight: {WORKFLOW.relative_to(ROOT)}")
     problems, workflow = check_yaml()
@@ -401,6 +434,7 @@ def main() -> int:
     problems += check_text_wraps_instead_of_truncating()
     problems += check_instrumented_test_names_dex()
     problems += check_audio_quality_paths()
+    problems += check_exsurge_paths()
     if problems:
         print(f"\npreflight FAILED with {problems} problem(s) — none of these would show up in the Gradle gate.")
         return 1

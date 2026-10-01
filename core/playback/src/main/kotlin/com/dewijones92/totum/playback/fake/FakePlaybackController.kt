@@ -178,12 +178,8 @@ public class FakePlaybackController : PlaybackController {
         }
     }
 
-    override fun pause() {
-        _state.update { it?.copy(wantsToPlay = false, isPlaying = false) }
-    }
-
-    override fun resume() {
-        _state.update { it?.copy(wantsToPlay = true, isPlaying = !it.isBuffering) }
+    override fun setPlaying(wanted: Boolean) {
+        _state.update { it?.copy(wantsToPlay = wanted, isPlaying = wanted && !it.isBuffering) }
     }
 
     override fun seekTo(positionMs: Long) {

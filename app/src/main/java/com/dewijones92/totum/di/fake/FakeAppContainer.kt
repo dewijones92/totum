@@ -42,6 +42,9 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.NoReconciledAccountProgress
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.ReconciledAccountProgress
+import com.dewijones92.totum.exsurge.ExsurgeController
+import com.dewijones92.totum.exsurge.InMemoryExsurgeStore
+import com.dewijones92.totum.exsurge.NoExsurgePorts
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.YouTubeActions
 import com.dewijones92.totum.innertube.actions.fake.FakeYouTubeActions
@@ -115,6 +118,11 @@ class FakeAppContainer(
     override val videoPlaybackLauncher: VideoPlaybackLauncher =
         VideoPlaybackLauncher(videoResolver, playbackController, FakeYouTubeWatchHistory(), playHistoryStore),
     override val sleepTimer: SleepTimer = SleepTimer(playbackController, CoroutineScope(SupervisorJob())),
+    override val exsurge: ExsurgeController = ExsurgeController(
+        InMemoryExsurgeStore(),
+        NoExsurgePorts,
+        sensorStepsAvailable = { false }
+    ),
     override val queueStore: QueueStore = InMemoryQueueStore(),
     override val playbackQueue: PlaybackQueue =
         PlaybackQueue(playbackController, videoPlaybackLauncher, CoroutineScope(SupervisorJob()), queueStore),
