@@ -66,14 +66,23 @@ in [exsurge-ideas](exsurge-ideas.md).
 - The Kover 75% gate applies to `:lib:*`, so the filtered workflow owns `:lib:exsurge`'s
   koverVerify.
 
-## Open questions (waiting on Dewi: 1–4; 5 settled)
+## Settled (Dewi, 2026-10-01)
 
-1. Mascot name: Marcus Surgius Disco, or Astra's "Quintus"?
-2. Add the optional "display over other apps" grant for a takeover even while the phone is in use?
-3. Voice: Latin only or with an English gloss, and Italian *Diego* or British *Ryan*?
-4. Streak: a weekday counts when no summons was skipped or missed?
-5. ~~Who watches steps between breaks?~~ Settled by the sticky banner: it is the health
-   foreground service's notification during active hours.
+1. **Mascot:** Surgius (Marcus Surgius Disco).
+2. **"Display over other apps": yes.** It is an optional grant in the permissions checklist,
+   so the takeover covers the screen even while the phone is in use; without it, the full-screen
+   intent falls back to a heads-up banner when the phone is unlocked.
+3. **Voice: Latin only**, no English gloss.
+4. **Streak** (Dewi left it to Claude): a weekday counts when every summons ended in a completed
+   break. A snooze never breaks it; a Skip or a Missed does. A day with no summons (module off,
+   or outside active hours) neither extends nor breaks it, so a holiday is not a failure.
+5. **Step watching:** the sticky banner's health foreground service, during active hours.
+6. **Pushing:** hold the docs commits and push them with the first code changes.
+
+## Still open
+
+- The banner's "Pause 1 hour" action: keep it, cap it (e.g. once a day), or drop it?
+- Keep / cut / later on each idea in [exsurge-ideas](exsurge-ideas.md).
 
 **Done when:** a summons on Dewi's phone takes over, GO opens Hanzi practice, 20 steps start
 the timer, playback pauses and resumes, "Liber es!" plays, and the next diagnostics report
