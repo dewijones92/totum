@@ -37,7 +37,11 @@ everything configurable. The backlog item, with the agreed design and the open i
   window, snooze length and count, call-again interval (missed after three calls), rise timeout,
   the break cue's minutes before the end, and the pause length.
 - **Pause 1 hour:** from the banner, once a day.
-- **Quick Settings tile:** turns it on and off, and shows "Next 14:32".
+- **Quick Settings tile:** turns it on and off, and shows "Next 14:32". A long-press opens the
+  Exsurge screen.
+- **Tapping the banner** opens the Exsurge screen (`ExsurgeActivity`, which hosts the same
+  `ExsurgeSettingsScreen`), or the takeover while a summons is live. Dewi asked for this on
+  2026-10-01; before that, it opened Totum's main screen.
 - **Settings → Exsurge et Disce:** every setting, a permissions checklist with Grant buttons,
   Summon now, and a stats card with Surgius in his current mood.
 

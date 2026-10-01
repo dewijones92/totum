@@ -61,6 +61,15 @@
             </intent-filter>
         </receiver>
         <activity
+            android:name=".exsurge.ExsurgeActivity"
+            android:exported="true"
+            android:label="@string/exsurge_name"
+            android:theme="@style/Theme.Totum">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".exsurge.TakeoverActivity"
             android:exported="false"
             android:excludeFromRecents="true"

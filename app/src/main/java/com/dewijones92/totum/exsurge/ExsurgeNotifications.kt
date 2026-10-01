@@ -5,10 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.graphics.drawable.Icon
 import androidx.compose.ui.graphics.toArgb
-import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.theme.Tangerine40
 import java.time.Instant
@@ -122,15 +120,7 @@ class ExsurgeNotifications(private val context: Context) {
         if (view.memory.state is ExsurgeState.Summoned) {
             TakeoverActivity.pending(context)
         } else {
-            PendingIntent.getActivity(
-                context,
-                REQUEST_OPEN_APP,
-                Intent(
-                    context,
-                    MainActivity::class.java
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
+            screenIntent(context)
         }
 
     private fun actions(view: ExsurgeView): List<Notification.Action> = buildList {
@@ -163,11 +153,18 @@ class ExsurgeNotifications(private val context: Context) {
     ).build()
 
     companion object {
+        fun screenIntent(context: Context): PendingIntent = PendingIntent.getActivity(
+            context,
+            REQUEST_OPEN_SCREEN,
+            ExsurgeActivity.intent(context, from = "banner"),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
         const val BANNER_CHANNEL = "exsurge_banner"
         const val SUMMONS_CHANNEL = "exsurge_summons"
         const val BANNER_ID = 7301
         const val SUMMONS_ID = 7302
-        private const val REQUEST_OPEN_APP = 7310
+        private const val REQUEST_OPEN_SCREEN = 7310
         private const val ICON_PX = 96
         private const val FACE_PX = 192
         private val TANGERINE = Tangerine40.toArgb()

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.exsurge
 
+import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.media.MediaPlayer
@@ -20,6 +21,16 @@ class ExsurgeAndroidPortsTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val notifications = ExsurgeNotifications(context)
     private val manager = context.getSystemService(NotificationManager::class.java)
+
+    private fun postedSummons(): Notification {
+        val deadline = System.currentTimeMillis() + POST_WAIT_MS
+        while (System.currentTimeMillis() < deadline) {
+            val found = manager.activeNotifications.firstOrNull { it.id == ExsurgeNotifications.SUMMONS_ID }
+            if (found != null) return found.notification
+            Thread.sleep(POLL_MS)
+        }
+        error("the summons notification was never posted")
+    }
 
     @After
     fun tidy() {
@@ -47,7 +58,7 @@ class ExsurgeAndroidPortsTest {
     @Test
     fun theSummonsNotificationCarriesTheTakeoverAndItsThreeActions() {
         notifications.showSummons(TakeoverRequest(42, 2, snoozesLeft = 1, snoozeMinutes = 5, overOtherApps = false))
-        val posted = manager.activeNotifications.single { it.id == ExsurgeNotifications.SUMMONS_ID }.notification
+        val posted = postedSummons()
         assertNotNull(posted.fullScreenIntent)
         assertEquals(
             listOf("GO", "Snooze 5 min (left: 1)", "Skip this one"),
@@ -58,7 +69,7 @@ class ExsurgeAndroidPortsTest {
     @Test
     fun noSnoozeActionWhenNoneAreLeft() {
         notifications.showSummons(TakeoverRequest(42, 3, snoozesLeft = 0, snoozeMinutes = 5, overOtherApps = false))
-        val posted = manager.activeNotifications.single { it.id == ExsurgeNotifications.SUMMONS_ID }.notification
+        val posted = postedSummons()
         assertEquals(listOf("GO", "Skip this one"), posted.actions.map { it.title.toString() })
     }
 
@@ -83,6 +94,7 @@ class ExsurgeAndroidPortsTest {
         )
         assertTrue(banner.flags and android.app.Notification.FLAG_ONGOING_EVENT != 0)
         assertNotNull(banner.deleteIntent)
+        assertEquals(ExsurgeNotifications.screenIntent(context), banner.contentIntent)
         assertEquals(listOf("Summon now", "Pause 1 hour"), banner.actions.map { it.title.toString() })
     }
 
@@ -105,5 +117,10 @@ class ExsurgeAndroidPortsTest {
         }
         assertTrue(SurgiusPainter.logoBitmap(200).getPixel(100, 100) != 0)
         assertTrue(SurgiusPainter.glyphBitmap(96).let { bitmap -> (0 until 96).any { bitmap.getPixel(it, 48) != 0 } })
+    }
+
+    private companion object {
+        const val POST_WAIT_MS = 3_000L
+        const val POLL_MS = 50L
     }
 }
