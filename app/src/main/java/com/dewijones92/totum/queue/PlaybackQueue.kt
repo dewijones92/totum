@@ -22,6 +22,7 @@ import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -699,9 +700,29 @@ class PlaybackQueue(
         // re-requested the identical address. A fresh connection sometimes helps; a source that has
         // been asked to produce the stream again helps more, and it is the only second thing there
         // is to try. Found by writing the stall tests on 2026-08-03, not by a report.
-        runCatching { refresh(item) }
-            .onFailure { Diag.warn("playback", "could not refresh ${item.item.id.value} before replaying", it) }
-        return play(item, positionMs, retry = true)
+        return coroutineScope {
+            var wanted = false
+            var pausedMeanwhile = false
+            val watcher = launch {
+                controller.state.collect { state ->
+                    if (state?.itemId != item.item.id) return@collect
+                    if (state.wantsToPlay) wanted = true else if (wanted) pausedMeanwhile = true
+                }
+            }
+            val played = try {
+                runCatching { refresh(item) }
+                    .onFailure { Diag.warn("playback", "could not refresh ${item.item.id.value} before replaying", it) }
+                play(item, positionMs, retry = true)
+            } finally {
+                watcher.cancel()
+            }
+            if (played && pausedMeanwhile) {
+                val id = item.item.id.value
+                Diag.log("playback", "$id was paused while its rescue fetched a fresh stream; keeping it paused")
+                controller.setPlaying(false)
+            }
+            played
+        }
     }
 
     /**

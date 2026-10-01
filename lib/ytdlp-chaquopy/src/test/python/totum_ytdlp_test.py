@@ -200,6 +200,19 @@ class FailedExtractionNotesTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual("jNQXAC9IVRw", result["info"]["id"])
 
+class FailedSearchTest(unittest.TestCase):
+    """A failed search must come back as a failure, not crash the caller with a NameError (field report
+    2026-09-28, 0.1.548: `NameError: name 'logger' is not defined` at totum_ytdlp.search)."""
+
+    def test_a_failed_search_returns_a_failure_with_notes(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        result = json.loads(module.search("jazz live stream", 5))
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("SABR-only" in note for note in result["notes"]), result)
+
+
 class FailedDownloadNotesTest(unittest.TestCase):
     """
     A failed DOWNLOAD reports what yt-dlp noticed too -- and this is the test that was missing.

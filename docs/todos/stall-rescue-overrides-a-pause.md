@@ -1,7 +1,7 @@
 ---
 title: A stall rescue in flight overrides a pause
 kind: todo
-status: open — found 2026-10-01, cause established, not fixed
+status: fixed 2026-10-01 — a pause made during a rescue now survives it
 area: playback
 priority: medium
 requested: 2026-10-01
@@ -41,3 +41,11 @@ than play it. A regression test on the fake: start a rescue, pause during the re
 that the replayed item is not playing.
 
 **Done when:** a pause made during a rescue survives it, on the JVM test and on the emulator.
+
+## Fixed (2026-10-01)
+
+`replayCurrent` watches the state while it waits. If the item went from wanting to play to paused
+during the rescue, the replay is followed by `setPlaying(false)` and a log line. Only a true→false
+transition counts, so a recovery that starts from an error state behaves as before.
+`APauseDuringARescueSurvivesItTest` was seen red, then green, with a control that a rescue nobody
+paused still plays. The existing stall-recovery instrumented test (2) passes on `totum-api35`.

@@ -63,9 +63,9 @@ public data class ExsurgeStats(
             )
         }
 
-        public fun promoted(before: List<BreakOutcome>, after: List<BreakOutcome>): Rank? {
-            val was = Rank.forLaurels(before.count { it.credited })
-            val now = Rank.forLaurels(after.count { it.credited })
+        public fun promoted(before: List<BreakOutcome>, after: List<BreakOutcome>, archivedLaurels: Int = 0): Rank? {
+            val was = Rank.forLaurels(archivedLaurels + before.count { it.credited })
+            val now = Rank.forLaurels(archivedLaurels + after.count { it.credited })
             return now.takeIf { it > was }
         }
 

@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -70,6 +71,8 @@ public class PlaybackService : MediaSessionService() {
     @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     override fun onCreate() {
         super.onCreate()
+        val notificationProvider = DefaultMediaNotificationProvider.Builder(this).build()
+        setMediaNotificationProvider(RefusalTolerantNotificationProvider(notificationProvider))
         // A custom audio sink whose processor chain carries the silence skipper
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
         silenceCutter.speechWeights = { BundledSpeechModel.get(this) }

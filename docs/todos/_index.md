@@ -11,7 +11,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [stall-rescue-overrides-a-pause](stall-rescue-overrides-a-pause.md) | playback | medium | open: a stall rescue that finishes after a pause plays the item again (26 s window seen on the emulator); cause established, fix needs Dewi's OK |
+| [audio-download-recorded-as-full](audio-download-recorded-as-full.md) | downloads | high | fixed 2026-10-01 for new downloads: the signed-in fallback recorded audio as a full copy, so VIDEO mode played no picture; downloads already mislabelled need re-downloading |
+| [playback-service-foreground-start-refused](playback-service-foreground-start-refused.md) | playback | high | fixed 2026-10-01: Media3's late notification callback is wrapped, so a refused foreground start is logged rather than crashing (also the cause of a missed autoplay) |
+| [stall-rescue-overrides-a-pause](stall-rescue-overrides-a-pause.md) | playback | medium | fixed 2026-10-01: a pause made during a rescue now survives it |
 | [exsurge-et-disce](exsurge-et-disce.md) | side-quest | medium | built 2026-10-01 → [features/exsurge-et-disce.md](../features/exsurge-et-disce.md); awaiting a real day on the phone |
 | [exsurge-ideas](exsurge-ideas.md) | side-quest | low | proposed: 24 ideas waiting on keep / cut / later |
 | [youtube-requires-attestation](youtube-requires-attestation.md) | playback | high | the ~1MB cap was the ANDROID/WEB endpoint, not attestation: SABR now resolves from the embedded player and streamed 4.2MB+ on device with no token (shipped 2026-09-07); the signed-in TV client is no longer refused (timestamp scale). Still open: quality tiers above what the embedded response offers, and seeking. Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |

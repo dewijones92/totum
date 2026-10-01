@@ -65,7 +65,7 @@ class PlayerBackedDownloadStrategy(
         if (stream == null) {
             Diag.log("download", "fetching \"${item.item.title}\" from its resolved audio URL")
             http.download(item.item.copy(mediaUrl = url).let { PlayableItem(it, PlayHandle.Podcast()) }, target, true)
-                .collect { emit(it) }
+                .collect { emit(if (it is DownloadState.Downloaded) it.copy(audioOnly = true) else it) }
             return@flow
         }
         emitAll(sabrBytes(stream, item, target))

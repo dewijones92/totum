@@ -128,6 +128,17 @@ class ExsurgeControllerTest {
     }
 
     @Test
+    fun `a flushed buffer of steps spread over 25 minutes is not a walk in the last five`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        val since = now
+        exsurge.onStepCounter(5000, at = since)
+        advance(minutes = 30)
+        (1..5).forEach { i -> exsurge.onStepCounter(5000L + i * 20, at = since.plus(Duration.ofMinutes(5L * i))) }
+        assertEquals(ExsurgeState.Sitting(since), exsurge.view.value.memory.state)
+    }
+
+    @Test
     fun `steps below the walking threshold do not reset the clock`() {
         val exsurge = controller()
         exsurge.turnOn()

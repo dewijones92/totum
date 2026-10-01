@@ -64,7 +64,7 @@
     <string name="exsurge_settings_max_snoozes">Snoozes per summons</string>
     <string name="exsurge_settings_behaviour">Behaviour</string>
     <string name="exsurge_settings_escalate">Escalate if ignored</string>
-    <string name="exsurge_settings_escalate_summary">Calls again after a minute, then once more, then counts it as missed</string>
+    <string name="exsurge_settings_escalate_summary">Calls again after the set interval, then once more, then counts it as missed</string>
     <string name="exsurge_settings_mid_cue">Two-minutes-left cue</string>
     <string name="exsurge_settings_mid_cue_summary">Surgius says "Duo minuta restant" (worded for two)</string>
     <string name="exsurge_settings_quiet">Quiet office</string>

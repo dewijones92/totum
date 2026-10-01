@@ -140,10 +140,9 @@ class ExsurgeController(
     }
 
     @Synchronized
-    fun onStepCounter(total: Long, source: String = "sensor") {
+    fun onStepCounter(total: Long, source: String = "sensor", at: Instant = clock()) {
         stepReadings++
         lastStepTotal = total
-        val at = clock()
         val inWindow = stepWindow.record(at, total)
         if (stepReadings % STEP_LOG_EVERY == 1L) {
             Diag.log(
@@ -216,7 +215,7 @@ class ExsurgeController(
 
     private fun record(outcome: BreakOutcome) {
         val all = outcomes + outcome
-        val promotion = ExsurgeStats.promoted(outcomes, all)
+        val promotion = ExsurgeStats.promoted(outcomes, all, memory.archivedLaurels)
         val trimmed = all.size - maxOutcomes
         if (trimmed > 0) {
             val archived = all.take(trimmed).count { it.credited }

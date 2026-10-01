@@ -334,11 +334,13 @@ def solve_n(challenges, player_url):
 
 
 def search(query, max_results):
+    logger = _CollectingLogger()
     options = {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
         "extract_flat": "in_playlist",
+        "logger": logger,
     }
     try:
         with yt_dlp.YoutubeDL(options) as ydl:

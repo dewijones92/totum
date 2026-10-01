@@ -256,6 +256,13 @@ class ExsurgeSupportTest {
     }
 
     @Test
+    fun `a promotion counts the archived laurels too`() {
+        val one = listOf(outcome(5, OutcomeKind.COMPLETED))
+        assertEquals(Rank.LEGIONARIUS, ExsurgeStats.promoted(emptyList(), one, archivedLaurels = 9))
+        assertNull(ExsurgeStats.promoted(emptyList(), one, archivedLaurels = 20))
+    }
+
+    @Test
     fun `laurels archived out of the outcome log still count`() {
         val stats = ExsurgeStats.of(listOf(outcome(5, OutcomeKind.COMPLETED)), at(5, 12), zone, archivedLaurels = 49)
         assertEquals(50, stats.laurels)

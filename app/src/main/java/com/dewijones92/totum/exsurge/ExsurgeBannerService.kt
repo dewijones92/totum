@@ -13,8 +13,10 @@ import android.hardware.SensorManager
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import java.time.Instant
 
 class ExsurgeBannerService : Service(), SensorEventListener {
     private val handler = Handler(Looper.getMainLooper())
@@ -75,7 +77,9 @@ class ExsurgeBannerService : Service(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) exsurge.onStepCounter(event.values[0].toLong())
+        if (event.sensor.type != Sensor.TYPE_STEP_COUNTER) return
+        val ageNanos = (SystemClock.elapsedRealtimeNanos() - event.timestamp).coerceAtLeast(0)
+        exsurge.onStepCounter(event.values[0].toLong(), at = Instant.now().minusNanos(ageNanos))
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -93,12 +97,13 @@ class ExsurgeBannerService : Service(), SensorEventListener {
             Diag.log(ExsurgeController.TAG, "dewidebug exsurge steps not counted: no step counter on this device")
             return
         }
-        listening = sensors.registerListener(this, counter, SensorManager.SENSOR_DELAY_NORMAL, 0)
+        val batching = if (counter.isWakeUpSensor) WAKE_UP_BATCH_US else 0
+        listening = sensors.registerListener(this, counter, SensorManager.SENSOR_DELAY_NORMAL, batching)
         countingSteps = listening
         current = this
         Diag.log(
             ExsurgeController.TAG,
-            "dewidebug exsurge step counter registered=$listening wakeUp=${counter.isWakeUpSensor}"
+            "dewidebug exsurge step counter registered=$listening wakeUp=${counter.isWakeUpSensor} batchUs=$batching"
         )
     }
 
@@ -120,6 +125,7 @@ class ExsurgeBannerService : Service(), SensorEventListener {
             return runCatching { sensors.flush(service) }.getOrDefault(false)
         }
         private const val REFRESH_MS = 60_000L
+        private const val WAKE_UP_BATCH_US = 60_000_000
 
         fun stepsPermitted(context: Context): Boolean =
             context.checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
