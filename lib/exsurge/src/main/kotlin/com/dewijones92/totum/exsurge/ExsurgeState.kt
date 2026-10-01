@@ -9,7 +9,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 @Serializable
-public data class Summons(val id: Long, val firstCalledAt: Instant, val snoozes: Int = 0)
+public data class Summons(val id: Long, val firstCalledAt: Instant, val snoozes: Int = 0, val practise: Boolean = true)
 
 @Serializable
 public sealed interface ExsurgeState {
@@ -78,6 +78,7 @@ public sealed interface ExsurgeEvent {
     public data object SettingsChanged : ExsurgeEvent
     public data object SummonNow : ExsurgeEvent
     public data object Go : ExsurgeEvent
+    public data object JustWalk : ExsurgeEvent
     public data object Snooze : ExsurgeEvent
     public data object Skip : ExsurgeEvent
     public data object Walked : ExsurgeEvent
@@ -113,6 +114,7 @@ public data class BreakOutcome(
     val steps: Int = 0,
     val stepsProven: Boolean = false,
     val stepsRequired: Boolean = false,
+    val practised: Boolean = true,
 ) {
     val credited: Boolean get() = kind == OutcomeKind.COMPLETED && (stepsProven || !stepsRequired)
 }

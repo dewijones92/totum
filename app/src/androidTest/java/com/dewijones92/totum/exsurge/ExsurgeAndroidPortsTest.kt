@@ -61,7 +61,7 @@ class ExsurgeAndroidPortsTest {
         val posted = postedSummons()
         assertNotNull(posted.fullScreenIntent)
         assertEquals(
-            listOf("GO", "Snooze 5 min (left: 1)", "Skip this one"),
+            listOf("GO", "Just walk", "Snooze 5 min (left: 1)"),
             posted.actions.map { it.title.toString() }
         )
     }
@@ -70,7 +70,7 @@ class ExsurgeAndroidPortsTest {
     fun noSnoozeActionWhenNoneAreLeft() {
         notifications.showSummons(TakeoverRequest(42, 3, snoozesLeft = 0, snoozeMinutes = 5, overOtherApps = false))
         val posted = postedSummons()
-        assertEquals(listOf("GO", "Skip this one"), posted.actions.map { it.title.toString() })
+        assertEquals(listOf("GO", "Just walk", "Skip this one"), posted.actions.map { it.title.toString() })
     }
 
     @Test

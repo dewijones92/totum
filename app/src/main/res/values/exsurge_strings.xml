@@ -25,6 +25,7 @@
 
     <string name="exsurge_action_go">GO</string>
     <string name="exsurge_action_go_to">GO → %1$s</string>
+    <string name="exsurge_action_just_walk">Just walk</string>
     <string name="exsurge_action_snooze">Snooze %1$d min (left: %2$d)</string>
     <string name="exsurge_action_snooze_none">No snoozes left</string>
     <string name="exsurge_action_skip">Skip this one</string>
@@ -32,7 +33,7 @@
     <string name="exsurge_action_pause_hour">Pause 1 hour</string>
 
     <string name="exsurge_takeover_title">EXSURGE!</string>
-    <string name="exsurge_takeover_subtitle">Sitting: %1$d min. Up, walk and practise for %2$d min.</string>
+    <string name="exsurge_takeover_subtitle">Sitting: %1$d min. Up for %2$d min: walk, and practise if you like.</string>
     <string name="exsurge_takeover_call">Call %1$d of 3</string>
     <string name="exsurge_destination_missing">%1$s is not installed</string>
 
@@ -91,7 +92,7 @@
     <string name="exsurge_stats_rank">%1$s · laurels: %2$d</string>
     <string name="exsurge_stats_next_rank">%2$s in: %1$d</string>
     <string name="exsurge_stats_top_rank">The highest rank in Rome</string>
-    <string name="exsurge_stats_today">Today · done: %1$d · skipped: %2$d · missed: %3$d · steps: %4$d</string>
+    <string name="exsurge_stats_today">Today · done: %1$d (practised: %5$d) · skipped: %2$d · missed: %3$d · steps: %4$d</string>
     <string name="exsurge_stats_week">Last 7 days · done: %1$d · minutes standing: %2$d</string>
     <string name="exsurge_stats_streak">Streak (days): %1$d</string>
 </resources>

@@ -86,6 +86,12 @@ class ExsurgeNotifications(private val context: Context) {
             .addAction(
                 action(context.getString(R.string.exsurge_action_go), TakeoverActivity.pending(context, go = true))
             )
+            .addAction(
+                action(
+                    context.getString(R.string.exsurge_action_just_walk),
+                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.JUST_WALK),
+                ),
+            )
             .apply {
                 if (request.snoozesLeft > 0) {
                     addAction(
@@ -98,14 +104,15 @@ class ExsurgeNotifications(private val context: Context) {
                             ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SNOOZE)
                         )
                     )
+                } else {
+                    addAction(
+                        action(
+                            context.getString(R.string.exsurge_action_skip),
+                            ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SKIP),
+                        ),
+                    )
                 }
             }
-            .addAction(
-                action(
-                    context.getString(R.string.exsurge_action_skip),
-                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SKIP)
-                )
-            )
             .build()
         manager.notify(SUMMONS_ID, notification)
     }

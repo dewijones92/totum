@@ -103,6 +103,18 @@ class ExsurgeControllerTest {
     }
 
     @Test
+    fun `just walk never opens the language app`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        advance(minutes = 30)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        exsurge.dispatch(ExsurgeEvent.JustWalk, "takeover")
+        assertEquals(0, ports.opened)
+        assertEquals(1, ports.pauses)
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Rising)
+    }
+
+    @Test
     fun `the second call offers one snooze fewer`() {
         val exsurge = controller()
         exsurge.turnOn()

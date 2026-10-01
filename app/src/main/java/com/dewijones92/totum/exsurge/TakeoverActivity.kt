@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,6 +74,7 @@ class TakeoverActivity : ComponentActivity() {
                     view = view,
                     destination = destination,
                     onGo = ::go,
+                    onJustWalk = { justWalk() },
                     onSnooze = { exsurge.dispatch(ExsurgeEvent.Snooze, "takeover") },
                     onSkip = { exsurge.dispatch(ExsurgeEvent.Skip, "takeover") },
                 )
@@ -123,6 +125,11 @@ class TakeoverActivity : ComponentActivity() {
         )
     }
 
+    private fun justWalk() {
+        exsurge.dispatch(ExsurgeEvent.JustWalk, "takeover")
+        finish()
+    }
+
     private fun goNow(how: String) {
         exsurge.dispatch(ExsurgeEvent.Go, "takeover ($how)")
         finish()
@@ -159,7 +166,14 @@ class TakeoverActivity : ComponentActivity() {
 }
 
 @Composable
-fun TakeoverScreen(view: ExsurgeView, destination: String, onGo: () -> Unit, onSnooze: () -> Unit, onSkip: () -> Unit) {
+fun TakeoverScreen(
+    view: ExsurgeView,
+    destination: String,
+    onGo: () -> Unit,
+    onJustWalk: () -> Unit,
+    onSnooze: () -> Unit,
+    onSkip: () -> Unit,
+) {
     val summoned = view.memory.state as? ExsurgeState.Summoned
     val snoozesLeft = snoozesLeft(view.memory.state, view.settings)
     val sat = (view.memory.state as? ExsurgeState.Summoned)?.let {
@@ -199,7 +213,15 @@ fun TakeoverScreen(view: ExsurgeView, destination: String, onGo: () -> Unit, onS
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(32.dp))
-                TakeoverButtons(destination, snoozesLeft, view.settings.snoozeMinutes, onGo, onSnooze, onSkip)
+                TakeoverButtons(
+                    destination,
+                    snoozesLeft,
+                    view.settings.snoozeMinutes,
+                    onGo,
+                    onJustWalk,
+                    onSnooze,
+                    onSkip
+                )
             }
         }
     }
@@ -211,6 +233,7 @@ private fun TakeoverButtons(
     snoozesLeft: Int,
     snoozeMinutes: Int,
     onGo: () -> Unit,
+    onJustWalk: () -> Unit,
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -227,7 +250,11 @@ private fun TakeoverButtons(
             fontWeight = FontWeight.ExtraBold
         )
     }
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(12.dp))
+    OutlinedButton(onClick = onJustWalk, modifier = Modifier.fillMaxWidth().height(64.dp).testTag("exsurge-walk")) {
+        Text(stringResource(R.string.exsurge_action_just_walk), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    }
+    Spacer(Modifier.height(12.dp))
     TextButton(onClick = onSnooze, enabled = snoozesLeft > 0, modifier = Modifier.testTag("exsurge-snooze")) {
         Text(
             if (snoozesLeft > 0) {

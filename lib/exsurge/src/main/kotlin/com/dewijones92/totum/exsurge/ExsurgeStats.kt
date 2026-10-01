@@ -30,6 +30,7 @@ public data class DayTally(
     val steps: Int = 0,
     val minutesStanding: Long = 0,
     val unproven: Int = 0,
+    val practised: Int = 0,
 ) {
     val summons: Int get() = completed + skipped + missed + unproven
 }
@@ -74,6 +75,7 @@ public data class ExsurgeStats(
         private fun tally(outcomes: List<BreakOutcome>) = DayTally(
             completed = outcomes.count { it.credited },
             unproven = outcomes.count { it.kind == OutcomeKind.COMPLETED && !it.credited },
+            practised = outcomes.count { it.credited && it.practised },
             skipped = outcomes.count { it.kind == OutcomeKind.SKIPPED },
             missed = outcomes.count { it.kind == OutcomeKind.MISSED },
             steps = outcomes.sumOf { it.steps },

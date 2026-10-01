@@ -25,6 +25,7 @@ everything configurable. The backlog item, with the agreed design and the open i
 | Snooze (5 min, twice at most) | Takeover hides, comes back | — |
 | Skip | Recorded; Surgius looks wounded for the half hour | *Et tu, Dewi?* |
 | GO | Unlock if needed; Loquax opens at `/practice`; Totum's playback pauses | *Alea iacta est!* |
+| Just walk | The same break, with no language app (Dewi, 2026-10-01: *"I don't necessarily wanna do language learning when I get up"*); no unlock needed; recorded as not practised | *Alea iacta est!* |
 | 20 steps | The 5-minute break starts | *Bene! Ambula, disce!* |
 | 2 minutes left | — | *Duo minuta restant.* |
 | Break over | Playback resumes (only if the break paused it); +1 laurel | *Satis! Liber es!* / *Veni, vidi, didici!* |
@@ -37,6 +38,10 @@ everything configurable. The backlog item, with the agreed design and the open i
   window, snooze length and count, call-again interval (missed after three calls), rise timeout,
   the break cue's minutes before the end, and the pause length.
 - **Pause 1 hour:** from the banner, once a day.
+- **The summons notification** carries GO, Just walk and Snooze, or GO, Just walk and Skip when no
+  snoozes are left. Android shows three actions at most, and the takeover always has all four.
+- **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking
+  without practice still earns the laurel; the laurel is for standing up.
 - **Quick Settings tile:** turns it on and off, and shows "Next 14:32". A long-press opens the
   Exsurge screen.
 - **Tapping the banner** opens the Exsurge screen (`ExsurgeActivity`, which hosts the same

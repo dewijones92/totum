@@ -129,7 +129,10 @@ class ExsurgeSupportTest {
             outcome(5, OutcomeKind.MISSED, 3),
         )
         val stats = ExsurgeStats.of(list, at(5, 12), zone)
-        assertEquals(DayTally(completed = 1, skipped = 1, missed = 1, steps = 300, minutesStanding = 5), stats.today)
+        assertEquals(
+            DayTally(completed = 1, skipped = 1, missed = 1, steps = 300, minutesStanding = 5, practised = 1),
+            stats.today
+        )
         assertEquals(3, stats.today.summons)
     }
 
@@ -247,6 +250,14 @@ class ExsurgeSupportTest {
         val stats = ExsurgeStats.of(listOf(outcome(5, OutcomeKind.COMPLETED), dodged), at(6, 12), zone)
         assertEquals(1, stats.laurels)
         assertEquals(0, stats.streakDays)
+    }
+
+    @Test
+    fun `today's tally says how many breaks included practice`() {
+        val walked = outcome(5, OutcomeKind.COMPLETED, 2).copy(practised = false)
+        val stats = ExsurgeStats.of(listOf(outcome(5, OutcomeKind.COMPLETED), walked), at(5, 12), zone)
+        assertEquals(2, stats.today.completed)
+        assertEquals(1, stats.today.practised)
     }
 
     @Test

@@ -154,6 +154,26 @@ class ExsurgeMachineTest {
     }
 
     @Test
+    fun `just walk starts the break without opening the language app`() {
+        val at = mondayTen.plusSeconds2(20)
+        val result = apply(summoned(), ExsurgeEvent.JustWalk, at)
+        assertEquals(Rising(Summons(7, mondayTen, practise = false), at), result.memory.state)
+        assertTrue(OpenDestination !in result.effects)
+        assertTrue(PausePlayback in result.effects)
+    }
+
+    @Test
+    fun `a walk-only break is recorded as not practised`() {
+        val walking = apply(summoned(), ExsurgeEvent.JustWalk, mondayTen).memory
+        val started = apply(walking, ExsurgeEvent.StepsCounted(100), mondayTen.plusSeconds2(1)).memory
+        val risen = apply(started, ExsurgeEvent.StepsCounted(120), mondayTen.plusSeconds2(30)).memory
+        val done = apply(risen, ExsurgeEvent.Tick, mondayTen.plusSeconds2(30).plusMinutes(5))
+        val outcome = (done.effects.single { it is Record } as Record).outcome
+        assertEquals(false, outcome.practised)
+        assertTrue(outcome.credited)
+    }
+
+    @Test
     fun `go leaves playback alone when that setting is off`() {
         val ctx = context.copy(settings = on.copy(pausePlayback = false))
         val result = apply(summoned(), ExsurgeEvent.Go, mondayTen, ctx)

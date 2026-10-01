@@ -98,7 +98,8 @@ public object ExsurgeMachine {
                 ExsurgeEvent.Tick -> tick()
                 ExsurgeEvent.SettingsChanged -> settingsChanged()
                 ExsurgeEvent.SummonNow -> summonNow()
-                ExsurgeEvent.Go -> go()
+                ExsurgeEvent.Go -> go(practise = true)
+                ExsurgeEvent.JustWalk -> go(practise = false)
                 ExsurgeEvent.Snooze -> snooze()
                 ExsurgeEvent.Skip -> skip()
                 ExsurgeEvent.Walked -> walked()
@@ -258,13 +259,14 @@ public object ExsurgeMachine {
             }
         }
 
-        private fun go() {
+        private fun go(practise: Boolean) {
             val summons = when (val state = memory.state) {
                 is Summoned -> state.summons
                 is Snoozed -> state.summons
                 else -> return note("GO ignored at state=${state.label()}")
-            }
-            emit(HideTakeover, Speak(Cue.GO), OpenDestination)
+            }.copy(practise = practise)
+            emit(HideTakeover, Speak(Cue.GO))
+            if (practise) emit(OpenDestination) else note("just walking: ${settings.destinationPackage} not opened")
             if (settings.pausePlayback) emit(PausePlayback)
             if (context.stepsToRise == 0) {
                 note(
@@ -364,7 +366,17 @@ public object ExsurgeMachine {
             breakStartedAt: Instant? = null,
             steps: Int = 0,
             proven: Boolean = false,
-        ) = BreakOutcome(summons.id, summons.firstCalledAt, at, kind, summons.snoozes, breakStartedAt, steps, proven)
+        ) = BreakOutcome(
+            summons.id,
+            summons.firstCalledAt,
+            at,
+            kind,
+            summons.snoozes,
+            breakStartedAt,
+            steps,
+            proven,
+            practised = summons.practise,
+        )
     }
 }
 
@@ -384,6 +396,7 @@ private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.SettingsChanged -> "settingsChanged"
     ExsurgeEvent.SummonNow -> "summonNow"
     ExsurgeEvent.Go -> "go"
+    ExsurgeEvent.JustWalk -> "justWalk"
     ExsurgeEvent.Snooze -> "snooze"
     ExsurgeEvent.Skip -> "skip"
     ExsurgeEvent.Walked -> "walked"

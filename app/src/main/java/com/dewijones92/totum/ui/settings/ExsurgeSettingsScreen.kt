@@ -242,7 +242,8 @@ private fun StatsCard(view: ExsurgeView) {
                         stats.today.completed,
                         stats.today.skipped,
                         stats.today.missed,
-                        stats.today.steps
+                        stats.today.steps,
+                        stats.today.practised,
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )

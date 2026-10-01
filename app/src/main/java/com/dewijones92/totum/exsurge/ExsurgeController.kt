@@ -102,7 +102,8 @@ class ExsurgeController(
         lastEvent = "$event from $source at ${clock()}"
         apply(event, source)
         val seed = lastStepTotal
-        if (event == ExsurgeEvent.Go && memory.state is ExsurgeState.Rising && seed != null) {
+        val rising = event == ExsurgeEvent.Go || event == ExsurgeEvent.JustWalk
+        if (rising && memory.state is ExsurgeState.Rising && seed != null) {
             Diag.log(TAG, "dewidebug exsurge GO baseline = last step reading, total=$seed")
             apply(ExsurgeEvent.StepsCounted(seed), "baseline at GO")
         }
