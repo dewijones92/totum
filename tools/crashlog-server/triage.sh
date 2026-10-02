@@ -26,7 +26,7 @@ call() {
   shift 2
   local args=()
   for pair in "$@"; do args+=(--data-urlencode "$pair"); done
-  remote curl -sS --fail-with-body -X "$method" -G "$(base)$path" "${args[@]}"
+  remote curl -sS -X "$method" -G "$(base)$path" "${args[@]}"
 }
 
 show_considered() {
@@ -35,11 +35,11 @@ import json, sys
 data = json.load(sys.stdin)
 for r in data["reports"]:
     mark = "✅" if r["considered"] else "⬜"
-    print(f"{mark} {r[\"id\"]}  {r[\"kind\"] or \"?\":11} {r[\"app_version\"] or \"?\":10} {r[\"state\"]}")
+    print("{} {}  {:11} {:10} {}".format(mark, r["id"], r["kind"] or "?", r["app_version"] or "?", r["state"]))
     for f in r["findings"]:
-        version = f" {f[\"fixed_in\"]}" if f["fixed_in"] else ""
-        print(f"     #{f[\"id\"]} {f[\"state\"]}{version}: {f[\"title\"]}")
-print(f"\n{data[\"unconsidered\"]} of {len(data[\"reports\"])} not yet considered")
+        version = " " + f["fixed_in"] if f["fixed_in"] else ""
+        print("     #{} {}{}: {}".format(f["id"], f["state"], version, f["title"]))
+print("\n{} of {} not yet considered".format(data["unconsidered"], len(data["reports"])))
 '
 }
 
