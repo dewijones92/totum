@@ -74,7 +74,8 @@ public class DiagnosticsUploader(
                 Diag.log("diagnostics", "suppressed ${pending.size} report(s) — this is an emulator")
                 return@launch
             }
-            Diag.log("diagnostics", "uploading ${pending.size} pending report(s)")
+            val waitingKb = pending.sumOf { it.length() } / BYTES_PER_KB
+            Diag.log("diagnostics", "uploading ${pending.size} pending report(s), $waitingKb KB on the phone")
             pending.forEach { file ->
                 val sent = runCatching { post(file.readText()) }.getOrElse { error ->
                     Diag.warn("diagnostics", "upload failed, keeping ${file.name}", error)
@@ -105,6 +106,7 @@ public class DiagnosticsUploader(
     private companion object {
         /** The sink on Dewi's Pi; /ingest is the only unauthenticated path there. */
         const val ENDPOINT = "https://crashlog.333133333.xyz/ingest"
+        const val BYTES_PER_KB = 1024L
         val JSON = "application/json".toMediaType()
     }
 }

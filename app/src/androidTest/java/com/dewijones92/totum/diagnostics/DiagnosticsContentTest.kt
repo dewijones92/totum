@@ -111,6 +111,11 @@ class DiagnosticsContentTest {
         REQUIRED_TOP_LEVEL.forEach { key ->
             assertTrue("the report is missing \"$key\"", report.has(key))
         }
+        assertEquals(
+            "the report must count the reports already waiting on the phone",
+            before.size,
+            report.getInt("pendingReports"),
+        )
         // The per-item line specifically, since a count cannot say whether the item that was TAPPED
         // was on the disk — which is exactly what 0.1.346 could not tell us.
         assertTrue(
@@ -170,6 +175,14 @@ class DiagnosticsContentTest {
         )
 
         /** The heap as numbers, not prose: "was it near the ceiling?" must be comparable. */
-        val REQUIRED_TOP_LEVEL = listOf("heapUsedMb", "heapMaxMb", "nativeHeapMb", "appVersion", "gitCommit")
+        val REQUIRED_TOP_LEVEL = listOf(
+            "heapUsedMb",
+            "heapMaxMb",
+            "nativeHeapMb",
+            "appVersion",
+            "gitCommit",
+            "pendingReports",
+            "pendingReportsKb",
+        )
     }
 }

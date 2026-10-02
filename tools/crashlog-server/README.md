@@ -24,6 +24,12 @@ container on the Pi, reached through the existing nginx at
 | `GET /report/{id}/raw` | The raw JSON as received |
 | `GET /latest` | Newest report as plain text — the one-command triage |
 | `GET /api/reports` | JSON list, for triaging without a browser |
+| `GET /api/unread` | Reports nobody has judged, grouped by signature |
+| `POST /api/report/{id}/triage` | One verdict for a whole report (`state`, `fixed_in`, `note`) |
+| `POST /api/report/{id}/findings` | Add one **finding** to a report: `title`, `state`, `fixed_in`, `note` |
+| `POST /api/finding/{fid}` | Re-judge a finding; fields left out are kept |
+| `GET /api/report/{id}/findings` | A report's findings and whether it counts as **considered** |
+| `GET /api/considered?since=YYYY-MM-DD` | Every report since a date, considered or not, with its findings |
 | `GET /healthz` | Liveness |
 
 ## Why `/ingest` is unauthenticated
@@ -125,3 +131,38 @@ sudo docker run --rm -v $D/bin/data/nginx/app.conf:/x:ro alpine grep -n 'set $cr
 
 That is the check which proves the half-done fix above is really fixed: before it, a reboot
 would have silently restored the 504.
+
+## Considered: findings, not just reports
+
+One report usually holds several separate things: the bug in Dewi's note, an old crash still in
+the logcat buffer, a noisy sync line. Each one is a **finding**, judged on its own with the same
+states as a report (`new`, `triaged`, `fixed`, `wontfix`, `noise`). A report is **considered**
+once every finding has a verdict other than `new`. A report judged as a whole before findings
+existed (2026-10-02) still counts.
+
+The report's own `state` follows its findings, so the list, its filters and `/api/unread` stay
+true:
+- any unjudged finding leaves the report `new`;
+- one shared verdict becomes the report's verdict, with `fixed_in` when they agree;
+- a mix reads `triaged`.
+
+The report's `note` becomes a one-line summary of its findings.
+
+From the laptop, `tools/crashlog-server/triage.sh` does all of it over ssh:
+
+```bash
+tools/crashlog-server/triage.sh considered 2026-10-01   # ✅/⬜ per report, with its findings
+tools/crashlog-server/triage.sh add <report> fixed "no summons after a 2nd Restart" v0.1.556
+tools/crashlog-server/triage.sh set <finding-id> noise
+```
+
+Tests: `tests/test_findings.py` (unittest). There is no Python toolchain for the server on the
+laptop, so run them in the server's own image on the Pi:
+`docker run --rm -e PYTHONDONTWRITEBYTECODE=1 -v <dir>:/src -w /src totum-crashlog:local python -m unittest discover -s tests`.
+
+## Size
+
+Measured 2026-10-02: 572 reports in 59 MB on the Pi, against the `CRASHLOG_MAX_TOTAL_MB` cap of
+512 MB, which prunes the oldest (and their findings). On the phone, a report waits in
+`files/diagnostics` only until it is accepted: at most 50, about 150 KB each. Every report says
+how many are waiting and their size (`pendingReports`, `pendingReportsKb`).

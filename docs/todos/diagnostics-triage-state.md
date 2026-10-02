@@ -5,7 +5,7 @@ status: shipped
 area: diagnostics
 priority: high
 requested: 2026-07-28
-updated: 2026-07-28
+updated: 2026-10-02
 ---
 
 # A report should record whether it has been dealt with
@@ -88,3 +88,18 @@ on the Pi if a rollback is ever needed.
 **Gotcha for next time:** the database is `index.db`, not `reports.db`. The first backup
 attempt silently copied nothing, and only saying "backed up" after checking the listing
 caught it.
+
+## Findings, one verdict each (2026-10-02)
+
+Dewi asked to *"flag diag items as considered"*. One verdict per report had stopped being enough:
+the 0.1.555 report held a real bug, a September crash still sitting in the logcat buffer, and an
+unavailable-video sync line. Those are three separate verdicts.
+
+So a report now holds **findings**, each with its own state. A report is considered when they are
+all judged. Dewi chose the details:
+- per finding, not per report;
+- set through the API (`tools/crashlog-server/triage.sh`), with no web buttons;
+- everything received before 2026-10-01 bulk-marked `triaged`, as an unreviewed backlog, so
+  that `new` means new again.
+
+See the server README.

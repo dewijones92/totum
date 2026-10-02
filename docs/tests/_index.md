@@ -265,7 +265,8 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A row given no download callbacks still downloads through the app-wide actions | `MediaItemRowKeepsActionsTest` (emulator) | every commit — Related, Notifications and Search drew a control with `{}` behind it |
 | A shared link that cannot be resolved is queued by its id, not lost; a non-video link is dropped with a line | `SharedLinkTest` | every commit — report 0.1.477: shared offline, 53s of retries, vanished |
 | A share plays when shared and never when Android replays it (Recents, or a rebuilt activity) | `SharedLinkTest` (the rule), `ReplayedShareIsIgnoredTest` (instrumented, drives `MainActivity`) | every commit — reports 0.1.346 and 0.1.514; the instrumented test is red against the 0.1.514 build |
-| Every report carries SABR, media filter, skip categories, home-server presence and outbound-sync state | `DiagnosticsContentTest` (emulator) | every commit |
+| Every report carries SABR, media filter, skip categories, home-server presence outbound-sync state, and how many reports are waiting on the phone (and their size) | `DiagnosticsContentTest` (emulator) | every commit |
+| The crashlog server's findings: a report is considered only when every finding is judged, a shared verdict becomes the report's, an update keeps what it was not given, pruning takes findings with it | `tools/crashlog-server/tests/test_findings.py` (7) | by hand, in the server's image on the Pi (see its README); not in CI |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |
 | A resolve that lands late cannot take playback off a file it has already started — whatever route the newer play took | `AStaleResolveDoesNotClobberPlaybackTest` | every commit |

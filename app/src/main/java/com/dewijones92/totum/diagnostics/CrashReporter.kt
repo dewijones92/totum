@@ -117,6 +117,10 @@ public class CrashReporter(
                 put("nativeHeapMb", Debug.getNativeHeapAllocatedSize() / MB)
             }
             put("storageFreeMb", freeStorageMb())
+            DiagnosticsStore.pending(context).let { waiting ->
+                put("pendingReports", waiting.size)
+                put("pendingReportsKb", waiting.sumOf { it.length() } / KB)
+            }
 
             // Whatever the app can tell us about itself right now — playback, queue,
             // settings. Supplied by the caller so this class needs no app dependencies.
@@ -215,6 +219,7 @@ public class CrashReporter(
 
     private companion object {
         const val MB = 1024L * 1024L
+        const val KB = 1024L
 
         /**
          * Enough headroom for one report: the JSON, a stack trace, the event trail and a trimmed

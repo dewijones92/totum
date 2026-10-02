@@ -97,6 +97,24 @@ def _init_storage() -> None:
         connection.execute("CREATE INDEX IF NOT EXISTS reports_commit ON reports(git_commit)")
         connection.execute("CREATE INDEX IF NOT EXISTS reports_exception ON reports(exception)")
         connection.execute("CREATE INDEX IF NOT EXISTS reports_state ON reports(state)")
+        # One report usually holds several separate things (the bug Dewi wrote about, an old
+        # crash still in the logcat buffer, a noisy sync line), and one verdict per report hid
+        # which of them had been judged. A finding is one of those things, judged on its own.
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS findings (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_id   TEXT NOT NULL,
+                title       TEXT NOT NULL,
+                state       TEXT NOT NULL DEFAULT 'new',
+                fixed_in    TEXT,
+                note        TEXT,
+                created_at  TEXT NOT NULL,
+                updated_at  TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS findings_report ON findings(report_id)")
         connection.commit()
 
 
@@ -128,6 +146,10 @@ def _prune() -> None:
         total -= oldest.stat().st_size
         oldest.unlink(missing_ok=True)
         with closing(_connect()) as connection:
+            connection.execute(
+                "DELETE FROM findings WHERE report_id IN (SELECT id FROM reports WHERE path = ?)",
+                (str(oldest),),
+            )
             connection.execute("DELETE FROM reports WHERE path = ?", (str(oldest),))
             connection.commit()
 
@@ -245,6 +267,142 @@ def api_triage_signature(
         ).rowcount
         connection.commit()
     return JSONResponse({"exception": exception, "state": state, "updated": updated})
+
+
+def _findings(connection: sqlite3.Connection, report_id: str) -> list[dict[str, Any]]:
+    return [
+        dict(r)
+        for r in connection.execute("SELECT * FROM findings WHERE report_id = ? ORDER BY id", (report_id,))
+    ]
+
+
+def _considered(report: sqlite3.Row, findings: list[dict[str, Any]]) -> bool:
+    """Every finding judged, or (for a report triaged before findings existed) the report itself."""
+    if findings:
+        return all(f["state"] != "new" for f in findings)
+    return report["state"] != "new"
+
+
+def _summarise(connection: sqlite3.Connection, report_id: str) -> None:
+    """Keeps the report's own state in step with its findings, so the list, the filters and
+    /api/unread stay true without knowing findings exist: any unjudged finding leaves the report
+    `new`; one shared verdict becomes the report's; a mix reads `triaged`."""
+    findings = _findings(connection, report_id)
+    if not findings:
+        return
+    states = {f["state"] for f in findings}
+    if "new" in states:
+        state = "new"
+    elif len(states) == 1:
+        state = states.pop()
+    else:
+        state = "triaged"
+    fixed = {f["fixed_in"] for f in findings if f["state"] == "fixed" and f["fixed_in"]}
+    fixed_in = fixed.pop() if len(fixed) == 1 else None
+    note = "; ".join(f"{f['state']}: {f['title']}" for f in findings)
+    connection.execute(
+        "UPDATE reports SET state = ?, fixed_in = ?, note = ?, triaged_at = ? WHERE id = ?",
+        (state, fixed_in, note, datetime.now(timezone.utc).isoformat(), report_id),
+    )
+
+
+@app.post("/api/report/{report_id}/findings")
+def api_add_finding(
+    report_id: str,
+    title: str = Query(..., min_length=1),
+    state: str = Query(default="new"),
+    fixed_in: str | None = Query(default=None),
+    note: str | None = Query(default=None),
+) -> JSONResponse:
+    if state not in TRIAGE_STATES:
+        return JSONResponse({"error": f"state must be one of {TRIAGE_STATES}"}, status_code=400)
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(_connect()) as connection:
+        if connection.execute("SELECT 1 FROM reports WHERE id = ?", (report_id,)).fetchone() is None:
+            return JSONResponse({"error": "no such report"}, status_code=404)
+        finding_id = connection.execute(
+            "INSERT INTO findings (report_id, title, state, fixed_in, note, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (report_id, title, state, fixed_in, note, now, now),
+        ).lastrowid
+        _summarise(connection, report_id)
+        connection.commit()
+        finding = connection.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+    return JSONResponse(dict(finding), status_code=201)
+
+
+@app.post("/api/finding/{finding_id}")
+def api_update_finding(
+    finding_id: int,
+    state: str = Query(...),
+    title: str | None = Query(default=None),
+    fixed_in: str | None = Query(default=None),
+    note: str | None = Query(default=None),
+) -> JSONResponse:
+    if state not in TRIAGE_STATES:
+        return JSONResponse({"error": f"state must be one of {TRIAGE_STATES}"}, status_code=400)
+    with closing(_connect()) as connection:
+        existing = connection.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+        if existing is None:
+            return JSONResponse({"error": "no such finding"}, status_code=404)
+        connection.execute(
+            "UPDATE findings SET state = ?, title = ?, fixed_in = ?, note = ?, updated_at = ? WHERE id = ?",
+            (
+                state,
+                title or existing["title"],
+                fixed_in if fixed_in is not None else existing["fixed_in"],
+                note if note is not None else existing["note"],
+                datetime.now(timezone.utc).isoformat(),
+                finding_id,
+            ),
+        )
+        _summarise(connection, existing["report_id"])
+        connection.commit()
+        finding = connection.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+    return JSONResponse(dict(finding))
+
+
+@app.get("/api/report/{report_id}/findings")
+def api_report_findings(report_id: str) -> JSONResponse:
+    with closing(_connect()) as connection:
+        report = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+        if report is None:
+            return JSONResponse({"error": "no such report"}, status_code=404)
+        findings = _findings(connection, report_id)
+    return JSONResponse(
+        {
+            "id": report_id,
+            "app_version": report["app_version"],
+            "state": report["state"],
+            "considered": _considered(report, findings),
+            "findings": findings,
+        }
+    )
+
+
+@app.get("/api/considered")
+def api_considered(since: str = Query(default="", description="received_at >= this, e.g. 2026-10-01")) -> JSONResponse:
+    """Every report since a date with whether it has been considered and what was found in it —
+    the ticked-off list, newest first."""
+    with closing(_connect()) as connection:
+        rows = connection.execute(
+            "SELECT * FROM reports WHERE received_at >= ? ORDER BY received_at DESC", (since,)
+        ).fetchall()
+        out = []
+        for row in rows:
+            findings = _findings(connection, row["id"])
+            out.append(
+                {
+                    "id": row["id"],
+                    "kind": row["kind"],
+                    "app_version": row["app_version"],
+                    "state": row["state"],
+                    "considered": _considered(row, findings),
+                    "note": row["note"],
+                    "findings": findings,
+                }
+            )
+    return JSONResponse({"reports": out, "unconsidered": sum(not r["considered"] for r in out)})
 
 
 @app.get("/api/unread")
