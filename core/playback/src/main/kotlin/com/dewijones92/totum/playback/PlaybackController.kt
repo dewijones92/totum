@@ -85,6 +85,9 @@ public interface PlaybackController {
     /** Pauses (false) or resumes (true) the current item; no-op when nothing is queued. */
     public fun setPlaying(wanted: Boolean)
 
+    /** The next [play] of [itemId] prepares it paused instead of starting it; null cancels. */
+    public fun holdPausedForNextPlay(itemId: MediaItemId?)
+
     /** Seeks the current item to [positionMs] (clamped to [0, duration]). */
     public fun seekTo(positionMs: Long)
 

@@ -123,6 +123,9 @@ public class FakePlaybackController : PlaybackController {
         startPositionMs: Long,
     ) {
         played += item.id.value
+        val startPaused = heldPaused == item.id
+        if (startPaused) heldPaused = null
+        lastPlayStartedPaused = startPaused
         lastItem = item
         lastSkipSegments = skipSegments
         lastLocalPath = localPath
@@ -136,11 +139,11 @@ public class FakePlaybackController : PlaybackController {
             artworkUrl = item.thumbnailUrl?.value,
             description = item.description,
             kind = kind,
-            isPlaying = true,
+            isPlaying = !startPaused,
             // A played item is INTENDED to play. Without this the fake modelled "moving but not meant
             // to be", which is a state the real player never reports on a fresh play, and it made the
             // first toggle after play() read as "start" rather than "stop".
-            wantsToPlay = true,
+            wantsToPlay = !startPaused,
             positionMs = 0,
             durationMs = item.duration?.inWholeMilliseconds,
             speed = 1.0f,
@@ -176,6 +179,15 @@ public class FakePlaybackController : PlaybackController {
                 it.copy(wantsToPlay = wants, isPlaying = wants && !it.isBuffering)
             }
         }
+    }
+
+    private var heldPaused: MediaItemId? = null
+
+    public var lastPlayStartedPaused: Boolean = false
+        private set
+
+    override fun holdPausedForNextPlay(itemId: MediaItemId?) {
+        heldPaused = itemId
     }
 
     override fun setPlaying(wanted: Boolean) {

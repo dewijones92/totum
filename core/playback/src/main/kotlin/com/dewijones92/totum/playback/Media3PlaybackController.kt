@@ -241,6 +241,11 @@ public class Media3PlaybackController(
         // emulator 2026-07-31). Signature and expiry parameters are dropped: they are long,
         // secret, and never the answer. The ROUTE is decided here, from the uri, and carried in the
         // line — see routeOf, which exists because working it out afterwards was wrong four times.
+        val startPaused = heldPaused == item.id
+        if (startPaused) {
+            heldPaused = null
+            Diag.log("playback", "${item.id.value} starts paused: it was paused while being re-fetched")
+        }
         val mergedAudio = audioUrl?.let { " + audio ${it.value.forLog()}" }.orEmpty()
         Diag.log("playback", playBreadcrumb(item.id.value, uri.forLog(), mergedAudio, routeOf(uri, localPath != null)))
         onPlay(item, kind)
@@ -301,9 +306,16 @@ public class Media3PlaybackController(
                 applySubtitleLanguage(controller)
                 if (boost != volumeBoost) setVolumeBoost(boost)
                 controller.prepare()
-                controller.play()
+                if (startPaused) controller.pause() else controller.play()
             }
         }
+    }
+
+    @Volatile
+    private var heldPaused: MediaItemId? = null
+
+    override fun holdPausedForNextPlay(itemId: MediaItemId?) {
+        heldPaused = itemId
     }
 
     override fun togglePlayPause() {

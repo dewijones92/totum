@@ -22,7 +22,6 @@ import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -148,6 +147,8 @@ class PlaybackQueue(
      */
     private val playingNow: PlayableItem?
         get() = _nowPlaying.value ?: _state.value.current?.item
+
+    private val rescueIntent = RescueIntent(controller)
 
     private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
 
@@ -700,28 +701,10 @@ class PlaybackQueue(
         // re-requested the identical address. A fresh connection sometimes helps; a source that has
         // been asked to produce the stream again helps more, and it is the only second thing there
         // is to try. Found by writing the stall tests on 2026-08-03, not by a report.
-        return coroutineScope {
-            var wanted = false
-            var pausedMeanwhile = false
-            val watcher = launch {
-                controller.state.collect { state ->
-                    if (state?.itemId != item.item.id) return@collect
-                    if (state.wantsToPlay) wanted = true else if (wanted) pausedMeanwhile = true
-                }
-            }
-            val played = try {
-                runCatching { refresh(item) }
-                    .onFailure { Diag.warn("playback", "could not refresh ${item.item.id.value} before replaying", it) }
-                play(item, positionMs, retry = true)
-            } finally {
-                watcher.cancel()
-            }
-            if (played && pausedMeanwhile) {
-                val id = item.item.id.value
-                Diag.log("playback", "$id was paused while its rescue fetched a fresh stream; keeping it paused")
-                controller.setPlaying(false)
-            }
-            played
+        return rescueIntent.keeping(item.item.id, "replay") {
+            runCatching { refresh(item) }
+                .onFailure { Diag.warn("playback", "could not refresh ${item.item.id.value} before replaying", it) }
+            play(item, positionMs, retry = true)
         }
     }
 
@@ -764,7 +747,10 @@ class PlaybackQueue(
     ): Boolean {
         // Recorded before routing, so a peek and a queued play are equally "playing".
         _nowPlaying.value = queued
-        if (!retry) _freshStarts.tryEmit(queued.item.id)
+        if (!retry) {
+            rescueIntent.freshPlay(queued.item.id)
+            _freshStarts.tryEmit(queued.item.id)
+        }
         return route(queued, startPositionMs, streamRefused, forceAudio)
     }
 
@@ -788,6 +774,11 @@ class PlaybackQueue(
      * sound is silence.
      */
     suspend fun playCurrentWithoutThePicture(positionMs: Long): Boolean {
+        val id = playingNow?.item?.id ?: return false
+        return rescueIntent.keeping(id, "sound-only rescue") { playCurrentWithoutThePictureNow(positionMs) }
+    }
+
+    private suspend fun playCurrentWithoutThePictureNow(positionMs: Long): Boolean {
         val item = playingNow ?: return false
         // The PILLAR, like both neighbours in this ladder already check. Without it the rung asked the
         // launcher for a fallback while the launcher still held the last VIDEO it resolved -- a podcast
@@ -848,6 +839,11 @@ class PlaybackQueue(
      * cue to keep walking down to the sound.
      */
     suspend fun playCurrentOverSabr(positionMs: Long): Boolean {
+        val id = playingNow?.item?.id ?: return false
+        return rescueIntent.keeping(id, "SABR rescue") { playCurrentOverSabrNow(positionMs) }
+    }
+
+    private suspend fun playCurrentOverSabrNow(positionMs: Long): Boolean {
         val item = playingNow ?: return false
         // Offline FIRST, and cheaply. SABR is a network route, so with no network it cannot succeed —
         // and this rung sits in the give-up ladder, which offline IS the path to "step over this and
@@ -876,6 +872,11 @@ class PlaybackQueue(
     }
 
     suspend fun playCurrentWithoutItsStream(positionMs: Long): Boolean {
+        val id = playingNow?.item?.id ?: return false
+        return rescueIntent.keeping(id, "rescue from the disk") { playCurrentWithoutItsStreamNow(positionMs) }
+    }
+
+    private suspend fun playCurrentWithoutItsStreamNow(positionMs: Long): Boolean {
         val item = playingNow ?: return false
         return play(item, positionMs, retry = true, streamRefused = true)
     }
