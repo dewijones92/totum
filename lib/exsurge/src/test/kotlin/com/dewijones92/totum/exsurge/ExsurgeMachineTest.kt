@@ -492,4 +492,53 @@ class ExsurgeMachineTest {
         val walked = apply(changed, ExsurgeEvent.Walked, evening.plusMinutes(10)).memory
         assertEquals(Sitting(evening.plusMinutes(10), oneOff = true), walked.state)
     }
+
+    @Test
+    fun `restart clock twice in the evening keeps the one-off`() {
+        val evening = ZonedDateTime.of(2026, 10, 5, 20, 0, 0, 0, zone).toInstant()
+        val first = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock, evening).memory
+        val second = apply(first, ExsurgeEvent.RestartClock, evening.plusMinutes(5))
+        assertEquals(Sitting(evening.plusMinutes(5), oneOff = true), second.memory.state)
+    }
+
+    @Test
+    fun `restart clock from a pause that ran past six arms a one-off`() {
+        val late = ZonedDateTime.of(2026, 10, 5, 18, 10, 0, 0, zone).toInstant()
+        val result = apply(ExsurgeMemory(Paused(late.plusMinutes(30))), ExsurgeEvent.RestartClock, late)
+        assertEquals(Sitting(late, oneOff = true), result.memory.state)
+    }
+
+    @Test
+    fun `a one-off armed before nine becomes an ordinary clock once hours begin`() {
+        val early = ZonedDateTime.of(2026, 10, 5, 8, 50, 0, 0, zone).toInstant()
+        val armed = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock, early).memory
+        val walked = apply(armed, ExsurgeEvent.Walked, early.plusMinutes(20)).memory
+        assertEquals(Sitting(early.plusMinutes(20)), walked.state)
+        val six = ZonedDateTime.of(2026, 10, 5, 18, 0, 0, 0, zone).toInstant()
+        val evening = apply(walked.copy(state = Sitting(six.minusSeconds(600))), ExsurgeEvent.Tick, six)
+        assertTrue(evening.memory.state is Dormant)
+    }
+
+    @Test
+    fun `summon now in the evening can be snoozed and comes back`() {
+        val evening = ZonedDateTime.of(2026, 10, 5, 20, 0, 0, 0, zone).toInstant()
+        val summoned = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.SummonNow, evening).memory
+        val snoozed = apply(summoned, ExsurgeEvent.Snooze, evening).memory
+        assertTrue(apply(snoozed, ExsurgeEvent.Tick, evening.plusMinutes(5)).memory.state is Summoned)
+    }
+
+    @Test
+    fun `a one-off clock says so in its label`() {
+        assertEquals("sitting/oneOff", Sitting(mondayTen, oneOff = true).label())
+        assertEquals("rising#7/3/walk", Rising(Summons(7, mondayTen, practise = false), mondayTen, 0, 3).label())
+    }
+
+    @Test
+    fun `two restarts before nine still summon thirty minutes after the second`() {
+        val early = ZonedDateTime.of(2026, 10, 2, 6, 9, 0, 0, zone).toInstant()
+        val first = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock, early).memory
+        val second = apply(first, ExsurgeEvent.RestartClock, early.plusSeconds(19)).memory
+        val due = apply(second, ExsurgeEvent.Tick, early.plusSeconds(19).plusMinutes(30))
+        assertTrue("expected a summons, was ${due.memory.state.label()}", due.memory.state is Summoned)
+    }
 }

@@ -97,6 +97,7 @@ public object ExsurgeMachine {
 
         fun handle(event: ExsurgeEvent) {
             if (event != ExsurgeEvent.SettingsChanged) healEnabled()
+            settleOneOff()
             val before = memory.state
             when (event) {
                 ExsurgeEvent.Tick -> tick()
@@ -180,16 +181,9 @@ public object ExsurgeMachine {
 
         private fun restartClock() {
             when (val state = memory.state) {
-                is Sitting, is Paused -> {
+                is Sitting, is Paused, is Dormant -> {
                     note("clock restarted by hand (was ${state.label()})")
-                    become(Sitting(at))
-                }
-                is Dormant -> {
-                    note(
-                        "clock restarted outside active hours: one summons in " +
-                            "${settings.sittingMinutes}m, then back to sleep"
-                    )
-                    become(Sitting(at, oneOff = true))
+                    sitDownNow(null)
                 }
                 is Summoned -> abandonForSitting(state.summons, resume = false)
                 is Snoozed -> abandonForSitting(state.summons, resume = false)
@@ -263,7 +257,19 @@ public object ExsurgeMachine {
         }
 
         private fun sitDownNow(after: OutcomeKind?) {
-            become(Sitting(at, after, oneOff = !active()))
+            val oneOff = !active()
+            if (oneOff) {
+                note("sat down outside active hours: one summons in ${settings.sittingMinutes}m, then back to sleep")
+            }
+            become(Sitting(at, after, oneOff = oneOff))
+        }
+
+        private fun settleOneOff() {
+            val state = memory.state
+            if (state is Sitting && state.oneOff && active()) {
+                note("active hours began: the one-off clock becomes the ordinary one")
+                become(state.copy(oneOff = false))
+            }
         }
 
         private fun abandonForSitting(summons: Summons, resume: Boolean) {
@@ -298,8 +304,8 @@ public object ExsurgeMachine {
         private fun summonNow() {
             when (val state = memory.state) {
                 is Sitting, is Dormant, is Paused -> {
-                    note("summon requested by hand")
-                    summon(Summons(memory.nextSummonsId, at))
+                    note("summon requested by hand (inside active hours=${active()})")
+                    summon(Summons(memory.nextSummonsId, at, oneOff = !active()))
                     memory = memory.copy(nextSummonsId = memory.nextSummonsId + 1)
                 }
                 is Snoozed -> summon(state.summons)
@@ -432,12 +438,14 @@ public fun ExsurgeState.label(): String = when (this) {
     ExsurgeState.Off -> "off"
     is Dormant -> "dormant"
     is Paused -> "paused"
-    is Sitting -> "sitting"
-    is Summoned -> "summoned#${summons.id}/call$call"
-    is Snoozed -> "snoozed#${summons.id}"
-    is Rising -> "rising#${summons.id}/$steps"
-    is OnBreak -> "onBreak#${summons.id}"
+    is Sitting -> if (oneOff) "sitting/oneOff" else "sitting"
+    is Summoned -> "summoned#${summons.id}/call$call${summons.walkOnly()}"
+    is Snoozed -> "snoozed#${summons.id}${summons.walkOnly()}"
+    is Rising -> "rising#${summons.id}/$steps${summons.walkOnly()}"
+    is OnBreak -> "onBreak#${summons.id}${summons.walkOnly()}"
 }
+
+private fun Summons.walkOnly(): String = if (practise) "" else "/walk"
 
 private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.Tick -> "tick"

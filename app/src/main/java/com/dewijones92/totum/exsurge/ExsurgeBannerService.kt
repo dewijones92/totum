@@ -21,7 +21,8 @@ import java.time.Instant
 class ExsurgeBannerService : Service(), SensorEventListener {
     private val handler = Handler(Looper.getMainLooper())
     private val exsurge get() = (application as TotumApplication).container.exsurge
-    private var listening = false
+    private var listeningBatchUs: Int? = null
+    private var destroyed = false
     private val minuteTick = object : Runnable {
         override fun run() {
             exsurge.refresh()
@@ -58,7 +59,7 @@ class ExsurgeBannerService : Service(), SensorEventListener {
             stopSelf()
             return START_NOT_STICKY
         }
-        startListening()
+        tuneSteps(exsurge.view.value.memory.state)
         handler.removeCallbacks(minuteTick)
         handler.postDelayed(minuteTick, REFRESH_MS)
         return START_STICKY
@@ -68,7 +69,8 @@ class ExsurgeBannerService : Service(), SensorEventListener {
         stopForeground(STOP_FOREGROUND_DETACH)
         handler.removeCallbacks(minuteTick)
         getSystemService(SensorManager::class.java).unregisterListener(this)
-        listening = false
+        listeningBatchUs = null
+        destroyed = true
         countingSteps = false
         current = null
         running = false
@@ -84,8 +86,11 @@ class ExsurgeBannerService : Service(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
-    private fun startListening() {
-        if (listening) return
+    private fun tuneSteps(state: ExsurgeState) {
+        if (destroyed) {
+            Diag.log(ExsurgeController.TAG, "dewidebug exsurge step tuning skipped: this banner service is stopping")
+            return
+        }
         if (!stepsPermitted(this)) {
             Diag.log(ExsurgeController.TAG, "dewidebug exsurge steps not counted: ACTIVITY_RECOGNITION not granted")
             return
@@ -97,13 +102,19 @@ class ExsurgeBannerService : Service(), SensorEventListener {
             Diag.log(ExsurgeController.TAG, "dewidebug exsurge steps not counted: no step counter on this device")
             return
         }
-        val batching = if (counter.isWakeUpSensor) WAKE_UP_BATCH_US else 0
-        listening = sensors.registerListener(this, counter, SensorManager.SENSOR_DELAY_NORMAL, batching)
-        countingSteps = listening
+        val moving = state is ExsurgeState.Rising || state is ExsurgeState.OnBreak
+        val batching = if (counter.isWakeUpSensor && !moving) WAKE_UP_BATCH_US else 0
+        val was = listeningBatchUs
+        if (was == batching) return
+        if (was != null) sensors.unregisterListener(this)
+        val registered = sensors.registerListener(this, counter, SensorManager.SENSOR_DELAY_NORMAL, batching)
+        listeningBatchUs = if (registered) batching else null
+        countingSteps = registered
         current = this
         Diag.log(
             ExsurgeController.TAG,
-            "dewidebug exsurge step counter registered=$listening wakeUp=${counter.isWakeUpSensor} batchUs=$batching"
+            "dewidebug exsurge step counter registered=$registered wakeUp=${counter.isWakeUpSensor} " +
+                "batchUs=$batching (was ${was ?: "unregistered"}) state=${state.label()} moving=$moving"
         )
     }
 
@@ -140,7 +151,10 @@ class ExsurgeBannerService : Service(), SensorEventListener {
                     notifications.cancelBanner()
                 }
                 wantService && !running && stepsPermitted(context) -> start(context, notifications, view)
-                wantService || !running -> notifications.showBanner(view)
+                wantService || !running -> {
+                    notifications.showBanner(view)
+                    current?.let { service -> service.handler.post { service.tuneSteps(state) } }
+                }
                 else -> {
                     notifications.showBanner(view)
                     runCatching {

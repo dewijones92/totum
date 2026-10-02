@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -41,11 +41,18 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Restart clock** (banner, Exsurge screen) means "I've just sat down": the sitting limit starts
   again from now. Dewi's case, 2026-10-01: *"I go to sit and play piano for half an hour then I
   wanna get up"*. Outside active hours it arms a **one-off** summons after the sitting limit,
-  which can be snoozed as usual, and then goes back to sleep. It ends a pause. **Mid-summons**
+  which can be snoozed as usual, and then goes back to sleep. That holds from any state, including
+  a second Restart in the evening and a pause that ran past 18:00. A one-off armed before 09:00
+  becomes the ordinary clock once the day starts, so it goes quiet at 18:00 as usual. It ends a pause. **Mid-summons**
   (summoned, snoozed, or walking to the 20 steps) it ends that summons as a quiet skip (recorded,
   no "Et tu"). **Mid-break** it ends the break early as completed. Dewi chose both on 2026-10-01,
   after his first report on 0.1.554 showed Restart clock being ignored at `rising#5/7` while the
   banner kept counting steps.
+- **Summon now** outside active hours is a one-off too, so its snooze comes back rather than being
+  dropped as "outside hours".
+- **Steps arrive promptly while it matters.** The step counter is batched at 60 s while sitting, to
+  spare the battery, and unbatched while rising or on a break. A batched report could hold back the
+  20th step for up to a minute.
 - **The summons notification** carries GO, Just walk and Snooze, or GO, Just walk and Skip when no
   snoozes are left. Android shows three actions at most, and the takeover always has all four.
 - **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking
@@ -53,7 +60,8 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Quick Settings tile:** turns it on and off, and shows "Next 14:32". A long-press opens the
   Exsurge screen.
 - **Tapping the banner** opens the Exsurge screen (`ExsurgeActivity`, which hosts the same
-  `ExsurgeSettingsScreen`), or the takeover while a summons is live. Dewi asked for this on
+  `ExsurgeSettingsScreen`), or the takeover while a summons is live. It opens in its own task, out of
+  Recents, so Back returns to whatever was in front rather than into Totum's player. Dewi asked for this on
   2026-10-01; before that, it opened Totum's main screen.
 - **Settings → Exsurge et Disce:** every setting, a permissions checklist with Grant buttons,
   Summon now, and a stats card with Surgius in his current mood.
@@ -121,8 +129,9 @@ Two SUSPECTED findings were fixed by design rather than by test:
 - **Without the foreground service, the voice gets no audio focus** (`voice focus=0`): without the
   Physical activity grant the banner service does not run, and Android refuses focus to a
   background app. The clip still plays; it just does not duck other audio.
-- **A stall rescue in flight overrides the break's pause.** That is a pre-existing playback race,
-  not Exsurge's: see [stall-rescue-overrides-a-pause](../todos/stall-rescue-overrides-a-pause.md).
+- **A stall rescue in flight used to override the break's pause.** That was a playback race, not
+  Exsurge's, and is fixed (the first fix was not): see
+  [stall-rescue-overrides-a-pause](../todos/stall-rescue-overrides-a-pause.md).
 - **One unexplained ANR:** the first visit to the settings screen after a fresh install hung the
   main thread in continuous recomposition for about 50 s. It could not be reproduced after a
   force-stop, on the same build (main-thread CPU on that screen then measured 2 ticks in 4 s). If

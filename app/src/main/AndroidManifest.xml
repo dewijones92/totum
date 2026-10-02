@@ -63,6 +63,8 @@
         <activity
             android:name=".exsurge.ExsurgeActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dewijones92.totum.exsurge.screen"
             android:label="@string/exsurge_name"
             android:theme="@style/Theme.Totum">
             <intent-filter>
