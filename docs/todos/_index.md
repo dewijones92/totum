@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Seamless playback across TV, laptop, browser and other devices](seamless-cross-device-playback.md) | playback/integration | — | refining: Netflix-like ease; device priorities and continuity to agree |
 | [seek-before-account-resume](seek-before-account-resume.md) | playback | high | fixed 2026-10-05: a seek overrides the cached account figure before its first resume |
 | [shared-title-stays-placeholder](shared-title-stays-placeholder.md) | queue/downloads | high | fixed 2026-10-05 → [shared-link metadata](../features/shared-link-metadata.md) |
 | [audio-download-recorded-as-full](audio-download-recorded-as-full.md) | downloads | high | fixed 2026-10-01 for new downloads: the signed-in fallback recorded audio as a full copy, so VIDEO mode played no picture; downloads already mislabelled need re-downloading |
