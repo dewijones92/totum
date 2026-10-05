@@ -3,7 +3,7 @@ title: The player screen — tinted by what is playing
 kind: feature
 status: shipped
 area: player
-updated: 2026-09-25
+updated: 2026-10-05
 ---
 
 # The player screen
@@ -99,3 +99,26 @@ either, which is a decent argument for writing one.
 |---|---|
 | JVM unit | `ArtworkColourTest` (10) — a small vivid area beats a large dull one; letterboxing and white logos ignored; similar images do not collapse to one colour; transparent pixels excluded; null when nothing is usable; always opaque |
 | Instrumented | `PlayerKeepsEveryControlTest` (2) — every control on the video player and on the audio player, still reachable |
+
+## Rotation into fullscreen (2026-10-05)
+
+Turning a phone into landscape while a video is visible opens the full player, including from the
+mini player, and shows the video without app chrome or system bars. Turning back to portrait leaves
+this automatic fullscreen and returns to the expanded player page. Audio playback stays on its
+current screen. Rotation follows Android's orientation setting.
+
+`FullscreenMode` distinguishes windowed, manual and rotation-triggered fullscreen. The button still
+locks landscape; automatic fullscreen leaves orientation unlocked so portrait can be observed. Back
+or Exit fullscreen stays effective while the phone remains landscape; another rotation can enter
+again. The existing grace for a video's resolve/recovery gap remains in effect. See
+[ADR 9](../adr/0009-rotation-follows-video-fullscreen.md).
+
+The diagnostic trail records the shell opening the player, rotation entering/leaving fullscreen,
+and whether fullscreen locks landscape. `FullscreenSurvivesTheNextVideoTest` exercises automatic
+entry/exit and explicit exit, alongside its existing recovery cases.
+`RotationOpensTheVideoFromTheShellTest` rotates the actual activity around a locally played video,
+checks entry from the mini player and return to portrait, and checks that a podcast stays in the
+shell. It loops the standard local clip (`androidTest/assets/clip.mp4`), waits for a rendered-frame
+callback, and captures the changed screen in both orientations. The clip is deliberately black.
+A separate [colour-pixel probe](../../dev/diagnostics/2026-10-05-video-pixels/README.md) also failed
+with Totum’s layout removed; colour-picture validation on this emulator remains unconfirmed.

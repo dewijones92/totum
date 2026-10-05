@@ -138,19 +138,20 @@ fun FullPlayerOverlay(
     queue: QueueControls = QueueControls.None,
 ) {
     KeepScreenOnWhilePlayingVideo(active = state.hasVideo && state.isPlaying)
-    var fullscreen by rememberSaveable { mutableStateOf(false) }
+    var fullscreenMode by rememberFullscreenMode(state)
+    val fullscreen = fullscreenMode != FullscreenMode.WINDOWED
     // `videoPlayer` is non-null only for a video; only a video can go fullscreen.
     val videoPlayer = player.takeIf { state.hasVideo }
 
-    EndFullscreenOnceSettledOnAudio(state, fullscreen) { fullscreen = false }
+    EndFullscreenOnceSettledOnAudio(state, fullscreen) { fullscreenMode = FullscreenMode.WINDOWED }
 
     // Back exits fullscreen first, then closes the player. Rendered in the
     // activity's own window (not a Dialog), so landscape rotation for fullscreen
     // is handled by the same window that hosts the app — a Dialog sub-window
     // would stay portrait-sized and leave the video in a stale frame.
     val videoSettings = rememberVideoSettings(state, quality, onSetSpeed, onSetSubtitleLanguage)
-    BackHandler { if (fullscreen) fullscreen = false else onDismiss() }
-    FullscreenEffect(active = fullscreen)
+    BackHandler { if (fullscreen) fullscreenMode = FullscreenMode.WINDOWED else onDismiss() }
+    FullscreenEffect(active = fullscreen, lockLandscape = fullscreenMode == FullscreenMode.MANUAL)
     Surface(modifier = Modifier.fillMaxSize()) {
         // Bound to `player`, not `videoPlayer`, so the surface survives an item change:
         // rebuilding it across the gap is a visible flicker on every auto-advance. The
@@ -162,7 +163,7 @@ fun FullPlayerOverlay(
                 player = player,
                 settings = videoSettings,
                 fullscreen = true,
-                onToggleFullscreen = { fullscreen = false },
+                onToggleFullscreen = { fullscreenMode = FullscreenMode.WINDOWED },
                 onDismiss = onDismiss,
                 onTogglePlayPause = onTogglePlayPause,
                 onSeekTo = onSeekTo,
@@ -180,7 +181,7 @@ fun FullPlayerOverlay(
                 quality = quality,
                 sleepTimer = sleepTimer,
                 queue = queue,
-                onEnterFullscreen = { fullscreen = true },
+                onEnterFullscreen = { fullscreenMode = FullscreenMode.MANUAL },
                 onDismiss = onDismiss,
                 onPlayRelated = onPlayRelated,
                 onStartSleep = onStartSleep,

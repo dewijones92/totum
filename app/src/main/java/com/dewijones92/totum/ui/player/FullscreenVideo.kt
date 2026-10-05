@@ -14,7 +14,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.dewijones92.totum.common.Diag
 
 /**
- * While [active], forces landscape orientation and hides the system bars
+ * While [active], hides the system bars and locks landscape only when [lockLandscape] is true,
  * (immersive), restoring both when the video leaves fullscreen or the player
  * closes. The player is an in-activity overlay, so this targets the activity's
  * own window — the one that rotates — which is why fullscreen fills the screen;
@@ -22,20 +22,25 @@ import com.dewijones92.totum.common.Diag
  * (The [DialogWindowProvider] lookup is a harmless fallback for any dialog host.)
  */
 @Composable
-internal fun FullscreenEffect(active: Boolean) {
+internal fun FullscreenEffect(active: Boolean, lockLandscape: Boolean = true) {
     val activity = LocalContext.current.findActivity()
     val view = LocalView.current
     val dialogWindow = (view.parent as? DialogWindowProvider)?.window
     val window = dialogWindow ?: activity?.window
 
-    DisposableEffect(active) {
+    DisposableEffect(active, lockLandscape) {
         Diag.log(
             "fullscreen",
-            "active=$active dialogWindow=${dialogWindow != null} activity=${activity != null}",
+            "active=$active lockLandscape=$lockLandscape " +
+                "dialogWindow=${dialogWindow != null} activity=${activity != null}",
         )
         val insets = window?.let { WindowInsetsControllerCompat(it, view) }
         if (active) {
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            activity?.requestedOrientation = if (lockLandscape) {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
             insets?.apply {
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 hide(WindowInsetsCompat.Type.systemBars())

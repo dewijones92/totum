@@ -45,6 +45,7 @@ import com.dewijones92.totum.ui.motion.sharedXAxis
 import com.dewijones92.totum.ui.player.CommentReplies
 import com.dewijones92.totum.ui.player.FullPlayerOverlay
 import com.dewijones92.totum.ui.player.LocalVideoBounds
+import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
 import com.dewijones92.totum.ui.player.PictureInPictureEffect
 import com.dewijones92.totum.ui.player.PlaybackToggles
 import com.dewijones92.totum.ui.player.QualityControl
@@ -106,6 +107,8 @@ fun AppShell(
         FloatingVideo(playbackState, controller.player, modifier)
         return
     }
+
+    OpenVideoOnLandscape(playbackState, enabled = shortsReel == null) { showFullPlayer = true }
 
     CompositionLocalProvider(
         LocalVideoBounds provides videoBounds,

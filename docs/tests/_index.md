@@ -26,9 +26,11 @@ instead).
 
 | Area | Kind | Notes |
 |---|---|---|
+| Colour-video pixels on the local API-35 emulator | manual investigation | [Standalone SDK and shell probe](../../dev/diagnostics/2026-10-05-video-pixels/README.md); unresolved black output, outside the normal test source set |
+| A seek made before the first account resume overrides the cached account figure, while newer remote progress still works | JVM + instrumented | `:app` `ASeekOverridesTheCachedAccountTest`, `AccountResumeSurvivesTheProcessTest` |
 | A shared placeholder is repaired after connectivity returns, without queue edits, including Library-only copies and cancellation | JVM | `:app` `SharedMetadataRepairTest` |
 | Learned download metadata survives older writes and never recreates a deleted record | instrumented | `:core:database` `RoomDownloadStoreTest` |
-| A seek made before the first account resume overrides the cached account figure, while newer remote progress still works | JVM + instrumented | `:app` `ASeekOverridesTheCachedAccountTest`, `AccountResumeSurvivesTheProcessTest` |
+| Rotation enters fullscreen from the player and mini player, portrait leaves it, explicit exit holds and audio stays in the shell | instrumented | `:app` `FullscreenSurvivesTheNextVideoTest`, `RotationOpensTheVideoFromTheShellTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |
 | Local playlists, play history | JVM unit | `:core:data` (in-memory store contracts) |

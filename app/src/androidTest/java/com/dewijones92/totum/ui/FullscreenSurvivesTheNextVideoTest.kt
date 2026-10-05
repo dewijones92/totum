@@ -1,9 +1,12 @@
 package com.dewijones92.totum.ui
 
+import android.content.res.Configuration
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -51,6 +54,7 @@ class FullscreenSurvivesTheNextVideoTest {
 
     private lateinit var player: ExoPlayer
     private var state by mutableStateOf(playingVideo("87DyyMV0kCY"))
+    private var testOrientation by mutableStateOf(Configuration.ORIENTATION_PORTRAIT)
 
     @Before
     fun setUp() {
@@ -66,33 +70,64 @@ class FullscreenSurvivesTheNextVideoTest {
      */
     private fun start() {
         composeTestRule.setContent {
-            TotumTheme {
-                FullPlayerOverlay(
-                    state = state,
-                    player = player,
-                    comments = WatchViewModel.CommentsState.Loaded(emptyList()),
-                    replies = CommentReplies.None,
-                    related = WatchViewModel.RelatedState.Loaded(emptyList()),
-                    watchActions = WatchActions.ReadOnly,
-                    quality = QualityControl.None,
-                    sleepTimer = SleepTimerState.Off,
-                    onDismiss = {},
-                    onPlayRelated = {},
-                    onStartSleep = {},
-                    onStopSleepAfterItem = {},
-                    onCancelSleep = {},
-                    onTogglePlayPause = {},
-                    onSeekTo = {},
-                    onSeekBackward = {},
-                    onSeekForward = {},
-                    onSetSpeed = {},
-                    onSetSubtitleLanguage = {},
-                    onMore = {},
-                    toggles = PlaybackToggles(),
-                    queue = QueueControls.None,
-                )
+            val configuration = Configuration(LocalConfiguration.current).apply { orientation = testOrientation }
+            CompositionLocalProvider(LocalConfiguration provides configuration) {
+                TotumTheme {
+                    FullPlayerOverlay(
+                        state = state,
+                        player = player,
+                        comments = WatchViewModel.CommentsState.Loaded(emptyList()),
+                        replies = CommentReplies.None,
+                        related = WatchViewModel.RelatedState.Loaded(emptyList()),
+                        watchActions = WatchActions.ReadOnly,
+                        quality = QualityControl.None,
+                        sleepTimer = SleepTimerState.Off,
+                        onDismiss = {},
+                        onPlayRelated = {},
+                        onStartSleep = {},
+                        onStopSleepAfterItem = {},
+                        onCancelSleep = {},
+                        onTogglePlayPause = {},
+                        onSeekTo = {},
+                        onSeekBackward = {},
+                        onSeekForward = {},
+                        onSetSpeed = {},
+                        onSetSubtitleLanguage = {},
+                        onMore = {},
+                        toggles = PlaybackToggles(),
+                        queue = QueueControls.None,
+                    )
+                }
             }
         }
+    }
+
+    @Test
+    fun rotatingAVideoEntersFullscreenAndPortraitLeavesIt() {
+        start()
+        composeTestRule.onNodeWithContentDescription(ENTER).assertIsDisplayed()
+        testOrientation = Configuration.ORIENTATION_LANDSCAPE
+        composeTestRule.waitForIdle()
+        assertStillFullscreen("landscape rotation did not enter fullscreen")
+        testOrientation = Configuration.ORIENTATION_PORTRAIT
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription(ENTER).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(EXIT).assertDoesNotExist()
+    }
+
+    @Test
+    fun exitInLandscapeStaysExitedUntilTheNextRotation() {
+        testOrientation = Configuration.ORIENTATION_LANDSCAPE
+        start()
+        composeTestRule.onNodeWithContentDescription(EXIT).performClick()
+        state = state.copy(positionMs = 5_000)
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription(ENTER).assertIsDisplayed()
+        testOrientation = Configuration.ORIENTATION_PORTRAIT
+        composeTestRule.waitForIdle()
+        testOrientation = Configuration.ORIENTATION_LANDSCAPE
+        composeTestRule.waitForIdle()
+        assertStillFullscreen("the next rotation did not enter fullscreen again")
     }
 
     @After

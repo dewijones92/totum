@@ -12,8 +12,9 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
-| Offline shared links recover their titles in queue and downloads | queue/downloads | shipped | [shared-link-metadata.md](shared-link-metadata.md) |
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |
+| Phone rotation opens video fullscreen; portrait restores the player page | player | shipped | [player-redesign.md](player-redesign.md) |
+| Offline shared links recover their titles in queue and downloads | queue/downloads | shipped | [shared-link-metadata.md](shared-link-metadata.md) |
 | Podcasts: subscribe, RSS parse, episodes, refresh | podcasts | shipped | — |
 | Menus go where they say; every source (show / channel) has its picture | ui | shipped | [menus-and-source-pages.md](menus-and-source-pages.md) |
 | Every subscription in one list (Library), newest upload first; rows tinted by pillar | subscriptions | shipped | [all-subscriptions.md](all-subscriptions.md) |
