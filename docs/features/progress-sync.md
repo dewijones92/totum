@@ -3,7 +3,7 @@ title: Two-way progress sync with YouTube
 kind: feature
 status: both halves shipped; YouTube's 10% floor no longer read as a position (2026-09-23, report 0.1.514)
 area: video
-updated: 2026-09-23
+updated: 2026-10-05
 ---
 
 # Two-way progress sync with YouTube
@@ -327,3 +327,19 @@ were both completely silent.
 
 **Not covered:** that YouTube itself honours what we send. That was verified by hand (above) and
 cannot be a test — it is an assertion about someone else's server.
+
+## Seeking overrides a cached account figure before its first resume (2026-10-05)
+
+Report `20261004T064739-53c7e60a`, v0.1.558 / `73b5db8`: a seek from 57,119ms to zero was
+saved with `BY_SEEKING`. On switching away and back, resume chose YouTube's cached 3,038,880ms
+because that figure had never been recorded as acted on. The local zero was correct; the previous
+fix only reconciled account figures when a resume had already read one.
+
+`AccountPlaybackProgressStore` now records the currently cached account figure as overridden when
+saving a deliberate seek, before writing the local position. It asks no network question. A later
+changed account figure still gets its normal hearing, and ordinary position ticks do not override
+the account. The reconciliation survives process death through the existing Room store.
+
+`[yt-sync] seek overrides cached youtube=…ms for …; it is now acted on` is the evidence in the next
+phone report. Coverage: `ASeekOverridesTheCachedAccountTest` (the reported sequence, restart, changed
+remote progress, ordinary saves) and the real-store case in `AccountResumeSurvivesTheProcessTest`.

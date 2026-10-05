@@ -85,6 +85,13 @@ class AccountResumePositions(
      */
     val watched: StateFlow<Map<String, AccountProgress>> = _watched
 
+    suspend fun overriddenBySeek(itemId: MediaItemId) {
+        val remoteMs = _watched.value[itemId.value]?.positionMs ?: return
+        if (reconciled.reconciledMs(itemId) == remoteMs) return
+        reconciled.reconcile(itemId, remoteMs)
+        Diag.log("yt-sync", "seek overrides cached youtube=${remoteMs}ms for ${itemId.value}; it is now acted on")
+    }
+
     /** The position to start [itemId] at, or null for the beginning. */
     suspend fun resumePositionMs(itemId: MediaItemId): Long? {
         val here = local(itemId)

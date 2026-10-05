@@ -105,4 +105,16 @@ class AccountResumeSurvivesTheProcessTest {
 
         assertEquals(400_000L, positions().resumePositionMs(id))
     }
+
+    @Test
+    fun aSeekBeforeAnyAccountResumeSurvivesTheRealStores() = runBlocking {
+        val account = positions()
+        account.refresh()
+        val store = AccountPlaybackProgressStore(progress, account)
+        progress.save(id, positionMs = 300_000, durationMs = 777_000)
+        store.save(id, positionMs = 0, durationMs = 777_000, chosen = Chosen.BY_SEEKING)
+
+        assertEquals(0L, store.resumePositionMs(id))
+        assertEquals(0L, positions().resumePositionMs(id))
+    }
 }

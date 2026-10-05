@@ -146,6 +146,7 @@ import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams
@@ -465,13 +466,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val resumePositions: PlaybackProgressStore by lazy {
-        // ONLY `resumePositionMs` is account-aware here. `playState` deliberately delegates to the
+        // Resumes and deliberate seeks are account-aware. `playState` deliberately delegates to the
         // raw store — it answers "what does THIS DEVICE know", which is the question the account
         // rule is built on rather than an answer it should already contain.
-        object : PlaybackProgressStore by playbackProgressStore {
-            override suspend fun resumePositionMs(itemId: MediaItemId): Long? =
-                accountResumePositions.resumePositionMs(itemId)
-        }
+        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions)
     }
 
     override val rowPlayStates: Flow<Map<MediaItemId, PlayState>> by lazy {

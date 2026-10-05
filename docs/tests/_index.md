@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # Testing
@@ -26,6 +26,7 @@ instead).
 
 | Area | Kind | Notes |
 |---|---|---|
+| A seek made before the first account resume overrides the cached account figure, while newer remote progress still works | JVM + instrumented | `:app` `ASeekOverridesTheCachedAccountTest`, `AccountResumeSurvivesTheProcessTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |
 | Local playlists, play history | JVM unit | `:core:data` (in-memory store contracts) |

@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # Backlog
@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [seek-before-account-resume](seek-before-account-resume.md) | playback | high | fixed 2026-10-05: a seek overrides the cached account figure before its first resume |
 | [audio-download-recorded-as-full](audio-download-recorded-as-full.md) | downloads | high | fixed 2026-10-01 for new downloads: the signed-in fallback recorded audio as a full copy, so VIDEO mode played no picture; downloads already mislabelled need re-downloading |
 | [playback-service-foreground-start-refused](playback-service-foreground-start-refused.md) | playback | high | fixed 2026-10-01: Media3's late notification callback is wrapped, so a refused foreground start is logged rather than crashing (also the cause of a missed autoplay) |
 | [stall-rescue-overrides-a-pause](stall-rescue-overrides-a-pause.md) | playback | medium | fixed 2026-10-02 (the 2026-10-01 fix was ineffective on real Media3): a pause during a rescue now holds |
