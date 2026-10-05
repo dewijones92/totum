@@ -54,6 +54,7 @@ class ExsurgeNotifications(private val context: Context) {
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setOngoing(true)
+            .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_STATUS)
@@ -65,9 +66,10 @@ class ExsurgeNotifications(private val context: Context) {
         return builder.build()
     }
 
-    fun showBanner(view: ExsurgeView) = manager.notify(BANNER_ID, banner(view))
+    fun showBanner(view: ExsurgeView, foreground: Boolean = false) =
+        manager.notify(if (foreground) FOREGROUND_ID else BANNER_ID, banner(view))
 
-    fun cancelBanner() = manager.cancel(BANNER_ID)
+    fun hideIdleBanner() = manager.cancel(BANNER_ID)
 
     fun showSummons(request: TakeoverRequest) {
         ensureChannels()
@@ -131,8 +133,16 @@ class ExsurgeNotifications(private val context: Context) {
         }
 
     private fun actions(view: ExsurgeView): List<Notification.Action> = buildList {
+        if (!view.settings.enabled) {
+            add(
+                action(
+                    context.getString(R.string.exsurge_action_turn_on),
+                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.TURN_ON),
+                ),
+            )
+        }
         when (view.memory.state) {
-            is ExsurgeState.Sitting, is ExsurgeState.Dormant, is ExsurgeState.Paused -> {
+            ExsurgeState.Off, is ExsurgeState.Sitting, is ExsurgeState.Dormant, is ExsurgeState.Paused -> {
                 add(
                     action(
                         context.getString(R.string.exsurge_action_summon_now),
@@ -178,6 +188,7 @@ class ExsurgeNotifications(private val context: Context) {
         const val SUMMONS_CHANNEL = "exsurge_summons"
         const val BANNER_ID = 7301
         const val SUMMONS_ID = 7302
+        const val FOREGROUND_ID = 7303
         private const val REQUEST_OPEN_SCREEN = 7310
         private const val ICON_PX = 96
         private const val FACE_PX = 192

@@ -60,7 +60,7 @@ data class ExsurgeView(
     val context: ExsurgeContext get() = ExsurgeContext(settings, zone, stepsAvailable)
     val mood: Mood get() = moodOf(memory.state, at)
     val banner: BannerLine get() = bannerLineOf(memory.state, at, context)
-    val pauseAvailable: Boolean get() = ExsurgeMachine.canPause(memory, at, zone)
+    val pauseAvailable: Boolean get() = settings.enabled && ExsurgeMachine.canPause(memory, at, zone)
 }
 
 class ExsurgeController(
@@ -135,9 +135,10 @@ class ExsurgeController(
         if (next == settings) return
         Diag.log(TAG, "dewidebug exsurge settings from=$source ${diff(settings, next)}")
         if (next.walkWindow != settings.walkWindow) stepWindow = StepWindow(next.walkWindow)
+        val turnedOff = settings.enabled && !next.enabled
         settings = next
         store.saveSettings(settings)
-        dispatch(ExsurgeEvent.SettingsChanged, source)
+        dispatch(if (turnedOff) ExsurgeEvent.TurnOff else ExsurgeEvent.SettingsChanged, source)
     }
 
     @Synchronized

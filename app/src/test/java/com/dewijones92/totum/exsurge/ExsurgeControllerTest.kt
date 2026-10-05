@@ -235,6 +235,87 @@ class ExsurgeControllerTest {
         assertTrue(diagnostics.getValue("exsurge.settings").contains("sittingMinutes=30"))
     }
 
+    @Test
+    fun `restart while off survives a controller restart and returns to off after a snoozed break`() {
+        val first = controller(steps = false)
+        first.dispatch(ExsurgeEvent.RestartClock, "banner")
+        assertEquals(ExsurgeState.Sitting(now, oneOff = true), first.view.value.memory.state)
+        assertFalse(store.settings.enabled)
+        assertEquals(now.plus(Duration.ofMinutes(30)), ports.wakes.last())
+        advance(minutes = 30)
+        val restored = controller(steps = false)
+        restored.dispatch(ExsurgeEvent.Tick, "alarm")
+        assertTrue(restored.view.value.memory.state is ExsurgeState.Summoned)
+        restored.dispatch(ExsurgeEvent.Snooze, "notification")
+        advance(minutes = 5)
+        restored.dispatch(ExsurgeEvent.Tick, "alarm")
+        restored.dispatch(ExsurgeEvent.JustWalk, "notification")
+        assertTrue(restored.view.value.memory.state is ExsurgeState.OnBreak)
+        advance(minutes = 5)
+        restored.dispatch(ExsurgeEvent.Tick, "alarm")
+        assertEquals(ExsurgeState.Off, restored.view.value.memory.state)
+        assertFalse(store.settings.enabled)
+        assertEquals(null, ports.wakes.last())
+        assertEquals(1L, store.outcomes.single().summonsId)
+        assertEquals(OutcomeKind.COMPLETED, store.outcomes.single().kind)
+        assertEquals(1, ports.resumes)
+    }
+
+    @Test
+    fun `summon now while off does not turn the regular schedule on`() {
+        val exsurge = controller()
+        exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Summoned)
+        assertFalse(store.settings.enabled)
+        exsurge.dispatch(ExsurgeEvent.Skip, "notification")
+        assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+        assertEquals(null, ports.wakes.last())
+        assertFalse(store.settings.enabled)
+    }
+
+    @Test
+    fun `changing settings keeps an off one-off but explicitly switching off cancels an enabled one-off`() {
+        val exsurge = controller()
+        exsurge.dispatch(ExsurgeEvent.RestartClock, "banner")
+        advance(minutes = 5)
+        exsurge.updateSettings("test") { it.copy(quietOffice = true) }
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Sitting)
+        now = now.plus(Duration.ofHours(10))
+        exsurge.turnOn()
+        exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
+        exsurge.updateSettings("test") { it.copy(enabled = false) }
+        assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+        assertEquals(null, ports.wakes.last())
+    }
+
+    @Test
+    fun `a manual break while off counts steps and resumes playback`() {
+        val exsurge = controller()
+        exsurge.onStepCounter(1_000)
+        exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
+        exsurge.dispatch(ExsurgeEvent.JustWalk, "notification")
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Rising)
+        exsurge.onStepCounter(1_020)
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.OnBreak)
+        advance(minutes = 5)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+        assertTrue(store.outcomes.single().credited)
+        assertEquals(1, ports.pauses)
+        assertEquals(1, ports.resumes)
+    }
+
+    @Test
+    fun `an unanswered manual summons while off returns to off without another alarm`() {
+        val exsurge = controller()
+        exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
+        advance(minutes = 3)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+        assertEquals(OutcomeKind.MISSED, store.outcomes.single().kind)
+        assertEquals(null, ports.wakes.last())
+    }
+
     private class RecordingPorts : ExsurgePorts {
         val wakes = mutableListOf<Instant?>()
         val takeovers = mutableListOf<TakeoverRequest>()

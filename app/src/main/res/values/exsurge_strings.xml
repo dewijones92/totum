@@ -29,6 +29,7 @@
     <string name="exsurge_action_snooze">Snooze %1$d min (left: %2$d)</string>
     <string name="exsurge_action_snooze_none">No snoozes left</string>
     <string name="exsurge_action_skip">Skip this one</string>
+    <string name="exsurge_action_turn_on">Turn on</string>
     <string name="exsurge_action_summon_now">Summon now</string>
     <string name="exsurge_action_pause_hour">Pause 1 hour</string>
     <string name="exsurge_action_restart_clock">Restart clock</string>

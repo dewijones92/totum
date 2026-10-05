@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -37,6 +37,17 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Every timing is a setting:** sitting limit, break length, steps to rise, walking threshold and
   window, snooze length and count, call-again interval (missed after three calls), rise timeout,
   the break cue's minutes before the end, and the pause length.
+- **Always-present banner** (Dewi, 2026-10-05): stays visible when switched off, paused, or
+  outside active hours. Off reads "Exsurge et Disce is off" and offers **Turn on**, **Summon now**
+  and **Restart clock**. It stays quiet, re-posts after dismissal, and is restored at startup,
+  reboot and APK update. Turning off posts the plain ongoing banner and
+  removes the service notification; the step listener stops. Both use one builder, with separate
+  notification IDs so delayed service callbacks cannot overwrite the idle banner (ADR 5).
+- **Off quick actions:** Turn on enables the regular schedule. Restart clock and Summon now
+  start one manual reminder/break while leaving that schedule off, returning to Off after
+  completion, Skip or Missed. The manual run survives process restart and snooze; changing its
+  settings does not cancel it. Explicitly switching an enabled schedule off still cancels a
+  live run and releases playback. Pause remains an action for the enabled schedule.
 - **Pause 1 hour:** from the banner, once a day.
 - **Restart clock** (banner, Exsurge screen) means "I've just sat down": the sitting limit starts
   again from now. Dewi's case, 2026-10-01: *"I go to sit and play piano for half an hour then I
@@ -88,9 +99,9 @@ rank and the settings.
 
 ## Verified
 
-- ✅ **JVM:** 64 tests on the state machine and its support code, 14 on the controller, and 8 on
+- ✅ **JVM:** 83 tests on the state machine and its support code, 21 on the controller, and 8 on
   `PlaybackInterruption`.
-- ✅ **Instrumented, on `totum-api35`:** 8 of 8, at 1080×2400 and at 320×640. The small screen is
+- ✅ **Original instrumented coverage, on `totum-api35`:** 8 of 8, at 1080×2400 and at 320×640. The small screen is
   CI's default, and it found Snooze and Skip cut off a non-scrolling takeover. Voice clips decode, the summons notification
   carries the full-screen intent and its GO/Snooze/Skip actions, the banner text, the destination
   launch, every face renders, and GO and Skip work from the real takeover.
@@ -107,6 +118,15 @@ rank and the settings.
   - The break paused a video meant to be playing.
 - ⏳ **On Dewi's phone:** not yet. The step counter, Loquax opening at `/practice`, and audio focus
   with the banner service running can only be proven there.
+
+- **Banner regression coverage:** `ExsurgeAndroidPortsTest` verifies the posted Off banner and
+  its three actions. `ExsurgeBannerFlowTest` drives the actual PendingIntents, checks the service
+  stops without losing the notification, and re-posts after dismissal and simulated boot/update events.
+  Controller tests cover the complete Off manual run, snooze/persistence, steps, settings changes
+  and missed/skip completion. On 2026-10-05 all 14 device tests passed at 1080×2400, including
+  five rapid Restart/Summon/Skip cycles. The expanded Off notification was visually checked:
+  Surgius, the Off title and all three action labels fit without clipping. The normal quality
+  gate and the separate 104-test Exsurge JVM phase passed.
 
 ## Independent review (Opus 5.5, 2026-10-01)
 

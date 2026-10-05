@@ -102,6 +102,7 @@ public object ExsurgeMachine {
             when (event) {
                 ExsurgeEvent.Tick -> tick()
                 ExsurgeEvent.SettingsChanged -> settingsChanged()
+                ExsurgeEvent.TurnOff -> turnOff()
                 ExsurgeEvent.SummonNow -> summonNow()
                 ExsurgeEvent.Go -> go(practise = true)
                 ExsurgeEvent.JustWalk -> go(practise = false)
@@ -112,10 +113,12 @@ public object ExsurgeMachine {
                 ExsurgeEvent.PauseHour -> pauseHour()
                 is ExsurgeEvent.StepsCounted -> steps(event.total)
             }
+            noteStateChange(event, before)
+        }
+
+        private fun noteStateChange(event: ExsurgeEvent, before: ExsurgeState) {
             if (memory.state.label() != before.label()) {
-                note(
-                    "${event.label()}: ${before.label()} -> ${memory.state.label()}"
-                )
+                note("${event.label()}: ${before.label()} -> ${memory.state.label()}")
             }
         }
 
@@ -127,10 +130,13 @@ public object ExsurgeMachine {
             effects += effect
         }
 
-        private fun active() = settings.isActiveAt(at, context.zone)
+        private fun active() = settings.enabled && settings.isActiveAt(at, context.zone)
 
         private fun arrive(after: OutcomeKind? = null) {
-            if (active()) {
+            if (!settings.enabled) {
+                become(Off)
+                note("one-off finished: regular schedule is off")
+            } else if (active()) {
                 become(Sitting(at, after))
             } else {
                 become(Dormant(settings.nextActiveStart(at, context.zone)))
@@ -181,7 +187,7 @@ public object ExsurgeMachine {
 
         private fun restartClock() {
             when (val state = memory.state) {
-                is Sitting, is Paused, is Dormant -> {
+                Off, is Sitting, is Paused, is Dormant -> {
                     note("clock restarted by hand (was ${state.label()})")
                     sitDownNow(null)
                 }
@@ -195,7 +201,6 @@ public object ExsurgeMachine {
                     completeBreak(state)
                     sitDownNow(OutcomeKind.COMPLETED)
                 }
-                Off -> note("restart ignored: Exsurge is off")
             }
         }
 
@@ -282,7 +287,7 @@ public object ExsurgeMachine {
 
         private fun healEnabled() {
             val state = memory.state
-            if (settings.enabled == (state != Off)) return
+            if (settings.enabled == (state != Off) || !settings.enabled && state.isOneOff()) return
             note("healing: settings say enabled=${settings.enabled} but the state was ${state.label()}")
             settingsChanged()
         }
@@ -290,20 +295,23 @@ public object ExsurgeMachine {
         private fun settingsChanged() {
             val state = memory.state
             when {
-                !settings.enabled && state != Off -> {
-                    note("turned off at state=${state.label()}")
-                    if (state is Summoned || state is Snoozed) emit(HideTakeover)
-                    if (state is Rising || state is OnBreak) emit(ResumePlayback)
-                    become(Off)
-                }
+                !settings.enabled && state != Off && !state.isOneOff() -> turnOff()
                 settings.enabled && state == Off -> arrive()
                 state is Dormant || state is Sitting && !active() && !state.oneOff -> arrive()
             }
         }
 
+        private fun turnOff() {
+            val state = memory.state
+            note("turned off at state=${state.label()}")
+            if (state is Summoned || state is Snoozed) emit(HideTakeover)
+            if (state is Rising || state is OnBreak) emit(ResumePlayback)
+            become(Off)
+        }
+
         private fun summonNow() {
             when (val state = memory.state) {
-                is Sitting, is Dormant, is Paused -> {
+                Off, is Sitting, is Dormant, is Paused -> {
                     note("summon requested by hand (inside active hours=${active()})")
                     summon(Summons(memory.nextSummonsId, at, oneOff = !active()))
                     memory = memory.copy(nextSummonsId = memory.nextSummonsId + 1)
@@ -376,6 +384,7 @@ public object ExsurgeMachine {
         private fun pauseHour() {
             val today = at.atZone(context.zone).toLocalDate()
             when {
+                !settings.enabled -> note("pause ignored: the regular schedule is off")
                 memory.state !is Sitting -> note("pause ignored at state=${memory.state.label()}")
                 !canPause(memory, at, context.zone) -> note("pause refused: already used today")
                 else -> {
@@ -450,6 +459,7 @@ private fun Summons.walkOnly(): String = if (practise) "" else "/walk"
 private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.Tick -> "tick"
     ExsurgeEvent.SettingsChanged -> "settingsChanged"
+    ExsurgeEvent.TurnOff -> "turnOff"
     ExsurgeEvent.SummonNow -> "summonNow"
     ExsurgeEvent.Go -> "go"
     ExsurgeEvent.JustWalk -> "justWalk"
@@ -459,4 +469,13 @@ private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.Walked -> "walked"
     ExsurgeEvent.PauseHour -> "pauseHour"
     is ExsurgeEvent.StepsCounted -> "steps($total)"
+}
+
+private fun ExsurgeState.isOneOff(): Boolean = when (this) {
+    is Sitting -> oneOff
+    is Summoned -> summons.oneOff
+    is Snoozed -> summons.oneOff
+    is Rising -> summons.oneOff
+    is OnBreak -> summons.oneOff
+    Off, is Dormant, is Paused -> false
 }

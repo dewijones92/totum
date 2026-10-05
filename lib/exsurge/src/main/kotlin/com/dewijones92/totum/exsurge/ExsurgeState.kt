@@ -86,6 +86,7 @@ public data class ExsurgeMemory(
 public sealed interface ExsurgeEvent {
     public data object Tick : ExsurgeEvent
     public data object SettingsChanged : ExsurgeEvent
+    public data object TurnOff : ExsurgeEvent
     public data object SummonNow : ExsurgeEvent
     public data object Go : ExsurgeEvent
     public data object JustWalk : ExsurgeEvent

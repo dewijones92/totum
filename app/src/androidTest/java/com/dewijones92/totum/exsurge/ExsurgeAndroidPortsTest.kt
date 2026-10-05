@@ -7,6 +7,7 @@ import android.media.MediaPlayer
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.dewijones92.totum.R
+import com.dewijones92.totum.TotumApplication
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -22,19 +23,23 @@ class ExsurgeAndroidPortsTest {
     private val notifications = ExsurgeNotifications(context)
     private val manager = context.getSystemService(NotificationManager::class.java)
 
-    private fun postedSummons(): Notification {
+    private fun postedSummons(): Notification = posted(ExsurgeNotifications.SUMMONS_ID)
+
+    private fun posted(id: Int): Notification {
         val deadline = System.currentTimeMillis() + POST_WAIT_MS
         while (System.currentTimeMillis() < deadline) {
-            val found = manager.activeNotifications.firstOrNull { it.id == ExsurgeNotifications.SUMMONS_ID }
+            val found = manager.activeNotifications.firstOrNull { it.id == id }
             if (found != null) return found.notification
             Thread.sleep(POLL_MS)
         }
-        error("the summons notification was never posted")
+        error("notification $id was never posted")
     }
 
     @After
     fun tidy() {
         notifications.cancelSummons()
+        val original = (context.applicationContext as TotumApplication).container.exsurge.view.value
+        ExsurgeBannerService.reconcile(context, original, notifications)
     }
 
     @Test
@@ -96,6 +101,58 @@ class ExsurgeAndroidPortsTest {
         assertNotNull(banner.deleteIntent)
         assertEquals(ExsurgeNotifications.screenIntent(context), banner.contentIntent)
         assertEquals(listOf("Summon now", "Restart clock", "Pause 1 hour"), banner.actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun theOffBannerStaysPostedWithAllThreeUsefulActions() {
+        val now = Instant.parse("2026-10-05T09:00:00Z")
+        val zone = ZoneId.of("Europe/London")
+        val off = ExsurgeView(
+            settings = ExsurgeSettings(),
+            memory = ExsurgeMemory(),
+            stats = ExsurgeStats.of(emptyList(), now, zone),
+            nextWake = null,
+            stepsAvailable = false,
+            at = now,
+            zone = zone,
+        )
+        ExsurgeBannerService.reconcile(context, off, notifications)
+        val posted = posted(ExsurgeNotifications.BANNER_ID)
+        assertEquals("Exsurge et Disce is off", posted.extras.getString("android.title"))
+        assertTrue(posted.flags and Notification.FLAG_ONGOING_EVENT != 0)
+        assertNotNull(posted.deleteIntent)
+        assertEquals(listOf("Turn on", "Summon now", "Restart clock"), posted.actions.map { it.title.toString() })
+        assertEquals(ExsurgeNotifications.screenIntent(context), posted.contentIntent)
+    }
+
+    @Test
+    fun pausedAndOutOfHoursKeepAQuietOngoingBanner() {
+        val now = Instant.parse("2026-10-05T09:00:00Z")
+        val zone = ZoneId.of("Europe/London")
+        val cases = listOf(
+            ExsurgeState.Paused(now.plusSeconds(3600)) to "Paused until 11:00",
+            ExsurgeState.Dormant(now.plusSeconds(86400)) to "Surgius sleeps · back Tue 10:00",
+        )
+        cases.forEach { (state, title) ->
+            val view = ExsurgeView(
+                settings = ExsurgeSettings(enabled = true),
+                memory = ExsurgeMemory(state),
+                stats = ExsurgeStats.of(emptyList(), now, zone),
+                nextWake = null,
+                stepsAvailable = false,
+                at = now,
+                zone = zone,
+            )
+            ExsurgeBannerService.reconcile(context, view, notifications)
+            val posted = posted(ExsurgeNotifications.BANNER_ID)
+            assertEquals(title, posted.extras.getString("android.title"))
+            assertTrue(posted.flags and Notification.FLAG_ONGOING_EVENT != 0)
+            assertEquals(listOf("Summon now", "Restart clock"), posted.actions.map { it.title.toString() })
+            assertEquals(
+                NotificationManager.IMPORTANCE_LOW,
+                manager.getNotificationChannel(posted.channelId).importance
+            )
+        }
     }
 
     @Test

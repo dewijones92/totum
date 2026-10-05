@@ -39,15 +39,14 @@ class ExsurgeBannerService : Service(), SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_REST) {
-            Diag.log(ExsurgeController.TAG, "dewidebug exsurge banner service resting: detach notification, stop")
-            stopForeground(STOP_FOREGROUND_DETACH)
-            stopSelf()
-            return START_NOT_STICKY
-        }
+        if (intent?.action == ACTION_REST && !needsService(exsurge.view.value)) return rest()
         val notification = ExsurgeNotifications(this).banner(exsurge.view.value)
         val started = runCatching {
-            startForeground(ExsurgeNotifications.BANNER_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
+            startForeground(
+                ExsurgeNotifications.FOREGROUND_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            )
         }.onFailure {
             Diag.warn(
                 ExsurgeController.TAG,
@@ -59,14 +58,28 @@ class ExsurgeBannerService : Service(), SensorEventListener {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (!needsService(exsurge.view.value)) return rest()
+        ExsurgeNotifications(this).hideIdleBanner()
         tuneSteps(exsurge.view.value.memory.state)
         handler.removeCallbacks(minuteTick)
         handler.postDelayed(minuteTick, REFRESH_MS)
         return START_STICKY
     }
 
+    private fun rest(): Int {
+        val view = exsurge.view.value
+        Diag.log(
+            ExsurgeController.TAG,
+            "dewidebug exsurge banner service resting: idle banner state=${view.memory.state.label()}, stop",
+        )
+        ExsurgeNotifications(this).showBanner(view)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        return START_NOT_STICKY
+    }
+
     override fun onDestroy() {
-        stopForeground(STOP_FOREGROUND_DETACH)
+        stopForeground(STOP_FOREGROUND_REMOVE)
         handler.removeCallbacks(minuteTick)
         getSystemService(SensorManager::class.java).unregisterListener(this)
         listeningBatchUs = null
@@ -143,16 +156,11 @@ class ExsurgeBannerService : Service(), SensorEventListener {
 
         fun reconcile(context: Context, view: ExsurgeView, notifications: ExsurgeNotifications) {
             val state = view.memory.state
-            val resting = state is ExsurgeState.Off || state is ExsurgeState.Dormant || state is ExsurgeState.Paused
-            val wantService = view.settings.enabled && !resting
+            val wantService = needsService(view)
             when {
-                !view.settings.enabled -> {
-                    if (running) context.stopService(Intent(context, ExsurgeBannerService::class.java))
-                    notifications.cancelBanner()
-                }
                 wantService && !running && stepsPermitted(context) -> start(context, notifications, view)
                 wantService || !running -> {
-                    notifications.showBanner(view)
+                    notifications.showBanner(view, foreground = wantService && running)
                     current?.let { service -> service.handler.post { service.tuneSteps(state) } }
                 }
                 else -> {
@@ -164,6 +172,11 @@ class ExsurgeBannerService : Service(), SensorEventListener {
                     }
                 }
             }
+        }
+
+        private fun needsService(view: ExsurgeView): Boolean = when (view.memory.state) {
+            ExsurgeState.Off, is ExsurgeState.Dormant, is ExsurgeState.Paused -> false
+            else -> true
         }
 
         private fun start(context: Context, notifications: ExsurgeNotifications, view: ExsurgeView) {

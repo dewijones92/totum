@@ -5,7 +5,7 @@ status: built — awaiting a real day on Dewi's phone; see features/exsurge-et-d
 area: side-quest
 priority: medium
 requested: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-05
 ---
 
 > **Built 2026-10-01.** The feature doc is [features/exsurge-et-disce](../features/exsurge-et-disce.md) and the decisions are [ADRs 2–7](../adr/_index.md). Two departures from the plan, both recorded in ADR 5: `setExactAndAllowWhileIdle` rather than `setAlarmClock` (so it does not take over the clock's "next alarm"), and "Pause 1 hour" capped at once a day.
@@ -40,14 +40,16 @@ in [exsurge-ideas](exsurge-ideas.md).
   a mid-break voice cue.
 - **Everything configurable** in the app's Settings screen.
 - **An always-there sticky banner** (Dewi, 2026-10-01: *"make the banner notification for this
-  always sticky and there"*). While the module is on, one ongoing notification is always shown,
+  always sticky and there"*). One ongoing notification is always shown, including when the module
+  is off (clarified 2026-10-05),
   with Surgius in his current mood: during active hours "Next summons 14:32 · sat 17 min ·
   3 laurels today" with a sitting-clock progress bar; outside them "Surgius sleeps · back
   Mon 09:00". Android 14 lets the user swipe away even an ongoing notification, so "sticky"
   means ongoing plus an instant re-post from its delete intent. That is the same technique as
-  Hanzi Practice's `BannerManager`, re-posted after reboot and APK update too. The banner is
-  also the foreground-service notification that keeps the step listener alive during active
-  hours, which answers how the sitting clock hears your steps (open question 5 → option a).
+  Hanzi Practice's `BannerManager`, re-posted after reboot and APK update too.
+  Off offers Turn on, Summon now and Restart clock; the latter two run once without enabling the
+  regular schedule. It is also the foreground-service notification that keeps the step listener
+  alive during active hours and manual one-offs, which answers how the sitting clock hears your steps (open question 5 → option a).
 - **Tests:** the full pyramid, but run only when this area's code changes (a path-filtered
   workflow like `audio-quality.yml`, plus a preflight paths check).
 - **Decisions get ADRs:** a new `docs/adr/` folder, and a CLAUDE.md rule to create, update or
