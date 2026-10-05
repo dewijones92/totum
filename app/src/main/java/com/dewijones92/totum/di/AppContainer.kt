@@ -139,6 +139,7 @@ import com.dewijones92.totum.playback.StreamRecovery
 import com.dewijones92.totum.playback.forgetLiveSabrStreamsFor
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
+import com.dewijones92.totum.queue.startSharedMetadataRepair
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
@@ -955,6 +956,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override fun startQueueAutoDownload() {
+        startSharedMetadataRepair(
+            playbackQueue,
+            videoPlaybackLauncher,
+            downloadManager,
+            networkStatus,
+            applicationScope
+        )
         QueueAutoDownloader(
             queue = playbackQueue.state,
             downloads = downloadManager,

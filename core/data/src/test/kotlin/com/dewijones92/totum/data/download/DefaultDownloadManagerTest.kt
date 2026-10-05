@@ -8,6 +8,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.asPlayable
+import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.isPermanent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
@@ -202,6 +203,17 @@ class DefaultDownloadManagerTest {
 
 /** Shared by the download tests in this package; the real one is Room, which needs a device. */
 internal class InMemoryDownloadStore : DownloadStore {
+    override suspend fun learnFacts(resolved: MediaItem) {
+        states.update { rows ->
+            rows.mapValues { (id, row) ->
+                if (id == resolved.id) {
+                    row.copy(item = row.item.copy(item = row.item.item.fillingSilenceFrom(resolved)))
+                } else {
+                    row
+                }
+            }
+        }
+    }
     private val states = MutableStateFlow<Map<MediaItemId, PlayableAndState>>(emptyMap())
 
     override fun observeAll(): Flow<Map<MediaItemId, DownloadState>> =

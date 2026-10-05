@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-09-20
+updated: 2026-10-05
 ---
 
 # Managing downloads
@@ -142,3 +142,11 @@ CI caught it on a smaller emulator than this laptop's, and it reproduced here at
 guessed. The partially-expanded state was the half that mattered: it offsets the whole sheet rather
 than constraining its content, so an inner scroll had nothing to scroll against. The sheet now
 opens fully expanded AND scrolls, verified down to a 426dp-tall screen.
+
+## Metadata learned after the download
+
+`DownloadManager.learnFacts` fills missing facts on an existing record through the same domain rule
+the queue uses (`fillingSilenceFrom`). The Room update is transactional, preserves the file, state,
+variant and handle, and does not recreate a deleted record. Later download-progress writes preserve
+facts already learned, so an in-flight download cannot restore its original placeholder title.
+See [shared-link metadata](shared-link-metadata.md) for the background retry that uses this seam.

@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-09-26
+updated: 2026-10-05
 ---
 
 # Playback queue
@@ -48,3 +48,9 @@ having been removed. Two failed against what a tap does today (jump to it); the 
 failed against the first version; the refusal and removed-row cases failed until the review fixes.
 Checked on the emulator twice: two rows swapped, and in a queue of three the chosen one took the
 playing slot with the playing one next.
+
+## Titles after an offline share
+
+A shared link queued under its placeholder title learns its metadata in the background once the
+network returns, even when its audio was downloaded and playback takes the local-file route. The
+same repair reaches downloads kept only in Library. See [shared-link metadata](shared-link-metadata.md).

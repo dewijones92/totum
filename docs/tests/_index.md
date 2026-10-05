@@ -26,6 +26,8 @@ instead).
 
 | Area | Kind | Notes |
 |---|---|---|
+| A shared placeholder is repaired after connectivity returns, without queue edits, including Library-only copies and cancellation | JVM | `:app` `SharedMetadataRepairTest` |
+| Learned download metadata survives older writes and never recreates a deleted record | instrumented | `:core:database` `RoomDownloadStoreTest` |
 | A seek made before the first account resume overrides the cached account figure, while newer remote progress still works | JVM + instrumented | `:app` `ASeekOverridesTheCachedAccountTest`, `AccountResumeSurvivesTheProcessTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |

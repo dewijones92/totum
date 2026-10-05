@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [shared-title-stays-placeholder](shared-title-stays-placeholder.md) | queue/downloads | high | fixed 2026-10-05 → [shared-link metadata](../features/shared-link-metadata.md) |
 | [seek-before-account-resume](seek-before-account-resume.md) | playback | high | fixed 2026-10-05: a seek overrides the cached account figure before its first resume |
 | [audio-download-recorded-as-full](audio-download-recorded-as-full.md) | downloads | high | fixed 2026-10-01 for new downloads: the signed-in fallback recorded audio as a full copy, so VIDEO mode played no picture; downloads already mislabelled need re-downloading |
 | [playback-service-foreground-start-refused](playback-service-foreground-start-refused.md) | playback | high | fixed 2026-10-01: Media3's late notification callback is wrapped, so a refused foreground start is logged rather than crashing (also the cause of a missed autoplay) |

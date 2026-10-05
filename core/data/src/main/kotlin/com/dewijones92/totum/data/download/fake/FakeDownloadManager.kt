@@ -8,9 +8,11 @@ import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.fillingSilenceFrom
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
@@ -19,6 +21,23 @@ import kotlinx.coroutines.flow.update
 // poked at, and hiding those behind fewer methods would only make the tests harder to read.
 @Suppress("TooManyFunctions")
 public class FakeDownloadManager : DownloadManager {
+
+    override suspend fun learnFacts(resolved: MediaItem) {
+        known.update { items ->
+            items.mapValues { (id, item) ->
+                if (id == resolved.id) item.copy(item = item.item.fillingSilenceFrom(resolved)) else item
+            }
+        }
+        completed.update { copies ->
+            copies.map { copy ->
+                if (copy.item.id == resolved.id) {
+                    copy.copy(playable = copy.playable.copy(item = copy.item.fillingSilenceFrom(resolved)))
+                } else {
+                    copy
+                }
+            }
+        }
+    }
 
     private val downloads = MutableStateFlow<Map<MediaItemId, DownloadState>>(emptyMap())
 
@@ -58,16 +77,16 @@ public class FakeDownloadManager : DownloadManager {
     override fun observeDownloaded(): Flow<List<DownloadedMedia>> = completed
 
     /** Items the fake knows about, so a record can name what it is about. */
-    private val known = mutableMapOf<MediaItemId, PlayableItem>()
+    private val known = MutableStateFlow<Map<MediaItemId, PlayableItem>>(emptyMap())
 
     override fun observeRecords(): Flow<List<DownloadRecord>> =
-        downloads.map { states ->
-            states.mapNotNull { (id, state) -> known[id]?.let { DownloadRecord(it, state) } }
+        combine(downloads, known) { states, items ->
+            states.mapNotNull { (id, state) -> items[id]?.let { DownloadRecord(it, state) } }
         }
 
     /** Registers an item so [observeRecords] can name it, without pretending it downloaded. */
     public fun know(item: PlayableItem) {
-        known[item.item.id] = item
+        known.update { it + (item.item.id to item) }
     }
 
     override fun observe(id: MediaItemId): Flow<DownloadState> =
@@ -82,7 +101,7 @@ public class FakeDownloadManager : DownloadManager {
         val path = "/fake/${media.id.value}.media"
         requested.add(media.id to audioOnly)
         lastItem = item
-        known[media.id] = item
+        known.update { it + (media.id to item) }
         downloads.update { it + (media.id to DownloadState.Downloaded(path, audioOnly = audioOnly)) }
         completed.update { it.filterNot { done -> done.item.id == media.id } + DownloadedMedia(item, path, audioOnly) }
         _events.tryEmit(DownloadEvent(media, DownloadState.Downloaded(path, audioOnly)))

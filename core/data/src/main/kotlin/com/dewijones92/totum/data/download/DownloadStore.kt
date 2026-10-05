@@ -2,12 +2,14 @@ package com.dewijones92.totum.data.download
 
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.flow.Flow
 
 /** Persistence port for download records; implemented by :core:database (Room). */
 public interface DownloadStore {
+    public suspend fun learnFacts(resolved: MediaItem)
     public fun observeAll(): Flow<Map<MediaItemId, DownloadState>>
 
     /**

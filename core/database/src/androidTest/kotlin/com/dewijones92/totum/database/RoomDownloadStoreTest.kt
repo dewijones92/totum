@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.placeholderTitleFor
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -59,6 +60,31 @@ class RoomDownloadStoreTest {
 
     @After
     fun closeDatabase() = database.close()
+
+    @Test
+    fun learningATitleKeepsTheFileAndSurvivesAnOlderDownloadWrite() = runTest {
+        val pending = video.copy(item = video.item.copy(title = placeholderTitleFor(video.item.id)))
+        val state = DownloadState.Downloaded("/data/video.media", audioOnly = true)
+        store.put(pending, state, audioOnly = true)
+        store.learnFacts(video.item)
+        store.put(pending, state, audioOnly = true)
+
+        val saved = store.observeDownloaded().first().single()
+        assertEquals(video.item.title, saved.item.title)
+        assertEquals(video.item.author, saved.item.author)
+        assertEquals(state.localPath, saved.localPath)
+        assertTrue(saved.audioOnly)
+        assertEquals(pending.handle, store.request(video.item.id)?.item?.handle)
+    }
+
+    @Test
+    fun learningFactsDoesNotResurrectADeletedDownload() = runTest {
+        store.put(video, DownloadState.Downloaded("/data/video.media"), audioOnly = false)
+        store.remove(video.item.id)
+        store.learnFacts(video.item)
+
+        assertTrue(store.observeDownloaded().first().isEmpty())
+    }
 
     @Test
     fun statesRoundTripThroughEachStage() = runTest {

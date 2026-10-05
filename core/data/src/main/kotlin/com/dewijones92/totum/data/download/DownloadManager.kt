@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.Flow
  * how the bytes are fetched (podcast enclosure over HTTP vs. video via the
  * extraction engine) is chosen inside, behind [DownloadStrategy].
  */
+@Suppress("TooManyFunctions")
 public interface DownloadManager {
+
+    public suspend fun learnFacts(resolved: MediaItem)
 
     /** Live state of every known download, keyed by item. */
     public fun observeDownloads(): Flow<Map<MediaItemId, DownloadState>>

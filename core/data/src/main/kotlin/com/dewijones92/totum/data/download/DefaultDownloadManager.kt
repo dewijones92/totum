@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.download
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +34,8 @@ public class DefaultDownloadManager(
     private val strategy: DownloadStrategy,
     private val scope: CoroutineScope,
 ) : DownloadManager {
+
+    override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
 
     init {
         // A "Downloading" record at startup means the process died mid-download. Its coroutine is

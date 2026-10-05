@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.download.DownloadRequest
 import com.dewijones92.totum.data.download.DownloadStore
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.map
 // place those two meet, and scattering them would defeat the point of the class.
 @Suppress("TooManyFunctions")
 public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
+
+    override suspend fun learnFacts(resolved: MediaItem): Unit = dao.learnFacts(resolved)
 
     override fun observeAll(): Flow<Map<MediaItemId, DownloadState>> =
         dao.observeAll().map { rows -> rows.associate { MediaItemId(it.itemId) to it.toState() } }
@@ -31,7 +34,7 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
         dao.get(id.value)?.toState() ?: DownloadState.NotDownloaded
 
     override suspend fun put(item: PlayableItem, state: DownloadState, audioOnly: Boolean) {
-        dao.upsert(state.toEntity(item, audioOnly))
+        dao.putKeepingFacts(state.toEntity(item, audioOnly))
     }
 
     /**
