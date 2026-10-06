@@ -72,6 +72,11 @@ android player API 1.7 s, web_embedded config 1.75 s, player JS 1.3 s, web_embed
 m3u8 1.9 s, **JS challenge solve 14.6 s**. With the cache on, the next video: **9.5 s**, no solve step,
 the rest being the same eight requests one after another.
 
+Then the player script was shared across extractions (yt-dlp keeps it per extractor instance and
+the bridge builds one per call): first extraction of a fresh process **11.2 s** (no solve: the
+preprocessed player persists on disk), the next video **5.3 s**. What remains is the webpage (~2.1 s)
+and the HLS manifest (~1.2-1.7 s) on the emulator's network.
+
 ## Shipped (ADR 11)
 
 Solver cache on for every extraction; resolves kept until shortly before their URLs expire; an audio

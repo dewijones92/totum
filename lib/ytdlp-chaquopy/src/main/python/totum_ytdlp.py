@@ -243,6 +243,7 @@ def extract(url, po_token=None):
     _enable_solver_player_cache()
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
+            _share_player_caches(ydl)
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
             if logger.player_build:
                 _prune_solver_player_cache(ydl, logger.player_build)
@@ -282,6 +283,33 @@ def _enable_solver_player_cache():
         from yt_dlp.extractor.youtube.jsc._builtin import ejs
 
         ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE = True
+        return True
+    except Exception:  # noqa: BLE001 - see docstring
+        return False
+
+
+_SHARED_PLAYER_CODE = {}
+_SHARED_PLAYER_DATA = {}
+_PLAYER_BUILDS_KEPT = 2
+_PLAYER_DATA_KEPT = 2000
+
+
+def _share_player_caches(ydl):
+    """Lets every extraction reuse the player script and its solved data, instead of each new
+    YoutubeDL downloading the same ~2.9MB player again (1.3 s per video, measured 2026-10-06).
+
+    yt-dlp keeps both per extractor INSTANCE (`_code_cache`, `_player_cache`), and `extract()` builds
+    a fresh one per call. The dicts are shared, not the YoutubeDL, because extractions overlap.
+    Private attributes again, so a renamed one degrades to "downloads it each time".
+    """
+    try:
+        extractor = ydl.get_info_extractor("Youtube")
+        while len(_SHARED_PLAYER_CODE) > _PLAYER_BUILDS_KEPT:
+            _SHARED_PLAYER_CODE.pop(next(iter(_SHARED_PLAYER_CODE)))
+        if len(_SHARED_PLAYER_DATA) > _PLAYER_DATA_KEPT:
+            _SHARED_PLAYER_DATA.clear()
+        extractor._code_cache = _SHARED_PLAYER_CODE
+        extractor._player_cache = _SHARED_PLAYER_DATA
         return True
     except Exception:  # noqa: BLE001 - see docstring
         return False

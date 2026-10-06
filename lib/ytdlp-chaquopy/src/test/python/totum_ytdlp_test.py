@@ -260,6 +260,46 @@ class FailedExtractionNotesTest(unittest.TestCase):
         self.assertIn("; total ", result["steps"])
         self.assertTrue(result["steps"].startswith("solver player cache "), result)
 
+class SharedPlayerCacheTest(unittest.TestCase):
+    """Every extraction builds a new YoutubeDL; the player script it downloads must outlive it."""
+
+    class _FakeYdl:
+        def __init__(self):
+            self.extractor = type("Ie", (), {"_code_cache": {}, "_player_cache": {}})()
+
+        def get_info_extractor(self, key):
+            return self.extractor
+
+    def test_two_extractions_share_one_player_cache(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+        first, second = self._FakeYdl(), self._FakeYdl()
+
+        module._share_player_caches(first)
+        first.extractor._code_cache["build-a"] = "player js"
+        module._share_player_caches(second)
+
+        self.assertEqual("player js", second.extractor._code_cache.get("build-a"))
+
+    def test_only_the_newest_player_builds_are_kept(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+        for build in ("a", "b", "c", "d"):
+            ydl = self._FakeYdl()
+            module._share_player_caches(ydl)
+            ydl.extractor._code_cache[build] = "js"
+        module._share_player_caches(self._FakeYdl())
+
+        self.assertEqual(["c", "d"], list(module._SHARED_PLAYER_CODE))
+
+    def test_a_missing_extractor_degrades_rather_than_failing(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        class Broken:
+            def get_info_extractor(self, key):
+                raise KeyError(key)
+
+        self.assertFalse(module._share_player_caches(Broken()))
+
+
 class FailedSearchTest(unittest.TestCase):
     """A failed search must come back as a failure, not crash the caller with a NameError (field report
     2026-09-28, 0.1.548: `NameError: name 'logger' is not defined` at totum_ytdlp.search)."""

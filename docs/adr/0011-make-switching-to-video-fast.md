@@ -30,6 +30,9 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
 3. **A YouTube video playing from its downloaded audio copy has its video resolved in the background**,
    on an unmetered network only (the same rule as the next-up prefetch), whether it came from the
    queue or the Library. Only the resolve: no video bytes are preloaded.
+5. **The player script and its solved data are shared across extractions** (module-level dicts handed
+   to each new extractor, two player builds kept), so no extraction downloads the player twice. The
+   YoutubeDL itself is not shared, because extractions overlap.
 4. **The player offers Watch for a downloaded audio copy**, using the same explicit "watch" item action
    as the row, not the mode toggle (which would flip a video-mode user to audio).
 
