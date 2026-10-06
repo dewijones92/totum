@@ -86,8 +86,10 @@ say why it is the way it is.
 ## Performance (measured 2026-07-12, API-35 emulator)
 
 - **Cold start** ~1.5s warm / ~3.3s first-ever. The embedded Python engine is
-  lazy (constructed on first Videos/Search use, never at launch) — confirmed:
-  startup pays nothing for it. Keep it that way.
+  never started AT launch, so startup pays nothing for it — keep it that way. Since
+  2026-10-06 (Dewi's choice, ADR 11) it is warmed 10 s AFTER launch in the background
+  (`TotumApplication.warmTheEngineSoon`, ~1.5 s on the emulator), so a session's first
+  video does not pay ~2.7 s for it; never under instrumentation (`TotumTestRunner`).
 - **Memory**: ~115MB idle; ~196MB once the Python interpreter is resident.
   Reasonable for an embedded CPython; watch it if it climbs.
 - **APK**: release is **arm64-v8a only + R8 (minify + resource shrink)** →

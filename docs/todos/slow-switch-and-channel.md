@@ -84,6 +84,13 @@ every client as the fallback. Emulator: a fresh process's first extraction 9.3 s
 "6 qualities (6 durable)" where the full list gave 0 durable. A cold process also spends ~2.7 s starting
 Python and the JS runtime before extracting.
 
+## On the phone after the fixes (Pixel 7, 0.1.568, 2026-10-06)
+
+Downloaded audio → Watch video: **1.54 s** to the first picture (was 16.7 s). The audio copy's video
+was readied in the background in ~18 s (a one-off 10.3 s JS solve for a player build the phone had
+not cached yet); the tap was a cache hit, "trusted for 299m more", 1080p AV1 with durable video and
+audio.
+
 ## Shipped (ADR 11)
 
 Solver cache on for every extraction; resolves kept until shortly before their URLs expire; an audio

@@ -119,7 +119,6 @@ class FakeClock:
 
 
 class StepTimelineTest(unittest.TestCase):
-    """Where an extraction's seconds went, which "extract in 13822ms" alone cannot say."""
 
     def test_each_step_runs_until_the_next_one_starts(self):
         clock = FakeClock()
@@ -261,7 +260,6 @@ class FailedExtractionNotesTest(unittest.TestCase):
         self.assertIn("; solver player cache ", result["steps"])
 
 class SharedPlayerCacheTest(unittest.TestCase):
-    """Every extraction builds a new YoutubeDL; the player script it downloads must outlive it."""
 
     class _FakeYdl:
         def __init__(self):
@@ -452,15 +450,6 @@ PLAYABLE = {"id": "v", "formats": [{"url": "https://rr.test/videoplayback?n=x", 
 
 
 class ClientFallbackTest(unittest.TestCase):
-    """
-    web_embedded alone first, every client only when that finds nothing playable.
-
-    Measured 2026-10-06 against the bundled 2026.08.19 on 11 videos twice (Ms Rachel, Blippi, a Short,
-    live, 4K music, Dewi's queue): web_embedded alone reached the same best and best-durable height in
-    22 of 22, with more durable audio, at 2.25 s median against 2.95 s. The android client was added on
-    2026-07-30 because made-for-kids videos played through nothing else; that no longer reproduced, but
-    the full list stays as the fallback so a return of it costs a retry, not a video.
-    """
 
     def _run(self, answer_for, po_token=None):
         module, stub = _bridge_with_stubbed_ytdlp()

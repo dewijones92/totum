@@ -191,7 +191,6 @@ class _CollectingLogger:
         self._steps.append((self._clock(), label[: self.STEP_LABEL_CHARS]))
 
     def timeline(self):
-        """Where an extraction's time went: each step runs until the next one starts."""
         end = self._clock()
         marks = [(self._started, "start")] + self._steps
         parts = []
@@ -214,8 +213,6 @@ class _CollectingLogger:
         return list(self.messages) + [f"warning: and {self.dropped} more not kept"]
 
     def debug(self, message):
-        # Routine progress is not a note (see the class docstring), but its timing is the breakdown of
-        # an extraction, kept as one bounded timeline line.
         self._step(message)
 
     def info(self, message):
@@ -264,13 +261,6 @@ def _extract_with(url, po_token, clients, logger):
 
 
 def extract(url, po_token=None):
-    """web_embedded alone first; every client in PLAYER_CLIENTS only if that finds nothing playable.
-
-    Measured 2026-10-06 (bundled 2026.08.19, 11 videos twice incl. made-for-kids): web_embedded alone
-    matched the full list's best and best-durable height in 22 of 22 at 2.25 s against 2.95 s median.
-    The full list is kept as the fallback because made-for-kids content once played through `android`
-    alone (2026-07-30), so a return of that costs one retry rather than the video.
-    """
     logger = _CollectingLogger()
     _enable_solver_player_cache()
     route = "clients web_embedded"
@@ -295,6 +285,16 @@ def extract(url, po_token=None):
             "notes": logger.notes(),
             "steps": route + "; " + _solver_cache_state() + "; " + logger.timeline(),
         })
+
+
+def warm_up():
+    import time
+
+    started = time.monotonic()
+    _enable_solver_player_cache()
+    with yt_dlp.YoutubeDL({"quiet": True, "logger": _CollectingLogger(), "js_runtimes": _js_runtimes()}) as ydl:
+        _share_player_caches(ydl)
+    return f"yt-dlp {yt_dlp.version.__version__} ready in {round((time.monotonic() - started) * 1000)}ms"
 
 
 # The solver, built ONCE. Rebuilding it per call threw away yt-dlp's own cache of the
@@ -331,13 +331,6 @@ _PLAYER_DATA_KEPT = 2000
 
 
 def _share_player_caches(ydl):
-    """Lets every extraction reuse the player script and its solved data, instead of each new
-    YoutubeDL downloading the same ~2.9MB player again (1.3 s per video, measured 2026-10-06).
-
-    yt-dlp keeps both per extractor INSTANCE (`_code_cache`, `_player_cache`), and `extract()` builds
-    a fresh one per call. The dicts are shared, not the YoutubeDL, because extractions overlap.
-    Private attributes again, so a renamed one degrades to "downloads it each time".
-    """
     try:
         extractor = ydl.get_info_extractor("Youtube")
         while len(_SHARED_PLAYER_CODE) > _PLAYER_BUILDS_KEPT:
@@ -347,17 +340,16 @@ def _share_player_caches(ydl):
         extractor._code_cache = _SHARED_PLAYER_CODE
         extractor._player_cache = _SHARED_PLAYER_DATA
         return True
-    except Exception:  # noqa: BLE001 - see docstring
+    except Exception:  # noqa: BLE001
         return False
 
 
 def _solver_cache_state():
-    """Whether the next JS challenge solve can reuse a preprocessed player, as a report would say it."""
     try:
         from yt_dlp.extractor.youtube.jsc._builtin import ejs
 
         return "solver player cache " + ("on" if ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE else "off")
-    except Exception:  # noqa: BLE001 - a private attribute; a renamed one is "unknown", not a crash
+    except Exception:  # noqa: BLE001
         return "solver player cache unknown"
 
 

@@ -1,6 +1,7 @@
 package com.dewijones92.totum
 
 import android.content.pm.PackageManager
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.test.runner.AndroidJUnitRunner
@@ -30,6 +31,11 @@ import androidx.test.runner.AndroidJUnitRunner
  * ordinary phase start playback and the fourteenth would be written without it.
  */
 class TotumTestRunner : AndroidJUnitRunner() {
+
+    override fun onCreate(arguments: Bundle?) {
+        TotumApplication.warmEngineAfterLaunch = false
+        super.onCreate(arguments)
+    }
 
     override fun onStart() {
         grantNotifications()

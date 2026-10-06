@@ -34,6 +34,8 @@ class InteractiveFirstEngineTest {
 
         override suspend fun versions() = EngineVersions("test", "test")
 
+        override suspend fun warmUp() = Unit
+
         override suspend fun solveN(challenges: List<String>, playerUrl: String) = emptyMap<String, String>()
 
         override suspend fun extract(url: HttpUrl): ExtractionResult {
@@ -114,10 +116,20 @@ class InteractiveFirstEngineTest {
      * whole timeout — one error becoming a stalled queue.
      */
     @Test
+    fun `a warm-up reaches the real engine`() = runTest {
+        val real = com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine()
+
+        InteractiveFirstEngine(real).warmUp()
+
+        assertEquals(1, real.warmUps)
+    }
+
+    @Test
     fun `an extraction that throws still releases the gate`() = runTest {
         val throwing = object : YtDlpEngine {
             var downloadsStarted = 0
             override suspend fun versions() = EngineVersions("test", "test")
+            override suspend fun warmUp() = Unit
             override suspend fun solveN(challenges: List<String>, playerUrl: String) = emptyMap<String, String>()
             override suspend fun extract(url: HttpUrl): ExtractionResult = error("boom")
             override suspend fun searchVideos(query: String, maxResults: Int) =

@@ -38,6 +38,12 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
    2.25 s against 2.95 s median, and on the emulator it turned "6 qualities (0 durable)" into
    "6 qualities (6 durable)". `android` stays in the fallback because made-for-kids content once played
    through it alone (2026-07-30). The steps line says which path ran. Downloads keep the full list.
+7. **The engine is warmed 10 s after launch** (Dewi chose it: ~80 MB more memory for a session's first
+   video not paying ~2.7 s of Python and JS start-up). Never at launch, and never under
+   instrumentation, so test timings do not move. `warmUp()` is abstract on `YtDlpEngine` so no wrapper
+   can swallow it.
+8. **SponsorBlock is asked alongside the extraction**, from the id in the watch URL, instead of after
+   it: ~1.5 s off every resolve on the emulator.
 4. **The player offers Watch for a downloaded audio copy**, using the same explicit "watch" item action
    as the row, not the mode toggle (which would flip a video-mode user to audio).
 

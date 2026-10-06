@@ -72,6 +72,13 @@ public class ChaquopyYtDlpEngine(
         true
     }
 
+    override suspend fun warmUp(): Unit = withContext(dispatcher) {
+        timed("warm up") {
+            check(jsRuntimeConfigured)
+            Diag.log("engine", "warmed: ${bridge.callAttr("warm_up")}")
+        }
+    }
+
     override suspend fun versions(): EngineVersions = withContext(dispatcher) {
         parseVersions(bridge.callAttr("versions").toString())
     }

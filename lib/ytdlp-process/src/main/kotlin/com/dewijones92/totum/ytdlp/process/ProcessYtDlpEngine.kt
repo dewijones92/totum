@@ -35,6 +35,8 @@ public class ProcessYtDlpEngine(
 
     override suspend fun versions(): EngineVersions = parseVersions(run("versions"))
 
+    override suspend fun warmUp(): Unit = Unit
+
     override suspend fun extract(url: HttpUrl): ExtractionResult =
         when (val output = runOrNull("extract", url.value)) {
             null -> ExtractionResult.Failure.Network("could not run the extractor")

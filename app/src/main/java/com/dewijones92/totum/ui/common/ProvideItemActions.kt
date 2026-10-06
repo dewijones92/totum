@@ -75,7 +75,7 @@ private class ContainerItemActions(
     override val audioMode: Boolean get() = rows.audioMode
 
     override fun watch(item: MediaItem) {
-        rows.switchMode(item, toAudio = false, audioOnMessage = "", videoOnMessage = "")
+        rows.switchMode(item, toAudio = false, audioOnMessage = "", videoOnMessage = "", from = "player")
     }
 
     override fun switchMode(item: MediaItem) {

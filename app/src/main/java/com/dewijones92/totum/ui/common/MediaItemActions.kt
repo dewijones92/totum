@@ -76,8 +76,14 @@ class MediaItemActions internal constructor(
      * a row action that silently changed a global setting would be baffling, and
      * hiding the mode in a settings screen would be worse.
      */
-    fun switchMode(item: MediaItem, toAudio: Boolean, audioOnMessage: String, videoOnMessage: String) {
-        PlaybackIntent.mark(if (toAudio) "switch to audio (row)" else "switch to video (row)")
+    fun switchMode(
+        item: MediaItem,
+        toAudio: Boolean,
+        audioOnMessage: String,
+        videoOnMessage: String,
+        from: String = "row",
+    ) {
+        PlaybackIntent.mark(if (toAudio) "switch to audio ($from)" else "switch to video ($from)")
         mode.choose(audio = toAudio)
         // Asking a row for video is asking for the PICTURE, so it has to overrule a sound-only rescue
         // the same way the player's own Watch button does. Without this the mode changed, the toast said

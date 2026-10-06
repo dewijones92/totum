@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
  * URLs registered via [registerMedia] extract successfully; everything else
  * is [ExtractionResult.Failure.UnsupportedUrl].
  */
+@Suppress("TooManyFunctions")
 public class FakeYtDlpEngine : YtDlpEngine {
 
     private val mediaByUrl = mutableMapOf<HttpUrl, MediaMetadata>()
@@ -50,6 +51,13 @@ public class FakeYtDlpEngine : YtDlpEngine {
     /** Makes [url] resolve as a channel; unregistered channel URLs are NotAChannel. */
     public fun registerChannel(url: HttpUrl, channel: ChannelResult.Success) {
         channels[url] = channel
+    }
+
+    public var warmUps: Int = 0
+        private set
+
+    override suspend fun warmUp() {
+        warmUps++
     }
 
     override suspend fun versions(): EngineVersions =

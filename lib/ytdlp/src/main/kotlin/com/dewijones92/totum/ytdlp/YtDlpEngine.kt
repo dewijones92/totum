@@ -40,6 +40,8 @@ public interface YtDlpEngine {
      */
     public suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String>
 
+    public suspend fun warmUp()
+
     /**
      * Downloads media described by [request]. The returned flow is cold:
      * collecting starts the download, cancelling the collection cancels it.

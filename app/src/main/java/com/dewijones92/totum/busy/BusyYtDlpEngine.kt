@@ -31,6 +31,8 @@ class BusyYtDlpEngine(private val delegate: YtDlpEngine) : YtDlpEngine {
 
     override suspend fun versions(): EngineVersions = delegate.versions()
 
+    override suspend fun warmUp(): Unit = delegate.warmUp()
+
     override suspend fun extract(url: HttpUrl): ExtractionResult =
         Busy.during("extracting ${url.value.substringAfter("watch?v=").take(VIDEO_ID_LENGTH)}") {
             delegate.extract(url)

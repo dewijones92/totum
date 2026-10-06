@@ -67,13 +67,6 @@ object DeviceRadios {
         }
     }
 
-    /**
-     * Online on a network Android does not call metered, waiting until it says so.
-     *
-     * For tests that time playback: on a metered network `MeteredAudioSwitch` banks time from the
-     * moment the process starts and, past its hold, switches whatever video is playing to audio. CI run
-     * 37472913096 did exactly that 1 s into a skip-silence video test, which then failed on time.
-     */
     fun goUnmetered() {
         shell("svc wifi enable")
         shell("svc data disable")

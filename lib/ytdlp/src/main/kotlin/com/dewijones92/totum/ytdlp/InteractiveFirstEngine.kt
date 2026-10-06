@@ -36,6 +36,8 @@ public class InteractiveFirstEngine(
 
     override suspend fun versions(): EngineVersions = delegate.versions()
 
+    override suspend fun warmUp(): Unit = delegate.warmUp()
+
     override suspend fun extract(url: HttpUrl): ExtractionResult =
         asInteractive { delegate.extract(url) }
 

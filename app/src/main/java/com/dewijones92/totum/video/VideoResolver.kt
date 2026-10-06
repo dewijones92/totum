@@ -22,6 +22,8 @@ import com.dewijones92.totum.ytdlp.bestAudioUrl
 import com.dewijones92.totum.ytdlp.bestPlayableFormat
 import com.dewijones92.totum.ytdlp.isDurableAddress
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.seconds
@@ -222,9 +224,11 @@ class VideoResolver(
         sourceId: SourceId,
         asked: String,
         startedAt: Long,
-    ): Resolved? {
+    ): Resolved? = coroutineScope {
+        val segmentsAhead = watchUrl.youTubeVideoId()?.let { id -> id to async { skipSegments.segmentsFor(id) } }
         val extraction = engine.extract(watchUrl)
         val metadata = (extraction as? ExtractionResult.Success)?.metadata ?: run {
+            segmentsAhead?.second?.cancel()
             Vitals.add("resolve.extractFailures")
             Diag.warn("resolve", "extract failed for ${watchUrl.value} ($asked): $extraction")
             // Age restriction is the case worth retrying: yt-dlp has no credentials and says so
@@ -233,7 +237,7 @@ class VideoResolver(
             // by matching the message, because parsing yt-dlp's prose to decide would break the
             // day it is reworded — and a pointless retry costs one request on a video that was
             // not going to play anyway.
-            return fromPlayerResponse(
+            return@coroutineScope fromPlayerResponse(
                 watchUrl,
                 sourceId,
                 asked,
@@ -244,7 +248,9 @@ class VideoResolver(
             )
         }
         val wanted = wantedAudio(chosen = null)
-        val resolved = pickStreams(metadata, sourceId, wanted, chosen = null) ?: return null
+        val knownSegments = segmentsAhead?.takeIf { it.first == metadata.id }?.second?.await()
+        val resolved = pickStreams(metadata, sourceId, wanted, chosen = null, knownSegments = knownSegments)
+            ?: return@coroutineScope null
         Vitals.add("resolve.successes")
         Diag.log(
             "resolve",
@@ -259,7 +265,7 @@ class VideoResolver(
         // forces a re-resolve or a quality change all ask for the same video again, and each
         // one used to pay the full extraction.
         remember(watchUrl, resolved, metadata, sourceId)
-        return resolved
+        resolved
     }
 
     /**

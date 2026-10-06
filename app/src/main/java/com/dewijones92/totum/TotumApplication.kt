@@ -5,10 +5,13 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.request.crossfade
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.notifications.NewContentWorker
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class TotumApplication : Application(), SingletonImageLoader.Factory {
     val container: AppContainer by lazy { DefaultAppContainer(this) }
@@ -30,6 +33,26 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")
+        warmTheEngineSoon()
+    }
+
+    private fun warmTheEngineSoon() {
+        if (!warmEngineAfterLaunch) {
+            Diag.log("engine", "not warming the engine after launch: running under instrumentation")
+            return
+        }
+        container.applicationScope.launch {
+            delay(ENGINE_WARM_DELAY_MS)
+            Diag.log("engine", "warming the engine ${ENGINE_WARM_DELAY_MS}ms after launch, so the first video does not")
+            runCatching { container.ytDlpEngine.warmUp() }
+                .onFailure { Diag.warn("engine", "warm-up failed; the first video will start the engine itself", it) }
+        }
+    }
+
+    companion object {
+        @Volatile
+        internal var warmEngineAfterLaunch: Boolean = true
+        private const val ENGINE_WARM_DELAY_MS = 10_000L
     }
 
     /**
