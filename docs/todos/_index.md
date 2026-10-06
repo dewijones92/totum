@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Backlog
@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Queue items seem to finish a few seconds early](queue-items-feel-early.md) | playback | medium | instrumented 2026-10-06 (`item-end` lines, vital `playback.lastEnds`); leading cause on the emulator: skip-silence cuts a trailing silence and the clock jumps ~5 s; awaiting Dewi's call |
 | [Seamless playback across TV, laptop, browser and other devices](seamless-cross-device-playback.md) | playback/integration | — | refining: Netflix-like ease; device priorities and continuity to agree |
 | [seek-before-account-resume](seek-before-account-resume.md) | playback | high | fixed 2026-10-05: a seek overrides the cached account figure before its first resume |
 | [shared-title-stays-placeholder](shared-title-stays-placeholder.md) | queue/downloads | high | fixed 2026-10-05 → [shared-link metadata](../features/shared-link-metadata.md) |

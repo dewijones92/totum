@@ -3,7 +3,7 @@ title: Skip-silence that actually skips
 kind: feature
 area: playback
 status: shipped
-updated: 2026-09-26
+updated: 2026-10-06
 ---
 
 # Skip-silence that actually skips
@@ -195,11 +195,13 @@ item gets the bigger buffer from the next item.
 | `no pause long enough to cut in 60s of audio (cut level 175, noise floor 250, speech peak 1400)` | why nothing is happening: the recording's pauses sit above the cut level |
 | `audio underrun #n at …ms: the output ran dry` | a break in the sound, for any reason |
 | vital `silence.cut` | pauses and seconds removed so far |
+| `item-end <id> reason=ended … last 9780ms of media took 5048ms playing …: jumped 4732ms \| skipSilence=true …` | how much sooner than real time an item finished, and why it might have; the last five are kept in the vital `playback.lastEnds`. A trailing silence is cut like any other pause, so the clock jumps at the very end. See [queue-items-feel-early](../todos/queue-items-feel-early.md) |
 
 ## Tests
 
 | Level | Test | Claim |
 |---|---|---|
+| JVM | `ItemEndWatchTest` (8) | the item-end line: real-time play reports no jump, a trailing cut shows as media passing faster than it was heard, speed is not mistaken for a jump, paused time is not counted, an item left early says so, SponsorBlock seeks near the end are counted, an unknown duration never starts the tail, and five ends are kept |
 | JVM | `HeardSilenceAudioSinkTest` (4) | a seek or a new item learns the cut level again, a speed change keeps it; the wrapper's wiring through a scripted inner sink and the real cutter: the sink's early skip report is swallowed and the player told once when the cut is heard; one, two or three flushes in a row give the same position; after `playToEndOfStream` the last cut counts. Each fails when its piece of wiring is removed |
 | JVM | `HeardClockTest` (16) | a flush straight after a seek back does not count cuts from where playback used to be; a cut already announced is not announced again after a flush; a flush noticed before the stream restarts is not stranded; a cut carried across a flush is announced when heard; two flushes before either is heard count each stretch's cuts separately; at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
 | JVM | `BoostAndSkipSilenceTogetherTest` | Media3's real processors in the chain's order, boost on, speech peaking at 3000 with hiss at 300 in its pauses: they are all cut. With the boost first (the committed-before wiring), 119ms of 6000ms |

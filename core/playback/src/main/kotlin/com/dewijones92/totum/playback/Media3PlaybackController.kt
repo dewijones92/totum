@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
 import android.os.Debug
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -110,6 +111,7 @@ public class Media3PlaybackController(
     private var currentSourceId: SourceId? = null
     private var playGeneration = 0
     private var skipSilence = false
+    private val endWatch = ItemEndWatch()
     private var volumeBoost = VolumeBoost.OFF
     private var ticksSinceSave = 0
     private var ticksSinceMemory = 0
@@ -141,6 +143,7 @@ public class Media3PlaybackController(
                             if (playbackState != Player.STATE_ENDED) return
                             val id = connected.currentMediaItem?.mediaId ?: return
                             scope.launch { progressStore.setPlayed(MediaItemId(id), played = true) }
+                            noteItemEnd(connected, ItemEndWatch.Reason.ENDED)
                             // The one place an end is turned into a fact. This callback fires on
                             // the TRANSITION into ENDED, so it is already the edge every watcher
                             // used to reconstruct for itself — including the second end of an
@@ -284,6 +287,8 @@ public class Media3PlaybackController(
                 // A newer play() superseded this one while we were loading — drop it,
                 // so its media item and state never clobber the current item.
                 if (generation != playGeneration) return@withController
+                noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
+                endWatch.start(item.id.value, item.duration?.inWholeMilliseconds)
                 activeSkipSegments = skipSegments
                 skipsThisItem = 0
                 // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
@@ -468,6 +473,11 @@ public class Media3PlaybackController(
         scope.launch {
             while (isActive) {
                 if (controller.isPlaying) {
+                    endWatch.tick(
+                        SystemClock.elapsedRealtime(),
+                        controller.currentPosition,
+                        controller.duration.takeIf { it > 0 },
+                    )
                     applySkipSegments(controller)
                     _state.value = controller.currentPlaybackState()
                     if (++ticksSinceSave >= TICKS_PER_SAVE) {
@@ -537,12 +547,27 @@ public class Media3PlaybackController(
         val from = controller.currentPosition.milliseconds
         val target = activeSkipSegments.skipTargetFor(from) ?: return
         skipsThisItem++
+        endWatch.segmentSkipped(from.inWholeMilliseconds, controller.duration.takeIf { it > 0 })
         Diag.log(
             "sponsorblock",
             "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms " +
                 "(skip $skipsThisItem of this item)",
         )
         controller.seekTo(target.inWholeMilliseconds)
+    }
+
+    private fun noteItemEnd(controller: MediaController, reason: ItemEndWatch.Reason) {
+        val facts = ItemEndWatch.EndFacts(
+            wallMs = SystemClock.elapsedRealtime(),
+            positionMs = controller.currentPosition.coerceAtLeast(0),
+            durationMs = controller.duration.takeIf { it > 0 },
+            speed = controller.playbackParameters.speed,
+            skipSilence = skipSilence,
+            silenceMode = silenceMode.value.name,
+        )
+        val line = endWatch.end(reason, facts) ?: return
+        Diag.log("playback", line)
+        Vitals.set("playback.lastEnds", endWatch.lastEnds.joinToString(" || "))
     }
 
     /**
