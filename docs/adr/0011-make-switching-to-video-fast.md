@@ -52,6 +52,18 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
 10. **A lookup survives an app restart.** Each extraction's streams, chapters and SponsorBlock segments
    are saved to `cacheDir/lookups` (newest 30), and reused under the same expiry rule as item 2, so the
    first tap after reopening the app skips extraction. A damaged file is logged and deleted.
+11. **Extractions share one pool of HTTP connections.** `requests` is bundled, so yt-dlp pools
+   connections instead of opening a new TLS connection per request (its urllib handler), and every
+   extraction borrows one long-lived YoutubeDL's request director and cookie jar, handing the director
+   back before closing so the pool survives. Measured on the laptop: ~0.3–0.4 s per extraction for each
+   of the two. Downloads keep their own.
+12. **Auto-caption translations are built only for the languages the app offers**
+   (`AUTO_CAPTION_LANGUAGES`, passed in from Kotlin, plus the languages spoken in the video). yt-dlp
+   otherwise built a URL for every caption track × ~170 languages: 9.6 MB of JSON for one dubbed video,
+   cut to 1.6 MB, 3.6 s → 2.4 s on the laptop. The menu offers exactly what it did before.
+13. **The account session and the account's watched positions no longer hold up the picture.**
+   `beginSession` (an InnerTube /player call) runs alongside playback instead of before it, and a play
+   starts reading the account's watched positions, when the held copy is stale, as soon as it begins.
 4. **The player offers Watch for a downloaded audio copy**, using the same explicit "watch" item action
    as the row, not the mode toggle (which would flip a video-mode user to audio).
 

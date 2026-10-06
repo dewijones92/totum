@@ -323,6 +323,27 @@ class AccountResumePositionsTest {
     }
 
     @Test
+    fun `a play that has just begun has the answer ready before it is asked`() = runTest {
+        history.watched = mapOf("a" to AccountProgress(1_000, hour44))
+        val p = positions()
+
+        p.refreshAhead()
+        p.resumePositionMs(MediaItemId("a"))
+        p.refreshAhead()
+
+        assertEquals(1, history.watchedCalls)
+    }
+
+    @Test
+    fun `offline, nothing is read ahead`() = runTest {
+        offline = true
+
+        positions().refreshAhead()
+
+        assertEquals(0, history.watchedCalls)
+    }
+
+    @Test
     fun `it asks again once the answer is stale`() = runTest {
         history.watched = mapOf("a" to AccountProgress(1_000, hour44))
         val p = positions()

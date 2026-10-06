@@ -13,9 +13,11 @@ import com.dewijones92.totum.domain.withStreamFrom
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.ytdlp.isDurableAddress
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -57,6 +59,8 @@ class VideoPlaybackLauncher(
      * and author it was queued without (a link shared by its id knows none of them).
      */
     private val onResolved: (MediaItem) -> Unit = {},
+    private val background: CoroutineScope? = null,
+    private val onPlayBegun: () -> Unit = {},
 ) {
     /** The current video's quality options and which one is playing. */
     data class QualityState(
@@ -106,7 +110,10 @@ class VideoPlaybackLauncher(
      * same item had started playing from `/data/…/3138547848.media`, dropped the file, streamed a
      * URL that answered 403, and cost 41 seconds of buffering nobody could have escaped.
      */
-    fun beginPlay(): Long = latestRequest.incrementAndGet()
+    fun beginPlay(): Long {
+        onPlayBegun()
+        return latestRequest.incrementAndGet()
+    }
 
     /** Drops any cached resolution for [watchUrl] — see [VideoResolver.forget]. */
     fun forgetResolved(watchUrl: HttpUrl) {
@@ -219,7 +226,13 @@ class VideoPlaybackLauncher(
         // Fetches this video's account-bearing tracking URLs so progress can sync to
         // YouTube. Deliberately NOT the ones the extractor returned: those come from an
         // unauthenticated session and credit nobody (see HttpYouTubeWatchHistory).
-        watchHistory.beginSession(resolved.item.id.value)
+        val videoId = resolved.item.id.value
+        if (background != null) {
+            Diag.log("yt-sync", "$videoId opening the account session alongside playback")
+            background.launch { watchHistory.beginSession(videoId) }
+        } else {
+            watchHistory.beginSession(videoId)
+        }
         // One place decides audio vs video, so the mode holds no matter which screen
         // started playback. A one-off "watch this" is expressed by [watch].
         // startPositionMs on BOTH branches. The audio branch dropped it, so a rescue that asked to

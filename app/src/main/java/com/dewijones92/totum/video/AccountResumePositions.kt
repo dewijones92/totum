@@ -173,6 +173,13 @@ class AccountResumePositions(
         refreshing()?.join()
     }
 
+    suspend fun refreshAhead() {
+        if (offline()) return
+        val fetch = refreshing() ?: return
+        Diag.log("yt-sync", "reading the account's watched positions ahead of a play (the copy held was stale)")
+        fetch.join()
+    }
+
     private suspend fun remoteFor(itemId: MediaItemId): Pair<AccountProgress?, String?> {
         if (offline()) return _watched.value[itemId.value] to "offline, so the account was not asked"
         val fetch = refreshing()

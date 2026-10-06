@@ -1249,6 +1249,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             },
             choices = streamChoices,
             onResolved = { playbackQueue.adoptFacts(it) },
+            background = applicationScope,
+            onPlayBegun = { applicationScope.launch { accountResumePositions.refreshAhead() } },
         )
     }
 

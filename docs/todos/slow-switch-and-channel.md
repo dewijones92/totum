@@ -1,7 +1,7 @@
 ---
 title: Switching audio to video, and opening a channel, feel slow
 kind: todo
-status: measured on the phone 2026-10-06; fixes shipped (ADRs 11 and 12); connection reuse and the parallel wrap-up in progress
+status: measured on the phone 2026-10-06; fixes shipped (ADRs 11 and 12); all planned fixes built, to measure on the phone
 area: playback/channel
 updated: 2026-10-06
 ---
@@ -99,13 +99,13 @@ audio.
   SponsorBlock asked alongside the extraction; videos looked up before the tap (`ReadyAhead`: menu
   open, next in queue); lookups kept across restarts (`FileLookupStore`).
 - ADR 12: the JS challenge solved in Android's V8 with the player kept loaded, QuickJS as fallback.
+- ADR 11 items 11-13: one shared HTTP connection pool (`requests` bundled), caption translations
+  only for the app's languages, the account session and positions off the critical path.
 
 Still to measure on the phone: everything after 0.1.571.
 
 ## Candidate fixes (remaining)
 
-- Reuse network connections across extractions (one HTTP session, so TLS is not renegotiated).
-- Run the end-of-resolve steps (stream pick, account resume check) in parallel.
 - Look up fresh feed uploads ahead on Wi-Fi.
 - Start a mid-video switch at a lower quality and let it climb, rather than joining 1080p cold.
 - Carry the uploader URL the resolver already has into the resolved item, and give shared links and
