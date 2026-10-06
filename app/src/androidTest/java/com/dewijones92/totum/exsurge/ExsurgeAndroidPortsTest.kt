@@ -25,14 +25,15 @@ class ExsurgeAndroidPortsTest {
 
     private fun postedSummons(): Notification = posted(ExsurgeNotifications.SUMMONS_ID)
 
-    private fun posted(id: Int): Notification {
+    private fun posted(id: Int, titled: String? = null): Notification {
         val deadline = System.currentTimeMillis() + POST_WAIT_MS
+        var last: Notification? = null
         while (System.currentTimeMillis() < deadline) {
-            val found = manager.activeNotifications.firstOrNull { it.id == id }
-            if (found != null) return found.notification
+            last = manager.activeNotifications.firstOrNull { it.id == id }?.notification
+            if (last != null && (titled == null || last.extras.getString("android.title") == titled)) return last
             Thread.sleep(POLL_MS)
         }
-        error("notification $id was never posted")
+        return last ?: error("notification $id was never posted")
     }
 
     @After
@@ -117,7 +118,7 @@ class ExsurgeAndroidPortsTest {
             zone = zone,
         )
         ExsurgeBannerService.reconcile(context, off, notifications)
-        val posted = posted(ExsurgeNotifications.BANNER_ID)
+        val posted = posted(ExsurgeNotifications.BANNER_ID, titled = "Exsurge et Disce is off")
         assertEquals("Exsurge et Disce is off", posted.extras.getString("android.title"))
         assertTrue(posted.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertNotNull(posted.deleteIntent)
@@ -144,7 +145,7 @@ class ExsurgeAndroidPortsTest {
                 zone = zone,
             )
             ExsurgeBannerService.reconcile(context, view, notifications)
-            val posted = posted(ExsurgeNotifications.BANNER_ID)
+            val posted = posted(ExsurgeNotifications.BANNER_ID, titled = title)
             assertEquals(title, posted.extras.getString("android.title"))
             assertTrue(posted.flags and Notification.FLAG_ONGOING_EVENT != 0)
             assertEquals(listOf("Summon now", "Restart clock"), posted.actions.map { it.title.toString() })
