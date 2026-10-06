@@ -103,6 +103,46 @@ class ExsurgeControllerTest {
     }
 
     @Test
+    fun `continue Totum seeds the walking baseline and completes the ordinary break`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(1000)
+        advance(minutes = 30)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        exsurge.dispatch(ExsurgeEvent.ContinueTotum, "takeover")
+        assertEquals(1, ports.continued)
+        assertEquals(0, ports.pauses)
+        assertEquals(0, ports.opened)
+        assertEquals(1000L, (exsurge.view.value.memory.state as ExsurgeState.Rising).baselineSteps)
+        exsurge.onStepCounter(1020)
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.OnBreak)
+        advance(minutes = 5)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        assertEquals(OutcomeKind.COMPLETED, store.outcomes.single().kind)
+        assertFalse(store.outcomes.single().practised)
+        assertTrue(store.outcomes.single().credited)
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Sitting)
+        assertEquals(now.plus(Duration.ofMinutes(30)), ports.wakes.last())
+    }
+
+    @Test
+    fun `continue Totum completes a disabled one-off and duplicate presses do not resume twice`() {
+        val exsurge = controller(steps = false)
+        exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
+        exsurge.dispatch(ExsurgeEvent.ContinueTotum, "takeover")
+        exsurge.dispatch(ExsurgeEvent.ContinueTotum, "takeover")
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.OnBreak)
+        assertEquals(1, ports.continued)
+        assertEquals(0, ports.pauses)
+        advance(minutes = 5)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+        assertFalse(store.settings.enabled)
+        assertFalse(store.outcomes.single().practised)
+        assertEquals(null, ports.wakes.last())
+    }
+
+    @Test
     fun `just walk never opens the language app`() {
         val exsurge = controller()
         exsurge.turnOn()
@@ -325,6 +365,7 @@ class ExsurgeControllerTest {
         var opened = 0
         var pauses = 0
         var resumes = 0
+        var continued = 0
         var views = 0
 
         override fun scheduleWake(at: Instant?) {
@@ -353,6 +394,10 @@ class ExsurgeControllerTest {
         override fun resumePlayback(): String {
             resumes++
             return "resumed"
+        }
+        override fun continueTotum(): String {
+            continued++
+            return "continued"
         }
         override fun viewChanged(view: ExsurgeView) {
             views++

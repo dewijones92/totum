@@ -2,7 +2,7 @@
 title: Playback gets setPlaying and an interruption
 kind: adr
 status: accepted
-updated: 2026-10-01
+updated: 2026-10-06
 ---
 
 # 4. Playback gets setPlaying and an interruption that resumes only what it paused
@@ -26,6 +26,13 @@ on purpose in the meantime.
   nobody pressed play in between (it observes the state stream to see that).
 - The port is one function over detekt's limit for an interface, so it is suppressed there: it is
   the app's single playback seam, and splitting it would make two.
+- **Continue Totum (2026-10-06):** Dewi chose to resume the current item during the walking
+  break. This is an explicit play request, not the automatic release of an interruption:
+  the Android adapter opens Totum and calls the same controller's `setPlaying(true)`, without
+  reloading or seeking. The existing break state machine emits this effect instead of pausing,
+  and keeps its walking proof and timer. It never acquires an interruption hold, so completing
+  or cancelling the break cannot override a later manual pause. Language practice and Just walk
+  keep their existing pause/release behaviour.
 
 ## Consequences
 

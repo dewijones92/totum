@@ -26,6 +26,8 @@
     <string name="exsurge_action_go">GO</string>
     <string name="exsurge_action_go_to">GO → %1$s</string>
     <string name="exsurge_action_just_walk">Just walk</string>
+    <string name="exsurge_action_continue_totum">Continue Totum</string>
+    <string name="exsurge_action_continue_totum_detail">Play the current item while you walk</string>
     <string name="exsurge_action_snooze">Snooze %1$d min (left: %2$d)</string>
     <string name="exsurge_action_snooze_none">No snoozes left</string>
     <string name="exsurge_action_skip">Skip this one</string>

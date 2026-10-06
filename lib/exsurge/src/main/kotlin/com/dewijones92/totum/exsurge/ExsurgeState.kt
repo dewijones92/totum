@@ -90,6 +90,7 @@ public sealed interface ExsurgeEvent {
     public data object SummonNow : ExsurgeEvent
     public data object Go : ExsurgeEvent
     public data object JustWalk : ExsurgeEvent
+    public data object ContinueTotum : ExsurgeEvent
     public data object RestartClock : ExsurgeEvent
     public data object Snooze : ExsurgeEvent
     public data object Skip : ExsurgeEvent
@@ -108,6 +109,7 @@ public sealed interface ExsurgeEffect {
     public data class ShowTakeover(val summonsId: Long, val call: Int) : ExsurgeEffect
     public data object HideTakeover : ExsurgeEffect
     public data object OpenDestination : ExsurgeEffect
+    public data object ContinueTotum : ExsurgeEffect
     public data object PausePlayback : ExsurgeEffect
     public data object ResumePlayback : ExsurgeEffect
     public data class Record(val outcome: BreakOutcome) : ExsurgeEffect

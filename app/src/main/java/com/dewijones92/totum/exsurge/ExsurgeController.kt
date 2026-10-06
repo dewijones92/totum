@@ -25,6 +25,7 @@ interface ExsurgePorts {
     fun openDestination(settings: ExsurgeSettings): Boolean
     fun pausePlayback(): Boolean
     fun resumePlayback(): String
+    fun continueTotum(): String
     fun viewChanged(view: ExsurgeView)
 }
 
@@ -37,6 +38,7 @@ object NoExsurgePorts : ExsurgePorts {
     override fun openDestination(settings: ExsurgeSettings) = false
     override fun pausePlayback() = false
     override fun resumePlayback() = "no playback"
+    override fun continueTotum() = "no playback"
     override fun viewChanged(view: ExsurgeView) = Unit
 }
 
@@ -102,7 +104,10 @@ class ExsurgeController(
         lastEvent = "$event from $source at ${clock()}"
         apply(event, source)
         val seed = lastStepTotal
-        val rising = event == ExsurgeEvent.Go || event == ExsurgeEvent.JustWalk
+        val rising = when (event) {
+            ExsurgeEvent.Go, ExsurgeEvent.JustWalk, ExsurgeEvent.ContinueTotum -> true
+            else -> false
+        }
         if (rising && memory.state is ExsurgeState.Rising && seed != null) {
             Diag.log(TAG, "dewidebug exsurge GO baseline = last step reading, total=$seed")
             apply(ExsurgeEvent.StepsCounted(seed), "baseline at GO")
@@ -211,6 +216,10 @@ class ExsurgeController(
                 TAG,
                 "dewidebug exsurge resume playback: ${ports.resumePlayback()}"
             )
+            ExsurgeEffect.ContinueTotum -> Diag.log(
+                TAG,
+                "dewidebug exsurge continue Totum: ${ports.continueTotum()}"
+            )
             is ExsurgeEffect.Record -> record(effect.outcome)
         }
     }
@@ -286,6 +295,7 @@ private fun ExsurgeEffect.label(): String = when (this) {
     is ExsurgeEffect.ShowTakeover -> "show#$summonsId/$call"
     ExsurgeEffect.HideTakeover -> "hide"
     ExsurgeEffect.OpenDestination -> "open"
+    ExsurgeEffect.ContinueTotum -> "continueTotum"
     ExsurgeEffect.PausePlayback -> "pause"
     ExsurgeEffect.ResumePlayback -> "resume"
     is ExsurgeEffect.Record -> "record:${outcome.kind}"

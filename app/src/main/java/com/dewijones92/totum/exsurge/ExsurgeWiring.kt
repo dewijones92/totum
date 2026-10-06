@@ -14,7 +14,7 @@ fun exsurgeController(context: Context, playback: PlaybackController, scope: Cor
     }
     return ExsurgeController(
         store = SharedPrefsExsurgeStore(context),
-        ports = AndroidExsurgePorts(context) { interruption },
+        ports = AndroidExsurgePorts(context, { playback }) { interruption },
         sensorStepsAvailable = { ExsurgeBannerService.countingSteps },
     )
 }

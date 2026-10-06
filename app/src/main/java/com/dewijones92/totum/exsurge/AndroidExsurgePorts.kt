@@ -16,13 +16,16 @@ import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.provider.Settings
 import android.widget.Toast
+import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackInterruption
 import java.time.Instant
 
 class AndroidExsurgePorts(
     private val context: Context,
+    private val playback: () -> PlaybackController,
     private val interruption: () -> PlaybackInterruption,
 ) : ExsurgePorts {
     private val notifications = ExsurgeNotifications(context)
@@ -113,6 +116,18 @@ class AndroidExsurgePorts(
     override fun pausePlayback(): Boolean = interruption().interrupt()
 
     override fun resumePlayback(): String = interruption().release().toString()
+
+    override fun continueTotum(): String {
+        context.startActivity(
+            Intent(context, MainActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+        )
+        val controller = playback()
+        val state = controller.state.value ?: return "nothing queued; opened Totum"
+        controller.setPlaying(true)
+        return "resume requested item=${state.itemId.value} at ${state.positionMs}ms; opened Totum"
+    }
 
     override fun viewChanged(view: ExsurgeView) {
         ExsurgeBannerService.reconcile(context, view, notifications)

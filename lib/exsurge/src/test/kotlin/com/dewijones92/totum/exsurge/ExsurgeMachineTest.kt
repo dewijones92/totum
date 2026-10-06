@@ -154,6 +154,42 @@ class ExsurgeMachineTest {
     }
 
     @Test
+    fun `continue Totum starts the same walk without pausing or opening the language app`() {
+        val result = apply(summoned(), ExsurgeEvent.ContinueTotum, mondayTen)
+        assertEquals(Rising(Summons(7, mondayTen, practise = false), mondayTen), result.memory.state)
+        assertEquals(listOf(HideTakeover, Speak(Cue.GO), ExsurgeEffect.ContinueTotum), result.effects)
+        val duplicate = apply(result.memory, ExsurgeEvent.ContinueTotum, mondayTen.plusSeconds2(1))
+        assertEquals(result.memory, duplicate.memory)
+        assertTrue(duplicate.effects.isEmpty())
+    }
+
+    @Test
+    fun `continue Totum works after snooze and with no step sensor`() {
+        val snoozed = apply(summoned(), ExsurgeEvent.Snooze, mondayTen).memory
+        val result = apply(
+            snoozed,
+            ExsurgeEvent.ContinueTotum,
+            mondayTen.plusMinutes(1),
+            context.copy(stepsAvailable = false)
+        )
+        assertTrue(result.memory.state is OnBreak)
+        assertEquals(false, (result.memory.state as OnBreak).summons.practise)
+        assertEquals(listOf(HideTakeover, Speak(Cue.GO), ExsurgeEffect.ContinueTotum), result.effects)
+    }
+
+    @Test
+    fun `continue Totum explicitly resumes even when automatic playback pause is disabled`() {
+        val result = apply(
+            summoned(),
+            ExsurgeEvent.ContinueTotum,
+            mondayTen,
+            context.copy(settings = on.copy(pausePlayback = false))
+        )
+        assertTrue(result.effects.contains(ExsurgeEffect.ContinueTotum))
+        assertTrue(!result.effects.contains(PausePlayback))
+    }
+
+    @Test
     fun `just walk starts the break without opening the language app`() {
         val at = mondayTen.plusSeconds2(20)
         val result = apply(summoned(), ExsurgeEvent.JustWalk, at)

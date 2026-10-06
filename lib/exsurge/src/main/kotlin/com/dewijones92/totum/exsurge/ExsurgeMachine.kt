@@ -104,8 +104,7 @@ public object ExsurgeMachine {
                 ExsurgeEvent.SettingsChanged -> settingsChanged()
                 ExsurgeEvent.TurnOff -> turnOff()
                 ExsurgeEvent.SummonNow -> summonNow()
-                ExsurgeEvent.Go -> go(practise = true)
-                ExsurgeEvent.JustWalk -> go(practise = false)
+                ExsurgeEvent.Go, ExsurgeEvent.JustWalk, ExsurgeEvent.ContinueTotum -> go(event)
                 ExsurgeEvent.RestartClock -> restartClock()
                 ExsurgeEvent.Snooze -> snooze()
                 ExsurgeEvent.Skip -> skip()
@@ -321,7 +320,8 @@ public object ExsurgeMachine {
             }
         }
 
-        private fun go(practise: Boolean) {
+        private fun go(event: ExsurgeEvent) {
+            val practise = event == ExsurgeEvent.Go
             val summons = when (val state = memory.state) {
                 is Summoned -> state.summons
                 is Snoozed -> state.summons
@@ -329,7 +329,12 @@ public object ExsurgeMachine {
             }.copy(practise = practise)
             emit(HideTakeover, Speak(Cue.GO))
             if (practise) emit(OpenDestination) else note("just walking: ${settings.destinationPackage} not opened")
-            if (settings.pausePlayback) emit(PausePlayback)
+            if (event == ExsurgeEvent.ContinueTotum) {
+                emit(ExsurgeEffect.ContinueTotum)
+                note("continue Totum: resume the current item during the walking break")
+            } else if (settings.pausePlayback) {
+                emit(PausePlayback)
+            }
             if (context.stepsToRise == 0) {
                 note(
                     "GO: no steps required (setting=${settings.stepsToRise}, sensor=${context.stepsAvailable}); " +
@@ -463,6 +468,7 @@ private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.SummonNow -> "summonNow"
     ExsurgeEvent.Go -> "go"
     ExsurgeEvent.JustWalk -> "justWalk"
+    ExsurgeEvent.ContinueTotum -> "continueTotum"
     ExsurgeEvent.RestartClock -> "restartClock"
     ExsurgeEvent.Snooze -> "snooze"
     ExsurgeEvent.Skip -> "skip"

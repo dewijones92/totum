@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -26,6 +26,7 @@ everything configurable. The backlog item, with the agreed design and the open i
 | Skip | Recorded; Surgius looks wounded for the half hour | *Et tu, Dewi?* |
 | GO | Unlock if needed; Loquax opens at `/practice`; Totum's playback pauses | *Alea iacta est!* |
 | Just walk | The same break, with no language app (Dewi, 2026-10-01: *"I don't necessarily wanna do language learning when I get up"*); no unlock needed; recorded as not practised | *Alea iacta est!* |
+| Continue Totum | Resume the current Totum item while taking the same walking break; unlock if needed and return to Totum, without opening the language app or restarting the item; recorded as not practised | *Alea iacta est!* |
 | 20 steps | The 5-minute break starts | *Bene! Ambula, disce!* |
 | 2 minutes left | — | *Duo minuta restant.* |
 | Break over | Playback resumes (only if the break paused it); +1 laurel | *Satis! Liber es!* / *Veni, vidi, didici!* |
@@ -64,8 +65,15 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Steps arrive promptly while it matters.** The step counter is batched at 60 s while sitting, to
   spare the battery, and unbatched while rising or on a break. A batched report could hold back the
   20th step for up to a minute.
+- **Continue Totum** (Dewi, 2026-10-06): the popup offers this alongside GO and Just walk.
+  It explicitly resumes the current video or podcast at its existing position, even when paused,
+  while keeping the walking proof, break timer and rewards. It uses the shared playback controller
+  and never pauses playback for this break; a later manual pause remains paused when the break ends.
+  Just walk still follows the playback-pause setting. Continue Totum also works for a disabled
+  manual one-off, which returns to Off afterward.
 - **The summons notification** carries GO, Just walk and Snooze, or GO, Just walk and Skip when no
-  snoozes are left. Android shows three actions at most, and the takeover always has all four.
+  snoozes are left. Android shows three actions at most; the popup has all five choices, including
+  Continue Totum. Its actions scroll on a small screen.
 - **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking
   without practice still earns the laurel; the laurel is for standing up.
 - **Quick Settings tile:** turns it on and off, and shows "Next 14:32". A long-press opens the
@@ -99,7 +107,7 @@ rank and the settings.
 
 ## Verified
 
-- ✅ **JVM:** 83 tests on the state machine and its support code, 21 on the controller, and 8 on
+- ✅ **JVM:** 86 tests on the state machine and its support code, 23 on the controller, and 8 on
   `PlaybackInterruption`.
 - ✅ **Original instrumented coverage, on `totum-api35`:** 8 of 8, at 1080×2400 and at 320×640. The small screen is
   CI's default, and it found Snooze and Skip cut off a non-scrolling takeover. Voice clips decode, the summons notification
@@ -127,6 +135,14 @@ rank and the settings.
   five rapid Restart/Summon/Skip cycles. The expanded Off notification was visually checked:
   Surgius, the Off title and all three action labels fit without clipping. The normal quality
   gate and the separate 104-test Exsurge JVM phase passed.
+
+- **Continue Totum verification (2026-10-06):** the normal quality gate and the separate
+  109-test Exsurge JVM phase passed. All 17 Exsurge device tests passed at 1080×2400 and 320×640.
+  Real playback tests resume a paused podcast or continue an already-playing video without
+  changing its item or restarting its position; a later manual pause is respected when cancelling
+  the break. Unit tests cover step baseline, walking proof, completion, snooze, duplicate presses
+  and a disabled one-off. The new popup button and caption were visually checked at both sizes;
+  on the smaller screen the choices remain reachable by scrolling.
 
 ## Independent review (Opus 5.5, 2026-10-01)
 

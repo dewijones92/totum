@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Features
@@ -73,7 +73,7 @@ alone until they need more.
 | Feed cache (the Videos tab opens with content, not a blank) | video | shipped | [feed-cache.md](feed-cache.md) |
 | Offline queue (audio fetched automatically, readiness in words) | downloads | shipped | [offline-queue.md](offline-queue.md) |
 | Quiet podcasts made audible, automatically (measures the item, cannot clip) | playback | shipped | [loudness-boost.md](loudness-boost.md) |
-| Exsurge et Disce: stand up every 30 min sitting, 5 min in Loquax, Surgius and an always-present banner with Off quick actions | side-quest | built, awaiting on-phone verification | [exsurge-et-disce.md](exsurge-et-disce.md) |
+| Exsurge et Disce: stand up every 30 min sitting, Loquax or a walking break with Totum playing, Surgius and an always-present banner | side-quest | built, awaiting on-phone verification | [exsurge-et-disce.md](exsurge-et-disce.md) |
 
 \* Cast: **tapping the button still crashed the app until 2026-07-28** — this footnote claimed
 otherwise for weeks, because the fix that was made (a themed context for the button) never

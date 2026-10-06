@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Architecture decision records
@@ -19,7 +19,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 1 | [Record decisions as ADRs](0001-record-decisions-as-adrs.md) | Accepted |
 | 2 | [Exsurge et Disce is a side-quest module: a pure brain plus Android adapters](0002-exsurge-side-quest-module.md) | Accepted |
 | 3 | [Exsurge's voice is an alarm, not media](0003-exsurge-voice-is-not-media.md) | Accepted |
-| 4 | [Playback gets setPlaying and an interruption that resumes only what it paused](0004-playback-set-playing-and-interruption.md) | Accepted |
+| 4 | [Playback gets setPlaying and an interruption that resumes only what it paused; Continue Totum explicitly resumes during a walking break](0004-playback-set-playing-and-interruption.md) | Accepted |
 | 5 | [Exsurge wakes with exact alarms, and a health foreground service holds the step counter](0005-exsurge-alarms-and-the-sticky-banner.md) | Accepted |
 | 6 | [The takeover uses a full-screen intent, plus "display over other apps" when granted](0006-exsurge-takeover-over-other-apps.md) | Accepted |
 | 7 | [Exsurge's tests run only when its area changes](0007-exsurge-tests-run-only-when-touched.md) | Accepted |

@@ -157,7 +157,9 @@ class ExsurgeAndroidPortsTest {
 
     @Test
     fun theDestinationOpensWithItsRoute() {
-        val ports = AndroidExsurgePorts(context) { error("playback is not part of this test") }
+        val ports = AndroidExsurgePorts(context, { error("playback is not part of this test") }) {
+            error("playback is not part of this test")
+        }
         val own = ExsurgeSettings(destinationPackage = context.packageName, destinationRoute = "/practice")
         val intent = AndroidExsurgePorts.destinationIntent(context, own)!!
         assertEquals(context.packageName, intent.`package` ?: intent.component?.packageName)

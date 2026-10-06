@@ -5,10 +5,14 @@ status: built — awaiting a real day on Dewi's phone; see features/exsurge-et-d
 area: side-quest
 priority: medium
 requested: 2026-10-01
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 > **Built 2026-10-01.** The feature doc is [features/exsurge-et-disce](../features/exsurge-et-disce.md) and the decisions are [ADRs 2–7](../adr/_index.md). Two departures from the plan, both recorded in ADR 5: `setExactAndAllowWhileIdle` rather than `setAlarmClock` (so it does not take over the clock's "next alarm"), and "Pause 1 hour" capped at once a day.
+
+**Follow-up (Dewi, 2026-10-06):** the popup also offers Continue Totum: resume the current
+item while taking the walking break, without language practice. The behaviour belongs in
+the feature doc and [ADR 4](../adr/0004-playback-set-playing-and-interruption.md).
 
 # Exsurge et Disce ("rise up and learn")
 

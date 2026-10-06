@@ -75,6 +75,7 @@ class TakeoverActivity : ComponentActivity() {
                     destination = destination,
                     onGo = ::go,
                     onJustWalk = { justWalk() },
+                    onContinueTotum = { startBreak(ExsurgeEvent.ContinueTotum) },
                     onSnooze = { exsurge.dispatch(ExsurgeEvent.Snooze, "takeover") },
                     onSkip = { exsurge.dispatch(ExsurgeEvent.Skip, "takeover") },
                 )
@@ -107,19 +108,26 @@ class TakeoverActivity : ComponentActivity() {
         packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
     }.getOrDefault(if (packageName == LOQUAX_PACKAGE) "Loquax" else packageName)
 
-    private fun go() {
+    private fun go() = startBreak(ExsurgeEvent.Go)
+
+    private fun startBreak(event: ExsurgeEvent) = afterUnlock(event.toString()) { how ->
+        exsurge.dispatch(event, "takeover ($how)")
+        finish()
+    }
+
+    private fun afterUnlock(action: String, proceed: (String) -> Unit) {
         val keyguard = getSystemService(KeyguardManager::class.java)
-        if (!keyguard.isKeyguardLocked) return goNow("unlocked")
+        if (!keyguard.isKeyguardLocked) return proceed("unlocked")
         keyguard.requestDismissKeyguard(
             this,
             object : KeyguardManager.KeyguardDismissCallback() {
-                override fun onDismissSucceeded() = goNow("keyguard dismissed")
+                override fun onDismissSucceeded() = proceed("keyguard dismissed")
                 override fun onDismissCancelled() {
-                    Diag.log(ExsurgeController.TAG, "dewidebug exsurge GO waiting: unlock cancelled")
+                    Diag.log(ExsurgeController.TAG, "dewidebug exsurge $action waiting: unlock cancelled")
                 }
                 override fun onDismissError() {
-                    Diag.warn(ExsurgeController.TAG, "dewidebug exsurge GO: keyguard dismiss failed; going anyway")
-                    goNow("keyguard error")
+                    Diag.warn(ExsurgeController.TAG, "dewidebug exsurge $action: keyguard dismiss failed; going anyway")
+                    proceed("keyguard error")
                 }
             },
         )
@@ -127,11 +135,6 @@ class TakeoverActivity : ComponentActivity() {
 
     private fun justWalk() {
         exsurge.dispatch(ExsurgeEvent.JustWalk, "takeover")
-        finish()
-    }
-
-    private fun goNow(how: String) {
-        exsurge.dispatch(ExsurgeEvent.Go, "takeover ($how)")
         finish()
     }
 
@@ -171,6 +174,7 @@ fun TakeoverScreen(
     destination: String,
     onGo: () -> Unit,
     onJustWalk: () -> Unit,
+    onContinueTotum: () -> Unit,
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -219,6 +223,7 @@ fun TakeoverScreen(
                     view.settings.snoozeMinutes,
                     onGo,
                     onJustWalk,
+                    onContinueTotum,
                     onSnooze,
                     onSkip
                 )
@@ -234,6 +239,7 @@ private fun TakeoverButtons(
     snoozeMinutes: Int,
     onGo: () -> Unit,
     onJustWalk: () -> Unit,
+    onContinueTotum: () -> Unit,
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -253,6 +259,25 @@ private fun TakeoverButtons(
     Spacer(Modifier.height(12.dp))
     OutlinedButton(onClick = onJustWalk, modifier = Modifier.fillMaxWidth().height(64.dp).testTag("exsurge-walk")) {
         Text(stringResource(R.string.exsurge_action_just_walk), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    }
+    Spacer(Modifier.height(12.dp))
+    OutlinedButton(
+        onClick = onContinueTotum,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("exsurge-continue")
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                stringResource(R.string.exsurge_action_continue_totum),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                stringResource(R.string.exsurge_action_continue_totum_detail),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+        }
     }
     Spacer(Modifier.height(12.dp))
     TextButton(onClick = onSnooze, enabled = snoozesLeft > 0, modifier = Modifier.testTag("exsurge-snooze")) {
