@@ -149,6 +149,7 @@ import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
@@ -717,6 +718,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // formats, so without this the app plays whichever the extractor happened to list
             // first — report 0.1.373 watched an English talk in German.
             preferredAudioLanguages = streamChoices::preferredAudioLanguages,
+            lookupStore = FileLookupStore(File(context.cacheDir, "lookups")),
         )
     }
 

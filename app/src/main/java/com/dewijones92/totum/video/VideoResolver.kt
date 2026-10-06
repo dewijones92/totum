@@ -22,10 +22,12 @@ import com.dewijones92.totum.ytdlp.bestAudioUrl
 import com.dewijones92.totum.ytdlp.bestPlayableFormat
 import com.dewijones92.totum.ytdlp.isDurableAddress
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -71,6 +73,7 @@ class VideoResolver(
      */
     private val preferredAudioLanguages: () -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
+    private val lookupStore: LookupStore? = null,
 ) {
     /**
      * The most recently resolved video, reused until it goes stale.
@@ -200,6 +203,7 @@ class VideoResolver(
             )
             return hit
         }
+        fromStore(watchUrl, asked)?.let { return it }
         val startedAt = now()
         overSabr(watchUrl, sourceId, asked, startedAt)?.let { return it }
         // Extraction FIRST, and the player response only as a fallback. Asking YouTube first was
@@ -265,6 +269,11 @@ class VideoResolver(
         // forces a re-resolve or a quality change all ask for the same video again, and each
         // one used to pay the full extraction.
         remember(watchUrl, resolved, metadata, sourceId)
+        lookupStore?.let { store ->
+            withContext(Dispatchers.IO) {
+                store.save(watchUrl, StoredLookup(metadata, sourceId, resolved.skipSegments, now()))
+            }
+        }
         resolved
     }
 
@@ -692,10 +701,38 @@ class VideoResolver(
     private fun fresh(watchUrl: HttpUrl): Resolved? =
         cache[watchUrl]?.takeIf { now() < freshUntil(it) }?.resolved
 
-    private fun freshUntil(entry: Cached): Long =
-        entry.resolved.streamUrls().mapNotNull(::signedUrlExpiryMs).minOrNull()
-            ?.let { expiry -> (expiry - EXPIRY_MARGIN_MS).coerceAtMost(entry.at + MAX_HOLD_MS) }
-            ?: (entry.at + CACHE_TTL_MS)
+    private fun freshUntil(entry: Cached): Long = freshUntil(entry.resolved.streamUrls(), entry.at)
+
+    private fun freshUntil(urls: List<String>, at: Long): Long =
+        urls.mapNotNull(::signedUrlExpiryMs).minOrNull()
+            ?.let { expiry -> (expiry - EXPIRY_MARGIN_MS).coerceAtMost(at + MAX_HOLD_MS) }
+            ?: (at + CACHE_TTL_MS)
+
+    private suspend fun fromStore(watchUrl: HttpUrl, asked: String): Resolved? {
+        val store = lookupStore ?: return null
+        val stored = withContext(Dispatchers.IO) { store.load(watchUrl) } ?: return null
+        val id = watchUrl.value.takeLast(ID_CHARS)
+        val trustedFor = freshUntil(stored.metadata.formats.mapNotNull { it.url }, stored.savedAtMs) - now()
+        if (trustedFor <= 0) {
+            Diag.log("resolve", "stored lookup for $id is too close to its URLs' expiry ($asked); extracting")
+            return null
+        }
+        val resolved = pickStreams(
+            stored.metadata,
+            stored.sourceId,
+            wantedAudio(chosen = null),
+            chosen = null,
+            knownSegments = stored.segments,
+        ) ?: return null
+        remember(watchUrl, resolved, stored.metadata, stored.sourceId)
+        Diag.log(
+            "resolve",
+            "$id from the stored lookup ($asked), skipped extraction — saved " +
+                "${(now() - stored.savedAtMs) / MILLIS_PER_MINUTE}m ago, " +
+                "trusted for ${trustedFor / MILLIS_PER_MINUTE}m more",
+        )
+        return resolved
+    }
 
     private fun remember(
         watchUrl: HttpUrl,

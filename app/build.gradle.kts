@@ -142,6 +142,7 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.test.manifest)
 
   implementation(libs.okhttp)
+  implementation(libs.kotlinx.serialization.json)
 
   // Image loading (thumbnails/artwork) — Coil over the OkHttp network layer
   implementation(libs.coil.compose)
