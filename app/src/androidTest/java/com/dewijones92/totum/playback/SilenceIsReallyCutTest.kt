@@ -17,6 +17,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.DeviceRadios
 import com.dewijones92.totum.support.GappedWav
 import com.dewijones92.totum.support.PlaybackWaits
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +61,7 @@ class SilenceIsReallyCutTest {
         mp3 = asset("gaps.mp3")
         aac = asset("gaps.m4a")
         quiet = asset("gaps-quiet.mp3")
+        DeviceRadios.goUnmetered()
         runBlocking(Dispatchers.Main) {
             withTimeoutOrNull(TIMEOUT_MS) { while (controller.player == null) delay(PlaybackWaits.POLL_MS) }
             assertNotNull("the media controller never connected", controller.player)
@@ -82,6 +84,7 @@ class SilenceIsReallyCutTest {
         controller.player?.stop()
         controller.player?.clearMediaItems()
         listOf(wav, video, mp3, aac, quiet).forEach(File::delete)
+        DeviceRadios.goOnline()
         Unit
     }
 

@@ -121,7 +121,14 @@ class ExsurgeBannerFlowTest {
                 ?.notification?.extras?.getString("android.title") == "Exsurge et Disce is off"
     }
 
-    private fun action(title: String): Notification.Action = banner()!!.actions.first { it.title.toString() == title }
+    private fun action(title: String): Notification.Action {
+        var found: Notification.Action? = null
+        waitFor {
+            found = banner()?.actions?.firstOrNull { it.title.toString() == title }
+            found != null
+        }
+        return checkNotNull(found) { "no banner offered \"$title\" within ${WAIT_MS}ms; banner=${banner()?.extras}" }
+    }
 
     private fun waitFor(condition: () -> Boolean) {
         val end = System.currentTimeMillis() + WAIT_MS

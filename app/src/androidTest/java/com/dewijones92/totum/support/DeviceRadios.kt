@@ -67,6 +67,31 @@ object DeviceRadios {
         }
     }
 
+    /**
+     * Online on a network Android does not call metered, waiting until it says so.
+     *
+     * For tests that time playback: on a metered network `MeteredAudioSwitch` banks time from the
+     * moment the process starts and, past its hold, switches whatever video is playing to audio. CI run
+     * 37472913096 did exactly that 1 s into a skip-silence video test, which then failed on time.
+     */
+    fun goUnmetered() {
+        shell("svc wifi enable")
+        shell("svc data disable")
+        runBlocking {
+            val ready = withTimeoutOrNull(ONLINE_TIMEOUT_MS) { while (!hasUnmeteredNetwork()) delay(POLL_MS) }
+            if (ready == null) {
+                println("DeviceRadios: no unmetered network within ${ONLINE_TIMEOUT_MS}ms; timings may be disturbed")
+            }
+        }
+    }
+
+    private fun hasUnmeteredNetwork(): Boolean {
+        val manager = instrumentation.targetContext.getSystemService(ConnectivityManager::class.java) ?: return false
+        val caps = manager.activeNetwork?.let(manager::getNetworkCapabilities) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
     /** What the app itself consults, so a test can assert the device really is offline. */
     fun hasNetwork(): Boolean {
         val context: Context = instrumentation.targetContext
