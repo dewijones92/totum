@@ -1,7 +1,7 @@
 ---
 title: Switching audio to video, and opening a channel, feel slow
 kind: todo
-status: measured on the phone 2026-10-06; first fixes shipped (ADR 11); network round trips and the long-term route still open
+status: measured on the phone 2026-10-06; fixes shipped (ADRs 11 and 12); connection reuse and the parallel wrap-up in progress
 area: playback/channel
 updated: 2026-10-06
 ---
@@ -91,19 +91,22 @@ was readied in the background in ~18 s (a one-off 10.3 s JS solve for a player b
 not cached yet); the tap was a cache hit, "trusted for 299m more", 1080p AV1 with durable video and
 audio.
 
-## Shipped (ADR 11)
+## Shipped
 
-Solver cache on for every extraction; resolves kept until shortly before their URLs expire; an audio
-copy's video readied in the background on unmetered networks; a Watch tile in the player for an audio
-copy. Still to measure on the phone.
+- ADR 11: solver cache on for every extraction; resolves kept until shortly before their URLs
+  expire; an audio copy's video readied in the background on unmetered networks; a Watch tile in the
+  player for an audio copy; web_embedded asked first; the engine warmed 10 s after launch;
+  SponsorBlock asked alongside the extraction; videos looked up before the tap (`ReadyAhead`: menu
+  open, next in queue); lookups kept across restarts (`FileLookupStore`).
+- ADR 12: the JS challenge solved in Android's V8 with the player kept loaded, QuickJS as fallback.
+
+Still to measure on the phone: everything after 0.1.571.
 
 ## Candidate fixes (remaining)
 
-- Resolve the video in the background while a downloaded audio copy of it plays (or when its player
-  opens), so Watch finds it cached (the cache keeps 10 min).
-- Warm the Python engine after startup, off the launch path (memory cost ~80 MB, deliberately lazy
-  today: see CLAUDE.md, Performance).
-- Give the player a Watch control for a downloaded audio copy.
+- Reuse network connections across extractions (one HTTP session, so TLS is not renegotiated).
+- Run the end-of-resolve steps (stream pick, account resume check) in parallel.
+- Look up fresh feed uploads ahead on Wi-Fi.
 - Start a mid-video switch at a lower quality and let it climb, rather than joining 1080p cold.
 - Carry the uploader URL the resolver already has into the resolved item, and give shared links and
   songs their channel.

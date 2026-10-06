@@ -164,6 +164,9 @@ jobs:
       # Everything the Gradle gate cannot see: the workflow's own shell, the live-test list, and the
       # emulator-runner's one-shell-per-line rule. Two red builds on 2026-08-18 were both invisible to
       # detekt/lint/test because neither was about Kotlin. Runs first because it takes under a second.
+      - name: Install yt-dlp for the bridge's Python tests
+        run: python3 -m pip install yt-dlp yt-dlp-ejs
+
       - name: Preflight (workflow + CI lists)
         run: python3 tools/ci/preflight.py
 

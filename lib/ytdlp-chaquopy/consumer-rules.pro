@@ -15,3 +15,5 @@
 # know that.
 -keep interface com.dewijones92.totum.ytdlp.chaquopy.ProgressListener { *; }
 -keep class * implements com.dewijones92.totum.ytdlp.chaquopy.ProgressListener { *; }
+-keep interface com.dewijones92.totum.ytdlp.chaquopy.JsChallengeRuntime { *; }
+-keep class * implements com.dewijones92.totum.ytdlp.chaquopy.JsChallengeRuntime { *; }

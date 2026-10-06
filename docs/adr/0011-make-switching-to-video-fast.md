@@ -21,8 +21,9 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
 
 ## Decision
 
-1. **The solver's preprocessed-player cache is on for every extraction**, pruned to the current player
-   build after each one. The next extraction of any video on the same build skips the solve: 26.8 s →
+1. **The solver's preprocessed-player cache is on for every extraction**, pruned to the three newest
+   player builds after each one (YouTube serves two builds at once, and keeping one made them evict
+   each other). The next extraction of any video on the same build skips the solve: 26.8 s →
    9.5 s on the emulator.
 2. **A resolve is trusted until 30 minutes before its stream URLs expire** (their `expire=`), capped at
    5 hours, instead of a flat 10 minutes. A URL with no stated expiry keeps the 10 minutes. A dead
@@ -48,8 +49,13 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
    (a menu opened, the next item in the queue, an audio copy playing), keeps the four newest, and works
    through them one at a time on an unmetered network. It replaced `PictureReadier`, so there is one
    readying seam. On the emulator, opening a menu and then tapping "Play once" hit the cache.
+10. **A lookup survives an app restart.** Each extraction's streams, chapters and SponsorBlock segments
+   are saved to `cacheDir/lookups` (newest 30), and reused under the same expiry rule as item 2, so the
+   first tap after reopening the app skips extraction. A damaged file is logged and deleted.
 4. **The player offers Watch for a downloaded audio copy**, using the same explicit "watch" item action
    as the row, not the mode toggle (which would flip a video-mode user to audio).
+
+The JS challenge solve itself moved to Android's V8 in [ADR 12](0012-solve-youtube-challenges-in-v8.md).
 
 Not decided here (open, Dewi's call): moving the challenge solve off the phone (a decoder on the Pi,
 as PipePipe uses its own server), reusing one YoutubeDL across extractions, asking fewer player

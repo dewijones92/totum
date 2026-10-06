@@ -38,6 +38,7 @@ public class ChaquopyYtDlpEngine(
     context: Context,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     updateCacheDir: File? = null,
+    private val useV8: Boolean = true,
 ) : YtDlpEngine {
 
     private val appContext = context.applicationContext
@@ -69,8 +70,15 @@ public class ChaquopyYtDlpEngine(
         val path = QuickJsBinary.executablePath(appContext)
         bridge.callAttr("configure_js_runtime", path)
         Diag.log("engine", "JS runtime: ${path ?: "none bundled for this ABI — formats will be missing"}")
+        if (useV8) {
+            Diag.log("engine", bridge.callAttr("configure_v8_solver", v8.runtime).toString())
+        } else {
+            Diag.log("engine", "v8 solver off for this engine — QuickJS solves every challenge")
+        }
         true
     }
+
+    private val v8: V8Solver by lazy { V8Solver(appContext) }
 
     override suspend fun warmUp(): Unit = withContext(dispatcher) {
         timed("warm up") {

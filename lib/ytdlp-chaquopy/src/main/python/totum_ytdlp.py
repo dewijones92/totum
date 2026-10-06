@@ -291,7 +291,8 @@ def warm_up():
     _enable_solver_player_cache()
     with yt_dlp.YoutubeDL({"quiet": True, "logger": _CollectingLogger(), "js_runtimes": _js_runtimes()}) as ydl:
         _share_player_caches(ydl)
-    return f"yt-dlp {yt_dlp.version.__version__} ready in {round((time.monotonic() - started) * 1000)}ms"
+        ready = f"yt-dlp {yt_dlp.version.__version__} ready in {round((time.monotonic() - started) * 1000)}ms"
+        return f"{ready}; {_preload_v8(ydl)}"
 
 
 # The solver, built ONCE. Rebuilding it per call threw away yt-dlp's own cache of the
@@ -363,7 +364,8 @@ def _solver_cache_state():
     try:
         from yt_dlp.extractor.youtube.jsc._builtin import ejs
 
-        return "solver player cache " + ("on" if ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE else "off")
+        cache = "on" if ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE else "off"
+        return f"solver player cache {cache}, v8 {'on' if _V8_PROVIDER is not None and _v8_available() else 'off'}"
     except Exception:  # noqa: BLE001
         return "solver player cache unknown"
 
@@ -382,6 +384,168 @@ def _prune_solver_player_cache(extractor, keep=_SOLVER_PLAYERS_KEPT):
         return max(0, len(players) - keep)
     except Exception:  # noqa: BLE001 - a full cache is a nuisance, not a playback failure
         return 0
+
+_V8_RUNTIME = None
+_V8_PROVIDER = None
+_V8_PREFERENCE = 900
+_V8_PLAYERS_PRELOADED = 2
+
+
+def configure_v8_solver(runtime):
+    global _V8_RUNTIME
+    _V8_RUNTIME = runtime
+    return _register_v8_provider()
+
+
+def _v8_available():
+    try:
+        return _V8_RUNTIME is not None and bool(_V8_RUNTIME.available())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _register_v8_provider():
+    global _V8_PROVIDER
+    if _V8_PROVIDER is None:
+        try:
+            _V8_PROVIDER = _define_v8_provider()
+        except Exception as e:  # noqa: BLE001
+            return f"v8 solver not registered: {type(e).__name__}: {e}"
+    return "v8 solver registered"
+
+
+def _v8_library(lib, core):
+    import hashlib
+
+    key = hashlib.sha256((lib.hash + core.hash).encode()).hexdigest()[:16]
+    return key, v8_library_code(lib.code, core.code)
+
+
+def v8_library_code(lib_code, core_code):
+    return f"{lib_code}\nObject.assign(globalThis, lib);\n{core_code}\n"
+
+
+def _define_v8_provider():
+    import time
+
+    from yt_dlp.extractor.youtube.jsc._builtin.ejs import EJSBaseJCP
+    from yt_dlp.extractor.youtube.jsc.provider import (
+        JsChallengeProviderError,
+        JsChallengeProviderResponse,
+        JsChallengeResponse,
+        JsChallengeType,
+        NChallengeOutput,
+        SigChallengeOutput,
+        register_preference,
+        register_provider,
+    )
+
+    class AndroidV8JCP(EJSBaseJCP):
+        JS_RUNTIME_NAME = "v8"
+        PROVIDER_VERSION = "1"
+        BUG_REPORT_LOCATION = "https://github.com/dewijones92/totum"
+
+        @property
+        def runtime_info(self):
+            return None
+
+        def is_available(self):
+            return _v8_available() and self._available
+
+        def load_library(self):
+            key, code = _v8_library(self._lib_script, self._core_script)
+            if _V8_RUNTIME.hasLibrary(key):
+                return False
+            self.logger.info("Loading the challenge solver library into v8")
+            _V8_RUNTIME.loadLibrary(key, code)
+            return True
+
+        def _solve(self, player_url, group):
+            wanted = json.dumps([{"type": r.type.value, "challenges": r.input.challenges} for r in group])
+            self.logger.info(f"Solving JS challenges using {self.JS_RUNTIME_NAME}")
+            started = time.monotonic()
+            try:
+                stdout = _V8_RUNTIME.solveKept(player_url, wanted)
+                mode = "kept"
+                if stdout is None:
+                    self.load_library()
+                    player = None
+                    if self._ENABLE_PREPROCESSED_PLAYER_CACHE:
+                        player = self.ie.cache.load(self._CACHE_SECTION, f"player:{player_url}")
+                    mode = "preprocessed" if player else "raw"
+                    if not player:
+                        player = self._get_player(next((r.video_id for r in group), None), player_url)
+                    stdout = _V8_RUNTIME.solveWithPlayer(player_url, json.dumps(player), mode == "preprocessed", wanted)
+            except JsChallengeProviderError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                raise JsChallengeProviderError(f"v8 failed: {type(e).__name__}: {e}", expected=True) from e
+            output = json.loads(str(stdout))
+            self.logger.info(f"v8 {mode} solve took {round((time.monotonic() - started) * 1000)}ms")
+            if output.get("type") == "error":
+                raise JsChallengeProviderError(f"v8 ({mode}): {output.get('error')}", expected=True)
+            if mode == "raw" and self._ENABLE_PREPROCESSED_PLAYER_CACHE and output.get("preprocessed_player"):
+                self.ie.cache.store(self._CACHE_SECTION, f"player:{player_url}", output["preprocessed_player"])
+            return output
+
+        def _real_bulk_solve(self, requests):
+            grouped = {}
+            for request in requests:
+                grouped.setdefault(request.input.player_url, []).append(request)
+            for player_url, group in grouped.items():
+                output = self._solve(player_url, group)
+                for request, data in zip(group, output["responses"], strict=True):
+                    if data["type"] == "error":
+                        yield JsChallengeProviderResponse(request, None, data["error"])
+                    else:
+                        yield JsChallengeProviderResponse(request, JsChallengeResponse(request.type, (
+                            NChallengeOutput(data["data"]) if request.type is JsChallengeType.N
+                            else SigChallengeOutput(data["data"]))))
+
+    register_provider(AndroidV8JCP)
+    register_preference(AndroidV8JCP)(lambda provider, requests: _V8_PREFERENCE)
+    return AndroidV8JCP
+
+
+def _cached_player_urls(ydl, newest):
+    from urllib.parse import unquote
+
+    section = os.path.join(ydl.cache._get_root_dir(), "challenge-solver")
+    names = sorted(
+        (n for n in os.listdir(section) if n.startswith("player")),
+        key=lambda n: os.path.getmtime(os.path.join(section, n)),
+        reverse=True,
+    )
+    urls = []
+    for name in names[:newest]:
+        key = unquote(name[: -len(".json")].replace(",", "%"))
+        if key.startswith("player:"):
+            urls.append(key[len("player:"):])
+    return urls
+
+
+def _preload_v8(ydl):
+    import time
+
+    if _V8_PROVIDER is None or not _v8_available():
+        return "v8 not in use"
+    started = time.monotonic()
+    try:
+        from yt_dlp.extractor.youtube.pot._director import YoutubeIEContentProviderLogger
+
+        ie = ydl.get_info_extractor("Youtube")
+        provider = _V8_PROVIDER(ie, YoutubeIEContentProviderLogger(ie, "jsc:AndroidV8"), {})
+        loaded = provider.load_library()
+        kept = 0
+        for url in _cached_player_urls(ydl, _V8_PLAYERS_PRELOADED):
+            player = ie.cache.load(provider._CACHE_SECTION, f"player:{url}")
+            if player and _V8_RUNTIME.keepPlayer(url, json.dumps(player)):
+                kept += 1
+        library = "library loaded" if loaded else "library already loaded"
+        return f"v8 {library}, {kept} cached players kept, in {round((time.monotonic() - started) * 1000)}ms"
+    except Exception as e:  # noqa: BLE001
+        return f"v8 preload failed after {round((time.monotonic() - started) * 1000)}ms: {type(e).__name__}: {e}"
+
 
 def _n_solver():
     global _N_SOLVER
