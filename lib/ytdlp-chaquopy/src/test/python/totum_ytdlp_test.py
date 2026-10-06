@@ -249,7 +249,7 @@ class FailedExtractionNotesTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual("jNQXAC9IVRw", result["info"]["id"])
         self.assertIn("; total ", result["steps"])
-        self.assertTrue(result["steps"].startswith("solver player cache "), result)
+        self.assertIn("; solver player cache ", result["steps"])
 
     def test_a_failed_extraction_says_where_its_time_went(self):
         module, _ = _bridge_with_stubbed_ytdlp()
@@ -258,7 +258,7 @@ class FailedExtractionNotesTest(unittest.TestCase):
 
         self.assertFalse(result["ok"])
         self.assertIn("; total ", result["steps"])
-        self.assertTrue(result["steps"].startswith("solver player cache "), result)
+        self.assertIn("; solver player cache ", result["steps"])
 
 class SharedPlayerCacheTest(unittest.TestCase):
     """Every extraction builds a new YoutubeDL; the player script it downloads must outlive it."""
@@ -446,6 +446,83 @@ class PoTokenPassThroughTest(unittest.TestCase):
         )
 
 
+
+
+PLAYABLE = {"id": "v", "formats": [{"url": "https://rr.test/videoplayback?n=x", "vcodec": "avc1", "acodec": "mp4a"}]}
+
+
+class ClientFallbackTest(unittest.TestCase):
+    """
+    web_embedded alone first, every client only when that finds nothing playable.
+
+    Measured 2026-10-06 against the bundled 2026.08.19 on 11 videos twice (Ms Rachel, Blippi, a Short,
+    live, 4K music, Dewi's queue): web_embedded alone reached the same best and best-durable height in
+    22 of 22, with more durable audio, at 2.25 s median against 2.95 s. The android client was added on
+    2026-07-30 because made-for-kids videos played through nothing else; that no longer reproduced, but
+    the full list stays as the fallback so a return of it costs a retry, not a video.
+    """
+
+    def _run(self, answer_for, po_token=None):
+        module, stub = _bridge_with_stubbed_ytdlp()
+        seen = []
+
+        class Scripted(stub.YoutubeDL):
+            def extract_info(self, url, download=False):
+                clients = self.options["extractor_args"]["youtube"]["player_client"]
+                seen.append((list(clients), self.options["extractor_args"]["youtube"].get("po_token")))
+                return answer_for(clients, stub)
+
+        stub.YoutubeDL = Scripted
+        result = json.loads(module.extract("https://www.youtube.com/watch?v=jNQXAC9IVRw", po_token=po_token))
+        return result, seen, module
+
+    def test_web_embedded_alone_is_asked_first_and_is_enough_when_it_plays(self):
+        result, seen, _ = self._run(lambda clients, stub: PLAYABLE)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual([["web_embedded"]], [clients for clients, _ in seen])
+        self.assertTrue(result["steps"].startswith("clients web_embedded;"), result["steps"])
+
+    def test_a_failure_retries_with_every_client(self):
+        def answer(clients, stub):
+            if clients == ["web_embedded"]:
+                raise stub.utils.DownloadError("This video is not available")
+            return PLAYABLE
+
+        result, seen, module = self._run(answer)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(module.PLAYER_CLIENTS["youtube"]["player_client"], seen[-1][0])
+        self.assertIn("retried with every client", result["steps"])
+
+    def test_nothing_playable_retries_with_every_client(self):
+        def answer(clients, stub):
+            return {"id": "v", "formats": [{"url": None, "vcodec": "avc1"}]} if clients == ["web_embedded"] else PLAYABLE
+
+        result, seen, _ = self._run(answer)
+
+        self.assertEqual(2, len(seen))
+        self.assertEqual(PLAYABLE["formats"][0]["url"], result["info"]["formats"][0]["url"])
+
+    def test_when_both_fail_the_failure_says_both_were_tried(self):
+        def answer(clients, stub):
+            raise stub.utils.DownloadError("Private video")
+
+        result, seen, _ = self._run(answer)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(2, len(seen))
+        self.assertIn("retried with every client", result["steps"])
+
+    def test_a_po_token_reaches_both_attempts(self):
+        def answer(clients, stub):
+            if clients == ["web_embedded"]:
+                raise stub.utils.DownloadError("nope")
+            return PLAYABLE
+
+        _, seen, _ = self._run(answer, po_token=["web.gvs+TOKEN"])
+
+        self.assertEqual([["web.gvs+TOKEN"], ["web.gvs+TOKEN"]], [token for _, token in seen])
 
 
 class SolverPlayerCacheTest(unittest.TestCase):

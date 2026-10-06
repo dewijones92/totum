@@ -77,6 +77,13 @@ the bridge builds one per call): first extraction of a fresh process **11.2 s** 
 preprocessed player persists on disk), the next video **5.3 s**. What remains is the webpage (~2.1 s)
 and the HLS manifest (~1.2-1.7 s) on the emulator's network.
 
+Player clients (laptop, bundled yt-dlp 2026.08.19 + node, 11 videos × 2): web_embedded alone matched the
+full three-client list's best and best-durable height in 22/22, median 2.25 s vs 2.95 s, with more
+durable audio; Ms Rachel and Blippi served 1080-2160p to every client. Shipped as web_embedded first,
+every client as the fallback. Emulator: a fresh process's first extraction 9.3 s (11.2 s before), and
+"6 qualities (6 durable)" where the full list gave 0 durable. A cold process also spends ~2.7 s starting
+Python and the JS runtime before extracting.
+
 ## Shipped (ADR 11)
 
 Solver cache on for every extraction; resolves kept until shortly before their URLs expire; an audio

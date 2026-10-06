@@ -61,7 +61,10 @@ def versions():
 PLAYER_CLIENTS = {"youtube": {"player_client": ["default", "android", "web_embedded"]}}
 
 
-def _extractor_args(po_token=None):
+FAST_PLAYER_CLIENTS = ["web_embedded"]
+
+
+def _extractor_args(po_token=None, clients=None):
     """
     The youtube extractor args for one call, with an optional PO token.
 
@@ -74,6 +77,8 @@ def _extractor_args(po_token=None):
     need to know how it was minted. See PoTokenPassThroughTest.
     """
     args = {key: dict(value) for key, value in PLAYER_CLIENTS.items()}
+    if clients:
+        args["youtube"]["player_client"] = list(clients)
     if po_token:
         args["youtube"]["po_token"] = list(po_token)
     return args
@@ -223,13 +228,23 @@ class _CollectingLogger:
         self._keep("error", message)
 
 
-def extract(url, po_token=None):
+class _NothingPlayable(Exception):
+    pass
+
+
+def _playable(info):
+    return any(
+        f.get("url") and (f.get("vcodec") not in (None, "none") or f.get("acodec") not in (None, "none"))
+        for f in (info or {}).get("formats") or []
+    )
+
+
+def _extract_with(url, po_token, clients, logger):
     # No watch-progress tracking is captured here, deliberately. yt-dlp runs
     # unauthenticated, so the tracking URLs in its player response address an
     # anonymous session: pinging them returns 204 and credits nobody. Measured
     # 2026-07-31 — a full playback left the account's history byte-identical. The
     # app now fetches its own via an authenticated InnerTube call instead.
-    logger = _CollectingLogger()
     options = {
         "quiet": True,
         # NOT no_warnings. The warnings are the only account of WHY an extraction came back degraded,
@@ -237,17 +252,38 @@ def extract(url, po_token=None):
         # megabyte in. Collected rather than printed, so the app decides what to do with them.
         "logger": logger,
         "skip_download": True,
-        "extractor_args": _extractor_args(po_token),
+        "extractor_args": _extractor_args(po_token, clients),
         "js_runtimes": _js_runtimes(),
     }
+    with yt_dlp.YoutubeDL(options) as ydl:
+        _share_player_caches(ydl)
+        info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+        if logger.player_build:
+            _prune_solver_player_cache(ydl, logger.player_build)
+        return info
+
+
+def extract(url, po_token=None):
+    """web_embedded alone first; every client in PLAYER_CLIENTS only if that finds nothing playable.
+
+    Measured 2026-10-06 (bundled 2026.08.19, 11 videos twice incl. made-for-kids): web_embedded alone
+    matched the full list's best and best-durable height in 22 of 22 at 2.25 s against 2.95 s median.
+    The full list is kept as the fallback because made-for-kids content once played through `android`
+    alone (2026-07-30), so a return of that costs one retry rather than the video.
+    """
+    logger = _CollectingLogger()
     _enable_solver_player_cache()
+    route = "clients web_embedded"
     try:
-        with yt_dlp.YoutubeDL(options) as ydl:
-            _share_player_caches(ydl)
-            info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-            if logger.player_build:
-                _prune_solver_player_cache(ydl, logger.player_build)
-            return json.dumps({"ok": True, "info": info, "notes": logger.notes(), "steps": _solver_cache_state() + "; " + logger.timeline()})
+        try:
+            info = _extract_with(url, po_token, FAST_PLAYER_CLIENTS, logger)
+            if not _playable(info):
+                raise _NothingPlayable("no format with a URL")
+        except (yt_dlp.utils.DownloadError, _NothingPlayable) as first:
+            route = f"clients web_embedded failed ({str(first)[:80]}), retried with every client"
+            info = _extract_with(url, po_token, None, logger)
+        steps = route + "; " + _solver_cache_state() + "; " + logger.timeline()
+        return json.dumps({"ok": True, "info": info, "notes": logger.notes(), "steps": steps})
     except yt_dlp.utils.DownloadError as e:
         # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
         # it noticed on the way there, which is often the actual reason -- and a failed extraction is
@@ -257,7 +293,7 @@ def extract(url, po_token=None):
             "kind": _classify(e),
             "detail": str(e),
             "notes": logger.notes(),
-            "steps": _solver_cache_state() + "; " + logger.timeline(),
+            "steps": route + "; " + _solver_cache_state() + "; " + logger.timeline(),
         })
 
 

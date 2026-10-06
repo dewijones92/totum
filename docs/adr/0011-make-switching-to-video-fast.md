@@ -33,6 +33,11 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
 5. **The player script and its solved data are shared across extractions** (module-level dicts handed
    to each new extractor, two player builds kept), so no extraction downloads the player twice. The
    YoutubeDL itself is not shared, because extractions overlap.
+6. **web_embedded alone is asked first; every client only if that finds nothing playable.** On 11 videos
+   twice (made-for-kids included) it matched the full list's best and best-durable height 22/22 at
+   2.25 s against 2.95 s median, and on the emulator it turned "6 qualities (0 durable)" into
+   "6 qualities (6 durable)". `android` stays in the fallback because made-for-kids content once played
+   through it alone (2026-07-30). The steps line says which path ran. Downloads keep the full list.
 4. **The player offers Watch for a downloaded audio copy**, using the same explicit "watch" item action
    as the row, not the mode toggle (which would flip a video-mode user to audio).
 
