@@ -72,6 +72,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -124,6 +125,7 @@ class FakeAppContainer(
         sensorStepsAvailable = { false }
     ),
     override val queueStore: QueueStore = InMemoryQueueStore(),
+    override val readyAhead: ReadyAhead = ReadyAhead({ true }, videoResolver::prefetch, applicationScope),
     override val playbackQueue: PlaybackQueue =
         PlaybackQueue(playbackController, videoPlaybackLauncher, CoroutineScope(SupervisorJob()), queueStore),
     override val localPlaylistStore: LocalPlaylistStore = InMemoryLocalPlaylistStore(),

@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.toPlayableOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -39,6 +40,7 @@ internal fun ProvideItemActions(
     }
     CompositionLocalProvider(
         LocalItemActions provides actions,
+        LocalReadyAhead provides { item -> container.readyAhead.ready(item.toPlayableOrNull(), "menu opened") },
         LocalOpenSource provides openSource,
         content = content,
     )

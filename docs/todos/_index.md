@@ -11,6 +11,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [A premium ("triple-A") look and better recommendations](premium-ui-and-recommendations.md) | ui | — | to discuss with Dewi: what "triple A" means, which screens, what recommendations draw on |
+| [Cut more sponsor segments with SponsorBlock](more-sponsorblock-cuts.md) | playback/downloads | medium | proposed 2026-10-06: re-ask after download, skipping on downloaded copies, categories, coverage — to investigate |
 | [Switching audio to video and opening a channel feel slow](slow-switch-and-channel.md) | playback/channel | high | phone: audio copy → video 16.7 s, 85% extraction; first fixes shipped (ADR 11): solver cache, expiry-aware resolve cache, background readying, Watch tile; network round trips + long-term route open |
 | [Queue items seem to finish a few seconds early](queue-items-feel-early.md) | playback | medium | instrumented 2026-10-06 (`item-end` lines, vital `playback.lastEnds`); leading cause on the emulator: skip-silence cuts a trailing silence and the clock jumps ~5 s; awaiting Dewi's call |
 | [Seamless playback across TV, laptop, browser and other devices](seamless-cross-device-playback.md) | playback/integration | — | refining: Netflix-like ease; device priorities and continuity to agree |

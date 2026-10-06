@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
@@ -24,6 +25,8 @@ internal fun ItemActionSheet(
     pillar: MediaKind = item.pillar,
 ) {
     val actions = LocalItemActions.current ?: return
+    val readyAhead = LocalReadyAhead.current
+    LaunchedEffect(item.id) { readyAhead(item) }
     val local = LocalDownloadStates.current[item.id]
     val video = pillar == MediaKind.VIDEO
     ActionSheet(

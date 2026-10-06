@@ -44,6 +44,10 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
    can swallow it.
 8. **SponsorBlock is asked alongside the extraction**, from the id in the watch URL, instead of after
    it: ~1.5 s off every resolve on the emulator.
+9. **Videos are looked up before the tap** (Dewi: "yes go with that order"). `ReadyAhead` takes wishes
+   (a menu opened, the next item in the queue, an audio copy playing), keeps the four newest, and works
+   through them one at a time on an unmetered network. It replaced `PictureReadier`, so there is one
+   readying seam. On the emulator, opening a menu and then tapping "Play once" hit the cache.
 4. **The player offers Watch for a downloaded audio copy**, using the same explicit "watch" item action
    as the row, not the mode toggle (which would flip a video-mode user to audio).
 
