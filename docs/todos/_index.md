@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [Switching audio to video and opening a channel feel slow](slow-switch-and-channel.md) | playback/channel | medium | measured + instrumented 2026-10-06: downloaded audio → video is 36 s on the emulator (26 s of it a cold yt-dlp extraction); channels open in under 1 s when the item names its channel; fixes not chosen |
+| [Switching audio to video and opening a channel feel slow](slow-switch-and-channel.md) | playback/channel | high | phone: audio copy → video 16.7 s, 85% extraction; first fixes shipped (ADR 11): solver cache, expiry-aware resolve cache, background readying, Watch tile; network round trips + long-term route open |
 | [Queue items seem to finish a few seconds early](queue-items-feel-early.md) | playback | medium | instrumented 2026-10-06 (`item-end` lines, vital `playback.lastEnds`); leading cause on the emulator: skip-silence cuts a trailing silence and the clock jumps ~5 s; awaiting Dewi's call |
 | [Seamless playback across TV, laptop, browser and other devices](seamless-cross-device-playback.md) | playback/integration | — | refining: Netflix-like ease; device priorities and continuity to agree |
 | [seek-before-account-resume](seek-before-account-resume.md) | playback | high | fixed 2026-10-05: a seek overrides the cached account figure before its first resume |

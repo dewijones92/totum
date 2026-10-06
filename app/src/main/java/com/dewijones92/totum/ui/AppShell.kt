@@ -26,6 +26,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
@@ -38,6 +39,7 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
+import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
@@ -240,7 +242,7 @@ private fun FullPlayerHost(
         ),
         related = related,
         watchActions = rememberWatchActions(watchViewModel),
-        quality = qualityControl(quality, watchViewModel),
+        quality = qualityControl(quality, watchViewModel, pictureOfTheAudioCopy(playing, quality, state)),
         sleepTimer = sleepTimer,
         onDismiss = onDismiss,
         onPlayRelated = watchViewModel::playRelated,
@@ -292,17 +294,29 @@ private fun PlayingItemSheet(
     ItemActionSheet(item, onDismiss, pillar = playing.pillar)
 }
 
+@Composable
+private fun pictureOfTheAudioCopy(
+    playing: PlayableItem?,
+    quality: VideoPlaybackLauncher.QualityState,
+    state: PlaybackState,
+): (() -> Unit)? {
+    val actions = LocalItemActions.current ?: return null
+    val item = playing?.takeIf { it.pillar == MediaKind.VIDEO && !quality.canListen && !state.hasVideo }?.item
+    return item?.let { { actions.watch(it) } }
+}
+
 private fun qualityControl(
     quality: VideoPlaybackLauncher.QualityState,
     watchViewModel: WatchViewModel,
+    watchTheAudioCopy: (() -> Unit)? = null,
 ) = QualityControl(
     options = quality.options,
     selectedId = quality.selectedId,
     onSelect = watchViewModel::selectQuality,
-    canListen = quality.canListen,
-    listening = quality.listening,
+    canListen = quality.canListen || watchTheAudioCopy != null,
+    listening = quality.listening || watchTheAudioCopy != null,
     onListen = watchViewModel::listen,
-    onWatch = watchViewModel::watch,
+    onWatch = watchTheAudioCopy ?: watchViewModel::watch,
     audioTracks = quality.audioTracks,
     audioLanguage = quality.audioLanguage,
     onSelectAudioTrack = watchViewModel::selectAudioTrack,

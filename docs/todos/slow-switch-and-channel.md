@@ -1,7 +1,7 @@
 ---
 title: Switching audio to video, and opening a channel, feel slow
 kind: todo
-status: measured 2026-10-06 (emulator + phone reports); instrumented; fixes not chosen
+status: measured on the phone 2026-10-06; first fixes shipped (ADR 11); network round trips and the long-term route still open
 area: playback/channel
 updated: 2026-10-06
 ---
@@ -65,7 +65,20 @@ extract); items whose listing names their channel skip that entirely.
 Channels open quickly whenever the item carries its channel (`sourceUrl`). Items that do not: shared
 links (placeholder), YouTube Music songs. Those pay a full extraction.
 
-## Candidate fixes (not chosen)
+## Step timeline (emulator, 2026-10-06)
+
+Cold extraction, cache off, 26.8 s: yt-dlp start 1.4 s, webpage 1.9 s, visionos player API 0.8 s,
+android player API 1.7 s, web_embedded config 1.75 s, player JS 1.3 s, web_embedded player API 1.35 s,
+m3u8 1.9 s, **JS challenge solve 14.6 s**. With the cache on, the next video: **9.5 s**, no solve step,
+the rest being the same eight requests one after another.
+
+## Shipped (ADR 11)
+
+Solver cache on for every extraction; resolves kept until shortly before their URLs expire; an audio
+copy's video readied in the background on unmetered networks; a Watch tile in the player for an audio
+copy. Still to measure on the phone.
+
+## Candidate fixes (remaining)
 
 - Resolve the video in the background while a downloaded audio copy of it plays (or when its player
   opens), so Watch finds it cached (the cache keeps 10 min).

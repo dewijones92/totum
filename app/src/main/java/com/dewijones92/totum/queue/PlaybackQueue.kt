@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
@@ -98,6 +99,7 @@ class PlaybackQueue(
      * already knew at the start, and every second of that is a spinner.
      */
     private val offline: () -> Boolean = { false },
+    private val readyThePicture: suspend (PlayableItem) -> Unit = {},
     /**
      * Asks an item's source to get it ready again — the second thing to try when a stream dies.
      *
@@ -957,6 +959,7 @@ class PlaybackQueue(
                     localPath = route.path,
                     startPositionMs = startPositionMs,
                 )
+                if (queued.pillar == MediaKind.VIDEO) scope.launch { readyThePicture(queued) }
                 true
             }
             is PlayRoute.VideoStream ->

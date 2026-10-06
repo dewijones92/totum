@@ -74,6 +74,10 @@ private class ContainerItemActions(
 
     override val audioMode: Boolean get() = rows.audioMode
 
+    override fun watch(item: MediaItem) {
+        rows.switchMode(item, toAudio = false, audioOnMessage = "", videoOnMessage = "")
+    }
+
     override fun switchMode(item: MediaItem) {
         // Labels come from the row; the mode change and its announcement live in MediaItemActions.
         rows.switchMode(item, toAudio = !rows.audioMode, audioOnMessage = "", videoOnMessage = "")

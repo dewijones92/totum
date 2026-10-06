@@ -170,6 +170,7 @@ class _CollectingLogger:
         self._started = clock()
         self._steps = []
         self._steps_dropped = 0
+        self.player_build = None
 
     def _step(self, message):
         if len(self._steps) >= self.MAX_STEPS:
@@ -177,6 +178,11 @@ class _CollectingLogger:
             return
         label = message.split(": ", 1)[1] if message.startswith("[youtube] ") and ": " in message else message
         label = label.replace("Downloading ", "").replace("[youtube] ", "")
+        import re
+
+        build = re.match(r"player ([0-9a-fA-F]+)-", label)
+        if build:
+            self.player_build = build.group(1)
         self._steps.append((self._clock(), label[: self.STEP_LABEL_CHARS]))
 
     def timeline(self):
@@ -234,9 +240,12 @@ def extract(url, po_token=None):
         "extractor_args": _extractor_args(po_token),
         "js_runtimes": _js_runtimes(),
     }
+    _enable_solver_player_cache()
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+            if logger.player_build:
+                _prune_solver_player_cache(ydl, logger.player_build)
             return json.dumps({"ok": True, "info": info, "notes": logger.notes(), "steps": _solver_cache_state() + "; " + logger.timeline()})
     except yt_dlp.utils.DownloadError as e:
         # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what

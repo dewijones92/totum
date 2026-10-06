@@ -189,7 +189,13 @@ class VideoResolver(
             // the next play. With a JS runtime an extraction costs 10-14s on a real phone, so
             // every replay, seek-triggered re-resolve and quality change was paying it again:
             // one video was extracted FOUR times in 30 seconds on Dewi's Pixel.
-            Diag.log("resolve", "cache hit for ${watchUrl.value.takeLast(ID_CHARS)} ($asked), skipped extraction")
+            val entry = cache.getValue(watchUrl)
+            Diag.log(
+                "resolve",
+                "cache hit for ${watchUrl.value.takeLast(ID_CHARS)} ($asked), skipped extraction — resolved " +
+                    "${(now() - entry.at) / MILLIS_PER_MINUTE}m ago, trusted for " +
+                    "${(freshUntil(entry) - now()) / MILLIS_PER_MINUTE}m more",
+            )
             return hit
         }
         val startedAt = now()
@@ -678,7 +684,12 @@ class VideoResolver(
 
     /** A cached entry still inside its TTL, or null. */
     private fun fresh(watchUrl: HttpUrl): Resolved? =
-        cache[watchUrl]?.takeIf { now() - it.at < CACHE_TTL_MS }?.resolved
+        cache[watchUrl]?.takeIf { now() < freshUntil(it) }?.resolved
+
+    private fun freshUntil(entry: Cached): Long =
+        entry.resolved.streamUrls().mapNotNull(::signedUrlExpiryMs).minOrNull()
+            ?.let { expiry -> (expiry - EXPIRY_MARGIN_MS).coerceAtMost(entry.at + MAX_HOLD_MS) }
+            ?: (entry.at + CACHE_TTL_MS)
 
     private fun remember(
         watchUrl: HttpUrl,
@@ -754,6 +765,9 @@ class VideoResolver(
          * expired, which is a worse failure than the wait it saves.
          */
         const val CACHE_TTL_MS = 10 * 60 * 1000L
+        const val EXPIRY_MARGIN_MS = 30 * 60 * 1000L
+        const val MAX_HOLD_MS = 5 * 60 * 60 * 1000L
+        const val MILLIS_PER_MINUTE = 60_000L
 
         /** Enough of a watch URL to recognise the video in a log line. */
         const val ID_CHARS = 11

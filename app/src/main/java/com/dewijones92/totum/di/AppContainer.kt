@@ -151,6 +151,7 @@ import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.InnerTubePlayerStreams
+import com.dewijones92.totum.video.PictureReadier
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
 import com.dewijones92.totum.video.ProgressOutboxDrain
@@ -995,6 +996,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // Errs toward "there is a network" only when it can genuinely tell; NetworkStatus
             // itself errs the other way when unsure, which is the safe direction for data.
             offline = ::isOffline,
+            readyThePicture = PictureReadier(networkStatus::isMetered, videoResolver::prefetch)::ready,
             refresh = { item -> readyAgain(item) },
             sourceArtwork = { sourceArtworkNow.value },
         )

@@ -143,6 +143,13 @@ class StepTimelineTest(unittest.TestCase):
         self.assertEqual([], log.notes())
         self.assertIn("android vr player API JSON", log.timeline())
 
+    def test_the_player_build_is_noted_so_older_builds_can_be_pruned(self):
+        log = CollectingLogger(clock=FakeClock())
+        for line in HEALTHY_TRANSCRIPT:
+            log.debug(line)
+
+        self.assertEqual("c74cbcd6", log.player_build)
+
     def test_a_long_run_of_steps_is_bounded_and_says_so(self):
         log = CollectingLogger(clock=FakeClock())
         for n in range(CollectingLogger.MAX_STEPS + 5):

@@ -36,6 +36,8 @@ internal interface ItemActions {
     val audioMode: Boolean
 
     fun switchMode(item: MediaItem)
+
+    fun watch(item: MediaItem) {}
 }
 
 /** Null only in previews and tests, where a row legitimately has nothing behind it. */
