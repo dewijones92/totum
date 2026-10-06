@@ -39,6 +39,22 @@ class EveryFrontEndHearsTheNotesTest {
     }
 
     @Test
+    fun `where an extraction's time went is logged wherever it was parsed`() {
+        parseExtraction(
+            url,
+            """{"ok":true,"info":{"id":"jNQXAC9IVRw","title":"Me at the zoo"},
+               "steps":"total 8550ms: start 50ms | webpage 400ms | Solving JS challenges 8100ms"}""",
+        )
+
+        assertTrue(
+            logged.toString(),
+            logged.any {
+                it == "extract steps — total 8550ms: start 50ms | webpage 400ms | Solving JS challenges 8100ms"
+            },
+        )
+    }
+
+    @Test
     fun `a degraded success says so wherever it was parsed`() {
         parseExtraction(
             url,

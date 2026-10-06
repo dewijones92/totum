@@ -157,10 +157,38 @@ class _CollectingLogger:
     """
 
     MAX_KEPT = 12
+    MAX_STEPS = 24
+    STEP_LABEL_CHARS = 64
 
-    def __init__(self):
+    def __init__(self, clock=None):
+        if clock is None:
+            import time
+            clock = time.monotonic
         self.messages = []
         self.dropped = 0
+        self._clock = clock
+        self._started = clock()
+        self._steps = []
+        self._steps_dropped = 0
+
+    def _step(self, message):
+        if len(self._steps) >= self.MAX_STEPS:
+            self._steps_dropped += 1
+            return
+        label = message.split(": ", 1)[1] if message.startswith("[youtube] ") and ": " in message else message
+        label = label.replace("Downloading ", "").replace("[youtube] ", "")
+        self._steps.append((self._clock(), label[: self.STEP_LABEL_CHARS]))
+
+    def timeline(self):
+        """Where an extraction's time went: each step runs until the next one starts."""
+        end = self._clock()
+        marks = [(self._started, "start")] + self._steps
+        parts = []
+        for (at, label), (following, _) in zip(marks, marks[1:] + [(end, "")]):
+            parts.append(f"{label} {round((following - at) * 1000)}ms")
+        if self._steps_dropped:
+            parts.append(f"and {self._steps_dropped} more steps")
+        return f"total {round((end - self._started) * 1000)}ms: " + " | ".join(parts)
 
     def _keep(self, kind, message):
         if len(self.messages) < self.MAX_KEPT:
@@ -175,9 +203,9 @@ class _CollectingLogger:
         return list(self.messages) + [f"warning: and {self.dropped} more not kept"]
 
     def debug(self, message):
-        # Routine progress. Dropped on purpose: see the class docstring -- this is where yt-dlp sends
-        # every "Downloading ..." line, and keeping them is what flooded the report.
-        pass
+        # Routine progress is not a note (see the class docstring), but its timing is the breakdown of
+        # an extraction, kept as one bounded timeline line.
+        self._step(message)
 
     def info(self, message):
         pass
@@ -209,7 +237,7 @@ def extract(url, po_token=None):
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-            return json.dumps({"ok": True, "info": info, "notes": logger.notes()})
+            return json.dumps({"ok": True, "info": info, "notes": logger.notes(), "steps": _solver_cache_state() + "; " + logger.timeline()})
     except yt_dlp.utils.DownloadError as e:
         # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
         # it noticed on the way there, which is often the actual reason -- and a failed extraction is
@@ -219,6 +247,7 @@ def extract(url, po_token=None):
             "kind": _classify(e),
             "detail": str(e),
             "notes": logger.notes(),
+            "steps": _solver_cache_state() + "; " + logger.timeline(),
         })
 
 
@@ -247,6 +276,16 @@ def _enable_solver_player_cache():
         return True
     except Exception:  # noqa: BLE001 - see docstring
         return False
+
+
+def _solver_cache_state():
+    """Whether the next JS challenge solve can reuse a preprocessed player, as a report would say it."""
+    try:
+        from yt_dlp.extractor.youtube.jsc._builtin import ejs
+
+        return "solver player cache " + ("on" if ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE else "off")
+    except Exception:  # noqa: BLE001 - a private attribute; a renamed one is "unknown", not a crash
+        return "solver player cache unknown"
 
 
 def _prune_solver_player_cache(extractor, keep_player_url):

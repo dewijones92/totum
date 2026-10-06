@@ -110,6 +110,48 @@ class NoteCollectionTest(unittest.TestCase):
         self.assertLess(len(log.notes()[0]), 400)
 
 
+class FakeClock:
+    def __init__(self):
+        self.now = 100.0
+
+    def __call__(self):
+        return self.now
+
+
+class StepTimelineTest(unittest.TestCase):
+    """Where an extraction's seconds went, which "extract in 13822ms" alone cannot say."""
+
+    def test_each_step_runs_until_the_next_one_starts(self):
+        clock = FakeClock()
+        log = CollectingLogger(clock=clock)
+        clock.now += 0.05
+        log.debug(HEALTHY_TRANSCRIPT[1])
+        clock.now += 0.4
+        log.debug(HEALTHY_TRANSCRIPT[7])
+        clock.now += 8.1
+
+        self.assertEqual(
+            "total 8550ms: start 50ms | webpage 400ms | [jsc:quickjs] Solving JS challenges using quickjs 8100ms",
+            log.timeline(),
+        )
+
+    def test_routine_steps_still_make_no_notes(self):
+        log = CollectingLogger(clock=FakeClock())
+        for line in HEALTHY_TRANSCRIPT:
+            log.debug(line)
+
+        self.assertEqual([], log.notes())
+        self.assertIn("android vr player API JSON", log.timeline())
+
+    def test_a_long_run_of_steps_is_bounded_and_says_so(self):
+        log = CollectingLogger(clock=FakeClock())
+        for n in range(CollectingLogger.MAX_STEPS + 5):
+            log.debug(f"[youtube] x: step {n}")
+
+        self.assertIn("and 5 more steps", log.timeline())
+        self.assertNotIn(f"step {CollectingLogger.MAX_STEPS} ", log.timeline())
+
+
 def _bridge_with_stubbed_ytdlp():
     """
     Imports the real bridge against a stub yt-dlp, so the JSON envelope itself can be tested.
@@ -199,6 +241,17 @@ class FailedExtractionNotesTest(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual("jNQXAC9IVRw", result["info"]["id"])
+        self.assertIn("; total ", result["steps"])
+        self.assertTrue(result["steps"].startswith("solver player cache "), result)
+
+    def test_a_failed_extraction_says_where_its_time_went(self):
+        module, _ = _bridge_with_stubbed_ytdlp()
+
+        result = json.loads(module.extract("https://www.youtube.com/watch?v=jNQXAC9IVRw"))
+
+        self.assertFalse(result["ok"])
+        self.assertIn("; total ", result["steps"])
+        self.assertTrue(result["steps"].startswith("solver player cache "), result)
 
 class FailedSearchTest(unittest.TestCase):
     """A failed search must come back as a failure, not crash the caller with a NameError (field report

@@ -26,6 +26,11 @@ internal fun JsonObject.notes(): List<String> =
  * [what] names the operation, because "n challenge solving failed" is a different problem when a
  * DOWNLOAD reports it than when a resolve does.
  */
+internal fun reportSteps(what: String, obj: JsonObject) {
+    val steps = obj["steps"]?.jsonPrimitive?.contentOrNull ?: return
+    Diag.log("engine", "$what steps — $steps")
+}
+
 internal fun reportNotes(what: String, notes: List<String>) {
     if (notes.isEmpty()) return
     Diag.warn("engine", "yt-dlp reported ${notes.size} note(s) while $what: ${notes.joinToString(" | ")}")

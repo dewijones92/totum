@@ -36,6 +36,25 @@ Taps are marked from the player (Watch/Listen) and the row (Watch with video / L
 The player offers **no Watch control** for a downloaded audio copy, so the row's "Watch with video" is
 the only way to the picture, and it re-resolves from nothing.
 
+## Measured on Dewi's Pixel 7 (0.1.564, 2026-10-06, driven over adb)
+
+| Flow | Time | Where it went |
+|---|---|---|
+| Cold app start | 0.5 s | `am start -W` |
+| Downloaded audio resumes | 0.73 s | local file |
+| **Downloaded audio → "Watch with video", Python not yet started** | **16.7 s** | engine start ~1.2 s, **yt-dlp extraction 13.8 s**, rest of resolve 1.4 s, player 1.4 s (1080p AV1) |
+| Warm extraction, two other videos | 3.9 s and 10.7 s | same session, Python running |
+
+On the phone the player is quick; extraction is about 85% of the wait, and it varies 4-14 s by video.
+The emulator's 4.7-8.5 s player join did not reproduce (software decoding).
+
+The solver's preprocessed-player cache (commit 5c76ecc8) is switched on only inside `_n_solver()`,
+which only the SABR and rescue paths call; an ordinary `extract()` runs without it until one of them
+has. Whether that is where the seconds go is what the step timeline below is for.
+
+`extract steps — solver player cache on|off; total Nms: start … | webpage … | android vr player API JSON … |
+player <build> … | Solving JS challenges … ` (one line per extraction, from yt-dlp's own step messages).
+
 ## From Dewi's phone reports (Aug-Sep 2026, 171 resolves)
 
 `play` resolves: median 4.3 s, p90 13.7 s, max 25 s (n=67). `describe`: median 13.1 s. Over SABR

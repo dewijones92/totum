@@ -78,6 +78,7 @@ public fun parseExtraction(url: HttpUrl, text: String): ExtractionResult {
     val obj = json.parseToJsonElement(text).jsonObject
     val notes = obj.notes()
     reportNotes("extracting", notes)
+    reportSteps("extract", obj)
     return if (obj.isOk()) {
         ExtractionResult.Success(obj.getValue("info").jsonObject.toMediaMetadata(url), notes)
     } else {
