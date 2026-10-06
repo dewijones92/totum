@@ -24,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
@@ -48,13 +46,17 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.exsurge.AndroidExsurgePorts
+import com.dewijones92.totum.exsurge.BannerAction
 import com.dewijones92.totum.exsurge.ExsurgeBannerService
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.ExsurgeSettings
+import com.dewijones92.totum.exsurge.ExsurgeStatusCard
 import com.dewijones92.totum.exsurge.ExsurgeView
 import com.dewijones92.totum.exsurge.SurgiusFace
+import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.clockText
 import com.dewijones92.totum.ui.common.BackHeader
 import java.time.DayOfWeek
@@ -76,6 +78,8 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
+            val context = LocalContext.current
+            ExsurgeStatusCard(view, onAction = { action -> onStatusAction(context, exsurge, action) })
             StatsCard(view)
             SwitchRow(
                 label = stringResource(R.string.exsurge_settings_enabled),
@@ -83,7 +87,6 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
                 checked = settings.enabled,
                 onCheckedChange = { on -> update { copy(enabled = on) } },
             )
-            TestButtons(exsurge, view)
             PermissionsSection(settings)
             HoursSection(settings, update)
             SectionTitle(stringResource(R.string.exsurge_settings_timing))
@@ -104,22 +107,14 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
     }
 }
 
-@Composable
-private fun TestButtons(exsurge: ExsurgeController, view: ExsurgeView) {
-    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(
-            onClick = { exsurge.dispatch(ExsurgeEvent.SummonNow, "settings") },
-            enabled = view.settings.enabled,
-            modifier = Modifier.testTag("exsurge-summon-now"),
-        ) { Text(stringResource(R.string.exsurge_action_summon_now)) }
-        OutlinedButton(
-            onClick = { exsurge.dispatch(ExsurgeEvent.RestartClock, "settings") },
-            enabled = view.settings.enabled,
-        ) { Text(stringResource(R.string.exsurge_action_restart_clock)) }
-        OutlinedButton(
-            onClick = { exsurge.dispatch(ExsurgeEvent.PauseHour, "settings") },
-            enabled = view.pauseAvailable,
-        ) { Text(stringResource(R.string.exsurge_action_pause_hour)) }
+private fun onStatusAction(context: Context, exsurge: ExsurgeController, action: BannerAction) {
+    Diag.log(ExsurgeController.TAG, "dewidebug exsurge page action ${action.name}")
+    when (action) {
+        BannerAction.TURN_ON -> exsurge.updateSettings("page") { it.copy(enabled = true) }
+        BannerAction.SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "page")
+        BannerAction.RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock, "page")
+        BannerAction.GO -> context.startActivity(TakeoverActivity.intent(context, go = true))
+        BannerAction.PAUSE_HOUR -> exsurge.dispatch(ExsurgeEvent.PauseHour, "page")
     }
 }
 

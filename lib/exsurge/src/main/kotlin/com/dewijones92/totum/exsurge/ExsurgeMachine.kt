@@ -71,7 +71,7 @@ public object ExsurgeMachine {
             is Snoozed -> state.until
             is Rising -> state.since + settings.riseTimeout
             is OnBreak -> {
-                val end = state.startedAt + settings.breakLength
+                val end = state.endsAt(settings)
                 if (midCueDue(state, settings)) end - settings.midCueBeforeEnd else end
             }
         }
@@ -81,7 +81,7 @@ public object ExsurgeMachine {
         memory.state is Sitting && memory.pauseUsedOn != at.atZone(zone).toLocalDate()
 
     private fun midCueDue(state: OnBreak, settings: ExsurgeSettings): Boolean =
-        settings.midBreakCue && !state.midCueSpoken && settings.breakLength > settings.midCueBeforeEnd
+        settings.midBreakCue && !state.midCueSpoken && state.length(settings) > settings.midCueBeforeEnd
 
     @Suppress("TooManyFunctions")
     private class Run(var memory: ExsurgeMemory, val at: Instant, val context: ExsurgeContext) {
@@ -237,7 +237,7 @@ public object ExsurgeMachine {
         }
 
         private fun tickBreak(state: OnBreak) {
-            val end = state.startedAt + settings.breakLength
+            val end = state.endsAt(settings)
             if (!at.isBefore(end)) {
                 note("break done: ${state.steps} steps, proven=${state.stepsProven}")
                 completeBreak(state)
@@ -326,7 +326,8 @@ public object ExsurgeMachine {
                 is Summoned -> state.summons
                 is Snoozed -> state.summons
                 else -> return note("GO ignored at state=${state.label()}")
-            }.copy(practise = practise)
+            }.copy(practise = practise, breakMinutes = settings.breakMinutes)
+            note("${event.label()}: break length fixed at ${settings.breakMinutes}m")
             emit(HideTakeover, Speak(Cue.GO))
             if (practise) emit(OpenDestination) else note("just walking: ${settings.destinationPackage} not opened")
             if (event == ExsurgeEvent.ContinueTotum) {

@@ -25,3 +25,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 7 | [Exsurge's tests run only when its area changes](0007-exsurge-tests-run-only-when-touched.md) | Accepted |
 | 8 | [An unproven break earns no laurel](0008-an-unproven-break-earns-no-laurel.md) | Accepted |
 | 9 | [Video fullscreen follows phone rotation; the button locks landscape](0009-rotation-follows-video-fullscreen.md) | Accepted |
+| 10 | [The Exsurge break length is chosen at the summons and fixed for that break](0010-break-length-is-chosen-at-the-summons.md) | Accepted |

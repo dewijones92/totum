@@ -149,14 +149,14 @@ class ExsurgeMachineTest {
     fun `go opens the destination, pauses playback and waits for steps`() {
         val at = mondayTen.plusSeconds2(20)
         val result = apply(summoned(), ExsurgeEvent.Go, at)
-        assertEquals(Rising(Summons(7, mondayTen), at), result.memory.state)
+        assertEquals(Rising(Summons(7, mondayTen, breakMinutes = 5), at), result.memory.state)
         assertEquals(listOf(HideTakeover, Speak(Cue.GO), OpenDestination, PausePlayback), result.effects)
     }
 
     @Test
     fun `continue Totum starts the same walk without pausing or opening the language app`() {
         val result = apply(summoned(), ExsurgeEvent.ContinueTotum, mondayTen)
-        assertEquals(Rising(Summons(7, mondayTen, practise = false), mondayTen), result.memory.state)
+        assertEquals(Rising(Summons(7, mondayTen, practise = false, breakMinutes = 5), mondayTen), result.memory.state)
         assertEquals(listOf(HideTakeover, Speak(Cue.GO), ExsurgeEffect.ContinueTotum), result.effects)
         val duplicate = apply(result.memory, ExsurgeEvent.ContinueTotum, mondayTen.plusSeconds2(1))
         assertEquals(result.memory, duplicate.memory)
@@ -193,7 +193,7 @@ class ExsurgeMachineTest {
     fun `just walk starts the break without opening the language app`() {
         val at = mondayTen.plusSeconds2(20)
         val result = apply(summoned(), ExsurgeEvent.JustWalk, at)
-        assertEquals(Rising(Summons(7, mondayTen, practise = false), at), result.memory.state)
+        assertEquals(Rising(Summons(7, mondayTen, practise = false, breakMinutes = 5), at), result.memory.state)
         assertTrue(OpenDestination !in result.effects)
         assertTrue(PausePlayback in result.effects)
     }
@@ -231,7 +231,8 @@ class ExsurgeMachineTest {
         assertEquals(12, (partway.memory.state as Rising).steps)
         val at = mondayTen.plusSeconds2(25)
         val risen = apply(partway.memory, ExsurgeEvent.StepsCounted(5020), at)
-        val expected = OnBreak(Summons(7, mondayTen), at, 5000, 20, stepsProven = true, stepsRequired = true)
+        val expected =
+            OnBreak(Summons(7, mondayTen, breakMinutes = 5), at, 5000, 20, stepsProven = true, stepsRequired = true)
         assertEquals(expected, risen.memory.state)
         assertEquals(listOf(Speak(Cue.RISEN), Buzz(Haptic.STEPS_ACCEPTED)), risen.effects)
     }
@@ -251,7 +252,10 @@ class ExsurgeMachineTest {
     fun `with no step sensor go starts the break straight away`() {
         val ctx = context.copy(stepsAvailable = false)
         val result = apply(summoned(), ExsurgeEvent.Go, mondayTen, ctx)
-        assertEquals(OnBreak(Summons(7, mondayTen), mondayTen, null, 0, stepsProven = false), result.memory.state)
+        assertEquals(
+            OnBreak(Summons(7, mondayTen, breakMinutes = 5), mondayTen, null, 0, stepsProven = false),
+            result.memory.state
+        )
     }
 
     @Test
@@ -275,6 +279,51 @@ class ExsurgeMachineTest {
         assertEquals(listOf(Speak(Cue.FREE), Buzz(Haptic.RELEASE), ResumePlayback), done.effects.take(3))
         val outcome = (done.effects[3] as Record).outcome
         assertEquals(BreakOutcome(7, start, end, OutcomeKind.COMPLETED, 0, start, 20, stepsProven = true), outcome)
+    }
+
+    @Test
+    fun `go fixes the break length chosen at the summons`() {
+        val ctx = context.copy(settings = on.copy(breakMinutes = 10), stepsAvailable = false)
+        val state = apply(summoned(), ExsurgeEvent.Go, mondayTen, ctx).memory.state as OnBreak
+        assertEquals(10, state.summons.breakMinutes)
+        assertEquals(mondayTen.plusMinutes(10), state.endsAt(ctx.settings.copy(breakMinutes = 2)))
+    }
+
+    @Test
+    fun `the banner shows the running break's own length`() {
+        val ctx = context.copy(settings = on.copy(breakMinutes = 15), stepsAvailable = false)
+        val started = apply(summoned(), ExsurgeEvent.Go, mondayTen, ctx).memory
+        val later = ctx.copy(settings = on.copy(breakMinutes = 2))
+        val line = bannerLineOf(started.state, mondayTen.plusMinutes(1), later) as BannerLine.OnBreak
+        assertEquals(15, line.lengthMinutes)
+        assertEquals(mondayTen.plusMinutes(15), line.endsAt)
+    }
+
+    @Test
+    fun `lengthening the setting mid-break does not move the running break's end`() {
+        val quiet = on.copy(midBreakCue = false)
+        val noSensor = context.copy(settings = quiet, stepsAvailable = false)
+        val started = apply(summoned(), ExsurgeEvent.Go, mondayTen, noSensor).memory
+        val longer = noSensor.copy(settings = quiet.copy(breakMinutes = 10))
+        assertEquals(mondayTen.plusMinutes(5), ExsurgeMachine.nextWake(started.state, longer))
+        val done = apply(started, ExsurgeEvent.Tick, mondayTen.plusMinutes(5), longer)
+        assertEquals(Sitting(mondayTen.plusMinutes(5), OutcomeKind.COMPLETED), done.memory.state)
+    }
+
+    @Test
+    fun `shortening the setting mid-break does not end the running break`() {
+        val noSensor = context.copy(stepsAvailable = false)
+        val started = apply(summoned(), ExsurgeEvent.Go, mondayTen, noSensor).memory
+        val shorter = noSensor.copy(settings = on.copy(breakMinutes = 2))
+        val result = apply(started, ExsurgeEvent.Tick, mondayTen.plusMinutes(4), shorter)
+        assertTrue(result.memory.state is OnBreak)
+    }
+
+    @Test
+    fun `a break saved before lengths were fixed falls back to the setting`() {
+        val memory = ExsurgeMemory(OnBreak(Summons(7, mondayTen), mondayTen, 0, 20, true, midCueSpoken = true))
+        val ctx = context.copy(settings = on.copy(breakMinutes = 7))
+        assertEquals(mondayTen.plusMinutes(7), ExsurgeMachine.nextWake(memory.state, ctx))
     }
 
     @Test

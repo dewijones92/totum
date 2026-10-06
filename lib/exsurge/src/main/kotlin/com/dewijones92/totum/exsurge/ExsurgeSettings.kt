@@ -60,7 +60,6 @@ public data class ExsurgeSettings(
     )
 
     public val sitting: Duration get() = Duration.ofMinutes(sittingMinutes.toLong())
-    public val breakLength: Duration get() = Duration.ofMinutes(breakMinutes.toLong())
     public val snooze: Duration get() = Duration.ofMinutes(snoozeMinutes.toLong())
     public val callInterval: Duration get() = Duration.ofSeconds(callIntervalSeconds.toLong())
     public val missAfter: Duration get() = callInterval.multipliedBy(ExsurgeMachine.MAX_CALLS.toLong())

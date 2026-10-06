@@ -37,7 +37,7 @@ public sealed interface BannerLine {
     public data class Summoned(val call: Int, val snoozesLeft: Int) : BannerLine
     public data class Snoozed(val until: Instant) : BannerLine
     public data class Rising(val steps: Int, val needed: Int) : BannerLine
-    public data class OnBreak(val endsAt: Instant, val steps: Int) : BannerLine
+    public data class OnBreak(val endsAt: Instant, val steps: Int, val lengthMinutes: Int) : BannerLine
 }
 
 public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContext): BannerLine {
@@ -55,9 +55,29 @@ public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContex
         is Summoned -> BannerLine.Summoned(state.call, snoozesLeft(state, settings))
         is Snoozed -> BannerLine.Snoozed(state.until)
         is Rising -> BannerLine.Rising(state.steps, context.stepsToRise)
-        is OnBreak -> BannerLine.OnBreak(state.startedAt + settings.breakLength, state.steps)
+        is OnBreak -> BannerLine.OnBreak(
+            state.endsAt(settings),
+            state.steps,
+            state.length(settings).toMinutes().toInt()
+        )
     }
 }
+
+public enum class BannerAction { TURN_ON, SUMMON_NOW, RESTART_CLOCK, GO, PAUSE_HOUR }
+
+public fun bannerActionsOf(state: ExsurgeState, enabled: Boolean, pauseAvailable: Boolean): List<BannerAction> =
+    buildList {
+        if (!enabled) add(BannerAction.TURN_ON)
+        when (state) {
+            Off, is Sitting, is Dormant, is Paused -> {
+                add(BannerAction.SUMMON_NOW)
+                add(BannerAction.RESTART_CLOCK)
+            }
+            is Snoozed -> add(BannerAction.GO)
+            is Summoned, is Rising, is OnBreak -> Unit
+        }
+        if (pauseAvailable) add(BannerAction.PAUSE_HOUR)
+    }
 
 public object ExsurgeCodec {
     private val json = Json {

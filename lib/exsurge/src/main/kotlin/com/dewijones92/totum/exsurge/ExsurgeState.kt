@@ -5,6 +5,7 @@ package com.dewijones92.totum.exsurge
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
@@ -15,6 +16,7 @@ public data class Summons(
     val snoozes: Int = 0,
     val practise: Boolean = true,
     val oneOff: Boolean = false,
+    val breakMinutes: Int? = null,
 )
 
 @Serializable
@@ -72,7 +74,12 @@ public sealed interface ExsurgeState {
         val stepsProven: Boolean,
         val midCueSpoken: Boolean = false,
         val stepsRequired: Boolean = false,
-    ) : ExsurgeState
+    ) : ExsurgeState {
+        public fun length(settings: ExsurgeSettings): Duration =
+            Duration.ofMinutes((summons.breakMinutes ?: settings.breakMinutes).toLong())
+
+        public fun endsAt(settings: ExsurgeSettings): Instant = startedAt + length(settings)
+    }
 }
 
 @Serializable

@@ -132,42 +132,8 @@ class ExsurgeNotifications(private val context: Context) {
             screenIntent(context)
         }
 
-    private fun actions(view: ExsurgeView): List<Notification.Action> = buildList {
-        if (!view.settings.enabled) {
-            add(
-                action(
-                    context.getString(R.string.exsurge_action_turn_on),
-                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.TURN_ON),
-                ),
-            )
-        }
-        when (view.memory.state) {
-            ExsurgeState.Off, is ExsurgeState.Sitting, is ExsurgeState.Dormant, is ExsurgeState.Paused -> {
-                add(
-                    action(
-                        context.getString(R.string.exsurge_action_summon_now),
-                        ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SUMMON_NOW)
-                    )
-                )
-                add(
-                    action(
-                        context.getString(R.string.exsurge_action_restart_clock),
-                        ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.RESTART_CLOCK),
-                    ),
-                )
-            }
-            is ExsurgeState.Snoozed ->
-                add(action(context.getString(R.string.exsurge_action_go), TakeoverActivity.pending(context, go = true)))
-            else -> Unit
-        }
-        if (view.pauseAvailable) {
-            add(
-                action(
-                    context.getString(R.string.exsurge_action_pause_hour),
-                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.PAUSE_HOUR)
-                )
-            )
-        }
+    private fun actions(view: ExsurgeView): List<Notification.Action> = view.actions.map { banner ->
+        action(context.getString(banner.label), banner.intent(context))
     }
 
     private fun action(label: String, intent: PendingIntent) = Notification.Action.Builder(
@@ -195,6 +161,23 @@ class ExsurgeNotifications(private val context: Context) {
         private val TANGERINE = Tangerine40.toArgb()
     }
 }
+
+private fun BannerAction.intent(context: Context): PendingIntent = when (this) {
+    BannerAction.TURN_ON -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.TURN_ON)
+    BannerAction.SUMMON_NOW -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SUMMON_NOW)
+    BannerAction.RESTART_CLOCK -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.RESTART_CLOCK)
+    BannerAction.GO -> TakeoverActivity.pending(context, go = true)
+    BannerAction.PAUSE_HOUR -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.PAUSE_HOUR)
+}
+
+val BannerAction.label: Int
+    get() = when (this) {
+        BannerAction.TURN_ON -> R.string.exsurge_action_turn_on
+        BannerAction.SUMMON_NOW -> R.string.exsurge_action_summon_now
+        BannerAction.RESTART_CLOCK -> R.string.exsurge_action_restart_clock
+        BannerAction.GO -> R.string.exsurge_action_go
+        BannerAction.PAUSE_HOUR -> R.string.exsurge_action_pause_hour
+    }
 
 class BannerText(private val context: Context) {
     fun describe(view: ExsurgeView): Triple<String, String, Pair<Int, Int>?> {
@@ -253,7 +236,7 @@ class BannerText(private val context: Context) {
     )
 
     private fun onBreak(line: BannerLine.OnBreak, view: ExsurgeView): Triple<String, String, Pair<Int, Int>?> {
-        val total = view.settings.breakMinutes * SECONDS_PER_MINUTE
+        val total = line.lengthMinutes * SECONDS_PER_MINUTE
         val left = ChronoUnit.SECONDS.between(view.at, line.endsAt).toInt().coerceIn(0, total)
         return Triple(
             context.getString(R.string.exsurge_banner_break, time(line.endsAt, view.zone)),

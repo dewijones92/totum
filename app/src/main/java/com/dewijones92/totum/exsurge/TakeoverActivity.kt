@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -77,6 +79,7 @@ class TakeoverActivity : ComponentActivity() {
                     onJustWalk = { justWalk() },
                     onContinueTotum = { startBreak(ExsurgeEvent.ContinueTotum) },
                     onSnooze = { exsurge.dispatch(ExsurgeEvent.Snooze, "takeover") },
+                    onBreakMinutes = { minutes -> chooseBreak(exsurge, minutes) },
                     onSkip = { exsurge.dispatch(ExsurgeEvent.Skip, "takeover") },
                 )
             }
@@ -177,6 +180,7 @@ fun TakeoverScreen(
     onContinueTotum: () -> Unit,
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
+    onBreakMinutes: (Int) -> Unit = {},
 ) {
     val summoned = view.memory.state as? ExsurgeState.Summoned
     val snoozesLeft = snoozesLeft(view.memory.state, view.settings)
@@ -216,7 +220,9 @@ fun TakeoverScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(20.dp))
+                BreakLengthChips(view.settings.breakMinutes, onBreakMinutes)
+                Spacer(Modifier.height(20.dp))
                 TakeoverButtons(
                     destination,
                     snoozesLeft,
@@ -294,5 +300,31 @@ private fun TakeoverButtons(
     }
 }
 
+@Composable
+private fun BreakLengthChips(chosen: Int, onChoose: (Int) -> Unit) {
+    Text(stringResource(R.string.exsurge_takeover_break_length), style = MaterialTheme.typography.titleSmall)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        breakChoices(chosen).forEach { minutes ->
+            FilterChip(
+                selected = minutes == chosen,
+                onClick = { onChoose(minutes) },
+                label = { Text(stringResource(R.string.exsurge_takeover_break_minutes, minutes)) },
+                modifier = Modifier.testTag("exsurge-break-$minutes"),
+            )
+        }
+    }
+}
+
+private fun chooseBreak(exsurge: ExsurgeController, minutes: Int) {
+    Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover break length chosen=${minutes}m")
+    exsurge.updateSettings("takeover chip") { it.copy(breakMinutes = minutes) }
+}
+
+internal fun breakChoices(chosen: Int): List<Int> = (BREAK_CHOICES + chosen).distinct().sorted()
+
+private val BREAK_CHOICES = listOf(2, 5, 10, 15)
 private val FACE_SIZE = 220.dp
 private const val FACE_SHARE_OF_HEIGHT = 0.3f

@@ -239,7 +239,7 @@ class ExsurgeSupportTest {
         assertEquals(BannerLine.Rising(3, 20), bannerLineOf(rising, now, context))
         assertEquals(BannerLine.Rising(3, 0), bannerLineOf(rising, now, context.copy(stepsAvailable = false)))
         val onBreak = ExsurgeState.OnBreak(Summons(1, now), now, 0, 40, true)
-        assertEquals(BannerLine.OnBreak(at(5, 10, 22), 40), bannerLineOf(onBreak, now, context))
+        assertEquals(BannerLine.OnBreak(at(5, 10, 22), 40, 5), bannerLineOf(onBreak, now, context))
         assertEquals(BannerLine.Sleeping(null), bannerLineOf(ExsurgeState.Dormant(null), now, context))
         assertEquals(BannerLine.Off, bannerLineOf(ExsurgeState.Off, now, context))
     }
@@ -285,5 +285,25 @@ class ExsurgeSupportTest {
         val context = ExsurgeContext(settings, zone, stepsAvailable = true)
         val line = bannerLineOf(ExsurgeState.Sitting(at(5, 17, 45)), at(5, 17, 50), context)
         assertNull((line as BannerLine.Sitting).summonsAt)
+    }
+
+    @Test
+    fun `the banner and page offer the same buttons for every state`() {
+        val summons = Summons(1, at(5, 10))
+        val idle = listOf(BannerAction.SUMMON_NOW, BannerAction.RESTART_CLOCK)
+        assertEquals(listOf(BannerAction.TURN_ON) + idle, bannerActionsOf(ExsurgeState.Off, false, false))
+        assertEquals(idle + BannerAction.PAUSE_HOUR, bannerActionsOf(ExsurgeState.Sitting(at(5, 10)), true, true))
+        assertEquals(idle, bannerActionsOf(ExsurgeState.Dormant(null), true, false))
+        assertEquals(idle, bannerActionsOf(ExsurgeState.Paused(at(5, 11)), true, false))
+        assertEquals(listOf(BannerAction.GO), bannerActionsOf(ExsurgeState.Snoozed(summons, at(5, 10, 5)), true, false))
+        assertEquals(
+            emptyList<BannerAction>(),
+            bannerActionsOf(ExsurgeState.Summoned(summons, 1, at(5, 10), at(5, 10)), true, false)
+        )
+        assertEquals(emptyList<BannerAction>(), bannerActionsOf(ExsurgeState.Rising(summons, at(5, 10)), true, false))
+        assertEquals(
+            emptyList<BannerAction>(),
+            bannerActionsOf(ExsurgeState.OnBreak(summons, at(5, 10), null, 0, false), true, false)
+        )
     }
 }

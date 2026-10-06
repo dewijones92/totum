@@ -12,7 +12,8 @@ updated: 2026-10-06
 his language app, Loquax. Make the prompt really obvious, give it a voice and a face, and make
 everything configurable. The backlog item, with the agreed design and the open ideas, is
 [todos/exsurge-et-disce](../todos/exsurge-et-disce.md); the decisions are ADRs
-[2](../adr/0002-exsurge-side-quest-module.md) to [8](../adr/0008-an-unproven-break-earns-no-laurel.md).
+[2](../adr/0002-exsurge-side-quest-module.md) to [8](../adr/0008-an-unproven-break-earns-no-laurel.md) and
+[10](../adr/0010-break-length-is-chosen-at-the-summons.md).
 
 ## What it does
 
@@ -27,7 +28,7 @@ everything configurable. The backlog item, with the agreed design and the open i
 | GO | Unlock if needed; Loquax opens at `/practice`; Totum's playback pauses | *Alea iacta est!* |
 | Just walk | The same break, with no language app (Dewi, 2026-10-01: *"I don't necessarily wanna do language learning when I get up"*); no unlock needed; recorded as not practised | *Alea iacta est!* |
 | Continue Totum | Resume the current Totum item while taking the same walking break; unlock if needed and return to Totum, without opening the language app or restarting the item; recorded as not practised | *Alea iacta est!* |
-| 20 steps | The 5-minute break starts | *Bene! Ambula, disce!* |
+| 20 steps | The break starts, for the length chosen on the takeover (5 minutes by default) | *Bene! Ambula, disce!* |
 | 2 minutes left | — | *Duo minuta restant.* |
 | Break over | Playback resumes (only if the break paused it); +1 laurel | *Satis! Liber es!* / *Veni, vidi, didici!* |
 | Promotion | Every rank of the cursus honorum: Tiro, Legionarius (10), Centurio (50), Tribunus (150), Legatus (300), Consul (600), Imperator (1000) | *Salve! Gradum ascendisti!* |
@@ -35,6 +36,17 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Streak:** a day counts when every summons ended in a *credited* break. A snooze never breaks it;
   a skip, a miss or an unproven break does (GO pressed, but no steps within the rise timeout). A day
   with no summons neither extends nor breaks it. See [ADR 8](../adr/0008-an-unproven-break-earns-no-laurel.md).
+- **Break length chips** (Dewi, 2026-10-06): the takeover offers 2 / 5 / 10 / 15 min above GO,
+  with the last choice selected. A chip writes the one Break length setting, so the stepper on the
+  Exsurge screen shows the same number. GO, Just walk and Continue Totum fix that length on the
+  break as it begins. Changing the setting later applies from the next break and never moves the
+  one under way. A value set by the stepper outside the four shows as an extra selected chip. See
+  [ADR 10](../adr/0010-break-length-is-chosen-at-the-summons.md).
+- **The Exsurge screen shows everything the banner shows** (Dewi, 2026-10-06): a status card at
+  the top with the banner's own title, detail line, progress bar and buttons. `BannerText` writes
+  both texts, and `bannerActionsOf` (in `:lib:exsurge`) lists the buttons for both, so the page and
+  the notification cannot disagree. The card updates every second while the screen is open. Its
+  GO (while snoozed) opens the takeover's GO.
 - **Every timing is a setting:** sitting limit, break length, steps to rise, walking threshold and
   window, snooze length and count, call-again interval (missed after three calls), rise timeout,
   the break cue's minutes before the end, and the pause length.
@@ -82,8 +94,8 @@ everything configurable. The backlog item, with the agreed design and the open i
   `ExsurgeSettingsScreen`), or the takeover while a summons is live. It opens in its own task, out of
   Recents, so Back returns to whatever was in front rather than into Totum's player. Dewi asked for this on
   2026-10-01; before that, it opened Totum's main screen.
-- **Settings → Exsurge et Disce:** every setting, a permissions checklist with Grant buttons,
-  Summon now, and a stats card with Surgius in his current mood.
+- **Settings → Exsurge et Disce:** the live status card (above), a stats card with Surgius in his
+  current mood, every setting, and a permissions checklist with Grant buttons.
 
 ## Where it lives
 
@@ -93,7 +105,8 @@ everything configurable. The backlog item, with the agreed design and the open i
   (alarms, voice, vibration, Loquax), `ExsurgeBannerService` (health foreground service, sticky
   banner, step counter), `TakeoverActivity`, `ExsurgeNotifications`, `ExsurgeActionReceiver`,
   `ExsurgeTileService`, `Surgius` (one painter for every face and icon), `ExsurgeStore`.
-- `app/…/ui/settings/ExsurgeSettingsScreen.kt` — the settings.
+- `app/…/ui/settings/ExsurgeSettingsScreen.kt` — the settings; `app/…/exsurge/ExsurgeStatusCard.kt` —
+  the banner's content on that screen.
 - `core/playback/…/PlaybackInterruption.kt` and `PlaybackController.setPlaying` — the shared seam.
 - `tools/exsurge/gen-voice.sh` — regenerates the Latin clips in `res/raw/exsurge_*.ogg`.
 
@@ -143,6 +156,16 @@ rank and the settings.
   the break. Unit tests cover step baseline, walking proof, completion, snooze, duplicate presses
   and a disabled one-off. The new popup button and caption were visually checked at both sizes;
   on the smaller screen the choices remain reachable by scrolling.
+
+- **Status card and break-length verification (2026-10-06):** written red first, two machine tests
+  failed against the old code: lengthening the setting mid-break moved the end from 09:05 to 09:10,
+  and shortening it ended the break. 92 `:lib:exsurge` and 25 app JVM tests pass. The 21 Exsurge
+  device tests pass at 1080×2400, and the takeover's 7 at 320×640. That includes
+  `ExsurgeStatusCardTest`, which asserts that the card's text equals `BannerText` in the sitting,
+  break and snoozed states and that it offers the banner's buttons, and a chip test (tap 10, Just
+  walk, the break carries 10 and the setting reads 10). On the emulator, Summon now from the card
+  summoned, 10 min was chosen, and Just walk gave "On break until 11:09" from 10:59. The page,
+  the takeover and the small-screen takeover were screenshotted and looked at.
 
 ## Independent review (Opus 5.5, 2026-10-01)
 

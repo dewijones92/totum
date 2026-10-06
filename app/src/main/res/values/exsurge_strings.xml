@@ -38,6 +38,8 @@
 
     <string name="exsurge_takeover_title">EXSURGE!</string>
     <string name="exsurge_takeover_subtitle">Sitting: %1$d min. Up for %2$d min: walk, and practise if you like.</string>
+    <string name="exsurge_takeover_break_length">Break length</string>
+    <string name="exsurge_takeover_break_minutes">%1$d min</string>
     <string name="exsurge_takeover_call">Call %1$d of 3</string>
     <string name="exsurge_destination_missing">%1$s is not installed</string>
 

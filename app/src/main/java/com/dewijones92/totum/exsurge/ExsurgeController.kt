@@ -63,6 +63,7 @@ data class ExsurgeView(
     val mood: Mood get() = moodOf(memory.state, at)
     val banner: BannerLine get() = bannerLineOf(memory.state, at, context)
     val pauseAvailable: Boolean get() = settings.enabled && ExsurgeMachine.canPause(memory, at, zone)
+    val actions: List<BannerAction> get() = bannerActionsOf(memory.state, settings.enabled, pauseAvailable)
 }
 
 class ExsurgeController(

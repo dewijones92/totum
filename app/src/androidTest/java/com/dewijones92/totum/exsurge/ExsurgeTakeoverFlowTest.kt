@@ -75,6 +75,20 @@ class ExsurgeTakeoverFlowTest {
     }
 
     @Test
+    fun aChosenBreakLengthIsRememberedAndFixedOnTheBreak() {
+        ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
+            compose.onNodeWithTag("exsurge-break-10").performScrollTo().performClick()
+            compose.waitUntil(5_000) { exsurge.view.value.settings.breakMinutes == 10 }
+            compose.onNodeWithTag("exsurge-walk").performScrollTo().performClick()
+            compose.waitUntil(5_000) { exsurge.view.value.memory.state !is ExsurgeState.Summoned }
+        }
+        val state = exsurge.view.value.memory.state
+        val summons = (state as? ExsurgeState.Rising)?.summons ?: (state as? ExsurgeState.OnBreak)?.summons
+        assertEquals("break length on ${state.label()}", 10, summons?.breakMinutes)
+        assertEquals(10, exsurge.view.value.settings.breakMinutes)
+    }
+
+    @Test
     fun justWalkFromTheTakeoverStartsTheBreakWithoutTheLanguageApp() {
         ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
             compose.onNodeWithTag("exsurge-walk").performScrollTo().performClick()
