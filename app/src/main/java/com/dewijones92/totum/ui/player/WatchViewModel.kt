@@ -19,6 +19,7 @@ import com.dewijones92.totum.innertube.comments.RepliesResult
 import com.dewijones92.totum.innertube.comments.YouTubeComments
 import com.dewijones92.totum.innertube.related.RelatedResult
 import com.dewijones92.totum.innertube.related.YouTubeRelated
+import com.dewijones92.totum.playback.PlaybackIntent
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.PlaybackMode
@@ -71,6 +72,7 @@ constructor(
      * wanting audio is situational, not per-video.
      */
     fun listen() {
+        PlaybackIntent.mark("listen (player)")
         preferences.setPlaybackMode(PlaybackMode.AUDIO)
         launcher.listen()
     }
@@ -78,6 +80,7 @@ constructor(
     /** Leave audio-only and return to watching the video ("Watch"). */
     /** Switches to video and makes that the mode. */
     fun watch() {
+        PlaybackIntent.mark("watch (player)")
         preferences.setPlaybackMode(PlaybackMode.VIDEO)
         clearAnyEarlierRefusal()
         launcher.watch()
@@ -88,6 +91,7 @@ constructor(
      * "I want to see this" signals (Shorts, an explicit fullscreen tap).
      */
     fun watchOnce() {
+        PlaybackIntent.mark("watch this one (player)")
         clearAnyEarlierRefusal()
         launcher.watch()
     }

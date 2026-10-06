@@ -382,7 +382,13 @@ class VideoPlaybackLauncher(
     }
 
     fun listen(fromMs: Long = whereWeAre()) {
-        val resolved = current ?: return
+        val resolved = current ?: run {
+            Diag.log(
+                "playback",
+                "listen: no video resolved here (e.g. a downloaded copy is playing); the mode change re-routes it",
+            )
+            return
+        }
         val audio = resolved.audioOnlyUrl ?: run {
             // Said out loud rather than returning silently: "listen mode is a bit weird with
             // torrents" was exactly this — the control appeared to do nothing, and nothing in a
@@ -456,7 +462,13 @@ class VideoPlaybackLauncher(
 
     /** Leaves "Listen" (audio-only) and returns to watching the video, at the saved position. */
     fun watch() {
-        val resolved = current ?: return
+        val resolved = current ?: run {
+            Diag.log(
+                "playback",
+                "watch: no video resolved here (e.g. a downloaded copy is playing); the mode change re-routes it",
+            )
+            return
+        }
         if (resolved.isOneStream) {
             // Nothing to switch TO. A torrent is a single file carrying both tracks, so
             // re-preparing it changes nothing except losing your place — measured 2026-08-02,

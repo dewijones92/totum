@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.playback.PlaybackIntent
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.PlaybackMode
@@ -76,6 +77,7 @@ class MediaItemActions internal constructor(
      * hiding the mode in a settings screen would be worse.
      */
     fun switchMode(item: MediaItem, toAudio: Boolean, audioOnMessage: String, videoOnMessage: String) {
+        PlaybackIntent.mark(if (toAudio) "switch to audio (row)" else "switch to video (row)")
         mode.choose(audio = toAudio)
         // Asking a row for video is asking for the PICTURE, so it has to overrule a sound-only rescue
         // the same way the player's own Watch button does. Without this the mode changed, the toast said

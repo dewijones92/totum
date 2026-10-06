@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.source
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.domain.MediaItem
@@ -7,9 +8,11 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import kotlinx.coroutines.flow.first
+import kotlin.time.TimeSource
 
 /**
  * Finds the [MediaSource] a [MediaItem] came from, so a row can navigate to its
@@ -43,11 +46,28 @@ public class DefaultSourceLocator(
         MediaKind.VIDEO -> item.sourceUrl != null || item.mediaUrl != null
     }
 
-    override suspend fun locate(item: MediaItem): MediaSource? =
-        subscribedFeed(item) ?: when (item.pillar) {
-            MediaKind.PODCAST -> unsubscribedFeed(item)
-            MediaKind.VIDEO -> statedSource(item) ?: uploaderChannel(item)
+    override suspend fun locate(item: MediaItem): MediaSource? {
+        val started = TimeSource.Monotonic.markNow()
+        var route = "subscribed feed"
+        val source = subscribedFeed(item) ?: when (item.pillar) {
+            MediaKind.PODCAST -> unsubscribedFeed(item).also { route = "feed named by the episode" }
+            MediaKind.VIDEO -> statedSource(item)?.also { route = "channel named by the listing" }
+                ?: uploaderChannel(item).also { route = "yt-dlp extraction of the video" }
         }
+        Diag.log(
+            "nav",
+            "located \"${item.title}\" via $route in ${started.elapsedNow().inWholeMilliseconds}ms -> " +
+                (source?.let { describe(it) } ?: "nothing"),
+        )
+        return source
+    }
+
+    private fun describe(source: MediaSource): String = when (source) {
+        is MediaSource.PodcastFeed -> "feed ${source.feedUrl.value}"
+        is MediaSource.VideoChannel ->
+            "channel ${source.channelUrl.value} " +
+                if (source.youTubeChannelId != null) "(UC id known)" else "(handle only: its page will use yt-dlp)"
+    }
 
     private fun unsubscribedFeed(item: MediaItem): MediaSource? {
         val feedUrl = MediaSource.PodcastFeed.feedUrlOf(item.sourceId) ?: return null

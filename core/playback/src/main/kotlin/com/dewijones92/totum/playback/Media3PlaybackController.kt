@@ -112,6 +112,7 @@ public class Media3PlaybackController(
     private var playGeneration = 0
     private var skipSilence = false
     private val endWatch = ItemEndWatch()
+    private val startLatency = StartLatency()
     private var volumeBoost = VolumeBoost.OFF
     private var ticksSinceSave = 0
     private var ticksSinceMemory = 0
@@ -155,6 +156,17 @@ public class Media3PlaybackController(
                                     durationMs = connected.duration.takeIf { it > 0 },
                                 ),
                             )
+                        }
+
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            if (!isPlaying) return
+                            val id = connected.currentMediaItem?.mediaId ?: return
+                            startLatency.playing(id)?.let { Diag.log("latency", it) }
+                        }
+
+                        override fun onRenderedFirstFrame() {
+                            val id = connected.currentMediaItem?.mediaId ?: return
+                            startLatency.firstFrame(id)?.let { Diag.log("latency", it) }
                         }
 
                         @OptIn(markerClass = [UnstableApi::class])
@@ -289,6 +301,7 @@ public class Media3PlaybackController(
                 if (generation != playGeneration) return@withController
                 noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
                 endWatch.start(item.id.value, item.duration?.inWholeMilliseconds)
+                startLatency.played(item.id.value)
                 activeSkipSegments = skipSegments
                 skipsThisItem = 0
                 // Said per video, so a report can tell "SponsorBlock had nothing for this one" from

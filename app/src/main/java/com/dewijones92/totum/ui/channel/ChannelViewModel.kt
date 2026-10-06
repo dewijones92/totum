@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.TimeSource
 
 /**
  * Backs the tabbed channel page — Videos / Shorts / Playlists via InnerTube (so
@@ -206,7 +207,18 @@ class ChannelViewModel(
     }
 
     init {
+        Diag.log(
+            "channel",
+            "opened \"${source.title}\" ${source.channelUrl.value} " +
+                if (channelId != null) "(UC id known: tabs load via InnerTube)" else "(handle only: videos via yt-dlp)",
+        )
         loadVideos()
+    }
+
+    private fun logLoad(tab: String, route: String, started: TimeSource.Monotonic.ValueTimeMark, items: Int?) {
+        val ms = started.elapsedNow().inWholeMilliseconds
+        val outcome = items?.let { "$it item(s)" } ?: "FAILED"
+        Diag.log("channel", "\"${source.title}\" $tab via $route: $outcome in ${ms}ms")
     }
 
     fun selectTab(tab: Tab) {
@@ -252,6 +264,7 @@ class ChannelViewModel(
 
     private fun loadVideos() {
         viewModelScope.launch {
+            val started = TimeSource.Monotonic.markNow()
             content.update { it.copy(videos = it.videos.copy(loading = true, error = false)) }
             val page = channelId?.let { id ->
                 when (val r = reader.innerTube.videos(id)) {
@@ -261,6 +274,7 @@ class ChannelViewModel(
                 // The yt-dlp fallback returns everything it found in one go, so it is a last
                 // page by nature rather than by omission.
             } ?: fallbackVideos()?.let { Page.last(it) }
+            logLoad("videos", if (channelId != null) "InnerTube" else "yt-dlp", started, page?.items?.size)
             content.update {
                 it.copy(
                     videos = TabState(
@@ -295,11 +309,13 @@ class ChannelViewModel(
             return
         }
         viewModelScope.launch {
+            val started = TimeSource.Monotonic.markNow()
             content.update { it.copy(shorts = it.shorts.copy(loading = true, error = false)) }
             val page = when (val r = reader.innerTube.shorts(id)) {
                 is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }
                 is ChannelVideos.Failure -> null
             }
+            logLoad("shorts", "InnerTube", started, page?.items?.size)
             content.update {
                 it.copy(
                     shorts = TabState(
@@ -319,11 +335,13 @@ class ChannelViewModel(
             return
         }
         viewModelScope.launch {
+            val started = TimeSource.Monotonic.markNow()
             content.update { it.copy(playlists = it.playlists.copy(loading = true, error = false)) }
             val page = when (val r = reader.innerTube.playlists(id)) {
                 is ChannelPlaylists.Success -> r.page
                 is ChannelPlaylists.Failure -> null
             }
+            logLoad("playlists", "InnerTube", started, page?.items?.size)
             content.update {
                 it.copy(
                     playlists = TabState(
@@ -387,7 +405,9 @@ class ChannelViewModel(
         if (current.loadingMore || current.loading) return
         content.update { update(it, state(it).copy(loadingMore = true)) }
         viewModelScope.launch {
+            val started = TimeSource.Monotonic.markNow()
             val fetched = fetch(after)
+            logLoad("${content.value.tab.name.lowercase()} next page", "InnerTube", started, fetched?.items?.size)
             content.update { c ->
                 val existing = state(c)
                 val merged = if (fetched == null) {
