@@ -175,7 +175,8 @@ class _CollectingLogger:
         self._started = clock()
         self._steps = []
         self._steps_dropped = 0
-        self.player_build = None
+        self.cache_before = "?"
+        self.cache_after = "?"
 
     def _step(self, message):
         if len(self._steps) >= self.MAX_STEPS:
@@ -183,11 +184,6 @@ class _CollectingLogger:
             return
         label = message.split(": ", 1)[1] if message.startswith("[youtube] ") and ": " in message else message
         label = label.replace("Downloading ", "").replace("[youtube] ", "")
-        import re
-
-        build = re.match(r"player ([0-9a-fA-F]+)-", label)
-        if build:
-            self.player_build = build.group(1)
         self._steps.append((self._clock(), label[: self.STEP_LABEL_CHARS]))
 
     def timeline(self):
@@ -254,9 +250,10 @@ def _extract_with(url, po_token, clients, logger):
     }
     with yt_dlp.YoutubeDL(options) as ydl:
         _share_player_caches(ydl)
+        logger.cache_before = _solver_cache_files(ydl)
         info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-        if logger.player_build:
-            _prune_solver_player_cache(ydl, logger.player_build)
+        _prune_solver_player_cache(ydl)
+        logger.cache_after = _solver_cache_files(ydl)
         return info
 
 
@@ -272,7 +269,7 @@ def extract(url, po_token=None):
         except (yt_dlp.utils.DownloadError, _NothingPlayable) as first:
             route = f"clients web_embedded failed ({str(first)[:80]}), retried with every client"
             info = _extract_with(url, po_token, None, logger)
-        steps = route + "; " + _solver_cache_state() + "; " + logger.timeline()
+        steps = route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; " + logger.timeline()
         return json.dumps({"ok": True, "info": info, "notes": logger.notes(), "steps": steps})
     except yt_dlp.utils.DownloadError as e:
         # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
@@ -283,7 +280,7 @@ def extract(url, po_token=None):
             "kind": _classify(e),
             "detail": str(e),
             "notes": logger.notes(),
-            "steps": route + "; " + _solver_cache_state() + "; " + logger.timeline(),
+            "steps": route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; " + logger.timeline(),
         })
 
 
@@ -324,6 +321,7 @@ def _enable_solver_player_cache():
         return False
 
 
+_SOLVER_PLAYERS_KEPT = 3
 _SHARED_PLAYER_CODE = {}
 _SHARED_PLAYER_DATA = {}
 _PLAYER_BUILDS_KEPT = 2
@@ -344,6 +342,23 @@ def _share_player_caches(ydl):
         return False
 
 
+def _solver_cache_files(ydl):
+    try:
+        section = os.path.join(ydl.cache._get_root_dir(), "challenge-solver")
+        names = sorted(n for n in os.listdir(section) if n.startswith("player"))
+        build = re.compile(r"player,2F([0-9a-fA-F]+),2F([^,]+)")
+        held = []
+        for name in names:
+            found = build.search(name)
+            label = f"{found.group(1)}/{found.group(2)}" if found else name[:40]
+            held.append(f"{label} {os.path.getsize(os.path.join(section, name)) // 1024}KB")
+        return "[" + ", ".join(held) + "]" if held else "[none]"
+    except FileNotFoundError:
+        return "[no cache dir]"
+    except Exception as e:  # noqa: BLE001
+        return f"[unreadable: {type(e).__name__}]"
+
+
 def _solver_cache_state():
     try:
         from yt_dlp.extractor.youtube.jsc._builtin import ejs
@@ -353,27 +368,20 @@ def _solver_cache_state():
         return "solver player cache unknown"
 
 
-def _prune_solver_player_cache(extractor, keep_player_url):
-    """Keep only the current player build's preprocessed cache entry.
-
-    yt-dlp's reason for shipping the cache off is that entries are large (4.2MB measured) and never
-    rotated; YouTube ships a new player about weekly, so without this the cache dir grows by a few MB
-    a week for ever. yt-dlp sanitises the key on disk (`player:https://…` becomes
-    `player,3Ahttps,3A…`), so entries are matched by the build id in the URL, which survives as-is.
-    """
+def _prune_solver_player_cache(extractor, keep=_SOLVER_PLAYERS_KEPT):
+    """Keep the most recently written preprocessed players: YouTube serves more than one build at once."""
     try:
-        build = re.search(r"/s/player/([0-9a-fA-F]+)/", keep_player_url)
-        keep = build.group(1) if build else keep_player_url
         section = os.path.join(extractor.cache._get_root_dir(), "challenge-solver")
-        removed = 0
-        for name in os.listdir(section):
-            if name.startswith("player") and keep not in name:
-                os.remove(os.path.join(section, name))
-                removed += 1
-        return removed
+        players = sorted(
+            (os.path.join(section, name) for name in os.listdir(section) if name.startswith("player")),
+            key=os.path.getmtime,
+            reverse=True,
+        )
+        for stale in players[keep:]:
+            os.remove(stale)
+        return max(0, len(players) - keep)
     except Exception:  # noqa: BLE001 - a full cache is a nuisance, not a playback failure
         return 0
-
 
 def _n_solver():
     global _N_SOLVER
@@ -431,7 +439,7 @@ def solve_n(challenges, player_url):
         solved = {}
         for _request, response in extractor._jsc_director.bulk_solve([request]):
             solved.update(response.output.results)
-        pruned = _prune_solver_player_cache(extractor, player_url)
+        pruned = _prune_solver_player_cache(extractor)
         return json.dumps({"ok": True, "solved": solved, "pruned_players": pruned})
     except Exception as e:  # noqa: BLE001 - see docstring: never crash playback
         return json.dumps({"ok": False, "detail": "{}: {}".format(type(e).__name__, e)})

@@ -142,13 +142,6 @@ class StepTimelineTest(unittest.TestCase):
         self.assertEqual([], log.notes())
         self.assertIn("android vr player API JSON", log.timeline())
 
-    def test_the_player_build_is_noted_so_older_builds_can_be_pruned(self):
-        log = CollectingLogger(clock=FakeClock())
-        for line in HEALTHY_TRANSCRIPT:
-            log.debug(line)
-
-        self.assertEqual("c74cbcd6", log.player_build)
-
     def test_a_long_run_of_steps_is_bounded_and_says_so(self):
         log = CollectingLogger(clock=FakeClock())
         for n in range(CollectingLogger.MAX_STEPS + 5):
@@ -296,6 +289,30 @@ class SharedPlayerCacheTest(unittest.TestCase):
                 raise KeyError(key)
 
         self.assertFalse(module._share_player_caches(Broken()))
+
+
+class SolverCacheFilesTest(unittest.TestCase):
+
+    def _ydl(self, root):
+        cache = type("Cache", (), {"_get_root_dir": lambda self: root})()
+        return type("Ydl", (), {"cache": cache})()
+
+    def test_names_each_cached_player_by_build_and_variant(self):
+        import tempfile
+        module, _ = _bridge_with_stubbed_ytdlp()
+        with tempfile.TemporaryDirectory() as root:
+            section = pathlib.Path(root) / "challenge-solver"
+            section.mkdir()
+            name = "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2F1b3be681,2Fplayer_ias.vflset,2Fen_US,2Fbase.js.json"
+            (section / name).write_bytes(b"x" * 4096)
+
+            self.assertEqual("[1b3be681/player_ias.vflset 4KB]", module._solver_cache_files(self._ydl(root)))
+
+    def test_an_absent_cache_says_so(self):
+        import tempfile
+        module, _ = _bridge_with_stubbed_ytdlp()
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual("[no cache dir]", module._solver_cache_files(self._ydl(root)))
 
 
 class FailedSearchTest(unittest.TestCase):
@@ -551,31 +568,44 @@ class SolverPlayerCacheTest(unittest.TestCase):
         sys.modules.pop("yt_dlp.extractor.youtube.jsc._builtin.ejs", None)
         self.assertIn(module._enable_solver_player_cache(), (True, False))
 
-    def test_pruning_keeps_only_the_current_player(self):
+    def _section_with(self, root, builds):
+        import os
+
+        section = pathlib.Path(root) / "challenge-solver"
+        section.mkdir()
+        (section / "lib.json").write_text("{}")
+        for age, build in enumerate(builds):
+            path = section / f"player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2F{build},2Fbase.js.json"
+            path.write_text("{}")
+            os.utime(path, (1_000_000 - age * 100, 1_000_000 - age * 100))
+        return section
+
+    def _extractor(self, root):
+        cache = type("Cache", (), {"_get_root_dir": lambda self: root})()
+        return type("Extractor", (), {"cache": cache})()
+
+    def test_two_builds_in_use_at_once_are_both_kept(self):
         import tempfile
 
-        module, stub = _bridge_with_stubbed_ytdlp()
+        module, _ = _bridge_with_stubbed_ytdlp()
         with tempfile.TemporaryDirectory() as root:
-            section = pathlib.Path(root) / "challenge-solver"
-            section.mkdir()
-            # The names yt-dlp writes: the key's ':' and '/' sanitised, the build id intact.
-            (section / "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2Fold00000,2Fbase.js.json").write_text("{}")
-            (section / "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2Ff572e43c,2Fbase.js.json").write_text("{}")
-            (section / "lib.json").write_text("{}")
+            section = self._section_with(root, ["1b3be681", "1f293754"])
 
-            class FakeCache:
-                def _get_root_dir(self):
-                    return root
+            self.assertEqual(0, module._prune_solver_player_cache(self._extractor(root)))
+            self.assertEqual(3, len(list(section.iterdir())))
 
-            class FakeExtractor:
-                cache = FakeCache()
+    def test_only_the_oldest_players_beyond_three_are_dropped(self):
+        import tempfile
 
-            current = "https://www.youtube.com/s/player/f572e43c/player_ias.vflset/en_US/base.js"
-            self.assertEqual(1, module._prune_solver_player_cache(FakeExtractor(), current))
-            self.assertEqual(
-                {"lib.json", "player,3Ahttps,3A,2F,2Fwww.youtube.com,2Fs,2Fplayer,2Ff572e43c,2Fbase.js.json"},
-                {p.name for p in section.iterdir()},
-            )
+        module, _ = _bridge_with_stubbed_ytdlp()
+        with tempfile.TemporaryDirectory() as root:
+            section = self._section_with(root, ["newest", "second", "third", "oldest"])
+
+            self.assertEqual(1, module._prune_solver_player_cache(self._extractor(root)))
+            names = {p.name for p in section.iterdir()}
+            self.assertIn("lib.json", names)
+            self.assertFalse(any("oldest" in n for n in names), names)
+            self.assertTrue(all(any(b in n for n in names) for b in ("newest", "second", "third")), names)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
