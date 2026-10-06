@@ -13,6 +13,7 @@ import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
+import com.dewijones92.totum.ytdlp.bridge.AUTO_CAPTION_LANGUAGES
 import com.dewijones92.totum.ytdlp.bridge.parseChannel
 import com.dewijones92.totum.ytdlp.bridge.parseDownloadCompletion
 import com.dewijones92.totum.ytdlp.bridge.parseExtraction
@@ -70,6 +71,10 @@ public class ChaquopyYtDlpEngine(
         val path = QuickJsBinary.executablePath(appContext)
         bridge.callAttr("configure_js_runtime", path)
         Diag.log("engine", "JS runtime: ${path ?: "none bundled for this ABI — formats will be missing"}")
+        Diag.log(
+            "engine",
+            bridge.callAttr("configure_caption_languages", AUTO_CAPTION_LANGUAGES.toTypedArray()).toString(),
+        )
         if (useV8) {
             Diag.log("engine", bridge.callAttr("configure_v8_solver", v8.runtime).toString())
         } else {

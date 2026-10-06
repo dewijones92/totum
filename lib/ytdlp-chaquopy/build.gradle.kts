@@ -28,6 +28,7 @@ chaquopy {
             // returns a single 360p format for videos YouTube serves at 1080p. Shipping
             // QuickJS alone achieved nothing until this was added.
             install("yt-dlp-ejs")
+            install("requests")
         }
     }
 }

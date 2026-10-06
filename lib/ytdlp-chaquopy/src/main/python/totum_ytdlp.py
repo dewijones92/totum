@@ -177,6 +177,7 @@ class _CollectingLogger:
         self._steps_dropped = 0
         self.cache_before = "?"
         self.cache_after = "?"
+        self.captions = "auto captions ?"
 
     def _step(self, message):
         if len(self._steps) >= self.MAX_STEPS:
@@ -250,11 +251,17 @@ def _extract_with(url, po_token, clients, logger):
     }
     with yt_dlp.YoutubeDL(options) as ydl:
         _share_player_caches(ydl)
-        logger.cache_before = _solver_cache_files(ydl)
-        info = ydl.sanitize_info(ydl.extract_info(url, download=False))
-        _prune_solver_player_cache(ydl)
-        logger.cache_after = _solver_cache_files(ydl)
-        return info
+        lent = _lend_network(ydl)
+        try:
+            logger.cache_before = _solver_cache_files(ydl)
+            info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+            _prune_solver_player_cache(ydl)
+            logger.cache_after = _solver_cache_files(ydl)
+            logger.captions = f"auto captions {len(info.get('automatic_captions') or {})} languages"
+            return info
+        finally:
+            if lent:
+                _return_network(ydl)
 
 
 def extract(url, po_token=None):
@@ -269,7 +276,8 @@ def extract(url, po_token=None):
         except (yt_dlp.utils.DownloadError, _NothingPlayable) as first:
             route = f"clients web_embedded failed ({str(first)[:80]}), retried with every client"
             info = _extract_with(url, po_token, None, logger)
-        steps = route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; " + logger.timeline()
+        steps = (route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; "
+                 + _network_state() + "; " + logger.captions + "; " + logger.timeline())
         return json.dumps({"ok": True, "info": info, "notes": logger.notes(), "steps": steps})
     except yt_dlp.utils.DownloadError as e:
         # Notes on the failure path too. `detail` says what yt-dlp gave up with; the notes say what
@@ -280,8 +288,98 @@ def extract(url, po_token=None):
             "kind": _classify(e),
             "detail": str(e),
             "notes": logger.notes(),
-            "steps": route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; " + logger.timeline(),
+            "steps": (route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; "
+                      + _network_state() + "; " + logger.captions + "; " + logger.timeline()),
         })
+
+
+_CAPTION_LANGUAGES = frozenset()
+_CAPTIONS_LIMITED = False
+
+
+def configure_caption_languages(languages):
+    global _CAPTION_LANGUAGES
+    _CAPTION_LANGUAGES = frozenset(str(language) for language in languages)
+    return _limit_caption_translations()
+
+
+def _prune_translation_languages(player_responses, wanted):
+    dropped = 0
+    for response in player_responses or []:
+        renderer = ((response or {}).get("captions") or {}).get("playerCaptionsTracklistRenderer")
+        if not isinstance(renderer, dict) or not isinstance(renderer.get("translationLanguages"), list):
+            continue
+        spoken = {track.get("languageCode") for track in renderer.get("captionTracks") or [] if isinstance(track, dict)}
+        kept = [
+            language for language in renderer["translationLanguages"]
+            if isinstance(language, dict) and (
+                str(language.get("languageCode", "")).split("-")[0] in wanted
+                or language.get("languageCode") in spoken)
+        ]
+        dropped += len(renderer["translationLanguages"]) - len(kept)
+        renderer["translationLanguages"] = kept
+    return dropped
+
+
+def _limited(extract_player_responses):
+    def limited_translations(self, *args, **kwargs):
+        result = extract_player_responses(self, *args, **kwargs)
+        if _CAPTION_LANGUAGES:
+            try:
+                _prune_translation_languages(result[0], _CAPTION_LANGUAGES)
+            except Exception:  # noqa: BLE001
+                pass
+        return result
+
+    return limited_translations
+
+
+def _limit_caption_translations():
+    global _CAPTIONS_LIMITED
+    if _CAPTIONS_LIMITED:
+        return f"caption translations limited to {sorted(_CAPTION_LANGUAGES)}"
+    try:
+        from yt_dlp.extractor.youtube._video import YoutubeIE
+
+        YoutubeIE._extract_player_responses = _limited(YoutubeIE._extract_player_responses)
+        _CAPTIONS_LIMITED = True
+        return f"caption translations limited to {sorted(_CAPTION_LANGUAGES)}"
+    except Exception as e:  # noqa: BLE001
+        return f"caption translations not limited: {type(e).__name__}: {e}"
+
+
+_NETWORK = None
+
+
+def _shared_network():
+    global _NETWORK
+    if _NETWORK is None:
+        _NETWORK = yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True})
+    return _NETWORK
+
+
+def _lend_network(ydl):
+    try:
+        network = _shared_network()
+        ydl.__dict__["cookiejar"] = network.cookiejar
+        ydl.__dict__["_request_director"] = network._request_director
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _return_network(ydl):
+    ydl.__dict__.pop("_request_director", None)
+
+
+def _network_state():
+    try:
+        if _NETWORK is None or "_request_director" not in _NETWORK.__dict__:
+            return "http not shared yet"
+        handlers = ",".join(h.RH_KEY for h in _NETWORK._request_director.handlers.values())
+        return f"http shared [{handlers}]"
+    except Exception as e:  # noqa: BLE001
+        return f"http unknown ({type(e).__name__})"
 
 
 def warm_up():
@@ -291,7 +389,9 @@ def warm_up():
     _enable_solver_player_cache()
     with yt_dlp.YoutubeDL({"quiet": True, "logger": _CollectingLogger(), "js_runtimes": _js_runtimes()}) as ydl:
         _share_player_caches(ydl)
+        _shared_network()._request_director
         ready = f"yt-dlp {yt_dlp.version.__version__} ready in {round((time.monotonic() - started) * 1000)}ms"
+        ready += f", {_network_state()}"
         return f"{ready}; {_preload_v8(ydl)}"
 
 
