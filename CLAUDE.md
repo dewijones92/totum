@@ -138,6 +138,37 @@ On-device testing matters: the podcast RSS bug (Android's Expat parser rejecting
 `DocumentBuilder` bean-property toggles) passed every JVM test and only surfaced
 when driven on the emulator. Verify real flows on a device, not just via tests.
 
+### Before shipping a playback or extraction change: soak it against the build before
+
+Dewi, 2026-10-07: *"are you testing thoroughly enough on the emulator before u ship? maybe not?"* — no.
+Two regressions reached his phone that day (every lookup stuck at 360p; playback frozen after a long
+pause) because each change was checked with one or two taps that proved its mechanism fired, never a
+session, never the build before it for comparison, and never on an emulator set up like his phone.
+
+So any change to extraction, resolving, playback, the queue or downloads ships only after:
+
+1. **Build the previous build too**, without touching the working copy:
+   `git archive <ref> | tar -x -C <scratch>/baseline && cp local.properties <scratch>/baseline/ && (cd
+   <scratch>/baseline && ./gradlew -q :app:assembleDebug)`. Both are debug-signed, so `adb install -r`
+   swaps them and keeps the sign-in.
+2. **Soak both** on `totum-api35`: `ANDROID_SERIAL=emulator-5554 tools/emulator/soak.py run --label <x>
+   --out <scratch>/soak/<x>.json --start-budget-ms 12000` (three passes by default, ~15 minutes). It plays
+   the videos from past reports as shared
+   links (the worst case for the fresh-URL window), clears saved lookups first so the runs are comparable,
+   and records from the app's own `dewidebug` lines: time to sound, quality, video decoded, 403s, fatal
+   403s, stalls, underruns, the 360p/TV fallback, and falling back to the disk.
+3. **`tools/emulator/soak.py compare before.json after.json`** — failing on more passes, a median start
+   1.5× + 2 s slower, or a lower quality is a regression and blocks the push. Put the table in the commit
+   message. One pass is NOT enough: the same video by the same route started in 0.8 s and 2.6 s on two runs,
+   and stalls and underruns come and go on the emulator in both builds. The first soak (one pass each) called
+   six regressions, four of them noise; it also caught a real one, an all-clients retry firing on 6 of 10
+   videos that already had 1080p.
+
+Keep the emulator honest: its header line lists the app's other running services, and Exsurge's banner
+service masks foreground-service bugs (it hid ADR 14's freeze for a week). YouTube's experiments vary by
+visitor and by day, so a soak cannot prove the phone will behave; it catches what a session on the same
+network would. One tap proves a mechanism; it never proves the app.
+
 ### A schema change with no version bump makes the app un-openable — and it looks like nothing
 
 Room **does** throw on an identity-hash mismatch (`IllegalStateException: Room cannot verify the

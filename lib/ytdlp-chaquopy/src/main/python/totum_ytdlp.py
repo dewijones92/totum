@@ -227,8 +227,20 @@ class _NothingPlayable(Exception):
     pass
 
 
-def _sabr_degraded(logger):
-    return any("formats have been skipped as they are missing a URL" in m for m in logger.messages)
+_DEGRADED_HEIGHT = 360
+
+
+def _best_height(info):
+    return max(
+        (f.get("height") or 0 for f in (info or {}).get("formats") or []
+         if f.get("url") and f.get("vcodec") not in (None, "none")),
+        default=0,
+    )
+
+
+def _sabr_degraded(logger, info):
+    warned = any("formats have been skipped as they are missing a URL" in m for m in logger.messages)
+    return warned and _best_height(info) <= _DEGRADED_HEIGHT
 
 
 def _playable(info):
@@ -278,8 +290,9 @@ def extract(url, po_token=None):
             info = _extract_with(url, po_token, FAST_PLAYER_CLIENTS, logger)
             if not _playable(info):
                 raise _NothingPlayable("no format with a URL")
-            if _sabr_degraded(logger):
-                raise _NothingPlayable("its https formats were withheld (SABR-only), leaving a degraded ladder")
+            if _sabr_degraded(logger, info):
+                raise _NothingPlayable(
+                    f"its https formats were withheld (SABR-only), leaving nothing above {_best_height(info)}p")
         except (yt_dlp.utils.DownloadError, _NothingPlayable) as first:
             route = f"clients web_embedded failed ({str(first)[:80]}), retried with every client"
             info = _extract_with(url, po_token, None, logger)

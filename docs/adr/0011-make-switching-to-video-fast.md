@@ -40,7 +40,9 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
    "6 qualities (6 durable)". `android` stays in the fallback because made-for-kids content once played
    through it alone (2026-07-30). The steps line says which path ran. Downloads keep the full list.
    **Amended 2026-10-07:** a web_embedded result that yt-dlp reports as SABR-degraded ("formats have
-   been skipped as they are missing a URL") also retries with every client. On 0.1.575 all five
+   been skipped as they are missing a URL") AND whose best video is 360p or less also retries with every
+   client. The warning alone is not enough: the soak found it on 6 of 10 videos that still had 1080p, and
+   retrying those cost a second extraction each. On 0.1.575 all five
    extractions in one session came back as a single 360p stream that way, and the app's "ask YouTube
    directly" fallback then served TV URLs that 403'd.
 7. **The engine is warmed 10 s after launch** (Dewi chose it: ~80 MB more memory for a session's first
