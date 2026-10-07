@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Backlog
@@ -12,7 +12,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [A premium ("triple-A") look and better recommendations](premium-ui-and-recommendations.md) | ui | — | to discuss with Dewi: what "triple A" means, which screens, what recommendations draw on |
-| [Cut more sponsor segments with SponsorBlock](more-sponsorblock-cuts.md) | playback/downloads | medium | proposed 2026-10-06: re-ask after download, skipping on downloaded copies, categories, coverage — to investigate |
+| [Cut more sponsor segments with SponsorBlock](more-sponsorblock-cuts.md) | playback/downloads | medium | agreed 2026-10-07: stop cutting at download; skip live from the latest list, cached for offline; old cut files undecided |
 | [Switching audio to video and opening a channel feel slow](slow-switch-and-channel.md) | playback/channel | high | phone: audio copy → video 16.7 s, 85% extraction; fixes shipped (ADRs 11, 12): solver cache, expiry-aware resolve cache kept across restarts, look-ahead, V8 solver, shared HTTP pool, caption translations limited, account calls off the critical path; to measure on the phone |
 | [The "ask YouTube directly" fallback serves TV URLs that 403](tv-direct-ask-urls-403.md) | playback | medium | 0.1.575: 15 of 19 TV direct-ask ladders 403'd for good; cause untested (n solved against the web player?) |
 | [Queue items seem to finish a few seconds early](queue-items-feel-early.md) | playback | medium | instrumented 2026-10-06 (`item-end` lines, vital `playback.lastEnds`); leading cause on the emulator: skip-silence cuts a trailing silence and the clock jumps ~5 s; awaiting Dewi's call |
@@ -23,6 +23,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [playback-service-foreground-start-refused](playback-service-foreground-start-refused.md) | playback | high | fixed 2026-10-01: Media3's late notification callback is wrapped, so a refused foreground start is logged rather than crashing (also the cause of a missed autoplay) |
 | [stall-rescue-overrides-a-pause](stall-rescue-overrides-a-pause.md) | playback | medium | fixed 2026-10-02 (the 2026-10-01 fix was ineffective on real Media3): a pause during a rescue now holds |
 | [exsurge-et-disce](exsurge-et-disce.md) | side-quest | medium | built 2026-10-01 → [features/exsurge-et-disce.md](../features/exsurge-et-disce.md); awaiting a real day on the phone |
+| [exsurge-back-goes-to-totum](exsurge-back-goes-to-totum.md) | side-quest | low | agreed 2026-10-07: Back opens the player if an item is loaded, else Totum |
+| [exsurge-go-scrolls-to-current-lesson](exsurge-go-scrolls-to-current-lesson.md) | side-quest | medium | PARKED 2026-10-07 (another agent is in Loquax): GO opens Loquax scrolled to the current lesson, highlighted |
+| [exsurge-continue-video-test-fails-on-emulator](exsurge-continue-video-test-fails-on-emulator.md) | testing | low | open 2026-10-07: times out waiting for the video fixture to play; pre-existing (fails on the build before too) |
 | [exsurge-ideas](exsurge-ideas.md) | side-quest | low | proposed: 24 ideas waiting on keep / cut / later |
 | [youtube-requires-attestation](youtube-requires-attestation.md) | playback | high | the ~1MB cap was the ANDROID/WEB endpoint, not attestation: SABR now resolves from the embedded player and streamed 4.2MB+ on device with no token (shipped 2026-09-07); the signed-in TV client is no longer refused (timestamp scale). Still open: quality tiers above what the embedded response offers, and seeking. Ordinary streaming WORKS via the yt-dlp fallback routes — the earlier "nothing un-downloaded streams" here was stale (corrected 2026-09-06; 1080p streamed on the emulator that morning) |
 | [sabr-serves-nothing-for-some-videos](sabr-serves-nothing-for-some-videos.md) | playback | — | **closed 2026-09-25**: not a separate failure; the ANDROID endpoint's ~60 s wall seen from the fresh stream recovery opens after it (identical 195,548 B signature); see po-token-minting |
