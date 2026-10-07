@@ -62,12 +62,14 @@ import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShowWhenAskedButton
 import com.dewijones92.totum.ui.common.SortControl
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.rememberFeedGate
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.notifications.NotificationsScreen
@@ -92,10 +94,14 @@ fun VideosScreen(
     // At screen level, so it reports even when the feed is empty — the inner tracker sits
     // inside the non-empty-feed composable and stays silent in exactly the case most likely
     // to be the bug (a restored scroll index applied to a list that has not arrived yet).
-    TrackPlace("videos-screen") { "${nav.describe()} videos=${state.videos.size} signedIn=${state.signedIn}" }
+    val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
+    val feedGate = rememberFeedGate("videos", settings.feedHiddenUntilAsked)
+    val feedHidden = feedGate.hidden(settings.feedHiddenUntilAsked)
+    TrackPlace("videos-screen") {
+        "${nav.describe()} videos=${state.videos.size} signedIn=${state.signedIn} feedHidden=$feedHidden"
+    }
     val actions = rememberMediaItemActions(container)
     val switchMode = rememberModeSwitch(actions)
-    val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
 
     // The feed's own state — where it is scrolled, above all — is kept while an overlay is
     // up. An overlay REPLACES the feed rather than covering it, so without this the feed is
@@ -143,6 +149,8 @@ fun VideosScreen(
                 onRefresh = viewModel::refresh,
                 onSetSort = viewModel::setSort,
                 onLoadMore = viewModel::loadMore,
+                feedHidden = feedHidden,
+                onShowFeed = feedGate::show,
                 modifier = modifier,
             )
         }
@@ -233,6 +241,8 @@ internal fun VideosContent(
     filter: MediaFilter,
     onSetFilter: (MediaFilter) -> Unit,
     modifier: Modifier = Modifier,
+    feedHidden: Boolean = false,
+    onShowFeed: () -> Unit = {},
 ) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -266,6 +276,8 @@ internal fun VideosContent(
                     onLoadMore = onLoadMore,
                     filter = filter,
                     onSetFilter = onSetFilter,
+                    feedHidden = feedHidden,
+                    onShowFeed = onShowFeed,
                 )
             }
         }
@@ -358,6 +370,8 @@ private fun ChannelsAndVideos(
     filter: MediaFilter,
     onSetFilter: (MediaFilter) -> Unit,
     modifier: Modifier = Modifier,
+    feedHidden: Boolean = false,
+    onShowFeed: () -> Unit = {},
 ) {
     val playStates = LocalPlayStates.current
     val listState = rememberLazyListState()
@@ -370,7 +384,13 @@ private fun ChannelsAndVideos(
     // can add nothing visible, and paging on the raw count never notices.
     val unwatchedFiltered = state.videos.filteredBy(filter) { playStates[it] ?: PlayState.Unplayed }
     val shown = listFilter.filter(unwatchedFiltered, { it.searchableText }, pausesPaging = state.canLoadMore)
-    LoadMoreUnlessFiltered(listFilter, listState, state.canLoadMore && !state.loadingMore, shown.size, onLoadMore)
+    LoadMoreUnlessFiltered(
+        listFilter,
+        listState,
+        state.canLoadMore && !state.loadingMore && !feedHidden,
+        shown.size,
+        onLoadMore,
+    )
     SelectableMediaList(
         "videos",
         state.videos,
@@ -381,47 +401,65 @@ private fun ChannelsAndVideos(
     ) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             videosHeader(state, newUploadsCount, onOpenNotifications, onSetSort) {
-                FilterToggle(listFilter, unwatchedFiltered.size)
+                if (!feedHidden) FilterToggle(listFilter, unwatchedFiltered.size)
             }
-            feedHeader(state, onChannelClick) { FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) }
-            when {
-                // Skeletons only when there is genuinely NOTHING to show. Cached items arrive
-                // while `feedLoading` is still true — that is the whole point of them — and this
-                // branch was hiding them behind placeholders: the log said 45 items and the screen
-                // said loading, which is exactly what a screenshot caught on 2026-07-31. The
-                // global BusyBar and pull-to-refresh still say work is in flight.
-                state.feedLoading && state.videos.isEmpty() -> item { FeedLoading() }
-                state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
-                state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
-                else -> {
-                    playStateFilter(filter, onSetFilter)
-                    filterField(listFilter, shown.size, unwatchedFiltered.size, hosted = true) {
-                        FeedMessage(stringResource(R.string.filter_hides_everything))
-                    }
-                    items(shown, key = { it.id.value }) { video ->
-                        MediaItemRow(
-                            item = video,
-                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
-                            downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                            pillar = MediaKind.VIDEO,
-                            onPlay = { onPlay(video) },
-                            onDownload = { onDownload(video) },
-                            onDeleteDownload = { onDeleteDownload(video) },
-                            onPlayNext = { actions.playNext(video) },
-                            onAddToQueue = { actions.addToQueue(video) },
-                            onAddToPlaylist = { actions.addToPlaylist(video) },
-                            onPeek = { actions.peek(video) },
-                            onDownloadVideo = { onDownload(video) },
-                            onSwitchMode = { onSwitchMode(video) },
-                            audioMode = actions.audioMode,
-                            onGoToSource = { onGoToChannel(video) },
-                        )
-                    }
-                    if (state.loadingMore) item { LoadingMoreFooter() }
+            feedHeader(state, onChannelClick, showChannels = !feedHidden) {
+                FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts)
+            }
+            if (!feedStandIn(state, feedHidden, onShowFeed)) {
+                playStateFilter(filter, onSetFilter)
+                filterField(listFilter, shown.size, unwatchedFiltered.size, hosted = true) {
+                    FeedMessage(stringResource(R.string.filter_hides_everything))
                 }
+                items(shown, key = { it.id.value }) { video ->
+                    MediaItemRow(
+                        item = video,
+                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                        downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                        pillar = MediaKind.VIDEO,
+                        onPlay = { onPlay(video) },
+                        onDownload = { onDownload(video) },
+                        onDeleteDownload = { onDeleteDownload(video) },
+                        onPlayNext = { actions.playNext(video) },
+                        onAddToQueue = { actions.addToQueue(video) },
+                        onAddToPlaylist = { actions.addToPlaylist(video) },
+                        onPeek = { actions.peek(video) },
+                        onDownloadVideo = { onDownload(video) },
+                        onSwitchMode = { onSwitchMode(video) },
+                        audioMode = actions.audioMode,
+                        onGoToSource = { onGoToChannel(video) },
+                    )
+                }
+                if (state.loadingMore) item { LoadingMoreFooter() }
             }
         }
     }
+}
+
+private fun LazyListScope.feedStandIn(
+    state: VideosViewModel.UiState,
+    feedHidden: Boolean,
+    onShowFeed: () -> Unit,
+): Boolean {
+    when {
+        feedHidden -> item {
+            ShowWhenAskedButton(
+                label = stringResource(R.string.feed_show),
+                note = stringResource(R.string.feed_hidden_note),
+                onShow = onShowFeed,
+            )
+        }
+        // Skeletons only when there is genuinely NOTHING to show. Cached items arrive
+        // while `feedLoading` is still true — that is the whole point of them — and this
+        // branch was hiding them behind placeholders: the log said 45 items and the screen
+        // said loading, which is exactly what a screenshot caught on 2026-07-31. The
+        // global BusyBar and pull-to-refresh still say work is in flight.
+        state.feedLoading && state.videos.isEmpty() -> item { FeedLoading() }
+        state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
+        state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
+        else -> return false
+    }
+    return true
 }
 
 @Composable

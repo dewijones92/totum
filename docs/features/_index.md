@@ -22,6 +22,7 @@ alone until they need more.
 | Multi-select on every list (long-press; bulk queue, playlist, download, played, delete, unsubscribe) | ui | shipped | [multi-select.md](multi-select.md) |
 | A show's name AND its publisher, on every surface | podcasts | shipped | [show-and-publisher.md](show-and-publisher.md) |
 | Videos: signed-in feeds (Home/Subscriptions/Watch Later/History) | video | shipped | — |
+| Videos hidden until asked (dopamine fast): a Show videos button, hidden again on leaving the tab; setting on by default | video | shipped | [ADR 19](../adr/0019-videos-hidden-until-asked.md) |
 | YouTube TV device-code OAuth | auth | shipped | — |
 | Unified search (iTunes + InnerTube search, yt-dlp fallback → `SearchHit`) | search | shipped | — |
 | Search history (recent queries, idle-state chips) | search | shipped | [search-history.md](search-history.md) |

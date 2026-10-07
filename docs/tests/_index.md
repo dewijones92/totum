@@ -30,6 +30,7 @@ instead).
 | A seek made before the first account resume overrides the cached account figure, while newer remote progress still works | JVM + instrumented | `:app` `ASeekOverridesTheCachedAccountTest`, `AccountResumeSurvivesTheProcessTest` |
 | A shared placeholder is repaired after connectivity returns, without queue edits, including Library-only copies and cancellation | JVM | `:app` `SharedMetadataRepairTest` |
 | Learned download metadata survives older writes and never recreates a deleted record | instrumented | `:core:database` `RoomDownloadStoreTest` |
+| The Videos feed is hidden behind Show videos, shown on press, hidden again after another tab, and shown straight away with the setting off | instrumented | `:app` `VideosHiddenUntilAskedTest` |
 | Rotation enters fullscreen from the player and mini player, portrait leaves it, explicit exit holds and audio stays in the shell | instrumented | `:app` `FullscreenSurvivesTheNextVideoTest`, `RotationOpensTheVideoFromTheShellTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |

@@ -29,9 +29,10 @@ import com.dewijones92.totum.ui.common.SourceAvatarStrip
 internal fun LazyListScope.feedHeader(
     state: VideosViewModel.UiState,
     onChannelClick: (MediaSource.VideoChannel) -> Unit,
+    showChannels: Boolean = true,
     selector: @Composable () -> Unit,
 ) {
-    if (state.subscriptions.isNotEmpty()) {
+    if (showChannels && state.subscriptions.isNotEmpty()) {
         item {
             SourceAvatarStrip(
                 state.subscriptions,

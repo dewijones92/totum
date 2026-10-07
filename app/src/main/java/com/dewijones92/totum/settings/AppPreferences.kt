@@ -78,6 +78,7 @@ interface AppPreferences {
     /** Which SponsorBlock categories are skipped, in playback and in downloads alike. */
     fun setSkipCategories(categories: Set<SkipCategory>)
     fun setSilenceMode(mode: SilenceMode)
+    fun setFeedHiddenUntilAsked(hidden: Boolean)
 
     data class Settings(
         val wifiMaxHeight: Int = DEFAULT_WIFI_MAX_HEIGHT,
@@ -136,6 +137,7 @@ interface AppPreferences {
         /** SponsorBlock categories to skip; see SponsorBlockSegmentSource.DEFAULT_CATEGORIES. */
         val skipCategories: Set<SkipCategory> = SponsorBlockSegmentSource.DEFAULT_CATEGORIES,
         val silenceMode: SilenceMode = SilenceMode.DEFAULT,
+        val feedHiddenUntilAsked: Boolean = true,
     )
 
     companion object {
@@ -182,6 +184,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
                 ?.mapNotNullTo(mutableSetOf()) { SkipCategory.fromId(it) }
                 ?: SponsorBlockSegmentSource.DEFAULT_CATEGORIES,
             silenceMode = SilenceMode.fromStoredName(prefs.getString(KEY_SILENCE_MODE, null)),
+            feedHiddenUntilAsked = prefs.getBoolean(KEY_FEED_HIDDEN, true),
         ),
     )
     override val settings: StateFlow<AppPreferences.Settings> = _settings.asStateFlow()
@@ -249,6 +252,11 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
     override fun setSilenceMode(mode: SilenceMode): Unit =
         change("silenceMode", mode, { putString(KEY_SILENCE_MODE, mode.name) }) { it.copy(silenceMode = mode) }
 
+    override fun setFeedHiddenUntilAsked(hidden: Boolean): Unit =
+        change("feedHiddenUntilAsked", hidden, { putBoolean(KEY_FEED_HIDDEN, hidden) }) {
+            it.copy(feedHiddenUntilAsked = hidden)
+        }
+
     /**
      * One path for every setting: persist, publish, and record it. A settings change is
      * often the answer to "it started behaving differently" — a report that lists the
@@ -279,6 +287,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_MEDIA_FILTER = "media_filter"
         const val KEY_SKIP_CATEGORIES = "skip_categories"
         const val KEY_SILENCE_MODE = "silence_mode"
+        const val KEY_FEED_HIDDEN = "feed_hidden_until_asked"
     }
 }
 
@@ -305,4 +314,7 @@ class InMemoryAppPreferences : AppPreferences {
     override fun setMediaFilter(filter: MediaFilter) = _settings.update { it.copy(mediaFilter = filter) }
 
     override fun setSilenceMode(mode: SilenceMode) = _settings.update { it.copy(silenceMode = mode) }
+
+    override fun setFeedHiddenUntilAsked(hidden: Boolean) =
+        _settings.update { it.copy(feedHiddenUntilAsked = hidden) }
 }

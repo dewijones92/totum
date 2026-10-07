@@ -97,6 +97,13 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             BackHeader(stringResource(R.string.settings), onBack)
             QualitySection(settings, prefs)
+            SectionTitle(stringResource(R.string.settings_feed_section))
+            SwitchRow(
+                label = stringResource(R.string.settings_feed_hidden),
+                summary = stringResource(R.string.settings_feed_hidden_summary),
+                checked = settings.feedHiddenUntilAsked,
+                onCheckedChange = prefs::setFeedHiddenUntilAsked,
+            )
             SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
             DownloadSettings(settings, prefs)
             NavRow(label = stringResource(R.string.exsurge_settings_row), onClick = { showExsurge = true })

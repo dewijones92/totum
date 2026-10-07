@@ -24,6 +24,7 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                 KEY_SKIP to skipCategories.joinToString(",") { it.id },
                 KEY_WIFI_MAX to wifiMaxHeight.toString(),
                 KEY_CELLULAR_MAX to cellularMaxHeight.toString(),
+                KEY_FEED_HIDDEN to feedHiddenUntilAsked.toString(),
             )
         }
 
@@ -39,6 +40,7 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
             }
             values[KEY_WIFI_MAX]?.toIntOrNull()?.let(::setWifiMaxHeight)
             values[KEY_CELLULAR_MAX]?.toIntOrNull()?.let(::setCellularMaxHeight)
+            values[KEY_FEED_HIDDEN]?.toBooleanStrictOrNull()?.let(::setFeedHiddenUntilAsked)
         }
     }
 
@@ -49,3 +51,4 @@ private const val KEY_PLAYBACK_MODE = "playbackMode"
 private const val KEY_SKIP = "skipCategories"
 private const val KEY_WIFI_MAX = "wifiMaxHeight"
 private const val KEY_CELLULAR_MAX = "cellularMaxHeight"
+private const val KEY_FEED_HIDDEN = "feedHiddenUntilAsked"

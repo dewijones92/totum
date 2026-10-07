@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Architecture decision records
@@ -34,3 +34,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 16 | [Downloads keep their sponsor segments; playback skips them live from the latest list](0016-downloads-keep-sponsor-segments.md) | Accepted |
 | 17 | [A reminder kit shared by the side quests](0017-reminder-kit-shared-by-side-quests.md) | Accepted |
 | 18 | [Daily alarms — asked each morning, rung by Totum itself](0018-daily-alarms.md) | Accepted |
+| 19 | [The Videos feed is hidden until asked, and hides again when you leave the tab](0019-videos-hidden-until-asked.md) | Accepted |

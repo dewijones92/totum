@@ -89,6 +89,7 @@ internal class DiagnosticSnapshot(
             // is present, which is the question a torrent report actually asks.
             put("settings.sabrPlayback", settings.sabrPlayback.toString())
             put("settings.mediaFilter", settings.mediaFilter.name)
+            put("settings.feedHiddenUntilAsked", settings.feedHiddenUntilAsked.toString())
             put("settings.skipCategories", settings.skipCategories.joinToString(",") { it.id })
             put(
                 "settings.homeServer",
