@@ -17,7 +17,7 @@ public fun interface HttpTextFetcher {
 
 public sealed interface FetchResult {
     public data class Success(val body: String) : FetchResult
-    public data class Failure(val detail: String) : FetchResult
+    public data class Failure(val detail: String, val httpStatus: Int? = null) : FetchResult
 }
 
 /** OkHttp-backed [HttpTextFetcher]. */
@@ -31,7 +31,7 @@ public class OkHttpTextFetcher(private val client: OkHttpClient) : HttpTextFetch
                 if (response.isSuccessful) {
                     FetchResult.Success(body)
                 } else {
-                    FetchResult.Failure("HTTP ${response.code}")
+                    FetchResult.Failure("HTTP ${response.code}", httpStatus = response.code)
                 }
             }
         } catch (e: IOException) {

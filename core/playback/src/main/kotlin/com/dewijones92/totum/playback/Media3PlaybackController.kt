@@ -468,6 +468,22 @@ public class Media3PlaybackController(
             .build()
     }
 
+    override fun updateSkipSegments(itemId: MediaItemId, segments: List<SkipSegment>) {
+        withController {
+            val playing = _state.value?.itemId
+            if (playing != itemId) {
+                Diag.log(
+                    "sponsorblock",
+                    "${itemId.value}: newer segments arrived after it stopped playing (now ${playing?.value}); ignored",
+                )
+                return@withController
+            }
+            activeSkipSegments = segments
+            Diag.log("sponsorblock", "${itemId.value}: segments updated while playing, ${segments.size} to skip")
+            _state.value = it.currentPlaybackState()
+        }
+    }
+
     override fun setSkipSilence(enabled: Boolean) {
         skipSilence = enabled
         withController {

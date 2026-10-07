@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.domain.fillingSilenceFrom
@@ -50,6 +51,19 @@ class DefaultDownloadManagerTest {
 
     private fun manager(strategy: DownloadStrategy, scope: kotlinx.coroutines.CoroutineScope) =
         DefaultDownloadManager(tempFolder.root, store, strategy, scope)
+
+    @Test
+    fun `a finished download is handed on so its segments can be stored straight away`() = runTest {
+        val finished = mutableListOf<PlayableItem>()
+        val strategy = DownloadStrategy { _, target, _ -> flowOf(DownloadState.Downloaded(target.absolutePath)) }
+        val manager = DefaultDownloadManager(tempFolder.root, store, strategy, backgroundScope) { finished += it }
+
+        manager.download(item)
+        store.observeAll().map { it[item.id] }.first { it is DownloadState.Downloaded }
+        advanceUntilIdle()
+
+        assertEquals(listOf(item.id), finished.map { it.item.id })
+    }
 
     @Test
     fun `download records progress then completion`() = runTest {
@@ -222,7 +236,13 @@ internal class InMemoryDownloadStore : DownloadStore {
     override fun observeDownloaded(): Flow<List<DownloadedMedia>> = states.map { rows ->
         rows.values.mapNotNull { row ->
             (row.state as? DownloadState.Downloaded)?.let {
-                DownloadedMedia(row.item, it.localPath, it.audioOnly)
+                DownloadedMedia(
+                    row.item,
+                    it.localPath,
+                    it.audioOnly,
+                    it.sponsorSegmentsCut,
+                    segments.value[row.item.item.id].orEmpty(),
+                )
             }
         }
     }
@@ -240,6 +260,11 @@ internal class InMemoryDownloadStore : DownloadStore {
         states.value[id]?.state ?: DownloadState.NotDownloaded
 
     override suspend fun remove(id: MediaItemId) { states.update { it - id } }
+
+    private val segments = MutableStateFlow<Map<MediaItemId, List<SkipSegment>>>(emptyMap())
+
+    override suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>) =
+        this.segments.update { it + (id to segments) }
 }
 
 /**

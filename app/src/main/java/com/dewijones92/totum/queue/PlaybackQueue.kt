@@ -16,6 +16,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.Refusal
+import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.routeNow
@@ -107,6 +108,7 @@ class PlaybackQueue(
      * so "get this ready" means one thing in the app rather than two that could drift apart.
      */
     private val refresh: suspend (PlayableItem) -> Unit = {},
+    private val refreshSkipsOnDisk: suspend (MediaItemId) -> List<SkipSegment>? = { null },
     /**
      * Whether playback should be audio-only right now — the resolved Listen mode.
      *
@@ -950,6 +952,10 @@ class PlaybackQueue(
         return rescueIntent.keeping(itemId, "hand over to the download") { play(item, positionMs, retry = true) }
     }
 
+    private fun refreshSkips(id: MediaItemId) {
+        scope.launch { refreshSkipsOnDisk(id)?.let { controller.updateSkipSegments(id, it) } }
+    }
+
     private fun PlayRoute.isFromDisk(): Boolean = this is PlayRoute.VideoFile || this is PlayRoute.AudioFile
 
     private data class Decision(
@@ -1006,16 +1012,19 @@ class PlaybackQueue(
         lastRoute = queued.item.id to route
         return when (route) {
             is PlayRoute.VideoFile -> {
-                launcher.playLocal(route.playable.item, route.path)
+                launcher.playLocal(route.playable.item, route.path, onDisk?.skipSegments.orEmpty())
+                refreshSkips(route.playable.item.id)
                 true
             }
             is PlayRoute.AudioFile -> {
                 controller.play(
                     route.playable.item,
                     queued.pillar,
+                    skipSegments = onDisk?.skipSegments.orEmpty(),
                     localPath = route.path,
                     startPositionMs = startPositionMs,
                 )
+                refreshSkips(route.playable.item.id)
                 if (queued.pillar == MediaKind.VIDEO) scope.launch { readyThePicture(queued) }
                 true
             }

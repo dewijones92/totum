@@ -24,7 +24,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ReconciledAccountProgressEntity::class,
         ChannelLatestEntity::class,
     ],
-    version = 24,
+    version = 25,
     exportSchema = false,
 )
 @Suppress("TooManyFunctions")
@@ -84,7 +84,16 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_21_22,
                 MIGRATION_22_23,
                 MIGRATION_23_24,
+                MIGRATION_24_25,
             )
+
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE downloads ADD COLUMN sponsorSegmentsCut INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE downloads SET sponsorSegmentsCut = 1")
+                db.execSQL("ALTER TABLE downloads ADD COLUMN skipSegments TEXT")
+            }
+        }
 
         private val MIGRATION_23_24 = object : Migration(23, 24) {
             override fun migrate(db: SupportSQLiteDatabase) {

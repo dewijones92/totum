@@ -103,6 +103,8 @@ public interface PlaybackController {
     /** Toggles skipping of near-silent stretches (trims dead air, podcast-style). */
     public fun setSkipSilence(enabled: Boolean)
 
+    public fun updateSkipSegments(itemId: MediaItemId, segments: List<SkipSegment>)
+
     /** Lifts quiet audio; remembered per source. Local playback only (not Cast). */
     public fun setVolumeBoost(boost: VolumeBoost)
 

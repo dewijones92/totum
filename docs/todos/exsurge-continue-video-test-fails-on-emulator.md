@@ -1,7 +1,7 @@
 ---
 title: continueTotumKeepsTheVideoPlayingDuringTheWalkingBreak times out on totum-api35
 kind: todo
-status: open — seen 2026-10-07, pre-existing (fails the same on the build before the Live Update change)
+status: corrected 2026-10-07 17:1x — not a consistent failure: it passed in two full Exsurge runs that afternoon (21/21 and 22/22); state-dependent, cause not established
 area: testing
 priority: low
 requested: 2026-10-07
@@ -20,3 +20,13 @@ so either the emulator state differs (it had been up 22 h, then cold-booted) or 
 
 Next: run it with the fixture's decoder logs (`format`/`video size` lines), and on a freshly wiped AVD,
 before calling it environment. Related memory: position-based playback tests measure the decoder.
+
+## Correction (later the same day)
+
+The title overstated it. After the emulator was cold-booted and other runs had finished, the same test
+passed in two full Exsurge runs (21 of 21, then 22 of 22, 17:0x–17:1x). The five failures came on an
+emulator that had been up 22 hours and then had manual Exsurge runs and a banner service left running.
+So: state-dependent, not broken. In the same session `pausedAndOutOfHoursKeepAQuietOngoingBanner` failed
+once ("notification 7301 was never posted") and then passed alone, as a class and in the full run, which
+points the same way: a banner service left running by earlier manual use changes the reconcile path.
+If either recurs, record `ExsurgeBannerService.running` at the test's start.

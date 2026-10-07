@@ -229,6 +229,19 @@ class DownloadsMigrationTest {
     }
 
     @Test
+    fun aDownloadMadeBeforeV25IsMarkedCutSoItIsLeftAlone() {
+        val db = openAtV13()
+        db.execSQL("INSERT INTO downloads VALUES ('vid-1', 'downloaded', 0, NULL, '/data/vid.media', NULL, 0)")
+
+        migrate(db)
+
+        assertEquals(
+            listOf(listOf("vid-1", "1", null)),
+            db.rows("SELECT itemId, sponsorSegmentsCut, skipSegments FROM downloads"),
+        )
+    }
+
+    @Test
     fun aDownloadedEpisodeKeepsItsTitleFromTheFeed() {
         val db = openAtV13()
         db.execSQL("INSERT INTO downloads VALUES ('ep-1', 'downloaded', 0, NULL, '/data/ep.media', NULL, 0)")

@@ -62,7 +62,13 @@ public class EngineDownloadStrategy(
                         if (!event.file.renameTo(target)) event.file.copyTo(target, overwrite = true)
                         // Stamp the variant so a later request for the full video isn't
                         // mistaken for satisfied by an audio-only file.
-                        emit(DownloadState.Downloaded(target.absolutePath, audioOnly = audioOnly))
+                        emit(
+                            DownloadState.Downloaded(
+                                target.absolutePath,
+                                audioOnly = audioOnly,
+                                sponsorSegmentsCut = sponsorBlockCategories.isNotEmpty(),
+                            ),
+                        )
                     }
                     is DownloadEvent.Failed -> emit(DownloadState.Failed(event.reason.toString()))
                 }

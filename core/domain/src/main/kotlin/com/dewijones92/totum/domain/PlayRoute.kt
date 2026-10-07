@@ -11,6 +11,7 @@ import com.dewijones92.totum.common.HttpUrl
 public data class LocalCopy(
     public val path: String,
     public val audioOnly: Boolean = false,
+    public val skipSegments: List<SkipSegment> = emptyList(),
 )
 
 /** Why nothing was played, in the two ways that can happen. */

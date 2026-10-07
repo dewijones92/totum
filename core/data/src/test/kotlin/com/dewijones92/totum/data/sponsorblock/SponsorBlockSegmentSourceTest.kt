@@ -91,4 +91,25 @@ class SponsorBlockSegmentSourceTest {
         assertTrue("expected outro in $requested", "category=outro" in requested)
         assertTrue("sponsor was not enabled: $requested", "category=sponsor" !in requested)
     }
+
+    @Test
+    fun `segments found are an answer`() = runTest {
+        val body = """[{"segment": [12.5, 45.0], "category": "sponsor"}]"""
+        val source = SponsorBlockSegmentSource(fetcher = { FetchResult.Success(body) })
+        assertEquals(SegmentLookup.Answered(listOf(SkipSegment(12.5.seconds, 45.seconds))), source.lookup("abc123"))
+    }
+
+    @Test
+    fun `a 404 is SponsorBlock answering that there are none`() = runTest {
+        val source = SponsorBlockSegmentSource(fetcher = { FetchResult.Failure("HTTP 404", httpStatus = 404) })
+        assertEquals(SegmentLookup.Answered(emptyList()), source.lookup("abc123"))
+    }
+
+    @Test
+    fun `a failure to ask is not an answer, so nothing stored is overwritten`() = runTest {
+        val offline = SponsorBlockSegmentSource(fetcher = { FetchResult.Failure("Unable to resolve host") })
+        assertTrue(offline.lookup("abc123") is SegmentLookup.Unavailable)
+        val broken = SponsorBlockSegmentSource(fetcher = { FetchResult.Failure("HTTP 503", httpStatus = 503) })
+        assertTrue(broken.lookup("abc123") is SegmentLookup.Unavailable)
+    }
 }

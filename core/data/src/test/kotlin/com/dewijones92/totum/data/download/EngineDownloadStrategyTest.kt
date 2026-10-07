@@ -80,4 +80,29 @@ class EngineDownloadStrategyTest {
         val done = states.last() as DownloadState.Downloaded
         assertTrue("an audio-only file must be marked as such", done.audioOnly)
     }
+
+    @Test
+    fun `a download keeps its sponsor segments by default and says so`() = runTest {
+        engine.registerMedia(watchUrl, FakeYtDlpEngine.sampleMetadata(id = "abc"))
+        val done = EngineDownloadStrategy(engine)
+            .download(
+                videoItem(),
+                temp.newFile("out.media"),
+                audioOnly = false
+            ).toList().last() as DownloadState.Downloaded
+        assertEquals(emptySet<String>(), engine.lastRequest?.sponsorBlockCategories)
+        assertFalse(done.sponsorSegmentsCut)
+    }
+
+    @Test
+    fun `a download asked to cut segments records that it was cut`() = runTest {
+        engine.registerMedia(watchUrl, FakeYtDlpEngine.sampleMetadata(id = "abc"))
+        val done = EngineDownloadStrategy(engine, sponsorBlockCategories = setOf("sponsor"))
+            .download(
+                videoItem(),
+                temp.newFile("out.media"),
+                audioOnly = false
+            ).toList().last() as DownloadState.Downloaded
+        assertTrue(done.sponsorSegmentsCut)
+    }
 }

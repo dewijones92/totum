@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.placeholderTitleFor
 import kotlinx.coroutines.flow.first
@@ -18,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.seconds
 
 class RoomDownloadStoreTest {
 
@@ -106,6 +108,25 @@ class RoomDownloadStoreTest {
     }
 
     /** The gap this closes: a download used to be an id and nothing else. */
+    @Test
+    fun aNewDownloadIsUncutAndItsSegmentsSurviveAStateRewrite() = runTest {
+        val segments = listOf(SkipSegment(10.seconds, 42.5.seconds), SkipSegment(60.seconds, 75.seconds))
+        store.put(video, DownloadState.Downloaded("/data/vid.media"), audioOnly = false)
+        store.rememberSkipSegments(video.item.id, segments)
+        store.put(video, DownloadState.Downloaded("/data/vid.media"), audioOnly = false)
+
+        val copy = store.observeDownloaded().first().single()
+        assertEquals(false, copy.sponsorSegmentsCut)
+        assertEquals(segments, copy.skipSegments)
+    }
+
+    @Test
+    fun aCutDownloadSaysSo() = runTest {
+        store.put(video, DownloadState.Downloaded("/data/vid.media", sponsorSegmentsCut = true), audioOnly = false)
+        assertEquals(true, store.observeDownloaded().first().single().sponsorSegmentsCut)
+        assertEquals(DownloadState.Downloaded("/data/vid.media", sponsorSegmentsCut = true), store.get(video.item.id))
+    }
+
     @Test
     fun aFinishedDownloadKeepsTheItemAndItsPillar() = runTest {
         store.put(video, DownloadState.Downloaded("/data/vid.media", audioOnly = true), audioOnly = true)

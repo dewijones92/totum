@@ -35,7 +35,7 @@ say why it is the way it is.
 | minSdk | **34** (Android 14) | Personal modern devices; simplifies stack. Deliberate — drops the API-23 floor of the original apps |
 | Extraction | **From-scratch library in this repo** (`:lib:ytdlp`), replacing dewijones92/youtubedl-android fork | Own a clean, tested Kotlin API around the real yt-dlp |
 | Python runtime | Chaquopy 17 (revised from "official CPython" once that proved tier-3/no artifact) | Mature drop-in embed, MIT, pip support |
-| ffmpeg | **Bundled** — minimal static build in jniLibs | Merges best-quality DASH streams and removes SponsorBlock from downloads |
+| ffmpeg | **Bundled** — minimal static build in jniLibs | Merges best-quality DASH streams (SponsorBlock is no longer cut from downloads: [ADR 16](docs/adr/0016-downloads-keep-sponsor-segments.md)) |
 | CI/CD | GitHub Actions; signed APKs on GitHub Releases | No Play Store (yt-dlp app) |
 | YouTube account (July 2026) | Own minimal InnerTube client (`:lib:innertube`) + **TV device-code OAuth**, SmartTube-style; yt-dlp stays for extraction/playback | Signed-in features (subs, history, comments, likes) need auth + writes; yt-dlp is read-only and removed OAuth login; Google blocks WebView logins, and the device flow is the login it expects from TVs |
 | UI bar | Genuinely nice, modern | Material 3 expressive, dark/light, edge-to-edge, considered motion — never template-default |
@@ -263,7 +263,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   (wired in `AppContainer`, the only place pillar routing lives) picks by
   `PlayHandle.pillar` in an exhaustive `when` — `EngineDownloadStrategy`
   for video (yt-dlp fetches best video+audio and merges via the bundled
-  ffmpeg, then cuts SponsorBlock segments), `HttpDownloadStrategy` for podcast
+  ffmpeg; since ADR 16 it no longer cuts SponsorBlock segments, and files on disk skip them live
+  from the stored list that `SkipSegmentsOnDisk` refreshes), `HttpDownloadStrategy` for podcast
   enclosures (a plain HTTP GET). A third pillar cannot be added without that
   `when` failing to compile. `DownloadState` in `:core:domain`; playback
   prefers the local file wherever one exists — decided by `routeNow` below, for
@@ -304,8 +305,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   `app/src/main/jniLibs/<abi>`, ~7MB; built from FFmpeg 7.1.1 by
   `tools/ffmpeg/build-ffmpeg-android.sh`, remux-only — no decoders/encoders).
   **ffprobe is bundled too** (`libffprobe.so`, another ~7MB per ABI): yt-dlp's
-  ModifyChapters postprocessor — the one that cuts SponsorBlock segments out of
-  a download — asks ffprobe for the media duration and fails with "ffprobe not
+  ModifyChapters postprocessor — the one that cut SponsorBlock segments out of
+  a download until ADR 16 — asks ffprobe for the media duration and fails with "ffprobe not
   found" without it. Together they are ~30MB of the repo's 36MB working tree,
   which is why the tracked binaries look disproportionate and are not a mistake.
   PyPI has no `aarch64-linux-android` ffmpeg wheel, so it can't be

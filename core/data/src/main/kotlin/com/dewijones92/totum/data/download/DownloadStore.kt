@@ -5,6 +5,7 @@ import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SkipSegment
 import kotlinx.coroutines.flow.Flow
 
 /** Persistence port for download records; implemented by :core:database (Room). */
@@ -39,6 +40,8 @@ public interface DownloadStore {
     public suspend fun request(id: MediaItemId): DownloadRequest?
 
     public suspend fun remove(id: MediaItemId)
+
+    public suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>)
 
     /**
      * Every row, with the item it is about — whatever state it is in.

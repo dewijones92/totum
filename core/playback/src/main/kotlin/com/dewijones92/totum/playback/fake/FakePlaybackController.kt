@@ -232,6 +232,12 @@ public class FakePlaybackController : PlaybackController {
         _state.update { it?.copy(skipSilence = enabled) }
     }
 
+    override fun updateSkipSegments(itemId: MediaItemId, segments: List<SkipSegment>) {
+        if (_state.value?.itemId != itemId) return
+        lastSkipSegments = segments
+        _state.update { it?.copy(skipSegments = segments) }
+    }
+
     private companion object {
         const val SEEK_BACK_MS = 10_000L
         const val SEEK_FORWARD_MS = 30_000L

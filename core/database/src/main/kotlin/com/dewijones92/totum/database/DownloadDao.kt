@@ -28,9 +28,14 @@ public interface DownloadDao {
 
     @Transaction
     public suspend fun putKeepingFacts(entity: DownloadEntity) {
-        val held = get(entity.itemId)?.let(::playlistItemFrom)?.item
-        upsert(if (held == null) entity else entity.learningFactsFrom(held))
+        val existing = get(entity.itemId)
+        val held = existing?.let(::playlistItemFrom)?.item
+        val keepingSegments = entity.copy(skipSegments = entity.skipSegments ?: existing?.skipSegments)
+        upsert(if (held == null) keepingSegments else keepingSegments.learningFactsFrom(held))
     }
+
+    @Query("UPDATE downloads SET skipSegments = :segments WHERE itemId = :id")
+    public suspend fun setSkipSegments(id: String, segments: String)
 
     @Query("DELETE FROM downloads WHERE itemId = :id")
     public suspend fun delete(id: String)

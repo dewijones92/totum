@@ -1,5 +1,6 @@
 package com.dewijones92.totum.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -65,6 +66,8 @@ public data class DownloadEntity(
     override val durationMs: Long? = null,
     override val sourceUrl: String? = null,
     override val membersOnly: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val sponsorSegmentsCut: Boolean = false,
+    val skipSegments: String? = null,
 ) : PlaylistItemColumns
 
 /**

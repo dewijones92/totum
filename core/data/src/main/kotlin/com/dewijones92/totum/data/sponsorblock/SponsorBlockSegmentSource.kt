@@ -27,33 +27,46 @@ public class SponsorBlockSegmentSource(
     private val fetcher: HttpTextFetcher,
     /** Read per request, so changing the setting takes effect on the next video. */
     private val categories: () -> Set<SkipCategory> = { DEFAULT_CATEGORIES },
-) : SkipSegmentSource {
+) : SkipSegmentSource, FreshSkipSegments {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun segmentsFor(videoId: String): List<SkipSegment> {
+    override suspend fun segmentsFor(videoId: String): List<SkipSegment> =
+        (lookup(videoId) as? SegmentLookup.Answered)?.segments.orEmpty()
+
+    override suspend fun lookup(videoId: String): SegmentLookup {
         val encoded = URLEncoder.encode(videoId, Charsets.UTF_8)
         val enabled = categories()
-        if (enabled.isEmpty()) return emptyList()
+        if (enabled.isEmpty()) return SegmentLookup.Answered(emptyList())
         val query = enabled.joinToString("&") { "category=${it.id}" }
         val url = HttpUrl.of("https://sponsor.ajay.app/api/skipSegments?videoID=$encoded&$query")
 
         val body = when (val fetched = fetcher.fetch(url)) {
             is FetchResult.Success -> fetched.body
-            is FetchResult.Failure -> return emptyList()
+            is FetchResult.Failure ->
+                return if (fetched.httpStatus == HTTP_NOT_FOUND) {
+                    SegmentLookup.Answered(emptyList())
+                } else {
+                    SegmentLookup.Unavailable(fetched.detail)
+                }
         }
 
-        return runCatching {
+        return parse(body)?.let { SegmentLookup.Answered(it) } ?: SegmentLookup.Unavailable("unparseable reply")
+    }
+
+    private fun parse(body: String): List<SkipSegment>? =
+        runCatching {
             json.parseToJsonElement(body).jsonArray.mapNotNull { element ->
                 val pair = element.jsonObject["segment"]?.jsonArray ?: return@mapNotNull null
                 val start = pair.getOrNull(0)?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
                 val end = pair.getOrNull(1)?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
                 if (end > start && start >= 0) SkipSegment(start.seconds, end.seconds) else null
             }
-        }.getOrDefault(emptyList())
-    }
+        }.getOrNull()
 
     public companion object {
+        private const val HTTP_NOT_FOUND = 404
+
         /**
          * On unless you say otherwise: the unambiguous "not the content" categories.
          * The rest exist but are opinionated — an intro or a recap is content to some

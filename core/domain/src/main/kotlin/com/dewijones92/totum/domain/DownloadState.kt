@@ -35,7 +35,11 @@ public sealed interface DownloadState {
      * audio automatically, most offline items are audio-only, so one glyph meaning both
      * "you can listen to this offline" and "you can watch this offline" is misleading.
      */
-    public data class Downloaded(val localPath: String, val audioOnly: Boolean = false) : DownloadState {
+    public data class Downloaded(
+        val localPath: String,
+        val audioOnly: Boolean = false,
+        val sponsorSegmentsCut: Boolean = false,
+    ) : DownloadState {
         init {
             require(localPath.isNotBlank()) { "localPath must not be blank" }
         }

@@ -33,6 +33,7 @@ public class DefaultDownloadManager(
     private val store: DownloadStore,
     private val strategy: DownloadStrategy,
     private val scope: CoroutineScope,
+    private val onDownloaded: suspend (PlayableItem) -> Unit = {},
 ) : DownloadManager {
 
     override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
@@ -129,7 +130,8 @@ public class DefaultDownloadManager(
                         // survive: the next fetch of this id would resume from bytes belonging to
                         // a download that has already finished.
                         target.partialDownload().delete()
-                        Diag.log("download", "done ${media.title}")
+                        Diag.log("download", "done ${media.title} sponsorSegmentsCut=${state.sponsorSegmentsCut}")
+                        onDownloaded(item)
                     }
                     else -> Unit
                 }

@@ -23,6 +23,7 @@ import com.dewijones92.totum.data.download.EngineDownloadStrategy
 import com.dewijones92.totum.data.download.FallbackDownloadStrategy
 import com.dewijones92.totum.data.download.HttpDownloadStrategy
 import com.dewijones92.totum.data.download.RoutedDownloadStrategy
+import com.dewijones92.totum.data.download.SkipSegmentsOnDisk
 import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.group.ChannelSourceItems
 import com.dewijones92.totum.data.group.GroupFeed
@@ -598,8 +599,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         SharedPrefsSearchHistoryStore(context)
     }
 
-    override val skipSegmentSource: SkipSegmentSource by lazy {
+    private val sponsorBlock: SponsorBlockSegmentSource by lazy {
         SponsorBlockSegmentSource(textFetcher) { appPreferences.settings.value.skipCategories }
+    }
+
+    override val skipSegmentSource: SkipSegmentSource get() = sponsorBlock
+
+    private val skipSegmentsOnDisk by lazy {
+        SkipSegmentsOnDisk(sponsorBlock, RoomDownloadStore(database.downloadDao()))
     }
 
     override fun freeDownloadSpaceBytes(): Long? =
@@ -622,19 +629,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         DefaultDownloadManager(
             downloadDir = downloadDir,
             store = RoomDownloadStore(database.downloadDao()),
-            // Videos resolve+merge through the engine (bundled ffmpeg) and drop
-            // SponsorBlock segments; podcast enclosures are a plain HTTP fetch.
+            // Videos resolve+merge through the engine (bundled ffmpeg); podcast enclosures are a plain HTTP fetch.
             strategy = RoutedDownloadStrategy(
-                // yt-dlp first, because it handles everything and cuts SponsorBlock out of the
-                // file. Its one blind spot is anything YouTube only serves to an ACCOUNT —
+                // yt-dlp first, because it handles everything. Its one blind spot is anything YouTube
+                // only serves to an ACCOUNT —
                 // members-only uploads, which it is refused and the app is not — so a permanent
                 // refusal falls back to the app's own signed-in resolution.
                 video = FallbackDownloadStrategy(
                     primary = EngineDownloadStrategy(
                         engine = ytDlpEngine,
-                        sponsorBlockCategories = appPreferences.settings.value.skipCategories.mapTo(
-                            mutableSetOf()
-                        ) { it.id },
                         // The SAME preference playback resolves with. Without it, choosing German and
                         // downloading gave the English original -- and a downloaded file is precisely
                         // the one you cannot re-pick a track for.
@@ -662,6 +665,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 podcast = HttpDownloadStrategy(transferClient),
             ),
             scope = applicationScope,
+            onDownloaded = { item -> skipSegmentsOnDisk.refresh(item.item.id) },
         )
     }
 
@@ -976,6 +980,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             readyThePicture = { item -> readyAhead.ready(item, "audio copy playing") },
             refresh = { item -> readyAgain(item) },
             sourceArtwork = { sourceArtworkNow.value },
+            refreshSkipsOnDisk = skipSegmentsOnDisk::refresh,
         )
     }
 
@@ -1145,7 +1150,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private suspend fun realCopyFor(id: MediaItemId): LocalCopy? {
         val recorded = (downloadManager.observe(id).first() as? DownloadState.Downloaded) ?: return null
         val file = java.io.File(recorded.localPath)
-        if (file.exists() && file.length() > 0) return LocalCopy(recorded.localPath, recorded.audioOnly)
+        if (file.exists() && file.length() > 0) {
+            return LocalCopy(recorded.localPath, recorded.audioOnly, skipSegmentsOnDisk.toSkip(id))
+        }
         val why = if (file.exists()) "is empty" else "is missing"
         Diag.warn(
             "playback",

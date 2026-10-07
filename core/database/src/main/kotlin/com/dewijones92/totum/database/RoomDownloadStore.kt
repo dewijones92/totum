@@ -8,8 +8,10 @@ import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SkipSegment
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Room-backed [DownloadStore]; the only place download entities and domain state meet. */
 // The count is DownloadStore's surface plus the small entity<->domain mappers; this is the one
@@ -53,9 +55,13 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
         dao.delete(id.value)
     }
 
+    override suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>) {
+        dao.setSkipSegments(id.value, encodeSkipSegments(segments))
+    }
+
     private fun DownloadEntity.toState(): DownloadState = when (status) {
         STATUS_DOWNLOADING -> DownloadState.Downloading(downloadedBytes, totalBytes)
-        STATUS_DOWNLOADED -> DownloadState.Downloaded(localPath.orEmpty(), audioOnly)
+        STATUS_DOWNLOADED -> DownloadState.Downloaded(localPath.orEmpty(), audioOnly, sponsorSegmentsCut)
         STATUS_FAILED -> DownloadState.Failed(failureReason.orEmpty())
         else -> DownloadState.NotDownloaded
     }
@@ -64,7 +70,13 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
     private fun DownloadEntity.toDownloaded(): DownloadedMedia? {
         if (status != STATUS_DOWNLOADED) return null
         val path = localPath?.takeIf { it.isNotEmpty() } ?: return null
-        return DownloadedMedia(playlistItemFrom(this) ?: return null, path, audioOnly)
+        return DownloadedMedia(
+            playlistItemFrom(this) ?: return null,
+            path,
+            audioOnly,
+            sponsorSegmentsCut,
+            decodeSkipSegments(skipSegments),
+        )
     }
 
     private fun DownloadState.toEntity(item: PlayableItem, requestedAudioOnly: Boolean): DownloadEntity {
@@ -81,6 +93,7 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
             // which is the only thing a retry can go on. Writing false for a running or failed row
             // meant retrying an audio-only download quietly fetched the whole video.
             audioOnly = (this as? DownloadState.Downloaded)?.audioOnly ?: requestedAudioOnly,
+            sponsorSegmentsCut = (this as? DownloadState.Downloaded)?.sponsorSegmentsCut ?: false,
             title = media.title,
             author = media.author,
             publisher = media.publisher,
@@ -115,3 +128,14 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
         const val STATUS_FAILED = "failed"
     }
 }
+
+internal fun encodeSkipSegments(segments: List<SkipSegment>): String =
+    segments.joinToString(",") { "${it.start.inWholeMilliseconds}-${it.end.inWholeMilliseconds}" }
+
+internal fun decodeSkipSegments(encoded: String?): List<SkipSegment> =
+    encoded.orEmpty().split(',').mapNotNull { pair ->
+        val (start, end) = pair.split('-').takeIf { it.size == 2 } ?: return@mapNotNull null
+        val startMs = start.toLongOrNull() ?: return@mapNotNull null
+        val endMs = end.toLongOrNull() ?: return@mapNotNull null
+        runCatching { SkipSegment(startMs.milliseconds, endMs.milliseconds) }.getOrNull()
+    }

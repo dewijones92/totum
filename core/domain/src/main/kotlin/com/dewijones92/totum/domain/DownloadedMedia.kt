@@ -1,5 +1,7 @@
 package com.dewijones92.totum.domain
 
+import com.dewijones92.totum.common.youTubeVideoId
+
 /**
  * A finished download: what was fetched, where the bytes are, and which variant.
  *
@@ -12,7 +14,14 @@ public data class DownloadedMedia(
     public val playable: PlayableItem,
     public val localPath: String,
     public val audioOnly: Boolean,
+    public val sponsorSegmentsCut: Boolean = false,
+    public val skipSegments: List<SkipSegment> = emptyList(),
 ) {
+    public val youTubeVideoId: String?
+        get() = playable.fetchUrl?.youTubeVideoId()?.takeIf { pillar == MediaKind.VIDEO && !sponsorSegmentsCut }
+
+    public val segmentsToSkip: List<SkipSegment> get() = if (youTubeVideoId == null) emptyList() else skipSegments
+
     public val item: MediaItem get() = playable.item
 
     /** Which pillar it came from — for labelling. The file may still be audio-only. */

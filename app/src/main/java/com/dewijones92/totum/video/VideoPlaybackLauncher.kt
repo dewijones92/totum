@@ -8,6 +8,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.withStreamFrom
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
@@ -121,12 +122,12 @@ class VideoPlaybackLauncher(
     }
 
     /** Plays an already-downloaded file — no re-resolution, and no quality choice (it's one merged file). */
-    fun playLocal(item: MediaItem, localPath: String) {
+    fun playLocal(item: MediaItem, localPath: String, skipSegments: List<SkipSegment> = emptyList()) {
         beginPlay()
         current = null
         currentWatchUrl = null
         _quality.value = QualityState()
-        playback.play(item, localPath = localPath)
+        playback.play(item, skipSegments = skipSegments, localPath = localPath)
     }
 
     /**

@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Features
@@ -26,7 +26,7 @@ alone until they need more.
 | Unified search (iTunes + InnerTube search, yt-dlp fallback → `SearchHit`) | search | shipped | — |
 | Search history (recent queries, idle-state chips) | search | shipped | [search-history.md](search-history.md) |
 | Torrents: public-domain film & TV via the home server | torrent | shipped | [torrents.md](torrents.md) |
-| Downloads (video merge + SponsorBlock cut / podcast enclosure) | downloads | shipped | — |
+| Downloads (video merge, sponsors skipped live from the latest list (ADR 16) / podcast enclosure) | downloads | shipped | — |
 | Comments, related, like/dislike, Watch Later, subscribe | video | shipped | — |
 | Playlists (account) | video | shipped | — |
 | Channel page (subscribe + uploads) | channel | shipped | — |
