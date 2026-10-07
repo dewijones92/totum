@@ -46,8 +46,10 @@ internal class DoNotRetryWhatSabrHasGivenUpOn : DefaultLoadErrorHandlingPolicy()
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         if (loadErrorInfo.exception.isSabrGivingUp()) return C.TIME_UNSET
         val url = loadErrorInfo.loadEventInfo.uri.toString()
+        val now = System.currentTimeMillis()
         val young = if (loadErrorInfo.exception.httpStatus() == HTTP_FORBIDDEN) {
-            YoungStreamUrl.retryDelayMs(url, System.currentTimeMillis(), loadErrorInfo.errorCount)
+            YoungStreamUrl.ageMs(url, now)?.let { YoungStreamUrl.window.refused(it, now) }
+            YoungStreamUrl.retryDelayMs(url, now, loadErrorInfo.errorCount)
         } else {
             null
         }
@@ -55,9 +57,10 @@ internal class DoNotRetryWhatSabrHasGivenUpOn : DefaultLoadErrorHandlingPolicy()
         Vitals.add("playback.youngUrl403s")
         Diag.log(
             "playback",
-            "403 on a stream issued ${YoungStreamUrl.ageMs(url, System.currentTimeMillis())}ms ago " +
-                "(YouTube accepts a new URL ~${YoungStreamUrl.VALID_AFTER_MS}ms after issue): retry " +
-                "${loadErrorInfo.errorCount} in ${young}ms, not on the default backoff",
+            "403 on a stream issued ${YoungStreamUrl.ageMs(url, now)}ms ago " +
+                "(YouTube accepts a new URL ~${YoungStreamUrl.window.validAfterMs(now)}ms after issue, learned: " +
+                "${YoungStreamUrl.window.describe(now)}): retry ${loadErrorInfo.errorCount} in ${young}ms, " +
+                "not on the default backoff",
         )
         return young
     }

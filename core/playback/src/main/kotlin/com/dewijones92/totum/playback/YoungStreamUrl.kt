@@ -15,10 +15,12 @@ internal object YoungStreamUrl {
 
     fun ageMs(url: String, nowMs: Long): Long? = issuedAtMs(url)?.let { nowMs - it }
 
-    fun retryDelayMs(url: String, nowMs: Long, errorCount: Int): Long? {
+    val window: YoungUrlWindow = YoungUrlWindow()
+
+    fun retryDelayMs(url: String, nowMs: Long, errorCount: Int, window: YoungUrlWindow = this.window): Long? {
         val issued = issuedAtMs(url) ?: return null
         if (nowMs - issued !in 0..YOUNG_FOR_MS) return null
-        val untilValid = issued + VALID_AFTER_MS - nowMs
+        val untilValid = issued + window.validAfterMs(nowMs) - nowMs
         return when {
             errorCount <= 1 -> untilValid.coerceAtLeast(MIN_WAIT_MS)
             errorCount == 2 -> untilValid.coerceAtLeast(SECOND_WAIT_MS)

@@ -29,9 +29,15 @@ Two reports from Dewi's Pixel 7 on 0.1.573 (the build with [ADR 12](0012-solve-y
 
 ## Decision
 
-1. **A 403 on a URL younger than 15 s is retried at issue + 4.8 s** (`YoungStreamUrl`, read from
-   `expire=`), then +0.75 s and +1.5 s, inside Media3's retry budget, instead of on the default backoff.
-   Any other failure keeps the default policy.
+1. **A 403 on a URL younger than 15 s is retried once the URL should be valid** (`YoungStreamUrl`, age
+   read from `expire=`), then +0.75 s and +1.5 s, inside Media3's retry budget, instead of on the default
+   backoff. Any other failure keeps the default policy. "Should be valid" was a fixed 4.8 s until
+   2026-10-07; it is now **learned** (`YoungUrlWindow`): the latest age that still got a 403 plus 0.3 s,
+   capped by the earliest age that got through, over the last 6 hours, falling back to 4.8 s with no
+   evidence and never past 14 s. Reason: report 0.1.577 (2026-10-07) showed the window had grown, with all
+   five fresh URLs refused at 4.85 s and 5.66 s and playing only at ~7.2 s, so every slow start paid two
+   wasted retries. Each 403 line now carries the learned window, the first success per URL is logged
+   (`young stream accepted at …`), and `playback.youngUrlWindow` holds it for reports.
 2. **The player is built through the preload manager** (`buildExoPlayer`), sharing its looper and one
    `DefaultLoadControl` with separate byte budgets for playback and `PlayerId.PRELOAD`. A nomination
    carries the video and the separate audio URL, and the service's source factory hands the held

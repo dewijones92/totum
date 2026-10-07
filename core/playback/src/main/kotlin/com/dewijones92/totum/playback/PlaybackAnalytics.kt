@@ -36,6 +36,7 @@ internal class PlaybackAnalytics : AnalyticsListener {
 
     private var outstanding = 0
     private var loads = 0L
+    private var lastYoungAcceptanceLogged: Long? = null
     private var bytes = 0L
     private var underruns = 0L
 
@@ -90,6 +91,19 @@ internal class PlaybackAnalytics : AnalyticsListener {
         Diag.log("format", "audio ${format.describe()}")
     }
 
+    private fun noteYoungAcceptance(url: String) {
+        val now = System.currentTimeMillis()
+        val issued = YoungStreamUrl.issuedAtMs(url) ?: return
+        val age = now - issued
+        if (age !in 0..YoungStreamUrl.YOUNG_FOR_MS) return
+        YoungStreamUrl.window.accepted(age, now)
+        if (issued == lastYoungAcceptanceLogged) return
+        lastYoungAcceptanceLogged = issued
+        val learned = YoungStreamUrl.window.describe(now)
+        Vitals.set("playback.youngUrlWindow", learned)
+        Diag.log("playback", "young stream accepted at ${age}ms after issue; window now $learned")
+    }
+
     /**
      * Aggregated, then reported as an average — the per-chunk rate is what distinguishes a
      * throttled stream from a fast one that simply has too much to carry.
@@ -103,6 +117,7 @@ internal class PlaybackAnalytics : AnalyticsListener {
         Vitals.set("playback.loadsOutstanding", outstanding.toString())
         forget(loadEventInfo.loadTaskId)
         recordLoadedTo(mediaLoadData)
+        noteYoungAcceptance(loadEventInfo.uri.toString())
         loads++
         bytes += loadEventInfo.bytesLoaded
         // Kilobytes, not megabytes: 0.1.295 reported "loadedMb 0" through five minutes of
