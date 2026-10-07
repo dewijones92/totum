@@ -33,6 +33,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")
+        container.dailyAlarms.tickAll("startup")
         warmTheEngineSoon()
     }
 

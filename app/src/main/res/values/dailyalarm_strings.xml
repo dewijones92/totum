@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dailyalarm_name">Daily alarms</string>
+    <string name="dailyalarm_settings_row">Daily alarms</string>
+    <string name="dailyalarm_tile_label">Daily alarm</string>
+    <string name="dailyalarm_intro">Each morning on its days, Totum asks whether you want the alarm today, and asks again every hour until the last ask. Say yes and it rings full screen at that time until you dismiss it.</string>
+    <string name="dailyalarm_channel_question">Daily alarms: question</string>
+    <string name="dailyalarm_channel_set">Daily alarms: set</string>
+    <string name="dailyalarm_channel_ring">Daily alarms: ringing</string>
+    <string name="dailyalarm_question">%1$s: alarm at %2$s today?</string>
+    <string name="dailyalarm_question_last">Last ask · %1$s: alarm at %2$s today?</string>
+    <string name="dailyalarm_question_detail">Tap for another time</string>
+    <string name="dailyalarm_question_screen">Do you want this alarm today?</string>
+    <string name="dailyalarm_yes_at">Yes, %1$s</string>
+    <string name="dailyalarm_other_time">Other time</string>
+    <string name="dailyalarm_no">No</string>
+    <string name="dailyalarm_no_today">No alarm today</string>
+    <string name="dailyalarm_any_time">Pick any time</string>
+    <string name="dailyalarm_set">Alarm set for %1$s</string>
+    <string name="dailyalarm_change">Change</string>
+    <string name="dailyalarm_cancel">Cancel</string>
+    <string name="dailyalarm_ringing">Ringing · %1$s</string>
+    <string name="dailyalarm_snooze">Snooze %1$d min</string>
+    <string name="dailyalarm_dismiss">Dismiss</string>
+    <string name="dailyalarm_label">Label</string>
+    <string name="dailyalarm_time">Usual time</string>
+    <string name="dailyalarm_day_times">Time on each day</string>
+    <string name="dailyalarm_reset">Reset</string>
+    <string name="dailyalarm_choices">Time choices</string>
+    <string name="dailyalarm_add_choice">Add a time</string>
+    <string name="dailyalarm_remove_choice">%1$s ✕</string>
+    <string name="dailyalarm_ask_at">First ask</string>
+    <string name="dailyalarm_last_ask">Last ask</string>
+    <string name="dailyalarm_delete">Delete this alarm</string>
+    <string name="dailyalarm_add">Add an alarm</string>
+    <string name="dailyalarm_today_waiting">Today: waiting to ask</string>
+    <string name="dailyalarm_today_asking">Today: asked, no answer yet (ask %1$d)</string>
+    <string name="dailyalarm_today_set">Today: set for %1$s</string>
+    <string name="dailyalarm_today_ringing">Today: ringing</string>
+    <string name="dailyalarm_today_snoozed">Today: snoozed</string>
+    <string name="dailyalarm_today_done">Today: done (%1$s)</string>
+</resources>

@@ -2,6 +2,9 @@ package com.dewijones92.totum.di.fake
 
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.dailyalarms.DailyAlarmController
+import com.dewijones92.totum.dailyalarms.InMemoryDailyAlarmStore
+import com.dewijones92.totum.dailyalarms.NoDailyAlarmPorts
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.InMemoryChannelLatestStore
@@ -119,6 +122,7 @@ class FakeAppContainer(
     override val videoPlaybackLauncher: VideoPlaybackLauncher =
         VideoPlaybackLauncher(videoResolver, playbackController, FakeYouTubeWatchHistory(), playHistoryStore),
     override val sleepTimer: SleepTimer = SleepTimer(playbackController, CoroutineScope(SupervisorJob())),
+    override val dailyAlarms: DailyAlarmController = DailyAlarmController(InMemoryDailyAlarmStore(), NoDailyAlarmPorts),
     override val exsurge: ExsurgeController = ExsurgeController(
         InMemoryExsurgeStore(),
         NoExsurgePorts,

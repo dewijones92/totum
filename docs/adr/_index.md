@@ -33,3 +33,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 15 | [The Exsurge banner is an Android 16 Live Update, so it shows on the lock screen](0015-exsurge-banner-is-a-live-update.md) | Accepted |
 | 16 | [Downloads keep their sponsor segments; playback skips them live from the latest list](0016-downloads-keep-sponsor-segments.md) | Accepted |
 | 17 | [A reminder kit shared by the side quests](0017-reminder-kit-shared-by-side-quests.md) | Accepted |
+| 18 | [Daily alarms — asked each morning, rung by Totum itself](0018-daily-alarms.md) | Accepted |

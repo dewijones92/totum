@@ -11,6 +11,8 @@ import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.dailyalarms.DailyAlarmController
+import com.dewijones92.totum.dailyalarms.dailyAlarmController
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.DefaultChannelRepository
@@ -261,6 +263,7 @@ interface AppContainer {
     val sleepTimer: SleepTimer
 
     val exsurge: ExsurgeController
+    val dailyAlarms: DailyAlarmController
 
     /** The unified up-next queue (what plays after the current item), both pillars. */
     val playbackQueue: PlaybackQueue
@@ -740,6 +743,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val exsurge: ExsurgeController by lazy { exsurgeController(context, playbackController, applicationScope) }
+    override val dailyAlarms by lazy { dailyAlarmController(context, playbackController, applicationScope) }
 
     override val queueStore: QueueStore by lazy { RoomQueueStore(database.queueDao()) }
 
@@ -917,7 +921,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
                 isMetered = networkStatus::isMetered,
-                exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) },
+                exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
             ),
         )
     }

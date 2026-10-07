@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.dailyalarms.DailyAlarmsScreen
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
@@ -71,6 +72,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
     var showImportExport by rememberSaveable { mutableStateOf(false) }
     var showDiagnostics by rememberSaveable { mutableStateOf(false) }
     var showExsurge by rememberSaveable { mutableStateOf(false) }
+    var showDailyAlarms by rememberSaveable { mutableStateOf(false) }
 
     if (showImportExport) {
         ImportExportScreen(container, onBack = { showImportExport = false }, modifier = modifier)
@@ -78,6 +80,10 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
     }
     if (showExsurge) {
         ExsurgeSettingsScreen(container.exsurge, onBack = { showExsurge = false }, modifier = modifier)
+        return
+    }
+    if (showDailyAlarms) {
+        DailyAlarmsScreen(container.dailyAlarms, onBack = { showDailyAlarms = false }, modifier = modifier)
         return
     }
     if (showDiagnostics) {
@@ -94,6 +100,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
             SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
             DownloadSettings(settings, prefs)
             NavRow(label = stringResource(R.string.exsurge_settings_row), onClick = { showExsurge = true })
+            NavRow(label = stringResource(R.string.dailyalarm_settings_row), onClick = { showDailyAlarms = true })
             Text(
                 text = stringResource(R.string.settings_subscriptions_section),
                 style = MaterialTheme.typography.titleMedium,

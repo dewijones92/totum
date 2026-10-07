@@ -22,6 +22,7 @@ import java.time.Instant
 class AndroidExsurgePorts(
     private val context: Context,
     private val playback: () -> PlaybackController,
+    private val alarmRinging: () -> Boolean = { false },
     private val interruption: () -> PlaybackInterruption,
 ) : ExsurgePorts {
     private val notifications = ExsurgeNotifications(context)
@@ -34,6 +35,13 @@ class AndroidExsurgePorts(
         alarm.schedule(at, ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.TICK))
 
     override fun showTakeover(request: TakeoverRequest) {
+        if (alarmRinging()) {
+            Diag.log(
+                ExsurgeController.TAG,
+                "dewidebug exsurge takeover call ${request.call} held: a daily alarm is ringing"
+            )
+            return
+        }
         if (TakeoverActivity.resumed) {
             val call = request.call
             Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover already on screen; no heads-up for call $call")
@@ -65,8 +73,13 @@ class AndroidExsurgePorts(
         TakeoverActivity.finishAll()
     }
 
-    override fun speak(cue: Cue, summonsId: Long, volumePercent: Int) =
+    override fun speak(cue: Cue, summonsId: Long, volumePercent: Int) {
+        if (alarmRinging()) {
+            Diag.log(ExsurgeController.TAG, "dewidebug exsurge voice $cue held: a daily alarm is ringing")
+            return
+        }
         voice.say(Utterance.Clip(clipFor(cue, summonsId), "exsurge $cue"), volumePercent)
+    }
 
     override fun buzz(haptic: Haptic) = buzzer.buzz("exsurge $haptic", haptic.waveform)
 

@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -78,6 +79,53 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:taskAffinity="com.dewijones92.totum.exsurge"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Totum" />
+        <service
+            android:name=".dailyalarms.RingService"
+            android:exported="false"
+            android:foregroundServiceType="systemExempted" />
+        <service
+            android:name=".dailyalarms.DailyAlarmTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_dailyalarm"
+            android:label="@string/dailyalarm_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".dailyalarms.DailyAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <activity
+            android:name=".dailyalarms.DailyAlarmsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dewijones92.totum.dailyalarms.screen"
+            android:label="@string/dailyalarm_name"
+            android:theme="@style/Theme.Totum" />
+        <activity
+            android:name=".dailyalarms.QuestionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dewijones92.totum.dailyalarms.question"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.Totum" />
+        <activity
+            android:name=".dailyalarms.RingActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.dewijones92.totum.dailyalarms.ring"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.Totum" />

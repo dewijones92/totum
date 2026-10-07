@@ -46,6 +46,7 @@ say why it is the way it is.
 | Playback start (Oct 2026) | A 403 on a YouTube URL under 15 s old is retried when YouTube accepts it (issue + 4.8 s); the player is built through the preload manager so held bytes are played; a copy on disk is used before re-extracting, and takes over when its download lands | Fresh `web_embedded` URLs 403 for ~4.5 s, which the fast solver exposed; [ADR 13](docs/adr/0013-playback-start-young-urls-held-bytes-and-copies.md) |
 | Background playback (Oct 2026) | The playback service stays in the foreground for 2 h after playback stops (Media3 default: 10 min) | After a long pause Android refused to restart it from the background and froze the process mid-file; Exsurge's own foreground service had been hiding this; [ADR 14](docs/adr/0014-playback-service-stays-foreground-after-a-pause.md) |
 | Exsurge on the lock screen (Oct 2026) | The banner is an Android 16 **Live Update** in every state (lock screen, always-on display, status-bar chip), public on the lock screen; channel unchanged | A silent notification is hidden from a Pixel lock screen by default; [ADR 15](docs/adr/0015-exsurge-banner-is-a-live-update.md) |
+| Daily alarms (Oct 2026) | A second side quest: Totum asks each weekday morning whether you want an alarm (pickup 17:30 first) and rings it itself full screen; built on a **reminder kit** shared with Exsurge (`:lib:reminders` + `app/…/reminders/kit/`) | Dewi's toddler-pickup alarm; [ADRs 17–18](docs/adr/_index.md) |
 | Video fullscreen (Oct 2026) | Landscape rotation opens immersive video; portrait exits automatic fullscreen; the button keeps its landscape lock | Rotation and a deliberate button press have different orientation ownership; [ADR 9](docs/adr/0009-rotation-follows-video-fullscreen.md) |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
 
@@ -394,6 +395,9 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   waveforms, choice lists, next-weekday-time maths and time serializers; exact and alarm-clock alarms, an
   alarm-channel voice (clips and text-to-speech), the alarm tone, the buzzer, chips, a clock picker, a
   lock-screen helper and a JSON prefs store.
+- `:lib:dailyalarms` — **Daily alarms** (ADR 18): `DailyAlarm` and the per-day state machine.
+  `app/…/dailyalarms/` holds the controller, `RingService` (systemExempted foreground service that owns
+  the ringing), the question and ring screens, notifications, receiver, tile and settings.
 - `:lib:common` — pure-Kotlin utility module with no app dependencies, shared
   by app modules and standalone libraries alike (it would be published
   alongside `:lib:ytdlp`, like the old youtubedl-android's `common` module).

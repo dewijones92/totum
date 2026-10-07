@@ -107,6 +107,7 @@ dependencies {
   implementation(project(":lib:ytdlp-chaquopy"))
   implementation(project(":lib:innertube"))
   implementation(project(":lib:exsurge"))
+  implementation(project(":lib:dailyalarms"))
 
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
