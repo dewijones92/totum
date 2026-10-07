@@ -325,4 +325,24 @@ class ExsurgeSupportTest {
         assertEquals(BannerChip.Steps(7, 20), bannerChipOf(BannerLine.Rising(7, 20)))
         assertEquals(BannerChip.Go, bannerChipOf(BannerLine.Rising(0, 0)))
     }
+
+    @Test
+    fun `settings saved with the old practice default now open the current lesson`() {
+        val saved = """{"enabled":true,"destinationRoute":"/practice"}"""
+        assertEquals(LOQUAX_CURRENT_LESSON_ROUTE, ExsurgeCodec.decodeSettings(saved).destinationRoute)
+    }
+
+    @Test
+    fun `a route chosen after the change is kept, even the old default`() {
+        val chosen = ExsurgeCodec.decodeSettings("{}").copy(destinationRoute = "/practice")
+        val reloaded = ExsurgeCodec.decodeSettings(ExsurgeCodec.encodeSettings(chosen))
+        assertEquals("/practice", reloaded.destinationRoute)
+        val custom = """{"destinationRoute":"/drill/flashcards"}"""
+        assertEquals("/drill/flashcards", ExsurgeCodec.decodeSettings(custom).destinationRoute)
+    }
+
+    @Test
+    fun `a fresh install opens the current lesson`() {
+        assertEquals(LOQUAX_CURRENT_LESSON_ROUTE, ExsurgeSettings().validated().destinationRoute)
+    }
 }

@@ -12,7 +12,8 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 public const val LOQUAX_PACKAGE: String = "dev.hanzi.hanzi_practice"
-public const val LOQUAX_PRACTICE_ROUTE: String = "/practice"
+public const val LOQUAX_CURRENT_LESSON_ROUTE: String = "/learn?locate=current"
+private const val LEGACY_PRACTICE_ROUTE = "/practice"
 
 @Serializable
 public data class ExsurgeSettings(
@@ -33,13 +34,21 @@ public data class ExsurgeSettings(
     val pausePlayback: Boolean = true,
     val takeoverOverApps: Boolean = true,
     val destinationPackage: String = LOQUAX_PACKAGE,
-    val destinationRoute: String = LOQUAX_PRACTICE_ROUTE,
+    val destinationRoute: String = LOQUAX_CURRENT_LESSON_ROUTE,
+    val destinationRouteVersion: Int = DESTINATION_ROUTE_VERSION,
     val callIntervalSeconds: Int = 60,
     val riseTimeoutMinutes: Int = 3,
     val walkWindowMinutes: Int = 5,
     val pauseMinutes: Int = 60,
     val midCueMinutes: Int = 2,
 ) {
+    internal fun fromBeforeRouteVersion(): ExsurgeSettings =
+        if (destinationRoute.trim() == LEGACY_PRACTICE_ROUTE) {
+            copy(destinationRoute = LOQUAX_CURRENT_LESSON_ROUTE)
+        } else {
+            this
+        }
+
     public fun validated(): ExsurgeSettings = copy(
         startMinuteOfDay = startMinuteOfDay.coerceIn(0, LAST_MINUTE_OF_DAY),
         endMinuteOfDay = endMinuteOfDay.coerceIn(1, MINUTES_PER_DAY),
@@ -114,6 +123,8 @@ public data class ExsurgeSettings(
         LocalTime.of(minuteOfDay / MINUTES_PER_HOUR, minuteOfDay % MINUTES_PER_HOUR)
 
     public companion object {
+        public const val DESTINATION_ROUTE_VERSION: Int = 2
+        internal const val DESTINATION_ROUTE_VERSION_KEY: String = "destinationRouteVersion"
         public val WEEKDAYS: Set<DayOfWeek> = DayOfWeek.entries.filter { it <= DayOfWeek.FRIDAY }.toSet()
         public val SITTING_RANGE: IntRange = 10..90
         public val BREAK_RANGE: IntRange = 1..15

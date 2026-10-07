@@ -10,6 +10,7 @@ import com.dewijones92.totum.exsurge.ExsurgeState.Snoozed
 import com.dewijones92.totum.exsurge.ExsurgeState.Summoned
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import java.time.Duration
 import java.time.Instant
 
@@ -109,8 +110,13 @@ public object ExsurgeCodec {
     public fun decodeMemory(text: String): ExsurgeMemory = json.decodeFromString(ExsurgeMemory.serializer(), text)
     public fun encodeSettings(settings: ExsurgeSettings): String =
         json.encodeToString(ExsurgeSettings.serializer(), settings)
-    public fun decodeSettings(text: String): ExsurgeSettings =
-        json.decodeFromString(ExsurgeSettings.serializer(), text).validated()
+    public fun decodeSettings(text: String): ExsurgeSettings {
+        val element = json.parseToJsonElement(text)
+        val settings = json.decodeFromJsonElement(ExsurgeSettings.serializer(), element)
+        val beforeRouteVersion = element is JsonObject &&
+            ExsurgeSettings.DESTINATION_ROUTE_VERSION_KEY !in element
+        return (if (beforeRouteVersion) settings.fromBeforeRouteVersion() else settings).validated()
+    }
     public fun encodeOutcomes(list: List<BreakOutcome>): String = json.encodeToString(outcomes, list)
     public fun decodeOutcomes(text: String): List<BreakOutcome> = json.decodeFromString(outcomes, text)
 }

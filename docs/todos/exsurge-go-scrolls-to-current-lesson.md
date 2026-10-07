@@ -1,7 +1,7 @@
 ---
 title: GO opens Loquax scrolled to the current lesson
 kind: todo
-status: PARKED 2026-10-07 — another agent is working in Loquax; agreed design below, needs a change in Loquax too
+status: built 2026-10-07 — Loquax link + highlight (Loquax ADR 19) and Totum's default route; awaiting the phone
 area: side-quest
 priority: medium
 requested: 2026-10-07

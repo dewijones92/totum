@@ -25,7 +25,7 @@ everything configurable. The backlog item, with the agreed design and the open i
 | Ignored 3 minutes | Missed: recorded, the clock restarts | — |
 | Snooze (5 min, twice at most) | Takeover hides, comes back | — |
 | Skip | Recorded; Surgius looks wounded for the half hour | *Et tu, Dewi?* |
-| GO | Unlock if needed; Loquax opens at `/practice`; Totum's playback pauses | *Alea iacta est!* |
+| GO | Unlock if needed; Loquax opens on Learn, scrolled to the current lesson and highlighting it (`/learn?locate=current`); Totum's playback pauses | *Alea iacta est!* |
 | Just walk | The same break, with no language app (Dewi, 2026-10-01: *"I don't necessarily wanna do language learning when I get up"*); no unlock needed; recorded as not practised | *Alea iacta est!* |
 | Continue Totum | Resume the current Totum item while taking the same walking break; unlock if needed and return to Totum, without opening the language app or restarting the item; recorded as not practised | *Alea iacta est!* |
 | 20 steps | The break starts, for the length chosen on the takeover (5 minutes by default) | *Bene! Ambula, disce!* |
@@ -143,7 +143,7 @@ last asked for, and whether the posted banner is actually promoted.
     (`dumpsys alarm`).
   - Simulated steps took GO → rising → 21 steps → break.
   - The break paused a video meant to be playing.
-- ⏳ **On Dewi's phone:** not yet. The step counter, Loquax opening at `/practice`, and audio focus
+- ⏳ **On Dewi's phone:** not yet. The step counter, Loquax opening on the current lesson (needs Loquax 0.14.2+), and audio focus
   with the banner service running can only be proven there.
 
 - **Banner regression coverage:** `ExsurgeAndroidPortsTest` verifies the posted Off banner and
