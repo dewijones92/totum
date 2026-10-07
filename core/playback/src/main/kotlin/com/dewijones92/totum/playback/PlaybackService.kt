@@ -2,23 +2,20 @@ package com.dewijones92.totum.playback
 
 import android.app.PendingIntent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.SessionAvailabilityListener
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.RenderersFactory
-import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
-import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -27,6 +24,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.Vitals
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -86,7 +84,7 @@ public class PlaybackService : MediaSessionService() {
         // needs more than the connection has look identical, and the fixes are opposite.
         val bandwidth = DefaultBandwidthMeter.Builder(this).build()
         PlaybackVitals.bitrateEstimate = bandwidth::getBitrateEstimate
-        val (player, preloads) = buildPlayer(renderersFactory, bandwidth)
+        val (player, preloads) = buildPlayerWithPreloads(this, sourceFactory(), renderersFactory, bandwidth)
         this.player = player
         // Where the detail behind a stall comes from: chosen format, per-chunk
         // throughput, load failures, dropped frames. Media3 exposes it only here.
@@ -100,6 +98,21 @@ public class PlaybackService : MediaSessionService() {
                     Diag.log("playback", "service now on ${mediaItem?.mediaId ?: "nothing"} (reason $reason)")
                     cachedPreloader?.releaseIfPlaying(mediaItem)
                 }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    foregroundHold.playing(isPlaying)
+                    releaseCheck.removeCallbacksAndMessages(null)
+                    if (!isPlaying) {
+                        releaseCheck.postDelayed(
+                            { triggerNotificationUpdate() },
+                            foregroundHold.msUntilRelease() + RELEASE_CHECK_SLACK_MS,
+                        )
+                    }
+                    Diag.log(
+                        "playback",
+                        "service ${if (isPlaying) "playing" else "not playing"}; in the foreground=$inForeground",
+                    )
+                }
             },
         )
         val preloader = NextItemPreloader(preloads)
@@ -110,45 +123,6 @@ public class PlaybackService : MediaSessionService() {
             .setCallback(SkipSilenceCallback())
             .apply { openAppIntent()?.let { setSessionActivity(it) } }
             .build()
-    }
-
-    @UnstableApi
-    private fun buildPlayer(
-        renderersFactory: RenderersFactory,
-        bandwidth: DefaultBandwidthMeter,
-    ): Pair<ExoPlayer, DefaultPreloadManager> {
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                BufferBudget.MIN_BUFFER_MS,
-                BufferBudget.MAX_BUFFER_MS,
-                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
-            )
-            .setBackBuffer(BufferBudget.BACK_BUFFER_MS, true)
-            .setTargetBufferBytes(BufferBudget.PLAYBACK_BYTES)
-            .setPlayerTargetBufferBytes(PlayerId.PRELOAD.name, BufferBudget.PRELOAD_BYTES)
-            .build()
-        val preloading = DefaultPreloadManager.Builder(this) { _: Int ->
-            DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(BufferBudget.PRELOAD_MS * MICROS_PER_MS)
-        }
-            .setMediaSourceFactory(sourceFactory())
-            .setLoadControl(loadControl)
-            .setBandwidthMeter(bandwidth)
-            .setRenderersFactory(renderersFactory)
-        val player = preloading.buildExoPlayer(
-            ExoPlayer.Builder(this)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                        .build(),
-                    true,
-                )
-                .setHandleAudioBecomingNoisy(true)
-                .setSeekBackIncrementMs(SEEK_BACK_MS)
-                .setSeekForwardIncrementMs(SEEK_FORWARD_MS),
-        )
-        return player to preloading.build()
     }
 
     /**
@@ -320,8 +294,38 @@ public class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        val wantsToPlay = player?.playWhenReady == true
+        val line = "memory trim level $level; wants to play=$wantsToPlay, in the foreground=$inForeground"
+        if (level >= TRIM_MEMORY_BACKGROUND && wantsToPlay) {
+            Vitals.add("playback.trimWhilePlaying")
+            Diag.warn("playback", "$line — Android treats the app as background while it plays, so it can be frozen")
+        } else {
+            Diag.log("playback", line)
+        }
+    }
+
+    private val inForeground: Boolean get() = foregroundServiceType != 0
+
+    private val foregroundHold = ForegroundHold(FOREGROUND_AFTER_STOP_MS) { SystemClock.elapsedRealtime() }
+    private val releaseCheck = Handler(Looper.getMainLooper())
+
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        val player = session.player
+        super.onUpdateNotification(
+            session,
+            foregroundHold.startInForeground(
+                mediaWants = startInForegroundRequired,
+                hasItem = player.currentMediaItem != null,
+                stopped = player.playbackState == Player.STATE_IDLE,
+            ),
+        )
+    }
+
     @UnstableApi
     override fun onDestroy() {
+        releaseCheck.removeCallbacksAndMessages(null)
         mediaSession?.release()
         player?.release()
         castPlayer?.setSessionAvailabilityListener(null)
@@ -334,6 +338,9 @@ public class PlaybackService : MediaSessionService() {
     }
 
     private companion object {
+        const val FOREGROUND_AFTER_STOP_MS = 2 * 60 * 60 * 1_000L
+        const val RELEASE_CHECK_SLACK_MS = 1_000L
+
         /** Enough to ride out a hiccup without a long wait before playback begins. */
 
         /**
@@ -342,12 +349,7 @@ public class PlaybackService : MediaSessionService() {
          * ~0.5MB for a podcast, ~8MB for 1080p video — which is why the app only ever nominates
          * something on Wi-Fi.
          */
-        const val MICROS_PER_MS = 1_000L
         const val URL_CHARS = 80
-
-        // Podcast-style transport: small hop back to re-hear, bigger hop forward.
-        const val SEEK_BACK_MS = 10_000L
-        const val SEEK_FORWARD_MS = 30_000L
 
         const val NORMAL_SPEED = 1f
     }

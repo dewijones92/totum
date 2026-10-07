@@ -83,7 +83,7 @@ public class ChaquopyYtDlpEngine(
         true
     }
 
-    private val v8: V8Solver by lazy { V8Solver(appContext) }
+    private val v8: V8Solver by lazy { V8Solver.get(appContext) }
 
     override suspend fun warmUp(): Unit = withContext(dispatcher) {
         timed("warm up") {

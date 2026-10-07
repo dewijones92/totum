@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import com.dewijones92.totum.common.Diag
 
-internal class V8Solver(context: Context) {
+internal class V8Solver private constructor(context: Context) {
     private val isolates = SandboxIsolates(context)
     val runtime = V8ChallengeRuntime(isolates)
 
@@ -25,5 +25,13 @@ internal class V8Solver(context: Context) {
                 override fun onLowMemory() = Unit
             },
         )
+    }
+
+    companion object {
+        @Volatile
+        private var instance: V8Solver? = null
+
+        fun get(context: Context): V8Solver =
+            instance ?: synchronized(this) { instance ?: V8Solver(context.applicationContext).also { instance = it } }
     }
 }
