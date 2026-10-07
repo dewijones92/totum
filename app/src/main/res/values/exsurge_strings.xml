@@ -22,6 +22,10 @@
     <string name="exsurge_banner_break">On break until %1$s</string>
     <string name="exsurge_banner_break_detail">Steps so far: %1$d · then Liber es!</string>
     <string name="exsurge_banner_streak">Streak: %1$d · %2$s</string>
+    <string name="exsurge_chip_go">GO!</string>
+    <string name="exsurge_chip_off">Off</string>
+    <string name="exsurge_chip_asleep">Zzz</string>
+    <string name="exsurge_chip_steps">%1$d/%2$d</string>
 
     <string name="exsurge_action_go">GO</string>
     <string name="exsurge_action_go_to">GO → %1$s</string>
@@ -91,6 +95,7 @@
     <string name="exsurge_perm_overlay">Display over other apps</string>
     <string name="exsurge_perm_battery">Not battery-optimised</string>
     <string name="exsurge_perm_exact">Exact alarms</string>
+    <string name="exsurge_perm_live_update">Live Update (lock screen and status bar)</string>
     <string name="exsurge_perm_sensor">Step sensor on this phone</string>
     <string name="exsurge_perm_destination">%1$s installed</string>
     <string name="exsurge_perm_grant">Grant</string>

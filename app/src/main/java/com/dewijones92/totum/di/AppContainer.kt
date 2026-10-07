@@ -87,6 +87,7 @@ import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.exsurge.ExsurgeController
+import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
@@ -912,7 +913,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
                 isMetered = networkStatus::isMetered,
-                exsurge = { exsurge.diagnostics },
+                exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) },
             ),
         )
     }

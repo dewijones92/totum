@@ -18,6 +18,7 @@ class ExsurgeNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private val smallIcon by lazy { Icon.createWithBitmap(SurgiusPainter.glyphBitmap(ICON_PX)) }
     private val faces = mutableMapOf<Mood, Icon>()
+    private val liveUpdate = ExsurgeLiveUpdate(context)
 
     fun ensureChannels() {
         manager.createNotificationChannel(
@@ -56,14 +57,16 @@ class ExsurgeNotifications(private val context: Context) {
             .setOngoing(true)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .setOnlyAlertOnce(true)
-            .setShowWhen(false)
             .setCategory(Notification.CATEGORY_STATUS)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setColor(TANGERINE)
             .setContentIntent(contentIntent(view))
             .setDeleteIntent(ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.REPOST))
         progress?.let { (done, total) -> builder.setProgress(total, done.coerceIn(0, total), false) }
         actions(view).forEach(builder::addAction)
-        return builder.build()
+        val chip = bannerChipOf(view.banner)
+        liveUpdate.apply(builder, chip)
+        return builder.build().also { liveUpdate.log(view, chip, it) }
     }
 
     fun showBanner(view: ExsurgeView, foreground: Boolean = false) =

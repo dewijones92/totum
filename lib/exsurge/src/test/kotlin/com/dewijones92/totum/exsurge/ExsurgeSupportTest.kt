@@ -306,4 +306,23 @@ class ExsurgeSupportTest {
             bannerActionsOf(ExsurgeState.OnBreak(summons, at(5, 10), null, 0, false), true, false)
         )
     }
+
+    @Test
+    fun `the lock-screen chip counts down to whatever the banner is waiting for`() {
+        assertEquals(BannerChip.Countdown(at(5, 10, 30)), bannerChipOf(BannerLine.Sitting(at(5, 10, 30), 12, 30)))
+        assertEquals(BannerChip.Countdown(at(5, 11)), bannerChipOf(BannerLine.Paused(at(5, 11))))
+        assertEquals(BannerChip.Countdown(at(5, 10, 5)), bannerChipOf(BannerLine.Snoozed(at(5, 10, 5))))
+        assertEquals(BannerChip.Countdown(at(5, 10, 9)), bannerChipOf(BannerLine.OnBreak(at(5, 10, 9), 140, 5)))
+    }
+
+    @Test
+    fun `the lock-screen chip says what to do when there is nothing to count down to`() {
+        assertEquals(BannerChip.Off, bannerChipOf(BannerLine.Off))
+        assertEquals(BannerChip.Asleep, bannerChipOf(BannerLine.Sleeping(at(6, 9))))
+        assertEquals(BannerChip.Asleep, bannerChipOf(BannerLine.Sleeping(null)))
+        assertEquals(BannerChip.Asleep, bannerChipOf(BannerLine.Sitting(null, 12, 30)))
+        assertEquals(BannerChip.Go, bannerChipOf(BannerLine.Summoned(call = 2, snoozesLeft = 1)))
+        assertEquals(BannerChip.Steps(7, 20), bannerChipOf(BannerLine.Rising(7, 20)))
+        assertEquals(BannerChip.Go, bannerChipOf(BannerLine.Rising(0, 0)))
+    }
 }

@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -13,7 +13,7 @@ his language app, Loquax. Make the prompt really obvious, give it a voice and a 
 everything configurable. The backlog item, with the agreed design and the open ideas, is
 [todos/exsurge-et-disce](../todos/exsurge-et-disce.md); the decisions are ADRs
 [2](../adr/0002-exsurge-side-quest-module.md) to [8](../adr/0008-an-unproven-break-earns-no-laurel.md) and
-[10](../adr/0010-break-length-is-chosen-at-the-summons.md).
+[10](../adr/0010-break-length-is-chosen-at-the-summons.md), and [15](../adr/0015-exsurge-banner-is-a-live-update.md).
 
 ## What it does
 
@@ -56,6 +56,11 @@ everything configurable. The backlog item, with the agreed design and the open i
   reboot and APK update. Turning off posts the plain ongoing banner and
   removes the service notification; the step listener stops. Both use one builder, with separate
   notification IDs so delayed service callbacks cannot overwrite the idle banner (ADR 5).
+- **On the lock screen and in the status bar** (Dewi, 2026-10-07): on Android 16 QPR1+ the banner is a
+  Live Update in every state, so it shows on the lock screen and the always-on display, with a status-bar
+  chip: a countdown to the summons, the end of the break, a snooze or a pause, else GO!, the steps
+  (7/20), Off or Zzz. Its text is public on the lock screen. Older Android is unchanged. The permissions
+  checklist has a Live Update row on Android 16+. See [ADR 15](../adr/0015-exsurge-banner-is-a-live-update.md).
 - **Off quick actions:** Turn on enables the regular schedule. Restart clock and Summon now
   start one manual reminder/break while leaving that schedule off, returning to Off after
   completion, Skip or Missed. The manual run survives process restart and snooze; changing its
@@ -116,7 +121,8 @@ Every decision is logged under `dewidebug exsurge`, with its inputs: the event, 
 the state before and after, the machine's notes ("sat 30m of 30m: summoning", "snooze refused: 2 of
 2 used"), and the effects. A diagnostics report carries an `exsurge.*` block: state, next wake,
 whether steps are available (and how many readings arrived), last event, today's tally, streak,
-rank and the settings.
+rank and the settings, plus `exsurge.liveUpdate.*`: whether Live Updates are allowed, what the banner
+last asked for, and whether the posted banner is actually promoted.
 
 ## Verified
 
@@ -182,6 +188,12 @@ No CRITICALs. Every IMPORTANT finding was turned into a test first and seen red,
 Two SUSPECTED findings were fixed by design rather than by test:
 - the banner lost when the service stops (the `REST` action);
 - screen-off steps arriving after the tick (flush, then wait).
+
+- **Live Update (2026-10-07):** two `:lib:exsurge` tests (written first, seen red) pin the chip for every
+  banner state. On an Android 16 QPR1 emulator (`totum-api36`) the system set `PROMOTED_ONGOING` on the
+  banner and the log showed `requested=true promotable=true appAllowed=true chip="Off" sdk=36.1`. ⏳ The
+  lock screen and chip were not seen: that emulator image crashes System UI on screen read-back under
+  WSL (`hasReadColorBufferDma`), with every GPU mode tried. First sight is on the phone.
 
 ## Known limits, seen on the emulator
 

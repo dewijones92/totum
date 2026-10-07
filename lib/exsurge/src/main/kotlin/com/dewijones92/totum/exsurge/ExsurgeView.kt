@@ -63,6 +63,25 @@ public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContex
     }
 }
 
+public sealed interface BannerChip {
+    public data class Countdown(val until: Instant) : BannerChip
+    public data class Steps(val steps: Int, val needed: Int) : BannerChip
+    public data object Go : BannerChip
+    public data object Off : BannerChip
+    public data object Asleep : BannerChip
+}
+
+public fun bannerChipOf(line: BannerLine): BannerChip = when (line) {
+    BannerLine.Off -> BannerChip.Off
+    is BannerLine.Sleeping -> BannerChip.Asleep
+    is BannerLine.Paused -> BannerChip.Countdown(line.until)
+    is BannerLine.Sitting -> line.summonsAt?.let(BannerChip::Countdown) ?: BannerChip.Asleep
+    is BannerLine.Summoned -> BannerChip.Go
+    is BannerLine.Snoozed -> BannerChip.Countdown(line.until)
+    is BannerLine.Rising -> if (line.needed > 0) BannerChip.Steps(line.steps, line.needed) else BannerChip.Go
+    is BannerLine.OnBreak -> BannerChip.Countdown(line.endsAt)
+}
+
 public enum class BannerAction { TURN_ON, SUMMON_NOW, RESTART_CLOCK, GO, PAUSE_HOUR }
 
 public fun bannerActionsOf(state: ExsurgeState, enabled: Boolean, pauseAvailable: Boolean): List<BannerAction> =

@@ -52,6 +52,7 @@ import com.dewijones92.totum.exsurge.BannerAction
 import com.dewijones92.totum.exsurge.ExsurgeBannerService
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeEvent
+import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.ExsurgeSettings
 import com.dewijones92.totum.exsurge.ExsurgeStatusCard
 import com.dewijones92.totum.exsurge.ExsurgeView
@@ -358,7 +359,14 @@ private fun checks(
             }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
-    return listOf(
+    val liveUpdate = ExsurgeLiveUpdate.allowed(context)?.let { allowed ->
+        Check(
+            context.getString(R.string.exsurge_perm_live_update),
+            allowed,
+            ExsurgeLiveUpdate.settingsIntent(context)?.let { intent -> { context.startActivity(intent) } },
+        )
+    }
+    return listOfNotNull(
         Check(
             context.getString(R.string.exsurge_perm_notifications),
             NotificationManagerCompat.from(context).areNotificationsEnabled(),
@@ -368,6 +376,7 @@ private fun checks(
             notifications.canUseFullScreenIntent(),
             open(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
         ),
+        liveUpdate,
         Check(context.getString(R.string.exsurge_perm_activity), ExsurgeBannerService.stepsPermitted(context)) {
             askActivity(Manifest.permission.ACTIVITY_RECOGNITION)
         },

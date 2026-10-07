@@ -30,3 +30,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 12 | [YouTube's JS challenge is solved in Android's V8, with the player kept loaded](0012-solve-youtube-challenges-in-v8.md) | Accepted |
 | 13 | [A fresh YouTube URL is waited for, a preloaded source is played, and a copy on disk is used first](0013-playback-start-young-urls-held-bytes-and-copies.md) | Accepted |
 | 14 | [The playback service stays in the foreground for two hours after playback stops](0014-playback-service-stays-foreground-after-a-pause.md) | Accepted |
+| 15 | [The Exsurge banner is an Android 16 Live Update, so it shows on the lock screen](0015-exsurge-banner-is-a-live-update.md) | Accepted |
