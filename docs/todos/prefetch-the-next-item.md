@@ -3,8 +3,8 @@ title: Preload the next item's first 30 seconds
 kind: todo
 area: playback
 priority: medium
-status: done — readiness and byte preload both shipped, Wi-Fi only; the video nomination was wrong until 2026-08-17
-updated: 2026-08-17
+status: done — readiness and byte preload both shipped, Wi-Fi only; the held bytes were never PLAYED until 2026-10-07 (ADR 13)
+updated: 2026-10-07
 ---
 
 # Preload the next item's first 30 seconds
@@ -176,3 +176,16 @@ covered.
 
 Measuring what it actually saves at a track change on a device — the mechanism is proven, the felt
 improvement is not, and until 2026-08-17 it was saving nothing at all on video.
+
+### The held bytes were never played (found 2026-10-07)
+
+**This doc said "done" for two months while the preload did nothing useful.** The preload manager held
+the first 30 s, but a `DefaultPreloadManager` source is only reused if it is handed to the player, and
+the player built every source itself through the factory. So the bytes were fetched, held and thrown
+away on every advance, and `PreloadCommandReachesServiceTest` was green because it checked the
+bookkeeping (held, then released), not that the player used anything.
+
+Fixed in ADR 13: the player is built with `DefaultPreloadManager.Builder.buildExoPlayer`, the nomination
+carries the separate audio URL too (so the held source is the merged one the player asks for), and the
+source factory hands the held source over when the item and both streams match. The test now asserts
+`playing <id> from the source held for …`, and `playback.preloadsUsed` counts it in the wild.

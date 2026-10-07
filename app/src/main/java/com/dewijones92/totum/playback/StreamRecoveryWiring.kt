@@ -1,10 +1,14 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.video.VideoResolver
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 
 @Suppress("LongParameterList")
 internal fun PlaybackQueue.startStreamRecovery(
@@ -51,4 +55,12 @@ internal fun PlaybackQueue.startStreamRecovery(
         awaitNetwork = network::awaitOnline,
         scope = scope,
     ).start()
+}
+
+internal fun PlaybackQueue.handOverFinishedDownloads(downloads: DownloadManager, scope: CoroutineScope) {
+    scope.launch {
+        downloads.events()
+            .filter { it.state is DownloadState.Downloaded }
+            .collect { handOverToTheDownload(it.item.id) }
+    }
 }

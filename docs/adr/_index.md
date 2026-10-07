@@ -28,3 +28,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 10 | [The Exsurge break length is chosen at the summons and fixed for that break](0010-break-length-is-chosen-at-the-summons.md) | Accepted |
 | 11 | [Switching to video is made fast by caching and readying, not by changing the extractor](0011-make-switching-to-video-fast.md) | Accepted |
 | 12 | [YouTube's JS challenge is solved in Android's V8, with the player kept loaded](0012-solve-youtube-challenges-in-v8.md) | Accepted |
+| 13 | [A fresh YouTube URL is waited for, a preloaded source is played, and a copy on disk is used first](0013-playback-start-young-urls-held-bytes-and-copies.md) | Accepted |

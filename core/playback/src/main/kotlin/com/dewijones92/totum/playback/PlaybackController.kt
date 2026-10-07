@@ -120,7 +120,7 @@ public interface PlaybackController {
      * three `still holding … — what started is …` lines where both URLs are the same video at
      * different itags, so the bytes were held for the rest of the session.
      */
-    public fun preloadNext(itemId: MediaItemId, url: HttpUrl)
+    public fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl? = null)
 }
 
 /** What the UI needs to render a player for the current item. */

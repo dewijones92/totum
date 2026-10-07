@@ -689,6 +689,15 @@ class PlaybackQueue(
      */
     suspend fun replayCurrent(positionMs: Long): Boolean {
         val item = playingNow ?: return false
+        if (decide(item).route.isFromDisk()) {
+            forgetResolved(item.item.id)
+            Diag.log(
+                "playback",
+                "replaying ${item.item.id.value} from the copy on disk at ${positionMs}ms — no fresh stream " +
+                    "needed, so no extraction first",
+            )
+            return rescueIntent.keeping(item.item.id, "replay") { play(item, positionMs, retry = true) }
+        }
         // Recovery is the only caller, and it exists to get a FRESH stream — so the cached
         // resolution has to go first. Without this the replay hits the resolver cache and asks
         // the same dead URL again: a real report (0.1.277) shows three "recoveries" eight
@@ -915,6 +924,58 @@ class PlaybackQueue(
      *
      * Whether a picture is shown is `PlaybackState.hasVideo`'s business, and always was.
      */
+    private val recentRoutes = RecentRoutes()
+
+    @Volatile
+    private var lastRoute: Pair<MediaItemId, PlayRoute>? = null
+
+    suspend fun handOverToTheDownload(itemId: MediaItemId): Boolean {
+        val item = playingNow?.takeIf { it.item.id == itemId }
+        val streaming = lastRoute?.let { (id, route) -> id == itemId && !route.isFromDisk() } == true
+        val positionMs = controller.state.value?.takeIf { it.itemId == itemId }?.positionMs
+        if (item == null || !streaming || positionMs == null) return false
+        val now = decide(item).route
+        if (!now.isFromDisk()) {
+            Diag.log(
+                "playback",
+                "${itemId.value} finished downloading while streaming, but the copy does not stand in: " +
+                    "it would still be ${now.describe()}",
+            )
+            return false
+        }
+        Diag.log(
+            "playback",
+            "${itemId.value} finished downloading while streaming: switching to ${now.describe()} at ${positionMs}ms",
+        )
+        return rescueIntent.keeping(itemId, "hand over to the download") { play(item, positionMs, retry = true) }
+    }
+
+    private fun PlayRoute.isFromDisk(): Boolean = this is PlayRoute.VideoFile || this is PlayRoute.AudioFile
+
+    private data class Decision(
+        val route: PlayRoute,
+        val onDisk: LocalCopy?,
+        val offline: Boolean,
+        val audio: Boolean,
+    )
+
+    private suspend fun decide(
+        queued: PlayableItem,
+        streamRefused: Boolean = false,
+        forceAudio: Boolean = false,
+    ): Decision {
+        val onDisk = localCopy(queued.item.id)
+        val offlineNow = offline()
+        val audioNow = forceAudio || queued.item.id.value in pictureGivenUpOn || audioPreferred()
+        val route = queued.routeNow(
+            onDisk,
+            offline = offlineNow,
+            audioPreferred = audioNow,
+            streamRefused = streamRefused
+        )
+        return Decision(route, onDisk, offlineNow, audioNow)
+    }
+
     private suspend fun route(
         listed: PlayableItem,
         startPositionMs: Long,
@@ -928,25 +989,21 @@ class PlaybackQueue(
         // would land later and take playback back to the network — which is exactly what report
         // 0.1.390 did, ten seconds after the downloaded audio had started playing.
         val request = launcher.beginPlay()
-        val onDisk = localCopy(queued.item.id)
-        val offlineNow = offline()
-        val audioNow = forceAudio || queued.item.id.value in pictureGivenUpOn || audioPreferred()
-        val route = queued.routeNow(
-            onDisk,
-            offline = offlineNow,
-            audioPreferred = audioNow,
-            streamRefused = streamRefused,
-        )
+        val decision = decide(queued, streamRefused, forceAudio)
+        val route = decision.route
+        val onDisk = decision.onDisk
+        val offlineNow = decision.offline
+        val audioNow = decision.audio
         // The decision AND its inputs, because a report can only ever answer the question it
         // was given the numbers for. "Skipped" with no copy and "skipped" with a copy it chose
         // not to use are the same line otherwise, and telling them apart is the whole diagnosis.
-        Diag.log(
-            "playback",
-            "route ${queued.item.id.value} -> ${route.describe()} " +
-                "[handle=${queued.handle.label} " +
-                "copy=${onDisk?.let { if (it.audioOnly) "audio-only" else "full" } ?: "none"} " +
-                "offline=$offlineNow listen=$audioNow streamRefused=$streamRefused]",
-        )
+        val routeLine = "route ${queued.item.id.value} -> ${route.describe()} " +
+            "[handle=${queued.handle.label} " +
+            "copy=${onDisk?.let { if (it.audioOnly) "audio-only" else "full" } ?: "none"} " +
+            "offline=$offlineNow listen=$audioNow streamRefused=$streamRefused]"
+        Diag.log("playback", routeLine)
+        recentRoutes.remember(routeLine)
+        lastRoute = queued.item.id to route
         return when (route) {
             is PlayRoute.VideoFile -> {
                 launcher.playLocal(route.playable.item, route.path)

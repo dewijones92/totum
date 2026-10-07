@@ -6,6 +6,13 @@ android {
     namespace = "com.dewijones92.totum.playback"
 }
 
+androidComponents {
+    onVariants { variant ->
+        variant.hostTests.values.forEach { it.sources.kotlin?.addStaticSourceDirectory("src/sharedTest/kotlin") }
+        variant.deviceTests.values.forEach { it.sources.kotlin?.addStaticSourceDirectory("src/sharedTest/kotlin") }
+    }
+}
+
 kotlin {
     jvmToolchain(17)
     explicitApi()

@@ -280,11 +280,14 @@ class VideoPlaybackLauncher(
      *
      * A `null` means the resolution produced nothing playable, so there is nothing to hold.
      */
-    fun urlThatWouldPlay(resolved: VideoResolver.Resolved): HttpUrl? = when {
+    fun urlThatWouldPlay(resolved: VideoResolver.Resolved): HttpUrl? = streamsThatWouldPlay(resolved)?.first
+
+    fun streamsThatWouldPlay(resolved: VideoResolver.Resolved): Pair<HttpUrl, HttpUrl?>? = when {
         // The cheap stream when listening: an audio-only track is a fraction of the video's size,
         // and holding the picture for a mode that will not show it spends the data twice over.
-        audioPreferred() && resolved.audioOnlyUrl != null -> resolved.audioOnlyUrl
-        else -> chosenQuality(resolved)?.videoUrl ?: resolved.item.mediaUrl
+        audioPreferred() && resolved.audioOnlyUrl != null -> resolved.audioOnlyUrl to null
+        else -> chosenQuality(resolved)?.let { it.videoUrl to it.audioUrl }
+            ?: resolved.item.mediaUrl?.let { it to null }
     }
 
     /** Plays [resolved] as video at the best allowed quality — the shared play/"Watch" path. */

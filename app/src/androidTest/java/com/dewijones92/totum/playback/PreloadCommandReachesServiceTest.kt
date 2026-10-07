@@ -81,7 +81,7 @@ class PreloadCommandReachesServiceTest {
      * transition happens whether or not any byte ever arrives.
      */
     @Test
-    fun `playing the nominated item releases the held copy`() = runBlocking(Dispatchers.Main) {
+    fun `playing the nominated item plays the held source`() = runBlocking(Dispatchers.Main) {
         // An id and URI of their OWN, not the ones the test above nominates: the service outlives a
         // single test, and `hold` correctly ignores a re-nomination of what it is already holding —
         // so sharing them made this test's setup fail for a reason nothing to do with it.
@@ -93,9 +93,14 @@ class PreloadCommandReachesServiceTest {
         controller.play(itemPlaying(itemId, uri))
 
         assertTrue(
-            "playing what was preloaded must release the held copy, or its bytes are held twice. " +
-                "Trail: " + Breadcrumbs.snapshot().map { it.message }.takeLast(TRAIL_LINES),
-            awaitTrail("released the held copy"),
+            "playing what was preloaded must play the HELD source, or the preloaded bytes are thrown " +
+                "away and fetched again. Trail: " + Breadcrumbs.snapshot().map { it.message }.takeLast(TRAIL_LINES),
+            awaitTrail("playing preloaded-item from the source held"),
+        )
+        assertTrue(
+            "and the preloader must let go of it once the player owns it. Trail: " +
+                Breadcrumbs.snapshot().map { it.message }.takeLast(TRAIL_LINES),
+            awaitTrail("the player owns preloaded-item's preloaded source now"),
         )
     }
 

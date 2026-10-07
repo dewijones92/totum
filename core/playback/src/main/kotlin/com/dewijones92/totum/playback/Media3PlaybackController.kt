@@ -415,7 +415,7 @@ public class Media3PlaybackController(
         )
     }
 
-    override fun preloadNext(itemId: MediaItemId, url: HttpUrl) {
+    override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?) {
         withController {
             it.sendCustomCommand(
                 SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY),
@@ -423,6 +423,7 @@ public class Media3PlaybackController(
                     EXTRA_PRELOAD_URI to url.value,
                     // The identity the service releases on. See PlaybackController.preloadNext.
                     EXTRA_PRELOAD_ITEM_ID to itemId.value,
+                    EXTRA_PRELOAD_AUDIO_URI to audioUrl?.value,
                 ),
             )
         }

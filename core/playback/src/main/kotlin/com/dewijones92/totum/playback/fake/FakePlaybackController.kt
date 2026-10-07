@@ -216,9 +216,12 @@ public class FakePlaybackController : PlaybackController {
     /** Which item each nomination was for, which is what the real preloader keys on. */
     public var preloadedFor: MutableList<MediaItemId> = mutableListOf()
 
-    override fun preloadNext(itemId: MediaItemId, url: HttpUrl) {
+    public var preloadedAudio: MutableList<HttpUrl?> = mutableListOf()
+
+    override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?) {
         preloaded += url
         preloadedFor += itemId
+        preloadedAudio += audioUrl
     }
 
     override fun setVolumeBoost(boost: VolumeBoost) {

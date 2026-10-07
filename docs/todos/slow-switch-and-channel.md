@@ -101,6 +101,8 @@ audio.
 - ADR 12: the JS challenge solved in Android's V8 with the player kept loaded, QuickJS as fallback.
 - ADR 11 items 11-13: one shared HTTP connection pool (`requests` bundled), caption translations
   only for the app's languages, the account session and positions off the critical path.
+- ADR 13 (from 0.1.573's reports): fresh YouTube URLs 403 for ~4.5 s after issue, now waited for
+  instead of failing; the preloader's held bytes are actually played; a copy on disk is used first.
 
 Still to measure on the phone: everything after 0.1.571.
 

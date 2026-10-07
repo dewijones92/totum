@@ -2,8 +2,11 @@ package com.dewijones92.totum.playback
 
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.Vitals
 
 /**
  * Whether a load failure is SABR saying it will not serve this track again.
@@ -40,10 +43,35 @@ private const val MAX_CAUSE_DEPTH = 10
 @UnstableApi
 internal class DoNotRetryWhatSabrHasGivenUpOn : DefaultLoadErrorHandlingPolicy() {
 
-    override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
-        if (loadErrorInfo.exception.isSabrGivingUp()) {
-            C.TIME_UNSET
+    override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+        if (loadErrorInfo.exception.isSabrGivingUp()) return C.TIME_UNSET
+        val url = loadErrorInfo.loadEventInfo.uri.toString()
+        val young = if (loadErrorInfo.exception.httpStatus() == HTTP_FORBIDDEN) {
+            YoungStreamUrl.retryDelayMs(url, System.currentTimeMillis(), loadErrorInfo.errorCount)
         } else {
-            super.getRetryDelayMsFor(loadErrorInfo)
+            null
         }
+        if (young == null) return super.getRetryDelayMsFor(loadErrorInfo)
+        Vitals.add("playback.youngUrl403s")
+        Diag.log(
+            "playback",
+            "403 on a stream issued ${YoungStreamUrl.ageMs(url, System.currentTimeMillis())}ms ago " +
+                "(YouTube accepts a new URL ~${YoungStreamUrl.VALID_AFTER_MS}ms after issue): retry " +
+                "${loadErrorInfo.errorCount} in ${young}ms, not on the default backoff",
+        )
+        return young
+    }
 }
+
+internal fun Throwable.httpStatus(): Int? {
+    var at: Throwable? = this
+    var depth = 0
+    while (at != null && depth < MAX_CAUSE_DEPTH) {
+        if (at is HttpDataSource.InvalidResponseCodeException) return at.responseCode
+        at = at.cause.takeIf { it !== at }
+        depth++
+    }
+    return null
+}
+
+private const val HTTP_FORBIDDEN = 403

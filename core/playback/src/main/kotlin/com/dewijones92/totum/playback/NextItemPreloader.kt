@@ -1,10 +1,10 @@
 package com.dewijones92.totum.playback
 
-import android.content.Context
+import android.os.Bundle
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import com.dewijones92.totum.common.Diag
@@ -25,12 +25,7 @@ import com.dewijones92.totum.common.Vitals
  * inside the session callback, so a preloaded item's bytes were held twice on the same heap.
  */
 @UnstableApi
-internal class NextItemPreloader(
-    private val context: Context,
-    /** The player's own factory: a source preloaded by a different one is discarded, not reused. */
-    private val sourceFactory: () -> MediaSource.Factory,
-) {
-    private var manager: DefaultPreloadManager? = null
+internal class NextItemPreloader(private val manager: DefaultPreloadManager) {
 
     /** What is currently held, so nominating something else releases it. */
     private var held: MediaItem? = null
@@ -38,19 +33,70 @@ internal class NextItemPreloader(
     /** Which item it is held FOR — the identity [releaseIfPlaying] matches on, not the URL. */
     private var heldFor: String? = null
 
+    private var heldSince = 0L
+    private var handedOver = false
+    private var adding = false
+
     @OptIn(UnstableApi::class)
-    fun hold(itemId: String, uri: String) {
-        if (heldFor == itemId) return
-        val preloader = manager ?: build().also { manager = it }
-        held?.let { preloader.remove(it) }
+    fun hold(itemId: String, uri: String, audioUri: String? = null) {
+        if (heldFor == itemId && held?.uriOrNull() == uri && held.audioUriOrNull() == audioUri) return
+        held?.let { manager.remove(it) }
         // The id rides on the MediaItem so the held copy carries its own identity: the URI cannot,
         // because it is re-signed on every resolve.
-        val item = MediaItem.Builder().setMediaId(itemId).setUri(uri).build()
+        val item = MediaItem.Builder()
+            .setMediaId(itemId)
+            .setUri(uri)
+            .setRequestMetadata(
+                MediaItem.RequestMetadata.Builder()
+                    .setExtras(audioUri?.let { Bundle().apply { putString(EXTRA_AUDIO_URL, it) } })
+                    .build(),
+            )
+            .build()
         held = item
         heldFor = itemId
-        preloader.add(item, 0)
-        preloader.invalidate()
-        Diag.log("preload", "holding the first ${BufferBudget.PRELOAD_MS}ms of $itemId — ${uri.forLog()}")
+        heldSince = SystemClock.elapsedRealtime()
+        handedOver = false
+        adding = true
+        try {
+            manager.add(item, 0)
+        } finally {
+            adding = false
+        }
+        manager.invalidate()
+        Diag.log(
+            "preload",
+            "holding the first ${BufferBudget.PRELOAD_MS}ms of $itemId — ${uri.forLog()}" +
+                (audioUri?.let { " + audio ${it.forLog()}" } ?: ""),
+        )
+    }
+
+    @OptIn(UnstableApi::class)
+    fun takeFor(mediaItem: MediaItem): MediaSource? {
+        if (adding) return null
+        val holding = held ?: return null
+        if (mediaItem.mediaId != heldFor) return null
+        if (mediaItem.uriOrNull() != holding.uriOrNull() || mediaItem.audioUriOrNull() != holding.audioUriOrNull()) {
+            Diag.log(
+                "preload",
+                "held $heldFor but the player asked for a different stream of it, so it loads afresh — held " +
+                    "${holding.uriOrNull()?.forLog()}, asked ${mediaItem.uriOrNull()?.forLog()}",
+            )
+            return null
+        }
+        val source = manager.getMediaSource(holding) ?: return null
+        if (!source.canUpdateMediaItem(mediaItem)) {
+            Diag.log("preload", "held $heldFor but its source cannot take the playing item, so it loads afresh")
+            return null
+        }
+        source.updateMediaItem(mediaItem)
+        handedOver = true
+        Vitals.add("playback.preloadsUsed")
+        Diag.log(
+            "preload",
+            "playing $heldFor from the source held for ${SystemClock.elapsedRealtime() - heldSince}ms " +
+                "(its first ${BufferBudget.PRELOAD_MS}ms were loading ahead)",
+        )
+        return source
     }
 
     /**
@@ -75,20 +121,21 @@ internal class NextItemPreloader(
         // preload of a stream the player then did not use is data spent for nothing, and the only
         // way to know it is happening in the wild is to count it. Report 0.1.359 had it on every
         // video: itag 18 held, itag 399 played.
-        val heldUri = holding.uriOrNull()
-        val playingUri = item.uriOrNull()
-        if (heldUri != null && playingUri != null && heldUri != playingUri) {
+        if (!handedOver) {
             Diag.warn(
                 "preload",
-                "held a different stream of $playing than the one that played, so the preload was " +
-                    "wasted — held ${heldUri.forLog()}, playing ${playingUri.forLog()}",
+                "held $playing but the player loaded it afresh, so the preload was wasted — held " +
+                    "${holding.uriOrNull()?.forLog()}, playing ${item.uriOrNull()?.forLog()}",
             )
             Vitals.add("playback.preloadsWasted")
         }
-        manager?.remove(holding)
+        manager.remove(holding)
         held = null
         heldFor = null
-        Diag.log("preload", "released the held copy of $playing — it is playing now")
+        Diag.log(
+            "preload",
+            if (handedOver) "the player owns $playing's preloaded source now" else "released the held copy of $playing",
+        )
     }
 
     /**
@@ -98,23 +145,5 @@ internal class NextItemPreloader(
     private fun MediaItem.uriOrNull(): String? =
         (localConfiguration?.uri ?: requestMetadata.mediaUri)?.toString()
 
-    @OptIn(UnstableApi::class)
-    private fun build(): DefaultPreloadManager =
-        DefaultPreloadManager.Builder(context) { _: Int ->
-            DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(BufferBudget.PRELOAD_MS * MICROS_PER_MS)
-        }
-            .setMediaSourceFactory(sourceFactory())
-            // Its own ceiling, or it takes Media3's 137.5MB preload default on top of whatever the
-            // player already holds — see [BufferBudget].
-            .setLoadControl(
-                DefaultLoadControl.Builder()
-                    .setTargetBufferBytes(BufferBudget.PRELOAD_BYTES)
-                    .build(),
-            )
-            // No setPreloadLooper: the Context constructor supplies one and setting it again throws.
-            .build()
-
-    private companion object {
-        const val MICROS_PER_MS = 1_000L
-    }
+    private fun MediaItem?.audioUriOrNull(): String? = this?.requestMetadata?.extras?.getString(EXTRA_AUDIO_URL)
 }

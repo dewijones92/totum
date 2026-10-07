@@ -12,10 +12,13 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.RenderersFactory
+import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -83,38 +86,7 @@ public class PlaybackService : MediaSessionService() {
         // needs more than the connection has look identical, and the fixes are opposite.
         val bandwidth = DefaultBandwidthMeter.Builder(this).build()
         PlaybackVitals.bitrateEstimate = bandwidth::getBitrateEstimate
-        val player = ExoPlayer.Builder(this)
-            .setRenderersFactory(renderersFactory)
-            .setBandwidthMeter(bandwidth)
-            .setLoadControl(
-                DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(
-                        BufferBudget.MIN_BUFFER_MS,
-                        BufferBudget.MAX_BUFFER_MS,
-                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
-                    )
-                    // A little behind too, so a small scrub back does not refetch.
-                    .setBackBuffer(BufferBudget.BACK_BUFFER_MS, true)
-                    // The byte ceiling that makes the duration above safe — see [BufferBudget].
-                    .setTargetBufferBytes(BufferBudget.PLAYBACK_BYTES)
-                    .build(),
-            )
-            // Ranged fetches, not one open-ended GET: see ChunkedDataSource for the
-            // measurements. This is what stops the every-seven-seconds stalling.
-            .setMediaSourceFactory(sourceFactory())
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                    .build(),
-                // handleAudioFocus:
-                true,
-            )
-            .setHandleAudioBecomingNoisy(true)
-            .setSeekBackIncrementMs(SEEK_BACK_MS)
-            .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
-            .build()
+        val (player, preloads) = buildPlayer(renderersFactory, bandwidth)
         this.player = player
         // Where the detail behind a stall comes from: chosen format, per-chunk
         // throughput, load failures, dropped frames. Media3 exposes it only here.
@@ -130,12 +102,53 @@ public class PlaybackService : MediaSessionService() {
                 }
             },
         )
-        cachedPreloader = NextItemPreloader(this, ::sourceFactory)
+        val preloader = NextItemPreloader(preloads)
+        cachedPreloader = preloader
+        sourceFactory().heldSourceFor = preloader::takeFor
         setUpCast(player)
         mediaSession = MediaSession.Builder(this, currentPlayer ?: player)
             .setCallback(SkipSilenceCallback())
             .apply { openAppIntent()?.let { setSessionActivity(it) } }
             .build()
+    }
+
+    @UnstableApi
+    private fun buildPlayer(
+        renderersFactory: RenderersFactory,
+        bandwidth: DefaultBandwidthMeter,
+    ): Pair<ExoPlayer, DefaultPreloadManager> {
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                BufferBudget.MIN_BUFFER_MS,
+                BufferBudget.MAX_BUFFER_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+            )
+            .setBackBuffer(BufferBudget.BACK_BUFFER_MS, true)
+            .setTargetBufferBytes(BufferBudget.PLAYBACK_BYTES)
+            .setPlayerTargetBufferBytes(PlayerId.PRELOAD.name, BufferBudget.PRELOAD_BYTES)
+            .build()
+        val preloading = DefaultPreloadManager.Builder(this) { _: Int ->
+            DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(BufferBudget.PRELOAD_MS * MICROS_PER_MS)
+        }
+            .setMediaSourceFactory(sourceFactory())
+            .setLoadControl(loadControl)
+            .setBandwidthMeter(bandwidth)
+            .setRenderersFactory(renderersFactory)
+        val player = preloading.buildExoPlayer(
+            ExoPlayer.Builder(this)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                        .build(),
+                    true,
+                )
+                .setHandleAudioBecomingNoisy(true)
+                .setSeekBackIncrementMs(SEEK_BACK_MS)
+                .setSeekForwardIncrementMs(SEEK_FORWARD_MS),
+        )
+        return player to preloading.build()
     }
 
     /**
@@ -201,7 +214,7 @@ public class PlaybackService : MediaSessionService() {
                 val uri = args.getString(EXTRA_PRELOAD_URI)
                 val itemId = args.getString(EXTRA_PRELOAD_ITEM_ID)
                 if (uri != null && itemId != null) {
-                    cachedPreloader?.hold(itemId, uri)
+                    cachedPreloader?.hold(itemId, uri, args.getString(EXTRA_PRELOAD_AUDIO_URI))
                 } else {
                     Diag.warn("preload", "nomination with no ${if (uri == null) "uri" else "item id"} — ignored")
                 }
@@ -354,6 +367,7 @@ internal const val EXTRA_PRELOAD_URI: String = "uri"
 
 /** The item a nomination is FOR; what the preloader releases on. See [NextItemPreloader]. */
 internal const val EXTRA_PRELOAD_ITEM_ID: String = "item_id"
+internal const val EXTRA_PRELOAD_AUDIO_URI: String = "audio_uri"
 internal const val ACTION_SILENCE_MODE: String = "com.dewijones92.totum.SILENCE_MODE"
 internal const val EXTRA_SILENCE_MODE: String = "silence_mode"
 internal const val ACTION_VOLUME_BOOST: String = "com.dewijones92.totum.VOLUME_BOOST"
@@ -385,7 +399,10 @@ private class MergingAudioVideoFactory(
     override fun setLoadErrorHandlingPolicy(policy: LoadErrorHandlingPolicy): MediaSource.Factory =
         apply { default.setLoadErrorHandlingPolicy(policy) }
 
+    var heldSourceFor: (MediaItem) -> MediaSource? = { null }
+
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
+        heldSourceFor(mediaItem)?.let { return it }
         val audioUrl = mediaItem.requestMetadata.extras?.getString(EXTRA_AUDIO_URL)
         val video = default.createMediaSource(mediaItem)
         if (audioUrl.isNullOrEmpty()) return video

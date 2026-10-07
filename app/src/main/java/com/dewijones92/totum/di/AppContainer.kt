@@ -135,6 +135,7 @@ import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
 import com.dewijones92.totum.playback.SharedPrefsVolumeBoostStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
+import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
@@ -875,6 +876,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             prefetchOne,
             applicationScope,
         )
+        playbackQueue.handOverFinishedDownloads(downloadManager, applicationScope)
         // `transferClient`, not `httpClient`: the latter carries BusyInterceptor and drives the
         // global BusyBar, so the launch after any crash flashed a loading bar for a background
         // upload nobody asked for. `transferClient` exists for exactly this.
@@ -1184,7 +1186,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     // ASKED, not guessed. This used to pick a stream by its own rule and disagreed
                     // with the launcher's on every video with a quality ladder, so the bytes were
                     // held and then thrown away — twelve nominations, twelve wasted, in 0.1.390.
-                    nominatePreload(item.item.id, videoPlaybackLauncher.urlThatWouldPlay(resolved))
+                    videoPlaybackLauncher.streamsThatWouldPlay(resolved)?.let { (url, audioUrl) ->
+                        nominatePreload(item.item.id, url, audioUrl)
+                    }
                 }
             is PlayHandle.LocalVideo -> Unit
             is PlayHandle.Podcast -> handle.audioUrl?.let { homeTorrentServer?.warmAudio(it) }
@@ -1223,13 +1227,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * re-signed per resolve and is routinely not the one the item ends up playing, so keying on it
      * meant nothing was ever released. See `PlaybackController.preloadNext`.
      */
-    private fun nominatePreload(itemId: MediaItemId, url: HttpUrl?) {
+    private fun nominatePreload(itemId: MediaItemId, url: HttpUrl?, audioUrl: HttpUrl? = null) {
         if (url == null) return
         if (networkStatus.isMetered()) {
             Diag.log("preload", "not preloading $itemId: on metered data")
             return
         }
-        playbackController.preloadNext(itemId, url)
+        playbackController.preloadNext(itemId, url, audioUrl)
     }
 
     override fun isOffline(): Boolean = !networkStatus.isOnline()
