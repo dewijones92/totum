@@ -114,6 +114,10 @@ python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run befor
 ./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```
 
+`-Ptotum.exsurgeTests` does not ADD Exsurge's tests, it RESTRICTS every module's test task to them:
+the opt-in filter includes only the requested phases. Run it as its own command; combined with another
+module's `test` it reports "0 tests" for that module, which reads as a pass (2026-10-07).
+
 The audio-quality suite (`…playback.audioquality.*`) is excluded from `test` and runs in CI only when a
 push touches the silence/boost code (`.github/workflows/audio-quality.yml`), so run it yourself whenever
 you change that code, and name any new source file in this area so the workflow's `paths:` match it
@@ -165,6 +169,11 @@ So any change to extraction, resolving, playback, the queue or downloads ships o
    and stalls and underruns come and go on the emulator in both builds. The first soak (one pass each) called
    six regressions, four of them noise; it also caught a real one, an all-clients retry firing on 6 of 10
    videos that already had 1080p.
+
+**Switch Exsurge (and Daily alarms) off on the emulator before a soak, for both builds.** On 2026-10-07
+the third of three soaks ran with Exsurge off and the first two with it on; the third looked far better
+(30/30 started, 18 stalls vs 45-50) and none of that could be credited to the change. A summons can also
+pause a soak video outright.
 
 Keep the emulator honest: its header line lists the app's other running services, and Exsurge's banner
 service masks foreground-service bugs (it hid ADR 14's freeze for a week). YouTube's experiments vary by
