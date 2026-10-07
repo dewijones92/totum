@@ -30,7 +30,7 @@ everything configurable. The backlog item, with the agreed design and the open i
 | Continue Totum | Resume the current Totum item while taking the same walking break; unlock if needed and return to Totum, without opening the language app or restarting the item; recorded as not practised | *Alea iacta est!* |
 | 20 steps | The break starts, for the length chosen on the takeover (5 minutes by default) | *Bene! Ambula, disce!* |
 | 2 minutes left | — | *Duo minuta restant.* |
-| Break over | Playback resumes (only if the break paused it); +1 laurel | *Satis! Liber es!* / *Veni, vidi, didici!* |
+| Break over | A big vibration (the summons buzz three times, ~5 s, Dewi 2026-10-07); playback resumes (only if the break paused it); +1 laurel | *Satis! Liber es!* / *Veni, vidi, didici!* |
 | Promotion | Every rank of the cursus honorum: Tiro, Legionarius (10), Centurio (50), Tribunus (150), Legatus (300), Consul (600), Imperator (1000) | *Salve! Gradum ascendisti!* |
 
 - **Streak:** a day counts when every summons ended in a *credited* break. A snooze never breaks it;
@@ -74,7 +74,7 @@ everything configurable. The backlog item, with the agreed design and the open i
   a second Restart in the evening and a pause that ran past 18:00. A one-off armed before 09:00
   becomes the ordinary clock once the day starts, so it goes quiet at 18:00 as usual. It ends a pause. **Mid-summons**
   (summoned, snoozed, or walking to the 20 steps) it ends that summons as a quiet skip (recorded,
-  no "Et tu"). **Mid-break** it ends the break early as completed. Dewi chose both on 2026-10-01,
+  no "Et tu"). **Mid-break** it ends the break early as completed, without a vibration (Dewi, 2026-10-07: only a break whose time runs out buzzes). Dewi chose both on 2026-10-01,
   after his first report on 0.1.554 showed Restart clock being ignored at `rising#5/7` while the
   banner kept counting steps.
 - **Summon now** outside active hours is a one-off too, so its snooze comes back rather than being

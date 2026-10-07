@@ -110,6 +110,19 @@ public enum class Cue { SUMMON, SUMMON_LOUDER, SUMMON_ORATION, GO, RISEN, TWO_MI
 
 public enum class Haptic { SUMMONS, STEPS_ACCEPTED, RELEASE }
 
+private val SUMMONS_PULSES = longArrayOf(600, 200, 200, 200, 600)
+private const val RELEASE_REPEATS = 3
+private const val RELEASE_GAP_MS = 400L
+
+public val Haptic.waveform: LongArray
+    get() = when (this) {
+        Haptic.SUMMONS -> longArrayOf(0) + SUMMONS_PULSES
+        Haptic.STEPS_ACCEPTED -> longArrayOf(0, 80, 80, 80)
+        Haptic.RELEASE -> (1..RELEASE_REPEATS).fold(longArrayOf(0)) { wave, i ->
+            if (i == 1) wave + SUMMONS_PULSES else wave + RELEASE_GAP_MS + SUMMONS_PULSES
+        }
+    }
+
 public sealed interface ExsurgeEffect {
     public data class Speak(val cue: Cue) : ExsurgeEffect
     public data class Buzz(val haptic: Haptic) : ExsurgeEffect

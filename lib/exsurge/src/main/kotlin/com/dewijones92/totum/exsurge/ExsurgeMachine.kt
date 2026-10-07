@@ -197,7 +197,7 @@ public object ExsurgeMachine {
                     note(
                         "clock restarted mid-break: ended early with ${state.steps} steps, proven=${state.stepsProven}"
                     )
-                    completeBreak(state)
+                    completeBreak(state, buzz = false)
                     sitDownNow(OutcomeKind.COMPLETED)
                 }
             }
@@ -240,7 +240,7 @@ public object ExsurgeMachine {
             val end = state.endsAt(settings)
             if (!at.isBefore(end)) {
                 note("break done: ${state.steps} steps, proven=${state.stepsProven}")
-                completeBreak(state)
+                completeBreak(state, buzz = true)
                 arrive(OutcomeKind.COMPLETED)
             } else if (midCueDue(state, settings) && !at.isBefore(end - settings.midCueBeforeEnd)) {
                 become(state.copy(midCueSpoken = true))
@@ -248,10 +248,11 @@ public object ExsurgeMachine {
             }
         }
 
-        private fun completeBreak(state: OnBreak) {
+        private fun completeBreak(state: OnBreak, buzz: Boolean) {
+            note(if (buzz) "break over: release buzz" else "break ended by hand: no buzz")
+            emit(Speak(Cue.FREE))
+            if (buzz) emit(Buzz(Haptic.RELEASE))
             emit(
-                Speak(Cue.FREE),
-                Buzz(Haptic.RELEASE),
                 ResumePlayback,
                 Record(
                     outcome(state.summons, OutcomeKind.COMPLETED, state.startedAt, state.steps, state.stepsProven)

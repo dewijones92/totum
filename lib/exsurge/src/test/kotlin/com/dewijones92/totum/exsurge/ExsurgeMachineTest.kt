@@ -558,6 +558,7 @@ class ExsurgeMachineTest {
         assertTrue(outcome.credited)
         assertTrue(Speak(Cue.FREE) in result.effects)
         assertTrue(ResumePlayback in result.effects)
+        assertTrue("ending it by hand must not buzz: ${result.effects}", result.effects.none { it is Buzz })
     }
 
     @Test

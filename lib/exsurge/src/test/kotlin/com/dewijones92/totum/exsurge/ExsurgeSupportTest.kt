@@ -345,4 +345,11 @@ class ExsurgeSupportTest {
     fun `a fresh install opens the current lesson`() {
         assertEquals(LOQUAX_CURRENT_LESSON_ROUTE, ExsurgeSettings().validated().destinationRoute)
     }
+
+    @Test
+    fun `the end of a break buzzes the summons pattern three times`() {
+        fun onMs(haptic: Haptic) = haptic.waveform.filterIndexed { i, _ -> i % 2 == 1 }.sum()
+        assertEquals(3 * onMs(Haptic.SUMMONS), onMs(Haptic.RELEASE))
+        assertTrue("about five seconds in all", Haptic.RELEASE.waveform.sum() >= 4_500)
+    }
 }

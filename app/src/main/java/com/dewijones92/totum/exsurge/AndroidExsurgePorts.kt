@@ -85,12 +85,12 @@ class AndroidExsurgePorts(
     override fun speak(cue: Cue, summonsId: Long, volumePercent: Int) = voice.play(cue, summonsId, volumePercent)
 
     override fun buzz(haptic: Haptic) {
-        val pattern = when (haptic) {
-            Haptic.SUMMONS -> SUMMONS_BUZZ
-            Haptic.STEPS_ACCEPTED -> STEPS_BUZZ
-            Haptic.RELEASE -> RELEASE_BUZZ
-        }
+        val pattern = haptic.waveform
         val vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
+        Diag.log(
+            ExsurgeController.TAG,
+            "dewidebug exsurge buzz $haptic: ${pattern.sum()}ms in all, hasVibrator=${vibrator.hasVibrator()}",
+        )
         vibrator.vibrate(
             VibrationEffect.createWaveform(pattern, -1),
             VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM)
@@ -136,9 +136,6 @@ class AndroidExsurgePorts(
 
     companion object {
         const val LOQUAX_ROUTE_EXTRA = "hanzi_route"
-        private val SUMMONS_BUZZ = longArrayOf(0, 600, 200, 200, 200, 600)
-        private val STEPS_BUZZ = longArrayOf(0, 80, 80, 80)
-        private val RELEASE_BUZZ = longArrayOf(0, 100, 120, 200, 120, 400)
 
         fun destinationIntent(context: Context, settings: ExsurgeSettings): Intent? =
             context.packageManager.getLaunchIntentForPackage(settings.destinationPackage)?.apply {
