@@ -1,7 +1,7 @@
 ---
 title: continueTotumKeepsTheVideoPlayingDuringTheWalkingBreak times out on totum-api35
 kind: todo
-status: corrected 2026-10-07 17:1x — not a consistent failure: it passed in two full Exsurge runs that afternoon (21/21 and 22/22); state-dependent, cause not established
+status: state-dependent; 18:4x recurrence was host load (a second emulator at ~10 cores); the podcast twin's CI failure was a test bug, fixed
 area: testing
 priority: low
 requested: 2026-10-07
@@ -30,3 +30,17 @@ So: state-dependent, not broken. In the same session `pausedAndOutOfHoursKeepAQu
 once ("notification 7301 was never posted") and then passed alone, as a class and in the full run, which
 points the same way: a banner service left running by earlier manual use changes the reconcile path.
 If either recurs, record `ExsurgeBannerService.running` at the test's start.
+
+## 18:4x: the cause this time was host load, and the podcast twin had a real test bug
+
+It failed again at line 138 in 3 of 6 class runs, with load average 24 on the laptop: a second
+emulator (`loquax-api35`) was using ~10 cores. The logcat shows the local file taking 3 s to reach
+`transition` and then `gave up buffering after 7266ms at 10000ms`. So the decoder was starved, not
+Exsurge. (Not re-run on an idle host this time; the 17:0x passes above were on a quieter one.)
+
+Separately, CI failed `continueTotumResumesThePausedPodcastWithoutReplayingIt` twice at b85cfccb with
+"the current item was restarted". That was not a restart. The test paused 26 ms after `isPlaying`, before
+any audio had been rendered, so the reported position was ExoPlayer's clock extrapolation (10027 ms).
+On resume it re-synced to the audio sink's real head (10000 ms), which is lower. The passing run at
+c568b90e had paused at 10073 ms and resumed at 10082 ms. Fix: the test now waits until the position
+reaches 10.3 s before it pauses, so `before` is a position that was really played.

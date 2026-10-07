@@ -136,6 +136,7 @@ class ExsurgeTakeoverFlowTest {
                     playback.play(item, kind = kind, localPath = file.absolutePath, startPositionMs = 10_000)
                 }
                 compose.waitUntil(10_000) { playback.state.value?.let { it.itemId == item.id && it.isPlaying } == true }
+                compose.waitUntil(10_000) { (playback.state.value?.positionMs ?: 0) >= PLAYED_BEFORE_PAUSE_MS }
                 if (paused) {
                     instrumentation.runOnMainSync { playback.setPlaying(false) }
                     compose.waitUntil(5_000) { playback.state.value?.wantsToPlay == false }
@@ -205,3 +206,5 @@ class ExsurgeTakeoverFlowTest {
         assertTrue(exsurge.view.value.stats.today.skipped >= 1)
     }
 }
+
+private const val PLAYED_BEFORE_PAUSE_MS = 10_300L
