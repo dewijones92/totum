@@ -23,7 +23,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [playback-service-foreground-start-refused](playback-service-foreground-start-refused.md) | playback | high | fixed 2026-10-01: Media3's late notification callback is wrapped, so a refused foreground start is logged rather than crashing (also the cause of a missed autoplay) |
 | [stall-rescue-overrides-a-pause](stall-rescue-overrides-a-pause.md) | playback | medium | fixed 2026-10-02 (the 2026-10-01 fix was ineffective on real Media3): a pause during a rescue now holds |
 | [exsurge-et-disce](exsurge-et-disce.md) | side-quest | medium | built 2026-10-01 → [features/exsurge-et-disce.md](../features/exsurge-et-disce.md); awaiting a real day on the phone |
-| [exsurge-back-goes-to-totum](exsurge-back-goes-to-totum.md) | side-quest | low | agreed 2026-10-07: Back opens the player if an item is loaded, else Totum |
+| [exsurge-back-goes-to-totum](exsurge-back-goes-to-totum.md) | side-quest | low | built 2026-10-07: Back opens the player if an item is loaded, else Totum |
 | [exsurge-go-scrolls-to-current-lesson](exsurge-go-scrolls-to-current-lesson.md) | side-quest | medium | built 2026-10-07: GO opens Loquax on Learn, scrolled to the current lesson and highlighted (Loquax ADR 19) |
 | [exsurge-continue-video-test-fails-on-emulator](exsurge-continue-video-test-fails-on-emulator.md) | testing | low | open 2026-10-07: times out waiting for the video fixture to play; pre-existing (fails on the build before too) |
 | [exsurge-ideas](exsurge-ideas.md) | side-quest | low | proposed: 24 ideas waiting on keep / cut / later |

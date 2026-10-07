@@ -1,10 +1,12 @@
 package com.dewijones92.totum
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.fragment.app.FragmentActivity
 import com.dewijones92.totum.common.Diag
@@ -35,6 +37,8 @@ class MainActivity : FragmentActivity() {
 
     private val mayAsk = mutableStateOf(false)
 
+    private val openPlayerRequest = mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -59,6 +63,7 @@ class MainActivity : FragmentActivity() {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
                     AppShell(
                         container,
+                        openPlayerRequest = openPlayerRequest.intValue,
                         askForNotifications = if (mayAsk.value) {
                             { RequestNotificationPermissionOnce() }
                         } else {
@@ -68,6 +73,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        if (!restored) handleOpenPlayer(intent, via = "onCreate")
         handleShareIntent(intent, via = "onCreate", restored = restored)
     }
 
@@ -78,7 +84,15 @@ class MainActivity : FragmentActivity() {
         // A share queued while the process was dead lands here after onCreate(saved state) had
         // already allowed the ask, and before the first composition makes it.
         if (intent.isFreshShare(restored = false)) mayAsk.value = false
+        handleOpenPlayer(intent, via = "onNewIntent")
         handleShareIntent(intent, via = "onNewIntent", restored = false)
+    }
+
+    private fun handleOpenPlayer(intent: Intent, via: String) {
+        if (!intent.getBooleanExtra(EXTRA_OPEN_PLAYER, false)) return
+        intent.removeExtra(EXTRA_OPEN_PLAYER)
+        openPlayerRequest.intValue++
+        Diag.log("nav", "dewidebug open the player requested via $via (request ${openPlayerRequest.intValue})")
     }
 
     /**
@@ -159,7 +173,12 @@ class MainActivity : FragmentActivity() {
     private fun Intent.isFreshShare(restored: Boolean): Boolean =
         arrival(restored) == ShareArrival.FRESH && sharedWatchUrl() != null
 
-    private companion object {
-        val SHARED_SOURCE = SourceId("shared")
+    companion object {
+        private val SHARED_SOURCE = SourceId("shared")
+        private const val EXTRA_OPEN_PLAYER = "totum.openPlayer"
+
+        fun intent(context: Context, openPlayer: Boolean): Intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_OPEN_PLAYER, openPlayer)
     }
 }

@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -152,7 +153,7 @@ fun FullPlayerOverlay(
     val videoSettings = rememberVideoSettings(state, quality, onSetSpeed, onSetSubtitleLanguage)
     BackHandler { if (fullscreen) fullscreenMode = FullscreenMode.WINDOWED else onDismiss() }
     FullscreenEffect(active = fullscreen, lockLandscape = fullscreenMode == FullscreenMode.MANUAL)
-    Surface(modifier = Modifier.fillMaxSize()) {
+    Surface(modifier = Modifier.fillMaxSize().testTag(FULL_PLAYER_TAG)) {
         // Bound to `player`, not `videoPlayer`, so the surface survives an item change:
         // rebuilding it across the gap is a visible flicker on every auto-advance. The
         // player itself is null only before the session connects, which is not that gap.
@@ -727,3 +728,5 @@ private const val DESCRIPTION_COLLAPSED_LINES = 4
 
 /** Enough to read as a group without becoming a slab that competes with the artwork. */
 internal const val CONTROL_SURFACE_ALPHA = 0.4f
+
+const val FULL_PLAYER_TAG: String = "full-player"

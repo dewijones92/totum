@@ -97,8 +97,11 @@ everything configurable. The backlog item, with the agreed design and the open i
   Exsurge screen.
 - **Tapping the banner** opens the Exsurge screen (`ExsurgeActivity`, which hosts the same
   `ExsurgeSettingsScreen`), or the takeover while a summons is live. It opens in its own task, out of
-  Recents, so Back returns to whatever was in front rather than into Totum's player. Dewi asked for this on
-  2026-10-01; before that, it opened Totum's main screen.
+  Recents. **Back goes into Totum** (Dewi, 2026-10-07, reversing 2026-10-01's "back to whatever was in
+  front"): to the full player when an item is loaded, else Totum's main screen. Logged as `dewidebug
+  exsurge back (…) -> …`, then `open-player request N -> full player on …` or `… dropped: nothing loaded`
+  (the shell waits up to 3 s for the player connection). `ExsurgeBackTest` covers the loaded case, red
+  then green; the nothing-loaded case was checked by hand on the emulator (no test can unload playback).
 - **Settings → Exsurge et Disce:** the live status card (above), a stats card with Surgius in his
   current mood, every setting, and a permissions checklist with Grant buttons.
 

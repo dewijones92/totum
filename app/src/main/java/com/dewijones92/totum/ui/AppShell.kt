@@ -82,6 +82,7 @@ fun AppShell(
      * green (found by an adversarial review, 2026-09-20).
      */
     askForNotifications: @Composable () -> Unit = { RequestNotificationPermissionOnce() },
+    openPlayerRequest: Int = 0,
 ) {
     var selected by rememberSaveable { mutableStateOf(TopLevelDestination.Videos) }
     var showFullPlayer by rememberSaveable { mutableStateOf(false) }
@@ -111,6 +112,7 @@ fun AppShell(
     }
 
     OpenVideoOnLandscape(playbackState, enabled = shortsReel == null) { showFullPlayer = true }
+    AnswerOpenPlayerRequests(openPlayerRequest, controller) { showFullPlayer = true }
 
     CompositionLocalProvider(
         LocalVideoBounds provides videoBounds,

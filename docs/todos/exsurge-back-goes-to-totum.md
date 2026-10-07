@@ -1,7 +1,7 @@
 ---
 title: Back on the Exsurge page goes to Totum (the player if something is loaded)
 kind: todo
-status: agreed 2026-10-07, not started
+status: built 2026-10-07 — see features/exsurge-et-disce.md; awaiting the phone
 area: side-quest
 priority: low
 requested: 2026-10-07
