@@ -39,6 +39,10 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
    2.25 s against 2.95 s median, and on the emulator it turned "6 qualities (0 durable)" into
    "6 qualities (6 durable)". `android` stays in the fallback because made-for-kids content once played
    through it alone (2026-07-30). The steps line says which path ran. Downloads keep the full list.
+   **Amended 2026-10-07:** a web_embedded result that yt-dlp reports as SABR-degraded ("formats have
+   been skipped as they are missing a URL") also retries with every client. On 0.1.575 all five
+   extractions in one session came back as a single 360p stream that way, and the app's "ask YouTube
+   directly" fallback then served TV URLs that 403'd.
 7. **The engine is warmed 10 s after launch** (Dewi chose it: ~80 MB more memory for a session's first
    video not paying ~2.7 s of Python and JS start-up). Never at launch, and never under
    instrumentation, so test timings do not move. `warmUp()` is abstract on `YtDlpEngine` so no wrapper
@@ -57,6 +61,10 @@ one after another (~10 s). The cache was only switched on by the SABR path (`_n_
    extraction borrows one long-lived YoutubeDL's request director and cookie jar, handing the director
    back before closing so the pool survives. Measured on the laptop: ~0.3–0.4 s per extraction for each
    of the two. Downloads keep their own.
+   **Amended 2026-10-07:** the shared cookie jar is cleared whenever no extraction is in flight, so each
+   burst starts as a new visitor, as before the pool. One visitor kept for a whole session is the
+   likeliest reason a SABR-only bucketing stuck to every extraction in 0.1.575 (5 of 5, against 0 of 7 on
+   0.1.573; the same video gave full formats on the laptop at the same time).
 12. **Auto-caption translations are built only for the languages the app offers**
    (`AUTO_CAPTION_LANGUAGES`, passed in from Kotlin, plus the languages spoken in the video). yt-dlp
    otherwise built a URL for every caption track × ~170 languages: 9.6 MB of JSON for one dubbed video,

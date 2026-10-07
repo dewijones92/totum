@@ -474,6 +474,7 @@ class ClientFallbackTest(unittest.TestCase):
 
         class Scripted(stub.YoutubeDL):
             def extract_info(self, url, download=False):
+                stub.current_logger = self.options["logger"]
                 clients = self.options["extractor_args"]["youtube"]["player_client"]
                 seen.append((list(clients), self.options["extractor_args"]["youtube"].get("po_token")))
                 return answer_for(clients, stub)
@@ -509,6 +510,19 @@ class ClientFallbackTest(unittest.TestCase):
 
         self.assertEqual(2, len(seen))
         self.assertEqual(PLAYABLE["formats"][0]["url"], result["info"]["formats"][0]["url"])
+
+    def test_a_sabr_degraded_ladder_retries_with_every_client(self):
+        def answer(clients, stub):
+            if clients == ["web_embedded"]:
+                stub.current_logger.warning(
+                    "[youtube] -mv1Tf26Vms: Some web_embedded client https formats have been skipped as they are "
+                    "missing a URL. YouTube may have enabled the SABR-only streaming experiment")
+            return PLAYABLE
+
+        result, seen, module = self._run(answer)
+
+        self.assertEqual([["web_embedded"], module.PLAYER_CLIENTS["youtube"]["player_client"]], [c for c, _ in seen])
+        self.assertIn("SABR-only", result["steps"])
 
     def test_when_both_fail_the_failure_says_both_were_tried(self):
         def answer(clients, stub):

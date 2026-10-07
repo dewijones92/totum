@@ -16,6 +16,13 @@ except ImportError:
     sys.exit(0)
 
 
+def _cookie(name, value):
+    import http.cookiejar
+
+    return http.cookiejar.Cookie(0, name, value, None, False, ".youtube.com", True, True, "/", True,
+                                 True, None, False, None, None, {})
+
+
 def _bridge():
     spec = importlib.util.spec_from_file_location("totum_ytdlp", BRIDGE)
     module = importlib.util.module_from_spec(spec)
@@ -55,6 +62,19 @@ class SharedNetworkTest(unittest.TestCase):
         second = self._extraction()
         self.assertIs(session, handler._get_instance(cookiejar=second.cookiejar, **self._extra(handler)))
         self._finish(second)
+
+    def test_each_burst_of_extractions_starts_with_fresh_cookies(self):
+        first = self._extraction()
+        first.cookiejar.set_cookie(_cookie("VISITOR_INFO1_LIVE", "sticky"))
+        overlapping = self._extraction()
+        self.assertEqual(["VISITOR_INFO1_LIVE"], [c.name for c in overlapping.cookiejar])
+        self._finish(first)
+        self._finish(overlapping)
+
+        later = self._extraction()
+
+        self.assertEqual([], [c.name for c in later.cookiejar])
+        self._finish(later)
 
     def test_the_steps_line_says_which_handlers_are_shared(self):
         self._finish(self._extraction())

@@ -8,6 +8,7 @@ import json
 import os
 import platform
 import re
+import threading
 
 import yt_dlp
 
@@ -226,6 +227,10 @@ class _NothingPlayable(Exception):
     pass
 
 
+def _sabr_degraded(logger):
+    return any("formats have been skipped as they are missing a URL" in m for m in logger.messages)
+
+
 def _playable(info):
     return any(
         f.get("url") and (f.get("vcodec") not in (None, "none") or f.get("acodec") not in (None, "none"))
@@ -273,6 +278,8 @@ def extract(url, po_token=None):
             info = _extract_with(url, po_token, FAST_PLAYER_CLIENTS, logger)
             if not _playable(info):
                 raise _NothingPlayable("no format with a URL")
+            if _sabr_degraded(logger):
+                raise _NothingPlayable("its https formats were withheld (SABR-only), leaving a degraded ladder")
         except (yt_dlp.utils.DownloadError, _NothingPlayable) as first:
             route = f"clients web_embedded failed ({str(first)[:80]}), retried with every client"
             info = _extract_with(url, po_token, None, logger)
@@ -358,9 +365,20 @@ def _shared_network():
     return _NETWORK
 
 
+_IN_FLIGHT = 0
+_IN_FLIGHT_LOCK = threading.Lock()
+_FRESH_COOKIES = 0
+
+
 def _lend_network(ydl):
+    global _IN_FLIGHT, _FRESH_COOKIES
     try:
         network = _shared_network()
+        with _IN_FLIGHT_LOCK:
+            if _IN_FLIGHT == 0:
+                network.cookiejar.clear()
+                _FRESH_COOKIES += 1
+            _IN_FLIGHT += 1
         ydl.__dict__["cookiejar"] = network.cookiejar
         ydl.__dict__["_request_director"] = network._request_director
         return True
@@ -369,7 +387,10 @@ def _lend_network(ydl):
 
 
 def _return_network(ydl):
+    global _IN_FLIGHT
     ydl.__dict__.pop("_request_director", None)
+    with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT = max(0, _IN_FLIGHT - 1)
 
 
 def _network_state():
@@ -377,7 +398,7 @@ def _network_state():
         if _NETWORK is None or "_request_director" not in _NETWORK.__dict__:
             return "http not shared yet"
         handlers = ",".join(h.RH_KEY for h in _NETWORK._request_director.handlers.values())
-        return f"http shared [{handlers}]"
+        return f"http shared [{handlers}], cookies fresh {_FRESH_COOKIES} time(s)"
     except Exception as e:  # noqa: BLE001
         return f"http unknown ({type(e).__name__})"
 
