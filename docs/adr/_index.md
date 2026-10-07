@@ -32,3 +32,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 14 | [The playback service stays in the foreground for two hours after playback stops](0014-playback-service-stays-foreground-after-a-pause.md) | Accepted |
 | 15 | [The Exsurge banner is an Android 16 Live Update, so it shows on the lock screen](0015-exsurge-banner-is-a-live-update.md) | Accepted |
 | 16 | [Downloads keep their sponsor segments; playback skips them live from the latest list](0016-downloads-keep-sponsor-segments.md) | Accepted |
+| 17 | [A reminder kit shared by the side quests](0017-reminder-kit-shared-by-side-quests.md) | Accepted |

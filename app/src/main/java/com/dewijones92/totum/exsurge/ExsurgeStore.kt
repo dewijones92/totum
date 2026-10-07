@@ -1,25 +1,25 @@
 package com.dewijones92.totum.exsurge
 
 import android.content.Context
-import androidx.core.content.edit
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.JsonPrefs
 import java.io.File
 
 class SharedPrefsExsurgeStore(context: Context) : ExsurgePersistence {
-    private val prefs = context.getSharedPreferences("exsurge", Context.MODE_PRIVATE)
+    private val prefs = JsonPrefs(context, "exsurge", ExsurgeController.TAG)
     private val outcomesFile = File(context.filesDir, "exsurge/outcomes.json")
 
     override fun loadSettings(): ExsurgeSettings =
-        read("settings", ExsurgeSettings()) { ExsurgeCodec.decodeSettings(it) }
+        prefs.read("settings", ExsurgeSettings()) { ExsurgeCodec.decodeSettings(it) }
 
     override fun saveSettings(settings: ExsurgeSettings) =
-        prefs.edit { putString("settings", ExsurgeCodec.encodeSettings(settings)) }
+        prefs.write("settings", ExsurgeCodec.encodeSettings(settings))
 
     override fun loadMemory(): ExsurgeMemory =
-        read("memory", ExsurgeMemory()) { ExsurgeCodec.decodeMemory(it) }
+        prefs.read("memory", ExsurgeMemory()) { ExsurgeCodec.decodeMemory(it) }
 
     override fun saveMemory(memory: ExsurgeMemory) =
-        prefs.edit { putString("memory", ExsurgeCodec.encodeMemory(memory)) }
+        prefs.write("memory", ExsurgeCodec.encodeMemory(memory))
 
     override fun loadOutcomes(): List<BreakOutcome> {
         if (!outcomesFile.exists()) return emptyList()
@@ -40,19 +40,6 @@ class SharedPrefsExsurgeStore(context: Context) : ExsurgePersistence {
             tmp.writeText(ExsurgeCodec.encodeOutcomes(outcomes))
             check(tmp.renameTo(outcomesFile)) { "rename failed" }
         }.onFailure { Diag.warn(ExsurgeController.TAG, "dewidebug exsurge outcomes not saved (${outcomes.size})", it) }
-    }
-
-    private fun <T> read(key: String, default: T, decode: (String) -> T): T {
-        val text = prefs.getString(key, null) ?: return default
-        return runCatching { decode(text) }
-            .onFailure {
-                Diag.warn(
-                    ExsurgeController.TAG,
-                    "dewidebug exsurge stored $key unreadable, using defaults",
-                    it
-                )
-            }
-            .getOrDefault(default)
     }
 }
 

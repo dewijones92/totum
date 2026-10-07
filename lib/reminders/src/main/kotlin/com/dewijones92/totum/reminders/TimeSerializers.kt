@@ -1,4 +1,4 @@
-package com.dewijones92.totum.exsurge
+package com.dewijones92.totum.reminders
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -9,21 +9,28 @@ import kotlinx.serialization.encoding.Encoder
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 
-internal object InstantSerializer : KSerializer<Instant> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("exsurge.Instant", PrimitiveKind.LONG)
+public object InstantSerializer : KSerializer<Instant> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("reminders.Instant", PrimitiveKind.LONG)
     override fun serialize(encoder: Encoder, value: Instant): Unit = encoder.encodeLong(value.toEpochMilli())
     override fun deserialize(decoder: Decoder): Instant = Instant.ofEpochMilli(decoder.decodeLong())
 }
 
-internal object LocalDateSerializer : KSerializer<LocalDate> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("exsurge.LocalDate", PrimitiveKind.STRING)
+public object LocalDateSerializer : KSerializer<LocalDate> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("reminders.LocalDate", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: LocalDate): Unit = encoder.encodeString(value.toString())
     override fun deserialize(decoder: Decoder): LocalDate = LocalDate.parse(decoder.decodeString())
 }
 
-internal object DayOfWeekSerializer : KSerializer<DayOfWeek> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("exsurge.DayOfWeek", PrimitiveKind.STRING)
+public object LocalTimeSerializer : KSerializer<LocalTime> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("reminders.LocalTime", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: LocalTime): Unit = encoder.encodeString(value.toString())
+    override fun deserialize(decoder: Decoder): LocalTime = LocalTime.parse(decoder.decodeString())
+}
+
+public object DayOfWeekSerializer : KSerializer<DayOfWeek> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("reminders.DayOfWeek", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: DayOfWeek): Unit = encoder.encodeString(value.name)
     override fun deserialize(decoder: Decoder): DayOfWeek = DayOfWeek.valueOf(decoder.decodeString())
 }

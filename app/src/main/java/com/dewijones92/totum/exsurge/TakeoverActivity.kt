@@ -11,7 +11,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -46,6 +44,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.ChoiceChips
+import com.dewijones92.totum.reminders.kit.showOverLockScreen
+import com.dewijones92.totum.reminders.minuteChoices
 import com.dewijones92.totum.theme.TotumTheme
 import java.lang.ref.WeakReference
 import java.time.Duration
@@ -55,8 +56,7 @@ class TakeoverActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
+        showOverLockScreen()
         current = WeakReference(this)
         val goNow = intent.getBooleanExtra(EXTRA_GO, false)
         val state = exsurge.view.value.memory.state.label()
@@ -303,22 +303,8 @@ private fun TakeoverButtons(
 }
 
 @Composable
-private fun MinuteChips(title: String, choices: List<Int>, chosen: Int, tag: String, onChoose: (Int) -> Unit) {
-    Text(title, style = MaterialTheme.typography.titleSmall)
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        choices.forEach { minutes ->
-            FilterChip(
-                selected = minutes == chosen,
-                onClick = { onChoose(minutes) },
-                label = { Text(stringResource(R.string.exsurge_takeover_break_minutes, minutes)) },
-                modifier = Modifier.testTag("$tag-$minutes"),
-            )
-        }
-    }
-}
+private fun MinuteChips(title: String, choices: List<Int>, chosen: Int, tag: String, onChoose: (Int) -> Unit) =
+    ChoiceChips(title, choices, chosen, tag, { stringResource(R.string.exsurge_takeover_break_minutes, it) }, onChoose)
 
 @Composable
 private fun BreakChips(chosen: Int, onChoose: (Int) -> Unit) = MinuteChips(
@@ -342,8 +328,6 @@ private fun chooseBreak(exsurge: ExsurgeController, minutes: Int) {
 internal fun breakChoices(chosen: Int): List<Int> = minuteChoices(BREAK_CHOICES, chosen)
 
 internal fun snoozeChoices(chosen: Int): List<Int> = minuteChoices(SNOOZE_CHOICES, chosen)
-
-private fun minuteChoices(presets: List<Int>, chosen: Int): List<Int> = (presets + chosen).distinct().sorted()
 
 private val BREAK_CHOICES = listOf(2, 5, 10, 15)
 private val SNOOZE_CHOICES = listOf(5, 10, 15, 30)

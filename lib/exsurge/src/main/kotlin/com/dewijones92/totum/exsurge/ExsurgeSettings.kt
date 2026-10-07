@@ -2,6 +2,7 @@
 
 package com.dewijones92.totum.exsurge
 
+import com.dewijones92.totum.reminders.DayOfWeekSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.time.DayOfWeek

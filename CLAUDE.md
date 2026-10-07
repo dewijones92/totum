@@ -390,6 +390,10 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   `PlaybackController.setPlaying` and `PlaybackInterruption` (ADR 4). Its tests are an opt-in phase
   (`-Ptotum.exsurgeTests`) with their own workflow (ADR 7). Feature doc:
   `docs/features/exsurge-et-disce.md`.
+- `:lib:reminders` + `app/…/reminders/kit/` — the **reminder kit** shared by the side quests (ADR 17):
+  waveforms, choice lists, next-weekday-time maths and time serializers; exact and alarm-clock alarms, an
+  alarm-channel voice (clips and text-to-speech), the alarm tone, the buzzer, chips, a clock picker, a
+  lock-screen helper and a JSON prefs store.
 - `:lib:common` — pure-Kotlin utility module with no app dependencies, shared
   by app modules and standalone libraries alike (it would be published
   alongside `:lib:ytdlp`, like the old youtubedl-android's `common` module).

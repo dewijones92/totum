@@ -10,6 +10,7 @@ kotlin {
 
 dependencies {
     api(project(":lib:common"))
+    api(project(":lib:reminders"))
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)

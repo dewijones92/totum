@@ -2,6 +2,9 @@
 
 package com.dewijones92.totum.exsurge
 
+import com.dewijones92.totum.reminders.InstantSerializer
+import com.dewijones92.totum.reminders.LocalDateSerializer
+import com.dewijones92.totum.reminders.Waveforms
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
@@ -116,11 +119,9 @@ private const val RELEASE_GAP_MS = 400L
 
 public val Haptic.waveform: LongArray
     get() = when (this) {
-        Haptic.SUMMONS -> longArrayOf(0) + SUMMONS_PULSES
-        Haptic.STEPS_ACCEPTED -> longArrayOf(0, 80, 80, 80)
-        Haptic.RELEASE -> (1..RELEASE_REPEATS).fold(longArrayOf(0)) { wave, i ->
-            if (i == 1) wave + SUMMONS_PULSES else wave + RELEASE_GAP_MS + SUMMONS_PULSES
-        }
+        Haptic.SUMMONS -> Waveforms.once(SUMMONS_PULSES)
+        Haptic.STEPS_ACCEPTED -> Waveforms.once(longArrayOf(80, 80, 80))
+        Haptic.RELEASE -> Waveforms.repeated(SUMMONS_PULSES, RELEASE_REPEATS, RELEASE_GAP_MS)
     }
 
 public sealed interface ExsurgeEffect {

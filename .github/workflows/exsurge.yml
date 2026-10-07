@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "lib/exsurge/**"
+      - "lib/reminders/**"
+      - "app/src/*/java/com/dewijones92/totum/reminders/**"
       - "app/src/*/java/com/dewijones92/totum/exsurge/**"
       - "app/src/main/java/com/dewijones92/totum/ui/settings/ExsurgeSettingsScreen.kt"
       - "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt"
