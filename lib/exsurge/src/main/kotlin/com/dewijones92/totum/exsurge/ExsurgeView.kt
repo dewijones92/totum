@@ -35,7 +35,7 @@ public sealed interface BannerLine {
     public data class Sleeping(val backAt: Instant?) : BannerLine
     public data class Paused(val until: Instant) : BannerLine
     public data class Sitting(val summonsAt: Instant?, val satMinutes: Long, val limitMinutes: Int) : BannerLine
-    public data class Summoned(val call: Int, val snoozesLeft: Int) : BannerLine
+    public data class Summoned(val call: Int, val snoozes: Int) : BannerLine
     public data class Snoozed(val until: Instant) : BannerLine
     public data class Rising(val steps: Int, val needed: Int) : BannerLine
     public data class OnBreak(val endsAt: Instant, val steps: Int, val lengthMinutes: Int) : BannerLine
@@ -53,7 +53,7 @@ public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContex
             satMinutes = Duration.between(state.since, at).toMinutes().coerceAtLeast(0),
             limitMinutes = settings.sittingMinutes,
         )
-        is Summoned -> BannerLine.Summoned(state.call, snoozesLeft(state, settings))
+        is Summoned -> BannerLine.Summoned(state.call, state.summons.snoozes)
         is Snoozed -> BannerLine.Snoozed(state.until)
         is Rising -> BannerLine.Rising(state.steps, context.stepsToRise)
         is OnBreak -> BannerLine.OnBreak(

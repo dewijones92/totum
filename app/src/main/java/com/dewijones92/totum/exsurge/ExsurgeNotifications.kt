@@ -93,31 +93,16 @@ class ExsurgeNotifications(private val context: Context) {
             )
             .addAction(
                 action(
-                    context.getString(R.string.exsurge_action_just_walk),
-                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.JUST_WALK),
+                    context.getString(R.string.exsurge_action_snooze, request.snoozeMinutes),
+                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SNOOZE),
                 ),
             )
-            .apply {
-                if (request.snoozesLeft > 0) {
-                    addAction(
-                        action(
-                            context.getString(
-                                R.string.exsurge_action_snooze,
-                                request.snoozeMinutes,
-                                request.snoozesLeft
-                            ),
-                            ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SNOOZE)
-                        )
-                    )
-                } else {
-                    addAction(
-                        action(
-                            context.getString(R.string.exsurge_action_skip),
-                            ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SKIP),
-                        ),
-                    )
-                }
-            }
+            .addAction(
+                action(
+                    context.getString(R.string.exsurge_action_skip),
+                    ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SKIP),
+                ),
+            )
             .build()
         manager.notify(SUMMONS_ID, notification)
     }
@@ -204,7 +189,7 @@ class BannerText(private val context: Context) {
             is BannerLine.Sitting -> sitting(line, view)
             is BannerLine.Summoned -> Triple(
                 context.getString(R.string.exsurge_banner_summoned),
-                context.getString(R.string.exsurge_banner_summoned_detail, line.call, line.snoozesLeft),
+                context.getString(R.string.exsurge_banner_summoned_detail, line.call, line.snoozes),
                 null,
             )
             is BannerLine.Snoozed -> Triple(

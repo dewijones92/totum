@@ -49,7 +49,7 @@ class ExsurgeControllerTest {
         advance(minutes = 30)
         exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
         assertEquals(
-            TakeoverRequest(1, 1, snoozesLeft = 2, snoozeMinutes = 5, overOtherApps = true),
+            TakeoverRequest(1, 1, snoozeMinutes = 5, overOtherApps = true),
             ports.takeovers.single()
         )
         assertEquals(listOf(Cue.SUMMON), ports.cues)
@@ -155,7 +155,7 @@ class ExsurgeControllerTest {
     }
 
     @Test
-    fun `the second call offers one snooze fewer`() {
+    fun `a snoozed summons comes back and can be snoozed again`() {
         val exsurge = controller()
         exsurge.turnOn()
         advance(minutes = 30)
@@ -163,8 +163,12 @@ class ExsurgeControllerTest {
         exsurge.dispatch(ExsurgeEvent.Snooze, "takeover")
         advance(minutes = 5)
         exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
-        assertEquals(1, ports.takeovers.last().snoozesLeft)
-        assertEquals(1, ports.hides)
+        exsurge.dispatch(ExsurgeEvent.Snooze, "takeover")
+        advance(minutes = 5)
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+        exsurge.dispatch(ExsurgeEvent.Snooze, "takeover")
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Snoozed)
+        assertEquals(3, ports.hides)
     }
 
     @Test

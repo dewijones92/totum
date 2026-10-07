@@ -23,7 +23,7 @@ everything configurable. The backlog item, with the agreed design and the open i
 | 30 minutes sat | Full-screen takeover (over the lock screen, or over any app with the overlay grant), vibration | *Exsurge, Dewi.* |
 | Ignored 60s, then 120s | Called again, louder | *Exsurge! Exsurge!* · *Quo usque tandem, Dewi, sella abutere?* |
 | Ignored 3 minutes | Missed: recorded, the clock restarts | — |
-| Snooze (5 min, twice at most) | Takeover hides, comes back | — |
+| Snooze (5, 10, 15 or 30 min, as often as you like) | Takeover hides, comes back | — |
 | Skip | Recorded; Surgius looks wounded for the half hour | *Et tu, Dewi?* |
 | GO | Unlock if needed; Loquax opens on Learn, scrolled to the current lesson and highlighting it (`/learn?locate=current`); Totum's playback pauses | *Alea iacta est!* |
 | Just walk | The same break, with no language app (Dewi, 2026-10-01: *"I don't necessarily wanna do language learning when I get up"*); no unlock needed; recorded as not practised | *Alea iacta est!* |
@@ -48,7 +48,7 @@ everything configurable. The backlog item, with the agreed design and the open i
   the notification cannot disagree. The card updates every second while the screen is open. Its
   GO (while snoozed) opens the takeover's GO.
 - **Every timing is a setting:** sitting limit, break length, steps to rise, walking threshold and
-  window, snooze length and count, call-again interval (missed after three calls), rise timeout,
+  window, snooze length, call-again interval (missed after three calls), rise timeout,
   the break cue's minutes before the end, and the pause length.
 - **Always-present banner** (Dewi, 2026-10-05): stays visible when switched off, paused, or
   outside active hours. Off reads "Exsurge et Disce is off" and offers **Turn on**, **Summon now**
@@ -88,9 +88,13 @@ everything configurable. The backlog item, with the agreed design and the open i
   and never pauses playback for this break; a later manual pause remains paused when the break ends.
   Just walk still follows the playback-pause setting. Continue Totum also works for a disabled
   manual one-off, which returns to Off afterward.
-- **The summons notification** carries GO, Just walk and Snooze, or GO, Just walk and Skip when no
-  snoozes are left. Android shows three actions at most; the popup has all five choices, including
-  Continue Totum. Its actions scroll on a small screen.
+- **The summons notification** carries GO, Snooze and Skip (Dewi, 2026-10-07; it was GO, Just walk and
+  Snooze, with Skip only once snoozes ran out). Android shows three actions at most; the popup has all of
+  them, including Just walk and Continue Totum. Its actions scroll on a small screen.
+- **Snoozes are unlimited** and their length is chosen on the popup (Dewi, 2026-10-07): chips for 5, 10,
+  15 and 30 minutes beside the Snooze button, writing the one Snooze length setting like the break chips
+  do, so the last choice is remembered; a length set by the stepper outside the four shows as an extra
+  chip. The "Snoozes per summons" setting is gone, and the stepper now goes up to 60 minutes.
 - **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking
   without practice still earns the laurel; the laurel is for standing up.
 - **Quick Settings tile:** turns it on and off, and shows "Next 14:32". A long-press opens the

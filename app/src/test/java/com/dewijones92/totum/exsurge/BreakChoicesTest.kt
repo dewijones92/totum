@@ -15,4 +15,10 @@ class BreakChoicesTest {
         assertEquals(listOf(2, 5, 7, 10, 15), breakChoices(7))
         assertEquals(listOf(1, 2, 5, 10, 15), breakChoices(1))
     }
+
+    @Test
+    fun `the takeover offers snoozes of five ten fifteen and thirty minutes`() {
+        assertEquals(listOf(5, 10, 15, 30), snoozeChoices(5))
+        assertEquals(listOf(3, 5, 10, 15, 30), snoozeChoices(3))
+    }
 }

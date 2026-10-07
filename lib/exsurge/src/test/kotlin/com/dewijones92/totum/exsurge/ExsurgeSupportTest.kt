@@ -66,7 +66,7 @@ class ExsurgeSupportTest {
     fun `validation clamps every number into its range`() {
         val wild = ExsurgeSettings(
             sittingMinutes = 1, breakMinutes = 99, stepsToRise = -4, walkResetSteps = 99999,
-            snoozeMinutes = 0, maxSnoozes = 50, voiceVolumePercent = 400, destinationPackage = "  ",
+            snoozeMinutes = 0, voiceVolumePercent = 400, destinationPackage = "  ",
             startMinuteOfDay = -10, endMinuteOfDay = 99999,
         ).validated()
         assertEquals(10, wild.sittingMinutes)
@@ -74,7 +74,7 @@ class ExsurgeSupportTest {
         assertEquals(0, wild.stepsToRise)
         assertEquals(1000, wild.walkResetSteps)
         assertEquals(1, wild.snoozeMinutes)
-        assertEquals(5, wild.maxSnoozes)
+        assertEquals(60, wild.copy(snoozeMinutes = 90).validated().snoozeMinutes)
         assertEquals(100, wild.voiceVolumePercent)
         assertEquals(LOQUAX_PACKAGE, wild.destinationPackage)
         assertEquals(0, wild.startMinuteOfDay)
@@ -234,7 +234,7 @@ class ExsurgeSupportTest {
             bannerLineOf(ExsurgeState.Sitting(at(5, 10)), now, context),
         )
         val summoned = ExsurgeState.Summoned(Summons(1, now, 1), 2, now, now)
-        assertEquals(BannerLine.Summoned(call = 2, snoozesLeft = 1), bannerLineOf(summoned, now, context))
+        assertEquals(BannerLine.Summoned(call = 2, snoozes = 1), bannerLineOf(summoned, now, context))
         val rising = ExsurgeState.Rising(Summons(1, now), now, 0, 3)
         assertEquals(BannerLine.Rising(3, 20), bannerLineOf(rising, now, context))
         assertEquals(BannerLine.Rising(3, 0), bannerLineOf(rising, now, context.copy(stepsAvailable = false)))
@@ -321,7 +321,7 @@ class ExsurgeSupportTest {
         assertEquals(BannerChip.Asleep, bannerChipOf(BannerLine.Sleeping(at(6, 9))))
         assertEquals(BannerChip.Asleep, bannerChipOf(BannerLine.Sleeping(null)))
         assertEquals(BannerChip.Asleep, bannerChipOf(BannerLine.Sitting(null, 12, 30)))
-        assertEquals(BannerChip.Go, bannerChipOf(BannerLine.Summoned(call = 2, snoozesLeft = 1)))
+        assertEquals(BannerChip.Go, bannerChipOf(BannerLine.Summoned(call = 2, snoozes = 1)))
         assertEquals(BannerChip.Steps(7, 20), bannerChipOf(BannerLine.Rising(7, 20)))
         assertEquals(BannerChip.Go, bannerChipOf(BannerLine.Rising(0, 0)))
     }

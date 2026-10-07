@@ -62,7 +62,7 @@ class AndroidExsurgePorts(
         Diag.log(
             ExsurgeController.TAG,
             "dewidebug exsurge takeover #${request.summonsId} call=${request.call} " +
-                "snoozesLeft=${request.snoozesLeft} " +
+                "snoozeMinutes=${request.snoozeMinutes} " +
                 "overlay=$overApps fullScreenIntent=$fullScreen"
         )
         if (overApps) {

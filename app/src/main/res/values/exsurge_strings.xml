@@ -15,7 +15,7 @@
     <string name="exsurge_banner_no_more_today">No more summons today</string>
     <string name="exsurge_banner_sitting_detail">Sat %1$d of %2$d min · laurels today: %3$d · %4$s</string>
     <string name="exsurge_banner_summoned">EXSURGE! Time to stand up</string>
-    <string name="exsurge_banner_summoned_detail">Call %1$d · snoozes left: %2$d</string>
+    <string name="exsurge_banner_summoned_detail">Call %1$d · snoozes: %2$d</string>
     <string name="exsurge_banner_snoozed">Snoozed until %1$s</string>
     <string name="exsurge_banner_rising">Up! Steps: %1$d/%2$d</string>
     <string name="exsurge_banner_rising_no_steps">Stand up: the break is starting</string>
@@ -32,8 +32,8 @@
     <string name="exsurge_action_just_walk">Just walk</string>
     <string name="exsurge_action_continue_totum">Continue Totum</string>
     <string name="exsurge_action_continue_totum_detail">Play the current item while you walk</string>
-    <string name="exsurge_action_snooze">Snooze %1$d min (left: %2$d)</string>
-    <string name="exsurge_action_snooze_none">No snoozes left</string>
+    <string name="exsurge_action_snooze">Snooze %1$d min</string>
+    <string name="exsurge_takeover_snooze_length">Snooze for</string>
     <string name="exsurge_action_skip">Skip this one</string>
     <string name="exsurge_action_turn_on">Turn on</string>
     <string name="exsurge_action_summon_now">Summon now</string>
@@ -72,7 +72,6 @@
     <string name="exsurge_settings_walk_window">Walking window (minutes)</string>
     <string name="exsurge_settings_mid_cue_minutes">Break cue: minutes before the end</string>
     <string name="exsurge_settings_pause_minutes">Pause length (minutes)</string>
-    <string name="exsurge_settings_max_snoozes">Snoozes per summons</string>
     <string name="exsurge_settings_behaviour">Behaviour</string>
     <string name="exsurge_settings_escalate">Escalate if ignored</string>
     <string name="exsurge_settings_escalate_summary">Calls again after the set interval, then once more, then counts it as missed</string>

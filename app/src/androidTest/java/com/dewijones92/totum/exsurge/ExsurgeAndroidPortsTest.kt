@@ -62,21 +62,17 @@ class ExsurgeAndroidPortsTest {
     }
 
     @Test
-    fun theSummonsNotificationCarriesTheTakeoverAndItsThreeActions() {
-        notifications.showSummons(TakeoverRequest(42, 2, snoozesLeft = 1, snoozeMinutes = 5, overOtherApps = false))
+    fun theSummonsNotificationCarriesTheTakeoverAndGoSnoozeSkip() {
+        notifications.showSummons(TakeoverRequest(42, 2, snoozeMinutes = 10, overOtherApps = false))
         val posted = postedSummons()
         assertNotNull(posted.fullScreenIntent)
-        assertEquals(
-            listOf("GO", "Just walk", "Snooze 5 min (left: 1)"),
-            posted.actions.map { it.title.toString() }
-        )
+        assertEquals(listOf("GO", "Snooze 10 min", "Skip this one"), posted.actions.map { it.title.toString() })
     }
 
     @Test
-    fun noSnoozeActionWhenNoneAreLeft() {
-        notifications.showSummons(TakeoverRequest(42, 3, snoozesLeft = 0, snoozeMinutes = 5, overOtherApps = false))
-        val posted = postedSummons()
-        assertEquals(listOf("GO", "Just walk", "Skip this one"), posted.actions.map { it.title.toString() })
+    fun snoozeIsOfferedHoweverManyTimesItHasBeenUsed() {
+        notifications.showSummons(TakeoverRequest(42, 3, snoozeMinutes = 5, overOtherApps = false))
+        assertEquals("Snooze 5 min", postedSummons().actions[1].title.toString())
     }
 
     @Test

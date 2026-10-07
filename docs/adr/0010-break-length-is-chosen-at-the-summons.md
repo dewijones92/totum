@@ -2,7 +2,7 @@
 title: The break length is chosen at the summons and fixed for that break
 kind: adr
 status: accepted
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # 10. The break length is chosen at the summons and fixed for that break
@@ -38,3 +38,11 @@ way, and shortening it past the time already walked ended the break at once.
   already used.
 - The machine notes `<event>: break length fixed at Nm`, and a chip tap logs
   `takeover break length chosen=Nm`, so a report shows both the choice and the length applied.
+
+## Addendum (2026-10-07): snooze length the same way
+
+Dewi asked for snoozes to be unlimited and their length chosen on the popup. The snooze chips (5, 10, 15,
+30 min) follow this ADR's pattern: a chip writes the one Snooze length setting, the last choice is
+remembered, and an odd stepper value shows as an extra chip. Both rows of chips are one `MinuteChips`
+composable with their own presets (`breakChoices`, `snoozeChoices`). The per-summons snooze limit and its
+setting are removed; the summons notification is now GO, Snooze, Skip.

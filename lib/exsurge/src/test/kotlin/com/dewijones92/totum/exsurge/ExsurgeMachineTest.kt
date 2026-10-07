@@ -127,11 +127,11 @@ class ExsurgeMachineTest {
     }
 
     @Test
-    fun `a third snooze is refused`() {
-        val result = apply(summoned(snoozes = 2), ExsurgeEvent.Snooze, mondayTen.plusSeconds2(5))
-        assertTrue(result.memory.state is Summoned)
-        assertTrue(result.effects.isEmpty())
-        assertTrue(result.notes.single().startsWith("snooze refused"))
+    fun `snoozes are unlimited`() {
+        val at = mondayTen.plusSeconds2(5)
+        val result = apply(summoned(snoozes = 9), ExsurgeEvent.Snooze, at)
+        assertEquals(Snoozed(Summons(7, mondayTen, 10), at.plus(on.snooze)), result.memory.state)
+        assertEquals(listOf(HideTakeover), result.effects)
     }
 
     @Test

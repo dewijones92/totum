@@ -150,9 +150,6 @@ private val TIMING = listOf(
     StepperSpec(R.string.exsurge_settings_snooze, 1, ExsurgeSettings.SNOOZE_RANGE, { it.snoozeMinutes }) {
         copy(snoozeMinutes = it)
     },
-    StepperSpec(R.string.exsurge_settings_max_snoozes, 1, ExsurgeSettings.MAX_SNOOZE_RANGE, { it.maxSnoozes }) {
-        copy(maxSnoozes = it)
-    },
     StepperSpec(
         R.string.exsurge_settings_call_interval,
         15,

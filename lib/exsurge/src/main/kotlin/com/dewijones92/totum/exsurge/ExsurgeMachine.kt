@@ -363,10 +363,8 @@ public object ExsurgeMachine {
 
         private fun snooze() {
             val state = memory.state as? Summoned ?: return note("snooze ignored at state=${memory.state.label()}")
-            if (state.summons.snoozes >= settings.maxSnoozes) {
-                return note("snooze refused: ${state.summons.snoozes} of ${settings.maxSnoozes} used")
-            }
             val summons = state.summons.copy(snoozes = state.summons.snoozes + 1)
+            note("snooze ${summons.snoozes} for ${settings.snoozeMinutes}m (no limit)")
             become(Snoozed(summons, until = at + settings.snooze))
             emit(HideTakeover)
         }

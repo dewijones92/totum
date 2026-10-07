@@ -45,7 +45,6 @@ object NoExsurgePorts : ExsurgePorts {
 data class TakeoverRequest(
     val summonsId: Long,
     val call: Int,
-    val snoozesLeft: Int,
     val snoozeMinutes: Int,
     val overOtherApps: Boolean,
 )
@@ -195,7 +194,6 @@ class ExsurgeController(
                 TakeoverRequest(
                     summonsId = effect.summonsId,
                     call = effect.call,
-                    snoozesLeft = snoozesLeft(memory.state, settings),
                     snoozeMinutes = settings.snoozeMinutes,
                     overOtherApps = settings.takeoverOverApps,
                 ),

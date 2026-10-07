@@ -26,7 +26,6 @@ public data class ExsurgeSettings(
     val stepsToRise: Int = 20,
     val walkResetSteps: Int = 100,
     val snoozeMinutes: Int = 5,
-    val maxSnoozes: Int = 2,
     val escalate: Boolean = true,
     val midBreakCue: Boolean = true,
     val voiceVolumePercent: Int = 70,
@@ -57,7 +56,6 @@ public data class ExsurgeSettings(
         stepsToRise = stepsToRise.coerceIn(STEPS_TO_RISE_RANGE),
         walkResetSteps = walkResetSteps.coerceIn(WALK_RESET_RANGE),
         snoozeMinutes = snoozeMinutes.coerceIn(SNOOZE_RANGE),
-        maxSnoozes = maxSnoozes.coerceIn(MAX_SNOOZE_RANGE),
         voiceVolumePercent = voiceVolumePercent.coerceIn(0, PERCENT),
         destinationPackage = destinationPackage.trim().ifEmpty { LOQUAX_PACKAGE },
         destinationRoute = destinationRoute.trim(),
@@ -130,8 +128,7 @@ public data class ExsurgeSettings(
         public val BREAK_RANGE: IntRange = 1..15
         public val STEPS_TO_RISE_RANGE: IntRange = 0..200
         public val WALK_RESET_RANGE: IntRange = 0..1000
-        public val SNOOZE_RANGE: IntRange = 1..15
-        public val MAX_SNOOZE_RANGE: IntRange = 0..5
+        public val SNOOZE_RANGE: IntRange = 1..60
         public val CALL_INTERVAL_RANGE: IntRange = 30..300
         public val RISE_TIMEOUT_RANGE: IntRange = 1..10
         public val WALK_WINDOW_RANGE: IntRange = 1..15

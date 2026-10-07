@@ -152,12 +152,3 @@ public data class BreakOutcome(
 ) {
     val credited: Boolean get() = kind == OutcomeKind.COMPLETED && (stepsProven || !stepsRequired)
 }
-
-public fun snoozesLeft(state: ExsurgeState, settings: ExsurgeSettings): Int {
-    val used = when (state) {
-        is ExsurgeState.Summoned -> state.summons.snoozes
-        is ExsurgeState.Snoozed -> state.summons.snoozes
-        else -> return 0
-    }
-    return (settings.maxSnoozes - used).coerceAtLeast(0)
-}

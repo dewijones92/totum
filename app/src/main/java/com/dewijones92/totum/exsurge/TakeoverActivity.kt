@@ -80,6 +80,7 @@ class TakeoverActivity : ComponentActivity() {
                     onContinueTotum = { startBreak(ExsurgeEvent.ContinueTotum) },
                     onSnooze = { exsurge.dispatch(ExsurgeEvent.Snooze, "takeover") },
                     onBreakMinutes = { minutes -> chooseBreak(exsurge, minutes) },
+                    onSnoozeMinutes = { minutes -> chooseSnooze(exsurge, minutes) },
                     onSkip = { exsurge.dispatch(ExsurgeEvent.Skip, "takeover") },
                 )
             }
@@ -181,9 +182,9 @@ fun TakeoverScreen(
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
     onBreakMinutes: (Int) -> Unit = {},
+    onSnoozeMinutes: (Int) -> Unit = {},
 ) {
     val summoned = view.memory.state as? ExsurgeState.Summoned
-    val snoozesLeft = snoozesLeft(view.memory.state, view.settings)
     val sat = (view.memory.state as? ExsurgeState.Summoned)?.let {
         Duration.between(it.summons.firstCalledAt, view.at).toMinutes() + view.settings.sittingMinutes
     }
@@ -221,17 +222,17 @@ fun TakeoverScreen(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(20.dp))
-                BreakLengthChips(view.settings.breakMinutes, onBreakMinutes)
+                BreakChips(view.settings.breakMinutes, onBreakMinutes)
                 Spacer(Modifier.height(20.dp))
                 TakeoverButtons(
                     destination,
-                    snoozesLeft,
                     view.settings.snoozeMinutes,
                     onGo,
                     onJustWalk,
                     onContinueTotum,
                     onSnooze,
-                    onSkip
+                    onSkip,
+                    onSnoozeMinutes,
                 )
             }
         }
@@ -241,13 +242,13 @@ fun TakeoverScreen(
 @Composable
 private fun TakeoverButtons(
     destination: String,
-    snoozesLeft: Int,
     snoozeMinutes: Int,
     onGo: () -> Unit,
     onJustWalk: () -> Unit,
     onContinueTotum: () -> Unit,
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
+    onSnoozeMinutes: (Int) -> Unit,
 ) {
     Button(
         onClick = onGo,
@@ -285,15 +286,16 @@ private fun TakeoverButtons(
             )
         }
     }
-    Spacer(Modifier.height(12.dp))
-    TextButton(onClick = onSnooze, enabled = snoozesLeft > 0, modifier = Modifier.testTag("exsurge-snooze")) {
-        Text(
-            if (snoozesLeft > 0) {
-                stringResource(R.string.exsurge_action_snooze, snoozeMinutes, snoozesLeft)
-            } else {
-                stringResource(R.string.exsurge_action_snooze_none)
-            },
-        )
+    Spacer(Modifier.height(16.dp))
+    MinuteChips(
+        stringResource(R.string.exsurge_takeover_snooze_length),
+        snoozeChoices(snoozeMinutes),
+        snoozeMinutes,
+        "exsurge-snooze-length",
+        onSnoozeMinutes,
+    )
+    TextButton(onClick = onSnooze, modifier = Modifier.testTag("exsurge-snooze")) {
+        Text(stringResource(R.string.exsurge_action_snooze, snoozeMinutes))
     }
     TextButton(onClick = onSkip, modifier = Modifier.testTag("exsurge-skip")) {
         Text(stringResource(R.string.exsurge_action_skip))
@@ -301,21 +303,35 @@ private fun TakeoverButtons(
 }
 
 @Composable
-private fun BreakLengthChips(chosen: Int, onChoose: (Int) -> Unit) {
-    Text(stringResource(R.string.exsurge_takeover_break_length), style = MaterialTheme.typography.titleSmall)
+private fun MinuteChips(title: String, choices: List<Int>, chosen: Int, tag: String, onChoose: (Int) -> Unit) {
+    Text(title, style = MaterialTheme.typography.titleSmall)
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        breakChoices(chosen).forEach { minutes ->
+        choices.forEach { minutes ->
             FilterChip(
                 selected = minutes == chosen,
                 onClick = { onChoose(minutes) },
                 label = { Text(stringResource(R.string.exsurge_takeover_break_minutes, minutes)) },
-                modifier = Modifier.testTag("exsurge-break-$minutes"),
+                modifier = Modifier.testTag("$tag-$minutes"),
             )
         }
     }
+}
+
+@Composable
+private fun BreakChips(chosen: Int, onChoose: (Int) -> Unit) = MinuteChips(
+    stringResource(R.string.exsurge_takeover_break_length),
+    breakChoices(chosen),
+    chosen,
+    "exsurge-break",
+    onChoose,
+)
+
+private fun chooseSnooze(exsurge: ExsurgeController, minutes: Int) {
+    Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover snooze length chosen=${minutes}m")
+    exsurge.updateSettings("takeover chip") { it.copy(snoozeMinutes = minutes) }
 }
 
 private fun chooseBreak(exsurge: ExsurgeController, minutes: Int) {
@@ -323,8 +339,13 @@ private fun chooseBreak(exsurge: ExsurgeController, minutes: Int) {
     exsurge.updateSettings("takeover chip") { it.copy(breakMinutes = minutes) }
 }
 
-internal fun breakChoices(chosen: Int): List<Int> = (BREAK_CHOICES + chosen).distinct().sorted()
+internal fun breakChoices(chosen: Int): List<Int> = minuteChoices(BREAK_CHOICES, chosen)
+
+internal fun snoozeChoices(chosen: Int): List<Int> = minuteChoices(SNOOZE_CHOICES, chosen)
+
+private fun minuteChoices(presets: List<Int>, chosen: Int): List<Int> = (presets + chosen).distinct().sorted()
 
 private val BREAK_CHOICES = listOf(2, 5, 10, 15)
+private val SNOOZE_CHOICES = listOf(5, 10, 15, 30)
 private val FACE_SIZE = 220.dp
 private const val FACE_SHARE_OF_HEIGHT = 0.3f
