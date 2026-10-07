@@ -26,6 +26,7 @@ data class StoredLookup(
 interface LookupStore {
     fun load(watchUrl: HttpUrl): StoredLookup?
     fun save(watchUrl: HttpUrl, lookup: StoredLookup)
+    fun forget(watchUrl: HttpUrl): Boolean
 }
 
 class FileLookupStore(private val dir: File, private val keep: Int = KEEP) : LookupStore {
@@ -51,6 +52,8 @@ class FileLookupStore(private val dir: File, private val keep: Int = KEEP) : Loo
             prune()
         }.onFailure { Diag.warn("resolve", "could not store the lookup for ${watchUrl.value}", it) }
     }
+
+    override fun forget(watchUrl: HttpUrl): Boolean = fileFor(watchUrl).delete()
 
     private fun prune() {
         val stored = dir.listFiles { file ->

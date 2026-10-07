@@ -88,7 +88,7 @@ public class PlaybackService : MediaSessionService() {
         this.player = player
         // Where the detail behind a stall comes from: chosen format, per-chunk
         // throughput, load failures, dropped frames. Media3 exposes it only here.
-        player.addAnalyticsListener(PlaybackAnalytics())
+        player.addAnalyticsListener(PlaybackAnalytics { player.videoDecoderCounters })
         currentPlayer = player
         player.addListener(
             object : Player.Listener {

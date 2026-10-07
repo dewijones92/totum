@@ -4,7 +4,9 @@ import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DecoderCounters
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.LoadEventInfo
@@ -32,8 +34,13 @@ import java.io.IOException
 // them to satisfy the threshold would only make each callback harder to read.
 @Suppress("TooManyFunctions")
 @UnstableApi
-internal class PlaybackAnalytics : AnalyticsListener {
+internal class PlaybackAnalytics(
+    private val videoCounters: () -> DecoderCounters? = { null },
+) : AnalyticsListener {
 
+    private var speed = 1f
+    private var skipSilence = false
+    private var lastFrameCounts: FrameCounts? = null
     private var outstanding = 0
     private var loads = 0L
     private var lastYoungAcceptanceLogged: Long? = null
@@ -285,7 +292,34 @@ internal class PlaybackAnalytics : AnalyticsListener {
     /** Dropped frames separate "the network starved" from "the device could not keep up". */
     override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) {
         Vitals.add("playback.droppedFrames", droppedFrames.toLong())
-        Diag.log("playback", "dropped $droppedFrames frames over ${elapsedMs}ms")
+        val now = videoCounters()?.let(FrameCounts::of)
+        val sinceLast = now?.let { counts -> lastFrameCounts?.let { counts - it } ?: counts }
+        lastFrameCounts = now
+        Diag.log("playback", droppedFramesLine(droppedFrames, elapsedMs, speed, skipSilence, sinceLast))
+    }
+
+    override fun onVideoDecoderInitialized(
+        eventTime: AnalyticsListener.EventTime,
+        decoderName: String,
+        initializedTimestampMs: Long,
+        initializationDurationMs: Long,
+    ) {
+        Vitals.set("playback.videoDecoder", decoderName)
+        Diag.log("playback", "video decoder $decoderName ready in ${initializationDurationMs}ms")
+    }
+
+    override fun onVideoDisabled(eventTime: AnalyticsListener.EventTime, decoderCounters: DecoderCounters) {
+        lastFrameCounts = null
+        val counts = FrameCounts.of(decoderCounters)
+        Vitals.set("playback.lastVideoFrames", counts.describe())
+        Diag.log("playback", "video renderer off [speed=$speed skipSilence=$skipSilence ${counts.describe()}]")
+    }
+
+    override fun onPlaybackParametersChanged(
+        eventTime: AnalyticsListener.EventTime,
+        playbackParameters: PlaybackParameters,
+    ) {
+        speed = playbackParameters.speed
     }
 
     override fun onAudioUnderrun(
@@ -306,6 +340,7 @@ internal class PlaybackAnalytics : AnalyticsListener {
     }
 
     override fun onSkipSilenceEnabledChanged(eventTime: AnalyticsListener.EventTime, skipSilenceEnabled: Boolean) {
+        skipSilence = skipSilenceEnabled
         Diag.log("playback", "the player's skip-silence is now $skipSilenceEnabled")
     }
 

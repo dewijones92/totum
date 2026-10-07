@@ -692,8 +692,14 @@ class VideoResolver(
      * because ten minutes is far longer than a stream takes to die.
      */
     fun forget(watchUrl: HttpUrl) {
-        if (cache.remove(watchUrl) != null) {
-            Diag.log("resolve", "forgot the cached URL for ${watchUrl.value.takeLast(ID_CHARS)}; it will re-resolve")
+        val inMemory = cache.remove(watchUrl) != null
+        val stored = lookupStore?.forget(watchUrl) == true
+        if (inMemory || stored) {
+            Diag.log(
+                "resolve",
+                "forgot the cached URL for ${watchUrl.value.takeLast(ID_CHARS)} " +
+                    "(memory=$inMemory stored=$stored); it will re-resolve",
+            )
         }
     }
 

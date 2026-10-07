@@ -104,6 +104,29 @@ class LookupsSurviveRestartsTest {
     }
 
     @Test
+    fun `a forgotten lookup is extracted afresh rather than read back from the store`() = runTest {
+        val resolver = freshProcess()
+        resolver.resolve(url, SourceId("s"))
+
+        resolver.forget(url)
+        resolver.resolve(url, SourceId("s"))
+
+        assertEquals(2, extractions)
+    }
+
+    @Test
+    fun `a lookup forgotten before a restart is not used after it`() = runTest {
+        freshProcess().apply {
+            resolve(url, SourceId("s"))
+            forget(url)
+        }
+
+        freshProcess().resolve(url, SourceId("s"))
+
+        assertEquals(2, extractions)
+    }
+
+    @Test
     fun `every field of the extraction survives the round trip`() {
         val store = FileLookupStore(folder.root)
         val stored = StoredLookup(metadata(), SourceId("s"), listOf(segment), savedAtMs = start)
