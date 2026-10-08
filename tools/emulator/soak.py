@@ -235,6 +235,97 @@ def compare(before_path, after_path):
     return 1 if regressions else 0
 
 
+QUEUE_IDS = ["9bZkp7q19f0", "dQw4w9WgXcQ", "jNQXAC9IVRw", "YnI-e_S4ZNw"]
+
+
+def broadcast(action, *extras):
+    adb("shell", "am", "broadcast", "-a", f"com.dewijones92.totum.{action}", "-p", PACKAGE, *extras)
+
+
+def _ms(stamp):
+    hms, millis = stamp.split()[1].split(".")
+    h, m, sec = (int(x) for x in hms.split(":"))
+    return ((h * 60 + m) * 60 + sec) * 1000 + int(millis)
+
+
+def _wait_for(predicate, timeout_s, label):
+    started = time.monotonic()
+    tick = 0
+    while time.monotonic() - started < timeout_s:
+        found = predicate(trail())
+        if found is not None:
+            return found
+        tick += 1
+        if tick % 15 == 0:
+            print(f"{time.strftime('%H:%M:%S')}   waiting for {label} ({int(time.monotonic() - started)}s of {timeout_s}s)",
+                  flush=True)
+        time.sleep(2)
+    return None
+
+
+def handover(events, before, after):
+    crossed = next((i for i, (_, t, m) in enumerate(events)
+                    if t == "gapless" and m.startswith(f"crossed from {before} to {after}")), None)
+    started = next((i for i, (_, t, m) in enumerate(events)
+                    if t == "playback" and m.startswith(f"transition") and m.endswith(f"-> {after}")), None)
+    anchor = crossed if crossed is not None else started
+    if anchor is None:
+        return None
+    t0 = _ms(events[anchor][0])
+    window = []
+    for s, t, m in events[anchor:]:
+        if _ms(s) - t0 > 10_000 or (t == "queue" and "DEBUG seek" in m):
+            break
+        window.append((s, t, m))
+    silence = next((int(x.group(1)) for _, t, m in window
+                    if t == "playback" and (x := re.search(r"— (\d+)ms of silence since the last item ended", m))), None)
+    ready = next((int(x.group(1)) for _, t, m in window
+                  if t == "playback" and (x := re.search(r"ready after (\d+)ms", m))), None)
+    stalls = sum(1 for _, t, m in window if t == "playback" and m.startswith("buffering at"))
+    if crossed is not None:
+        gap = ready if stalls else 0
+    else:
+        gap = silence if silence is not None else ready
+    return {"from": before, "to": after, "gapless": crossed is not None, "gapMs": gap, "stallsIn10s": stalls,
+            "adopted": any(t == "gapless" and m.startswith(f"adopted {after}") for _, t, m in window),
+            "fatal403": sum(1 for _, t, m in window if "HTTP 403 from client" in m)}
+
+
+def queue_run(args):
+    info = preflight()
+    print(f"device {info}", flush=True)
+    report = {"label": args.label, "device": info, "modes": {}}
+    for mode in args.modes:
+        broadcast("DEBUG_SET_GAPLESS", "--ez", "on", "true" if mode == "on" else "false")
+        adb("logcat", "-c")
+        broadcast("DEBUG_QUEUE_PLAY_ALL", "--es", "ids", ",".join(args.ids))
+        rows = []
+        for before, after in zip(args.ids, args.ids[1:]):
+            print(f"{time.strftime('%H:%M:%S')} gapless={mode}: {before} -> {after}", flush=True)
+            if _wait_for(lambda ev: True if any(t == "latency" and before in m for _, t, m in ev) or
+                         any(t == "gapless" and m.startswith(f"crossed from") and m.split()[4] == before for _, t, m in ev)
+                         else None, args.start_timeout, f"{before} to play") is None:
+                rows.append({"from": before, "to": after, "error": "never started"})
+                continue
+            time.sleep(args.settle)
+            broadcast("DEBUG_SEEK_NEAR_END", "--el", "beforeEndMs", str(args.before_end_ms))
+            row = _wait_for(lambda ev: handover(ev, before, after), args.before_end_ms // 1000 + 60, f"{after}")
+            if row is not None:
+                time.sleep(10)
+                row = handover(trail(), before, after)
+            rows.append(row or {"from": before, "to": after, "error": "no hand-over seen"})
+            print(f"   -> {rows[-1]}", flush=True)
+        report["modes"][mode] = rows
+    with open(args.out, "w") as f:
+        json.dump(report, f, indent=2)
+    for mode, rows in report["modes"].items():
+        gaps = [r["gapMs"] for r in rows if r.get("gapMs") is not None]
+        crossed = sum(1 for r in rows if r.get("gapless"))
+        print(f"gapless={mode}: {len(rows)} hand-overs, {crossed} crossed over, gaps {gaps} ms, "
+              f"errors {[r for r in rows if 'error' in r]}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Plays a set of YouTube links on a device the way a share does, and records from the "
@@ -254,12 +345,22 @@ def main():
                        help="seconds after a cold start, so the engine warm-up is not measured as a slow play")
     run_p.add_argument("--keep-lookups", action="store_true",
                        help="keep the app's saved lookups, which otherwise make a second run look faster")
+    q_p = sub.add_parser("queue", help="play a queue back to back, seeking near each end, and measure hand-overs")
+    q_p.add_argument("--label", required=True)
+    q_p.add_argument("--out", required=True)
+    q_p.add_argument("--ids", nargs="+", default=QUEUE_IDS)
+    q_p.add_argument("--modes", nargs="+", default=["off", "on"], choices=["off", "on"])
+    q_p.add_argument("--before-end-ms", type=int, default=40_000)
+    q_p.add_argument("--settle", type=int, default=8, help="seconds of play before seeking near the end")
+    q_p.add_argument("--start-timeout", type=int, default=90)
     cmp_p = sub.add_parser("compare", help="diff two JSON reports; exits 1 on any regression")
     cmp_p.add_argument("before")
     cmp_p.add_argument("after")
     args = parser.parse_args()
     if args.command == "run":
         sys.exit(run(args))
+    if args.command == "queue":
+        sys.exit(queue_run(args))
     sys.exit(compare(args.before, args.after))
 
 

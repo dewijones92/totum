@@ -404,6 +404,12 @@ private class MergingAudioVideoFactory(
     var heldSourceFor: (MediaItem) -> MediaSource? = { null }
 
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
+        val startMs = mediaItem.requestMetadata.extras?.getLong(EXTRA_START_MS) ?: 0L
+        val source = sourceFor(mediaItem)
+        return if (startMs > 0) StartsAtSource(source, startMs * MICROS_PER_MILLI) else source
+    }
+
+    private fun sourceFor(mediaItem: MediaItem): MediaSource {
         heldSourceFor(mediaItem)?.let { return it }
         val audioUrl = mediaItem.requestMetadata.extras?.getString(EXTRA_AUDIO_URL)
         val video = default.createMediaSource(mediaItem)
@@ -415,3 +421,7 @@ private class MergingAudioVideoFactory(
 
 /** Extras key on a [MediaItem]'s request metadata carrying the separate audio-track URL. */
 internal const val EXTRA_AUDIO_URL: String = "com.dewijones92.totum.AUDIO_URL"
+
+internal const val EXTRA_START_MS: String = "com.dewijones92.totum.START_MS"
+
+private const val MICROS_PER_MILLI = 1_000L

@@ -26,5 +26,15 @@
                 <action android:name="com.dewijones92.totum.exsurge.DEBUG_SUMMON" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name="com.dewijones92.totum.queue.QueueDebugReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.dewijones92.totum.DEBUG_QUEUE_PLAY_ALL" />
+                <action android:name="com.dewijones92.totum.DEBUG_SEEK_NEAR_END" />
+                <action android:name="com.dewijones92.totum.DEBUG_SET_GAPLESS" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

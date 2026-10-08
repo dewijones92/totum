@@ -17,8 +17,9 @@ import com.dewijones92.totum.common.Vitals
  * app decides before it ever nominates anything. Nothing here spends data on its own initiative.
  *
  * `ExoPlayer.PreloadConfiguration` cannot do this job: it preloads the next item in the PLAYER'S
- * PLAYLIST, and the queue plays one item at a time because it owns advancing. This holds sources
- * outside any playlist, which is the shape that fits.
+ * PLAYLIST, and the queue owns advancing. This holds sources outside any playlist. With the gapless
+ * queue on (ADR 20) the next item is put in the player's playlist instead, so this serves only the
+ * cases gapless leaves alone.
  *
  * Its own class because holding bytes for later is a separate job from playing them, and because
  * that separation is what makes [releaseIfPlaying] obvious — it was missing while this lived

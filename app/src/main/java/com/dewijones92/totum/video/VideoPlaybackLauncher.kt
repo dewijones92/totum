@@ -180,6 +180,28 @@ class VideoPlaybackLauncher(
             resolver.resolveAsRescue(watchUrl, listing.sourceId)
         }
 
+    suspend fun arm(listing: MediaItem, watchUrl: HttpUrl, audioOnly: Boolean): Boolean {
+        val extracted = resolver.resolve(watchUrl, listing.sourceId, asked = "arm") ?: run {
+            Diag.log("gapless", "not arming ${listing.id.value}: it did not resolve")
+            return false
+        }
+        val resolved = extracted.copy(item = listing.withStreamFrom(extracted.item))
+        val (url, audioUrl) = resolved.audioOnlyUrl?.takeIf { audioOnly }?.let { it to null }
+            ?: streamsThatWouldPlay(resolved)
+            ?: run {
+                Diag.log("gapless", "not arming ${listing.id.value}: nothing playable in its resolution")
+                return false
+            }
+        val listening = url == resolved.audioOnlyUrl
+        playback.armNext(
+            resolved.item.copy(mediaUrl = url),
+            skipSegments = resolved.skipSegments,
+            audioUrl = audioUrl,
+            subtitles = if (listening) emptyList() else resolved.subtitles,
+        )
+        return true
+    }
+
     /** One play's inputs, grouped so the shared body does not need a six-argument signature. */
     private data class Attempt(
         val listing: MediaItem,

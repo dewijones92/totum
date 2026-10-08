@@ -123,6 +123,19 @@ public interface PlaybackController {
      * different itags, so the bytes were held for the rest of the session.
      */
     public fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl? = null)
+
+    public val armedNext: MediaItemId?
+
+    public fun armNext(
+        item: MediaItem,
+        kind: MediaKind = MediaKind.VIDEO,
+        skipSegments: List<SkipSegment> = emptyList(),
+        localPath: String? = null,
+        audioUrl: HttpUrl? = null,
+        subtitles: List<SubtitleTrack> = emptyList(),
+    )
+
+    public fun disarmNext(reason: String)
 }
 
 /** What the UI needs to render a player for the current item. */

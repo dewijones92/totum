@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Playback queue
@@ -11,6 +11,14 @@ updated: 2026-10-05
 One up-next list for both pillars (`app/…/queue/PlaybackQueue.kt`), persisted and restored at
 launch. This doc started on 2026-09-26 with the row actions; the rest of the queue's behaviour is
 still described in the code and in `offline-queue.md`.
+
+## Gapless hand-over
+
+Since 2026-10-07 ([ADR 20](../adr/0020-gapless-queue-the-player-holds-the-next-item.md)): in an item's last
+45 s, on Wi-Fi or when the next item is downloaded, the next item is routed as usual and put in line in the
+player, which crosses over by itself with no rebuild; the queue then adopts it. Settings › Queue ›
+**Gapless queue** (on by default) turns it off. Not armed with auto-play next off or the sleep timer set to
+stop after this item. Every decision is a `dewidebug [gapless]` line.
 
 ## What a queue row can do
 

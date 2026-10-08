@@ -79,6 +79,7 @@ interface AppPreferences {
     fun setSkipCategories(categories: Set<SkipCategory>)
     fun setSilenceMode(mode: SilenceMode)
     fun setFeedHiddenUntilAsked(hidden: Boolean)
+    fun setGaplessQueue(enabled: Boolean)
 
     data class Settings(
         val wifiMaxHeight: Int = DEFAULT_WIFI_MAX_HEIGHT,
@@ -138,6 +139,7 @@ interface AppPreferences {
         val skipCategories: Set<SkipCategory> = SponsorBlockSegmentSource.DEFAULT_CATEGORIES,
         val silenceMode: SilenceMode = SilenceMode.DEFAULT,
         val feedHiddenUntilAsked: Boolean = true,
+        val gaplessQueue: Boolean = true,
     )
 
     companion object {
@@ -185,6 +187,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
                 ?: SponsorBlockSegmentSource.DEFAULT_CATEGORIES,
             silenceMode = SilenceMode.fromStoredName(prefs.getString(KEY_SILENCE_MODE, null)),
             feedHiddenUntilAsked = prefs.getBoolean(KEY_FEED_HIDDEN, true),
+            gaplessQueue = prefs.getBoolean(KEY_GAPLESS, true),
         ),
     )
     override val settings: StateFlow<AppPreferences.Settings> = _settings.asStateFlow()
@@ -257,6 +260,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             it.copy(feedHiddenUntilAsked = hidden)
         }
 
+    override fun setGaplessQueue(enabled: Boolean): Unit =
+        change("gaplessQueue", enabled, { putBoolean(KEY_GAPLESS, enabled) }) { it.copy(gaplessQueue = enabled) }
+
     /**
      * One path for every setting: persist, publish, and record it. A settings change is
      * often the answer to "it started behaving differently" — a report that lists the
@@ -288,6 +294,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_SKIP_CATEGORIES = "skip_categories"
         const val KEY_SILENCE_MODE = "silence_mode"
         const val KEY_FEED_HIDDEN = "feed_hidden_until_asked"
+        const val KEY_GAPLESS = "gapless_queue"
     }
 }
 
@@ -317,4 +324,6 @@ class InMemoryAppPreferences : AppPreferences {
 
     override fun setFeedHiddenUntilAsked(hidden: Boolean) =
         _settings.update { it.copy(feedHiddenUntilAsked = hidden) }
+
+    override fun setGaplessQueue(enabled: Boolean) = _settings.update { it.copy(gaplessQueue = enabled) }
 }

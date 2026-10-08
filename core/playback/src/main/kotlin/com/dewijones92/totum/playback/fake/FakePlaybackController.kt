@@ -123,6 +123,9 @@ public class FakePlaybackController : PlaybackController {
         startPositionMs: Long,
     ) {
         played += item.id.value
+        if (adoptable?.id == item.id) adopted += item.id.value
+        adoptable = null
+        armedItem = null
         val startPaused = heldPaused == item.id
         if (startPaused) heldPaused = null
         lastPlayStartedPaused = startPaused
@@ -217,6 +220,55 @@ public class FakePlaybackController : PlaybackController {
     public var preloadedFor: MutableList<MediaItemId> = mutableListOf()
 
     public var preloadedAudio: MutableList<HttpUrl?> = mutableListOf()
+
+    public var armedItem: MediaItem? = null
+        private set
+    public var armedLocalPath: String? = null
+        private set
+    public var armedAudioUrl: HttpUrl? = null
+        private set
+    public val disarmReasons: MutableList<String> = mutableListOf()
+    public val adopted: MutableList<String> = mutableListOf()
+    private var adoptable: MediaItem? = null
+
+    override val armedNext: MediaItemId? get() = armedItem?.id
+
+    override fun armNext(
+        item: MediaItem,
+        kind: MediaKind,
+        skipSegments: List<SkipSegment>,
+        localPath: String?,
+        audioUrl: HttpUrl?,
+        subtitles: List<SubtitleTrack>,
+    ) {
+        armedItem = item
+        armedLocalPath = localPath
+        armedAudioUrl = audioUrl
+    }
+
+    override fun disarmNext(reason: String) {
+        if (armedItem == null) return
+        armedItem = null
+        disarmReasons += reason
+    }
+
+    public fun crossOver(finished: Boolean = true) {
+        val from = checkNotNull(_state.value) { "crossOver() while nothing is playing" }
+        val next = checkNotNull(armedItem) { "crossOver() with nothing armed" }
+        armedItem = null
+        adoptable = next
+        _state.value = from.copy(
+            itemId = next.id,
+            title = next.title,
+            artist = next.author,
+            positionMs = 0,
+            durationMs = next.duration?.inWholeMilliseconds,
+            hasEnded = false,
+            isPlaying = true,
+            wantsToPlay = true,
+        )
+        _events.tryEmit(PlaybackEvent.CrossedOver(next.id, from.itemId, finished))
+    }
 
     override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?) {
         preloaded += url

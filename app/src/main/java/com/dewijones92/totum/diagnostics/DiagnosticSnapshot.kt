@@ -90,6 +90,7 @@ internal class DiagnosticSnapshot(
             put("settings.sabrPlayback", settings.sabrPlayback.toString())
             put("settings.mediaFilter", settings.mediaFilter.name)
             put("settings.feedHiddenUntilAsked", settings.feedHiddenUntilAsked.toString())
+            put("settings.gaplessQueue", settings.gaplessQueue.toString())
             put("settings.skipCategories", settings.skipCategories.joinToString(",") { it.id })
             put(
                 "settings.homeServer",

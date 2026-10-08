@@ -55,6 +55,9 @@ it is, the first frame takes ~0.3 s anyway. Only looking up earlier can beat the
 
 - A tap whose lookup finished less than ~4.5 s earlier still waits for the window, now without failing.
 - Queue advances start from held bytes on Wi-Fi; `playback.preloadsUsed` and `preloadsWasted` count it.
+- Amended by [ADR 20](0020-gapless-queue-the-player-holds-the-next-item.md) (2026-10-07): with the gapless
+  queue on, the next item is put in the player's own playlist instead, so the preloader serves only what
+  gapless leaves alone.
 - Diagnostics: `403 on a stream issued Nms ago … retry k in Nms`, `playing X from the source held for
   Nms`, `replaying X from the copy on disk …`, `X finished downloading while streaming: switching …`.
 - Tests: `AYoungStreamUrlIsWaitedForTest`, `AYoungUrlPlaysWhenYouTubeAcceptsItTest` (instrumented, with

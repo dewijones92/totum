@@ -10,6 +10,8 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.notifications.NewContentWorker
+import com.dewijones92.totum.playback.startGapless
+import com.dewijones92.totum.settings.NetworkStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -30,6 +32,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // Keep the queue listenable offline: fetch each queued item's audio.
         container.startQueueAutoDownload()
         container.startDownloadNotifications()
+        startGapless(container, NetworkStatus(this)::isMetered)
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")

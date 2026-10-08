@@ -419,28 +419,6 @@ class PlaybackQueue(
         return false
     }
 
-    private fun QueueSnapshot.movingBefore(id: MediaItemId, anchor: MediaItemId): QueueSnapshot {
-        val moving = entries.firstOrNull { it.item.item.id == id } ?: return this
-        val without = entries.filterNot { it.item.item.id == id }
-        val at = without.indexOfFirst { it.item.item.id == anchor }
-        if (at < 0) return this
-        val reordered = without.toMutableList().apply { add(at, moving) }
-        return copy(entries = reordered, currentIndex = reordered.indexOfFirst { it.item.item.id == anchor })
-    }
-
-    private fun QueueSnapshot.movingTo(
-        id: MediaItemId,
-        index: Int,
-        cursorOn: MediaItemId,
-        fallback: Int,
-    ): QueueSnapshot {
-        val moving = entries.firstOrNull { it.item.item.id == id } ?: return this
-        val without = entries.filterNot { it.item.item.id == id }
-        val reordered = without.toMutableList().apply { add(index.coerceIn(0, without.size), moving) }
-        val cursor = reordered.indexOfFirst { it.item.item.id == cursorOn }
-        return copy(entries = reordered, currentIndex = if (cursor >= 0) cursor else fallback)
-    }
-
     fun removeAt(index: Int) {
         mutate("remove-at-$index") { snapshot ->
             if (index !in snapshot.entries.indices) {
@@ -592,6 +570,37 @@ class PlaybackQueue(
             .drop(advanceFrom(snapshot, playingId) + 1)
             .firstOrNull { it.item.item.id != playingId }
             ?.item
+    }
+
+    suspend fun armNext(allowStream: Boolean): Boolean {
+        val queued = withSourceArtwork(peekNext() ?: return false)
+        val decision = decide(queued)
+        armedAtPlay = plays
+        return QueueArming(controller, launcher).arm(
+            queued,
+            decision.route,
+            skipSegments = decision.onDisk?.skipSegments.orEmpty(),
+            pictureRefused = queued.item.id.value in pictureGivenUpOn,
+            allowStream = allowStream,
+        )
+    }
+
+    suspend fun adoptCrossover(to: MediaItemId): Boolean {
+        if (armedAtPlay != plays) {
+            Diag.log(
+                "gapless",
+                "not adopting ${to.value}: something newer was chosen after it was put in line " +
+                    "(play #$plays, armed at #${armedAtPlay ?: "none"}); that choice plays instead",
+            )
+            return false
+        }
+        val index = _state.value.entries.indexOfFirst { it.item.item.id == to }
+        if (index < 0) {
+            Diag.warn("gapless", "the player crossed to ${to.value}, which is no longer in the queue")
+            return false
+        }
+        Diag.log("queue", "crossed over to index $index of ${_state.value.entries.size}; adopting it")
+        return playAt(index)
     }
 
     /**
@@ -759,12 +768,20 @@ class PlaybackQueue(
         forceAudio: Boolean = false,
     ): Boolean {
         // Recorded before routing, so a peek and a queued play are equally "playing".
+        becameCurrent(queued, fresh = !retry)
+        return route(queued, startPositionMs, streamRefused, forceAudio)
+    }
+
+    private var plays = 0L
+    private var armedAtPlay: Long? = null
+
+    private fun becameCurrent(queued: PlayableItem, fresh: Boolean) {
+        plays++
         _nowPlaying.value = queued
-        if (!retry) {
+        if (fresh) {
             rescueIntent.freshPlay(queued.item.id)
             _freshStarts.tryEmit(queued.item.id)
         }
-        return route(queued, startPositionMs, streamRefused, forceAudio)
     }
 
     /**
@@ -956,8 +973,6 @@ class PlaybackQueue(
         scope.launch { refreshSkipsOnDisk(id)?.let { controller.updateSkipSegments(id, it) } }
     }
 
-    private fun PlayRoute.isFromDisk(): Boolean = this is PlayRoute.VideoFile || this is PlayRoute.AudioFile
-
     private data class Decision(
         val route: PlayRoute,
         val onDisk: LocalCopy?,
@@ -995,7 +1010,15 @@ class PlaybackQueue(
         // would land later and take playback back to the network — which is exactly what report
         // 0.1.390 did, ten seconds after the downloaded audio had started playing.
         val request = launcher.beginPlay()
+        val startedAt = plays
         val decision = decide(queued, streamRefused, forceAudio)
+        if (startedAt != plays) {
+            Diag.log(
+                "queue",
+                "not playing ${queued.item.id.value}: something newer started while its route was decided"
+            )
+            return true
+        }
         val route = decision.route
         val onDisk = decision.onDisk
         val offlineNow = decision.offline
@@ -1046,7 +1069,7 @@ class PlaybackQueue(
 }
 
 /** How a route reads in the trail: what was chosen, and where the bytes come from. */
-private fun PlayRoute.describe(): String = when (this) {
+internal fun PlayRoute.describe(): String = when (this) {
     is PlayRoute.VideoFile -> "the downloaded video at $path"
     is PlayRoute.AudioFile -> "the downloaded audio at $path"
     is PlayRoute.VideoStream -> "streaming the video from $watchUrl"

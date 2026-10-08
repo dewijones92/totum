@@ -197,6 +197,9 @@
     <string name="settings_feed_section">Videos tab</string>
     <string name="settings_feed_hidden">Hide videos until asked</string>
     <string name="settings_feed_hidden_summary">The Videos tab shows a Show videos button instead of the feed, and hides it again when you leave the tab.</string>
+    <string name="settings_queue_section">Queue</string>
+    <string name="settings_gapless">Gapless queue</string>
+    <string name="settings_gapless_summary">On Wi-Fi, or when the next item is downloaded, it is loaded before this one ends so playback carries straight on.</string>
     <string name="feed_show">Show videos</string>
     <string name="feed_hidden_note">Hidden until you ask. Turn this off in Settings.</string>
     <string name="settings_auto_download">Download queued audio</string>

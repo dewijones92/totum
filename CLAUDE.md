@@ -44,6 +44,7 @@ say why it is the way it is.
 | Fast switch to video (Oct 2026) | yt-dlp's solver player cache on for every extraction; a resolve trusted until shortly before its URLs expire, and kept across restarts; one shared HTTP pool; caption translations only for offered languages; videos looked up before the tap (menu open, next in queue, audio copy) on unmetered networks; Watch offered for an audio copy | Downloaded audio → video took 16.7 s on Dewi's phone, 85% of it extraction; [ADR 11](docs/adr/0011-make-switching-to-video-fast.md) |
 | JS challenge solver (Oct 2026) | **Android's V8** (`androidx.javascriptengine`) as a yt-dlp provider above QuickJS, keeping the solver library and two players loaded; QuickJS is the automatic fallback | QuickJS parsed a 3–4 MB script per solve (1.1–7.9 s on the Pixel 7); V8 solves a kept player in 15–80 ms; [ADR 12](docs/adr/0012-solve-youtube-challenges-in-v8.md) |
 | Playback start (Oct 2026) | A 403 on a YouTube URL under 15 s old is retried when YouTube accepts it (issue + 4.8 s); the player is built through the preload manager so held bytes are played; a copy on disk is used before re-extracting, and takes over when its download lands | Fresh `web_embedded` URLs 403 for ~4.5 s, which the fast solver exposed; [ADR 13](docs/adr/0013-playback-start-young-urls-held-bytes-and-copies.md) |
+| Gapless queue (Oct 2026) | In an item's last 45 s the queue routes the next item as usual and **arms** it as the player's second playlist entry (Wi-Fi, or a downloaded next item); the player crosses over itself and the queue **adopts** it through its ordinary play path; a "Gapless queue" setting, on by default | Hand-overs took 0.5–1.3 s rebuilding the player even with bytes preloaded; [ADR 20](docs/adr/0020-gapless-queue-the-player-holds-the-next-item.md) |
 | Background playback (Oct 2026) | The playback service stays in the foreground for 2 h after playback stops (Media3 default: 10 min) | After a long pause Android refused to restart it from the background and froze the process mid-file; Exsurge's own foreground service had been hiding this; [ADR 14](docs/adr/0014-playback-service-stays-foreground-after-a-pause.md) |
 | Exsurge on the lock screen (Oct 2026) | The banner is an Android 16 **Live Update** in every state (lock screen, always-on display, status-bar chip), public on the lock screen; channel unchanged | A silent notification is hidden from a Pixel lock screen by default; [ADR 15](docs/adr/0015-exsurge-banner-is-a-live-update.md) |
 | Daily alarms (Oct 2026) | A second side quest: Totum asks each weekday morning whether you want an alarm (pickup 17:30 first) and rings it itself full screen; built on a **reminder kit** shared with Exsurge (`:lib:reminders` + `app/…/reminders/kit/`) | Dewi's toddler-pickup alarm; [ADRs 17–18](docs/adr/_index.md) |
@@ -170,6 +171,13 @@ So any change to extraction, resolving, playback, the queue or downloads ships o
    and stalls and underruns come and go on the emulator in both builds. The first soak (one pass each) called
    six regressions, four of them noise; it also caught a real one, an all-clients retry firing on 6 of 10
    videos that already had 1080p.
+
+**A change to how the queue hands over gets a queue soak too:** `ANDROID_SERIAL=emulator-5554
+tools/emulator/soak.py queue --label <x> --out <scratch>/queue.json` builds a real YouTube queue through a
+debug-only receiver (`QueueDebugReceiver`), seeks each item to 40 s before its end, and records every
+hand-over (crossed over or not, silence, stalls, adopted) with gapless off and then on. 2026-10-07: off 4.6 /
+3.7 / 4.4 s, on 0 / 0 / 0 s. It caught a race no device test reproduced (an item under 45 s never put its
+successor in line, because the queue's adoption cancelled the arming); local files win that race, streams lose it.
 
 **Switch Exsurge (and Daily alarms) off on the emulator before a soak, for both builds.** On 2026-10-07
 the third of three soaks ran with Exsurge off and the first two with it on; the third looked far better

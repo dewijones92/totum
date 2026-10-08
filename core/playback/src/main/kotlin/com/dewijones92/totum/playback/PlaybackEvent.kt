@@ -43,4 +43,10 @@ public sealed interface PlaybackEvent {
         public val atMs: Long,
         public val durationMs: Long?,
     ) : PlaybackEvent
+
+    public data class CrossedOver(
+        override val itemId: MediaItemId,
+        public val fromItemId: MediaItemId,
+        public val finished: Boolean,
+    ) : PlaybackEvent
 }

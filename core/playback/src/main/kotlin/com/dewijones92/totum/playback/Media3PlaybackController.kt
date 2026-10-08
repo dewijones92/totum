@@ -22,12 +22,10 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
-import com.dewijones92.totum.domain.Chapter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
-import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.skipTargetFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -40,7 +38,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
-import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.media3.common.MediaItem as Media3MediaItem
 
@@ -82,33 +79,11 @@ public class Media3PlaybackController(
     private var controller: MediaController? = null
     override val player: Player? get() = controller
     private val pendingCommands = mutableListOf<(MediaController) -> Unit>()
-    private var activeSkipSegments: List<SkipSegment> = emptyList()
-    private var activeChapters: List<Chapter> = emptyList()
-
-    // Held rather than read back from the player's text tracks: the tracks know a
-    // language code but not the label or whether it's machine-generated, and those are
-    // exactly what a menu needs to show.
-    private var activeSubtitles: List<SubtitleTrack> = emptyList()
-
-    /**
-     * What the listing said — held here, like the segments and subtitles above and for the same
-     * reason: it does not reliably cross the session.
-     *
-     * It rode in `MediaMetadata.extras` first, which worked locally and then failed **intermittently**
-     * on CI: the view count came back null from the queue's play path in one run and not the next,
-     * on a commit that touched only test files. Extras are not dependably carried by a
-     * `MediaController`'s copy of an item, so a channel that appears to work is really a race — and
-     * the video page would have dropped the numbers a moment after showing them, on a device, with
-     * nothing to explain it. Every other per-item fact the UI needs is already held exactly this way.
-     */
-    private var activeViewsText: String? = null
-    private var activePublishedText: String? = null
-    private var activePublishedAt: Instant? = null
+    private var itemContext: ItemContext = ItemContext.NONE
     private var subtitleLanguage: String? = null
 
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
     private var userSpeed: Float = 1f
-    private var currentSourceId: SourceId? = null
     private var playGeneration = 0
     private var skipSilence = false
     private val endWatch = ItemEndWatch()
@@ -180,6 +155,7 @@ public class Media3PlaybackController(
                             }
                             val id = connected.currentMediaItem?.mediaId ?: return
                             val at = connected.currentPosition
+                            if (nextInLine.disarm("the player failed on $id") != null) dropAfterCurrent(connected)
                             Diag.log("playback", "stream failed at ${at}ms — $reason")
                             _streamFailures.tryEmit(
                                 StreamFailure(MediaItemId(id), at, reason, error.isSabrPrematureEnd()),
@@ -202,11 +178,15 @@ public class Media3PlaybackController(
                             newPosition: Player.PositionInfo,
                             reason: Int,
                         ) {
+                            if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) {
+                                crossOver(connected, oldPosition, newPosition, reason)
+                                return
+                            }
                             if (reason != Player.DISCONTINUITY_REASON_SEEK) return
                             // A seek that changes item reports the NEW item at its start, so
-                            // saving here would move the item just jumped to back to zero. Not
-                            // reachable on a one-item timeline, which is all this app builds —
-                            // but the callback hands over both ends for nothing, so use them.
+                            // saving here would move the item just jumped to back to zero. The
+                            // timeline holds a second item only while one is armed (ADR 20), and
+                            // that change of item is the crossover handled above.
                             if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) return
                             ticksSinceSave = 0
                             saveProgress(connected, Chosen.BY_SEEKING)
@@ -226,6 +206,7 @@ public class Media3PlaybackController(
                                         }}",
                                 )
                             }
+                            connected.duration.takeIf { it > 0 }?.let { lastDurationMs = it }
                             _state.value = connected.currentPlaybackState()
                         }
                     },
@@ -269,23 +250,7 @@ public class Media3PlaybackController(
         // auto-advance) whose async loads resume out of order and would otherwise
         // leave the player on one item with another's source/segments/chapters.
         val generation = ++playGeneration
-        // A separate audio track (higher-than-muxed qualities) rides along in
-        // the request metadata; the service merges it with the video-only URI.
-        val requestMetadata = Media3MediaItem.RequestMetadata.Builder()
-            .setExtras(audioUrl?.let { bundleOf(EXTRA_AUDIO_URL to it.value) })
-            .build()
-        val media3Item = Media3MediaItem.Builder()
-            .setMediaId(item.id.value)
-            .setUri(uri)
-            .setRequestMetadata(requestMetadata)
-            // Side-loaded text tracks. DefaultMediaSourceFactory turns these into text
-            // sources itself, and the service's audio-merging wrapper delegates to it, so
-            // captions survive the higher-quality video+audio merge rather than being
-            // dropped by it.
-            .setSubtitleConfigurations(subtitles.map { it.toSubtitleConfiguration() })
-            .also { describeSubtitles(item, subtitles) }
-            .setMediaMetadata(metadataFor(item, kind))
-            .build()
+        val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles)
         // Resume where this item was left (both pillars). Fetched first so we
         // can hand the start position straight to the player — no jump from 0.
         scope.launch {
@@ -299,34 +264,65 @@ public class Media3PlaybackController(
                 // A newer play() superseded this one while we were loading — drop it,
                 // so its media item and state never clobber the current item.
                 if (generation != playGeneration) return@withController
-                noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
-                endWatch.start(item.id.value, item.duration?.inWholeMilliseconds)
-                startLatency.played(item.id.value)
-                activeSkipSegments = skipSegments
-                skipsThisItem = 0
-                // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
-                // "SponsorBlock never ran" — previously indistinguishable, both silent.
-                if (kind == MediaKind.VIDEO) {
-                    Diag.log("sponsorblock", "${item.id.value}: ${skipSegments.size} segment(s) to skip")
+                if (adopting(controller, item.id.value, uri, audioUrl, startPositionMs)) {
+                    itemContext = ItemContext.of(item, kind, skipSegments, subtitles)
+                    applyChoices(controller, speed, boost)
+                    if (startPaused) controller.pause()
+                    _state.value = controller.currentPlaybackState()
+                    return@withController
                 }
-                activeChapters = item.chapters
-                activeSubtitles = subtitles
-                activeViewsText = item.viewsText
-                activePublishedText = item.publishedText
-                activePublishedAt = item.publishedAt
-                currentSourceId = item.sourceId
-                ticksSinceSave = 0
+                nextInLine.forgetOnRebuild(item.id.value)
+                noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
+                becameCurrent(ItemContext.of(item, kind, skipSegments, subtitles))
                 controller.setMediaItem(media3Item, resumeMs)
-                // Re-applied on EVERY item, and told to the service too: the rate the user chose
-                // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).
-                applyUserSpeed(controller, speed)
-                applySilenceMode(controller, silenceMode.value)
-                applySubtitleLanguage(controller)
-                if (boost != volumeBoost) setVolumeBoost(boost)
+                applyChoices(controller, speed, boost)
                 controller.prepare()
                 if (startPaused) controller.pause() else controller.play()
             }
         }
+    }
+
+    // Re-applied on EVERY item, and told to the service too: the rate the user chose
+    // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).
+    private fun applyChoices(controller: MediaController, speed: Float, boost: VolumeBoost) {
+        applyUserSpeed(controller, speed)
+        applySilenceMode(controller, silenceMode.value)
+        applySubtitleLanguage(controller)
+        if (boost != volumeBoost) setVolumeBoost(boost)
+    }
+
+    private fun adopting(controller: MediaController, id: String, uri: String, audioUrl: HttpUrl?, startMs: Long) =
+        startMs <= 0 && nextInLine.adopt(id, uri, audioUrl?.value) && controller.currentMediaItem?.mediaId == id
+
+    private fun media3ItemFor(
+        item: MediaItem,
+        kind: MediaKind,
+        uri: String,
+        audioUrl: HttpUrl?,
+        subtitles: List<SubtitleTrack>,
+        startMs: Long = 0,
+    ): Media3MediaItem {
+        // A separate audio track (higher-than-muxed qualities) rides along in
+        // the request metadata; the service merges it with the video-only URI.
+        val extras = Bundle().apply {
+            audioUrl?.let { putString(EXTRA_AUDIO_URL, it.value) }
+            if (startMs > 0) putLong(EXTRA_START_MS, startMs)
+        }
+        val requestMetadata = Media3MediaItem.RequestMetadata.Builder()
+            .setExtras(extras.takeUnless { it.isEmpty })
+            .build()
+        return Media3MediaItem.Builder()
+            .setMediaId(item.id.value)
+            .setUri(uri)
+            .setRequestMetadata(requestMetadata)
+            // Side-loaded text tracks. DefaultMediaSourceFactory turns these into text
+            // sources itself, and the service's audio-merging wrapper delegates to it, so
+            // captions survive the higher-quality video+audio merge rather than being
+            // dropped by it.
+            .setSubtitleConfigurations(subtitles.map { it.toSubtitleConfiguration() })
+            .also { describeSubtitles(item, subtitles) }
+            .setMediaMetadata(metadataFor(item, kind))
+            .build()
     }
 
     @Volatile
@@ -429,6 +425,106 @@ public class Media3PlaybackController(
         }
     }
 
+    private val nextInLine = NextInLine()
+
+    override val armedNext: MediaItemId? get() = nextInLine.armed?.context?.id?.let(::MediaItemId)
+
+    override fun armNext(
+        item: MediaItem,
+        kind: MediaKind,
+        skipSegments: List<SkipSegment>,
+        localPath: String?,
+        audioUrl: HttpUrl?,
+        subtitles: List<SubtitleTrack>,
+    ) {
+        val uri = localPath?.let { File(it).toURI().toString() } ?: item.mediaUrl?.value ?: run {
+            Diag.warn("gapless", "not arming ${item.id.value}: it has nothing to play from")
+            return
+        }
+        val behind = itemContext.id
+        scope.launch {
+            val startMs = progressStore.resumePositionMs(item.id) ?: 0L
+            val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, startMs)
+            withController { controller ->
+                val playing = controller.currentMediaItem?.mediaId
+                when {
+                    playing == null -> Diag.log("gapless", "not arming ${item.id.value}: nothing is playing")
+                    playing != behind || itemContext.id != behind -> Diag.log(
+                        "gapless",
+                        "not arming ${item.id.value}: it was meant to follow $behind, but the player is on $playing",
+                    )
+                    playing == item.id.value -> Diag.log(
+                        "gapless",
+                        "not arming ${item.id.value}: it is the one playing"
+                    )
+                    else -> {
+                        dropAfterCurrent(controller)
+                        controller.addMediaItem(media3Item)
+                        val context = ItemContext.of(item, kind, skipSegments, subtitles)
+                        nextInLine.arm(NextInLine.Armed(context, uri, audioUrl?.value))
+                        Diag.log("gapless", "${item.id.value} waits behind $playing, starting at ${startMs}ms")
+                    }
+                }
+            }
+        }
+    }
+
+    override fun disarmNext(reason: String) {
+        withController { controller -> if (nextInLine.disarm(reason) != null) dropAfterCurrent(controller) }
+    }
+
+    private fun dropAfterCurrent(controller: MediaController) {
+        val after = controller.currentMediaItemIndex + 1
+        if (controller.mediaItemCount > after) controller.removeMediaItems(after, controller.mediaItemCount)
+    }
+
+    private var lastDurationMs: Long? = null
+
+    @OptIn(markerClass = [UnstableApi::class])
+    private fun crossOver(
+        controller: MediaController,
+        old: Player.PositionInfo,
+        new: Player.PositionInfo,
+        reason: Int,
+    ) {
+        if (new.mediaItem?.mediaId == itemContext.id) return
+        val next = nextInLine.crossedTo(new.mediaItem?.mediaId) ?: run {
+            Diag.warn(
+                "gapless",
+                "the player moved from ${old.mediaItem?.mediaId} to ${new.mediaItem?.mediaId} (reason $reason) " +
+                    "with nothing armed for it",
+            )
+            return
+        }
+        val from = itemContext.id
+        val finished = reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
+        noteItemEnd(
+            controller,
+            if (finished) ItemEndWatch.Reason.ENDED else ItemEndWatch.Reason.REPLACED,
+            positionMs = old.positionMs,
+            durationMs = lastDurationMs,
+        )
+        val atMs = old.positionMs.coerceAtLeast(0)
+        val durationMs = lastDurationMs
+        scope.launch {
+            if (finished) {
+                progressStore.setPlayed(MediaItemId(from), played = true)
+            } else {
+                progressStore.save(MediaItemId(from), atMs, durationMs, Chosen.BY_SEEKING)
+            }
+        }
+        lastDurationMs = null
+        becameCurrent(next.context)
+        Vitals.add("playback.gaplessHandovers")
+        Diag.log(
+            "gapless",
+            "crossed from $from to ${next.context.id} at ${old.positionMs}ms " +
+                "(${if (finished) "it ended" else "skipped to next"}) — nothing rebuilt",
+        )
+        if (new.mediaItemIndex > 0) controller.removeMediaItems(0, new.mediaItemIndex)
+        _events.tryEmit(PlaybackEvent.CrossedOver(MediaItemId(next.context.id), MediaItemId(from), finished))
+    }
+
     override fun setVolumeBoost(boost: VolumeBoost) {
         volumeBoost = boost
         withController {
@@ -478,7 +574,7 @@ public class Media3PlaybackController(
                 )
                 return@withController
             }
-            activeSkipSegments = segments
+            itemContext = itemContext.copy(skipSegments = segments)
             Diag.log("sponsorblock", "${itemId.value}: segments updated while playing, ${segments.size} to skip")
             _state.value = it.currentPlaybackState()
         }
@@ -569,13 +665,26 @@ public class Media3PlaybackController(
         scope.launch { progressStore.save(MediaItemId(id), position, duration, chosen) }
     }
 
+    private fun becameCurrent(item: ItemContext) {
+        itemContext = item
+        endWatch.start(item.id, item.listedDurationMs)
+        startLatency.played(item.id)
+        skipsThisItem = 0
+        ticksSinceSave = 0
+        // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
+        // "SponsorBlock never ran" — previously indistinguishable, both silent.
+        if (item.kind == MediaKind.VIDEO) {
+            Diag.log("sponsorblock", "${item.id}: ${item.skipSegments.size} segment(s) to skip")
+        }
+    }
+
     /** The one place segment-skipping happens, for every pillar. */
     /** Skips this item so far — a few per video at most, so each is worth its own line. */
     private var skipsThisItem = 0
 
     private fun applySkipSegments(controller: MediaController) {
         val from = controller.currentPosition.milliseconds
-        val target = activeSkipSegments.skipTargetFor(from) ?: return
+        val target = itemContext.skipSegments.skipTargetFor(from) ?: return
         skipsThisItem++
         endWatch.segmentSkipped(from.inWholeMilliseconds, controller.duration.takeIf { it > 0 })
         Diag.log(
@@ -586,11 +695,16 @@ public class Media3PlaybackController(
         controller.seekTo(target.inWholeMilliseconds)
     }
 
-    private fun noteItemEnd(controller: MediaController, reason: ItemEndWatch.Reason) {
+    private fun noteItemEnd(
+        controller: MediaController,
+        reason: ItemEndWatch.Reason,
+        positionMs: Long = controller.currentPosition,
+        durationMs: Long? = controller.duration.takeIf { it > 0 },
+    ) {
         val facts = ItemEndWatch.EndFacts(
             wallMs = SystemClock.elapsedRealtime(),
-            positionMs = controller.currentPosition.coerceAtLeast(0),
-            durationMs = controller.duration.takeIf { it > 0 },
+            positionMs = positionMs.coerceAtLeast(0),
+            durationMs = durationMs,
             speed = controller.playbackParameters.speed,
             skipSilence = skipSilence,
             silenceMode = silenceMode.value.name,
@@ -632,9 +746,9 @@ public class Media3PlaybackController(
             artist = current.mediaMetadata.artist?.toString(),
             publisher = current.mediaMetadata.albumArtist?.toString(),
             artworkUrl = current.mediaMetadata.artworkUri?.toString(),
-            viewsText = activeViewsText,
-            publishedText = activePublishedText,
-            publishedAt = activePublishedAt,
+            viewsText = itemContext.viewsText,
+            publishedText = itemContext.publishedText,
+            publishedAt = itemContext.publishedAt,
             description = current.mediaMetadata.description?.toString(),
             kind = if (current.mediaMetadata.mediaType == MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE) {
                 MediaKind.PODCAST
@@ -655,12 +769,12 @@ public class Media3PlaybackController(
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,
             bufferedPositionMs = bufferedPosition.coerceAtLeast(currentPosition).coerceAtLeast(0),
-            skipSegments = activeSkipSegments,
-            subtitles = activeSubtitles,
+            skipSegments = itemContext.skipSegments,
+            subtitles = itemContext.subtitles,
             subtitleLanguage = subtitleLanguage,
             skipSilence = skipSilence,
             volumeBoost = volumeBoost,
-            chapters = activeChapters,
+            chapters = itemContext.chapters,
         )
     }
 

@@ -35,3 +35,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 17 | [A reminder kit shared by the side quests](0017-reminder-kit-shared-by-side-quests.md) | Accepted |
 | 18 | [Daily alarms — asked each morning, rung by Totum itself](0018-daily-alarms.md) | Accepted |
 | 19 | [The Videos feed is hidden until asked, and hides again when you leave the tab](0019-videos-hidden-until-asked.md) | Accepted |
+| 20 | [Gapless queue — the player holds the next item, and the queue adopts the crossover](0020-gapless-queue-the-player-holds-the-next-item.md) | Accepted |

@@ -51,6 +51,10 @@ internal class AutoAdvancer(
             events.collect { event ->
                 when (event) {
                     is PlaybackEvent.Ended -> advancePast(event)
+                    is PlaybackEvent.CrossedOver -> Diag.log(
+                        "advance",
+                        "${event.fromItemId.value} did not end here: the player crossed to ${event.itemId.value}",
+                    )
                 }
             }
         }

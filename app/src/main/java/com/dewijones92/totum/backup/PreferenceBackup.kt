@@ -25,6 +25,7 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                 KEY_WIFI_MAX to wifiMaxHeight.toString(),
                 KEY_CELLULAR_MAX to cellularMaxHeight.toString(),
                 KEY_FEED_HIDDEN to feedHiddenUntilAsked.toString(),
+                KEY_GAPLESS to gaplessQueue.toString(),
             )
         }
 
@@ -41,6 +42,7 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
             values[KEY_WIFI_MAX]?.toIntOrNull()?.let(::setWifiMaxHeight)
             values[KEY_CELLULAR_MAX]?.toIntOrNull()?.let(::setCellularMaxHeight)
             values[KEY_FEED_HIDDEN]?.toBooleanStrictOrNull()?.let(::setFeedHiddenUntilAsked)
+            values[KEY_GAPLESS]?.toBooleanStrictOrNull()?.let(::setGaplessQueue)
         }
     }
 
@@ -52,3 +54,4 @@ private const val KEY_SKIP = "skipCategories"
 private const val KEY_WIFI_MAX = "wifiMaxHeight"
 private const val KEY_CELLULAR_MAX = "cellularMaxHeight"
 private const val KEY_FEED_HIDDEN = "feedHiddenUntilAsked"
+private const val KEY_GAPLESS = "gaplessQueue"

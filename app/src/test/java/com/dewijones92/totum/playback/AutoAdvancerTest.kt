@@ -43,6 +43,17 @@ class AutoAdvancerTest {
     ).also { it.start() }
 
     @Test
+    fun `a crossover is not advanced past, because the player has already moved on`() = runTest {
+        advancer()
+        runCurrent()
+
+        events.emit(PlaybackEvent.CrossedOver(MediaItemId("b"), MediaItemId("a"), finished = true))
+        runCurrent()
+
+        assertEquals(0, advanced)
+    }
+
+    @Test
     fun `an ended item advances the queue`() = runTest {
         advancer()
         runCurrent()
