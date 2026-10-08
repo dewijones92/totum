@@ -169,4 +169,26 @@ class DailyAlarmMachineTest {
         assertEquals("Swim. It's ten past four.", spokenLine("Swim", LocalTime.of(16, 10)))
         assertEquals("Swim. It's twenty to four.", spokenLine("Swim", LocalTime.of(15, 40)))
     }
+
+    @Test
+    fun `a day said no to can still be set after all`() {
+        val result = run(Done(monday, Outcome.DECLINED), AlarmEvent.Answer(LocalTime.of(17, 45)), at(15))
+
+        assertEquals(Set(monday, LocalTime.of(17, 45)), result.state)
+    }
+
+    @Test
+    fun `an unanswered or cancelled day can still be set after all`() {
+        listOf(Outcome.UNANSWERED, Outcome.CANCELLED).forEach { outcome ->
+            val result = run(Done(monday, outcome), AlarmEvent.Answer(LocalTime.of(17, 45)), at(15))
+            assertEquals(outcome.name, Set(monday, LocalTime.of(17, 45)), result.state)
+        }
+    }
+
+    @Test
+    fun `a day that already rang is not set again`() {
+        val result = run(Done(monday, Outcome.RANG), AlarmEvent.Answer(LocalTime.of(18, 0)), at(17, 40))
+
+        assertEquals(Done(monday, Outcome.RANG), result.state)
+    }
 }

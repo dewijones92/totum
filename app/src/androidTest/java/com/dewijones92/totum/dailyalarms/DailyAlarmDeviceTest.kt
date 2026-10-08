@@ -15,7 +15,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 @RunWith(AndroidJUnit4::class)
 class DailyAlarmDeviceTest {
@@ -23,11 +27,12 @@ class DailyAlarmDeviceTest {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private val notifications = DailyAlarmNotifications(context)
     private val alarm = DailyAlarm(id = DailyAlarmController.PICKUP_ID, enabled = true)
+    private val zone = ZoneId.of("Europe/London")
 
     @After
     fun tidy() {
         notifications.hideQuestion(alarm.id)
-        notifications.hideSet(alarm.id)
+        AlarmBoardService.reconcile(context, alarmBoard(emptyList(), emptyMap(), Instant.now(), zone))
         RingService.stop(context)
     }
 
@@ -40,11 +45,44 @@ class DailyAlarmDeviceTest {
     }
 
     @Test
-    fun aSetAlarmOffersChangeAndCancel() {
-        notifications.showSet(alarm, LocalTime.of(17, 45))
-        val posted = waitFor(DailyAlarmNotifications.setId(alarm.id))!!
-        assertEquals("Alarm set for 17:45", posted.extras.getString("android.title"))
-        assertEquals(listOf("Change", "Cancel"), posted.actions.map { it.title.toString() })
+    fun theBoardIsOnePinnedNotificationSoonestFirst() {
+        val monday = LocalDate.of(2026, 10, 5)
+        val gym = DailyAlarm(id = "gym", label = "Gym bag", enabled = true, defaultTime = LocalTime.of(18, 0))
+        val board = alarmBoard(
+            listOf(gym, alarm),
+            mapOf(alarm.id to DayState.Set(monday, LocalTime.of(17, 30)), gym.id to DayState.Asking(monday, asks = 1)),
+            ZonedDateTime.of(monday.atTime(14, 0), zone).toInstant(),
+            zone,
+        )
+
+        AlarmBoardService.reconcile(context, board)
+        val posted = waitFor(DailyAlarmNotifications.BOARD_ID)!!
+
+        assertEquals("Next: Pick up time 17:30", posted.extras.getString("android.title"))
+        val lines = posted.extras.getCharSequence("android.bigText").toString().lines()
+        assertTrue(lines[0], lines[0].startsWith("17:30 Pick up time"))
+        assertTrue(lines[1], lines[1].startsWith("18:00 Gym bag"))
+        assertEquals(listOf("Change 17:30", "Cancel 17:30", "Open"), posted.actions.map { it.title.toString() })
+        assertTrue("pinned by a foreground service", posted.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
+        assertTrue("swiping it away puts it back", posted.deleteIntent?.isBroadcast == true)
+    }
+
+    @Test
+    fun theBoardGoesWhenNothingIsSetOrAskedToday() {
+        val monday = LocalDate.of(2026, 10, 5)
+        val now = ZonedDateTime.of(monday.atTime(14, 0), zone).toInstant()
+        AlarmBoardService.reconcile(
+            context,
+            alarmBoard(listOf(alarm), mapOf(alarm.id to DayState.Set(monday, LocalTime.of(17, 30))), now, zone)
+        )
+        assertNotNull(waitFor(DailyAlarmNotifications.BOARD_ID))
+
+        AlarmBoardService.reconcile(
+            context,
+            alarmBoard(listOf(alarm), mapOf(alarm.id to DayState.Done(monday, Outcome.DECLINED)), now, zone)
+        )
+
+        assertEquals(null, waitFor(DailyAlarmNotifications.BOARD_ID, gone = true))
     }
 
     @Test

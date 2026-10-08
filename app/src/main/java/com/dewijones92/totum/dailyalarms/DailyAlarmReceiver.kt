@@ -21,6 +21,10 @@ class DailyAlarmReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
             -> alarms.tickAll("system:$action")
+            REPOST -> {
+                Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm board swiped away; putting it back")
+                AlarmBoardService.reconcile(context, alarms.board())
+            }
             else -> eventFor(action, intent)?.let { event ->
                 if (id == null) {
                     Diag.warn(DailyAlarmController.TAG, "dewidebug dailyalarm receiver $action without an alarm id")
@@ -50,9 +54,11 @@ class DailyAlarmReceiver : BroadcastReceiver() {
         const val CANCEL = "com.dewijones92.totum.dailyalarms.CANCEL"
         const val SNOOZE = "com.dewijones92.totum.dailyalarms.SNOOZE"
         const val DISMISS = "com.dewijones92.totum.dailyalarms.DISMISS"
+        const val REPOST = "com.dewijones92.totum.dailyalarms.REPOST_BOARD"
+        const val BOARD = "board"
         const val EXTRA_ID = "dailyalarm.id"
         const val EXTRA_TIME = "dailyalarm.time"
-        private val actions = listOf(TICK, ANSWER, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS)
+        private val actions = listOf(TICK, ANSWER, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS, REPOST)
 
         fun pending(context: Context, action: String, alarmId: String, time: LocalTime? = null): PendingIntent =
             PendingIntent.getBroadcast(

@@ -12,8 +12,7 @@ interface DailyAlarmPorts {
     fun schedule(alarmId: String, at: Instant?, ring: Boolean)
     fun showQuestion(alarm: DailyAlarm, question: AlarmEffect.ShowQuestion)
     fun hideQuestion(alarmId: String)
-    fun showSet(alarm: DailyAlarm, time: LocalTime)
-    fun hideSet(alarmId: String)
+    fun showBoard(board: AlarmBoard)
     fun ring(alarm: DailyAlarm, time: LocalTime)
     fun stopRinging(alarmId: String)
 }
@@ -22,8 +21,7 @@ object NoDailyAlarmPorts : DailyAlarmPorts {
     override fun schedule(alarmId: String, at: Instant?, ring: Boolean) = Unit
     override fun showQuestion(alarm: DailyAlarm, question: AlarmEffect.ShowQuestion) = Unit
     override fun hideQuestion(alarmId: String) = Unit
-    override fun showSet(alarm: DailyAlarm, time: LocalTime) = Unit
-    override fun hideSet(alarmId: String) = Unit
+    override fun showBoard(board: AlarmBoard) = Unit
     override fun ring(alarm: DailyAlarm, time: LocalTime) = Unit
     override fun stopRinging(alarmId: String) = Unit
 }
@@ -83,6 +81,12 @@ class DailyAlarmController(
                 put("$key.nextWake", wakes[alarm.id]?.toString() ?: "-")
                 put("$key.settings", alarm.toString())
             }
+            val board = board()
+            put("dailyAlarms.board.pinned", board.pinned.toString())
+            put(
+                "dailyAlarms.board.rows",
+                board.rows.joinToString(" | ") { "${it.time} ${it.label} ${it.date} ${it.status}" }
+            )
         }
 
     @Synchronized
@@ -112,7 +116,6 @@ class DailyAlarmController(
         Diag.log(TAG, "dewidebug dailyalarm settings from=$source ${before.size} -> ${alarms.size} alarm(s): $alarms")
         (before.map { it.id } - alarms.map { it.id }.toSet()).forEach { removed ->
             ports.hideQuestion(removed)
-            ports.hideSet(removed)
             ports.stopRinging(removed)
             ports.schedule(removed, null, ring = false)
             states = states - removed
@@ -141,8 +144,7 @@ class DailyAlarmController(
         when (effect) {
             is AlarmEffect.ShowQuestion -> ports.showQuestion(alarm, effect)
             is AlarmEffect.HideQuestion -> ports.hideQuestion(effect.alarmId)
-            is AlarmEffect.ShowSet -> ports.showSet(alarm, effect.time)
-            is AlarmEffect.HideSet -> ports.hideSet(effect.alarmId)
+            is AlarmEffect.ShowSet, is AlarmEffect.HideSet -> Unit
             is AlarmEffect.Ring -> ports.ring(alarm, effect.time)
             is AlarmEffect.StopRinging -> ports.stopRinging(effect.alarmId)
         }
@@ -150,7 +152,10 @@ class DailyAlarmController(
 
     private fun publish() {
         _view.value = DailyAlarmsView(alarms, states, wakes.toMap())
+        ports.showBoard(board())
     }
+
+    fun board(): AlarmBoard = alarmBoard(alarms, states, clock(), zone())
 
     companion object {
         const val TAG = "DailyAlarm"

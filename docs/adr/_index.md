@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Architecture decision records
@@ -36,3 +36,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 18 | [Daily alarms — asked each morning, rung by Totum itself](0018-daily-alarms.md) | Accepted |
 | 19 | [The Videos feed is hidden until asked, and hides again when you leave the tab](0019-videos-hidden-until-asked.md) | Accepted |
 | 20 | [Gapless queue — the player holds the next item, and the queue adopts the crossover](0020-gapless-queue-the-player-holds-the-next-item.md) | Accepted |
+| 21 | [Daily alarms are shown on one pinned board, soonest first](0021-alarm-board.md) | Accepted |

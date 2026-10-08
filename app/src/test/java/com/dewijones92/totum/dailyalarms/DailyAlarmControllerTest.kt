@@ -40,7 +40,8 @@ class DailyAlarmControllerTest {
         assertEquals(1, ports.questions.size)
         at(9, 10)
         alarms.dispatch("pickup", AlarmEvent.Answer(LocalTime.of(17, 30)), "notification")
-        assertEquals(listOf(LocalTime.of(17, 30)), ports.sets)
+        assertEquals(LocalTime.of(17, 30), ports.boards.last().nextToRing?.time)
+        assertTrue(ports.boards.last().pinned)
         assertTrue(ports.ringScheduled)
         at(17, 30)
         alarms.dispatch("pickup", AlarmEvent.Tick, "alarm clock")
@@ -48,6 +49,7 @@ class DailyAlarmControllerTest {
         assertTrue(alarms.ringingNow)
         alarms.dispatch("pickup", AlarmEvent.Dismiss, "ring screen")
         assertFalse(alarms.ringingNow)
+        assertFalse("the board goes once the day's alarm is done", ports.boards.last().pinned)
         assertEquals(DayState.Done(now.atZone(zone).toLocalDate(), Outcome.RANG), store.states["pickup"])
     }
 
@@ -69,11 +71,27 @@ class DailyAlarmControllerTest {
         assertEquals(null, ports.schedules.last { it.first == "dropoff" }.second)
     }
 
+    @Test
+    fun `every change publishes the board, soonest first`() {
+        val alarms = controller()
+        alarms.update("test") {
+            listOf(it.single().copy(enabled = true), DailyAlarm(id = "gym", label = "Gym bag", enabled = true))
+        }
+        at(8)
+        alarms.tickAll("alarm")
+        at(9)
+        alarms.dispatch("gym", AlarmEvent.Answer(LocalTime.of(17, 0)), "notification")
+
+        val board = ports.boards.last()
+        assertEquals(listOf("gym", "pickup"), board.rows.map { it.alarmId })
+        assertEquals(listOf(RowStatus.Set, RowStatus.Asking), board.rows.map { it.status })
+    }
+
     private class RecordingPorts : DailyAlarmPorts {
         val schedules = mutableListOf<Pair<String, Instant?>>()
         var ringScheduled = false
         val questions = mutableListOf<AlarmEffect.ShowQuestion>()
-        val sets = mutableListOf<LocalTime>()
+        val boards = mutableListOf<AlarmBoard>()
         val rings = mutableListOf<LocalTime>()
         val hidden = mutableListOf<String>()
         override fun schedule(alarmId: String, at: Instant?, ring: Boolean) {
@@ -86,11 +104,8 @@ class DailyAlarmControllerTest {
         override fun hideQuestion(alarmId: String) {
             hidden += alarmId
         }
-        override fun showSet(alarm: DailyAlarm, time: LocalTime) {
-            sets += time
-        }
-        override fun hideSet(alarmId: String) {
-            hidden += alarmId
+        override fun showBoard(board: AlarmBoard) {
+            boards += board
         }
         override fun ring(alarm: DailyAlarm, time: LocalTime) {
             rings += time

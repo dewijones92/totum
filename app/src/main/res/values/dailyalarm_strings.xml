@@ -5,7 +5,7 @@
     <string name="dailyalarm_tile_label">Daily alarm</string>
     <string name="dailyalarm_intro">Each morning on its days, Totum asks whether you want the alarm today, and asks again every hour until the last ask. Say yes and it rings full screen at that time until you dismiss it.</string>
     <string name="dailyalarm_channel_question">Daily alarms: question</string>
-    <string name="dailyalarm_channel_set">Daily alarms: set</string>
+    <string name="dailyalarm_channel_set">Daily alarms: coming up</string>
     <string name="dailyalarm_channel_ring">Daily alarms: ringing</string>
     <string name="dailyalarm_question">%1$s: alarm at %2$s today?</string>
     <string name="dailyalarm_question_last">Last ask · %1$s: alarm at %2$s today?</string>
@@ -16,9 +16,6 @@
     <string name="dailyalarm_no">No</string>
     <string name="dailyalarm_no_today">No alarm today</string>
     <string name="dailyalarm_any_time">Pick any time</string>
-    <string name="dailyalarm_set">Alarm set for %1$s</string>
-    <string name="dailyalarm_change">Change</string>
-    <string name="dailyalarm_cancel">Cancel</string>
     <string name="dailyalarm_ringing">Ringing · %1$s</string>
     <string name="dailyalarm_snooze">Snooze %1$d min</string>
     <string name="dailyalarm_dismiss">Dismiss</string>
@@ -39,4 +36,20 @@
     <string name="dailyalarm_today_ringing">Today: ringing</string>
     <string name="dailyalarm_today_snoozed">Today: snoozed</string>
     <string name="dailyalarm_today_done">Today: done (%1$s)</string>
+    <string name="dailyalarm_board_next">Next: %1$s %2$s</string>
+    <string name="dailyalarm_board_title">Totum alarms</string>
+    <string name="dailyalarm_board_row">%1$s %2$s · %3$s · %4$s</string>
+    <string name="dailyalarm_board_today">today</string>
+    <string name="dailyalarm_board_tomorrow">tomorrow</string>
+    <string name="dailyalarm_board_set">set</string>
+    <string name="dailyalarm_board_asking">asking</string>
+    <string name="dailyalarm_board_snoozed">snoozed till %1$s</string>
+    <string name="dailyalarm_board_ringing">ringing</string>
+    <string name="dailyalarm_board_skipped">skipped</string>
+    <string name="dailyalarm_board_asks">asks %1$s</string>
+    <string name="dailyalarm_board_chip_asking">Asking</string>
+    <string name="dailyalarm_change_at">Change %1$s</string>
+    <string name="dailyalarm_cancel_at">Cancel %1$s</string>
+    <string name="dailyalarm_set_after_all">Set it after all</string>
+    <string name="dailyalarm_open">Open</string>
 </resources>

@@ -40,7 +40,16 @@ public sealed interface DayState {
 }
 
 @Serializable
-public enum class Outcome { RANG, DECLINED, CANCELLED, UNANSWERED, MISSED }
+public enum class Outcome {
+    RANG,
+    DECLINED,
+    CANCELLED,
+    UNANSWERED,
+    MISSED,
+    ;
+
+    public val skipped: Boolean get() = this == DECLINED || this == CANCELLED || this == UNANSWERED
+}
 
 public sealed interface AlarmEvent {
     public data object Tick : AlarmEvent

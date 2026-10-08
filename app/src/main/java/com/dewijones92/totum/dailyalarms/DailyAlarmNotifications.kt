@@ -5,9 +5,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Icon
 import com.dewijones92.totum.R
+import com.dewijones92.totum.reminders.kit.LiveUpdate
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
 
 class DailyAlarmNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -75,31 +81,52 @@ class DailyAlarmNotifications(private val context: Context) {
 
     fun hideQuestion(alarmId: String) = manager.cancel(questionId(alarmId))
 
-    fun showSet(alarm: DailyAlarm, time: LocalTime) {
+    fun board(board: AlarmBoard): Notification {
         ensureChannels()
-        val notification = Notification.Builder(context, SET)
+        val next = board.nextToRing
+        val lines = board.rows.map { context.boardLine(it, board.today) }
+        val title = next?.let { context.getString(R.string.dailyalarm_board_next, it.label, hhmm(it.time)) }
+            ?: context.getString(R.string.dailyalarm_board_title)
+        val builder = Notification.Builder(context, SET)
             .setSmallIcon(icon())
-            .setContentTitle(context.getString(R.string.dailyalarm_set, hhmm(time)))
-            .setContentText(alarm.label)
+            .setContentTitle(title)
+            .setContentText(lines.firstOrNull())
+            .setStyle(Notification.BigTextStyle().bigText(lines.joinToString("\n")))
             .setOngoing(true)
-            .setShowWhen(false)
-            .setCategory(Notification.CATEGORY_ALARM)
+            .setOnlyAlertOnce(true)
+            .setCategory(Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setContentIntent(QuestionActivity.pending(context, alarm.id))
-            .addAction(
-                action(
-                    context.getString(R.string.dailyalarm_change),
-                    DailyAlarmReceiver.pending(context, DailyAlarmReceiver.CHANGE, alarm.id)
+            .setContentIntent(context.openAlarmSettings())
+            .setDeleteIntent(DailyAlarmReceiver.pending(context, DailyAlarmReceiver.REPOST, DailyAlarmReceiver.BOARD))
+        val set = next?.takeIf { it.status is RowStatus.Set }
+        val skipped = board.firstSkipped
+        when {
+            set != null -> {
+                builder.addAction(
+                    action(
+                        context.getString(R.string.dailyalarm_change_at, hhmm(set.time)),
+                        DailyAlarmReceiver.pending(context, DailyAlarmReceiver.CHANGE, set.alarmId),
+                    ),
                 )
-            )
-            .addAction(
-                action(
-                    context.getString(R.string.dailyalarm_cancel),
-                    DailyAlarmReceiver.pending(context, DailyAlarmReceiver.CANCEL, alarm.id)
+                builder.addAction(
+                    action(
+                        context.getString(R.string.dailyalarm_cancel_at, hhmm(set.time)),
+                        DailyAlarmReceiver.pending(context, DailyAlarmReceiver.CANCEL, set.alarmId),
+                    ),
                 )
+            }
+            skipped != null -> builder.addAction(
+                action(
+                    context.getString(R.string.dailyalarm_set_after_all),
+                    QuestionActivity.pending(context, skipped.alarmId),
+                ),
             )
-            .build()
-        manager.notify(setId(alarm.id), notification)
+        }
+        builder.addAction(action(context.getString(R.string.dailyalarm_open), context.openAlarmSettings()))
+        val countdown = next?.takeUnless { it.status is RowStatus.Ringing }?.at
+        val chip = if (next == null) context.getString(R.string.dailyalarm_board_chip_asking) else null
+        LiveUpdate.apply(builder, countdown, chip)
+        return builder.build()
     }
 
     fun hideSet(alarmId: String) = manager.cancel(setId(alarmId))
@@ -147,6 +174,7 @@ class DailyAlarmNotifications(private val context: Context) {
         const val SET = "dailyalarm_set"
         const val RING = "dailyalarm_ring"
         const val RING_ID = 7399
+        const val BOARD_ID = 7398
 
         fun hhmm(time: LocalTime): String = "%02d:%02d".format(time.hour, time.minute)
 
@@ -158,3 +186,32 @@ class DailyAlarmNotifications(private val context: Context) {
         private const val SET_SLOT = 15
     }
 }
+
+private fun Context.boardLine(row: BoardRow, today: LocalDate): String {
+    val day = when (row.date) {
+        today -> getString(R.string.dailyalarm_board_today)
+        today.plusDays(1) -> getString(R.string.dailyalarm_board_tomorrow)
+        else -> row.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    }
+    val status = when (val state = row.status) {
+        RowStatus.Set -> getString(R.string.dailyalarm_board_set)
+        RowStatus.Asking -> getString(R.string.dailyalarm_board_asking)
+        is RowStatus.Snoozed -> getString(
+            R.string.dailyalarm_board_snoozed,
+            DailyAlarmNotifications.hhmm(state.until.atZone(ZoneId.systemDefault()).toLocalTime()),
+        )
+        RowStatus.Ringing -> getString(R.string.dailyalarm_board_ringing)
+        RowStatus.Skipped -> getString(R.string.dailyalarm_board_skipped)
+        is RowStatus.Upcoming -> getString(R.string.dailyalarm_board_asks, DailyAlarmNotifications.hhmm(state.asksAt))
+    }
+    return getString(R.string.dailyalarm_board_row, DailyAlarmNotifications.hhmm(row.time), row.label, day, status)
+}
+
+private fun Context.openAlarmSettings(): PendingIntent = PendingIntent.getActivity(
+    this,
+    OPEN_SETTINGS_CODE,
+    Intent(this, DailyAlarmsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+)
+
+private const val OPEN_SETTINGS_CODE = 7397

@@ -2,12 +2,12 @@
 title: Daily alarms — asked each morning, rung by Totum itself
 kind: adr
 status: accepted
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 18. Daily alarms — asked each morning, rung by Totum itself
 
-- Status: Accepted
+- Status: Accepted (the per-alarm "Alarm set" notification is replaced by one board: [ADR 21](0021-alarm-board.md))
 - Date: 2026-10-07
 
 ## Context

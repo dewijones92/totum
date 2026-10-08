@@ -32,9 +32,7 @@ class AndroidDailyAlarmPorts(
 
     override fun hideQuestion(alarmId: String) = notifications.hideQuestion(alarmId)
 
-    override fun showSet(alarm: DailyAlarm, time: LocalTime) = notifications.showSet(alarm, time)
-
-    override fun hideSet(alarmId: String) = notifications.hideSet(alarmId)
+    override fun showBoard(board: AlarmBoard) = AlarmBoardService.reconcile(context, board)
 
     override fun ring(alarm: DailyAlarm, time: LocalTime) {
         interruption().interrupt()

@@ -98,9 +98,11 @@ public object DailyAlarmMachine {
         }
 
         private fun answer(state: DayState, time: LocalTime): DayState {
-            val date = when (state) {
-                is Asking -> state.date
-                is Set -> state.date
+            val date = when {
+                state is Asking -> state.date
+                state is Set -> state.date
+                state is Done && state.outcome.skipped ->
+                    state.date.also { notes += "set after all (was ${state.outcome})" }
                 else -> return state.also { notes += "answer ignored in $state" }
             }
             if (!on(date, time).isAfter(now)) return state.also { notes += "answer refused: $time has already gone" }
