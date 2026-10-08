@@ -3,11 +3,16 @@ package com.dewijones92.totum.dailyalarms
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.dewijones92.totum.support.keepsScreenOn
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalTime
@@ -52,6 +57,16 @@ class DailyAlarmDeviceTest {
         assertEquals(listOf("Snooze 5 min", "Dismiss"), ringing.actions.map { it.title.toString() })
         RingService.stop(context)
         assertEquals(null, waitFor(DailyAlarmNotifications.RING_ID, gone = true))
+    }
+
+    @Test
+    fun theMorningQuestionKeepsTheScreenAwake() {
+        ActivityScenario.launch<QuestionActivity>(Intent(context, QuestionActivity::class.java)).use { scenario ->
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
+                assertTrue("the question must not let the screen dim", activity.keepsScreenOn())
+            }
+        }
     }
 
     private fun waitFor(id: Int, gone: Boolean = false): Notification? {

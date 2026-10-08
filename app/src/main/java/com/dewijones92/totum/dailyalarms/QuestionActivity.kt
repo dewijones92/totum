@@ -36,6 +36,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.ChoiceChips
+import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.reminders.kit.showOverLockScreen
 import com.dewijones92.totum.reminders.timeChoices
@@ -56,6 +57,7 @@ class QuestionActivity : ComponentActivity() {
         Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm question screen opened for $id")
         setContent {
             TotumTheme(darkTheme = false) {
+                KeepScreenAwake("dailyalarm question screen")
                 QuestionScreen(
                     alarm = alarm,
                     defaultTime = alarm.timeOn(today),

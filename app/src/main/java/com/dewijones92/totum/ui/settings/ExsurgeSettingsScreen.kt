@@ -59,12 +59,14 @@ import com.dewijones92.totum.exsurge.ExsurgeView
 import com.dewijones92.totum.exsurge.SurgiusFace
 import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.clockText
+import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.ui.common.BackHeader
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 
 @Composable
 fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    KeepScreenAwake("exsurge page")
     val view by exsurge.view.collectAsStateWithLifecycle()
     val settings = view.settings
     val update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit = { change ->

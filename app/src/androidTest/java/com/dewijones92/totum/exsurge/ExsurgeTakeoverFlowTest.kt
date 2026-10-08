@@ -17,6 +17,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.support.SilentWav
+import com.dewijones92.totum.support.keepsScreenOn
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -97,6 +98,16 @@ class ExsurgeTakeoverFlowTest {
         val state = exsurge.view.value.memory.state
         val summons = (state as? ExsurgeState.Rising)?.summons ?: (state as? ExsurgeState.OnBreak)?.summons
         assertTrue("expected a walk-only break, was ${state.label()}", summons?.practise == false)
+    }
+
+    @Test
+    fun theTakeoverKeepsTheScreenAwake() {
+        ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use { scenario ->
+            compose.waitForIdle()
+            scenario.onActivity { activity ->
+                assertTrue("the takeover must not let the screen dim", activity.keepsScreenOn())
+            }
+        }
     }
 
     @Test

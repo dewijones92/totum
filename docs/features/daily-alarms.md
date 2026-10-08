@@ -3,7 +3,7 @@ title: Daily alarms — asked each morning, rung by Totum
 kind: feature
 area: side-quest
 status: built 2026-10-07 — ships switched off; awaiting Dewi's first weekday
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Daily alarms
@@ -27,6 +27,9 @@ my toddler?"* Decisions: [ADR 18](../adr/0018-daily-alarms.md), built on the rem
 - **Several alarms**, each with its own label, days, usual time, **a time per weekday**, time choices,
   first and last ask. Settings → **Daily alarms**, and a Quick Settings tile showing today's state.
 - Ships with "Pick up time" 17:30, **switched off**.
+
+**The screen stays awake** (Dewi, 2026-10-08) on the ringing screen, the morning question and the alarm
+settings, at the phone's normal brightness, through the kit's `KeepScreenAwake`.
 
 ## Where it lives
 

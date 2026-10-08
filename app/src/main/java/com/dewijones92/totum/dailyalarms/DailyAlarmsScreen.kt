@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.ui.common.BackHeader
 import java.time.DayOfWeek
@@ -42,6 +43,7 @@ private typealias Change = (DailyAlarm.() -> DailyAlarm) -> Unit
 
 @Composable
 fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    KeepScreenAwake("dailyalarm settings")
     val view by alarms.view.collectAsStateWithLifecycle()
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {

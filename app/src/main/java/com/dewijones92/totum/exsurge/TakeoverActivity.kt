@@ -45,6 +45,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.ChoiceChips
+import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.showOverLockScreen
 import com.dewijones92.totum.reminders.minuteChoices
 import com.dewijones92.totum.theme.TotumTheme
@@ -64,6 +65,7 @@ class TakeoverActivity : ComponentActivity() {
         if (goNow) go()
         setContent {
             TotumTheme(darkTheme = false) {
+                KeepScreenAwake("exsurge takeover")
                 val view by exsurge.view.collectAsStateWithLifecycle()
                 LaunchedEffect(view.memory.state) {
                     val state = view.memory.state

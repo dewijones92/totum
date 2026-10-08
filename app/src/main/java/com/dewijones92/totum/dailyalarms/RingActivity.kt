@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.showOverLockScreen
 import com.dewijones92.totum.theme.TotumTheme
 
@@ -43,6 +44,7 @@ class RingActivity : ComponentActivity() {
         Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm ring screen shown for $id")
         setContent {
             TotumTheme(darkTheme = false) {
+                KeepScreenAwake("dailyalarm ring screen")
                 val view by alarms.view.collectAsStateWithLifecycle()
                 val state = view.state(id)
                 LaunchedEffect(state) { if (state !is DayState.Ringing) finish() }

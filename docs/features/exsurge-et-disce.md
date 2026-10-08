@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -108,6 +108,10 @@ everything configurable. The backlog item, with the agreed design and the open i
   then green; the nothing-loaded case was checked by hand on the emulator (no test can unload playback).
 - **Settings → Exsurge et Disce:** the live status card (above), a stats card with Surgius in his
   current mood, every setting, and a permissions checklist with Grant buttons.
+
+**The screen stays awake** (Dewi, 2026-10-08: *"I don't want the brightness to go down"*) on the takeover and
+on the Exsurge page, at the phone's normal brightness, through the kit's `KeepScreenAwake`; leaving the screen
+lets it sleep again. Logged as `[reminders] … keeps the screen awake` / `… left`.
 
 ## Where it lives
 
