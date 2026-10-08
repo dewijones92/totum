@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.torrent.TorrentSearchResult
 public class FakeHomeTorrentServer(
     public var results: List<TorrentResult> = emptyList(),
     public var failure: String? = null,
+    public var slow: Boolean = false,
 ) : HomeTorrentServer {
 
     /** Magnets handed to [prepare], so a test can assert the app added what the user picked. */
@@ -21,7 +22,7 @@ public class FakeHomeTorrentServer(
     )
 
     override suspend fun search(query: String): TorrentSearchResult =
-        failure?.let { TorrentSearchResult.Failure(it) } ?: TorrentSearchResult.Success(results)
+        failure?.let { TorrentSearchResult.Failure(it, slow) } ?: TorrentSearchResult.Success(results)
 
     override suspend fun prepare(magnet: String): PreparedTorrent? {
         prepared += magnet
@@ -37,6 +38,12 @@ public class FakeHomeTorrentServer(
 
     /** Records that warming was asked for; there is nothing to warm in memory. */
     public var warmed: MutableList<String> = mutableListOf()
+
+    public val warmedVideo: MutableList<Pair<String, Int>> = mutableListOf()
+
+    override suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile) {
+        warmedVideo += torrent.hash to file.index
+    }
 
     override suspend fun warmAudio(audioUrl: HttpUrl) {
         warmed += audioUrl.value.substringBefore('?').removeSuffix("/index.m3u8").substringAfterLast("/audio/")

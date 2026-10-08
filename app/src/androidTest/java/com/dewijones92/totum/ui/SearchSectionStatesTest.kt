@@ -14,8 +14,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.search.SearchViewModel
 import com.dewijones92.totum.ui.search.SectionMessage
 import com.dewijones92.totum.ui.search.hitSection
+import com.dewijones92.totum.ui.search.torrentSection
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -50,7 +52,7 @@ class SearchSectionStatesTest {
     private fun show(
         section: SearchSection<List<String>>,
         title: Int = R.string.destination_videos,
-        failure: (@Composable () -> Unit)? = null,
+        failure: (@Composable (SearchSection.Failed) -> Unit)? = null,
     ) {
         composeTestRule.setContent {
             TotumTheme {
@@ -116,10 +118,42 @@ class SearchSectionStatesTest {
         show(
             SearchSection.Failed("no route"),
             title = R.string.search_section_torrents,
-            failure = { SectionMessage(stringResource(R.string.search_torrents_unreachable)) },
+            failure = { _ -> SectionMessage(stringResource(R.string.search_torrents_unreachable)) },
         )
 
         composeTestRule.onNodeWithText("home Wi-Fi or VPN", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `a slow home server says it is slow rather than unreachable`() {
+        composeTestRule.setContent {
+            TotumTheme {
+                LazyColumn {
+                    torrentSection(
+                        SearchViewModel.Results.Loaded(
+                            podcasts = SearchSection.Searching,
+                            videos = SearchSection.Searching,
+                            torrents = SearchSection.Failed("indexers slow", slow = true),
+                        ),
+                        onPlayTorrent = {},
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("taking a while", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("home Wi-Fi or VPN", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `results already in show while a late indexer is still being asked`() {
+        show(
+            SearchSection.Found(listOf("Sintel 1080p"), stillWaitingFor = listOf("1337x")),
+            title = R.string.search_section_torrents
+        )
+
+        composeTestRule.onNodeWithText("Sintel 1080p").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Still searching 1337x", substring = true).assertIsDisplayed()
     }
 
     /** With no home server there is no heading to explain away. */

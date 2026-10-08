@@ -3,7 +3,9 @@ package com.dewijones92.totum.data.torrent
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchOutcome
 import com.dewijones92.totum.data.search.SearchQuery
+import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.data.search.TorrentSearchSource
+import com.dewijones92.totum.data.search.asSection
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -25,6 +27,16 @@ class TorrentSearchSourceTest {
 
     private fun result(title: String, seeders: Int, size: Long = 1_000_000_000) =
         TorrentResult(title, "magnet:?xt=urn:btih:$title", seeders, size, indexer = "TPB")
+
+    @Test
+    fun `a slow home server reaches the section as slow, not as unreachable`() = runTest {
+        server.failure = "the home server's indexers are slow to answer"
+        server.slow = true
+
+        val section = source.search(SearchQuery("x"), limit = 10, after = null).asSection { it.page.items }
+
+        assertTrue((section as SearchSection.Failed).slow)
+    }
 
     @Test
     fun `results come back best-seeded first`() = runTest {

@@ -1,11 +1,11 @@
 ---
 title: Seamless Totum playback across devices
 kind: todo
-status: refining
+status: parked 2026-10-08 (Dewi: "park the cast stuff"); high priority when picked up
 area: playback/integration
-priority: undecided
+priority: high
 requested: 2026-10-05
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Totum content wherever Dewi wants to play it
@@ -16,6 +16,16 @@ web browser or wherever, with a seamless experience like Netflix.
 The desired outcome is convenient access to the same Totum content on the screen
 Dewi chooses, with little setup or friction. Treat this as one experience across
 videos, podcasts and other supported media, using Totum's existing shared seams.
+
+**Raised again (Dewi, 2026-10-08), as a priority:** *"be able to somehow cast, in the broad
+sense, to my TV"*. "Broad sense" means any way of getting what is playing in Totum onto the TV,
+not Chromecast specifically. Known facts to start from:
+
+- Chromecast casting exists but is best-effort: podcasts and local files work, video casting is
+  fragile (see the features index), and it was never verified on real hardware.
+- The TV has an **Amazon Fire TV Stick** (Dewi confirmed 2026-10-08), which does not speak Chromecast. Ways in that fit
+  "broad sense": DLNA/UPnP to a Fire TV player, a Totum build for Fire TV (Android TV), or handing
+  the stream to the Pi's Jellyfin. Not decided; to be asked.
 
 ## Refine before implementation
 

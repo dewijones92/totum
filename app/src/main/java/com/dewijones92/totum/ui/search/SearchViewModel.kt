@@ -31,6 +31,8 @@ import com.dewijones92.totum.ui.common.TrackedViewModel
 import com.dewijones92.totum.ui.common.toMediaItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,7 +47,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The two halves of the home-server feature, together because neither is useful alone: search
@@ -226,26 +227,39 @@ class SearchViewModel(
          */
         suspend fun <T> section(
             name: String,
-            run: suspend () -> SearchOutcome?,
+            updates: () -> Flow<SearchOutcome>,
             into: (Results.Loaded, SearchSection<T>) -> Results.Loaded,
             select: (SearchOutcome.Success) -> T,
-        ) {
-            val outcome = withTimeoutOrNull(SECTION_TIMEOUT_MILLIS) { run() }
-            val took = System.currentTimeMillis() - startedAt
-            val result: SearchSection<T> = when (outcome) {
-                null -> SearchSection.Failed("it did not answer within ${SECTION_TIMEOUT_MILLIS}ms")
-                else -> outcome.asSection(select)
+        ) = coroutineScope {
+            fun publish(result: SearchSection<T>) {
+                val took = System.currentTimeMillis() - startedAt
+                // Per section and with its own timing, because "search was slow" could never say WHICH
+                // source was slow — the one question that mattered, and the reason this exists at all.
+                Diag.log("search", "\"${query.value}\" $name after ${took}ms -> ${result.describe()}")
+                state.update { into(it, result) }
             }
-            // Per section and with its own timing, because "search was slow" could never say WHICH
-            // source was slow — the one question that mattered, and the reason this exists at all.
-            Diag.log("search", "\"${query.value}\" $name after ${took}ms -> ${result.describe()}")
-            state.update { into(it, result) }
+            var answered = false
+            val collecting = launch {
+                updates().collect { outcome ->
+                    answered = true
+                    publish(outcome.asSection(select))
+                }
+            }
+            val watchdog = launch {
+                delay(SECTION_TIMEOUT_MILLIS)
+                if (!answered) {
+                    collecting.cancel()
+                    publish(SearchSection.Failed("it did not answer within ${SECTION_TIMEOUT_MILLIS}ms", slow = true))
+                }
+            }
+            collecting.join()
+            watchdog.cancel()
         }
 
         launch {
             section<List<SearchHit.Podcast>>(
                 name = "podcasts",
-                run = { sources.podcasts.search(query, RESULTS_PER_SECTION, after = null) },
+                updates = { sources.podcasts.updates(query, RESULTS_PER_SECTION) },
                 into = { loaded, s -> loaded.copy(podcasts = s) },
                 select = { it.page.items.filterIsInstance<SearchHit.Podcast>() },
             )
@@ -253,7 +267,7 @@ class SearchViewModel(
         launch {
             section<Page<SearchHit.Video>>(
                 name = "videos",
-                run = { sources.videos.search(query, RESULTS_PER_SECTION, after = null) },
+                updates = { sources.videos.updates(query, RESULTS_PER_SECTION) },
                 into = { loaded, s -> loaded.copy(videos = s) },
                 select = { it.page.videosOnly() },
             )
@@ -261,7 +275,7 @@ class SearchViewModel(
         launch {
             section<List<SearchHit.Song>>(
                 name = "songs",
-                run = { sources.music.search(query, RESULTS_PER_SECTION, after = null) },
+                updates = { sources.music.updates(query, RESULTS_PER_SECTION) },
                 into = { loaded, s -> loaded.copy(songs = s) },
                 select = { it.page.items.filterIsInstance<SearchHit.Song>() },
             )
@@ -270,7 +284,7 @@ class SearchViewModel(
             launch {
                 section<List<SearchHit.Torrent>>(
                     name = "torrents",
-                    run = { torrents.search.search(query, RESULTS_PER_SECTION, null) },
+                    updates = { torrents.search.updates(query, RESULTS_PER_SECTION) },
                     into = { loaded, s -> loaded.copy(torrents = s) },
                     select = { it.page.items.filterIsInstance<SearchHit.Torrent>() },
                 )
@@ -284,7 +298,7 @@ class SearchViewModel(
             is Page<*> -> "${found.items.size} (more=${found.hasMore})"
             is Collection<*> -> "${found.size}"
             else -> "found"
-        }
+        } + if (stillWaitingFor.isEmpty()) "" else ", still waiting for $stillWaitingFor"
         is SearchSection.Failed -> "FAILED: $detail"
         SearchSection.Searching -> "still searching"
         SearchSection.Absent -> "absent"
@@ -346,6 +360,7 @@ class SearchViewModel(
             // until Listen is pressed it is 25 seconds of spinner; started here it overlaps the
             // queueing and the video that plays first.
             TorrentEpisodes.playableInOrder(prepared!!.files).firstOrNull()?.let { first ->
+                launch { server.warmVideo(prepared, first) }
                 launch { server.warmAudio(server.audioStream(prepared, first)) }
             }
             queue.playAll(items, QueueGroup(id = prepared.hash, title = prepared.name))

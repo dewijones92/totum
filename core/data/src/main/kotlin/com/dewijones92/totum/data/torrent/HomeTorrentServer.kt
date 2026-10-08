@@ -1,6 +1,8 @@
 package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.HttpUrl
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * The home server's torrent facilities: search one thing, stream another.
@@ -18,6 +20,8 @@ public interface HomeTorrentServer {
 
     /** Results ordered by the caller's preference, or a failure that says why. */
     public suspend fun search(query: String): TorrentSearchResult
+
+    public fun searchUpdates(query: String): Flow<TorrentSearchResult> = flow { emit(search(query)) }
 
     /**
      * Registers [magnet] with the server and returns what it can play.
@@ -60,13 +64,18 @@ public interface HomeTorrentServer {
      * put torrent knowledge in the one place deliberately free of it.
      */
     public suspend fun warmAudio(audioUrl: HttpUrl)
+
+    public suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile)
 }
 
 public sealed interface TorrentSearchResult {
-    public data class Success(public val results: List<TorrentResult>) : TorrentSearchResult
+    public data class Success(
+        public val results: List<TorrentResult>,
+        public val stillWaitingFor: List<String> = emptyList(),
+    ) : TorrentSearchResult
 
     /** Named rather than an empty list: "nothing found" and "the server is down" differ. */
-    public data class Failure(public val detail: String) : TorrentSearchResult
+    public data class Failure(public val detail: String, public val slow: Boolean = false) : TorrentSearchResult
 }
 
 public data class TorrentResult(

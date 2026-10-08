@@ -39,7 +39,13 @@ internal fun LazyListScope.torrentSection(
     hitSection(
         title = { stringResource(R.string.search_section_torrents) },
         section = results.torrents,
-        failure = { SectionMessage(stringResource(R.string.search_torrents_unreachable)) },
+        failure = { failed ->
+            SectionMessage(
+                stringResource(
+                    if (failed.slow) R.string.search_torrents_slow else R.string.search_torrents_unreachable
+                ),
+            )
+        },
     ) { hit -> TorrentHitRow(hit = hit, onPlay = { onPlayTorrent(hit) }) }
 }
 
@@ -55,22 +61,29 @@ internal fun LazyListScope.torrentSection(
 internal fun <T> LazyListScope.hitSection(
     title: @Composable () -> String,
     section: SearchSection<List<T>>,
-    failure: @Composable () -> Unit = { SectionError() },
+    failure: @Composable (SearchSection.Failed) -> Unit = { SectionError() },
     row: @Composable (T) -> Unit,
 ) {
     // Absent is not a section at all: no home server means no torrent heading to explain away.
     if (section is SearchSection.Absent) return
     val items = section.itemsOrNull.orEmpty()
     // A source that answered with nothing says nothing; only a state worth reading gets a heading.
-    if (section is SearchSection.Found && items.isEmpty()) return
+    val stillWaitingFor = (section as? SearchSection.Found)?.stillWaitingFor.orEmpty()
+    if (section is SearchSection.Found && items.isEmpty() && stillWaitingFor.isEmpty()) return
 
     item { SectionHeader(title()) }
     when (section) {
         is SearchSection.Searching -> item { SectionSearching() }
-        is SearchSection.Failed -> item { failure() }
+        is SearchSection.Failed -> item { failure(section) }
         else -> Unit
     }
     items(items.size) { index -> row(items[index]) }
+    if (stillWaitingFor.isNotEmpty()) {
+        item {
+            SectionMessage(stringResource(R.string.search_still_waiting, stillWaitingFor.joinToString()))
+            SectionSearching()
+        }
+    }
 }
 
 @Composable

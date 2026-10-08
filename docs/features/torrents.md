@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-08-06
+updated: 2026-10-08
 ---
 
 # Torrents (public-domain film & TV)
@@ -35,6 +35,30 @@ read afterwards and the whole path was there. **A status nobody re-checks is wor
 
 Nothing above the `HomeTorrentServer` port knows a torrent is involved. That is the point: the
 pillar reaches the UI as one more `SearchHit`, one more queue item, one more thing that plays.
+
+## Speed (measured 2026-10-08, emulator against the Pi)
+
+- **Search asks each indexer on its own, in parallel, and streams** (`ProwlarrSearch.updates`,
+  `SearchSource.updates`): the section shows the first results as soon as one indexer has any, and
+  each later indexer's results are added when they arrive, with "Still searching 1337x…" until the
+  last answers or 2 minutes pass (Dewi, 2026-10-08: "maybe let it get added once it arrives"). 1337x sits behind a Cloudflare check that
+  FlareSolverr took 83.6 s to pass, and Prowlarr waits for every indexer, so one search took 86 s;
+  the app's 20 s limit could not cut it because the HTTP call ignored cancellation, and the
+  section then said "Can't reach your home server". Now calls are cancellable (`Call.await`), a
+  slow server says it is slow, and first results took 0.5-2 s (Big Buck Bunny, Sintel, Elephants Dream).
+- **Opening a torrent warms the first file's first and last megabyte** at once (`warmVideo`). An
+  MKV keeps its index at the end; measured cold on the Pi, the first 1 MB took 1.2 s and the last
+  5.7 s, and the player reads them one after the other. Player ready after `play()`: 6.6-8.0 s
+  before, 4.6-5.1 s after (three cold runs each, Sintel 1080p, 22 seeders).
+- **Pi tuning was tried and reverted** (Dewi approved trying it): TorrServer at 100 connections, a 512 MB cache
+  and a live tracker list made the cold last-MB fetch 3.6-4.4 s against about 1 s on the original 25
+  connections / 256 MB / 14 trackers, in alternating runs, likely because `PreloadCache` (50%) preloads
+  half the cache on every add. Settings restored; both are saved on the Pi as
+  `~/torrserver-settings-{backup,tuned}-20261008.json`.
+- Big Buck Bunny has 0-1 seeders on these indexers and never produced a file list in 30 s; that is
+  the swarm, not the app.
+- Logged: `search … per indexer: <name> <ms> <n> result(s)…; left out: [...]`, `search … in Nms
+  [top seeders=N]`, `prepared … in Nms (added in Nms)`, `warmed the start|end of …: HTTP 206, N bytes in Nms`.
 
 ## What it deliberately does NOT do
 

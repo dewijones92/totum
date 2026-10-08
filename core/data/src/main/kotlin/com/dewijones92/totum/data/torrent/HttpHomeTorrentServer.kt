@@ -3,7 +3,12 @@ package com.dewijones92.totum.data.torrent
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -18,6 +23,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import kotlin.time.TimeSource
 
 /**
  * [HomeTorrentServer] over Prowlarr (search) and TorrServer (streaming) on Dewi's Pi.
@@ -52,9 +58,12 @@ public class HttpHomeTorrentServer(
      * after a restart — and so a blank one produces an honest 401 rather than a silent failure.
      */
     private val token: () -> String,
+    private val lateDeadlineMs: Long = LATE_DEADLINE_MS,
 ) : HomeTorrentServer {
 
-    private val prowlarrBase get() = "$base/prowlarr"
+    private val prowlarr =
+        ProwlarrSearch(client, "$base/prowlarr", prowlarrApiKey, token, lateDeadlineMs)
+
     private val torrServerBase get() = "$base/ts"
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -68,52 +77,21 @@ public class HttpHomeTorrentServer(
             Diag.log("torrent", "not searching for \"$query\": not signed in to the home server")
             return@withContext TorrentSearchResult.Failure("sign in to the home server first")
         }
-        val encoded = query.replace(" ", "+")
-        val request = Request.Builder()
-            .url("$prowlarrBase/api/v1/search?query=$encoded&type=search")
-            .header("X-Api-Key", prowlarrApiKey())
-            .header(TOKEN_HEADER, token())
-            .build()
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    // Each code says something different to the person holding the phone, and
-                    // "HTTP 401" says nothing at all. A rejected token means the sign-in has to
-                    // be done again; a gateway timeout means the search itself was slow and
-                    // retrying may work; anything else is genuinely the server.
-                    val detail = when (response.code) {
-                        HTTP_UNAUTHORIZED -> "the home server rejected the sign-in — sign in again"
-                        HTTP_GATEWAY_TIMEOUT -> "the search took too long — try a narrower one"
-                        else -> "the home server answered HTTP ${response.code}"
-                    }
-                    Diag.warn("torrent", "search for \"$query\" failed: HTTP ${response.code} — $detail")
-                    return@withContext TorrentSearchResult.Failure(detail)
-                }
-                val body = response.body.string()
-                val results = parseProwlarr(body) ?: run {
-                    // A 200 that is not a search response means the request reached the wrong
-                    // thing — both services answer an unknown path with their own web UI rather
-                    // than a 404. Named precisely, because "0 results" and "you are talking to a
-                    // login page" look identical from the outside and have nothing in common.
-                    Diag.warn(
-                        "torrent",
-                        "search for \"$query\" got HTTP 200 but not a search response " +
-                            "(${response.header("Content-Type")}, ${body.length} chars) — misrouted?",
-                    )
-                    return@withContext TorrentSearchResult.Failure("the home server returned an unreadable reply")
-                }
-                Diag.log("torrent", "search \"$query\" -> ${results.size} result(s)")
-                TorrentSearchResult.Success(results)
-            }
-        } catch (e: IOException) {
-            // The Pi is only reachable at home or over wg-home, so this is the ordinary case of
-            // being elsewhere rather than a fault. Said plainly so the UI can say it plainly.
-            Diag.warn("torrent", "search for \"$query\" could not reach the home server", e)
-            TorrentSearchResult.Failure(e.message ?: "could not reach the home server")
-        }
+        prowlarr.search(query)
     }
 
+    override fun searchUpdates(query: String): Flow<TorrentSearchResult> =
+        if (token().isBlank()) {
+            flow {
+                Diag.log("torrent", "not searching for \"$query\": not signed in to the home server")
+                emit(TorrentSearchResult.Failure("sign in to the home server first"))
+            }
+        } else {
+            prowlarr.updates(query).flowOn(Dispatchers.IO)
+        }
+
     override suspend fun prepare(magnet: String): PreparedTorrent? = withContext(Dispatchers.IO) {
+        val started = TimeSource.Monotonic.markNow()
         // save_to_db false: the server keeps a RAM cache and nothing is written to disk, which is
         // what makes this sustainable on a Pi that is 88% full.
         val added = post(
@@ -130,8 +108,13 @@ public class HttpHomeTorrentServer(
         // still in flight: report 0.1.317 shows "prepared … with 0 file(s)" followed 14 seconds
         // later by the same torrent with 89, which to anyone tapping a search result is a
         // season that silently had nothing in it.
+        val addedMs = started.elapsedNow().inWholeMilliseconds
         val files = awaitFiles(hash)
-        Diag.log("torrent", "prepared ${hash.take(HASH_CHARS)} \"$name\" with ${files.size} file(s)")
+        Diag.log(
+            "torrent",
+            "prepared ${hash.take(HASH_CHARS)} \"$name\" with ${files.size} file(s) in " +
+                "${started.elapsedNow().inWholeMilliseconds}ms (added in ${addedMs}ms)",
+        )
         PreparedTorrent(hash, name, files)
     }
 
@@ -206,6 +189,28 @@ public class HttpHomeTorrentServer(
         }
     }
 
+    override suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile): Unit = withContext(Dispatchers.IO) {
+        val url = stream(torrent, file).value
+        val what = "${torrent.hash.take(HASH_CHARS)}/${file.index}"
+        coroutineScope {
+            listOf("start" to "bytes=0-${WARM_BYTES - 1}", "end" to "bytes=-$WARM_BYTES").forEach { (part, range) ->
+                launch {
+                    val started = TimeSource.Monotonic.markNow()
+                    val request = Request.Builder().url(url).header("Range", range).get().build()
+                    runCatching { client.newCall(request).await().use { it.code to it.body.bytes().size } }
+                        .onSuccess { (code, bytes) ->
+                            Diag.log(
+                                "torrent",
+                                "warmed the $part of $what: HTTP $code, $bytes bytes in " +
+                                    "${started.elapsedNow().inWholeMilliseconds}ms",
+                            )
+                        }
+                        .onFailure { Diag.warn("torrent", "could not warm the $part of $what", it) }
+                }
+            }
+        }
+    }
+
     private fun post(url: String, body: String): JsonObject? = try {
         val request = Request.Builder()
             .url(url)
@@ -229,11 +234,6 @@ public class HttpHomeTorrentServer(
     }
 
     /** Minimal JSON string quoting — magnets carry `&`, `=` and quotes that would break a body. */
-    private fun String.quoted(): String =
-        "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-
-    /** Only what a path segment cannot contain; the server treats this purely as a label. */
-    private fun String.urlPath(): String = replace(" ", "%20").replace("?", "").replace("#", "")
 
     internal companion object {
         val JSON_TYPE = "application/json".toMediaType()
@@ -251,5 +251,15 @@ public class HttpHomeTorrentServer(
         /** Both mean "sign in again" / "that was slow" rather than "the server is broken". */
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_GATEWAY_TIMEOUT = 504
+
+        const val LATE_DEADLINE_MS = 120_000L
+        const val WARM_BYTES = 1_048_576
+        const val SLOW_INDEXERS = "the home server's indexers are slow to answer — try again in a minute"
     }
 }
+
+private fun String.quoted(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+/** Only what a path segment cannot contain; the server treats this purely as a label. */
+private fun String.urlPath(): String = replace(" ", "%20").replace("?", "").replace("#", "")

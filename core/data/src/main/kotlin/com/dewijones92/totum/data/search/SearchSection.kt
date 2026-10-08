@@ -24,7 +24,7 @@ public sealed interface SearchSection<out T> {
     public data object Searching : SearchSection<Nothing>
 
     /** It answered. [items] may still be empty, which is a real answer and not a failure. */
-    public data class Found<T>(val items: T) : SearchSection<T>
+    public data class Found<T>(val items: T, val stillWaitingFor: List<String> = emptyList()) : SearchSection<T>
 
     /**
      * It could not answer, and why.
@@ -33,7 +33,7 @@ public sealed interface SearchSection<out T> {
      * reachable at home or on the VPN, and "no torrents match" reads very differently from
      * "the Pi is not there".
      */
-    public data class Failed(val detail: String) : SearchSection<Nothing>
+    public data class Failed(val detail: String, val slow: Boolean = false) : SearchSection<Nothing>
 
     /**
      * This section does not exist for this install — no home server is configured.
@@ -67,6 +67,6 @@ public fun <T, R> SearchSection<T>.map(transform: (T) -> R): SearchSection<R> = 
  */
 public fun <T> SearchOutcome.asSection(select: (SearchOutcome.Success) -> T): SearchSection<T> =
     when (this) {
-        is SearchOutcome.Success -> SearchSection.Found(select(this))
-        is SearchOutcome.Failure -> SearchSection.Failed(detail)
+        is SearchOutcome.Success -> SearchSection.Found(select(this), stillWaitingFor)
+        is SearchOutcome.Failure -> SearchSection.Failed(detail, slow)
     }

@@ -111,6 +111,8 @@ class SearchStreamsPerSectionTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
+    private val homeServer = FakeHomeTorrentServer()
+
     private fun model(withHomeServer: Boolean = false) = SearchViewModel(
         sources = SearchSources(
             podcasts = SearchSource { _, _, _ -> podcastGate.await() },
@@ -121,7 +123,7 @@ class SearchStreamsPerSectionTest {
         torrents = if (!withHomeServer) {
             null
         } else {
-            TorrentServices(SearchSource { _, _, _ -> torrentGate.await() }, FakeHomeTorrentServer())
+            TorrentServices(SearchSource { _, _, _ -> torrentGate.await() }, homeServer)
         },
         podcastRepository = FakePodcastRepository(),
         queue = PlaybackQueue(
@@ -150,6 +152,27 @@ class SearchStreamsPerSectionTest {
         advanceTimeBy(PAST_DEBOUNCE_MS)
         runCurrent()
     }
+
+    @Test
+    fun `opening a torrent asks the server for the start and end of the first file straight away`() =
+        runTest(dispatcher) {
+            val model = model(withHomeServer = true)
+
+            model.playTorrent(
+                SearchHit.Torrent(
+                    title = "Sintel",
+                    subtitle = null,
+                    artworkUrl = null,
+                    magnet = "magnet:?xt=urn:btih:abc",
+                    seeders = 22,
+                    sizeBytes = 1,
+                    indexer = null,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(listOf("abc123" to homeServer.files.first().index), homeServer.warmedVideo)
+        }
 
     /** THE POINT. Videos are on screen while the other sources are still out. */
     @Test

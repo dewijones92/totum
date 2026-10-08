@@ -380,6 +380,8 @@
     </plurals>
     <string name="podcast_refresh_failed_dismiss">Dismiss</string>
     <string name="search_section_torrents">From your home server</string>
+    <string name="search_still_waiting">Still searching %1$s…</string>
+    <string name="search_torrents_slow">Your home server is taking a while to search. Try again in a minute.</string>
     <string name="search_torrents_unreachable">Can\'t reach your home server — connect to your home Wi-Fi or VPN.</string>
     <string name="settings_home_server">Home server</string>
     <string name="settings_home_server_none">Not set up — tap to add yours.</string>

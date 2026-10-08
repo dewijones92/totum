@@ -4,6 +4,8 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.domain.MediaSource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /** A non-blank search query. */
 @JvmInline
@@ -30,11 +32,16 @@ public fun interface SearchSource {
      * as a lambda, and Kotlin forbids defaults on the abstract method of one.
      */
     public suspend fun search(query: SearchQuery, limit: Int, after: PageToken?): SearchOutcome
+
+    public fun updates(query: SearchQuery, limit: Int): Flow<SearchOutcome> = flow { emit(search(query, limit, null)) }
 }
 
 public sealed interface SearchOutcome {
-    public data class Success(val page: Page<SearchHit>) : SearchOutcome
-    public data class Failure(val detail: String) : SearchOutcome
+    public data class Success(
+        val page: Page<SearchHit>,
+        val stillWaitingFor: List<String> = emptyList()
+    ) : SearchOutcome
+    public data class Failure(val detail: String, val slow: Boolean = false) : SearchOutcome
 }
 
 /** Something a search found; the variant determines its action. */
