@@ -12,6 +12,7 @@ class AndroidDailyAlarmPorts(
 ) : DailyAlarmPorts {
     private val notifications = DailyAlarmNotifications(context)
     private val alarms = mutableMapOf<String, ExactAlarm>()
+    private val boardRefresh = ExactAlarm(context, DailyAlarmController.TAG, "dailyalarm board refresh")
 
     override fun schedule(alarmId: String, at: Instant?, ring: Boolean) {
         val alarm = alarms.getOrPut(alarmId) { ExactAlarm(context, DailyAlarmController.TAG, "dailyalarm $alarmId") }
@@ -33,6 +34,11 @@ class AndroidDailyAlarmPorts(
     override fun hideQuestion(alarmId: String) = notifications.hideQuestion(alarmId)
 
     override fun showBoard(board: AlarmBoard) = AlarmBoardService.reconcile(context, board)
+
+    override fun refreshBoardAt(at: Instant) = boardRefresh.schedule(
+        at,
+        DailyAlarmReceiver.pending(context, DailyAlarmReceiver.TICK, DailyAlarmReceiver.BOARD),
+    )
 
     override fun ring(alarm: DailyAlarm, time: LocalTime) {
         interruption().interrupt()

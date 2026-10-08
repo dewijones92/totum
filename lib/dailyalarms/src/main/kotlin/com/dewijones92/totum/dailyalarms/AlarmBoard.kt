@@ -28,14 +28,28 @@ public data class BoardRow(
     val at: Instant,
 )
 
-public data class AlarmBoard(val rows: List<BoardRow>, val today: LocalDate) {
-    public val pinned: Boolean
-        get() = rows.any { it.date == today && it.status.keepsTheBoardUp() }
+public sealed interface BoardHeading {
+    public data class Next(val row: BoardRow) : BoardHeading
 
+    public data object AskingToday : BoardHeading
+
+    public data object LaterToday : BoardHeading
+
+    public data object NothingToday : BoardHeading
+
+    public data object AlarmsOff : BoardHeading
+
+    public data object NoAlarms : BoardHeading
+}
+
+public data class AlarmBoard(
+    val rows: List<BoardRow>,
+    val today: LocalDate,
+    val heading: BoardHeading,
+    val refreshAt: Instant,
+) {
     public val nextToRing: BoardRow?
-        get() = rows.firstOrNull {
-            it.status is RowStatus.Set || it.status is RowStatus.Snoozed || it.status is RowStatus.Ringing
-        }
+        get() = (heading as? BoardHeading.Next)?.row
 
     public val firstSkipped: BoardRow?
         get() = rows.firstOrNull { it.status is RowStatus.Skipped }
@@ -47,11 +61,24 @@ public fun alarmBoard(alarms: List<DailyAlarm>, states: Map<String, DayState>, n
         .filter { it.enabled }
         .mapNotNull { BoardRows(it, now, today, zone).rowFor(states[it.id] ?: DayState.Idle) }
         .sortedWith(compareBy({ it.at }, { it.label }))
-    return AlarmBoard(rows, today)
+    val refreshAt = today.plusDays(1).atStartOfDay(zone).toInstant()
+    return AlarmBoard(rows, today, heading(alarms, rows, today), refreshAt)
 }
 
-private fun RowStatus.keepsTheBoardUp(): Boolean =
-    this is RowStatus.Set || this is RowStatus.Asking || this is RowStatus.Snoozed || this is RowStatus.Ringing
+private fun heading(alarms: List<DailyAlarm>, rows: List<BoardRow>, today: LocalDate): BoardHeading {
+    val next = rows.firstOrNull { it.status.rings() }
+    val todays = rows.filter { it.date == today }
+    return when {
+        alarms.isEmpty() -> BoardHeading.NoAlarms
+        alarms.none { it.enabled } -> BoardHeading.AlarmsOff
+        next != null -> BoardHeading.Next(next)
+        todays.any { it.status is RowStatus.Asking } -> BoardHeading.AskingToday
+        todays.any { it.status is RowStatus.Upcoming } -> BoardHeading.LaterToday
+        else -> BoardHeading.NothingToday
+    }
+}
+
+private fun RowStatus.rings(): Boolean = this is RowStatus.Set || this is RowStatus.Snoozed || this is RowStatus.Ringing
 
 private class BoardRows(
     private val alarm: DailyAlarm,

@@ -4,7 +4,6 @@ import com.dewijones92.totum.dailyalarms.DayState.Asking
 import com.dewijones92.totum.dailyalarms.DayState.Done
 import com.dewijones92.totum.dailyalarms.DayState.Set
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,15 +56,49 @@ class AlarmBoardTest {
     }
 
     @Test
-    fun `it is pinned while something is set or being asked today`() {
-        assertTrue(board(mapOf("pickup" to Set(monday, LocalTime.of(17, 30))), at(14)).pinned)
-        assertTrue(board(mapOf("gym" to Asking(monday, asks = 1)), at(9)).pinned)
+    fun `the heading names the next alarm to ring`() {
+        val board = board(mapOf("pickup" to Set(monday, LocalTime.of(17, 30))), at(14))
+
+        assertEquals(BoardHeading.Next(board.rows.first()), board.heading)
+        assertEquals("pickup", board.nextToRing?.alarmId)
     }
 
     @Test
-    fun `it is not pinned when today only has future asks or skipped alarms`() {
-        assertFalse(board(emptyMap(), at(7)).pinned)
-        assertFalse(board(mapOf("pickup" to Done(monday, Outcome.DECLINED)), at(14)).pinned)
+    fun `asked today with nothing set says so`() {
+        assertEquals(BoardHeading.AskingToday, board(mapOf("gym" to Asking(monday, asks = 1)), at(9)).heading)
+    }
+
+    @Test
+    fun `before today's first ask it is later today`() {
+        assertEquals(BoardHeading.LaterToday, board(emptyMap(), at(7)).heading)
+    }
+
+    @Test
+    fun `with today declined and nothing else today it says nothing today`() {
+        val states = mapOf("pickup" to Done(monday, Outcome.DECLINED), "gym" to Done(monday, Outcome.DECLINED))
+
+        val board = board(states, at(19))
+
+        assertEquals(BoardHeading.NothingToday, board.heading)
+        assertTrue("the next days are still listed", board.rows.isNotEmpty())
+    }
+
+    @Test
+    fun `every alarm switched off is alarms off, with no rows`() {
+        val board = board(emptyMap(), at(9), alarms = listOf(pickup.copy(enabled = false)))
+
+        assertEquals(BoardHeading.AlarmsOff, board.heading)
+        assertEquals(emptyList<BoardRow>(), board.rows)
+    }
+
+    @Test
+    fun `no alarms at all is no alarms`() {
+        assertEquals(BoardHeading.NoAlarms, board(emptyMap(), at(9), alarms = emptyList()).heading)
+    }
+
+    @Test
+    fun `the board refreshes at the next local midnight`() {
+        assertEquals(at(0, date = monday.plusDays(1)), board(emptyMap(), at(14)).refreshAt)
     }
 
     @Test

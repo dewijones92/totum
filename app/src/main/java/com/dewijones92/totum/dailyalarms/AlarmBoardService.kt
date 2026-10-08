@@ -9,6 +9,7 @@ import android.os.IBinder
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.LiveUpdate
+import com.dewijones92.totum.reminders.kit.PinnedChannel
 
 class AlarmBoardService : Service() {
 
@@ -20,9 +21,7 @@ class AlarmBoardService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) return stop("nothing set or being asked today")
         val board = latest ?: (application as TotumApplication).container.dailyAlarms.board()
-        if (!board.pinned) return stop("started with nothing to pin")
         val notification = DailyAlarmNotifications(this).board(board)
         val pinned = runCatching {
             startForeground(
@@ -34,7 +33,11 @@ class AlarmBoardService : Service() {
             Diag.warn(TAG, "dewidebug dailyalarm board could not be pinned; posting it unpinned", it)
             getSystemService(NotificationManager::class.java).notify(DailyAlarmNotifications.BOARD_ID, notification)
         }.isSuccess
-        Diag.log(TAG, "dewidebug dailyalarm board pinned=$pinned ${LiveUpdate.describe(this, notification)}")
+        Diag.log(
+            TAG,
+            "dewidebug dailyalarm board pinned=$pinned ${LiveUpdate.describe(this, notification)} " +
+                PinnedChannel.describe(this, DailyAlarmNotifications.BOARD_CHANNEL),
+        )
         return if (pinned) START_STICKY else stop("could not go foreground")
     }
 
@@ -52,7 +55,6 @@ class AlarmBoardService : Service() {
 
     companion object {
         private const val TAG = DailyAlarmController.TAG
-        private const val ACTION_STOP = "com.dewijones92.totum.dailyalarms.STOP_BOARD"
 
         @Volatile
         private var running = false
@@ -73,29 +75,24 @@ class AlarmBoardService : Service() {
                 board.rows.forEach { notifications.hideSet(it.alarmId) }
             }
             log(board)
-            when {
-                board.pinned && running -> context.getSystemService(NotificationManager::class.java)
+            if (running) {
+                context.getSystemService(NotificationManager::class.java)
                     .notify(DailyAlarmNotifications.BOARD_ID, notifications.board(board))
-                board.pinned -> runCatching {
-                    context.startForegroundService(Intent(context, AlarmBoardService::class.java))
-                }.onFailure {
-                    Diag.warn(TAG, "dewidebug dailyalarm board service refused; posting the board unpinned", it)
-                    context.getSystemService(NotificationManager::class.java)
-                        .notify(DailyAlarmNotifications.BOARD_ID, notifications.board(board))
-                }
-                running -> runCatching {
-                    context.startService(Intent(context, AlarmBoardService::class.java).setAction(ACTION_STOP))
-                }.onFailure { Diag.warn(TAG, "dewidebug dailyalarm board service could not be stopped", it) }
-                else -> context.getSystemService(
-                    NotificationManager::class.java
-                ).cancel(DailyAlarmNotifications.BOARD_ID)
+                return
+            }
+            runCatching {
+                context.startForegroundService(Intent(context, AlarmBoardService::class.java))
+            }.onFailure {
+                Diag.warn(TAG, "dewidebug dailyalarm board service refused; posting the board unpinned", it)
+                context.getSystemService(NotificationManager::class.java)
+                    .notify(DailyAlarmNotifications.BOARD_ID, notifications.board(board))
             }
         }
 
         private fun log(board: AlarmBoard) {
             val next = board.nextToRing?.let { "${it.label} ${it.time}" } ?: "none"
             val rows = board.rows.joinToString(" | ") { "${it.time} ${it.label} ${it.date} ${it.status}" }
-            val line = "pinned=${board.pinned} next=$next rows=$rows"
+            val line = "heading=${board.heading} next=$next refreshAt=${board.refreshAt} rows=$rows"
             if (line == lastLogged) return
             lastLogged = line
             Diag.log(TAG, "dewidebug dailyalarm board $line")

@@ -10,6 +10,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -145,10 +146,19 @@ class ExsurgeAndroidPortsTest {
             assertEquals(title, posted.extras.getString("android.title"))
             assertTrue(posted.flags and Notification.FLAG_ONGOING_EVENT != 0)
             assertEquals(listOf("Summon now", "Restart clock"), posted.actions.map { it.title.toString() })
+            val channel = manager.getNotificationChannel(posted.channelId)
             assertEquals(
-                NotificationManager.IMPORTANCE_LOW,
-                manager.getNotificationChannel(posted.channelId).importance
+                "alerting, so a Pixel shows it on the lock screen",
+                NotificationManager.IMPORTANCE_DEFAULT,
+                channel.importance
             )
+            assertTrue(
+                "the channel does not hide it on the lock screen",
+                channel.lockscreenVisibility !in setOf(Notification.VISIBILITY_PRIVATE, Notification.VISIBILITY_SECRET),
+            )
+            assertEquals("shown in full on the lock screen", Notification.VISIBILITY_PUBLIC, posted.visibility)
+            assertEquals("no sound", null, channel.sound)
+            assertFalse("no buzz", channel.shouldVibrate())
         }
     }
 

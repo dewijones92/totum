@@ -20,7 +20,7 @@ my toddler?"* Decisions: [ADR 18](../adr/0018-daily-alarms.md), built on the rem
 | 08:00 on its days (Mon–Fri) | A notification: *Pick up time: alarm at 17:30 today?* — **Yes, 17:30 · Other time · No** |
 | No answer | Asked again every hour; a last ask at 16:30 that stays until 17:30; then no alarm today |
 | Other time | A screen with the time chips (17:00 · 17:15 · 17:30 · 17:45 · 18:00, editable) and a clock for any time |
-| Set | One pinned board for all alarms, soonest first (*Next: Pick up time 17:30 · in 6h*), each alarm's next occurrence as a row (set, asking, skipped, or its next day), **Change · Cancel** for the soonest set alarm, **Set it after all** for a skipped one, **Open**; swiping it puts it back; gone once nothing is set or being asked today ([ADR 21](../adr/0021-alarm-board.md)) |
+| Set | One pinned board for all alarms, soonest first (*Next: Pick up time 17:30 · in 6h*), each alarm's next occurrence as a row (set, asking, skipped, or its next day), **Change · Cancel** for the soonest set alarm, **Set it after all** for a skipped one, **Open**; swiping it puts it back; **always pinned**, saying *No alarm today*, *Alarms off* (with **Turn on**) or *No alarms* when nothing is set, redrawn at midnight, and shown on the lock screen ([ADR 21](../adr/0021-alarm-board.md), [ADR 23](../adr/0023-pinned-notifications-alert-silently.md)) |
 | 17:30 | Full screen over the lock screen: the phone's alarm tone, *"Pick up time. It's half five."* every 9 s, vibration — until **Dismiss**; **Snooze 5 min** as often as needed. Totum's playback pauses and resumes after |
 | Exsurge at the same time | The alarm wins; Exsurge holds its takeover and voice until it is dismissed |
 

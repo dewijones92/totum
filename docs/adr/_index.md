@@ -38,3 +38,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 20 | [Gapless queue — the player holds the next item, and the queue adopts the crossover](0020-gapless-queue-the-player-holds-the-next-item.md) | Accepted |
 | 21 | [Daily alarms are shown on one pinned board, soonest first](0021-alarm-board.md) | Accepted |
 | 22 | [Every row says whether you follow its channel or show, and the mark subscribes](0022-every-row-says-whether-you-follow-its-source.md) | Accepted |
+| 23 | [The Exsurge banner and the alarm board alert silently, so they show on every lock screen, and the board is always pinned](0023-pinned-notifications-alert-silently.md) | Accepted |

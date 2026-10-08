@@ -41,7 +41,6 @@ class DailyAlarmControllerTest {
         at(9, 10)
         alarms.dispatch("pickup", AlarmEvent.Answer(LocalTime.of(17, 30)), "notification")
         assertEquals(LocalTime.of(17, 30), ports.boards.last().nextToRing?.time)
-        assertTrue(ports.boards.last().pinned)
         assertTrue(ports.ringScheduled)
         at(17, 30)
         alarms.dispatch("pickup", AlarmEvent.Tick, "alarm clock")
@@ -49,7 +48,11 @@ class DailyAlarmControllerTest {
         assertTrue(alarms.ringingNow)
         alarms.dispatch("pickup", AlarmEvent.Dismiss, "ring screen")
         assertFalse(alarms.ringingNow)
-        assertFalse("the board goes once the day's alarm is done", ports.boards.last().pinned)
+        assertEquals(
+            "the board stays up once the day's alarm is done",
+            BoardHeading.NothingToday,
+            ports.boards.last().heading,
+        )
         assertEquals(DayState.Done(now.atZone(zone).toLocalDate(), Outcome.RANG), store.states["pickup"])
     }
 
@@ -69,6 +72,24 @@ class DailyAlarmControllerTest {
         alarms.update("test") { list -> list.filter { it.id == "pickup" } }
         assertTrue("dropoff" in ports.hidden)
         assertEquals(null, ports.schedules.last { it.first == "dropoff" }.second)
+    }
+
+    @Test
+    fun `every publish asks for the board to be redrawn at the next midnight`() {
+        val alarms = controller()
+        alarms.tickAll("startup")
+
+        val midnight = now.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
+        assertEquals(midnight, ports.refreshes.last())
+        assertEquals(ports.boards.size, ports.refreshes.size)
+    }
+
+    @Test
+    fun `with every alarm off the board still shows, saying so`() {
+        val alarms = controller()
+        alarms.tickAll("startup")
+
+        assertEquals(BoardHeading.AlarmsOff, ports.boards.last().heading)
     }
 
     @Test
@@ -92,6 +113,11 @@ class DailyAlarmControllerTest {
         var ringScheduled = false
         val questions = mutableListOf<AlarmEffect.ShowQuestion>()
         val boards = mutableListOf<AlarmBoard>()
+        val refreshes = mutableListOf<Instant>()
+
+        override fun refreshBoardAt(at: Instant) {
+            refreshes += at
+        }
         val rings = mutableListOf<LocalTime>()
         val hidden = mutableListOf<String>()
         override fun schedule(alarmId: String, at: Instant?, ring: Boolean) {

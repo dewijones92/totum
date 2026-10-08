@@ -56,6 +56,8 @@ everything configurable. The backlog item, with the agreed design and the open i
   reboot and APK update. Turning off posts the plain ongoing banner and
   removes the service notification; the step listener stops. Both use one builder, with separate
   notification IDs so delayed service callbacks cannot overwrite the idle banner (ADR 5).
+- **On every lock screen** (Dewi, 2026-10-08): the banner is on an alerting-but-silent channel, so a Pixel
+  shows it on the lock screen and always-on display on any Android; see [ADR 23](../adr/0023-pinned-notifications-alert-silently.md).
 - **On the lock screen and in the status bar** (Dewi, 2026-10-07): on Android 16 QPR1+ the banner is a
   Live Update in every state, so it shows on the lock screen and the always-on display, with a status-bar
   chip: a countdown to the summons, the end of the break, a snooze or a pause, else GO!, the steps

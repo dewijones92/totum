@@ -38,6 +38,10 @@
     <string name="dailyalarm_today_done">Today: done (%1$s)</string>
     <string name="dailyalarm_board_next">Next: %1$s %2$s</string>
     <string name="dailyalarm_board_title">Totum alarms</string>
+    <string name="dailyalarm_board_nothing_today">No alarm today</string>
+    <string name="dailyalarm_board_off">Alarms off</string>
+    <string name="dailyalarm_board_none">No alarms</string>
+    <string name="dailyalarm_turn_on">Turn on</string>
     <string name="dailyalarm_board_row">%1$s %2$s · %3$s · %4$s</string>
     <string name="dailyalarm_board_today">today</string>
     <string name="dailyalarm_board_tomorrow">tomorrow</string>

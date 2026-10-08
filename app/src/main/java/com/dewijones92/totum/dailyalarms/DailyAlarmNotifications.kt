@@ -9,6 +9,7 @@ import android.content.Intent
 import android.graphics.drawable.Icon
 import com.dewijones92.totum.R
 import com.dewijones92.totum.reminders.kit.LiveUpdate
+import com.dewijones92.totum.reminders.kit.PinnedChannel
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -27,13 +28,11 @@ class DailyAlarmNotifications(private val context: Context) {
             )
                 .apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC },
         )
-        manager.createNotificationChannel(
-            NotificationChannel(
-                SET,
-                context.getString(R.string.dailyalarm_channel_set),
-                NotificationManager.IMPORTANCE_LOW
-            )
-                .apply { setShowBadge(false) },
+        PinnedChannel.ensure(
+            context,
+            BOARD_CHANNEL,
+            context.getString(R.string.dailyalarm_channel_set),
+            retired = RETIRED_BOARD_CHANNEL
         )
         manager.createNotificationChannel(
             NotificationChannel(
@@ -85,11 +84,9 @@ class DailyAlarmNotifications(private val context: Context) {
         ensureChannels()
         val next = board.nextToRing
         val lines = board.rows.map { context.boardLine(it, board.today) }
-        val title = next?.let { context.getString(R.string.dailyalarm_board_next, it.label, hhmm(it.time)) }
-            ?: context.getString(R.string.dailyalarm_board_title)
-        val builder = Notification.Builder(context, SET)
+        val builder = Notification.Builder(context, BOARD_CHANNEL)
             .setSmallIcon(icon())
-            .setContentTitle(title)
+            .setContentTitle(context.boardTitle(board.heading))
             .setContentText(lines.firstOrNull())
             .setStyle(Notification.BigTextStyle().bigText(lines.joinToString("\n")))
             .setOngoing(true)
@@ -121,10 +118,20 @@ class DailyAlarmNotifications(private val context: Context) {
                     QuestionActivity.pending(context, skipped.alarmId),
                 ),
             )
+            board.heading == BoardHeading.AlarmsOff -> builder.addAction(
+                action(
+                    context.getString(R.string.dailyalarm_turn_on),
+                    DailyAlarmReceiver.pending(context, DailyAlarmReceiver.TURN_ON, DailyAlarmReceiver.BOARD),
+                ),
+            )
         }
         builder.addAction(action(context.getString(R.string.dailyalarm_open), context.openAlarmSettings()))
         val countdown = next?.takeUnless { it.status is RowStatus.Ringing }?.at
-        val chip = if (next == null) context.getString(R.string.dailyalarm_board_chip_asking) else null
+        val chip = if (board.heading == BoardHeading.AskingToday) {
+            context.getString(R.string.dailyalarm_board_chip_asking)
+        } else {
+            null
+        }
         LiveUpdate.apply(builder, countdown, chip)
         return builder.build()
     }
@@ -171,7 +178,8 @@ class DailyAlarmNotifications(private val context: Context) {
 
     companion object {
         const val QUESTION = "dailyalarm_question"
-        const val SET = "dailyalarm_set"
+        const val RETIRED_BOARD_CHANNEL = "dailyalarm_set"
+        const val BOARD_CHANNEL = "dailyalarm_board"
         const val RING = "dailyalarm_ring"
         const val RING_ID = 7399
         const val BOARD_ID = 7398
@@ -185,6 +193,15 @@ class DailyAlarmNotifications(private val context: Context) {
         private const val QUESTION_SLOT = 14
         private const val SET_SLOT = 15
     }
+}
+
+private fun Context.boardTitle(heading: BoardHeading): String = when (heading) {
+    is BoardHeading.Next ->
+        getString(R.string.dailyalarm_board_next, heading.row.label, DailyAlarmNotifications.hhmm(heading.row.time))
+    BoardHeading.AskingToday, BoardHeading.LaterToday -> getString(R.string.dailyalarm_board_title)
+    BoardHeading.NothingToday -> getString(R.string.dailyalarm_board_nothing_today)
+    BoardHeading.AlarmsOff -> getString(R.string.dailyalarm_board_off)
+    BoardHeading.NoAlarms -> getString(R.string.dailyalarm_board_none)
 }
 
 private fun Context.boardLine(row: BoardRow, today: LocalDate): String {

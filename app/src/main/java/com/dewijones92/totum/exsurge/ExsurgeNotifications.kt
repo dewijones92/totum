@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.drawable.Icon
 import androidx.compose.ui.graphics.toArgb
 import com.dewijones92.totum.R
+import com.dewijones92.totum.reminders.kit.PinnedChannel
 import com.dewijones92.totum.theme.Tangerine40
 import java.time.Instant
 import java.time.ZoneId
@@ -21,16 +22,11 @@ class ExsurgeNotifications(private val context: Context) {
     private val liveUpdate = ExsurgeLiveUpdate(context)
 
     fun ensureChannels() {
-        manager.createNotificationChannel(
-            NotificationChannel(
-                BANNER_CHANNEL,
-                context.getString(R.string.exsurge_channel_banner),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                setShowBadge(false)
-                setSound(null, null)
-                enableVibration(false)
-            },
+        PinnedChannel.ensure(
+            context,
+            BANNER_CHANNEL,
+            context.getString(R.string.exsurge_channel_banner),
+            retired = RETIRED_BANNER_CHANNEL,
         )
         manager.createNotificationChannel(
             NotificationChannel(
@@ -138,7 +134,8 @@ class ExsurgeNotifications(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        const val BANNER_CHANNEL = "exsurge_banner"
+        const val BANNER_CHANNEL = "exsurge_pinned"
+        const val RETIRED_BANNER_CHANNEL = "exsurge_banner"
         const val SUMMONS_CHANNEL = "exsurge_summons"
         const val BANNER_ID = 7301
         const val SUMMONS_ID = 7302

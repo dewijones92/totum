@@ -11,6 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.support.keepsScreenOn
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -56,7 +57,7 @@ class DailyAlarmDeviceTest {
         )
 
         AlarmBoardService.reconcile(context, board)
-        val posted = waitFor(DailyAlarmNotifications.BOARD_ID)!!
+        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "Next: Pick up time 17:30")!!
 
         assertEquals("Next: Pick up time 17:30", posted.extras.getString("android.title"))
         val lines = posted.extras.getCharSequence("android.bigText").toString().lines()
@@ -65,24 +66,46 @@ class DailyAlarmDeviceTest {
         assertEquals(listOf("Change 17:30", "Cancel 17:30", "Open"), posted.actions.map { it.title.toString() })
         assertTrue("pinned by a foreground service", posted.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
         assertTrue("swiping it away puts it back", posted.deleteIntent?.isBroadcast == true)
+        val channel = manager.getNotificationChannel(posted.channelId)
+        assertEquals(
+            "alerting, so a Pixel shows it on the lock screen",
+            NotificationManager.IMPORTANCE_DEFAULT,
+            channel.importance
+        )
+        assertTrue(
+            "the channel does not hide it on the lock screen",
+            channel.lockscreenVisibility !in setOf(Notification.VISIBILITY_PRIVATE, Notification.VISIBILITY_SECRET),
+        )
+        assertEquals("shown in full on the lock screen", Notification.VISIBILITY_PUBLIC, posted.visibility)
+        assertEquals("no sound", null, channel.sound)
+        assertFalse("no buzz", channel.shouldVibrate())
     }
 
     @Test
-    fun theBoardGoesWhenNothingIsSetOrAskedToday() {
+    fun theBoardStaysUpWhenNothingIsLeftToday() {
         val monday = LocalDate.of(2026, 10, 5)
-        val now = ZonedDateTime.of(monday.atTime(14, 0), zone).toInstant()
-        AlarmBoardService.reconcile(
-            context,
-            alarmBoard(listOf(alarm), mapOf(alarm.id to DayState.Set(monday, LocalTime.of(17, 30))), now, zone)
-        )
-        assertNotNull(waitFor(DailyAlarmNotifications.BOARD_ID))
+        val now = ZonedDateTime.of(monday.atTime(18, 0), zone).toInstant()
 
         AlarmBoardService.reconcile(
             context,
             alarmBoard(listOf(alarm), mapOf(alarm.id to DayState.Done(monday, Outcome.DECLINED)), now, zone)
         )
 
-        assertEquals(null, waitFor(DailyAlarmNotifications.BOARD_ID, gone = true))
+        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "No alarm today")
+        assertEquals("No alarm today", posted?.extras?.getString("android.title"))
+        assertTrue(posted!!.extras.getCharSequence("android.bigText").toString().startsWith("17:30 Pick up time"))
+    }
+
+    @Test
+    fun withEveryAlarmOffTheBoardOffersToTurnThemOn() {
+        val now = ZonedDateTime.of(LocalDate.of(2026, 10, 5).atTime(9, 0), zone).toInstant()
+
+        AlarmBoardService.reconcile(context, alarmBoard(listOf(alarm.copy(enabled = false)), emptyMap(), now, zone))
+
+        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "Alarms off")
+        assertEquals("Alarms off", posted?.extras?.getString("android.title"))
+        assertEquals(listOf("Turn on", "Open"), posted!!.actions.map { it.title.toString() })
+        assertTrue("still pinned", posted.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
     }
 
     @Test
@@ -107,10 +130,11 @@ class DailyAlarmDeviceTest {
         }
     }
 
-    private fun waitFor(id: Int, gone: Boolean = false): Notification? {
+    private fun waitFor(id: Int, gone: Boolean = false, titled: String? = null): Notification? {
         val deadline = System.currentTimeMillis() + WAIT_MS
         while (System.currentTimeMillis() < deadline) {
             val found = manager.activeNotifications.firstOrNull { it.id == id }?.notification
+                ?.takeIf { titled == null || it.extras.getString("android.title") == titled }
             if (gone && found == null) return null
             if (!gone && found != null) return found
             Thread.sleep(POLL_MS)

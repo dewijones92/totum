@@ -6,6 +6,7 @@ import android.content.Intent
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.LiveUpdate
+import com.dewijones92.totum.reminders.kit.PinnedChannel
 
 class ExsurgeLiveUpdate(private val context: Context) {
 
@@ -49,6 +50,7 @@ class ExsurgeLiveUpdate(private val context: Context) {
             "exsurge.liveUpdate.allowed" to (allowed(context)?.toString() ?: "unsupported"),
             "exsurge.liveUpdate.lastPosted" to (lastPosted ?: "nothing posted yet"),
             "exsurge.liveUpdate.posted" to LiveUpdate.posted(context, BANNER_IDS, "no banner posted"),
+            "exsurge.bannerChannel" to PinnedChannel.describe(context, ExsurgeNotifications.BANNER_CHANNEL),
         )
     }
 }

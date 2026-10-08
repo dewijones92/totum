@@ -13,6 +13,7 @@ interface DailyAlarmPorts {
     fun showQuestion(alarm: DailyAlarm, question: AlarmEffect.ShowQuestion)
     fun hideQuestion(alarmId: String)
     fun showBoard(board: AlarmBoard)
+    fun refreshBoardAt(at: Instant) = Unit
     fun ring(alarm: DailyAlarm, time: LocalTime)
     fun stopRinging(alarmId: String)
 }
@@ -82,7 +83,8 @@ class DailyAlarmController(
                 put("$key.settings", alarm.toString())
             }
             val board = board()
-            put("dailyAlarms.board.pinned", board.pinned.toString())
+            put("dailyAlarms.board.heading", board.heading.toString())
+            put("dailyAlarms.board.refreshAt", board.refreshAt.toString())
             put(
                 "dailyAlarms.board.rows",
                 board.rows.joinToString(" | ") { "${it.time} ${it.label} ${it.date} ${it.status}" }
@@ -152,7 +154,9 @@ class DailyAlarmController(
 
     private fun publish() {
         _view.value = DailyAlarmsView(alarms, states, wakes.toMap())
-        ports.showBoard(board())
+        val board = board()
+        ports.showBoard(board)
+        ports.refreshBoardAt(board.refreshAt)
     }
 
     fun board(): AlarmBoard = alarmBoard(alarms, states, clock(), zone())

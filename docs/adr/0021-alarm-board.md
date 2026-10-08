@@ -20,6 +20,9 @@ occurrence); pinned **like the Exsurge banner**; the morning question **stays it
 while something is set or being asked today**; a skipped day shows as **skipped**; buttons **Change / Cancel**
 for the soonest set alarm, **Set it after all** for a skipped one, and **Open**.
 
+> Amended by [ADR 23](0023-pinned-notifications-alert-silently.md) (2026-10-08): the board is now always pinned,
+> with a heading for each case, on an alerting-but-silent channel.
+
 ## Decision
 
 - `alarmBoard()` in `:lib:dailyalarms` (pure): one row per enabled alarm — today's state when it is set,

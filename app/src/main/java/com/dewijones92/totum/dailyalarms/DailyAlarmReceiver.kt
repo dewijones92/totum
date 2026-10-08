@@ -21,6 +21,18 @@ class DailyAlarmReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
             -> alarms.tickAll("system:$action")
+            TICK -> when (id) {
+                BOARD -> alarms.tickAll("board refresh")
+                null -> Diag.warn(DailyAlarmController.TAG, "dewidebug dailyalarm receiver $action without an alarm id")
+                else -> alarms.dispatch(id, AlarmEvent.Tick, "alarm")
+            }
+            TURN_ON -> {
+                Diag.log(
+                    DailyAlarmController.TAG,
+                    "dewidebug dailyalarm Turn on from the board: switching every alarm on"
+                )
+                alarms.update("board turn on") { list -> list.map { it.copy(enabled = true) } }
+            }
             REPOST -> {
                 Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm board swiped away; putting it back")
                 AlarmBoardService.reconcile(context, alarms.board())
@@ -29,14 +41,13 @@ class DailyAlarmReceiver : BroadcastReceiver() {
                 if (id == null) {
                     Diag.warn(DailyAlarmController.TAG, "dewidebug dailyalarm receiver $action without an alarm id")
                 } else {
-                    alarms.dispatch(id, event, if (event == AlarmEvent.Tick) "alarm" else "notification")
+                    alarms.dispatch(id, event, "notification")
                 }
             } ?: Diag.warn(DailyAlarmController.TAG, "dewidebug dailyalarm receiver ignored unknown action=$action")
         }
     }
 
     private fun eventFor(action: String, intent: Intent): AlarmEvent? = when (action) {
-        TICK -> AlarmEvent.Tick
         ANSWER -> intent.getStringExtra(EXTRA_TIME)?.let { AlarmEvent.Answer(LocalTime.parse(it)) }
         DECLINE -> AlarmEvent.Decline
         CHANGE -> AlarmEvent.Change
@@ -55,10 +66,11 @@ class DailyAlarmReceiver : BroadcastReceiver() {
         const val SNOOZE = "com.dewijones92.totum.dailyalarms.SNOOZE"
         const val DISMISS = "com.dewijones92.totum.dailyalarms.DISMISS"
         const val REPOST = "com.dewijones92.totum.dailyalarms.REPOST_BOARD"
+        const val TURN_ON = "com.dewijones92.totum.dailyalarms.TURN_ON"
         const val BOARD = "board"
         const val EXTRA_ID = "dailyalarm.id"
         const val EXTRA_TIME = "dailyalarm.time"
-        private val actions = listOf(TICK, ANSWER, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS, REPOST)
+        private val actions = listOf(TICK, ANSWER, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS, REPOST, TURN_ON)
 
         fun pending(context: Context, action: String, alarmId: String, time: LocalTime? = null): PendingIntent =
             PendingIntent.getBroadcast(

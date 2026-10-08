@@ -2,7 +2,7 @@
 title: The Exsurge banner is an Android 16 Live Update, so it shows on the lock screen
 kind: adr
 status: accepted
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 15. The Exsurge banner is an Android 16 Live Update, so it shows on the lock screen
@@ -31,7 +31,7 @@ active"), and is marked `VISIBILITY_PUBLIC` so its text is not redacted on the l
   banner is waiting for (the summons, the end of a break, a snooze or a pause), else **GO!** (summoned),
   **7/20** (steps while rising), **Off**, or **Zzz** (asleep, or no summons left today). A countdown is
   `setWhen` + `setShowWhen`, so Android keeps it current between the banner's minute refreshes.
-- The channel stays `IMPORTANCE_LOW` (no new channel): a promoted notification needs only a channel that
+- *(Superseded by [ADR 23](0023-pinned-notifications-alert-silently.md): the banner moved to an alerting-but-silent channel so it shows on lock screens without Live Updates.)* The channel stays `IMPORTANCE_LOW` (no new channel): a promoted notification needs only a channel that
   is not `IMPORTANCE_MIN`, and the emulator showed the system promoting it on the existing channel.
 - The banner's re-post on dismissal is kept, although Android's guidance says not to re-post a dismissed
   Live Update: the always-present banner is Dewi's explicit choice (ADR 5).
