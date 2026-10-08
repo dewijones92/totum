@@ -42,6 +42,9 @@ class AccountSubscriptions(
     /** Whether the account is signed in, updated on each [refresh]; drives the feed UI. */
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
 
+    private val _loaded = MutableStateFlow(false)
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
     private var loading: Job? = null
     private var loadedAtMs = 0L
 
@@ -88,7 +91,7 @@ class AccountSubscriptions(
             }
             Diag.log("subs", "signedIn changed to $signed")
             _signedIn.value = signed
-            if (signed) reload() else _channels.value = emptyList()
+            if (signed) reload() else signedOut()
         }
     }
 
@@ -96,12 +99,13 @@ class AccountSubscriptions(
         val signed = account.isSignedIn()
         _signedIn.value = signed
         if (!signed) {
-            _channels.value = emptyList()
+            signedOut()
             return
         }
         when (val result = subscriptions.list()) {
             is SubscriptionsResult.Success -> {
                 _channels.value = result.channels.map { it.toSource() }
+                _loaded.value = true
                 Diag.log(
                     "subs",
                     "account channels=${result.channels.size} " +
@@ -113,10 +117,15 @@ class AccountSubscriptions(
             }
             SubscriptionsResult.SignedOut -> {
                 _signedIn.value = false
-                _channels.value = emptyList()
+                signedOut()
             }
             is SubscriptionsResult.Failure -> Unit // transient — keep what we have
         }
+    }
+
+    private fun signedOut() {
+        _channels.value = emptyList()
+        _loaded.value = false
     }
 
     fun isSubscribed(id: SourceId): Boolean = _channels.value.any { it.id == id }

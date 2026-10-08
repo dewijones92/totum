@@ -173,4 +173,42 @@ class SubscriptionsFetchedOnceTest {
 
         assertEquals(2, listCalls)
     }
+
+    @Test
+    fun `the list counts as loaded only once a fetch has succeeded`() = runTest(dispatcher) {
+        val subs = subs()
+        assertEquals(false, subs.loaded.value)
+
+        subs.refresh()
+        advanceUntilIdle()
+
+        assertEquals(true, subs.loaded.value)
+    }
+
+    @Test
+    fun `a failed fetch leaves the list not loaded`() = runTest(dispatcher) {
+        val failing = object : YouTubeSubscriptions {
+            override suspend fun list(): SubscriptionsResult = SubscriptionsResult.Failure("no network")
+        }
+        val subs = AccountSubscriptions(failing, FakeYouTubeActions(), account, CoroutineScope(dispatcher)) { clock }
+
+        subs.refresh()
+        advanceUntilIdle()
+
+        assertEquals(true, subs.signedIn.value)
+        assertEquals(false, subs.loaded.value)
+    }
+
+    @Test
+    fun `signing out forgets that the list was loaded`() = runTest(dispatcher) {
+        val subs = subs()
+        subs.refresh()
+        advanceUntilIdle()
+
+        tokens.clear()
+        subs.recheckSignedIn()
+        advanceUntilIdle()
+
+        assertEquals(false, subs.loaded.value)
+    }
 }

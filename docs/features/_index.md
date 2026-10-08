@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Features
@@ -18,6 +18,7 @@ alone until they need more.
 | Podcasts: subscribe, RSS parse, episodes, refresh | podcasts | shipped | — |
 | Menus go where they say; every source (show / channel) has its picture | ui | shipped | [menus-and-source-pages.md](menus-and-source-pages.md) |
 | Every subscription in one list (Library), newest upload first; rows tinted by pillar | subscriptions | shipped | [all-subscriptions.md](all-subscriptions.md) |
+| Every row says whether you follow its channel / show (✅ subscribed, ➕ not subscribed, ❔ unknown); tap to subscribe, or to unsubscribe after a question | subscriptions | shipped | [ADR 22](../adr/0022-every-row-says-whether-you-follow-its-source.md) |
 | Fuzzy filter on every list (typos, abbreviations, accents) | ui | shipped | [list-filter.md](list-filter.md) |
 | Multi-select on every list (long-press; bulk queue, playlist, download, played, delete, unsubscribe) | ui | shipped | [multi-select.md](multi-select.md) |
 | A show's name AND its publisher, on every surface | podcasts | shipped | [show-and-publisher.md](show-and-publisher.md) |

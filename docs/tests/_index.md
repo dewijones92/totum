@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Testing
@@ -34,6 +34,7 @@ instead).
 | The Exsurge takeover and page and the alarm question and settings keep the screen awake, and let it sleep once left | instrumented | `:app` `ScreensStayAwakeTest`, `DailyAlarmDeviceTest`, `ExsurgeTakeoverFlowTest` (the ringing screen shares the helper; reaching it needs a real ringing state) |
 | Gapless queue: arming (when, on metered, the reasons not to, re-arming when the next item changes), the crossover adopted by the queue with no rebuild and recovery following it, and on a real player the crossover with no `Ended`, the finished item played, the resume point honoured, and the setting off falling back | JVM + instrumented | `:core:playback` `NextInLineTest`; `:app` `GaplessArmerTest`, `GaplessQueueTest`, `AutoAdvancerTest`; instrumented `GaplessCrossoverTest` (and `AutoAdvanceLoopTest`, which now crosses over) |
 | The Videos feed is hidden behind Show videos, shown on press, hidden again after another tab, and shown straight away with the setting off | instrumented | `:app` `VideosHiddenUntilAskedTest` |
+| Whether you follow a row's source: subscribed / not / unknown for both pillars (signed out, list not loaded, handle only, no source, judged by channel name, id outranks name), a name-only ➕ looks the channel up before subscribing; the mark beside the maker, ➕ subscribes, ✅ asks then unsubscribes, Keep does nothing, ❔ does nothing, every row follows a change in subscriptions | JVM + instrumented | `:core:domain` `FollowingTest`; `:app` `SourceFollowingTest`, `SubscriptionsFetchedOnceTest`, `FollowMarkTest` |
 | Rotation enters fullscreen from the player and mini player, portrait leaves it, explicit exit holds and audio stays in the shell | instrumented | `:app` `FullscreenSurvivesTheNextVideoTest`, `RotationOpensTheVideoFromTheShellTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |

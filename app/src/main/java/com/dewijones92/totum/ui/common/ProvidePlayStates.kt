@@ -46,6 +46,6 @@ internal fun ProvidePlayStates(
         LocalSetPlayed provides setPlayed,
         LocalSourceArtwork provides artwork,
     ) {
-        ProvideItemActions(container, onOpenSource, content)
+        ProvideFollowing(container) { ProvideItemActions(container, onOpenSource, content) }
     }
 }

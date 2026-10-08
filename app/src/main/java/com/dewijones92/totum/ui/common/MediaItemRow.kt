@@ -147,6 +147,7 @@ fun MediaItemRow(
      */
     tint: Color = rowTint(pillar, playState),
     cardInset: Dp = ROW_CARD_MARGIN_H,
+    followMark: FollowMarkSpec? = LocalRowFollowing.current?.markFor(item, pillar),
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
@@ -177,7 +178,7 @@ fun MediaItemRow(
     ) {
         ThumbnailWithProgress(item, playState)
         Spacer(Modifier.width(12.dp))
-        TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, Modifier.weight(1f))
+        TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, followMark, Modifier.weight(1f))
         RowEnd(id, item.title, hasMenu, { showSheet = true }) {
             TrailingControl(trailing, downloadState, onDownload, onDeleteDownload)
         }
@@ -275,6 +276,7 @@ private fun TitleAndSubtitle(
     pillar: MediaKind,
     playState: PlayState,
     downloadState: DownloadState,
+    followMark: FollowMarkSpec?,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -292,13 +294,7 @@ private fun TitleAndSubtitle(
         // One Text per fact, and nothing caps any of them: a line holds ONE fact and wraps if it
         // has to, so neither the view count nor the date can be swallowed by a long channel name —
         // which is what happened when all three shared a single capped line.
-        subtitleLines.forEach { fact ->
-            Text(
-                text = fact,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        FactLines(subtitleLines, followMark)
         MediaItemStatus(pillar, playState, downloadState, StatusRowSpacing)
     }
 }

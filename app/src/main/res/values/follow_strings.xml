@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="follow_subscribed">✅ subscribed</string>
+    <string name="follow_not_subscribed">➕ not subscribed</string>
+    <string name="follow_unknown">❔ unknown</string>
+    <string name="follow_click_subscribe">subscribe to %1$s</string>
+    <string name="follow_click_unsubscribe">unsubscribe from %1$s</string>
+    <string name="follow_unsubscribe_title">Unsubscribe from %1$s?</string>
+    <string name="follow_unsubscribe">Unsubscribe</string>
+    <string name="follow_keep">Keep</string>
+    <string name="follow_looking_up">Looking up %1$s…</string>
+    <string name="follow_failed_subscribe">Subscribing to %1$s failed</string>
+    <string name="follow_failed_unsubscribe">Unsubscribing from %1$s failed</string>
+</resources>

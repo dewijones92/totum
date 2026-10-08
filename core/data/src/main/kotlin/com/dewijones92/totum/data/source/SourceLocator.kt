@@ -8,6 +8,8 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.statedChannel
+import com.dewijones92.totum.domain.statedFeed
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -50,7 +52,7 @@ public class DefaultSourceLocator(
         val started = TimeSource.Monotonic.markNow()
         var route = "subscribed feed"
         val source = subscribedFeed(item) ?: when (item.pillar) {
-            MediaKind.PODCAST -> unsubscribedFeed(item).also { route = "feed named by the episode" }
+            MediaKind.PODCAST -> item.statedFeed().also { route = "feed named by the episode" }
             MediaKind.VIDEO -> statedSource(item)?.also { route = "channel named by the listing" }
                 ?: uploaderChannel(item).also { route = "yt-dlp extraction of the video" }
         }
@@ -69,16 +71,6 @@ public class DefaultSourceLocator(
                 if (source.youTubeChannelId != null) "(UC id known)" else "(handle only: its page will use yt-dlp)"
     }
 
-    private fun unsubscribedFeed(item: MediaItem): MediaSource? {
-        val feedUrl = MediaSource.PodcastFeed.feedUrlOf(item.sourceId) ?: return null
-        return MediaSource.PodcastFeed(
-            id = item.sourceId,
-            title = item.author.orEmpty().ifBlank { feedUrl.value },
-            feedUrl = feedUrl,
-            publisher = item.publisher,
-        )
-    }
-
     /**
      * The source the listing already named — free, instant, and the answer almost every time.
      *
@@ -87,14 +79,7 @@ public class DefaultSourceLocator(
      * took **12.5 seconds** — eight of them starting the Python interpreter and the JS runtime,
      * then a 4.4s extract — for a channel id YouTube had already sent with the tile.
      */
-    private fun statedSource(item: MediaItem): MediaSource? {
-        val url = item.sourceUrl ?: return null
-        return MediaSource.VideoChannel(
-            id = SourceId(url.value),
-            title = item.author.orEmpty().ifBlank { url.value },
-            channelUrl = url,
-        )
-    }
+    private fun statedSource(item: MediaItem): MediaSource? = item.statedChannel()
 
     private suspend fun subscribedFeed(item: MediaItem): MediaSource? =
         podcasts.observeSubscriptions().first()
