@@ -81,6 +81,7 @@ jobs:
         env:
           WG_CI_CONF: ${{ secrets.WG_CI_CONF }}
           WG_EXPECTED_EGRESS_IP: ${{ secrets.WG_EXPECTED_EGRESS_IP }}
+          TOTUM_HOME_SERVER: ${{ secrets.TOTUM_HOME_SERVER }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35

@@ -1,9 +1,9 @@
 ---
 title: Instrumented tests read the player without asking which item it is on
 kind: todo
-status: cause fixed and sixteen tests scoped; each still needs its live run to confirm
+status: done 2026-10-08 — all fourteen converted tests run and pass on totum-api35
 area: testing
-updated: 2026-09-25
+updated: 2026-10-08
 ---
 
 # A green wait that was answered by the wrong video
@@ -74,3 +74,28 @@ to be genuinely playing. On CI's software renderer that item then stalled, and r
 takes the last line that matches the pick pattern itself (`PICKED`). The unscoped wait had hidden this
 by returning early, before anything could stall.
 
+## Verified (2026-10-08, `totum-api35`, signed in, app at 75653ae6)
+
+Run one class at a time with `am instrument` against the installed APK. None skipped (no status `-4`):
+
+| Test | Result | Time |
+|---|---|---|
+| StreamPlaysToItsEndTest | 3/3 | 26 s |
+| LiveStreamPlaysToItsEndTest | 1/1 | 25 s |
+| LiveSabrDownloadTest | 2/2 | 22 s |
+| LiveDownloadedVideoOfflineTest | 1/1 | 18 s |
+| FourKActuallyPlaysTest | 1/1 | 37 s |
+| PlaysAcrossContentTypesTest | 1/1 | 222 s |
+| SubtitlesArriveAndRenderTest | 1/1 | 6 s |
+| SeekDeepIntoALongVideoTest | 2/2 | 70 s |
+| AnHourLongItemDoesNotRebufferTest | 2/2 | 137 s |
+| AutoAdvanceLoopTest | 2/2 | 14 s |
+| StalledStreamRecoveryTest | 2/2 | 83 s |
+| OfflineQueuePlaybackTest | 3/3 | 33 s |
+| TorrentQueuePlaybackTest | 2/2 | 18 s |
+| MeteredAudioSwitchDeviceTest | 2/2 | 64 s |
+
+CI's live phase had not been running them: from at least f20fa9b2 it skipped with "egress is NOT the expected
+residential IP", because the `WG_EXPECTED_EGRESS_IP` secret (set 2026-08-01) no longer matched the home IP.
+`live-test-via-home.sh` now expects the home domain's current address (its DNS follows the IP) and falls back
+to the secret.

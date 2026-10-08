@@ -35,6 +35,17 @@ sudo apt-get update -qq && sudo apt-get install -y -qq wireguard-tools || {
   exit 0
 }
 
+EXPECTED=""
+if [ -n "${TOTUM_HOME_SERVER:-}" ]; then
+  EXPECTED=$(getent ahostsv4 "$TOTUM_HOME_SERVER" 2>/dev/null | awk 'NR==1 {print $1}')
+fi
+if [ -n "$EXPECTED" ]; then
+  echo "[live-test] expecting the home domain's current address"
+else
+  EXPECTED="${WG_EXPECTED_EGRESS_IP:-}"
+  echo "[live-test] home domain did not resolve; expecting WG_EXPECTED_EGRESS_IP"
+fi
+
 printf '%s\n' "$WG_CI_CONF" | sudo tee /etc/wireguard/wg0.conf >/dev/null
 sudo chmod 600 /etc/wireguard/wg0.conf
 
@@ -46,13 +57,13 @@ trap 'sudo wg-quick down wg0 >/dev/null 2>&1 || true' EXIT
 
 # Never print the IP itself: this repo is PUBLIC, so its logs are. Compare and state a verdict.
 EGRESS=$(curl -s --max-time 20 https://api.ipify.org || true)
-if [ "$EGRESS" != "${WG_EXPECTED_EGRESS_IP:-}" ]; then
+if [ "$EGRESS" != "$EXPECTED" ]; then
   if [ -z "$EGRESS" ]; then
     echo "[live-test] egress check got NO answer through the tunnel — it is not carrying web traffic; skipping"
-  elif [ -z "${WG_EXPECTED_EGRESS_IP:-}" ]; then
-    echo "[live-test] WG_EXPECTED_EGRESS_IP is not set; skipping"
+  elif [ -z "$EXPECTED" ]; then
+    echo "[live-test] no expected home address (domain unresolved, secret unset); skipping"
   else
-    echo "[live-test] egress is a DIFFERENT IP from WG_EXPECTED_EGRESS_IP — the home IP may have changed; skipping"
+    echo "[live-test] egress is a DIFFERENT IP from the expected home address; skipping"
   fi
   exit 0
 fi
