@@ -1,9 +1,9 @@
 ---
 title: Queue items seem to finish a few seconds early
 kind: todo
-status: instrumented 2026-10-06; leading cause found on the emulator (skip-silence cuts a trailing silence, and the clock jumps ~5 s at the end); awaiting Dewi's call and a phone report
+status: closed 2026-10-08 — phone reports confirm skip-silence cutting trailing quiet (1.1 s of media in recent builds); Dewi chose to leave it
 area: playback
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # "Sometimes items in the queue finish a few seconds early"
@@ -53,9 +53,26 @@ clock then leaps ~5 s as the item ends. That matches "finishes a few seconds ear
 no content lost. It is the leading explanation, not a proven one: it applies only while skip-silence
 is on, and no phone report yet carries an `item-end` line.
 
-## Open (Dewi's call)
+## Phone evidence (reports 0.1.573 to 0.1.587, read 2026-10-08)
 
-- Leave it: cutting trailing silence is skip-silence working, and the line now says so.
-- Or never cut in the last ~10 s, so the clock runs out naturally (and outros keep their pauses).
+50 distinct `item-end` lines across 9 reports; 7 items played to their end, all with skip-silence Smart at 2x:
 
-Next phone report after an early end: read `playback.lastEnds`.
+| Build | Item | Jumped in the last 10 s | Note |
+|---|---|---|---|
+| 0.1.573 | PQw0TRzpCkk | 4,219 ms | downloaded audio; player 1,367 s vs listed 1,508 s |
+| 0.1.573 | pJljViiUEPw | 3,645 ms | downloaded audio; player 1,605 s vs listed 1,697 s |
+| 0.1.581 | APHMTbD6ZPo | 1,121 ms | |
+| 0.1.581 | 1yKxFGhyDFE | −180 ms | one SponsorBlock skip earlier |
+| 0.1.581 | edon5wb5Qsc | 1,153 ms | |
+| 0.1.587 | rGUzoHunuV8 | 1,120 ms | |
+| 0.1.587 | WrCjAAl9okA | −402 ms | |
+
+- The few-seconds effect is skip-silence cutting quiet at the end: about 1.1 s of media in recent builds,
+  about half a second of real time at 2x.
+- The two items that ended 1.5 and 2.5 minutes before their listed length were downloads made before
+  ADR 16, with sponsor segments cut out of the file. New downloads keep them.
+
+## Decision (Dewi, 2026-10-08)
+
+- **Leave it.** Cutting trailing silence is skip-silence working; the `item-end` line says so.
+- **Leave old sponsor-cut downloads** as they are; they leave as they are finished and deleted.

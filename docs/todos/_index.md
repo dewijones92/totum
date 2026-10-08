@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Backlog
@@ -15,7 +15,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Cut more sponsor segments with SponsorBlock](more-sponsorblock-cuts.md) | playback/downloads | medium | built 2026-10-07 (ADR 16): downloads keep segments, files on disk skip live from the stored list; old cut files left alone |
 | [Switching audio to video and opening a channel feel slow](slow-switch-and-channel.md) | playback/channel | high | phone: audio copy → video 16.7 s, 85% extraction; fixes shipped (ADRs 11, 12): solver cache, expiry-aware resolve cache kept across restarts, look-ahead, V8 solver, shared HTTP pool, caption translations limited, account calls off the critical path; to measure on the phone |
 | [The "ask YouTube directly" fallback serves TV URLs that 403](tv-direct-ask-urls-403.md) | playback | medium | 0.1.575: 15 of 19 TV direct-ask ladders 403'd for good; cause untested (n solved against the web player?) |
-| [Queue items seem to finish a few seconds early](queue-items-feel-early.md) | playback | medium | instrumented 2026-10-06 (`item-end` lines, vital `playback.lastEnds`); leading cause on the emulator: skip-silence cuts a trailing silence and the clock jumps ~5 s; awaiting Dewi's call |
+| [Queue items seem to finish a few seconds early](queue-items-feel-early.md) | playback | medium | closed 2026-10-08: phone reports show skip-silence cutting ~1.1 s of trailing quiet; old sponsor-cut downloads end minutes early; Dewi chose to leave both |
 | [Seamless playback across TV, laptop, browser and other devices](seamless-cross-device-playback.md) | playback/integration | — | refining: Netflix-like ease; device priorities and continuity to agree |
 | [seek-before-account-resume](seek-before-account-resume.md) | playback | high | fixed 2026-10-05: a seek overrides the cached account figure before its first resume |
 | [shared-title-stays-placeholder](shared-title-stays-placeholder.md) | queue/downloads | high | fixed 2026-10-05 → [shared-link metadata](../features/shared-link-metadata.md) |
