@@ -47,7 +47,13 @@ trap 'sudo wg-quick down wg0 >/dev/null 2>&1 || true' EXIT
 # Never print the IP itself: this repo is PUBLIC, so its logs are. Compare and state a verdict.
 EGRESS=$(curl -s --max-time 20 https://api.ipify.org || true)
 if [ "$EGRESS" != "${WG_EXPECTED_EGRESS_IP:-}" ]; then
-  echo "[live-test] egress is NOT the expected residential IP — tunnel is not carrying traffic; skipping"
+  if [ -z "$EGRESS" ]; then
+    echo "[live-test] egress check got NO answer through the tunnel — it is not carrying web traffic; skipping"
+  elif [ -z "${WG_EXPECTED_EGRESS_IP:-}" ]; then
+    echo "[live-test] WG_EXPECTED_EGRESS_IP is not set; skipping"
+  else
+    echo "[live-test] egress is a DIFFERENT IP from WG_EXPECTED_EGRESS_IP — the home IP may have changed; skipping"
+  fi
   exit 0
 fi
 echo "[live-test] egress is the expected residential IP"

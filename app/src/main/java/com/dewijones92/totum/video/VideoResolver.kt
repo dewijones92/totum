@@ -74,6 +74,7 @@ class VideoResolver(
     private val preferredAudioLanguages: () -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
     private val lookupStore: LookupStore? = null,
+    private val streamStatus: suspend (HttpUrl) -> Int? = { null },
 ) {
     /**
      * The most recently resolved video, reused until it goes stale.
@@ -400,17 +401,43 @@ class VideoResolver(
         // has already succeeded. Caught here after a test proved it could.
         val streams = runCatching { fallback.playerFor(id) }.getOrNull()?.streaming
             ?: return qualities.also { reportIfDegraded(id, it) }
-        val better = streams.videoQualities(wanted)
+        return servedLadderOr(id, qualities, best, streams.videoQualities(wanted))
+    }
+
+    private suspend fun servedLadderOr(
+        id: String,
+        qualities: List<VideoQuality>,
+        best: Int,
+        better: List<VideoQuality>,
+    ): List<VideoQuality> {
         val betterBest = better.maxOfOrNull { it.height } ?: 0
         if (betterBest <= best) {
             Diag.log("resolve", "$id: the direct ask offered no better (${betterBest}p) — keeping yt-dlp's")
             reportIfDegraded(id, qualities)
             return qualities
         }
+        val bestUrl = better.maxBy { it.height }.videoUrl
+        val status = runCatching { streamStatus(bestUrl) }.getOrNull()
+        if (status != null && status !in HTTP_SERVED) {
+            Vitals.add("resolve.playerFallbackRefused")
+            Diag.log(
+                "resolve",
+                "$id: direct ask gave ${better.size} qualities to ${betterBest}p but YouTube answered HTTP $status " +
+                    "for its ${betterBest}p stream (client ${bestUrl.value.clientParam()}) — keeping yt-dlp's ${best}p",
+            )
+            reportIfDegraded(id, qualities)
+            return qualities
+        }
         Vitals.add("resolve.playerFallbackWins")
-        Diag.log("resolve", "$id: direct ask gave ${better.size} qualities to ${betterBest}p, up from ${best}p")
+        Diag.log(
+            "resolve",
+            "$id: direct ask gave ${better.size} qualities to ${betterBest}p, up from ${best}p " +
+                "[its ${betterBest}p stream answered ${status?.let { "HTTP $it" } ?: "nothing (not checked)"}]",
+        )
         return better
     }
+
+    private fun String.clientParam(): String = substringAfter("&c=", substringAfter("?c=", "?")).substringBefore("&")
 
     /**
      * Resolves by asking YouTube and streaming over SABR, in about 150ms.
@@ -829,5 +856,6 @@ class VideoResolver(
 
         /** Format 18's height — the only stream that survives a SABR-only response. */
         const val DEGRADED_HEIGHT = 360
+        val HTTP_SERVED = 200..299
     }
 }
