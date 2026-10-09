@@ -5,6 +5,9 @@ import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.music.firstObject
+import com.dewijones92.totum.innertube.music.parseMusicRoot
+import com.dewijones92.totum.innertube.music.str
 
 /**
  * Write actions against InnerTube as the authenticated TV client. Endpoints
@@ -27,6 +30,7 @@ public class HttpYouTubeActions(
         val removeLike: String = InnerTubeClient.REMOVE_LIKE_URL,
         val createComment: String = InnerTubeClient.CREATE_COMMENT_URL,
         val editPlaylist: String = InnerTubeClient.EDIT_PLAYLIST_URL,
+        val next: String = InnerTubeClient.NEXT_URL,
     )
 
     override suspend fun setSubscribed(channelId: String, subscribed: Boolean): ActionResult {
@@ -41,6 +45,21 @@ public class HttpYouTubeActions(
             VideoRating.NONE -> endpoints.removeLike
         }
         return act(url) { """"target":{"videoId":"${escape(videoId)}"}""" }
+    }
+
+    override suspend fun rating(videoId: String): VideoRating? {
+        val token = (account.accessToken() as? AccessTokenResult.Available)?.token ?: return null
+        val answer = innerTube.action(endpoints.next, """"videoId":"${escape(videoId)}"""", token)
+        val body = (answer as? InnerTubeResponse.Success)?.body ?: return null
+        val root = parseMusicRoot(body) ?: return null
+        val status = root.firstObject("likeButtonRenderer")?.str("likeStatus")
+            ?: root.firstObject("likeStatusEntity")?.str("likeStatus")
+        return when (status) {
+            "LIKE" -> VideoRating.LIKE
+            "DISLIKE" -> VideoRating.DISLIKE
+            "INDIFFERENT" -> VideoRating.NONE
+            else -> null
+        }
     }
 
     override suspend fun setSavedToWatchLater(videoId: String, saved: Boolean): ActionResult {

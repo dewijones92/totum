@@ -65,6 +65,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.innertube.comments.Comment
@@ -391,8 +392,9 @@ private fun PlayerDetails(
         onSetSpeed = onSetSpeed,
     )
 
-    // Like / dislike / Watch Later — signed-in write actions for the current video.
-    if (state.hasVideo && watchActions.canAct) {
+    // Like / dislike / Watch Later — signed-in write actions for anything from YouTube, a song
+    // playing as sound included.
+    if (state.kind == MediaKind.VIDEO && watchActions.canAct) {
         Spacer(Modifier.height(16.dp))
         WatchActionButtons(watchActions)
     }

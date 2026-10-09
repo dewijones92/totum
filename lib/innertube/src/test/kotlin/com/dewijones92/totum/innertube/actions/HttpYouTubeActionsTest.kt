@@ -40,6 +40,7 @@ class HttpYouTubeActionsTest {
                 removeLike = mock,
                 createComment = mock,
                 editPlaylist = mock,
+                next = server.url("/next").toString(),
             ),
         )
     }
@@ -47,6 +48,49 @@ class HttpYouTubeActionsTest {
     private fun ok() = server.enqueue(
         MockResponse.Builder().code(200).body("""{"actionResult":{"status":"STATUS_SUCCEEDED"}}""").build(),
     )
+
+    private fun fixture(name: String): String =
+        checkNotNull(javaClass.getResourceAsStream("/actions/$name")) { "fixture $name missing" }
+            .bufferedReader().use { it.readText() }
+
+    private fun answer(body: String) = server.enqueue(MockResponse.Builder().code(200).body(body).build())
+
+    @Test
+    fun `a song already in Liked Music reads as liked, asked as the account`() = runBlocking {
+        answer(fixture("next_tv_liked.json"))
+
+        assertEquals(VideoRating.LIKE, actions().rating("BNMKGYiJpvg"))
+        val request = server.takeRequest()
+        assertEquals("Bearer at", request.headers["Authorization"])
+        assertTrue(request.target.endsWith("/next"))
+        val body = request.body?.utf8().orEmpty()
+        assertTrue(body.contains(""""videoId":"BNMKGYiJpvg""""))
+        assertTrue(body.contains("TVHTML5"))
+    }
+
+    @Test
+    fun `a song not rated reads as not rated`() = runBlocking {
+        answer(fixture("next_tv_not_rated.json"))
+
+        assertEquals(VideoRating.NONE, actions().rating("BNMKGYiJpvg"))
+    }
+
+    @Test
+    fun `a dislike reads as disliked, from the entity when the button is absent`() = runBlocking {
+        answer(
+            """{"frameworkUpdates":{"entityBatchUpdate":{"mutations":""" +
+                """[{"payload":{"likeStatusEntity":{"likeStatus":"DISLIKE"}}}]}}}""",
+        )
+
+        assertEquals(VideoRating.DISLIKE, actions().rating("BNMKGYiJpvg"))
+    }
+
+    @Test
+    fun `nothing is known when signed out or when the answer says nothing`() = runBlocking {
+        assertEquals(null, actions(signedIn = false).rating("BNMKGYiJpvg"))
+        answer("{}")
+        assertEquals(null, actions().rating("BNMKGYiJpvg"))
+    }
 
     @Test
     fun `like posts the video target with a bearer token`() = runBlocking {

@@ -7,5 +7,10 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 public class FakeYouTubeRelated(
     public var result: RelatedResult = RelatedResult.Success(emptyList()),
 ) : YouTubeRelated {
-    override suspend fun relatedTo(videoId: String): RelatedResult = result
+    public val requests: MutableList<String> = mutableListOf()
+
+    override suspend fun relatedTo(videoId: String): RelatedResult {
+        requests += videoId
+        return result
+    }
 }

@@ -7,7 +7,10 @@ import com.dewijones92.totum.innertube.actions.YouTubeActions
 /** Records calls and returns a scripted result; for tests and previews. */
 public class FakeYouTubeActions(
     public var result: ActionResult = ActionResult.Success,
+    public var ratings: Map<String, VideoRating> = emptyMap(),
 ) : YouTubeActions {
+
+    override suspend fun rating(videoId: String): VideoRating? = ratings[videoId]
 
     public val subscribeCalls: MutableList<Pair<String, Boolean>> = mutableListOf()
     public val ratingCalls: MutableList<Pair<String, VideoRating>> = mutableListOf()

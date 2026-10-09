@@ -1,0 +1,121 @@
+{
+ "transportControls": {
+  "transportControlsRenderer": {
+   "buttons": [
+    {
+     "button": {
+      "subscribeButtonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "videoOwnerRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "toggleButtonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "likeButtonRenderer": {
+       "likeStatus": "LIKE",
+       "likesAllowed": true,
+       "target": {
+        "videoId": "BNMKGYiJpvg"
+       }
+      }
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "toggleButtonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "playlistLoopButtonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    },
+    {
+     "button": {
+      "buttonRenderer": {}
+     }
+    }
+   ]
+  }
+ },
+ "frameworkUpdates": {
+  "entityBatchUpdate": {
+   "mutations": [
+    {
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "subscriptionStateEntity": {}
+     }
+    },
+    {
+     "entityKey": "placeholder-like-status-key",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "likeStatusEntity": {
+       "key": "placeholder-like-status-key",
+       "likeStatus": "LIKE"
+      }
+     }
+    }
+   ]
+  }
+ }
+}

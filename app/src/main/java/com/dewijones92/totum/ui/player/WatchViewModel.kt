@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceId
@@ -155,17 +156,27 @@ constructor(
     val postState: StateFlow<PostState> = _postState.asStateFlow()
 
     private var videoId: String? = null
+    private var pageFor: String? = null
 
-    fun bind(videoId: String) {
-        if (videoId == this.videoId) return
-        this.videoId = videoId
+    /**
+     * Binds to the item playing. [withPage] false is a song playing as sound: it still gets its like
+     * state, and its comments and related wait until a picture asks for them.
+     */
+    fun bind(videoId: String, withPage: Boolean = true) {
+        if (videoId != this.videoId) {
+            this.videoId = videoId
+            pageFor = null
+            _rating.value = VideoRating.NONE
+            _inWatchLater.value = false
+            _postState.value = PostState.Idle
+            viewModelScope.launch { _signedIn.value = account.isSignedIn() }
+            viewModelScope.launch { readRating(videoId) }
+        }
+        if (!withPage || pageFor == videoId) return
+        pageFor = videoId
         _comments.value = CommentsState.Loading
         _replies.value = emptyMap()
         _related.value = RelatedState.Loading
-        _rating.value = VideoRating.NONE
-        _inWatchLater.value = false
-        _postState.value = PostState.Idle
-        viewModelScope.launch { _signedIn.value = account.isSignedIn() }
         viewModelScope.launch {
             _comments.value = when (val result = commentsSource.forVideo(videoId)) {
                 is CommentsResult.Success -> CommentsState.Loaded(result.comments)
@@ -182,6 +193,12 @@ constructor(
                 is RelatedResult.Failure -> RelatedState.Error
             }
         }
+    }
+
+    private suspend fun readRating(id: String) {
+        val read = actions.rating(id)
+        Diag.log("watch", "rating of $id on the account: ${read ?: "unknown (signed out or not said)"}")
+        if (read != null && this.videoId == id) _rating.value = read
     }
 
     /** Plays a tapped related video through the queue, like every other tap. */

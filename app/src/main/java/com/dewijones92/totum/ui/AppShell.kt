@@ -176,8 +176,8 @@ private fun WatchBindings(
     state: PlaybackState?,
     watchViewModel: WatchViewModel,
 ) {
-    LaunchedEffect(state?.itemId, state?.hasVideo) {
-        state?.takeIf { it.hasVideo }?.let { watchViewModel.bind(it.itemId.value) }
+    LaunchedEffect(state?.itemId, state?.hasVideo, state?.kind) {
+        state?.takeIf { it.kind == MediaKind.VIDEO }?.let { watchViewModel.bind(it.itemId.value, it.hasVideo) }
     }
 }
 
