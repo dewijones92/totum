@@ -384,12 +384,11 @@
     <string name="music_radio">Radio</string>
     <string name="music_start_radio">Start radio</string>
     <string name="music_mix">Mix</string>
-    <string name="music_all_songs">All songs</string>
     <string name="music_could_not_load">Could not load this. Check the connection and try again.</string>
     <string name="music_retry">Try again</string>
     <string name="music_about">About</string>
     <string name="music_album_offline">✅ The whole album is on this phone</string>
-    <string name="music_album_offline_progress">💾 %1$d of %2$d songs on this phone, %3$d downloading</string>
+    <string name="music_album_offline_progress">💾 On this phone: %1$d/%2$d · Downloading: %3$d</string>
     <string name="music_show_fewer">Show fewer</string>
     <plurals name="music_show_all">
         <item quantity="one">Show all</item>
@@ -411,7 +410,6 @@
         <item quantity="one">Downloading 1 song as audio</item>
         <item quantity="other">Downloading %1$d songs as audio</item>
     </plurals>
-    <string name="music_artist_not_found">Could not find %1$s on YouTube Music; playing their mix instead</string>
     <string name="subtitles_off">Off</string>
     <string name="status_offline_audio">Audio saved offline</string>
     <string name="status_offline_video">Video saved offline</string>

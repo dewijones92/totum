@@ -114,11 +114,12 @@ private fun ArtistFailed(
     viewModel: MusicArtistViewModel
 ) {
     val context = LocalContext.current
+    val started = stringResource(R.string.music_radio_started, page.name)
     MusicFailed(viewModel::load) {
         if (failed.canPlayMix) {
             TextButton(onClick = {
                 viewModel.mix()
-                toast(context, context.getString(R.string.music_radio_started, page.name))
+                toast(context, started)
             }) { Text(stringResource(R.string.music_mix)) }
         }
     }

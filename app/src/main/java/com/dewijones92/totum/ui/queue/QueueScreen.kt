@@ -112,7 +112,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onClear = queue::clear,
                 listState = listState,
                 listFilter = listFilter,
-                onShuffle = { queue.shuffleUpNext() }.takeIf { queue.state.value.upNext.size > 1 },
+                onShuffle = { queue.shuffleUpNext() }.takeIf { snapshot.upNext.size > 1 },
             )
             if (entries.isEmpty()) {
                 EmptyState(
