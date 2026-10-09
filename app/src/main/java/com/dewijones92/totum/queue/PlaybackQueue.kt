@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 /**
  * The app's single queue, unified across both pillars, and the spine of playback:
@@ -154,6 +155,8 @@ class PlaybackQueue(
 
     private val rescueIntent = RescueIntent(controller)
 
+    private val mirroring = QueueMirror(scope, onQueuedByUser)
+
     private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
 
     private val pictures = PictureChoices()
@@ -203,7 +206,7 @@ class PlaybackQueue(
                 without.copy(entries = without.entries + QueueEntry(item, group))
             }
         }
-        mirror(item)
+        mirroring.mirror(item)
     }
 
     /** Inserts so it plays immediately after the current entry, moving it if already queued. */
@@ -213,7 +216,7 @@ class PlaybackQueue(
                 without.inserted(listOf(QueueEntry(item, group)))
             }
         }
-        mirror(item)
+        mirroring.mirror(item)
     }
 
     fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null) {
@@ -224,8 +227,13 @@ class PlaybackQueue(
                 acc.relocating(item) { without -> without.copy(entries = without.entries + QueueEntry(item, group)) }
             }
         }
-        mirrorAll(items)
+        mirroring.mirrorAll(items)
     }
+
+    fun shuffleUpNext(random: Random = Random.Default) = mutate("shuffle up next") { it.shuffledAfterCurrent(random) }
+
+    suspend fun playFromTheTop(): Boolean = _state.value.entries.indices.any { playAt(it, rollBackOnRefusal = true) }
+        .also { Diag.log("queue", "start again from the top -> played=$it") }
 
     fun appendToGroup(group: QueueGroup, items: List<PlayableItem>): Int {
         val queued = _state.value.entries.mapTo(mutableSetOf()) { it.item.item.id }
@@ -245,29 +253,7 @@ class PlaybackQueue(
                 acc.relocating(item) { without -> without.inserted(listOf(QueueEntry(item, null))) }
             }
         }
-        mirrorAll(items)
-    }
-
-    private fun mirrorAll(items: List<PlayableItem>) {
-        items.singleOrNull()?.let(::mirror)
-            ?: Diag.log(
-                "queue",
-                "not mirroring ${items.size} bulk-queued items to the account: a bulk add would bury Watch Later",
-            )
-    }
-
-    /**
-     * Fires the mirror without letting it affect queueing.
-     *
-     * Its own coroutine and its own try/catch: the queue must change instantly and locally
-     * whatever the network does, so a slow or failed Watch Later write can never delay a tap or
-     * lose the queue entry that the user actually asked for.
-     */
-    private fun mirror(item: PlayableItem) {
-        scope.launch {
-            runCatching { onQueuedByUser(item) }
-                .onFailure { Diag.warn("queue", "could not mirror \"${item.item.title}\" to the account", it) }
-        }
+        mirroring.mirrorAll(items)
     }
 
     /**
@@ -1135,6 +1121,15 @@ private fun QueueSnapshot.adoptingRoutesFrom(fresh: List<PlayableItem>): QueueSn
             }
         },
     )
+}
+
+private fun QueueSnapshot.shuffledAfterCurrent(random: Random): QueueSnapshot {
+    val after = (currentIndex + 1).coerceAtLeast(0)
+    if (entries.size - after < 2) {
+        Diag.log("queue", "shuffle up next: fewer than two items after the current one, nothing to shuffle")
+        return this
+    }
+    return copy(entries = entries.take(after) + entries.drop(after).shuffled(random))
 }
 
 private fun QueueSnapshot.appendedTo(group: QueueGroup, fresh: List<PlayableItem>): QueueSnapshot {

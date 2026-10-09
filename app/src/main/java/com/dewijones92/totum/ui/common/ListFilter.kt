@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,7 +98,7 @@ fun FilterToggle(filter: ListFilter, total: Int, modifier: Modifier = Modifier) 
         modifier = modifier.semantics { stateDescription = state },
     ) {
         Icon(
-            imageVector = Icons.Filled.Search,
+            imageVector = Icons.Filled.FilterAlt,
             contentDescription = pluralStringResource(R.plurals.filter_hint_count, total, total),
             tint = if (filter.fieldShown) {
                 MaterialTheme.colorScheme.primary

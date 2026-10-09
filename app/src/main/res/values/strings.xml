@@ -372,6 +372,11 @@
     <string name="music_kind_single">Single</string>
     <string name="music_kind_ep">EP</string>
     <string name="music_kind_artist">Artist</string>
+    <string name="repeat">Repeat</string>
+    <string name="repeat_off">Off</string>
+    <string name="repeat_queue">Queue</string>
+    <string name="repeat_one">This one</string>
+    <string name="queue_shuffle_up_next">Shuffle up next</string>
     <string name="music_play">Play</string>
     <string name="music_shuffle">Shuffle</string>
     <string name="music_add_to_end">Add to end</string>
@@ -383,6 +388,8 @@
     <string name="music_could_not_load">Could not load this. Check the connection and try again.</string>
     <string name="music_retry">Try again</string>
     <string name="music_about">About</string>
+    <string name="music_album_offline">✅ The whole album is on this phone</string>
+    <string name="music_album_offline_progress">💾 %1$d of %2$d songs on this phone, %3$d downloading</string>
     <string name="music_show_fewer">Show fewer</string>
     <plurals name="music_show_all">
         <item quantity="one">Show all</item>

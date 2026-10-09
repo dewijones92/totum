@@ -5,6 +5,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterIsInstance
@@ -82,6 +83,7 @@ internal class GaplessArmer(
 internal fun gaplessNotNow(settings: AppPreferences.Settings, sleep: SleepTimerState): String? = when {
     !settings.gaplessQueue -> "gapless queue is off in Settings"
     !settings.autoPlayNext -> "auto-play next is off"
+    settings.repeatMode == RepeatMode.ONE -> "repeat one is on"
     sleep is SleepTimerState.AfterCurrentItem -> "the sleep timer stops after this item"
     else -> null
 }

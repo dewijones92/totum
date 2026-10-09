@@ -10,7 +10,9 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.OfflineCount
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.offlineCount
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
@@ -22,8 +24,11 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MusicPage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MusicAlbumViewModel(
@@ -43,6 +48,10 @@ class MusicAlbumViewModel(
 
     private val _state = MutableStateFlow<State>(State.Loading)
     val state: StateFlow<State> = _state.asStateFlow()
+
+    val offline: StateFlow<OfflineCount> = combine(_state, downloads.observeDownloads()) { state, downloaded ->
+        offlineCount((state as? State.Loaded)?.tracks.orEmpty().map { it.id }, downloaded)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), OfflineCount(0, 0, 0))
 
     init {
         load()
@@ -93,7 +102,7 @@ class MusicAlbumViewModel(
     fun download(): Int {
         val loaded = _state.value as? State.Loaded ?: return 0
         Diag.log("music", "download album \"${loaded.album.title}\": ${loaded.tracks.size} as audio")
-        appScope.launch { loaded.tracks.forEach { downloads.download(it, audioOnly = true) } }
+        appScope.launch { loaded.playables().forEach { downloads.download(it, audioOnly = true) } }
         return loaded.tracks.size
     }
 
@@ -109,6 +118,8 @@ class MusicAlbumViewModel(
     private fun State.Loaded.group(): QueueGroup = QueueGroup(id = "album:${album.browseId}", title = album.title)
 
     companion object {
+        private const val STOP_TIMEOUT_MILLIS = 5_000L
+
         fun factory(container: AppContainer, page: MusicPage.Album): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 MusicAlbumViewModel(

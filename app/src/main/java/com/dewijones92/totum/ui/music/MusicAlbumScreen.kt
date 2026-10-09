@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.OfflineCount
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
@@ -48,6 +49,7 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
     val viewModel: MusicAlbumViewModel =
         viewModel(key = page.label, factory = MusicAlbumViewModel.factory(container, page))
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val offline by viewModel.offline.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val actions = LocalItemActions.current
     LazyColumn(Modifier.fillMaxSize()) {
@@ -60,7 +62,8 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
             is MusicAlbumViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
             is MusicAlbumViewModel.State.Loaded -> {
                 item { AlbumHeader(current.album) }
-                item { MusicButtons(albumButtons(current.album, viewModel, context)) }
+                item { MusicButtons(albumButtons(current.album, viewModel, context, offline)) }
+                item { OfflineLine(offline) }
                 item { AboutText(current.album.description) }
                 itemsIndexed(current.tracks, key = { _, item -> item.id.value }) { index, item ->
                     MediaItemRow(
@@ -120,7 +123,12 @@ private fun AlbumHeader(album: MusicAlbum) {
     }
 }
 
-private fun albumButtons(album: MusicAlbum, viewModel: MusicAlbumViewModel, context: Context): List<MusicButton> =
+private fun albumButtons(
+    album: MusicAlbum,
+    viewModel: MusicAlbumViewModel,
+    context: Context,
+    offline: OfflineCount,
+): List<MusicButton> =
     listOfNotNull(
         MusicButton(R.string.music_play, Icons.Filled.PlayArrow, primary = true) {
             viewModel.play()
@@ -134,7 +142,7 @@ private fun albumButtons(album: MusicAlbum, viewModel: MusicAlbumViewModel, cont
         MusicButton(R.string.music_download_album, Icons.Outlined.Download) {
             val count = viewModel.download()
             toast(context, context.resources.getQuantityString(R.plurals.music_album_downloading, count, count))
-        },
+        }.takeIf { !offline.complete },
         album.radio?.let {
             MusicButton(R.string.music_radio, Icons.Outlined.Radio) {
                 viewModel.startRadio()
@@ -142,6 +150,22 @@ private fun albumButtons(album: MusicAlbum, viewModel: MusicAlbumViewModel, cont
             }
         },
     )
+
+@Composable
+private fun OfflineLine(offline: OfflineCount) {
+    if (offline.total == 0 || (offline.downloaded == 0 && offline.inProgress == 0)) return
+    val text = if (offline.complete) {
+        stringResource(R.string.music_album_offline)
+    } else {
+        stringResource(R.string.music_album_offline_progress, offline.downloaded, offline.total, offline.inProgress)
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (offline.complete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
 
 internal fun toast(context: Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()

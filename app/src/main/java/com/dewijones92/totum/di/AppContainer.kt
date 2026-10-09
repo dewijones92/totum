@@ -844,6 +844,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             whenQueueEmpty = ::playRelatedNext,
             isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
+            repeat = { appPreferences.settings.value.repeatMode },
+            replay = { playbackQueue.replayCurrent(positionMs = 0) },
+            fromTheTop = { playbackQueue.playFromTheTop() },
         ).start()
         // The advancer only ever hears about a clean end. An item that stops dead at its own
         // end without reporting one leaves the queue silently stopped — see StallWatchdog.

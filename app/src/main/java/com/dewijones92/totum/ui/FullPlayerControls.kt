@@ -53,4 +53,6 @@ internal fun playbackToggles(
     sabrPlayback = settings.sabrPlayback,
     onSetSabrPlayback = container.appPreferences::setSabrPlayback,
     onSetVolumeBoost = controller::setVolumeBoost,
+    repeatMode = settings.repeatMode,
+    onSetRepeatMode = container.appPreferences::setRepeatMode,
 )

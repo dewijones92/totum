@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
@@ -40,6 +41,9 @@ internal class AutoAdvancer(
     private val whenQueueEmpty: suspend () -> Unit,
     private val isEnabled: () -> Boolean,
     private val scope: CoroutineScope,
+    private val repeat: () -> RepeatMode = { RepeatMode.OFF },
+    private val replay: suspend () -> Boolean = { false },
+    private val fromTheTop: suspend () -> Boolean = { false },
 ) {
     fun start() {
         // Said out loud so "nothing ended" and "the advancer was not running" stop looking
@@ -64,6 +68,11 @@ internal class AutoAdvancer(
 
     private suspend fun advancePast(ended: PlaybackEvent.Ended) {
         val id = ended.itemId.value
+        val mode = repeat()
+        if (mode == RepeatMode.ONE) {
+            Diag.log("advance", "$id ended at ${ended.atMs}ms; repeat one is on -> replayed=${replay()}")
+            return
+        }
         if (!isEnabled()) {
             // The one refusal left, and it still says so: an item ending with nothing happening
             // is otherwise indistinguishable from the advancer being dead.
@@ -72,9 +81,13 @@ internal class AutoAdvancer(
         }
         val advanced = advance()
         Diag.log("advance", "$id ended at ${ended.atMs}ms -> queue advance=$advanced")
-        if (!advanced) {
-            Diag.log("advance", "queue had nothing playable; trying a related video")
-            whenQueueEmpty()
+        if (advanced) return
+        if (mode == RepeatMode.QUEUE) {
+            val wrapped = fromTheTop()
+            Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top=$wrapped")
+            if (wrapped) return
         }
+        Diag.log("advance", "queue had nothing playable; trying a related video")
+        whenQueueEmpty()
     }
 }

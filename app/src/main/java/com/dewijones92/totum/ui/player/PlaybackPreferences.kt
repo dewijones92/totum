@@ -8,6 +8,8 @@ import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.RepeatOne
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.VolumeBoost
+import com.dewijones92.totum.settings.RepeatMode
 
 /**
  * The offered playback rates, in one place — the below-artwork audio control and the
@@ -172,4 +176,27 @@ internal fun BoostTile(boost: VolumeBoost, onSetBoost: (VolumeBoost) -> Unit, mo
         active = boost != VolumeBoost.OFF,
         modifier = modifier,
     )
+}
+
+@Composable
+internal fun RepeatTile(mode: RepeatMode, onSetMode: (RepeatMode) -> Unit, modifier: Modifier = Modifier) {
+    PickerTile(
+        icon = if (mode == RepeatMode.ONE) Icons.Outlined.RepeatOne else Icons.Outlined.Repeat,
+        label = stringResource(R.string.repeat),
+        current = mode,
+        options = RepeatMode.entries,
+        optionLabel = { stringResource(it.labelRes()) },
+        onSelect = { chosen ->
+            Diag.log("advance", "repeat set to $chosen (was $mode)")
+            onSetMode(chosen)
+        },
+        active = mode != RepeatMode.OFF,
+        modifier = modifier,
+    )
+}
+
+private fun RepeatMode.labelRes(): Int = when (this) {
+    RepeatMode.OFF -> R.string.repeat_off
+    RepeatMode.QUEUE -> R.string.repeat_queue
+    RepeatMode.ONE -> R.string.repeat_one
 }

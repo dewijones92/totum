@@ -80,6 +80,7 @@ interface AppPreferences {
     fun setSilenceMode(mode: SilenceMode)
     fun setFeedHiddenUntilAsked(hidden: Boolean)
     fun setGaplessQueue(enabled: Boolean)
+    fun setRepeatMode(mode: RepeatMode)
 
     data class Settings(
         val wifiMaxHeight: Int = DEFAULT_WIFI_MAX_HEIGHT,
@@ -140,6 +141,7 @@ interface AppPreferences {
         val silenceMode: SilenceMode = SilenceMode.DEFAULT,
         val feedHiddenUntilAsked: Boolean = true,
         val gaplessQueue: Boolean = true,
+        val repeatMode: RepeatMode = RepeatMode.OFF,
     )
 
     companion object {
@@ -188,6 +190,8 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             silenceMode = SilenceMode.fromStoredName(prefs.getString(KEY_SILENCE_MODE, null)),
             feedHiddenUntilAsked = prefs.getBoolean(KEY_FEED_HIDDEN, true),
             gaplessQueue = prefs.getBoolean(KEY_GAPLESS, true),
+            repeatMode = prefs.getString(KEY_REPEAT, null)
+                ?.let { saved -> RepeatMode.entries.firstOrNull { it.name == saved } } ?: RepeatMode.OFF,
         ),
     )
     override val settings: StateFlow<AppPreferences.Settings> = _settings.asStateFlow()
@@ -263,6 +267,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
     override fun setGaplessQueue(enabled: Boolean): Unit =
         change("gaplessQueue", enabled, { putBoolean(KEY_GAPLESS, enabled) }) { it.copy(gaplessQueue = enabled) }
 
+    override fun setRepeatMode(mode: RepeatMode): Unit =
+        change("repeatMode", mode, { putString(KEY_REPEAT, mode.name) }) { it.copy(repeatMode = mode) }
+
     /**
      * One path for every setting: persist, publish, and record it. A settings change is
      * often the answer to "it started behaving differently" — a report that lists the
@@ -295,6 +302,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_SILENCE_MODE = "silence_mode"
         const val KEY_FEED_HIDDEN = "feed_hidden_until_asked"
         const val KEY_GAPLESS = "gapless_queue"
+        const val KEY_REPEAT = "repeat_mode"
     }
 }
 
@@ -326,4 +334,5 @@ class InMemoryAppPreferences : AppPreferences {
         _settings.update { it.copy(feedHiddenUntilAsked = hidden) }
 
     override fun setGaplessQueue(enabled: Boolean) = _settings.update { it.copy(gaplessQueue = enabled) }
+    override fun setRepeatMode(mode: RepeatMode) = _settings.update { it.copy(repeatMode = mode) }
 }

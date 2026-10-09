@@ -18,7 +18,9 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
@@ -105,7 +107,13 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            QueueHeader(entries.size, onClear = queue::clear, listState = listState, listFilter = listFilter)
+            QueueHeader(
+                entries.size,
+                onClear = queue::clear,
+                listState = listState,
+                listFilter = listFilter,
+                onShuffle = { queue.shuffleUpNext() }.takeIf { queue.state.value.upNext.size > 1 },
+            )
             if (entries.isEmpty()) {
                 EmptyState(
                     icon = Icons.AutoMirrored.Filled.QueueMusic,
@@ -450,10 +458,16 @@ private fun QueueHeader(
     onClear: () -> Unit,
     listState: LazyListState,
     listFilter: ListFilter,
+    onShuffle: (() -> Unit)? = null,
 ) {
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             FilterToggle(listFilter, count)
+            onShuffle?.let { shuffle ->
+                IconButton(onClick = shuffle) {
+                    Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.queue_shuffle_up_next))
+                }
+            }
             if (count > 0) {
                 TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
             }

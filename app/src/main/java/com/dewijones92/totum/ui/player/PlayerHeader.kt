@@ -106,6 +106,7 @@ internal fun SecondaryControls(
         if (!controlsOverlaid) add("speed" to { m -> SpeedTile(state.speed, onSetSpeed, m) })
         add("boost" to { m -> BoostTile(state.volumeBoost, toggles.onSetVolumeBoost, m) })
         add("autoplay" to { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) })
+        add("repeat" to { m -> RepeatTile(toggles.repeatMode, toggles.onSetRepeatMode, m) })
         if (quality.offersListenOrWatch(state.hasVideo)) {
             add("listen" to { m -> ListenWatchToggle(quality, state.hasVideo, m) })
         }

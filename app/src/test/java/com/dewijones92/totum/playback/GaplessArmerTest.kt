@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -127,6 +128,8 @@ class GaplessArmerTest {
         )
         assertEquals("auto-play next is off", gaplessNotNow(on.copy(autoPlayNext = false), SleepTimerState.Off))
         assertEquals("the sleep timer stops after this item", gaplessNotNow(on, SleepTimerState.AfterCurrentItem))
+        assertEquals("repeat one is on", gaplessNotNow(on.copy(repeatMode = RepeatMode.ONE), SleepTimerState.Off))
+        assertNull(gaplessNotNow(on.copy(repeatMode = RepeatMode.QUEUE), SleepTimerState.Off))
     }
 
     private fun playing(

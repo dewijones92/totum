@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
@@ -30,6 +31,9 @@ class AutoAdvancerTest {
     private var fellBackToRelated = 0
     private var enabled = true
     private var queueHasNext = true
+    private var repeat = RepeatMode.OFF
+    private var replayed = 0
+    private var wrapped = 0
 
     private fun TestScope.advancer() = AutoAdvancer(
         events = events,
@@ -40,7 +44,78 @@ class AutoAdvancerTest {
         whenQueueEmpty = { fellBackToRelated++ },
         isEnabled = { enabled },
         scope = backgroundScope,
+        repeat = { repeat },
+        replay = {
+            replayed++
+            true
+        },
+        fromTheTop = {
+            wrapped++
+            true
+        },
     ).also { it.start() }
+
+    @Test
+    fun `repeat one plays the ended item again instead of advancing`() = runTest {
+        repeat = RepeatMode.ONE
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(1, replayed)
+        assertEquals(0, advanced)
+    }
+
+    @Test
+    fun `repeat one still repeats with auto-play next off`() = runTest {
+        repeat = RepeatMode.ONE
+        enabled = false
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(1, replayed)
+    }
+
+    @Test
+    fun `repeat queue starts again from the top when the queue runs out`() = runTest {
+        repeat = RepeatMode.QUEUE
+        queueHasNext = false
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(1, advanced)
+        assertEquals(1, wrapped)
+        assertEquals("the queue starting again is not a reason to look for a related video", 0, fellBackToRelated)
+    }
+
+    @Test
+    fun `repeat queue does nothing extra while the queue still has a next item`() = runTest {
+        repeat = RepeatMode.QUEUE
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(1, advanced)
+        assertEquals(0, wrapped)
+    }
+
+    @Test
+    fun `repeat off at the end of the queue falls back to a related video as before`() = runTest {
+        queueHasNext = false
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(0, wrapped)
+        assertEquals(1, fellBackToRelated)
+    }
 
     @Test
     fun `a crossover is not advanced past, because the player has already moved on`() = runTest {
