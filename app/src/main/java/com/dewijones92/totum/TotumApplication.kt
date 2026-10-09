@@ -31,6 +31,9 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         container.refreshSubscriptions()
         // Keep the queue listenable offline: fetch each queued item's audio.
         container.startQueueAutoDownload()
+        container.applicationScope.launch {
+            container.pinStore.pins.collect { container.homeScreenShortcuts?.publish(it) }
+        }
         container.startDownloadNotifications()
         startGapless(container, NetworkStatus(this)::isMetered)
         // Periodically check every subscription (both pillars) and notify on new content.

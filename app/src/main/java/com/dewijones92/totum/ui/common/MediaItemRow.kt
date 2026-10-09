@@ -49,7 +49,9 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.domain.withArtworkFrom
+import com.dewijones92.totum.pins.Pin
 
 /**
  * 16:9, and bigger than it was. Square podcast art centre-crops into it cleanly.
@@ -214,7 +216,7 @@ fun MediaItemRow(
             onSetPlayed = onSetPlayed,
             played = playState.isPlayed,
             onDismiss = { showSheet = false },
-            onStartRadio = onStartRadio,
+            extras = SheetExtras(onStartRadio, item.toPlayableOrNull()?.let(Pin::of)),
         )
     }
 }

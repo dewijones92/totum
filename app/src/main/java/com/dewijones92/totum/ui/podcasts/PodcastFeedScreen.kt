@@ -40,6 +40,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
@@ -47,6 +48,7 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.PinToggle
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
@@ -140,7 +142,10 @@ fun PodcastFeedScreen(
                 artworkUrl = page.source.artworkUrl,
                 subscribed = page.subscribed,
                 onBack = onBack,
-                actions = { FilterToggle(listFilter, episodes.size) },
+                actions = {
+                    FilterToggle(listFilter, episodes.size)
+                    PinToggle(Pin.of(page.source))
+                },
                 onToggleSubscribed = {
                     if (page.subscribed) {
                         viewModel.unsubscribe(source.id)

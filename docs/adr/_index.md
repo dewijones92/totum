@@ -43,3 +43,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 25 | [Music plays as sound unless you ask for the picture](0025-music-plays-as-sound.md) | Accepted |
 | 26 | [Albums, artists and your library come from YouTube Music; Play inserts after what is playing](0026-albums-artists-and-the-youtube-music-library.md) | Accepted |
 | 27 | [Radio tops itself up; repeat and shuffle are queue features, for both pillars](0027-radio-repeat-and-shuffle-are-queue-features.md) | Accepted |
+| 28 | [Anything can be pinned; a pin plays at once, from the app or the home screen](0028-pins-and-home-screen-shortcuts.md) | Accepted |

@@ -28,12 +28,14 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
+import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.PinToggle
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.filter
@@ -71,7 +73,13 @@ fun PlaylistScreen(
                     // The shared header rather than a hand-rolled Row: this screen had its own
                     // copy of back-arrow-plus-title, which is the same thing every layer under a
                     // tab needs and now gets from one place.
-                    item { BackHeader(title = state.title, onBack = onBack) }
+                    item {
+                        BackHeader(title = state.title, onBack = onBack) {
+                            PinToggle(
+                                Pin.Playlist(playlist.browseId, playlist.title, playlist.thumbnailUrl?.value, music)
+                            )
+                        }
+                    }
                     when {
                         state.loading -> item { CenteredProgress() }
                         state.error -> item { Message(stringResource(R.string.feed_error)) }

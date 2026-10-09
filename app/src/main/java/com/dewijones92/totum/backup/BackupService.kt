@@ -158,7 +158,7 @@ private fun PlayState.toBackup(id: MediaItemId): BackupProgress? = when (this) {
     PlayState.Played -> BackupProgress(id.value, positionMs = 0, completedAtEpochMs = 1)
 }
 
-private fun PlayableItem.toBackup(): BackupItem {
+internal fun PlayableItem.toBackup(): BackupItem {
     val (playbackType, handle) = this.handle.persisted()
     return BackupItem(
         itemId = item.id.value,
@@ -178,7 +178,7 @@ private fun PlayableItem.toBackup(): BackupItem {
 }
 
 /** Null when the stored handle cannot be rebuilt — a restored row that plays nothing is worse than none. */
-private fun BackupItem.toPlayable(): PlayableItem? {
+internal fun BackupItem.toPlayable(): PlayableItem? {
     val playback = playHandleFrom(playbackType, handle) ?: return null
     return PlayableItem(
         MediaItem(

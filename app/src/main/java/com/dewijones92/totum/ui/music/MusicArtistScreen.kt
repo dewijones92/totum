@@ -36,6 +36,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtist
+import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LocalItemActions
@@ -59,7 +60,12 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
             is MusicArtistViewModel.State.Loaded -> {
                 val artist = current.artist
                 item { ArtistHeader(artist) }
-                item { MusicButtons(artistButtons(artist, viewModel, context)) }
+                item {
+                    MusicButtons(
+                        artistButtons(artist, viewModel, context) +
+                            pinButtons(artist.asPin()),
+                    )
+                }
                 item { AboutText(artist.description) }
                 if (current.topSongs.isNotEmpty()) {
                     item {
@@ -159,3 +165,5 @@ private fun ArtistHeader(artist: MusicArtist) {
 }
 
 private val ART_SIZE = 112.dp
+
+private fun MusicArtist.asPin(): Pin = Pin.Artist(browseId, name, thumbnailUrl?.value, radio?.playlistId)

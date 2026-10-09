@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Intelligent search ("the best soothing flamenco album")](ai-search.md) | search | — | to discuss with Dewi |
 | [Search's video hits use the watch URL as their id; everything else uses the video id](search-video-hit-ids.md) | search | medium | open — found 2026-10-09; music items moved to the video id, videos left for a decision |
 | [A premium ("triple-A") look and better recommendations](premium-ui-and-recommendations.md) | ui | — | to discuss with Dewi: what "triple A" means, which screens, what recommendations draw on |
 | [Cut more sponsor segments with SponsorBlock](more-sponsorblock-cuts.md) | playback/downloads | medium | built 2026-10-07 (ADR 16): downloads keep segments, files on disk skip live from the stored list; old cut files left alone |

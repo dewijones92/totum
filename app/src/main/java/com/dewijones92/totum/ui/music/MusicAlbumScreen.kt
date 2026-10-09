@@ -36,6 +36,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.OfflineCount
 import com.dewijones92.totum.innertube.music.MusicAlbum
+import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LocalItemActions
@@ -62,7 +63,11 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
             is MusicAlbumViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
             is MusicAlbumViewModel.State.Loaded -> {
                 item { AlbumHeader(current.album) }
-                item { MusicButtons(albumButtons(current.album, viewModel, context, offline)) }
+                item {
+                    MusicButtons(
+                        albumButtons(current.album, viewModel, context, offline) + pinButtons(current.album.asPin())
+                    )
+                }
                 item { OfflineLine(offline) }
                 item { AboutText(current.album.description) }
                 itemsIndexed(current.tracks, key = { _, item -> item.id.value }) { index, item ->
@@ -166,6 +171,8 @@ private fun OfflineLine(offline: OfflineCount) {
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
 }
+
+private fun MusicAlbum.asPin(): Pin = Pin.Album(browseId, title, thumbnailUrl?.value)
 
 internal fun toast(context: Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()

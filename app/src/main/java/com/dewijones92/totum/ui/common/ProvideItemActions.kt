@@ -46,6 +46,7 @@ internal fun ProvideItemActions(
         LocalReadyAhead provides { item -> container.readyAhead.ready(item.toPlayableOrNull(), "menu opened") },
         LocalOpenSource provides openSource,
         LocalStartRadio provides { item -> startRadio(container, item) },
+        LocalPins provides rememberPinActions(container),
         content = content,
     )
 }

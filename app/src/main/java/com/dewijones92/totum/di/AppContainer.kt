@@ -135,6 +135,11 @@ import com.dewijones92.totum.notifications.DataSaverNotifier
 import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
 import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource
+import com.dewijones92.totum.pins.HomeScreenShortcuts
+import com.dewijones92.totum.pins.PinPlayer
+import com.dewijones92.totum.pins.PinStore
+import com.dewijones92.totum.pins.SharedPrefsPinStore
+import com.dewijones92.totum.pins.withPins
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.Media3PlaybackController
@@ -360,6 +365,12 @@ interface AppContainer {
     val musicLibrary: YouTubeMusicLibrary
 
     val musicRadio: MusicRadio
+
+    val pinStore: PinStore
+
+    val pinPlayer: PinPlayer
+
+    val homeScreenShortcuts: HomeScreenShortcuts?
 
     val musicAlbumSearchSource: SearchSource
 
@@ -642,7 +653,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             playlists = localPlaylistStore,
             queueStore = queueStore,
             progress = playbackProgressStore,
-            settings = appPreferences.asBackupSettings(),
+            settings = appPreferences.asBackupSettings().withPins(pinStore),
             appVersion = BuildConfig.VERSION_NAME,
         )
     }
@@ -1336,6 +1347,21 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val musicLibrary: YouTubeMusicLibrary by lazy { HttpYouTubeMusicLibrary(youTubeAccount, innerTubeClient) }
 
     override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
+
+    override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
+
+    override val pinPlayer: PinPlayer by lazy {
+        PinPlayer(
+            playbackQueue,
+            musicCatalogue,
+            youTubePlaylists,
+            musicRadio,
+            podcastRepository,
+            playState = playbackProgressStore::playState,
+        )
+    }
+
+    override val homeScreenShortcuts: HomeScreenShortcuts by lazy { HomeScreenShortcuts(context) }
 
     override val musicAlbumSearchSource: SearchSource by lazy { InnerTubeMusicAlbumSearchSource(musicCatalogue) }
 

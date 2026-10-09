@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.AddToHomeScreen
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -25,6 +29,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.ui.common.LocalPins
 
 @Composable
 internal fun MusicLoading() {
@@ -93,4 +99,19 @@ internal fun AboutText(text: String?) {
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
+}
+
+@Composable
+internal fun pinButtons(pin: Pin): List<MusicButton> {
+    val pins = LocalPins.current ?: return emptyList()
+    val pinned = pins.isPinned(pin.key)
+    return listOf(
+        MusicButton(
+            if (pinned) R.string.pin_unpin else R.string.pin_pin,
+            if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin
+        ) {
+            pins.toggle(pin)
+        },
+        MusicButton(R.string.pin_home, Icons.Outlined.AddToHomeScreen) { pins.addToHomeScreen(pin) },
+    )
 }

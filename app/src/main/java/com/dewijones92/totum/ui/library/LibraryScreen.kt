@@ -70,6 +70,7 @@ import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
+import com.dewijones92.totum.ui.common.pinnedSection
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
@@ -205,6 +206,7 @@ internal fun LibraryContent(
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item { ScreenHeader(stringResource(R.string.destination_library)) }
+                pinnedSection()
                 item {
                     LibraryTiles(
                         onOpenPlaylists = onOpenPlaylists,

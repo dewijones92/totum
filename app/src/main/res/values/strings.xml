@@ -377,6 +377,15 @@
     <string name="repeat_queue">Queue</string>
     <string name="repeat_one">This one</string>
     <string name="queue_shuffle_up_next">Shuffle up next</string>
+    <string name="pin_pin">Pin</string>
+    <string name="pin_unpin">Unpin</string>
+    <string name="pin_home">Add to home screen</string>
+    <string name="pin_added">📌 Pinned \"%1$s\"</string>
+    <string name="pin_removed">Unpinned \"%1$s\"</string>
+    <string name="pin_home_unsupported">This home screen does not take shortcuts; \"%1$s\" is pinned in the app</string>
+    <string name="pin_could_not_play">Could not play \"%1$s\" right now</string>
+    <string name="pinned_title">📌 Pinned</string>
+    <string name="pin_gone">That shortcut is no longer pinned in Totum</string>
     <string name="music_play">Play</string>
     <string name="music_shuffle">Shuffle</string>
     <string name="music_add_to_end">Add to end</string>

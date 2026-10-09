@@ -71,6 +71,7 @@ alone until they need more.
 | Command line: `totum "jazz live stream"` on Linux/macOS, same libraries as the app | cli | shipped | [command-line.md](command-line.md) |
 | YouTube Music: a Music tab (songs, albums, artists), album and artist pages, endless radio, your YouTube Music library, shared album links; music plays as sound | music | shipped | [youtube-music.md](youtube-music.md) |
 | Search is a 🔍 in every tab header, opening over the tab | search | shipped | [ADR 24](../adr/0024-music-tab-and-search-in-every-header.md) |
+| Shortcuts: pin anything (both pillars), a Pinned row on Music and Library, home-screen icons; a pin plays at once | library | shipped | [shortcuts.md](shortcuts.md) |
 | Repeat (off / queue / this one) and shuffle up next, for both pillars | queue | shipped | [ADR 27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md) |
 | Picture-in-Picture (video keeps playing when you leave) | playback | shipped | [../todos/feature-gap-review.md](../todos/feature-gap-review.md) |
 | Offline library across both pillars (downloads carry their item) | downloads | shipped | [../todos/library-downloads-podcast-only.md](../todos/library-downloads-podcast-only.md) |

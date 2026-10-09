@@ -73,6 +73,10 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
 import com.dewijones92.totum.music.MusicRadio
+import com.dewijones92.totum.pins.HomeScreenShortcuts
+import com.dewijones92.totum.pins.InMemoryPinStore
+import com.dewijones92.totum.pins.PinPlayer
+import com.dewijones92.totum.pins.PinStore
 import com.dewijones92.totum.playback.NoOpPlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
@@ -169,6 +173,21 @@ class FakeAppContainer(
     ),
 ) : AppContainer {
     override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
+
+    override val pinStore: PinStore = InMemoryPinStore()
+
+    override val pinPlayer: PinPlayer by lazy {
+        PinPlayer(
+            playbackQueue,
+            musicCatalogue,
+            youTubePlaylists,
+            musicRadio,
+            podcastRepository,
+            playState = { PlayState.Unplayed },
+        )
+    }
+
+    override val homeScreenShortcuts: HomeScreenShortcuts? = null
 
     /**
      * Watching, so a preview shows the controls a video row has rather than a headphones glyph.

@@ -27,6 +27,7 @@ instead).
 | Area | Kind | Notes |
 |---|---|---|
 | YouTube Music: catalogue and library parsing, requests, radio, sound-only routing, one id per song, the Music search scope | JVM + live | `:lib:innertube` `MusicPageParserTest`, `HttpYouTubeMusicTest`, `LiveMusicCatalogueTest` (`RUN_LIVE_MUSIC=1`); `:app` `MusicRadioTest`, `MusicPlaysAsSoundTest`, `OneSongOneIdTest`, `SearchViewModelTest`; see [youtube-music.md](../features/youtube-music.md) |
+| Pins: codec, store, playing each kind, backup | JVM | `:app` `PinsTest`, `PinBackupTest` |
 | Repeat one / queue, shuffle up next, album offline counts | JVM | `:app` `AutoAdvancerTest`, `GaplessArmerTest`, `ShuffleUpNextTest`; `:core:domain` `OfflineCountTest` |
 | Colour-video pixels on the local API-35 emulator | manual investigation | [Standalone SDK and shell probe](../../dev/diagnostics/2026-10-05-video-pixels/README.md); unresolved black output, outside the normal test source set |
 | A seek made before the first account resume overrides the cached account figure, while newer remote progress still works | JVM + instrumented | `:app` `ASeekOverridesTheCachedAccountTest`, `AccountResumeSurvivesTheProcessTest` |

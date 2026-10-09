@@ -3,6 +3,7 @@ package com.dewijones92.totum
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
@@ -14,6 +15,8 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.pins.HomeScreenShortcuts
+import com.dewijones92.totum.pins.PinPlayed
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.AppShell
 import com.dewijones92.totum.ui.common.LocalNow
@@ -129,8 +132,33 @@ class MainActivity : FragmentActivity() {
         return true
     }
 
+    private fun handlePinIntent(intent: Intent, via: String, restored: Boolean): Boolean {
+        val key = HomeScreenShortcuts.keyFrom(intent.data) ?: return false
+        val arrival = intent.arrival(restored)
+        if (arrival != ShareArrival.FRESH) {
+            Diag.log("pin", "ignored a replayed shortcut $key [${arrival.why}; via=$via]")
+            return true
+        }
+        val pin = container.pinStore.find(key)
+        if (pin == null) {
+            Diag.warn("pin", "home-screen shortcut $key is no longer pinned; nothing played [via=$via]")
+            Toast.makeText(this, getString(R.string.pin_gone), Toast.LENGTH_LONG).show()
+            return true
+        }
+        container.applicationScope.launch {
+            val played = container.pinPlayer.play(pin, from = "home-screen shortcut via $via")
+            if (played is PinPlayed.Started && played.showsPicture) {
+                openPlayerRequest.intValue++
+                Diag.log("pin", "$key is a video; opening the player (request ${openPlayerRequest.intValue})")
+            }
+        }
+        setIntent(Intent())
+        return true
+    }
+
     private fun handleShareIntent(intent: Intent, via: String, restored: Boolean) {
         if (handleAuthIntent(intent)) return
+        if (handlePinIntent(intent, via, restored)) return
         val album = sharedAlbumPlaylistId(intent.sharedText())
         val url = intent.sharedWatchUrl()
         if (url == null && album == null) return
@@ -181,7 +209,8 @@ class MainActivity : FragmentActivity() {
     )
 
     private fun Intent.isFreshShare(restored: Boolean): Boolean =
-        arrival(restored) == ShareArrival.FRESH && sharedWatchUrl() != null
+        arrival(restored) == ShareArrival.FRESH &&
+            (sharedWatchUrl() != null || HomeScreenShortcuts.keyFrom(data) != null)
 
     companion object {
         private val SHARED_SOURCE = SourceId("shared")

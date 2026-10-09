@@ -31,6 +31,7 @@ import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.pinnedSection
 import com.dewijones92.totum.ui.search.SearchScope
 import com.dewijones92.totum.ui.search.SearchScreen
 import kotlinx.coroutines.launch
@@ -54,6 +55,7 @@ private fun MusicHome(container: AppContainer) {
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
     val library = state.library
     LazyColumn(Modifier.fillMaxSize()) {
+        pinnedSection()
         playedHere(state.playedHere, expanded) { item ->
             val playable = item.toPlayableOrNull() ?: return@playedHere
             container.applicationScope.launch { container.playbackQueue.playNow(playable) }
