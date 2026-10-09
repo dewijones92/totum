@@ -80,11 +80,11 @@ internal class GaplessArmer(
     }
 }
 
-internal fun gaplessNotNow(settings: AppPreferences.Settings, sleep: SleepTimerState): String? = when {
+internal fun gaplessNotNow(settings: AppPreferences.Settings, sleepsAfterPlaying: Boolean): String? = when {
     !settings.gaplessQueue -> "gapless queue is off in Settings"
     !settings.autoPlayNext -> "auto-play next is off"
     settings.repeatMode == RepeatMode.ONE -> "repeat one is on"
-    sleep is SleepTimerState.AfterCurrentItem -> "the sleep timer stops after this item"
+    sleepsAfterPlaying -> "the sleep timer stops after this item"
     else -> null
 }
 
@@ -94,7 +94,11 @@ internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
     val line = object : GaplessLine {
         override fun nextUp() = queue.peekNext()
         override fun armedNext() = controller.armedNext
-        override fun notNow() = gaplessNotNow(container.appPreferences.settings.value, container.sleepTimer.state.value)
+        override fun notNow() = gaplessNotNow(
+            container.appPreferences.settings.value,
+            sleepsAfterPlaying = container.sleepTimer.stopsAfterItem
+                .let { it != null && it == controller.state.value?.itemId },
+        )
         override fun metered() = metered()
         override suspend fun arm(allowStream: Boolean) = queue.armNext(allowStream)
         override fun disarm(reason: String) = controller.disarmNext(reason)

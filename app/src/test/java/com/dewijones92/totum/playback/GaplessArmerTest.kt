@@ -121,15 +121,15 @@ class GaplessArmerTest {
     @Test
     fun `the reasons not to arm say which setting is in the way`() {
         val on = AppPreferences.Settings()
-        assertNull(gaplessNotNow(on, SleepTimerState.Off))
+        assertNull(gaplessNotNow(on, false))
         assertEquals(
             "gapless queue is off in Settings",
-            gaplessNotNow(on.copy(gaplessQueue = false), SleepTimerState.Off)
+            gaplessNotNow(on.copy(gaplessQueue = false), false)
         )
-        assertEquals("auto-play next is off", gaplessNotNow(on.copy(autoPlayNext = false), SleepTimerState.Off))
-        assertEquals("the sleep timer stops after this item", gaplessNotNow(on, SleepTimerState.AfterCurrentItem))
-        assertEquals("repeat one is on", gaplessNotNow(on.copy(repeatMode = RepeatMode.ONE), SleepTimerState.Off))
-        assertNull(gaplessNotNow(on.copy(repeatMode = RepeatMode.QUEUE), SleepTimerState.Off))
+        assertEquals("auto-play next is off", gaplessNotNow(on.copy(autoPlayNext = false), false))
+        assertEquals("the sleep timer stops after this item", gaplessNotNow(on, true))
+        assertEquals("repeat one is on", gaplessNotNow(on.copy(repeatMode = RepeatMode.ONE), false))
+        assertNull(gaplessNotNow(on.copy(repeatMode = RepeatMode.QUEUE), false))
     }
 
     private fun playing(

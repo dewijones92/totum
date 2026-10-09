@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -44,6 +45,7 @@ internal class AutoAdvancer(
     private val repeat: () -> RepeatMode = { RepeatMode.OFF },
     private val replay: suspend () -> Boolean = { false },
     private val fromTheTop: suspend () -> Boolean = { false },
+    private val sleepsAfter: (MediaItemId) -> Boolean = { false },
 ) {
     fun start() {
         // Said out loud so "nothing ended" and "the advancer was not running" stop looking
@@ -54,7 +56,11 @@ internal class AutoAdvancer(
         scope.launch {
             events.collect { event ->
                 when (event) {
-                    is PlaybackEvent.Ended -> advancePast(event)
+                    is PlaybackEvent.Ended -> if (sleepsAfter(event.itemId)) {
+                        Diag.log("advance", "not advancing past ${event.itemId.value}: the sleep timer stops after it")
+                    } else {
+                        advancePast(event)
+                    }
                     is PlaybackEvent.CrossedOver -> Diag.log(
                         "advance",
                         "${event.fromItemId.value} did not end here: the player crossed to ${event.itemId.value}",

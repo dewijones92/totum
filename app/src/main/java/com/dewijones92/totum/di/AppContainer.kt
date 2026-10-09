@@ -836,19 +836,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         playbackQueue.playNow(next)
     }
 
-    override fun installCrashReporting() {
-        installAndroidLogSink()
-        crashReporter.install()
-        // Turns the event trail into a timeline: transitions alone never show a download
-        // stuck at 40%, which is exactly when it is the problem.
-        ActivitySnapshotter(playbackController, downloadManager, playbackQueue, applicationScope).start()
-        // A signed streaming URL expires in hours, so anything paused overnight comes back
-        // to nothing but 403s. Re-resolve and carry on rather than retrying a dead address.
-        // Auto-advance is app-scoped for the same reason the recovery is: it must keep
-        // working with the screen off. It used to be a composable effect fed by
-        // collectAsStateWithLifecycle, which stops collecting when the activity stops — so a
-        // phone in a pocket never advanced (proven: a 7-minute gap between an item ending
-        // and the decision being reached).
+    // Auto-advance is app-scoped for the same reason the recovery is: it must keep
+    // working with the screen off. It used to be a composable effect fed by
+    // collectAsStateWithLifecycle, which stops collecting when the activity stops — so a
+    // phone in a pocket never advanced (proven: a 7-minute gap between an item ending
+    // and the decision being reached).
+    private fun startAutoAdvance() {
         AutoAdvancer(
             events = playbackController.events,
             advance = { playbackQueue.playNextInQueue() },
@@ -858,7 +851,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             repeat = { appPreferences.settings.value.repeatMode },
             replay = { playbackQueue.replayCurrent(positionMs = 0) },
             fromTheTop = { playbackQueue.playFromTheTop() },
+            sleepsAfter = sleepTimer::firesAfter,
         ).start()
+    }
+
+    override fun installCrashReporting() {
+        installAndroidLogSink()
+        crashReporter.install()
+        // Turns the event trail into a timeline: transitions alone never show a download
+        // stuck at 40%, which is exactly when it is the problem.
+        ActivitySnapshotter(playbackController, downloadManager, playbackQueue, applicationScope).start()
+        // A signed streaming URL expires in hours, so anything paused overnight comes back
+        // to nothing but 403s. Re-resolve and carry on rather than retrying a dead address.
+        startAutoAdvance()
         // The advancer only ever hears about a clean end. An item that stops dead at its own
         // end without reporting one leaves the queue silently stopped — see StallWatchdog.
         // Protects mobile data when the phone walks off Wi-Fi mid-video: 15.2 MB/min against 2.1

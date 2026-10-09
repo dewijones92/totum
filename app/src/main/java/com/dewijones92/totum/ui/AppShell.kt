@@ -53,6 +53,7 @@ import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
 import com.dewijones92.totum.ui.player.PictureInPictureEffect
 import com.dewijones92.totum.ui.player.VideoBounds
 import com.dewijones92.totum.ui.player.WatchViewModel
+import com.dewijones92.totum.ui.player.endOfGroupSleep
 import com.dewijones92.totum.ui.player.playerLinksFor
 import com.dewijones92.totum.ui.player.rememberIsInPictureInPicture
 import com.dewijones92.totum.ui.player.rememberWatchActions
@@ -233,7 +234,13 @@ private fun FullPlayerHost(
     val currentIndex = queueState.currentIndex
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
 
-    CompositionLocalProvider(LocalPlayerLinks provides playerLinksFor(playing?.item, container.musicCatalogue)) {
+    CompositionLocalProvider(
+        LocalPlayerLinks provides playerLinksFor(
+            playing?.item,
+            container.musicCatalogue,
+            endOfGroupSleep(queueState.entries, currentIndex, container.sleepTimer),
+        )
+    ) {
         FullPlayerOverlay(
             state = state,
             player = controller.player,

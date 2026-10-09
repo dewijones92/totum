@@ -272,6 +272,11 @@
     <string name="skip_filler">Filler / tangents</string>
     <string name="sleep_after_item">End of this item</string>
     <string name="sleep_after_item_short">End of item</string>
+    <string name="sleep_end_of_group">End of %1$s</string>
+    <plurals name="sleep_songs_left">
+        <item quantity="one">Last song</item>
+        <item quantity="other">%d songs left</item>
+    </plurals>
     <string name="diagnostics_title">Diagnostics</string>
     <string name="diagnostics_refresh">Refresh</string>
     <string name="diagnostics_vitals">This session</string>

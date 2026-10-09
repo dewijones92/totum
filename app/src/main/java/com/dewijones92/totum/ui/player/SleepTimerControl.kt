@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.SleepTimerState
@@ -40,7 +41,9 @@ internal fun SleepTimerControl(
         is SleepTimerState.Running -> formatTime(state.remaining.inWholeMilliseconds)
         // No countdown to show — it ends when the item does.
         SleepTimerState.AfterCurrentItem -> stringResource(R.string.sleep_after_item_short)
+        is SleepTimerState.AtEndOf -> pluralStringResource(R.plurals.sleep_songs_left, state.songsLeft, state.songsLeft)
     }
+    val endOfGroup = LocalPlayerLinks.current.endOfGroup
     Box(modifier) {
         ControlTile(
             icon = Icons.Outlined.Bedtime,
@@ -64,6 +67,15 @@ internal fun SleepTimerControl(
                     menuOpen = false
                 },
             )
+            endOfGroup?.let { group ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sleep_end_of_group, group.title)) },
+                    onClick = {
+                        group.start()
+                        menuOpen = false
+                    },
+                )
+            }
             SLEEP_OPTIONS.forEach { minutes ->
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.duration_minutes, minutes)) },

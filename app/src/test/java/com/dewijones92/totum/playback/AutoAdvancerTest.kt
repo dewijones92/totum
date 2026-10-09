@@ -34,6 +34,7 @@ class AutoAdvancerTest {
     private var repeat = RepeatMode.OFF
     private var replayed = 0
     private var wrapped = 0
+    private var sleepAfter: String? = null
 
     private fun TestScope.advancer() = AutoAdvancer(
         events = events,
@@ -53,7 +54,22 @@ class AutoAdvancerTest {
             wrapped++
             true
         },
+        sleepsAfter = { it.value == sleepAfter },
     ).also { it.start() }
+
+    @Test
+    fun `a sleep timer stopping after the item holds the queue there, even over repeat one`() = runTest {
+        sleepAfter = "a"
+        repeat = RepeatMode.ONE
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(0, advanced)
+        assertEquals(0, replayed)
+        assertEquals(0, fellBackToRelated)
+    }
 
     @Test
     fun `repeat one plays the ended item again instead of advancing`() = runTest {
