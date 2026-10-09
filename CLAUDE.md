@@ -183,6 +183,13 @@ hand-over (crossed over or not, silence, stalls, adopted) with gapless off and t
 3.7 / 4.4 s, on 0 / 0 / 0 s. It caught a race no device test reproduced (an item under 45 s never put its
 successor in line, because the queue's adoption cancelled the arming); local files win that race, streams lose it.
 
+Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the
+queue soak after it with `;`, not `&&` (an `&&` silently skipped the baseline's queue soak); and the queue
+soak drives the app through a broadcast, which a **force-stopped app never receives** (every hand-over
+reads "never started"), so launch the app first. `compare` reads only `run` reports; compare queue
+reports by hand, and re-run a queue soak before believing one lost adoption: a run with another
+foreground service left over from instrumented tests adopted 2/3, the clean rerun 3/3.
+
 **Switch Exsurge (and Daily alarms) off on the emulator before a soak, for both builds.** On 2026-10-07
 the third of three soaks ran with Exsurge off and the first two with it on; the third looked far better
 (30/30 started, 18 stalls vs 45-50) and none of that could be credited to the change. A summons can also
