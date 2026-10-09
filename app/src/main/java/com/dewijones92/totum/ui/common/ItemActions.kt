@@ -43,6 +43,8 @@ internal interface ItemActions {
 /** Null only in previews and tests, where a row legitimately has nothing behind it. */
 internal val LocalItemActions = staticCompositionLocalOf<ItemActions?> { null }
 
+internal val LocalStartRadio = staticCompositionLocalOf<((MediaItem) -> Unit)?> { null }
+
 internal val LocalReadyAhead = staticCompositionLocalOf<(MediaItem) -> Unit> { {} }
 
 internal val LocalOpenSource = staticCompositionLocalOf<((MediaSource) -> Unit)?> { null }

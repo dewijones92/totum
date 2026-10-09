@@ -4,6 +4,8 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.innertube.music.MusicAlbumRef
+import com.dewijones92.totum.innertube.music.MusicArtistRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -89,6 +91,18 @@ public sealed interface SearchHit {
         /** "276M plays" as YouTube Music renders it; null when absent. */
         val playsText: String? = null,
     ) : SearchHit
+
+    public data class Album(public val ref: MusicAlbumRef) : SearchHit {
+        override val title: String get() = ref.title
+        override val subtitle: String? get() = listOfNotNull(ref.artist, ref.year).joinToString(" • ").ifBlank { null }
+        override val artworkUrl: HttpUrl? get() = ref.thumbnailUrl
+    }
+
+    public data class Artist(public val ref: MusicArtistRef) : SearchHit {
+        override val title: String get() = ref.name
+        override val subtitle: String? get() = ref.subtitle
+        override val artworkUrl: HttpUrl? get() = ref.thumbnailUrl
+    }
 
     /** A subscribable podcast feed. */
     public data class Podcast(

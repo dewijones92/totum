@@ -5,6 +5,7 @@
     <string name="destination_podcasts">Podcasts</string>
     <string name="destination_queue">Queue</string>
     <string name="destination_search">Search</string>
+    <string name="destination_music">Music</string>
     <string name="destination_library">Library</string>
     <string name="destination_account">Account</string>
 
@@ -362,6 +363,48 @@
     <string name="subtitles">Subtitles</string>
     <string name="audio_track">Audio track</string>
     <string name="section_songs">Songs</string>
+    <string name="section_albums">Albums</string>
+    <string name="section_artists">Artists</string>
+    <string name="section_singles">Singles and EPs</string>
+    <string name="section_top_songs">Top songs</string>
+    <string name="section_similar_artists">Fans also like</string>
+    <string name="music_kind_album">Album</string>
+    <string name="music_kind_single">Single</string>
+    <string name="music_kind_ep">EP</string>
+    <string name="music_kind_artist">Artist</string>
+    <string name="music_play">Play</string>
+    <string name="music_shuffle">Shuffle</string>
+    <string name="music_add_to_end">Add to end</string>
+    <string name="music_download_album">Download</string>
+    <string name="music_radio">Radio</string>
+    <string name="music_start_radio">Start radio</string>
+    <string name="music_mix">Mix</string>
+    <string name="music_all_songs">All songs</string>
+    <string name="music_could_not_load">Could not load this. Check the connection and try again.</string>
+    <string name="music_retry">Try again</string>
+    <string name="music_about">About</string>
+    <string name="music_show_fewer">Show fewer</string>
+    <plurals name="music_show_all">
+        <item quantity="one">Show all</item>
+        <item quantity="other">Show all %1$d</item>
+    </plurals>
+    <string name="music_about_hide">Hide</string>
+    <string name="music_search_hint">Songs, albums, artists</string>
+    <string name="music_library_recent">Recently played on YouTube Music</string>
+    <string name="music_library_albums">Your albums</string>
+    <string name="music_library_playlists">Your playlists</string>
+    <string name="music_library_artists">Your artists</string>
+    <string name="music_played_here">Played here</string>
+    <string name="music_sign_in_for_library">Sign in on the Library tab to see your YouTube Music library here.</string>
+    <string name="music_home_empty">Search for a song, an album or an artist.</string>
+    <string name="music_radio_started">Radio started from \"%1$s\"</string>
+    <string name="music_album_queued">\"%1$s\" goes next</string>
+    <string name="music_album_added">\"%1$s\" added to the end of the queue</string>
+    <plurals name="music_album_downloading">
+        <item quantity="one">Downloading 1 song as audio</item>
+        <item quantity="other">Downloading %1$d songs as audio</item>
+    </plurals>
+    <string name="music_artist_not_found">Could not find %1$s on YouTube Music; playing their mix instead</string>
     <string name="subtitles_off">Off</string>
     <string name="status_offline_audio">Audio saved offline</string>
     <string name="status_offline_video">Video saved offline</string>

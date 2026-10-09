@@ -34,4 +34,27 @@ internal object MusicLibraryParser {
         collectEach("lineItemRenderer") { item -> if (text == null) text = item.obj("text").text() }
         return text
     }
+
+    fun libraryArtists(body: String): List<LibraryArtist> {
+        val root = parseMusicRoot(body) ?: return emptyList()
+        val out = LinkedHashMap<String, LibraryArtist>()
+        root.collectEach("tileRenderer") { tile ->
+            if (tile.str("contentType") != CHANNEL_TILE) return@collectEach
+            val name = tile.obj("metadata")?.obj("tileMetadataRenderer")?.obj("title").text() ?: return@collectEach
+            val radio = tile.obj("onSelectCommand")?.obj("watchPlaylistEndpoint")?.str("playlistId")
+                ?: tile.str("contentId")?.takeIf { it.startsWith(RADIO_PREFIX) }
+            out.putIfAbsent(
+                name,
+                LibraryArtist(
+                    name = name,
+                    thumbnailUrl = tile.obj("header")?.bestThumbnailUrl(),
+                    radio = radio?.let { RadioSeed(null, it) },
+                ),
+            )
+        }
+        return out.values.toList()
+    }
+
+    private const val CHANNEL_TILE = "TILE_CONTENT_TYPE_CHANNEL"
+    private const val RADIO_PREFIX = "RD"
 }

@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
@@ -48,12 +49,9 @@ fun PlaylistScreen(
     playlist: Playlist,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    music: Boolean = false,
 ) {
-    val viewModel: PlaylistViewModel =
-        viewModel(
-            key = playlist.browseId,
-            factory = PlaylistViewModel.factory(container, playlist.browseId, playlist.title)
-        )
+    val viewModel = playlistViewModel(container, playlist, music)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val listFilter = rememberListFilter("account-playlist ${playlist.title}", key = playlist.browseId)
@@ -119,3 +117,15 @@ private fun CenteredProgress() {
 private fun Message(text: String) {
     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { Text(text) }
 }
+
+@Composable
+private fun playlistViewModel(container: AppContainer, playlist: Playlist, music: Boolean): PlaylistViewModel =
+    viewModel(
+        key = if (music) "music:${playlist.browseId}" else playlist.browseId,
+        factory = PlaylistViewModel.factory(
+            container,
+            playlist.browseId,
+            playlist.title,
+            contentKind = MediaContentKind.MUSIC.takeIf { music },
+        ),
+    )

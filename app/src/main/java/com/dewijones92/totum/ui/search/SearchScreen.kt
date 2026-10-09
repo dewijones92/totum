@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +59,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
@@ -79,8 +81,18 @@ import com.dewijones92.totum.ui.search.SearchViewModel.Results
 import com.dewijones92.totum.ui.search.SearchViewModel.UiState
 
 @Composable
-fun SearchScreen(container: AppContainer, modifier: Modifier = Modifier) {
-    val viewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
+fun SearchScreen(
+    container: AppContainer,
+    modifier: Modifier = Modifier,
+    scope: SearchScope = SearchScope.EVERYTHING,
+    onBack: (() -> Unit)? = null,
+    title: String = stringResource(R.string.destination_search),
+    idle: (@Composable () -> Unit)? = null,
+) {
+    val viewModel: SearchViewModel = viewModel(
+        key = "search-${scope.name}",
+        factory = SearchViewModel.factory(container, scope),
+    )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val actions = rememberMediaItemActions(container)
     // "Go to channel" needs somewhere to land, so Search hosts the channel page as an
@@ -125,8 +137,23 @@ fun SearchScreen(container: AppContainer, modifier: Modifier = Modifier) {
             }
         },
         modifier = modifier,
+        header = SearchHeader(
+            title,
+            onBack,
+            viewModel.lastQuery,
+            hint = stringResource(if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint),
+        ),
+        idle = idle,
     )
 }
+
+@Immutable
+internal data class SearchHeader(
+    val title: String,
+    val onBack: (() -> Unit)?,
+    val initialQuery: String = "",
+    val hint: String? = null,
+)
 
 @Composable
 internal fun SearchContent(
@@ -143,16 +170,22 @@ internal fun SearchContent(
     onGoToChannel: (MediaItem) -> Unit,
     onLoadMoreVideos: () -> Unit,
     modifier: Modifier = Modifier,
+    header: SearchHeader = SearchHeader(stringResource(R.string.destination_search), null),
+    idle: (@Composable () -> Unit)? = null,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var submitted by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf(header.initialQuery) }
+    var submitted by rememberSaveable { mutableStateOf(header.initialQuery.trim()) }
     val submit: (String) -> Unit = {
         submitted = it.trim()
         onSearch(it)
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        ScreenHeader(stringResource(R.string.destination_search))
+        if (header.onBack != null) {
+            BackHeader(header.title, header.onBack)
+        } else {
+            ScreenHeader(header.title)
+        }
         SearchField(
             query = query,
             onQueryChange = {
@@ -160,6 +193,7 @@ internal fun SearchContent(
                 onQueryChange(it)
             },
             onSubmit = { submit(query) },
+            hint = header.hint,
         )
 
         val runSearch: (String) -> Unit = { picked ->
@@ -167,7 +201,7 @@ internal fun SearchContent(
             submit(picked)
         }
         when (val results = state.results) {
-            Results.Idle -> SearchIdle(state.history, runSearch, onRemoveHistory, onClearHistory)
+            Results.Idle -> idle?.invoke() ?: SearchIdle(state.history, runSearch, onRemoveHistory, onClearHistory)
             Results.Searching -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             is Results.Loaded -> ResultsList(
                 results,
@@ -186,11 +220,11 @@ internal fun SearchContent(
 }
 
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit, onSubmit: () -> Unit) {
+private fun SearchField(query: String, onQueryChange: (String) -> Unit, onSubmit: () -> Unit, hint: String? = null) {
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text(stringResource(R.string.search_hint)) },
+        placeholder = { Text(hint ?: stringResource(R.string.search_hint)) },
         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
         shape = CircleShape,
         colors = pillFieldColors(),
@@ -345,6 +379,7 @@ private fun ResultsList(
                     actions = actions,
                 )
             }
+            musicCollectionSections(results)
             hitSection(
                 { labelled(FactEmoji.CHANNEL, R.string.destination_videos) },
                 results.videos.map { page -> page.items },

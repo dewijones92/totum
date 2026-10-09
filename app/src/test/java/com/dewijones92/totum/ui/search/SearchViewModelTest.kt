@@ -15,6 +15,9 @@ import com.dewijones92.totum.data.search.fake.InMemorySearchHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.MusicAlbumRef
+import com.dewijones92.totum.innertube.music.MusicArtistRef
+import com.dewijones92.totum.innertube.music.MusicReleaseKind
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
@@ -60,8 +63,18 @@ class SearchViewModelTest {
         podcastSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(listOf(podcastHit))) },
         videoSearch: SearchSource = YtDlpVideoSearchSource(engine),
         musicSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
+        albumSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
+        artistSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
+        scope: SearchScope = SearchScope.EVERYTHING,
     ) = SearchViewModel(
-        sources = SearchSources(podcasts = podcastSearch, videos = videoSearch, music = musicSearch),
+        sources = SearchSources(
+            podcasts = podcastSearch,
+            videos = videoSearch,
+            music = musicSearch,
+            albums = albumSearch,
+            artists = artistSearch,
+        ),
+        scope = scope,
         // No home server in these tests: the section is simply absent, which is the common case.
         torrents = null,
         podcastRepository = repository,
@@ -93,6 +106,53 @@ class SearchViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `the music scope asks only the music catalogues`() = runTest(dispatcher) {
+        val album = MusicAlbumRef("MPREb_x", "Abbey Road", "The Beatles", "1969", MusicReleaseKind.ALBUM, null)
+        val artist = MusicArtistRef("UCx", "The Beatles", null, null)
+        val viewModel = viewModel(
+            podcastSearch = SearchSource { _, _, _ -> error("podcasts must not be asked in the music scope") },
+            videoSearch = SearchSource { _, _, _ -> error("videos must not be asked in the music scope") },
+            albumSearch = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(listOf(SearchHit.Album(album)))) },
+            artistSearch = SearchSource { _, _, _ ->
+                SearchOutcome.Success(
+                    Page.last(listOf(SearchHit.Artist(artist)))
+                )
+            },
+            scope = SearchScope.MUSIC,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+
+        viewModel.search("abbey road")
+        advanceUntilIdle()
+
+        val results = viewModel.uiState.value.results as Results.Loaded
+        assertEquals(SearchSection.Absent, results.podcasts)
+        assertEquals(SearchSection.Absent, results.videos)
+        assertEquals(SearchSection.Absent, results.torrents)
+        assertEquals(listOf(SearchHit.Album(album)), results.albums.itemsOrNull)
+        assertEquals(listOf(SearchHit.Artist(artist)), results.artists.itemsOrNull)
+        assertTrue(results.songs is SearchSection.Found)
+    }
+
+    @Test
+    fun `global search does not ask for albums or artists`() = runTest(dispatcher) {
+        engine.registerSearch("time", listOf(FakeYtDlpEngine.sampleSearchEntry()))
+        val viewModel = viewModel(
+            albumSearch = SearchSource { _, _, _ -> error("albums are for the music tab") },
+            artistSearch = SearchSource { _, _, _ -> error("artists are for the music tab") },
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+
+        viewModel.search("time")
+        advanceUntilIdle()
+
+        val results = viewModel.uiState.value.results as Results.Loaded
+        assertEquals(SearchSection.Absent, results.albums)
+        assertEquals(SearchSection.Absent, results.artists)
+        assertEquals(listOf(podcastHit), results.podcasts.itemsOrNull)
     }
 
     @Test

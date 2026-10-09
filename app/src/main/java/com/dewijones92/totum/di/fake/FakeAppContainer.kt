@@ -30,6 +30,8 @@ import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
+import com.dewijones92.totum.data.search.InnerTubeMusicAlbumSearchSource
+import com.dewijones92.totum.data.search.InnerTubeMusicArtistSearchSource
 import com.dewijones92.totum.data.search.SearchHistoryStore
 import com.dewijones92.totum.data.search.SearchOutcome
 import com.dewijones92.totum.data.search.SearchSource
@@ -61,11 +63,16 @@ import com.dewijones92.totum.innertube.comments.fake.FakeYouTubeComments
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 import com.dewijones92.totum.innertube.feeds.fake.FakeYouTubeFeeds
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
+import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicCatalogue
+import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicLibrary
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.innertube.playlists.fake.FakeYouTubePlaylists
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
+import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.playback.NoOpPlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
@@ -147,6 +154,10 @@ class FakeAppContainer(
     override val youTubeChannel: YouTubeChannel = FakeYouTubeChannel(),
     override val youTubeActions: YouTubeActions = FakeYouTubeActions(),
     override val youTubePlaylists: YouTubePlaylists = FakeYouTubePlaylists(),
+    override val musicCatalogue: YouTubeMusicCatalogue = FakeYouTubeMusicCatalogue(),
+    override val musicLibrary: YouTubeMusicLibrary = FakeYouTubeMusicLibrary(),
+    override val musicAlbumSearchSource: SearchSource = InnerTubeMusicAlbumSearchSource(musicCatalogue),
+    override val musicArtistSearchSource: SearchSource = InnerTubeMusicArtistSearchSource(musicCatalogue),
     override val bellSeenTracker: SeenItemsTracker = InMemorySeenItemsTracker(),
     override val contentRefresher: ContentRefresher = ContentRefresher(emptyList(), InMemorySeenItemsTracker()),
     override val subscriptionImporter: SubscriptionImporter = SubscriptionImporter(
@@ -157,6 +168,7 @@ class FakeAppContainer(
         channelResolver = channelRepository,
     ),
 ) : AppContainer {
+    override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
 
     /**
      * Watching, so a preview shows the controls a video row has rather than a headphones glyph.

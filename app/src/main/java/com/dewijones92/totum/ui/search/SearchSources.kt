@@ -15,4 +15,8 @@ data class SearchSources(
     val videos: SearchSource,
     /** YouTube Music. Its own section because a song is not a video result. */
     val music: SearchSource,
+    val albums: SearchSource,
+    val artists: SearchSource,
 )
+
+enum class SearchScope { EVERYTHING, MUSIC }

@@ -5,12 +5,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material.icons.filled.CollectionsBookmark
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.outlined.CollectionsBookmark
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Podcasts
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.dewijones92.totum.R
@@ -37,15 +37,15 @@ enum class TopLevelDestination(
         selectedIcon = Icons.Filled.Podcasts,
         unselectedIcon = Icons.Outlined.Podcasts,
     ),
+    Music(
+        labelRes = R.string.destination_music,
+        selectedIcon = Icons.Filled.LibraryMusic,
+        unselectedIcon = Icons.Outlined.LibraryMusic,
+    ),
     Queue(
         labelRes = R.string.destination_queue,
         selectedIcon = Icons.AutoMirrored.Filled.QueueMusic,
         unselectedIcon = Icons.AutoMirrored.Outlined.QueueMusic,
-    ),
-    Search(
-        labelRes = R.string.destination_search,
-        selectedIcon = Icons.Filled.Search,
-        unselectedIcon = Icons.Outlined.Search,
     ),
     Library(
         labelRes = R.string.destination_library,

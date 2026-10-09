@@ -72,6 +72,7 @@ class SearchViewModel(
     private val podcastRepository: PodcastRepository,
     private val queue: PlaybackQueue,
     private val history: SearchHistoryStore,
+    val scope: SearchScope = SearchScope.EVERYTHING,
 ) : TrackedViewModel("search") {
 
     data class UiState(
@@ -101,6 +102,8 @@ class SearchViewModel(
             /** Carries its own continuation, so the section knows whether more exists. */
             val videos: SearchSection<Page<SearchHit.Video>>,
             val songs: SearchSection<List<SearchHit.Song>> = SearchSection.Searching,
+            val albums: SearchSection<List<SearchHit.Album>> = SearchSection.Absent,
+            val artists: SearchSection<List<SearchHit.Artist>> = SearchSection.Absent,
             /** [SearchSection.Absent] when no home server is set up, which is not a failure. */
             val torrents: SearchSection<List<SearchHit.Torrent>>,
             val loadingMore: Boolean = false,
@@ -109,7 +112,8 @@ class SearchViewModel(
 
             /** True while any section is still out — drives the one thin bar at the top. */
             val stillSearching: Boolean
-                get() = podcasts.isSearching || videos.isSearching || songs.isSearching || torrents.isSearching
+                get() = podcasts.isSearching || videos.isSearching || songs.isSearching || torrents.isSearching ||
+                    albums.isSearching || artists.isSearching
         }
     }
 
@@ -119,6 +123,8 @@ class SearchViewModel(
 
     /** The current query text; every keystroke and explicit submit sets it. */
     private val typed = MutableStateFlow("")
+
+    val lastQuery: String get() = typed.value
 
     /**
      * The one search stream driving search-as-you-type: typing is debounced,
@@ -206,83 +212,56 @@ class SearchViewModel(
      * changes — so a search nobody is waiting for stops making requests.
      */
     private fun searchStream(query: SearchQuery): Flow<Results> = channelFlow {
-        val startedAt = System.currentTimeMillis()
-        val state = MutableStateFlow(
-            Results.Loaded(
-                podcasts = SearchSection.Searching,
-                videos = SearchSection.Searching,
-                songs = SearchSection.Searching,
-                // Absent, not Searching: with no home server there is no section to wait for.
-                torrents = if (torrents == null) SearchSection.Absent else SearchSection.Searching,
-            ),
-        )
+        val state = MutableStateFlow(startingSections(query))
         launch { state.collect { send(it) } }
-
-        /**
-         * One source, timed and logged, updating only its own slot.
-         *
-         * Bounded because a section that spins forever is worse than one that says it failed: the
-         * home server is only reachable at home or on the VPN, and off it the request does not fail
-         * fast, it hangs.
-         */
-        suspend fun <T> section(
-            name: String,
-            updates: () -> Flow<SearchOutcome>,
-            into: (Results.Loaded, SearchSection<T>) -> Results.Loaded,
-            select: (SearchOutcome.Success) -> T,
-        ) = coroutineScope {
-            fun publish(result: SearchSection<T>) {
-                val took = System.currentTimeMillis() - startedAt
-                // Per section and with its own timing, because "search was slow" could never say WHICH
-                // source was slow — the one question that mattered, and the reason this exists at all.
-                Diag.log("search", "\"${query.value}\" $name after ${took}ms -> ${result.describe()}")
-                state.update { into(it, result) }
+        val run = SearchRun(query, state)
+        if (everything) {
+            launch {
+                run.section<List<SearchHit.Podcast>>(
+                    name = "podcasts",
+                    updates = { sources.podcasts.updates(query, RESULTS_PER_SECTION) },
+                    into = { loaded, s -> loaded.copy(podcasts = s) },
+                    select = { it.page.items.filterIsInstance<SearchHit.Podcast>() },
+                )
             }
-            var answered = false
-            val collecting = launch {
-                updates().collect { outcome ->
-                    answered = true
-                    publish(outcome.asSection(select))
-                }
+            launch {
+                run.section<Page<SearchHit.Video>>(
+                    name = "videos",
+                    updates = { sources.videos.updates(query, RESULTS_PER_SECTION) },
+                    into = { loaded, s -> loaded.copy(videos = s) },
+                    select = { it.page.videosOnly() },
+                )
             }
-            val watchdog = launch {
-                delay(SECTION_TIMEOUT_MILLIS)
-                if (!answered) {
-                    collecting.cancel()
-                    publish(SearchSection.Failed("it did not answer within ${SECTION_TIMEOUT_MILLIS}ms", slow = true))
-                }
-            }
-            collecting.join()
-            watchdog.cancel()
-        }
-
-        launch {
-            section<List<SearchHit.Podcast>>(
-                name = "podcasts",
-                updates = { sources.podcasts.updates(query, RESULTS_PER_SECTION) },
-                into = { loaded, s -> loaded.copy(podcasts = s) },
-                select = { it.page.items.filterIsInstance<SearchHit.Podcast>() },
-            )
         }
         launch {
-            section<Page<SearchHit.Video>>(
-                name = "videos",
-                updates = { sources.videos.updates(query, RESULTS_PER_SECTION) },
-                into = { loaded, s -> loaded.copy(videos = s) },
-                select = { it.page.videosOnly() },
-            )
-        }
-        launch {
-            section<List<SearchHit.Song>>(
+            run.section<List<SearchHit.Song>>(
                 name = "songs",
                 updates = { sources.music.updates(query, RESULTS_PER_SECTION) },
                 into = { loaded, s -> loaded.copy(songs = s) },
                 select = { it.page.items.filterIsInstance<SearchHit.Song>() },
             )
         }
-        if (torrents != null) {
+        if (music) {
             launch {
-                section<List<SearchHit.Torrent>>(
+                run.section<List<SearchHit.Album>>(
+                    name = "albums",
+                    updates = { sources.albums.updates(query, RESULTS_PER_SECTION) },
+                    into = { loaded, s -> loaded.copy(albums = s) },
+                    select = { it.page.items.filterIsInstance<SearchHit.Album>() },
+                )
+            }
+            launch {
+                run.section<List<SearchHit.Artist>>(
+                    name = "artists",
+                    updates = { sources.artists.updates(query, RESULTS_PER_SECTION) },
+                    into = { loaded, s -> loaded.copy(artists = s) },
+                    select = { it.page.items.filterIsInstance<SearchHit.Artist>() },
+                )
+            }
+        }
+        if (torrents != null && everything) {
+            launch {
+                run.section<List<SearchHit.Torrent>>(
                     name = "torrents",
                     updates = { torrents.search.updates(query, RESULTS_PER_SECTION) },
                     into = { loaded, s -> loaded.copy(torrents = s) },
@@ -292,16 +271,21 @@ class SearchViewModel(
         }
     }
 
-    /** A section in one phrase, for the trail: what it is and how much it found. */
-    private fun SearchSection<*>.describe(): String = when (this) {
-        is SearchSection.Found -> when (val found = items) {
-            is Page<*> -> "${found.items.size} (more=${found.hasMore})"
-            is Collection<*> -> "${found.size}"
-            else -> "found"
-        } + if (stillWaitingFor.isEmpty()) "" else ", still waiting for $stillWaitingFor"
-        is SearchSection.Failed -> "FAILED: $detail"
-        SearchSection.Searching -> "still searching"
-        SearchSection.Absent -> "absent"
+    private val everything: Boolean get() = scope == SearchScope.EVERYTHING
+    private val music: Boolean get() = scope == SearchScope.MUSIC
+
+    private fun startingSections(query: SearchQuery): Results.Loaded {
+        Diag.log("search", "\"${query.value}\" scope=$scope")
+        fun <T> only(wanted: Boolean): SearchSection<T> = if (wanted) SearchSection.Searching else SearchSection.Absent
+        return Results.Loaded(
+            podcasts = only(everything),
+            videos = only(everything),
+            songs = SearchSection.Searching,
+            albums = only(music),
+            artists = only(music),
+            // Absent, not Searching: with no home server there is no section to wait for.
+            torrents = only(everything && torrents != null),
+        )
     }
 
     fun subscribe(hit: SearchHit.Podcast) {
@@ -421,7 +405,7 @@ class SearchViewModel(
          * on screen by then — this is only to stop a section spinning for ever. The home server is
          * reachable only at home or on the VPN, and off it the request does not fail fast, it hangs.
          */
-        private const val SECTION_TIMEOUT_MILLIS = 20_000L
+        internal const val SECTION_TIMEOUT_MILLIS = 20_000L
         private const val MIN_QUERY_LENGTH = 2
 
         /** Ad-hoc plays from search don't belong to a subscribed source yet. */
@@ -435,20 +419,88 @@ class SearchViewModel(
          */
         internal val AD_HOC_MUSIC_SOURCE = SourceId("search:ad-hoc-song")
 
-        fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
+        fun factory(
+            container: AppContainer,
+            scope: SearchScope = SearchScope.EVERYTHING,
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 SearchViewModel(
                     sources = SearchSources(
                         podcasts = container.podcastSearchSource,
                         videos = container.videoSearchSource,
                         music = container.musicSearchSource,
+                        albums = container.musicAlbumSearchSource,
+                        artists = container.musicArtistSearchSource,
                     ),
                     torrents = TorrentServices.from(container),
                     podcastRepository = container.podcastRepository,
                     queue = container.playbackQueue,
                     history = container.searchHistoryStore,
+                    scope = scope,
                 )
             }
         }
     }
+}
+
+private class SearchRun(
+    private val query: SearchQuery,
+    private val state: MutableStateFlow<SearchViewModel.Results.Loaded>,
+) {
+    private val startedAt = System.currentTimeMillis()
+
+    /**
+     * One source, timed and logged, updating only its own slot.
+     *
+     * Bounded because a section that spins forever is worse than one that says it failed: the
+     * home server is only reachable at home or on the VPN, and off it the request does not fail
+     * fast, it hangs.
+     */
+    suspend fun <T> section(
+        name: String,
+        updates: () -> Flow<SearchOutcome>,
+        into: (SearchViewModel.Results.Loaded, SearchSection<T>) -> SearchViewModel.Results.Loaded,
+        select: (SearchOutcome.Success) -> T,
+    ) = coroutineScope {
+        fun publish(result: SearchSection<T>) {
+            val took = System.currentTimeMillis() - startedAt
+            // Per section and with its own timing, because "search was slow" could never say WHICH
+            // source was slow — the one question that mattered, and the reason this exists at all.
+            Diag.log("search", "\"${query.value}\" $name after ${took}ms -> ${result.describe()}")
+            state.update { into(it, result) }
+        }
+        var answered = false
+        val collecting = launch {
+            updates().collect { outcome ->
+                answered = true
+                publish(outcome.asSection(select))
+            }
+        }
+        val watchdog = launch {
+            delay(SearchViewModel.SECTION_TIMEOUT_MILLIS)
+            if (!answered) {
+                collecting.cancel()
+                publish(
+                    SearchSection.Failed(
+                        "it did not answer within ${SearchViewModel.SECTION_TIMEOUT_MILLIS}ms",
+                        slow = true
+                    )
+                )
+            }
+        }
+        collecting.join()
+        watchdog.cancel()
+    }
+}
+
+/** A section in one phrase, for the trail: what it is and how much it found. */
+private fun SearchSection<*>.describe(): String = when (this) {
+    is SearchSection.Found -> when (val found = items) {
+        is Page<*> -> "${found.items.size} (more=${found.hasMore})"
+        is Collection<*> -> "${found.size}"
+        else -> "found"
+    } + if (stillWaitingFor.isEmpty()) "" else ", still waiting for $stillWaitingFor"
+    is SearchSection.Failed -> "FAILED: $detail"
+    SearchSection.Searching -> "still searching"
+    SearchSection.Absent -> "absent"
 }

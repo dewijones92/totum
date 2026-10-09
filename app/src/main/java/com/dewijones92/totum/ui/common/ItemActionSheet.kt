@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.pillar
@@ -53,5 +54,7 @@ internal fun ItemActionSheet(
         onSetPlayed = { played -> actions.setPlayed(item.id, played) },
         played = LocalPlayStates.current[item.id]?.isPlayed == true,
         onDismiss = onDismiss,
+        onStartRadio = LocalStartRadio.current?.takeIf { item.contentKind == MediaContentKind.MUSIC }
+            ?.let { start -> { start(item) } },
     )
 }

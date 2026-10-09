@@ -118,6 +118,8 @@ class SearchStreamsPerSectionTest {
             podcasts = SearchSource { _, _, _ -> podcastGate.await() },
             videos = SearchSource { _, _, _ -> videoGate.await() },
             music = SearchSource { _, _, _ -> musicGate.await() },
+            albums = SearchSource { _, _, _ -> error("albums are only asked in the music scope") },
+            artists = SearchSource { _, _, _ -> error("artists are only asked in the music scope") },
         ),
         // No home server by default: the torrent section is then Absent, which one case asserts.
         torrents = if (!withHomeServer) {

@@ -23,7 +23,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.busy.BusyBar
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaKind
@@ -33,32 +32,29 @@ import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
-import com.dewijones92.totum.queue.PlaybackQueue
-import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalItemActions
+import com.dewijones92.totum.ui.common.LocalOpenMusicPage
+import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
+import com.dewijones92.totum.ui.music.MusicScreen
 import com.dewijones92.totum.ui.player.CommentReplies
 import com.dewijones92.totum.ui.player.FullPlayerOverlay
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
 import com.dewijones92.totum.ui.player.PictureInPictureEffect
-import com.dewijones92.totum.ui.player.PlaybackToggles
-import com.dewijones92.totum.ui.player.QualityControl
-import com.dewijones92.totum.ui.player.QueueControls
 import com.dewijones92.totum.ui.player.VideoBounds
 import com.dewijones92.totum.ui.player.WatchViewModel
 import com.dewijones92.totum.ui.player.rememberIsInPictureInPicture
 import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
 import com.dewijones92.totum.ui.queue.QueueScreen
-import com.dewijones92.totum.ui.search.SearchScreen
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -89,6 +85,7 @@ fun AppShell(
     var shortsReel by remember { mutableStateOf<ReelStart?>(null) }
     // "Go to channel" / "Go to podcast" work from ANY row because the shell hosts the destination once.
     var shellSource by remember { mutableStateOf<MediaSource?>(null) }
+    val tabs = rememberTabNavigation()
     val playbackState by container.playbackController.state.collectAsStateWithLifecycle()
     val controller = container.playbackController
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
@@ -118,6 +115,8 @@ fun AppShell(
         LocalVideoBounds provides videoBounds,
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides { showFullPlayer = true },
+        LocalOpenSearch provides tabs.searchOpener(over = selected),
+        LocalOpenMusicPage provides tabs.pageOpener { showFullPlayer = false },
     ) {
         ProvidePlayStates(container, onOpenSource = { source ->
             Diag.log("nav", "shell page over fullPlayer=$showFullPlayer shorts=${shortsReel != null}, closing both")
@@ -133,20 +132,16 @@ fun AppShell(
                             selected,
                             controller::togglePlayPause,
                             onExpand = { showFullPlayer = true },
-                            onSelect = { selected = it },
+                            onSelect = tabs.choosing { selected = it },
                             onSkipNext = { skipScope.launch { container.playbackQueue.playNextInQueue() } },
                         )
                     },
                 ) { innerPadding ->
-                    TopLevelContent(container, selected, { shortsReel = it }, Modifier.padding(innerPadding))
+                    TopLevelContent(container, selected, tabs, { shortsReel = it }, Modifier.padding(innerPadding))
                 }
 
                 // Same as the Videos tab's overlays: back should close the channel, not quit.
-                ShellOverlays(
-                    container = container,
-                    source = shellSource,
-                    onCloseSource = { shellSource = null },
-                )
+                ShellOverlays(container, shellSource, onCloseSource = { shellSource = null })
                 // Full player overlays the whole app (above the mini player + nav) when
                 // expanded; the mini player keeps the audio/video running underneath.
                 playbackState?.takeIf { showFullPlayer }?.let { state ->
@@ -266,17 +261,6 @@ private fun FullPlayerHost(
 }
 
 /**
- * The player's up-next list shows what follows the cursor, so its indices are offset from
- * the queue's own — done here once rather than inline at the call site.
- */
-private fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>, currentIndex: Int) =
-    QueueControls(
-        upNext = upNext,
-        onPlay = { i -> queue.jumpTo(currentIndex + 1 + i) },
-        onRemove = { i -> queue.removeAt(currentIndex + 1 + i) },
-    )
-
-/**
  * The SAME sheet the rows use, for whatever is playing — so the player can never offer less
  * than a long-press does. Wired to the current QUEUE entry, which carries the real item and
  * its handle rather than a PlaybackState reconstruction.
@@ -307,38 +291,6 @@ private fun pictureOfTheAudioCopy(
     return item?.let { { actions.watch(it) } }
 }
 
-private fun qualityControl(
-    quality: VideoPlaybackLauncher.QualityState,
-    watchViewModel: WatchViewModel,
-    watchTheAudioCopy: (() -> Unit)? = null,
-) = QualityControl(
-    options = quality.options,
-    selectedId = quality.selectedId,
-    onSelect = watchViewModel::selectQuality,
-    canListen = quality.canListen || watchTheAudioCopy != null,
-    listening = quality.listening || watchTheAudioCopy != null,
-    onListen = watchViewModel::listen,
-    onWatch = watchTheAudioCopy ?: watchViewModel::watch,
-    audioTracks = quality.audioTracks,
-    audioLanguage = quality.audioLanguage,
-    onSelectAudioTrack = watchViewModel::selectAudioTrack,
-)
-
-private fun playbackToggles(
-    state: PlaybackState,
-    controller: PlaybackController,
-    container: AppContainer,
-    settings: AppPreferences.Settings,
-) = PlaybackToggles(
-    skipSilence = state.skipSilence,
-    onSetSkipSilence = controller::setSkipSilence,
-    autoPlayNext = settings.autoPlayNext,
-    onSetAutoPlayNext = container.appPreferences::setAutoPlayNext,
-    sabrPlayback = settings.sabrPlayback,
-    onSetSabrPlayback = container.appPreferences::setSabrPlayback,
-    onSetVolumeBoost = controller::setVolumeBoost,
-)
-
 @Preview(showBackground = true)
 @Composable
 private fun AppShellPreview() {
@@ -362,13 +314,25 @@ private fun AppShellPreview() {
 private fun TopLevelContent(
     container: AppContainer,
     selected: TopLevelDestination,
+    tabs: TabNavigation,
     onOpenShorts: (ReelStart) -> Unit,
     modifier: Modifier,
+) {
+    Box(modifier) {
+        TopLevelTabs(container, selected, onOpenShorts)
+        TabOverlays(container, tabs)
+    }
+}
+
+@Composable
+private fun TopLevelTabs(
+    container: AppContainer,
+    selected: TopLevelDestination,
+    onOpenShorts: (ReelStart) -> Unit,
 ) {
     val stateHolder = rememberSaveableStateHolder()
     AnimatedContent(
         targetState = selected,
-        modifier = modifier,
         label = "top-level-destination",
         // Shared-axis rather than the default cross-fade-and-scale. Tabs sit in a row, so
         // moving right should look like moving right — a fade alone tells you something
@@ -392,7 +356,7 @@ private fun Destination(
         TopLevelDestination.Videos -> VideosScreen(container, onOpenShorts = onOpenShorts)
         TopLevelDestination.Podcasts -> PodcastsScreen(container)
         TopLevelDestination.Queue -> QueueScreen(container)
-        TopLevelDestination.Search -> SearchScreen(container)
+        TopLevelDestination.Music -> MusicScreen(container)
         TopLevelDestination.Library -> LibraryScreen(container)
     }
 }

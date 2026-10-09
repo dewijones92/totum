@@ -42,6 +42,8 @@ import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.search.FallbackSearchSource
+import com.dewijones92.totum.data.search.InnerTubeMusicAlbumSearchSource
+import com.dewijones92.totum.data.search.InnerTubeMusicArtistSearchSource
 import com.dewijones92.totum.data.search.InnerTubeMusicSearchSource
 import com.dewijones92.totum.data.search.InnerTubeVideoSearchSource
 import com.dewijones92.totum.data.search.ItunesPodcastSearchSource
@@ -108,7 +110,11 @@ import com.dewijones92.totum.innertube.feeds.HttpYouTubeFeeds
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 import com.dewijones92.totum.innertube.history.HttpYouTubeWatchHistory
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.HttpYouTubeMusicCatalogue
+import com.dewijones92.totum.innertube.music.HttpYouTubeMusicLibrary
 import com.dewijones92.totum.innertube.music.HttpYouTubeMusicSearch
+import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
 import com.dewijones92.totum.innertube.player.HttpEmbedHostFlagsSource
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.HttpVisitorIdSource
@@ -124,6 +130,7 @@ import com.dewijones92.totum.innertube.related.RelatedResult
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
+import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.notifications.DataSaverNotifier
 import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
@@ -347,6 +354,16 @@ interface AppContainer {
     val youTubeActions: YouTubeActions
 
     val youTubePlaylists: YouTubePlaylists
+
+    val musicCatalogue: YouTubeMusicCatalogue
+
+    val musicLibrary: YouTubeMusicLibrary
+
+    val musicRadio: MusicRadio
+
+    val musicAlbumSearchSource: SearchSource
+
+    val musicArtistSearchSource: SearchSource
 
     /** Seen-state for the in-app bell (new since the user last opened the list). */
     val bellSeenTracker: SeenItemsTracker
@@ -1310,6 +1327,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val youTubePlaylists: YouTubePlaylists by lazy {
         HttpYouTubePlaylists(youTubeAccount, innerTubeClient)
     }
+
+    override val musicCatalogue: YouTubeMusicCatalogue by lazy { HttpYouTubeMusicCatalogue(innerTubeClient) }
+
+    override val musicLibrary: YouTubeMusicLibrary by lazy { HttpYouTubeMusicLibrary(youTubeAccount, innerTubeClient) }
+
+    override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
+
+    override val musicAlbumSearchSource: SearchSource by lazy { InnerTubeMusicAlbumSearchSource(musicCatalogue) }
+
+    override val musicArtistSearchSource: SearchSource by lazy { InnerTubeMusicArtistSearchSource(musicCatalogue) }
 
     override val bellSeenTracker: SeenItemsTracker by lazy {
         SharedPrefsSeenItemsTracker(context, namespace = "bell")

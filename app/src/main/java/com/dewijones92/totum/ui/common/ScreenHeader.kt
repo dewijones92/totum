@@ -43,5 +43,6 @@ fun ScreenHeader(
             }
         }
         actions()
+        SearchAction()
     }
 }

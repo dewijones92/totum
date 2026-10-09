@@ -88,4 +88,5 @@ fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
     thumbnailUrl = artworkUrl,
     mediaUrl = watchUrl,
     viewsText = playsText,
+    contentKind = MediaContentKind.MUSIC,
 )

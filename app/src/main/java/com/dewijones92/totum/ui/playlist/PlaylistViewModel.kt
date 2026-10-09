@@ -10,11 +10,13 @@ import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.innertube.playlists.PlaylistVideosResult
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -38,6 +40,7 @@ class PlaylistViewModel(
     private val playlists: YouTubePlaylists,
     private val queue: PlaybackQueue,
     private val downloads: DownloadManager,
+    private val contentKind: MediaContentKind? = null,
 ) : ViewModel() {
 
     private val sourceId = SourceId("ytplaylist:$browseId")
@@ -108,7 +111,7 @@ class PlaylistViewModel(
 
     private suspend fun fetchState(): FetchState = when (val result = playlists.videosIn(browseId)) {
         is PlaylistVideosResult.Success -> FetchState(
-            videos = result.page.items.map { it.toMediaItem(sourceId) },
+            videos = result.page.items.map { it.listed() },
             loading = false,
             next = result.page.next,
         )
@@ -138,7 +141,7 @@ class PlaylistViewModel(
                     // LazyColumn key is a crash, not a cosmetic problem.
                     val existing = current.videos.map { it.id }.toSet()
                     val fresh = result.page.items
-                        .map { it.toMediaItem(sourceId) }
+                        .map { it.listed() }
                         .filter { it.id !in existing }
                     current.copy(
                         videos = current.videos + fresh,
@@ -154,6 +157,9 @@ class PlaylistViewModel(
             }
         }
     }
+
+    private fun FeedVideo.listed(): MediaItem =
+        toMediaItem(sourceId).let { item -> contentKind?.let { item.copy(contentKind = it) } ?: item }
 
     fun setSort(order: MediaSort) {
         sort.value = order
@@ -175,7 +181,12 @@ class PlaylistViewModel(
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
 
-        fun factory(container: AppContainer, browseId: String, title: String): ViewModelProvider.Factory =
+        fun factory(
+            container: AppContainer,
+            browseId: String,
+            title: String,
+            contentKind: MediaContentKind? = null,
+        ): ViewModelProvider.Factory =
             viewModelFactory {
                 initializer {
                     PlaylistViewModel(
@@ -184,6 +195,7 @@ class PlaylistViewModel(
                         playlists = container.youTubePlaylists,
                         queue = container.playbackQueue,
                         downloads = container.downloadManager,
+                        contentKind = contentKind,
                     )
                 }
             }

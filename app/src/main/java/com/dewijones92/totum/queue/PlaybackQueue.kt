@@ -9,7 +9,6 @@ import com.dewijones92.totum.data.queue.QueueSnapshot.Companion.NOTHING_PLAYING
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.domain.LocalCopy
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -157,35 +156,10 @@ class PlaybackQueue(
 
     private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
 
-    /**
-     * Items whose PICTURE has been given up on this session, so automatic routes ask for the sound.
-     *
-     * Without this the rescue was undone within seconds and the item flapped. Reported from a real device
-     * (0.1.437, commit c65a750, "tennis video not working????"): 403 at 09:51:47 -> refused -> sound kept
-     * -> a video route at 09:51:52 -> 403 again at 09:52:00 -> video again at 09:52:10. `listen()` sets a
-     * flag on the LAUNCHER, but every route decides from the persisted playback mode -- VIDEO in his case
-     * -- so the next automatic route went straight back to the stream just refused, at a 10-14 second
-     * extraction per cycle. What he saw was a video stopping every few seconds, forever.
-     *
-     * Per item and per session: it is a fact about these streams right now. Cleared by a deliberate tap on
-     * Watch, because an automatic decision that cannot be overruled is worse than no automatic decision.
-     */
-    private val pictureGivenUpOn = mutableSetOf<String>()
+    private val pictures = PictureChoices()
 
     /** Forgets the refusal for [id] — the person has asked for the picture back. */
-    fun wantsThePictureAgain(id: MediaItemId) {
-        val refused = pictureGivenUpOn.remove(id.value)
-        val firstAsk = pictureAskedFor.add(id.value)
-        if (refused || firstAsk) {
-            Diag.log("playback", "${id.value} asked for its picture back; routes will try the video again")
-        }
-    }
-
-    private val pictureAskedFor = mutableSetOf<String>()
-
-    private fun soundOnly(queued: PlayableItem): Boolean =
-        queued.item.id.value in pictureGivenUpOn ||
-            (queued.item.contentKind == MediaContentKind.MUSIC && queued.item.id.value !in pictureAskedFor)
+    fun wantsThePictureAgain(id: MediaItemId) = pictures.wantsThePictureAgain(id)
 
     /**
      * Every play that was somebody's *intent* — a tap, an auto-advance, a peek — as opposed to
@@ -242,14 +216,26 @@ class PlaybackQueue(
         mirror(item)
     }
 
-    fun enqueueAll(items: List<PlayableItem>) {
+    fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
-        mutate("add-to-end x${items.size}") { snapshot ->
+        val label = group?.let { " as \"${it.title}\"" }.orEmpty()
+        mutate("add-to-end x${items.size}$label") { snapshot ->
             items.fold(snapshot) { acc, item ->
-                acc.relocating(item) { without -> without.copy(entries = without.entries + QueueEntry(item, null)) }
+                acc.relocating(item) { without -> without.copy(entries = without.entries + QueueEntry(item, group)) }
             }
         }
         mirrorAll(items)
+    }
+
+    fun appendToGroup(group: QueueGroup, items: List<PlayableItem>): Int {
+        val queued = _state.value.entries.mapTo(mutableSetOf()) { it.item.item.id }
+        val fresh = items.distinctBy { it.item.id }.filterNot { it.item.id in queued }
+        if (fresh.isEmpty()) {
+            Diag.log("queue", "append to \"${group.title}\": all ${items.size} already queued, nothing added")
+            return 0
+        }
+        mutate("append x${fresh.size} to \"${group.title}\"") { it.appendedTo(group, fresh) }
+        return fresh.size
     }
 
     fun playNextAll(items: List<PlayableItem>) {
@@ -589,7 +575,7 @@ class PlaybackQueue(
             queued,
             decision.route,
             skipSegments = decision.onDisk?.skipSegments.orEmpty(),
-            pictureRefused = soundOnly(queued),
+            pictureRefused = pictures.soundOnly(queued),
             allowStream = allowStream,
         )
     }
@@ -856,8 +842,8 @@ class PlaybackQueue(
             return false
         }
         val kept = launcher.listenIfPossible(item.item.id, positionMs)
-        // STICKY, or the next automatic route undoes it -- see [pictureGivenUpOn].
-        if (kept) pictureGivenUpOn.add(item.item.id.value)
+        // STICKY, or the next automatic route undoes it -- see [PictureChoices].
+        if (kept) pictures.gaveUpOn(item.item.id)
         Diag.log(
             "playback",
             if (kept) {
@@ -996,7 +982,7 @@ class PlaybackQueue(
     ): Decision {
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
-        val audioNow = forceAudio || soundOnly(queued) || audioPreferred()
+        val audioNow = forceAudio || pictures.soundOnly(queued) || audioPreferred()
         val route = queued.routeNow(
             onDisk,
             offline = offlineNow,
@@ -1066,7 +1052,7 @@ class PlaybackQueue(
                     route.watchUrl,
                     startPositionMs,
                     request,
-                    audioOnly = soundOnly(queued),
+                    audioOnly = pictures.soundOnly(queued),
                 )
             is PlayRoute.AudioStream -> {
                 controller.play(route.playable.item, queued.pillar, startPositionMs = startPositionMs)
@@ -1148,6 +1134,16 @@ private fun QueueSnapshot.adoptingRoutesFrom(fresh: List<PlayableItem>): QueueSn
                 it
             }
         },
+    )
+}
+
+private fun QueueSnapshot.appendedTo(group: QueueGroup, fresh: List<PlayableItem>): QueueSnapshot {
+    val last = entries.indexOfLast { it.group?.id == group.id }
+    val at = if (last < 0) entries.size else last + 1
+    val run = fresh.map { QueueEntry(it, group) }
+    return copy(
+        entries = entries.take(at) + run + entries.drop(at),
+        currentIndex = if (currentIndex >= at) currentIndex + run.size else currentIndex,
     )
 }
 

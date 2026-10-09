@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Visibility
@@ -83,6 +84,7 @@ internal fun ActionSheet(
     onSetPlayed: ((Boolean) -> Unit)?,
     played: Boolean,
     onDismiss: () -> Unit,
+    onStartRadio: (() -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -110,6 +112,7 @@ internal fun ActionSheet(
             SheetAction(onRemoveFromPlaylist, Icons.Filled.Delete, R.string.playlist_remove_from, onDismiss)
             SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
+            SheetAction(onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
             SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
             SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
             SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)

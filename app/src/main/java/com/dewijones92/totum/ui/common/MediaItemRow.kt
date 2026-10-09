@@ -148,6 +148,14 @@ fun MediaItemRow(
     tint: Color = rowTint(pillar, playState),
     cardInset: Dp = ROW_CARD_MARGIN_H,
     followMark: FollowMarkSpec? = LocalRowFollowing.current?.markFor(item, pillar),
+    onStartRadio: (() -> Unit)? =
+        LocalStartRadio.current?.takeIf { item.contentKind == MediaContentKind.MUSIC }?.let { start ->
+            {
+                start(
+                    item
+                )
+            }
+        },
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
@@ -155,9 +163,8 @@ fun MediaItemRow(
     val sheetDeleteDownload = onDeleteDownload.onlyWhenDownloaded(downloadState)
     val hasMenu = listOfNotNull(
         onPlayInsteadOfCurrent, onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue,
-        onPeek,
-        downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed,
-        onMoveToTop, onMoveToBottom,
+        onPeek, onStartRadio,
+        downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed, onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
     val id = item.id.value
     Row(
@@ -207,6 +214,7 @@ fun MediaItemRow(
             onSetPlayed = onSetPlayed,
             played = playState.isPlayed,
             onDismiss = { showSheet = false },
+            onStartRadio = onStartRadio,
         )
     }
 }

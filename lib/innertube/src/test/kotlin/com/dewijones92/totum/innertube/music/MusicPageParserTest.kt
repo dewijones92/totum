@@ -148,6 +148,21 @@ class MusicPageParserTest {
     }
 
     @Test
+    fun `the library's artists carry a name, art and their mix, but no channel id`() {
+        val artists = MusicLibraryParser.libraryArtists(fixture("library-artists-tv.json"))
+
+        assertEquals(listOf("The Beatles", "Nina Simone"), artists.map { it.name })
+        assertEquals("RDEMhfZ0hwVu8nqhXF2NZYYzUA", artists.first().radio?.playlistId)
+        assertNotNull(artists.first().thumbnailUrl)
+    }
+
+    @Test
+    fun `library album tiles are not artists and artist tiles are not albums`() {
+        assertTrue(MusicLibraryParser.libraryArtists(fixture("library-albums-tv.json")).isEmpty())
+        assertTrue(MusicLibraryParser.libraryAlbums(fixture("library-artists-tv.json")).isEmpty())
+    }
+
+    @Test
     fun `garbage is not a page`() {
         assertNull(MusicPageParser.album("not json", "x"))
         assertNull(MusicPageParser.artist("{}", "x"))

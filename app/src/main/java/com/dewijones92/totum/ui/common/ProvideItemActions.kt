@@ -5,12 +5,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.innertube.music.RadioSeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -42,6 +45,7 @@ internal fun ProvideItemActions(
         LocalItemActions provides actions,
         LocalReadyAhead provides { item -> container.readyAhead.ready(item.toPlayableOrNull(), "menu opened") },
         LocalOpenSource provides openSource,
+        LocalStartRadio provides { item -> startRadio(container, item) },
         content = content,
     )
 }
@@ -84,4 +88,13 @@ private class ContainerItemActions(
         // Labels come from the row; the mode change and its announcement live in MediaItemActions.
         rows.switchMode(item, toAudio = !rows.audioMode, audioOnMessage = "", videoOnMessage = "")
     }
+}
+
+private fun startRadio(container: AppContainer, item: MediaItem) {
+    val videoId = item.mediaUrl?.youTubeVideoId() ?: HttpUrl.parse(item.id.value)?.youTubeVideoId()
+    if (videoId == null) {
+        Diag.warn("radio", "\"${item.title}\" has no YouTube id to start a radio from")
+        return
+    }
+    container.applicationScope.launch { container.musicRadio.start(RadioSeed.forSong(videoId), item.title) }
 }

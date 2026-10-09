@@ -70,6 +70,8 @@ object FactEmoji {
 
     /** YouTube Music, which is its own kind of hit on the search page. */
     const val SONG: String = "🎵"
+    const val ALBUM: String = "💿"
+    const val ARTIST: String = "🎤"
 }
 
 /**

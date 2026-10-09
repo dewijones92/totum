@@ -74,6 +74,7 @@ fun CollapsingTitle(
                 modifier = Modifier.weight(1f),
             )
             Box(contentAlignment = Alignment.Center) { trailing() }
+            SearchAction()
         }
     }
 }
