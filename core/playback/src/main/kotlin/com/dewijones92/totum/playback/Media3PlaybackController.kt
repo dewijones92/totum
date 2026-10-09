@@ -85,7 +85,10 @@ public class Media3PlaybackController(
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
     private var userSpeed: Float = 1f
     private var playGeneration = 0
+
+    /** The person's skip-silence choice; [tuning] says what the item playing actually uses. */
     private var skipSilence = false
+    private var tuning = ItemTuning(speed = 1f, skipSilence = false, keepsChanges = true)
     private val endWatch = ItemEndWatch()
     private val startLatency = StartLatency()
     private var volumeBoost = VolumeBoost.OFF
@@ -258,7 +261,14 @@ public class Media3PlaybackController(
             // one stopped, which is finer-grained than the periodically-saved progress.
             val resumeMs = startPositionMs.takeIf { it > 0 }
                 ?: progressStore.resumePositionMs(item.id) ?: 0L
-            val speed = speedStore.speed()
+            val tuned = tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))
+            if (!tuned.keepsChanges) {
+                Diag.log(
+                    "playback",
+                    "${item.id.value} is music: 1x, skip-silence off; " +
+                        "the saved speed and skip-silence wait for the next talk item",
+                )
+            }
             val boost = boostStore.boost()
             withController { controller ->
                 // A newer play() superseded this one while we were loading — drop it,
@@ -266,7 +276,7 @@ public class Media3PlaybackController(
                 if (generation != playGeneration) return@withController
                 if (adopting(controller, item.id.value, uri, audioUrl, startPositionMs)) {
                     itemContext = ItemContext.of(item, kind, skipSegments, subtitles)
-                    applyChoices(controller, speed, boost)
+                    applyChoices(controller, tuned, boost)
                     if (startPaused) controller.pause()
                     _state.value = controller.currentPlaybackState()
                     return@withController
@@ -275,7 +285,7 @@ public class Media3PlaybackController(
                 noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
                 becameCurrent(ItemContext.of(item, kind, skipSegments, subtitles))
                 controller.setMediaItem(media3Item, resumeMs)
-                applyChoices(controller, speed, boost)
+                applyChoices(controller, tuned, boost)
                 controller.prepare()
                 if (startPaused) controller.pause() else controller.play()
             }
@@ -284,8 +294,10 @@ public class Media3PlaybackController(
 
     // Re-applied on EVERY item, and told to the service too: the rate the user chose
     // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).
-    private fun applyChoices(controller: MediaController, speed: Float, boost: VolumeBoost) {
-        applyUserSpeed(controller, speed)
+    private fun applyChoices(controller: MediaController, tuned: ItemTuning, boost: VolumeBoost) {
+        tuning = tuned
+        applyUserSpeed(controller, tuned.speed)
+        sendSkipSilence(controller, tuned.skipSilence)
         applySilenceMode(controller, silenceMode.value)
         applySubtitleLanguage(controller)
         if (boost != volumeBoost) setVolumeBoost(boost)
@@ -384,7 +396,12 @@ public class Media3PlaybackController(
             applyUserSpeed(it, clamped)
             _state.value = it.currentPlaybackState()
         }
-        scope.launch { speedStore.save(clamped) }
+        tuning = tuning.copy(speed = clamped)
+        if (tuning.keepsChanges) {
+            scope.launch { speedStore.save(clamped) }
+        } else {
+            Diag.log("playback", "speed ${clamped}x for this song only; music does not change the saved speed")
+        }
     }
 
     /**
@@ -581,14 +598,23 @@ public class Media3PlaybackController(
     }
 
     override fun setSkipSilence(enabled: Boolean) {
-        skipSilence = enabled
+        if (tuning.keepsChanges) {
+            skipSilence = enabled
+        } else {
+            Diag.log("playback", "skip-silence $enabled for this song only; music does not change the saved choice")
+        }
+        tuning = tuning.copy(skipSilence = enabled)
         withController {
-            it.sendCustomCommand(
-                SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY),
-                bundleOf(EXTRA_SKIP_SILENCE_ENABLED to enabled),
-            )
+            sendSkipSilence(it, enabled)
             _state.value = it.currentPlaybackState()
         }
+    }
+
+    private fun sendSkipSilence(controller: MediaController, enabled: Boolean) {
+        controller.sendCustomCommand(
+            SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY),
+            bundleOf(EXTRA_SKIP_SILENCE_ENABLED to enabled),
+        )
     }
 
     private fun withController(command: (MediaController) -> Unit) {
@@ -706,7 +732,7 @@ public class Media3PlaybackController(
             positionMs = positionMs.coerceAtLeast(0),
             durationMs = durationMs,
             speed = controller.playbackParameters.speed,
-            skipSilence = skipSilence,
+            skipSilence = tuning.skipSilence,
             silenceMode = silenceMode.value.name,
         )
         val line = endWatch.end(reason, facts) ?: return
@@ -772,7 +798,7 @@ public class Media3PlaybackController(
             skipSegments = itemContext.skipSegments,
             subtitles = itemContext.subtitles,
             subtitleLanguage = subtitleLanguage,
-            skipSilence = skipSilence,
+            skipSilence = tuning.skipSilence,
             volumeBoost = volumeBoost,
             chapters = itemContext.chapters,
         )

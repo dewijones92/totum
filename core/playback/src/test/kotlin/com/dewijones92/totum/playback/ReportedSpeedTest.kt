@@ -47,7 +47,12 @@ class ReportedSpeedTest {
         assertTrue(
             "$SOURCE must apply the user's speed as part of play(), or the next item in the " +
                 "queue starts at whatever the player was left at.",
-            controller.contains("applyUserSpeed(controller, speed)"),
+            controller.contains("applyUserSpeed(controller, tuned.speed)"),
+        )
+        assertTrue(
+            "$SOURCE must build each item's tuning from the SAVED speed, so a talk item after a song " +
+                "gets the chosen rate back.",
+            controller.contains("tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))"),
         )
     }
 
