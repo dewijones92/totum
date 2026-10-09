@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Features
@@ -69,7 +69,9 @@ alone until they need more.
 | Audio tracks: the right language by default, and a menu to change it | playback | shipped | [audio-tracks.md](audio-tracks.md) |
 | Settings that stay put across the next video (speed, boost, captions, quality, track) | playback | shipped | [settings-that-stay-put.md](settings-that-stay-put.md) |
 | Command line: `totum "jazz live stream"` on Linux/macOS, same libraries as the app | cli | shipped | [command-line.md](command-line.md) |
-| YouTube Music: a Songs section in search, playing through the existing player | search | shipped (stage 1) | [youtube-music.md](youtube-music.md) |
+| YouTube Music: a Music tab (songs, albums, artists), album and artist pages, endless radio, your YouTube Music library, shared album links; music plays as sound | music | shipped | [youtube-music.md](youtube-music.md) |
+| Search is a 🔍 in every tab header, opening over the tab | search | shipped | [ADR 24](../adr/0024-music-tab-and-search-in-every-header.md) |
+| Repeat (off / queue / this one) and shuffle up next, for both pillars | queue | shipped | [ADR 27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md) |
 | Picture-in-Picture (video keeps playing when you leave) | playback | shipped | [../todos/feature-gap-review.md](../todos/feature-gap-review.md) |
 | Offline library across both pillars (downloads carry their item) | downloads | shipped | [../todos/library-downloads-podcast-only.md](../todos/library-downloads-podcast-only.md) |
 | Loading feedback (global busy bar; "go to channel" 12.5s → 59ms) | ui | shipped | [loading-feedback.md](loading-feedback.md) |

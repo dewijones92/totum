@@ -2,11 +2,37 @@
 title: YouTube Music
 kind: feature
 status: shipped
-area: search
-updated: 2026-08-11
+area: music
+updated: 2026-10-09
 ---
 
-# Songs, in the search you already use
+# YouTube Music: a Music tab, albums, artists, radio and your library
+
+**Stages 2 and 3, 2026-10-09** (Dewi: *"i want a nice way in the app to play/search music/albums"*).
+The decisions are ADRs [24](../adr/0024-music-tab-and-search-in-every-header.md),
+[25](../adr/0025-music-plays-as-sound.md), [26](../adr/0026-albums-artists-and-the-youtube-music-library.md)
+and [27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md); this page is the map.
+
+| What | Where | Notes |
+|---|---|---|
+| Music tab | `ui/music/MusicScreen.kt` | `SearchViewModel` in `SearchScope.MUSIC`: Songs, Albums, Artists. Idle: songs played here, then your YouTube Music recent albums, albums, playlists and artists (signed in) |
+| Search everywhere | `ui/common/ShellNavigation.kt`, `ui/TabNavigation.kt` | 🔍 in every tab header; opens over the tab with the dock visible |
+| Album page | `ui/music/MusicAlbumScreen.kt` | Play / Shuffle insert after what is playing as a group; Add to end; Download (audio); Radio; "N of M songs on this phone" |
+| Artist page | `ui/music/MusicArtistScreen.kt` | Top songs, albums, singles, fans also like; Shuffle and Mix are YouTube Music's own stations |
+| Radio | `music/MusicRadio.kt` | Tops itself up from the continuation when ≤3 left; `[radio]` log lines say every decision |
+| Plays as sound | `queue/PictureChoices.kt` | `MediaContentKind.MUSIC`; Watch asks for the picture |
+| Shared album links | `SharedLink.kt`, `MainActivity` | `list=OLAK5uy_…` opens the album; a song inside one also plays |
+| Repeat, shuffle up next | `playback/AutoAdvancer.kt`, `QueueScreen` | For both pillars |
+| Catalogue and library | `:lib:innertube/music` | `HttpYouTubeMusicCatalogue` (WEB_REMIX, anonymous), `HttpYouTubeMusicLibrary` (TV client, signed in) |
+
+Limits that remain: the radio is not persisted (after a restart its queued songs stay but it no longer
+tops up); a library artist has no channel id, so its page is found by name; the follow mark (ADR 22) shows
+on music rows too, where "subscribed" means the uploading channel; YouTube changes these renderers without
+notice.
+
+---
+
+# Stage one (2026-08-11): Songs, in the search you already use
 
 Dewi, 2026-08-11, pointing at [OuterTune](https://github.com/OuterTune/OuterTune): *"can we
 implement something like outer tune in our app but using our app fundamentals — I wanna be able to
@@ -80,7 +106,9 @@ songs would put rows in the list that do nothing when tapped.
 - **Premium-only tracks will not stream.** No token this app can hold opens them.
 - **OuterTune was read for API shapes only.** It is GPL-3.0 and archived; Totum has no licence file.
   No code was copied and none should be.
-- **No sign-in, so no library or playlists**, and no album/artist pages or radio. Stage 2 and 3.
+- ~~**No sign-in, so no library or playlists**, and no album/artist pages or radio. Stage 2 and 3.~~
+  Built on 2026-10-09; see the top of this page. The library turned out to need no new sign-in: the TV
+  client answers it with the existing token.
 - **The renderers change without notice.** That is what `LiveMusicSearchTest` is for, and it cannot
   run in CI.
 
@@ -93,6 +121,12 @@ songs would put rows in the list that do nothing when tapped.
 | unit | `app/…/SearchStreamsPerSectionTest` | the songs section settling independently of the others |
 | instrumented | `app/…/SongSearchSectionTest` | the section on screen, above videos, and tapping the right song |
 | live | `lib/innertube/…/LiveMusicSearchTest` | real YouTube Music — `RUN_LIVE_MUSIC=1`, run and passing on 2026-08-11 |
+| unit | `lib/innertube/…/MusicPageParserTest` | album, artist, radio and library pages against real trimmed fixtures (2026-10-09) |
+| unit | `lib/innertube/…/HttpYouTubeMusicTest` | the requests: filters, the two-call album link, the radio continuation, TV-client library with the token |
+| live | `lib/innertube/…/LiveMusicCatalogueTest` | albums, an album link, an artist, a radio's second batch — 4/4 on 2026-10-09 |
+| unit | `app/…/MusicRadioTest`, `MusicPlaysAsSoundTest`, `OneSongOneIdTest` | top-up, stop, no repeats offered; music routed and armed as sound; one id per song |
+| unit | `app/…/SearchViewModelTest` | the Music scope asks only music; global search never asks for albums or artists |
+| unit | `app/…/AutoAdvancerTest`, `ShuffleUpNextTest`, `core/domain/…/OfflineCountTest` | repeat one / queue, shuffle, offline counts |
 
 `songs-search.json` is a real response trimmed to four rows with every field the parser reads left
 exactly as YouTube sent it. A hand-written fixture would only prove the parser agrees with my idea

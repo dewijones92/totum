@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Backlog
@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Search's video hits use the watch URL as their id; everything else uses the video id](search-video-hit-ids.md) | search | medium | open — found 2026-10-09; music items moved to the video id, videos left for a decision |
 | [A premium ("triple-A") look and better recommendations](premium-ui-and-recommendations.md) | ui | — | to discuss with Dewi: what "triple A" means, which screens, what recommendations draw on |
 | [Cut more sponsor segments with SponsorBlock](more-sponsorblock-cuts.md) | playback/downloads | medium | built 2026-10-07 (ADR 16): downloads keep segments, files on disk skip live from the stored list; old cut files left alone |
 | [Switching audio to video and opening a channel feel slow](slow-switch-and-channel.md) | playback/channel | high | phone: audio copy → video 16.7 s, 85% extraction; fixes shipped (ADRs 11, 12): solver cache, expiry-aware resolve cache kept across restarts, look-ahead, V8 solver, shared HTTP pool, caption translations limited, account calls off the critical path; to measure on the phone |

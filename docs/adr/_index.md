@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Architecture decision records
@@ -39,3 +39,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 21 | [Daily alarms are shown on one pinned board, soonest first](0021-alarm-board.md) | Accepted |
 | 22 | [Every row says whether you follow its channel or show, and the mark subscribes](0022-every-row-says-whether-you-follow-its-source.md) | Accepted |
 | 23 | [The Exsurge banner and the alarm board alert silently, so they show on every lock screen, and the board is always pinned](0023-pinned-notifications-alert-silently.md) | Accepted |
+| 24 | [A Music tab takes Search's place in the bar; search is an action in every header](0024-music-tab-and-search-in-every-header.md) | Accepted |
+| 25 | [Music plays as sound unless you ask for the picture](0025-music-plays-as-sound.md) | Accepted |
+| 26 | [Albums, artists and your library come from YouTube Music; Play inserts after what is playing](0026-albums-artists-and-the-youtube-music-library.md) | Accepted |
+| 27 | [Radio tops itself up; repeat and shuffle are queue features, for both pillars](0027-radio-repeat-and-shuffle-are-queue-features.md) | Accepted |

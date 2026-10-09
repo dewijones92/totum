@@ -49,6 +49,8 @@ say why it is the way it is.
 | Exsurge on the lock screen (Oct 2026) | The banner is an Android 16 **Live Update** in every state (lock screen, always-on display, status-bar chip), public on the lock screen; channel unchanged | A silent notification is hidden from a Pixel lock screen by default; [ADR 15](docs/adr/0015-exsurge-banner-is-a-live-update.md) |
 | Daily alarms (Oct 2026) | A second side quest: Totum asks each weekday morning whether you want an alarm (pickup 17:30 first) and rings it itself full screen; built on a **reminder kit** shared with Exsurge (`:lib:reminders` + `app/…/reminders/kit/`); all alarms on **one board, always pinned**, soonest first; the board and the Exsurge banner alert silently so they show on every lock screen | Dewi's toddler-pickup alarm; [ADRs 17, 18, 21, 23](docs/adr/_index.md) |
 | Follow mark (Oct 2026) | Every row shows ✅ subscribed / ➕ not subscribed / ❔ unknown beside its channel or show, for both pillars; ➕ subscribes, ✅ asks first; one rule in `:core:domain` (`FollowedSources`) | Dewi wanted it obvious while scrolling; [ADR 22](docs/adr/0022-every-row-says-whether-you-follow-its-source.md) |
+| Music tab (Oct 2026) | **Music** replaces Search in the bar (Videos · Podcasts · Music · Queue · Library); search is a 🔍 in every tab header, opening over the tab; the Music tab is `SearchViewModel` in a MUSIC scope (songs, albums, artists); album and artist pages from YouTube Music; your library via the TV client; music items are `MediaContentKind.MUSIC` and play as sound until Watch | Dewi's "nice way to play/search music/albums"; [ADRs 24–26](docs/adr/_index.md) |
+| Radio, repeat, shuffle (Oct 2026) | Radio tops itself up from YouTube Music's continuation; repeat (off / queue / this one) is decided in `AutoAdvancer`; shuffle up next in the Queue header; repeat and shuffle serve both pillars | [ADR 27](docs/adr/0027-radio-repeat-and-shuffle-are-queue-features.md) |
 | Videos hidden until asked (Oct 2026) | The Videos feed sits behind a **Show videos** button, hidden again whenever you leave the tab; a setting, on by default | Dewi's dopamine fast; [ADR 19](docs/adr/0019-videos-hidden-until-asked.md) |
 | Video fullscreen (Oct 2026) | Landscape rotation opens immersive video; portrait exits automatic fullscreen; the button keeps its landscape lock | Rotation and a deliberate button press have different orientation ownership; [ADR 9](docs/adr/0009-rotation-follows-video-fullscreen.md) |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
@@ -261,8 +263,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
 
 ## Architecture
 
-- `:app` — Compose UI: `AppShell` bottom navigation across the pillars
-  (Videos / Podcasts / Library), theme, screens.
+- `:app` — Compose UI: `AppShell` bottom navigation (Videos / Podcasts / Music / Queue / Library),
+  search as a header action over the tab (`TabNavigation`), theme, screens.
 - `:core:domain` — pure-Kotlin (JVM) unified media model: `MediaSource`
   (VideoChannel | PodcastFeed), `MediaItem`, `Subscription`, `SourceId`. No
   Android dependency — leakage is a compile error. `explicitApi()` is on.
