@@ -9,6 +9,7 @@ import com.dewijones92.totum.data.queue.QueueSnapshot.Companion.NOTHING_PLAYING
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.domain.LocalCopy
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -173,10 +174,18 @@ class PlaybackQueue(
 
     /** Forgets the refusal for [id] — the person has asked for the picture back. */
     fun wantsThePictureAgain(id: MediaItemId) {
-        if (pictureGivenUpOn.remove(id.value)) {
+        val refused = pictureGivenUpOn.remove(id.value)
+        val firstAsk = pictureAskedFor.add(id.value)
+        if (refused || firstAsk) {
             Diag.log("playback", "${id.value} asked for its picture back; routes will try the video again")
         }
     }
+
+    private val pictureAskedFor = mutableSetOf<String>()
+
+    private fun soundOnly(queued: PlayableItem): Boolean =
+        queued.item.id.value in pictureGivenUpOn ||
+            (queued.item.contentKind == MediaContentKind.MUSIC && queued.item.id.value !in pictureAskedFor)
 
     /**
      * Every play that was somebody's *intent* — a tap, an auto-advance, a peek — as opposed to
@@ -580,7 +589,7 @@ class PlaybackQueue(
             queued,
             decision.route,
             skipSegments = decision.onDisk?.skipSegments.orEmpty(),
-            pictureRefused = queued.item.id.value in pictureGivenUpOn,
+            pictureRefused = soundOnly(queued),
             allowStream = allowStream,
         )
     }
@@ -987,7 +996,7 @@ class PlaybackQueue(
     ): Decision {
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
-        val audioNow = forceAudio || queued.item.id.value in pictureGivenUpOn || audioPreferred()
+        val audioNow = forceAudio || soundOnly(queued) || audioPreferred()
         val route = queued.routeNow(
             onDisk,
             offline = offlineNow,
@@ -1029,7 +1038,7 @@ class PlaybackQueue(
         val routeLine = "route ${queued.item.id.value} -> ${route.describe()} " +
             "[handle=${queued.handle.label} " +
             "copy=${onDisk?.let { if (it.audioOnly) "audio-only" else "full" } ?: "none"} " +
-            "offline=$offlineNow listen=$audioNow streamRefused=$streamRefused]"
+            "offline=$offlineNow listen=$audioNow streamRefused=$streamRefused kind=${queued.item.contentKind}]"
         Diag.log("playback", routeLine)
         recentRoutes.remember(routeLine)
         lastRoute = queued.item.id to route
@@ -1057,7 +1066,7 @@ class PlaybackQueue(
                     route.watchUrl,
                     startPositionMs,
                     request,
-                    audioOnly = queued.item.id.value in pictureGivenUpOn,
+                    audioOnly = soundOnly(queued),
                 )
             is PlayRoute.AudioStream -> {
                 controller.play(route.playable.item, queued.pillar, startPositionMs = startPositionMs)

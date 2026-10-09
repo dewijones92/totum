@@ -38,6 +38,8 @@ public class InnerTubeClient(
     private val webClientVersion: String = WEB_CLIENT_VERSION,
     private val androidClientVersion: String = ANDROID_CLIENT_VERSION,
     private val musicSearchUrl: String = MUSIC_SEARCH_URL,
+    private val musicBrowseUrl: String = MUSIC_BROWSE_URL,
+    private val musicNextUrl: String = MUSIC_NEXT_URL,
     private val musicClientVersion: String = MUSIC_CLIENT_VERSION,
     /**
      * The account's token, for every request whose client can carry one — see [Identity].
@@ -264,13 +266,22 @@ public class InnerTubeClient(
      * album and an exact duration. A continuation carries the filter forward itself, so it is only
      * sent with a fresh query.
      */
-    public suspend fun searchMusic(target: SearchTarget): InnerTubeResponse {
+    public suspend fun searchMusic(
+        target: SearchTarget,
+        filter: MusicSearchFilter = MusicSearchFilter.SONGS,
+    ): InnerTubeResponse {
         val fields = when (target) {
-            is SearchTarget.Query -> target.fields() + ", \"params\":\"$MUSIC_SONGS_FILTER\""
+            is SearchTarget.Query -> target.fields() + ", \"params\":\"${filter.params}\""
             is SearchTarget.Continuation -> target.fields()
         }
         return execute(musicSearchUrl, musicContext(fields), Identity.MUSIC, clientHeaders = MUSIC_HEADERS)
     }
+
+    public suspend fun browseMusic(target: BrowseTarget): InnerTubeResponse =
+        execute(musicBrowseUrl, musicContext(target.fields()), Identity.MUSIC, clientHeaders = MUSIC_HEADERS)
+
+    public suspend fun nextMusic(target: MusicNextTarget): InnerTubeResponse =
+        execute(musicNextUrl, musicContext(target.fields()), Identity.MUSIC, clientHeaders = MUSIC_HEADERS)
 
     /** Follows a continuation token (e.g. loading comments; WEB client, no auth). */
     public suspend fun nextContinuation(continuation: String): InnerTubeResponse =
@@ -387,7 +398,10 @@ public class InnerTubeClient(
          * YouTube Music has its own host, and it matters: the `WEB_REMIX` client is only served
          * music renderers there.
          */
-        public const val MUSIC_SEARCH_URL: String = "https://music.youtube.com/youtubei/v1/search?prettyPrint=false"
+        private const val MUSIC_BASE: String = "https://music.youtube.com/youtubei/v1"
+        public const val MUSIC_SEARCH_URL: String = "$MUSIC_BASE/search?prettyPrint=false"
+        public const val MUSIC_BROWSE_URL: String = "$MUSIC_BASE/browse?prettyPrint=false"
+        public const val MUSIC_NEXT_URL: String = "$MUSIC_BASE/next?prettyPrint=false"
         public const val MUSIC_CLIENT_VERSION: String = "1.20240101.01.00"
 
         /**
@@ -397,7 +411,6 @@ public class InnerTubeClient(
          * copied: sent with the query it returns twenty songs, and omitted it returns a mixed bag
          * that is mostly not music (see [searchMusic]).
          */
-        internal const val MUSIC_SONGS_FILTER: String = "EgWKAQIIAWoKEAoQCRADEAQQBQ%3D%3D"
 
         /**
          * InnerTube cross-checks the declared client against these headers and rejects a request
@@ -507,6 +520,26 @@ internal enum class Identity(val acceptsBearer: Boolean) {
 
     /** The embedded player — the SABR endpoint that is not capped. Anonymous only. */
     EMBEDDED(acceptsBearer = false),
+}
+
+public enum class MusicSearchFilter(internal val params: String) {
+    SONGS("EgWKAQIIAWoKEAoQCRADEAQQBQ%3D%3D"),
+    ALBUMS("EgWKAQIYAWoKEAoQCRADEAQQBQ%3D%3D"),
+    ARTISTS("EgWKAQIgAWoKEAoQCRADEAQQBQ%3D%3D"),
+}
+
+public sealed interface MusicNextTarget {
+    public data class Radio(public val videoId: String?, public val playlistId: String) : MusicNextTarget
+    public data class Continuation(public val playlistId: String, public val token: String) : MusicNextTarget
+}
+
+internal fun MusicNextTarget.fields(): String = when (this) {
+    is MusicNextTarget.Radio -> buildString {
+        if (videoId != null) append(""" "videoId":"$videoId", """)
+        append(""" "playlistId":"$playlistId", "isAudioOnly":true """)
+    }
+    is MusicNextTarget.Continuation ->
+        """ "continuation":"$token", "playlistId":"$playlistId", "isAudioOnly":true """
 }
 
 public sealed interface SearchTarget {

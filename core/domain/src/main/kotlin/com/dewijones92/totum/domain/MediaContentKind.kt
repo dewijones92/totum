@@ -5,4 +5,4 @@ package com.dewijones92.totum.domain
  * splitting videos, live streams and Shorts onto separate pages. [STANDARD]
  * covers normal videos and every podcast (they are never live/short).
  */
-public enum class MediaContentKind { STANDARD, LIVE, SHORT }
+public enum class MediaContentKind { STANDARD, LIVE, SHORT, MUSIC }
