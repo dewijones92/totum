@@ -100,6 +100,13 @@ public fun MediaItem.fillingSilenceFrom(resolved: MediaItem): MediaItem {
         thumbnailUrl = thumbnailUrl ?: resolved.thumbnailUrl,
         description = description ?: resolved.description,
         viewsText = viewsText ?: resolved.viewsText,
-    )
+    ).placedFrom(resolved)
     return if (filled == this) this else filled
 }
+
+/** Where an item belongs: its album, its maker's page, and whether it is a song. */
+private fun MediaItem.placedFrom(resolved: MediaItem): MediaItem = copy(
+    album = album ?: resolved.album,
+    sourceUrl = sourceUrl ?: resolved.sourceUrl,
+    contentKind = if (contentKind == MediaContentKind.STANDARD) resolved.contentKind else contentKind,
+)

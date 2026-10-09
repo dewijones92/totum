@@ -67,7 +67,9 @@ class MusicAlbumViewModel(
                 is MusicResult.Success -> {
                     val album = result.value
                     Diag.log("music", "album ${album.browseId} \"${album.title}\" loaded: ${album.tracks.size} tracks")
-                    State.Loaded(album, album.tracks.map { it.toMediaItem(MusicSources.album(album.browseId)) })
+                    val tracks = album.tracks.map { it.toMediaItem(MusicSources.album(album.browseId)) }
+                    tracks.forEach { downloads.learnFacts(it) }
+                    State.Loaded(album, tracks)
                 }
                 is MusicResult.Failure -> {
                     Diag.warn("music", "album ${page.label} failed: ${result.detail}")

@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
@@ -125,6 +127,24 @@ class LibraryViewModel(
     val storage: StateFlow<StorageUsage> = downloaded
         .map { entries -> StorageUsage(entries.size, entries.sumOf { it.sizeBytes }, freeSpace()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), StorageUsage.Empty)
+
+    /** Songs on the phone gathered by album, for playing or removing a whole album at once. */
+    val albums: StateFlow<List<AlbumOnPhone>> = downloads.observeDownloaded()
+        .map(::albumsOnThisPhone)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+
+    fun playAlbum(album: AlbumOnPhone) {
+        Diag.log(
+            "library",
+            "play album on the phone \"${album.album.title}\": ${album.songs.size} songs from their files"
+        )
+        queue.playAll(album.songs.map { it.offline }, QueueGroup("album:${album.key}", album.album.title))
+    }
+
+    fun deleteAlbum(album: AlbumOnPhone) {
+        Diag.log("library", "remove album from the phone \"${album.album.title}\": ${album.songs.size} files")
+        viewModelScope.launch { album.songs.forEach { downloads.delete(it.item.id) } }
+    }
 
     /** Plays the local file, through the queue like every other tap. */
     fun play(entry: Entry) {

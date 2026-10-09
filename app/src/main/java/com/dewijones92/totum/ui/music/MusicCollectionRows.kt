@@ -78,13 +78,14 @@ fun PlaylistRow(
 }
 
 @Composable
-private fun CollectionRow(
+internal fun CollectionRow(
     title: String,
     lines: List<String>,
     artworkUrl: HttpUrl?,
     shape: Shape,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -105,6 +106,7 @@ private fun CollectionRow(
                 )
             }
         }
+        trailing?.invoke()
     }
 }
 

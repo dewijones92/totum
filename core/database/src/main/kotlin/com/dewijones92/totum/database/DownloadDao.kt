@@ -53,5 +53,9 @@ private fun DownloadEntity.learningFactsFrom(resolved: MediaItem): DownloadEntit
         publishedText = filled.publishedText,
         publishedAtEpochMs = filled.publishedAt?.toEpochMilli(),
         durationMs = filled.duration?.inWholeMilliseconds,
+        albumId = filled.album?.id,
+        albumTitle = filled.album?.title,
+        sourceUrl = filled.sourceUrl?.value,
+        contentKind = filled.contentKind.name,
     )
 }

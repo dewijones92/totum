@@ -103,6 +103,16 @@
     <string name="music_more_songs">More songs</string>
     <string name="search_more_albums">More albums</string>
     <string name="search_more_artists">More artists</string>
+    <string name="library_albums_on_phone">Albums on this phone</string>
+    <string name="library_album_remove">Remove from this phone</string>
+    <plurals name="library_album_songs">
+        <item quantity="one">%d song on this phone</item>
+        <item quantity="other">%d songs on this phone</item>
+    </plurals>
+    <plurals name="library_album_remove_confirm">
+        <item quantity="one">Remove the %1$d song of %2$s from this phone?</item>
+        <item quantity="other">Remove the %1$d songs of %2$s from this phone?</item>
+    </plurals>
     <string name="lyrics_title">Lyrics</string>
     <string name="lyrics_show">Show lyrics</string>
     <string name="lyrics_hide">Hide lyrics</string>

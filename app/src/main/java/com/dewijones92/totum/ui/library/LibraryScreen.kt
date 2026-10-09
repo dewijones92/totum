@@ -153,6 +153,7 @@ private fun LibraryHome(
     val failed by viewModel.failed.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
     val sort by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val albums by viewModel.albums.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
 
     LibraryContent(
@@ -174,6 +175,7 @@ private fun LibraryHome(
         onAddToPlaylist = { addToPlaylist(it.item) },
         onSetSort = viewModel::setSort,
         modifier = modifier,
+        phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
     )
 }
 
@@ -198,6 +200,7 @@ internal fun LibraryContent(
     onAddToPlaylist: (LibraryViewModel.Entry) -> Unit,
     onSetSort: (DownloadSort) -> Unit,
     modifier: Modifier = Modifier,
+    phoneAlbums: PhoneAlbums = PhoneAlbums(),
 ) {
     val actions = LocalItemActions.current
     val listFilter = rememberListFilter("downloads")
@@ -215,6 +218,7 @@ internal fun LibraryContent(
                         onOpenAccount = onOpenAccount,
                     )
                 }
+                phoneAlbumsSection(phoneAlbums)
                 // In-progress FIRST, and outside the empty check: a fresh install with everything
                 // still downloading would otherwise show "nothing downloaded yet" while the phone
                 // was busily downloading, which is the most misleading thing this screen could say.
