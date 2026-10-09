@@ -17,6 +17,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.AppShell
 import com.dewijones92.totum.ui.common.LocalNow
+import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.mayAskForNotifications
 import com.dewijones92.totum.ui.common.rememberTickingNow
@@ -38,6 +39,7 @@ class MainActivity : FragmentActivity() {
     private val mayAsk = mutableStateOf(false)
 
     private val openPlayerRequest = mutableIntStateOf(0)
+    private val openMusicPage = mutableStateOf<MusicPage?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +66,7 @@ class MainActivity : FragmentActivity() {
                     AppShell(
                         container,
                         openPlayerRequest = openPlayerRequest.intValue,
+                        openMusicPage = openMusicPage.value,
                         askForNotifications = if (mayAsk.value) {
                             { RequestNotificationPermissionOnce() }
                         } else {
@@ -128,13 +131,20 @@ class MainActivity : FragmentActivity() {
 
     private fun handleShareIntent(intent: Intent, via: String, restored: Boolean) {
         if (handleAuthIntent(intent)) return
-        val url = intent.sharedWatchUrl() ?: return
+        val album = sharedAlbumPlaylistId(intent.sharedText())
+        val url = intent.sharedWatchUrl()
+        if (url == null && album == null) return
         val arrival = intent.arrival(restored)
         val facts = "${arrival.why}; via=$via flags=0x${Integer.toHexString(intent.flags)} restored=$restored"
         if (arrival != ShareArrival.FRESH) {
-            Diag.log("share", "ignored a replayed share, nothing queued [$facts] -> $url")
+            Diag.log("share", "ignored a replayed share, nothing queued [$facts] -> ${url ?: album}")
             return
         }
+        if (album != null) {
+            Diag.log("share", "shared link names album playlist $album; opening its album page [$facts]")
+            openMusicPage.value = MusicPage.Album(null, album, getString(R.string.music_kind_album))
+        }
+        if (url == null) return
         Diag.log("share", "shared link -> $url [$facts]")
         val placeholder = placeholderFor(url, SHARED_SOURCE) ?: run {
             Diag.warn("share", "shared link has no video id, so nothing was queued -> $url")
@@ -157,13 +167,13 @@ class MainActivity : FragmentActivity() {
     }
 
     /** The YouTube watch URL from a VIEW (link) or SEND (share text) intent, if any. */
-    private fun Intent.sharedWatchUrl(): HttpUrl? = sharedWatchUrl(
-        when (action) {
-            Intent.ACTION_VIEW -> dataString
-            Intent.ACTION_SEND -> getStringExtra(Intent.EXTRA_TEXT)
-            else -> null
-        },
-    )
+    private fun Intent.sharedWatchUrl(): HttpUrl? = sharedWatchUrl(sharedText())
+
+    private fun Intent.sharedText(): String? = when (action) {
+        Intent.ACTION_VIEW -> dataString
+        Intent.ACTION_SEND -> getStringExtra(Intent.EXTRA_TEXT)
+        else -> null
+    }
 
     private fun Intent.arrival(restored: Boolean): ShareArrival = shareArrival(
         launchedFromHistory = (flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0,

@@ -10,7 +10,7 @@ import com.dewijones92.totum.innertube.music.MusicSong
 import kotlin.time.Duration.Companion.seconds
 
 fun MusicSong.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
-    id = MediaItemId(watchUrl.value),
+    id = MediaItemId(videoId),
     sourceId = sourceId,
     title = title,
     publishedAt = null,

@@ -39,6 +39,7 @@ import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
+import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
@@ -79,6 +80,7 @@ fun AppShell(
      */
     askForNotifications: @Composable () -> Unit = { RequestNotificationPermissionOnce() },
     openPlayerRequest: Int = 0,
+    openMusicPage: MusicPage? = null,
 ) {
     var selected by rememberSaveable { mutableStateOf(TopLevelDestination.Videos) }
     var showFullPlayer by rememberSaveable { mutableStateOf(false) }
@@ -110,6 +112,7 @@ fun AppShell(
 
     OpenVideoOnLandscape(playbackState, enabled = shortsReel == null) { showFullPlayer = true }
     AnswerOpenPlayerRequests(openPlayerRequest, controller) { showFullPlayer = true }
+    LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
 
     CompositionLocalProvider(
         LocalVideoBounds provides videoBounds,

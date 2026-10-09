@@ -24,6 +24,14 @@ internal fun sharedWatchUrl(rawText: String?): HttpUrl? {
         ?.canonicalWatchUrl()
 }
 
+internal fun sharedAlbumPlaylistId(rawText: String?): String? {
+    val url = URL_PATTERN.find(rawText ?: return null)?.value ?: return null
+    if ("youtube.com/" !in url) return null
+    return ALBUM_LIST.find(url)?.groupValues?.get(1)
+}
+
+private val ALBUM_LIST = Regex("""[?&]list=(OLAK5uy_[A-Za-z0-9_-]+)""")
+
 /** A share is usually a sentence with a link in it, not a bare URL. */
 private val URL_PATTERN = Regex("""https?://\S+""")
 

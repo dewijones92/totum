@@ -118,4 +118,28 @@ class SharedLinkTest {
     fun `a non-video link is not queued`() {
         assertNull(placeholderFor(HttpUrl.of("https://www.youtube.com/@NovaraMedia"), SourceId("shared")))
     }
+
+    @Test
+    fun `a song shared from an album names the album's playlist too`() {
+        val shared = "https://m.youtube.com/watch?v=RHlqxABCDEF&list=OLAK5uy_nMJmELuIq7hkr1fvMVh2JK50kfaoKr5yw&index=12"
+
+        assertEquals("OLAK5uy_nMJmELuIq7hkr1fvMVh2JK50kfaoKr5yw", sharedAlbumPlaylistId(shared))
+    }
+
+    @Test
+    fun `an album link with no song is still an album`() {
+        val shared = "Listen on YouTube Music " +
+            "https://music.youtube.com/playlist?list=OLAK5uy_l4Z8njnOK_Q-MOVqKoq9tU98JqO20Mvnw&si=x"
+
+        assertEquals("OLAK5uy_l4Z8njnOK_Q-MOVqKoq9tU98JqO20Mvnw", sharedAlbumPlaylistId(shared))
+    }
+
+    @Test
+    fun `an ordinary playlist or a plain video is not an album`() {
+        assertNull(
+            sharedAlbumPlaylistId("https://www.youtube.com/watch?v=RHlqxABCDEF&list=PL6VJ2PQw8x0qsMx8GC1cga3zN7k9AVyAE")
+        )
+        assertNull(sharedAlbumPlaylistId("https://youtu.be/RHlqxABCDEF"))
+        assertNull(sharedAlbumPlaylistId(null))
+    }
 }

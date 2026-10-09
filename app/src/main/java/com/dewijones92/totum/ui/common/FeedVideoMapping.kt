@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.common
 
 import com.dewijones92.totum.common.youTubeChannelUrl
+import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
@@ -79,7 +80,7 @@ fun SearchHit.Video.toMediaItem(sourceId: SourceId, observedAt: Instant = Instan
  * read badly everywhere else the item appears — the queue, the notification, the lock screen.
  */
 fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
-    id = MediaItemId(watchUrl.value),
+    id = MediaItemId(watchUrl.youTubeVideoId() ?: watchUrl.value),
     sourceId = sourceId,
     title = title,
     publishedAt = null,
