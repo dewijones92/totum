@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.scale
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -66,7 +67,7 @@ class HomeScreenShortcuts(private val context: Context) {
         val side = minOf(source.width, source.height)
         val left = (source.width - side) / 2
         val top = (source.height - side) / 2
-        return Bitmap.createScaledBitmap(Bitmap.createBitmap(source, left, top, side, side), ICON_PX, ICON_PX, true)
+        return Bitmap.createBitmap(source, left, top, side, side).scale(ICON_PX, ICON_PX)
     }
 
     companion object {

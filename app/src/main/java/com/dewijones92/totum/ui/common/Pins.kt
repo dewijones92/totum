@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.common
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
@@ -36,40 +37,48 @@ internal fun rememberPinActions(container: AppContainer): PinActions {
     val pins by container.pinStore.pins.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val expandPlayer = LocalExpandPlayer.current
-    fun say(res: Int, title: String) = Toast.makeText(context, context.getString(res, title), Toast.LENGTH_SHORT).show()
-    return object : PinActions {
-        override val pinned: List<Pin> = pins
+    return ContainerPinActions(container, context, expandPlayer, pins)
+}
 
-        override fun toggle(pin: Pin) {
-            if (isPinned(pin.key)) {
-                container.pinStore.unpin(pin.key)
-                say(R.string.pin_removed, pin.title)
-            } else {
-                container.pinStore.pin(pin)
-                say(R.string.pin_added, pin.title)
-            }
-        }
+private class ContainerPinActions(
+    private val container: AppContainer,
+    private val context: Context,
+    private val expandPlayer: () -> Unit,
+    override val pinned: List<Pin>,
+) : PinActions {
 
-        override fun addToHomeScreen(pin: Pin) {
+    private fun say(res: Int, title: String) =
+        Toast.makeText(context, context.getString(res, title), Toast.LENGTH_SHORT).show()
+
+    override fun toggle(pin: Pin) {
+        if (isPinned(pin.key)) {
+            container.pinStore.unpin(pin.key)
+            say(R.string.pin_removed, pin.title)
+        } else {
             container.pinStore.pin(pin)
-            val shortcuts = container.homeScreenShortcuts
-            if (shortcuts == null) {
-                say(R.string.pin_added, pin.title)
-                return
-            }
-            container.applicationScope.launch {
-                if (!shortcuts.requestPin(pin)) say(R.string.pin_home_unsupported, pin.title)
-            }
+            say(R.string.pin_added, pin.title)
         }
+    }
 
-        override fun play(pin: Pin) {
-            container.applicationScope.launch {
-                when (val played = container.pinPlayer.play(pin, from = "pinned row")) {
-                    is PinPlayed.Started -> if (played.showsPicture) expandPlayer()
-                    is PinPlayed.Failed -> {
-                        Diag.warn("pin", "${pin.key} did not play: ${played.why}")
-                        say(R.string.pin_could_not_play, pin.title)
-                    }
+    override fun addToHomeScreen(pin: Pin) {
+        container.pinStore.pin(pin)
+        val shortcuts = container.homeScreenShortcuts
+        if (shortcuts == null) {
+            say(R.string.pin_added, pin.title)
+            return
+        }
+        container.applicationScope.launch {
+            if (!shortcuts.requestPin(pin)) say(R.string.pin_home_unsupported, pin.title)
+        }
+    }
+
+    override fun play(pin: Pin) {
+        container.applicationScope.launch {
+            when (val played = container.pinPlayer.play(pin, from = "pinned row")) {
+                is PinPlayed.Started -> if (played.showsPicture) expandPlayer()
+                is PinPlayed.Failed -> {
+                    Diag.warn("pin", "${pin.key} did not play: ${played.why}")
+                    say(R.string.pin_could_not_play, pin.title)
                 }
             }
         }
