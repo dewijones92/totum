@@ -1,8 +1,8 @@
 package com.dewijones92.totum.ui.player
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -32,23 +32,31 @@ internal fun endOfGroupSleep(entries: List<QueueEntry>, currentIndex: Int, timer
     }
 }
 
-internal val LocalPlayerLinks = staticCompositionLocalOf { PlayerLinks() }
+internal val LocalPlayerLinks = compositionLocalOf { PlayerLinks() }
 
 @Composable
 internal fun playerLinksFor(
     item: MediaItem?,
     catalogue: YouTubeMusicCatalogue,
-    endOfGroup: EndOfGroupSleep? = null,
+    queue: List<QueueEntry>,
+    currentIndex: Int,
+    timer: SleepTimer,
 ): PlayerLinks {
     val actions = LocalItemActions.current
-    if (item == null || actions == null) return PlayerLinks(endOfGroup = endOfGroup)
-    return PlayerLinks(
-        onArtist = actions.sourceLink(item),
-        album = item.album?.title,
-        onAlbum = actions.albumLink(item),
-        lyrics = item.takeIf { it.contentKind == MediaContentKind.MUSIC }
-            ?.let { it.mediaUrl?.youTubeVideoId() ?: it.id.value }
-            ?.let { remember(it, catalogue) { LyricsLoader(it, catalogue) } },
-        endOfGroup = endOfGroup,
-    )
+    return remember(item, actions, catalogue, queue, currentIndex, timer) {
+        val endOfGroup = endOfGroupSleep(queue, currentIndex, timer)
+        if (item == null || actions == null) {
+            PlayerLinks(endOfGroup = endOfGroup)
+        } else {
+            PlayerLinks(
+                onArtist = actions.sourceLink(item),
+                album = item.album?.title,
+                onAlbum = actions.albumLink(item),
+                lyrics = item.takeIf { it.contentKind == MediaContentKind.MUSIC }
+                    ?.let { it.mediaUrl?.youTubeVideoId() ?: it.id.value }
+                    ?.let { LyricsLoader(it, catalogue) },
+                endOfGroup = endOfGroup,
+            )
+        }
+    }
 }
