@@ -96,6 +96,12 @@
     <string name="go_to_podcast">Go to podcast</string>
     <string name="go_to_artist">Go to artist</string>
     <string name="go_to_album">Go to album</string>
+    <string name="lyrics_title">Lyrics</string>
+    <string name="lyrics_show">Show lyrics</string>
+    <string name="lyrics_hide">Hide lyrics</string>
+    <string name="lyrics_loading">Loading the lyrics</string>
+    <string name="lyrics_none">YouTube Music has no lyrics for this song</string>
+    <string name="lyrics_failed">Couldn\'t load the lyrics. Tap to try again</string>
     <string name="notifications_title">New uploads</string>
     <string name="notifications_empty">You\'re all caught up.</string>
 

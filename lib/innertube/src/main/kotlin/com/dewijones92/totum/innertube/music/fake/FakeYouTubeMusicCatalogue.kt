@@ -1,6 +1,7 @@
 package com.dewijones92.totum.innertube.music.fake
 
 import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.innertube.music.Lyrics
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtist
@@ -16,7 +17,15 @@ public class FakeYouTubeMusicCatalogue(
     public var albumsById: Map<String, MusicAlbum> = emptyMap(),
     public var artistsById: Map<String, MusicArtist> = emptyMap(),
     public var radioBatches: List<RadioBatch> = emptyList(),
+    public var lyricsById: Map<String, Lyrics> = emptyMap(),
 ) : YouTubeMusicCatalogue {
+
+    public val lyricsRequests: MutableList<String> = mutableListOf()
+
+    override suspend fun lyrics(videoId: String): MusicResult<Lyrics?> {
+        lyricsRequests += videoId
+        return MusicResult.Success(lyricsById[videoId])
+    }
 
     public val radioRequests: MutableList<Pair<RadioSeed, String?>> = mutableListOf()
 

@@ -399,6 +399,7 @@ private fun PlayerDetails(
         WatchActionButtons(watchActions)
     }
 
+    LyricsSection()
     NotesChaptersAndSponsors(state, onSeekTo)
 
     // The user's up-next queue — both pillars, above the video-only related list.

@@ -233,7 +233,7 @@ private fun FullPlayerHost(
     val currentIndex = queueState.currentIndex
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
 
-    CompositionLocalProvider(LocalPlayerLinks provides playerLinksFor(playing?.item)) {
+    CompositionLocalProvider(LocalPlayerLinks provides playerLinksFor(playing?.item, container.musicCatalogue)) {
         FullPlayerOverlay(
             state = state,
             player = controller.player,

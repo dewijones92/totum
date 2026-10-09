@@ -78,4 +78,7 @@ public interface YouTubeMusicCatalogue {
     public suspend fun artist(browseId: String): MusicResult<MusicArtist>
 
     public suspend fun radio(seed: RadioSeed, continuation: String? = null): MusicResult<RadioBatch>
+
+    /** A song's words, or a success holding null when YouTube Music has none for it. */
+    public suspend fun lyrics(videoId: String): MusicResult<Lyrics?>
 }

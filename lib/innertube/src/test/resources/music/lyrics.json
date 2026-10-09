@@ -1,0 +1,39 @@
+{
+ "contents": {
+  "sectionListRenderer": {
+   "contents": [
+    {
+     "musicDescriptionShelfRenderer": {
+      "description": {
+       "runs": [
+        {
+         "text": "Placeholder line one\nPlaceholder line two\n\nA second verse stands here\nAnd ends here"
+        }
+       ]
+      },
+      "trackingParams": "CAIQ2fQEGAAiEwiYgZLnrq2XAxWfPPEFHa-wL4g=",
+      "maxCollapsedLines": 0,
+      "maxExpandedLines": 0,
+      "onShowCommands": [
+       {
+        "clickTrackingParams": "CAIQ2fQEGAAiEwiYgZLnrq2XAxWfPPEFHa-wL4jKAQRaL6vc",
+        "logLyricEventCommand": {
+         "serializedLyricInfo": "Eg90X0lJV245TFlVODNnLTcYAiIJMTMzNTg4NjAx"
+        }
+       }
+      ],
+      "footer": {
+       "runs": [
+        {
+         "text": "Source: Musixmatch"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "trackingParams": "CAEQui8iEwiYgZLnrq2XAxWfPPEFHa-wL4g="
+  }
+ },
+ "trackingParams": "CAAQhGciEwiYgZLnrq2XAxWfPPEFHa-wL4jKAQRaL6vc"
+}

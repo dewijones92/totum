@@ -39,6 +39,15 @@ public class HttpYouTubeMusicCatalogue(private val client: InnerTubeClient) : Yo
         return client.nextMusic(target).map(MusicPageParser::radio)
     }
 
+    override suspend fun lyrics(videoId: String): MusicResult<Lyrics?> {
+        val tab = client.nextMusic(MusicNextTarget.Song(videoId)).map(MusicLyricsParser::lyricsBrowseId)
+        val browseId = when (tab) {
+            is MusicResult.Failure -> return tab
+            is MusicResult.Success -> tab.value ?: return MusicResult.Success(null)
+        }
+        return client.browseMusic(BrowseTarget.Id(browseId)).map(MusicLyricsParser::lyrics)
+    }
+
     private inline fun <T> InnerTubeResponse.map(read: (String) -> T): MusicResult<T> = when (this) {
         is InnerTubeResponse.Success -> MusicResult.Success(read(body))
         InnerTubeResponse.Unauthorized -> MusicResult.Failure("rejected")

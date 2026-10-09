@@ -531,6 +531,9 @@ public enum class MusicSearchFilter(internal val params: String) {
 public sealed interface MusicNextTarget {
     public data class Radio(public val videoId: String?, public val playlistId: String) : MusicNextTarget
     public data class Continuation(public val playlistId: String, public val token: String) : MusicNextTarget
+
+    /** One song's watch page, which holds the tab its lyrics live behind. */
+    public data class Song(public val videoId: String) : MusicNextTarget
 }
 
 internal fun MusicNextTarget.fields(): String = when (this) {
@@ -540,6 +543,7 @@ internal fun MusicNextTarget.fields(): String = when (this) {
     }
     is MusicNextTarget.Continuation ->
         """ "continuation":"$token", "playlistId":"$playlistId", "isAudioOnly":true """
+    is MusicNextTarget.Song -> """ "videoId":"$videoId", "isAudioOnly":true """
 }
 
 public sealed interface SearchTarget {
