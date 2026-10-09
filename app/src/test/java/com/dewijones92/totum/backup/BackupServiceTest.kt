@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.data.subscription.fake.InMemorySubscriptionStore
+import com.dewijones92.totum.domain.AlbumRef
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
@@ -126,6 +127,35 @@ class BackupServiceTest {
      * database tables kept it, which is the "same item reads differently depending which list you
      * reached it from" defect that change exists to fix.
      */
+    @Test
+    fun `a backup from before v26 restores a search video under its bare id, progress and all`() = runTest {
+        val watch = "https://www.youtube.com/watch?v=BNMKGYiJpvg"
+        val video = PlayableItem(item(watch).copy(mediaUrl = null), PlayHandle.Video(HttpUrl.of(watch)))
+        val from = Fixture()
+        from.queue.save(QueueSnapshot(listOf(QueueEntry(video))))
+        from.progress.save(MediaItemId(watch), 30_000, 200_000)
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        assertEquals("BNMKGYiJpvg", onto.queue.load().entries.single().item.item.id.value)
+        assertEquals(30_000L, onto.progress.resumePositionMs(MediaItemId("BNMKGYiJpvg")))
+    }
+
+    @Test
+    fun `a song's album survives a backup`() = runTest {
+        val song = playable("song1").let { it.copy(item = it.item.copy(album = AlbumRef("MPREb_x", "Recital"))) }
+        val from = Fixture()
+        from.queue.save(QueueSnapshot(listOf(QueueEntry(song))))
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        assertEquals(AlbumRef("MPREb_x", "Recital"), onto.queue.load().entries.single().item.item.album)
+    }
+
     @Test
     fun `a restored queue row keeps the show AND its publisher`() = runTest {
         val from = Fixture()

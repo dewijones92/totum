@@ -16,6 +16,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaContentKind
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinPlayed
 import kotlinx.coroutines.launch
@@ -30,7 +33,20 @@ interface PinActions {
 
 internal val LocalPins = compositionLocalOf<PinActions?> { null }
 
-data class SheetExtras(val onStartRadio: (() -> Unit)? = null, val pin: Pin? = null)
+data class SheetExtras(
+    val onStartRadio: (() -> Unit)? = null,
+    val pin: Pin? = null,
+    val onGoToAlbum: (() -> Unit)? = null,
+    val music: Boolean = false,
+)
+
+@Composable
+internal fun sheetExtrasFor(item: MediaItem, onStartRadio: (() -> Unit)?): SheetExtras = SheetExtras(
+    onStartRadio = onStartRadio,
+    pin = item.toPlayableOrNull()?.let(Pin::of),
+    onGoToAlbum = LocalItemActions.current?.albumLink(item),
+    music = item.contentKind == MediaContentKind.MUSIC,
+)
 
 @Composable
 internal fun rememberPinActions(container: AppContainer): PinActions {

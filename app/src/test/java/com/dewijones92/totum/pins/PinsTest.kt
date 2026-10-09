@@ -90,6 +90,20 @@ class PinsTest {
         assertEquals(listOf(everyKind[1].key), store.pins.value.map { it.key })
     }
 
+    @Test
+    fun `a video pinned under its watch URL is the same pin as its bare id, and its old icon still finds it`() {
+        val watch = "https://www.youtube.com/watch?v=trainVideo1"
+        val old = Pin.of(trainVideo.copy(item = trainVideo.item.copy(id = MediaItemId(watch))))
+        val store = InMemoryPinStore()
+        store.pin(old)
+
+        store.pin(Pin.of(trainVideo))
+
+        assertEquals(1, store.pins.value.size)
+        assertEquals(Pin.of(trainVideo).key, store.find("item:$watch")?.key)
+        assertEquals(MediaItemId("trainVideo1"), (store.pins.value.single() as Pin.Item).playable()?.item?.id)
+    }
+
     private class Resolves : YtDlpEngine by FakeYtDlpEngine() {
         override suspend fun extract(url: HttpUrl): ExtractionResult = ExtractionResult.Success(
             MediaMetadata(

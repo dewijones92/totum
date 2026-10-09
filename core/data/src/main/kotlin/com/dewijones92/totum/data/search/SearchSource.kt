@@ -6,6 +6,7 @@ import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtistRef
+import com.dewijones92.totum.innertube.music.MusicSong
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -80,17 +81,21 @@ public sealed interface SearchHit {
      * artist, an album and an exact duration, where a video knows an uploader and a view count —
      * and a row that showed "Nina Simone" where the album should be would be a worse row.
      */
-    public data class Song(
-        override val title: String,
-        override val subtitle: String?,
-        override val artworkUrl: HttpUrl?,
-        val watchUrl: HttpUrl,
-        val durationSeconds: Long?,
-        val artist: String?,
-        val album: String?,
-        /** "276M plays" as YouTube Music renders it; null when absent. */
-        val playsText: String? = null,
-    ) : SearchHit
+    public data class Song(public val song: MusicSong) : SearchHit {
+        override val title: String get() = song.title
+
+        /** The artist and the album, which together tell two recordings of one song apart. */
+        override val subtitle: String? get() = listOfNotNull(
+            song.artist,
+            song.album
+        ).joinToString(" • ").ifBlank { null }
+        override val artworkUrl: HttpUrl? get() = song.thumbnailUrl
+        val watchUrl: HttpUrl get() = song.watchUrl
+        val durationSeconds: Long? get() = song.durationSeconds
+        val artist: String? get() = song.artist
+        val album: String? get() = song.album
+        val playsText: String? get() = song.playsText
+    }
 
     public data class Album(public val ref: MusicAlbumRef) : SearchHit {
         override val title: String get() = ref.title

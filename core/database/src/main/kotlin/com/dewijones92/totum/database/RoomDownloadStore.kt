@@ -108,6 +108,8 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
             durationMs = media.duration?.inWholeMilliseconds,
             sourceUrl = media.sourceUrl?.value,
             membersOnly = media.membersOnly,
+            albumId = media.album?.id,
+            albumTitle = media.album?.title,
             playbackType = playbackType,
             handle = handleValue,
             mediaUrl = media.mediaUrl?.value,

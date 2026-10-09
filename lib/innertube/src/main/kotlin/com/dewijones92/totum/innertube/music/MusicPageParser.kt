@@ -14,11 +14,19 @@ internal object MusicPageParser {
         val art = header.obj("thumbnail")?.bestThumbnailUrl()
         val subtitle = header.obj("subtitle").text().orEmpty().segments()
         val strapline = header.obj("straplineTextOne")
+        val artistId = strapline?.firstBrowseLink()?.takeIf { it.pageType == ARTIST_PAGE }?.browseId
         val tracks = LinkedHashMap<String, MusicSong>()
         root.collectEach("musicShelfRenderer") { shelf ->
             shelf.collectEach(ROW) { row ->
                 row.toSongOrNull(fallbackArt = art)?.let { song ->
-                    tracks.putIfAbsent(song.videoId, song.copy(album = song.album ?: title))
+                    tracks.putIfAbsent(
+                        song.videoId,
+                        song.copy(
+                            album = song.album ?: title,
+                            albumId = browseId,
+                            artistId = song.artistId ?: artistId
+                        ),
+                    )
                 }
             }
         }
@@ -26,7 +34,7 @@ internal object MusicPageParser {
             browseId = browseId,
             title = title,
             artist = strapline.text(),
-            artistBrowseId = strapline?.firstBrowseLink()?.takeIf { it.pageType == ARTIST_PAGE }?.browseId,
+            artistBrowseId = artistId,
             year = subtitle.lastOrNull { it.isYear() },
             kind = releaseKindOf(subtitle.firstOrNull()),
             summary = header.obj("secondSubtitle").text(),
@@ -150,6 +158,7 @@ internal object MusicPageParser {
         val videoId = str("videoId") ?: return null
         val watchUrl = FeedVideo.watchUrlFor(videoId) ?: return null
         val byline = obj("longBylineText").text().orEmpty().segments().filter { it.isCredit() }
+        val links = obj("longBylineText").linkedRuns()
         return MusicSong(
             videoId = videoId,
             title = obj("title").text() ?: return null,
@@ -159,6 +168,8 @@ internal object MusicPageParser {
                 ?.let(::parseClockToSeconds),
             thumbnailUrl = obj("thumbnail")?.bestThumbnailUrl(),
             watchUrl = watchUrl,
+            artistId = links.idOf(ARTIST_ID_PREFIX),
+            albumId = links.idOf(ALBUM_ID_PREFIX),
         )
     }
 

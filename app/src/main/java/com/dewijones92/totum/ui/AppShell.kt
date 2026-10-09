@@ -47,11 +47,13 @@ import com.dewijones92.totum.ui.motion.sharedXAxis
 import com.dewijones92.totum.ui.music.MusicScreen
 import com.dewijones92.totum.ui.player.CommentReplies
 import com.dewijones92.totum.ui.player.FullPlayerOverlay
+import com.dewijones92.totum.ui.player.LocalPlayerLinks
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
 import com.dewijones92.totum.ui.player.PictureInPictureEffect
 import com.dewijones92.totum.ui.player.VideoBounds
 import com.dewijones92.totum.ui.player.WatchViewModel
+import com.dewijones92.totum.ui.player.playerLinksFor
 import com.dewijones92.totum.ui.player.rememberIsInPictureInPicture
 import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
@@ -231,34 +233,36 @@ private fun FullPlayerHost(
     val currentIndex = queueState.currentIndex
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
 
-    FullPlayerOverlay(
-        state = state,
-        player = controller.player,
-        comments = comments,
-        replies = CommentReplies(
-            threads = replies,
-            onToggle = watchViewModel::toggleReplies,
-            onLoadMore = watchViewModel::loadMoreReplies,
-        ),
-        related = related,
-        watchActions = rememberWatchActions(watchViewModel),
-        quality = qualityControl(quality, watchViewModel, pictureOfTheAudioCopy(playing, quality, state)),
-        sleepTimer = sleepTimer,
-        onDismiss = onDismiss,
-        onPlayRelated = watchViewModel::playRelated,
-        onStartSleep = container.sleepTimer::start,
-        onStopSleepAfterItem = container.sleepTimer::stopAfterCurrentItem,
-        onCancelSleep = container.sleepTimer::cancel,
-        onTogglePlayPause = controller::togglePlayPause,
-        onSeekTo = controller::seekTo,
-        onSeekBackward = controller::seekBackward,
-        onSeekForward = controller::seekForward,
-        onSetSpeed = controller::setSpeed,
-        onSetSubtitleLanguage = controller::setSubtitleLanguage,
-        toggles = playbackToggles(state, controller, container, settings),
-        queue = upNextControls(container.playbackQueue, upNext, currentIndex),
-        onMore = { showItemSheet = true }.takeIf { playing != null },
-    )
+    CompositionLocalProvider(LocalPlayerLinks provides playerLinksFor(playing?.item)) {
+        FullPlayerOverlay(
+            state = state,
+            player = controller.player,
+            comments = comments,
+            replies = CommentReplies(
+                threads = replies,
+                onToggle = watchViewModel::toggleReplies,
+                onLoadMore = watchViewModel::loadMoreReplies,
+            ),
+            related = related,
+            watchActions = rememberWatchActions(watchViewModel),
+            quality = qualityControl(quality, watchViewModel, pictureOfTheAudioCopy(playing, quality, state)),
+            sleepTimer = sleepTimer,
+            onDismiss = onDismiss,
+            onPlayRelated = watchViewModel::playRelated,
+            onStartSleep = container.sleepTimer::start,
+            onStopSleepAfterItem = container.sleepTimer::stopAfterCurrentItem,
+            onCancelSleep = container.sleepTimer::cancel,
+            onTogglePlayPause = controller::togglePlayPause,
+            onSeekTo = controller::seekTo,
+            onSeekBackward = controller::seekBackward,
+            onSeekForward = controller::seekForward,
+            onSetSpeed = controller::setSpeed,
+            onSetSubtitleLanguage = controller::setSubtitleLanguage,
+            toggles = playbackToggles(state, controller, container, settings),
+            queue = upNextControls(container.playbackQueue, upNext, currentIndex),
+            onMore = { showItemSheet = true }.takeIf { playing != null },
+        )
+    }
 
     PlayingItemSheet(playing, showItemSheet) { showItemSheet = false }
 }

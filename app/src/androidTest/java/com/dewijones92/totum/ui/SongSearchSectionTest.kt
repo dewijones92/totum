@@ -11,6 +11,7 @@ import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.di.fake.FakeAppContainer
+import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.search.SearchContent
@@ -119,13 +120,15 @@ class SongSearchSectionTest {
     )
 
     private fun song(title: String = "Feeling Good") = SearchHit.Song(
-        title = title,
-        subtitle = "Nina Simone • I Put A Spell On You",
-        artworkUrl = null,
-        watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=${title.filter { it.isLetterOrDigit() }}"),
-        durationSeconds = 174,
-        artist = "Nina Simone",
-        album = "I Put A Spell On You",
+        MusicSong(
+            videoId = title.filter { it.isLetterOrDigit() },
+            title = title,
+            artist = "Nina Simone",
+            album = "I Put A Spell On You",
+            durationSeconds = 174,
+            thumbnailUrl = null,
+            watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=${title.filter { it.isLetterOrDigit() }}"),
+        ),
     )
 
     private fun video() = SearchHit.Video(

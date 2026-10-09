@@ -357,6 +357,8 @@ class DownloadsMigrationTest {
                 "DEFAULT 'podcast', title TEXT NOT NULL, feedUrl TEXT NOT NULL, websiteUrl TEXT, " +
                 "subscribedAtEpochMs INTEGER NOT NULL, origin TEXT NOT NULL DEFAULT 'manual')",
             // No `publisher` here on purpose: v22 adds it, and a v13 install does not have it.
+            "CREATE TABLE playback_progress (mediaItemId TEXT NOT NULL PRIMARY KEY, positionMs INTEGER NOT NULL, " +
+                "durationMs INTEGER, updatedAtEpochMs INTEGER NOT NULL, completedAtEpochMs INTEGER)",
         )
     }
 }

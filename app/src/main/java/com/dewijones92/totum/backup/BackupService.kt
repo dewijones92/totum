@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.subscription.SubscriptionStore
+import com.dewijones92.totum.domain.AlbumRef
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -20,6 +21,7 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import com.dewijones92.totum.domain.canonicalItemId
 import com.dewijones92.totum.domain.persisted
 import com.dewijones92.totum.domain.playHandleFrom
 import com.dewijones92.totum.playback.Chosen
@@ -97,7 +99,7 @@ class BackupService(
         }
 
         backup.progress.forEach { entry ->
-            val id = MediaItemId(entry.itemId)
+            val id = MediaItemId(canonicalItemId(entry.itemId))
             if (entry.completedAtEpochMs != null) {
                 progress.setPlayed(id, played = true)
             } else {
@@ -174,6 +176,8 @@ internal fun PlayableItem.toBackup(): BackupItem {
         durationMs = item.duration?.inWholeMilliseconds,
         sourceUrl = item.sourceUrl?.value,
         membersOnly = item.membersOnly,
+        albumId = item.album?.id,
+        albumTitle = item.album?.title,
     )
 }
 
@@ -182,7 +186,7 @@ internal fun BackupItem.toPlayable(): PlayableItem? {
     val playback = playHandleFrom(playbackType, handle) ?: return null
     return PlayableItem(
         MediaItem(
-            id = MediaItemId(itemId),
+            id = MediaItemId(canonicalItemId(itemId)),
             sourceId = SourceId(sourceId),
             title = title,
             publishedAt = null,
@@ -195,6 +199,7 @@ internal fun BackupItem.toPlayable(): PlayableItem? {
             sourceUrl = sourceUrl?.let(HttpUrl::parse),
             contentKind = runCatching { MediaContentKind.valueOf(contentKind) }
                 .getOrDefault(MediaContentKind.STANDARD),
+            album = albumTitle?.let { AlbumRef(albumId, it) },
         ),
         playback,
     )

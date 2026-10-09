@@ -24,7 +24,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ReconciledAccountProgressEntity::class,
         ChannelLatestEntity::class,
     ],
-    version = 25,
+    version = 26,
     exportSchema = false,
 )
 @Suppress("TooManyFunctions")
@@ -85,7 +85,18 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_22_23,
                 MIGRATION_23_24,
                 MIGRATION_24_25,
+                MIGRATION_25_26,
             )
+
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                listOf("queue_items", "play_history", "downloads", "local_playlist_items").forEach { table ->
+                    db.execSQL("ALTER TABLE $table ADD COLUMN albumId TEXT")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN albumTitle TEXT")
+                }
+                VideoIdMigration.run(db)
+            }
+        }
 
         private val MIGRATION_24_25 = object : Migration(24, 25) {
             override fun migrate(db: SupportSQLiteDatabase) {

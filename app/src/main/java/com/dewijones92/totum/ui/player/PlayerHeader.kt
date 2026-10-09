@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.player
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -53,6 +54,7 @@ import kotlin.time.Duration
  */
 @Composable
 internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
+    val links = LocalPlayerLinks.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -63,6 +65,7 @@ internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
                     text = it,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.linkTo(links.onArtist, PLAYER_ARTIST_TAG),
                 )
             }
             Text(
@@ -70,6 +73,14 @@ internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            links.album?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 2.dp).linkTo(links.onAlbum, PLAYER_ALBUM_TAG),
+                )
+            }
             ViewsAndDate(state)
         }
         // The trailing cluster: what this is, the same long-press menu every row has, and Cast.
@@ -125,6 +136,12 @@ internal fun SecondaryControls(
         if (tiles.size % TILES_PER_ROW != 0) Spacer(Modifier.weight(1f))
     }
 }
+
+private fun Modifier.linkTo(onClick: (() -> Unit)?, tag: String): Modifier =
+    testTag(tag).then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
+
+internal const val PLAYER_ARTIST_TAG = "player-artist"
+internal const val PLAYER_ALBUM_TAG = "player-album"
 
 private const val TILES_PER_ROW = 2
 private val TILE_GAP = 10.dp

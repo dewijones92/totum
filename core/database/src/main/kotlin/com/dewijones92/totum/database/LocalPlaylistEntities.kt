@@ -53,6 +53,8 @@ public data class LocalPlaylistItemEntity(
     override val durationMs: Long? = null,
     override val sourceUrl: String? = null,
     override val membersOnly: Boolean = false,
+    override val albumId: String? = null,
+    override val albumTitle: String? = null,
 ) : PlaylistItemColumns
 
 /** Playlist + its item count, for the list screen. */

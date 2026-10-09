@@ -17,20 +17,7 @@ public class InnerTubeMusicSearchSource(private val search: YouTubeMusicSearch) 
         when (val result = search.searchSongs(query.value, limit, after)) {
             is SearchSongsResult.Failure -> SearchOutcome.Failure(result.detail)
             is SearchSongsResult.Success -> SearchOutcome.Success(
-                result.page.map { song ->
-                    SearchHit.Song(
-                        title = song.title,
-                        // The artist is what a person scans for, and the album is what tells two
-                        // recordings of one song apart — so the row shows both when both are known.
-                        subtitle = listOfNotNull(song.artist, song.album).joinToString(" • ").ifBlank { null },
-                        artworkUrl = song.thumbnailUrl,
-                        watchUrl = song.watchUrl,
-                        durationSeconds = song.durationSeconds,
-                        artist = song.artist,
-                        album = song.album,
-                        playsText = song.playsText,
-                    )
-                },
+                result.page.map(SearchHit::Song),
             )
         }
 }

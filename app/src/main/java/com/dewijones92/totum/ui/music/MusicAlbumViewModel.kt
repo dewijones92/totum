@@ -60,9 +60,9 @@ class MusicAlbumViewModel(
     fun load() {
         _state.value = State.Loading
         viewModelScope.launch {
-            val result = page.browseId?.let { catalogue.album(it) }
+            val result = (page.browseId ?: findByTitle())?.let { catalogue.album(it) }
                 ?: page.playlistId?.let { catalogue.albumForPlaylist(it) }
-                ?: MusicResult.Failure("no album id or playlist id")
+                ?: MusicResult.Failure("no album called \"${page.title}\"")
             _state.value = when (result) {
                 is MusicResult.Success -> {
                     val album = result.value
@@ -75,6 +75,19 @@ class MusicAlbumViewModel(
                 }
             }
         }
+    }
+
+    private suspend fun findByTitle(): String? {
+        if (page.playlistId != null) return null
+        val query = listOfNotNull(page.title, page.artist).joinToString(" ")
+        val found = (catalogue.albums(query, limit = SEARCH_LIMIT) as? MusicResult.Success)?.value?.items.orEmpty()
+        val exact = found.firstOrNull { it.title.equals(page.title, ignoreCase = true) }
+        Diag.log(
+            "music",
+            "album \"${page.title}\" has no id; search \"$query\" found ${found.size}, " +
+                "exact=${exact?.browseId ?: "none"}",
+        )
+        return exact?.browseId
     }
 
     fun play(fromIndex: Int = 0) {
@@ -119,6 +132,7 @@ class MusicAlbumViewModel(
 
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
+        private const val SEARCH_LIMIT = 5
 
         fun factory(container: AppContainer, page: MusicPage.Album): ViewModelProvider.Factory = viewModelFactory {
             initializer {

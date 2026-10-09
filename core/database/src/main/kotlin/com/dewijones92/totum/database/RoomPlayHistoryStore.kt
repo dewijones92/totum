@@ -35,6 +35,8 @@ public class RoomPlayHistoryStore(
                 durationMs = item.item.duration?.inWholeMilliseconds,
                 sourceUrl = item.item.sourceUrl?.value,
                 membersOnly = item.item.membersOnly,
+                albumId = item.item.album?.id,
+                albumTitle = item.item.album?.title,
                 playbackType = type,
                 handle = handle,
                 mediaUrl = item.item.mediaUrl?.value,

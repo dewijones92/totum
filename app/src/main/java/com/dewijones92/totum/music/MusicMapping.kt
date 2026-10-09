@@ -1,5 +1,7 @@
 package com.dewijones92.totum.music
 
+import com.dewijones92.totum.common.youTubeChannelUrl
+import com.dewijones92.totum.domain.AlbumRef
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -20,6 +22,8 @@ fun MusicSong.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
     mediaUrl = watchUrl,
     viewsText = playsText,
     contentKind = MediaContentKind.MUSIC,
+    sourceUrl = artistId?.let(::youTubeChannelUrl),
+    album = album?.let { AlbumRef(albumId, it) },
 )
 
 fun MusicSong.toPlayable(sourceId: SourceId): PlayableItem =

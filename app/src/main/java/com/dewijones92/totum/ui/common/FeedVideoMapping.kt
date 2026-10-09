@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.feeds.FeedVideo
+import com.dewijones92.totum.music.toMediaItem
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
@@ -51,11 +52,11 @@ fun FeedVideo.toMediaItem(sourceId: SourceId, observedAt: Instant = Instant.now(
  * queue — so a tapped search result never joined the spine. Giving a hit the same domain
  * shape as everything else is what lets it go through `PlaybackQueue` like the rest.
  *
- * The id comes from the watch URL rather than a video id, because a hit carries no id of
- * its own; it stays stable for the same video, which is all dedupe and play-state need.
+ * The id is the video id read from the watch URL, the same id a feed, a shared link or a song
+ * gives the same video; the whole URL was the id until v26, which made one video two items.
  */
 fun SearchHit.Video.toMediaItem(sourceId: SourceId, observedAt: Instant = Instant.now()): MediaItem = MediaItem(
-    id = MediaItemId(watchUrl.value),
+    id = MediaItemId(watchUrl.youTubeVideoId() ?: watchUrl.value),
     sourceId = sourceId,
     title = title,
     publishedAt = publishedText?.let { PublishedAge.parse(it, observedAt) },
@@ -71,23 +72,4 @@ fun SearchHit.Video.toMediaItem(sourceId: SourceId, observedAt: Instant = Instan
     sourceUrl = channelUrl,
 )
 
-/**
- * A song as a [MediaItem] — the same shape a video gets, which is what lets it queue and play
- * through the one path.
- *
- * [SearchHit.Song.artist] becomes the author rather than the whole subtitle, because the subtitle
- * carries "artist • album" for the row and an author of "Nina Simone • I Put A Spell On You" would
- * read badly everywhere else the item appears — the queue, the notification, the lock screen.
- */
-fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = MediaItem(
-    id = MediaItemId(watchUrl.youTubeVideoId() ?: watchUrl.value),
-    sourceId = sourceId,
-    title = title,
-    publishedAt = null,
-    duration = durationSeconds?.takeIf { it > 0 }?.seconds,
-    author = artist,
-    thumbnailUrl = artworkUrl,
-    mediaUrl = watchUrl,
-    viewsText = playsText,
-    contentKind = MediaContentKind.MUSIC,
-)
+fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = song.toMediaItem(sourceId)

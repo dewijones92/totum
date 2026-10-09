@@ -31,8 +31,9 @@ internal fun ProvideItemActions(
 ) {
     val rowActions = rememberMediaItemActions(container)
     val scope = rememberCoroutineScope()
-    val actions = remember(container, rowActions, scope, onOpenSource) {
-        ContainerItemActions(container, rowActions, scope, onOpenSource)
+    val openMusicPage = LocalOpenMusicPage.current
+    val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage) {
+        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage)
     }
     val openSource: (MediaSource) -> Unit = remember(onOpenSource) {
         {
@@ -56,6 +57,7 @@ private class ContainerItemActions(
     private val rows: MediaItemActions,
     private val scope: CoroutineScope,
     private val onOpenSource: (MediaSource) -> Unit,
+    private val openMusicPage: ((MusicPage) -> Unit)?,
 ) : ItemActions {
     override fun queue(items: List<MediaItem>, next: Boolean) = rows.queueAll(items, next)
     override fun addToPlaylist(items: List<MediaItem>) = rows.addToPlaylist(items)
@@ -73,11 +75,29 @@ private class ContainerItemActions(
         scope.launch { container.playbackProgressStore.setPlayed(id, played) }
     }
 
-    override fun goToSource(item: MediaItem) {
-        rows.goToSource(item, onOpenSource)
+    override fun sourceLink(item: MediaItem): (() -> Unit)? {
+        val open = openMusicPage
+        val artist = item.artistPage()
+        return when {
+            open != null && artist != null -> {
+                {
+                    Diag.log("nav", "go to ${artist.label} from \"${item.title}\"")
+                    open(artist)
+                }
+            }
+            container.sourceLocator.canLocate(item) -> { { rows.goToSource(item, onOpenSource) } }
+            else -> null
+        }
     }
 
-    override fun canGoToSource(item: MediaItem): Boolean = container.sourceLocator.canLocate(item)
+    override fun albumLink(item: MediaItem): (() -> Unit)? {
+        val open = openMusicPage ?: return null
+        val album = item.albumPage() ?: return null
+        return {
+            Diag.log("nav", "go to ${album.label} from \"${item.title}\"")
+            open(album)
+        }
+    }
 
     override val audioMode: Boolean get() = rows.audioMode
 

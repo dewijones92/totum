@@ -7,8 +7,6 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.pillar
-import com.dewijones92.totum.domain.toPlayableOrNull
-import com.dewijones92.totum.pins.Pin
 
 /**
  * The long-press menu for an item, built entirely from the app-wide capabilities —
@@ -49,17 +47,17 @@ internal fun ItemActionSheet(
         onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
         onSwitchMode = { actions.switchMode(item) }.takeIf { video },
         audioMode = actions.audioMode,
-        onGoToSource = { actions.goToSource(item) }.takeIf { actions.canGoToSource(item) },
+        onGoToSource = actions.sourceLink(item),
         sourcePillar = pillar,
         onMoveToTop = null,
         onMoveToBottom = null,
         onSetPlayed = { played -> actions.setPlayed(item.id, played) },
         played = LocalPlayStates.current[item.id]?.isPlayed == true,
         onDismiss = onDismiss,
-        extras = SheetExtras(
+        extras = sheetExtrasFor(
+            item,
             onStartRadio = LocalStartRadio.current?.takeIf { item.contentKind == MediaContentKind.MUSIC }
                 ?.let { start -> { start(item) } },
-            pin = item.toPlayableOrNull()?.let(Pin::of),
         ),
     )
 }

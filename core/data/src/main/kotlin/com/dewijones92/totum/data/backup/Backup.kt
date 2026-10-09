@@ -105,6 +105,8 @@ public data class BackupItem(
      * persistence format and the one the v22 change missed.
      */
     val publisher: String? = null,
+    val albumId: String? = null,
+    val albumTitle: String? = null,
 )
 
 /** How far through something you got, or that you finished it. */

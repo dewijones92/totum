@@ -79,6 +79,7 @@ public data class MediaItem(
      * (45 of 45, verified 2026-07-31); it was simply thrown away.
      */
     val sourceUrl: HttpUrl? = null,
+    val album: AlbumRef? = null,
 ) {
     init {
         require(duration == null || duration.isPositive()) { "duration must be positive when present" }
@@ -115,6 +116,7 @@ public fun MediaItem.withStreamFrom(stream: MediaItem): MediaItem = copy(
     publisher = stream.publisher ?: publisher,
     thumbnailUrl = stream.thumbnailUrl ?: thumbnailUrl,
     sourceUrl = stream.sourceUrl ?: sourceUrl,
+    album = album ?: stream.album,
     chapters = stream.chapters.ifEmpty { chapters },
     // The one fact that runs the other way: yt-dlp knows an upload date, and a link shared by its id
     // knows nothing, so the resolution fills a silent listing here (reported 2026-09-06 as queue rows

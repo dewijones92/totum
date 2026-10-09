@@ -15,7 +15,7 @@ interface PinStore {
 
     fun unpin(key: String)
 
-    fun find(key: String): Pin? = pins.value.firstOrNull { it.key == key }
+    fun find(key: String): Pin? = canonicalPinKey(key).let { wanted -> pins.value.firstOrNull { it.key == wanted } }
 
     fun replaceAll(pins: List<Pin>)
 }
@@ -31,7 +31,8 @@ open class InMemoryPinStore(initial: List<Pin> = emptyList()) : PinStore {
     }
 
     override fun unpin(key: String) {
-        state.update { current -> current.filterNot { it.key == key } }
+        val wanted = canonicalPinKey(key)
+        state.update { current -> current.filterNot { it.key == wanted } }
         Diag.log("pin", "unpinned $key; ${state.value.size} pinned")
         saved(state.value)
     }

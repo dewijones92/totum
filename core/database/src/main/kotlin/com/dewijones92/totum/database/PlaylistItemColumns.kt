@@ -1,6 +1,7 @@
 package com.dewijones92.totum.database
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.AlbumRef
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -70,6 +71,8 @@ internal interface PlaylistItemColumns {
     val durationMs: Long?
     val sourceUrl: String?
     val membersOnly: Boolean
+    val albumId: String?
+    val albumTitle: String?
 }
 
 /** The one place the denormalized columns rebuild a [PlayableItem]; null if the handle is unusable. */
@@ -91,6 +94,7 @@ internal fun playlistItemFrom(columns: PlaylistItemColumns): PlayableItem? {
             .getOrDefault(MediaContentKind.STANDARD),
         membersOnly = columns.membersOnly,
         sourceUrl = columns.sourceUrl?.let(HttpUrl::parse),
+        album = columns.albumTitle?.let { AlbumRef(columns.albumId, it) },
     )
     return PlayableItem(item, playback)
 }

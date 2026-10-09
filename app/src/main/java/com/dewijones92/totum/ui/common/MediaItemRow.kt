@@ -49,9 +49,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
-import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.domain.withArtworkFrom
-import com.dewijones92.totum.pins.Pin
 
 /**
  * 16:9, and bigger than it was. Square podcast art centre-crops into it cleanly.
@@ -135,7 +133,7 @@ fun MediaItemRow(
     onMoveToTop: (() -> Unit)? = null,
     onMoveToBottom: (() -> Unit)? = null,
     onGoToSource: (() -> Unit)? =
-        LocalItemActions.current?.takeIf { it.canGoToSource(item) }.bind { goToSource(item) },
+        LocalItemActions.current?.sourceLink(item),
     /** Label for [onGoToSource] — the host knows its pillar ("channel" vs "podcast"). */
     /**
      * Replaces the download control for rows whose trailing affordances are about
@@ -216,7 +214,7 @@ fun MediaItemRow(
             onSetPlayed = onSetPlayed,
             played = playState.isPlayed,
             onDismiss = { showSheet = false },
-            extras = SheetExtras(onStartRadio, item.toPlayableOrNull()?.let(Pin::of)),
+            extras = sheetExtrasFor(item, onStartRadio),
         )
     }
 }

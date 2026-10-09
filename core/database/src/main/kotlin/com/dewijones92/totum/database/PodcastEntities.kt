@@ -66,6 +66,8 @@ public data class DownloadEntity(
     override val durationMs: Long? = null,
     override val sourceUrl: String? = null,
     override val membersOnly: Boolean = false,
+    override val albumId: String? = null,
+    override val albumTitle: String? = null,
     @ColumnInfo(defaultValue = "0") val sponsorSegmentsCut: Boolean = false,
     val skipSegments: String? = null,
 ) : PlaylistItemColumns

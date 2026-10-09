@@ -27,10 +27,14 @@ internal interface ItemActions {
     fun deleteDownload(id: MediaItemId)
     fun setPlayed(id: MediaItemId, played: Boolean)
 
-    /** Navigates to the item's channel/feed. Hosted once by the shell, so it works anywhere. */
-    fun goToSource(item: MediaItem)
+    /**
+     * Goes to the item's channel, feed or artist, or null when it has none to go to. Hosted once by
+     * the shell, so it works anywhere.
+     */
+    fun sourceLink(item: MediaItem): (() -> Unit)?
 
-    fun canGoToSource(item: MediaItem): Boolean
+    /** Opens the item's album page, or null when it names no album or nothing can open one. */
+    fun albumLink(item: MediaItem): (() -> Unit)? = null
 
     /** True while the app is in listen-only mode, so a row can label its switch action. */
     val audioMode: Boolean

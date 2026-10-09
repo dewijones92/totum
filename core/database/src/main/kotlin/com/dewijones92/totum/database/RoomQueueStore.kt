@@ -48,6 +48,8 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
                     durationMs = media.duration?.inWholeMilliseconds,
                     sourceUrl = media.sourceUrl?.value,
                     membersOnly = media.membersOnly,
+                    albumId = media.album?.id,
+                    albumTitle = media.album?.title,
                     playbackType = type,
                     handle = handle,
                     mediaUrl = media.mediaUrl?.value,

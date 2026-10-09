@@ -44,11 +44,14 @@ internal fun JsonObject.toSongOrNull(fallbackArt: HttpUrl? = null): MusicSong? {
     val title = columns.firstOrNull().text() ?: return null
     val details = columns.getOrNull(1).text().orEmpty().segments()
     val credits = details.filter { it.isCredit() }
+    val links = columns.drop(1).flatMap { it.linkedRuns() }
     return MusicSong(
         videoId = videoId,
         title = title,
         artist = credits.firstOrNull(),
-        album = credits.drop(1).firstOrNull() ?: columns.getOrNull(ALBUM_COLUMN).text(),
+        album = links.titleOf(ALBUM_ID_PREFIX)
+            ?: credits.drop(1).firstOrNull()
+            ?: columns.getOrNull(ALBUM_COLUMN).text(),
         durationSeconds = (details.lastOrNull { it.isClock() } ?: fixedColumnText()?.takeIf { it.isClock() })
             ?.let(::parseClockToSeconds),
         thumbnailUrl = obj("thumbnail")?.bestThumbnailUrl() ?: fallbackArt,
@@ -56,11 +59,15 @@ internal fun JsonObject.toSongOrNull(fallbackArt: HttpUrl? = null): MusicSong? {
         // Its own column, and only in a songs search. "276M plays" is the closest thing music
         // has to a view count, and the row is noticeably barer without it.
         playsText = columns.getOrNull(PLAYS_COLUMN).text(),
+        artistId = links.idOf(ARTIST_ID_PREFIX),
+        albumId = links.idOf(ALBUM_ID_PREFIX),
     )
 }
 
 private const val FLEX_COLUMN = "musicResponsiveListItemFlexColumnRenderer"
 private const val FIXED_COLUMN = "musicResponsiveListItemFixedColumnRenderer"
+internal const val ARTIST_ID_PREFIX = "UC"
+internal const val ALBUM_ID_PREFIX = "MPREb_"
 private const val PLAYS_COLUMN = 2
 private const val ALBUM_COLUMN = 3
 private const val SEPARATOR = "•"

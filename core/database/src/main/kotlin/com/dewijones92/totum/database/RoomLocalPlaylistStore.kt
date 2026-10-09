@@ -55,6 +55,8 @@ public class RoomLocalPlaylistStore(private val dao: LocalPlaylistDao) : LocalPl
             durationMs = item.duration?.inWholeMilliseconds,
             sourceUrl = item.sourceUrl?.value,
             membersOnly = item.membersOnly,
+            albumId = item.album?.id,
+            albumTitle = item.album?.title,
             playbackType = type,
             handle = handle,
             mediaUrl = item.mediaUrl?.value,

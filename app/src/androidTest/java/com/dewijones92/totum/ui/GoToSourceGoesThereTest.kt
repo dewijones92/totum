@@ -254,8 +254,7 @@ class GoToSourceGoesThereTest {
         override fun download(item: MediaItem, audioOnly: Boolean) = Unit
         override fun deleteDownload(id: MediaItemId) = Unit
         override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
-        override fun goToSource(item: MediaItem) = Unit
-        override fun canGoToSource(item: MediaItem) = true
+        override fun sourceLink(item: MediaItem): (() -> Unit)? = {}
         override val audioMode: Boolean = false
         override fun switchMode(item: MediaItem) = Unit
     }

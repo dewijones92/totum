@@ -13,6 +13,7 @@ import com.dewijones92.totum.data.search.fake.InMemorySearchHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
@@ -65,13 +66,15 @@ class SearchStreamsPerSectionTest {
     private val torrentGate = CompletableDeferred<SearchOutcome>()
 
     private fun song(title: String) = SearchHit.Song(
-        title = title,
-        subtitle = "Nina Simone • I Put A Spell On You",
-        artworkUrl = null,
-        watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=${title.filter { it.isLetterOrDigit() }}"),
-        durationSeconds = 174,
-        artist = "Nina Simone",
-        album = "I Put A Spell On You",
+        MusicSong(
+            videoId = title.filter { it.isLetterOrDigit() },
+            title = title,
+            artist = "Nina Simone",
+            album = "I Put A Spell On You",
+            durationSeconds = 174,
+            thumbnailUrl = null,
+            watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=${title.filter { it.isLetterOrDigit() }}"),
+        ),
     )
 
     private fun video(id: String) = SearchHit.Video(

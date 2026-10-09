@@ -376,8 +376,7 @@ class MultiSelectTest {
             override fun download(item: MediaItem, audioOnly: Boolean) { asked += item.id.value }
             override fun deleteDownload(id: MediaItemId) = Unit
             override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
-            override fun goToSource(item: MediaItem) = Unit
-            override fun canGoToSource(item: MediaItem) = false
+            override fun sourceLink(item: MediaItem): (() -> Unit)? = null
             override val audioMode: Boolean = false
             override fun switchMode(item: MediaItem) = Unit
         }

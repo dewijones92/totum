@@ -25,6 +25,8 @@ public data class MusicSong(
     public val watchUrl: HttpUrl,
     /** "276M plays" as YouTube Music renders it; null when absent. */
     public val playsText: String? = null,
+    public val artistId: String? = null,
+    public val albumId: String? = null,
 )
 
 public sealed interface SearchSongsResult {

@@ -163,6 +163,31 @@ class MusicPageParserTest {
     }
 
     @Test
+    fun `a song from search knows its artist's and album's ids`() {
+        val song = MusicSearchParser.songs(fixture("songs-search.json")).first()
+
+        assertEquals("UCqj1HtTq76Bo6rBXNwrF5Uw", song.artistId)
+        assertEquals("MPREb_IIWn9LYU83g", song.albumId)
+        assertEquals("I Put A Spell On You", song.album)
+    }
+
+    @Test
+    fun `a radio song knows its artist's and album's ids`() {
+        val song = MusicPageParser.radio(fixture("radio.json")).songs.first()
+
+        assertEquals("UCqj1HtTq76Bo6rBXNwrF5Uw", song.artistId)
+        assertEquals("MPREb_IIWn9LYU83g", song.albumId)
+    }
+
+    @Test
+    fun `an album track knows its album and its artist`() {
+        val track = requireNotNull(MusicPageParser.album(fixture("album.json"), "MPREb_ky8xEro8eK9")).tracks.first()
+
+        assertEquals("MPREb_ky8xEro8eK9", track.albumId)
+        assertEquals("UCJkuPtgOZnrjZkSb6JPEwoA", track.artistId)
+    }
+
+    @Test
     fun `garbage is not a page`() {
         assertNull(MusicPageParser.album("not json", "x"))
         assertNull(MusicPageParser.artist("{}", "x"))

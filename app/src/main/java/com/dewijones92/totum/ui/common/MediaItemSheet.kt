@@ -19,10 +19,12 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.outlined.AddToHomeScreen
+import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -130,7 +132,13 @@ internal fun ActionSheet(
             )
             SheetAction(onMoveToTop, Icons.Filled.VerticalAlignTop, R.string.queue_move_to_top, onDismiss)
             SheetAction(onMoveToBottom, Icons.Filled.VerticalAlignBottom, R.string.queue_move_to_bottom, onDismiss)
-            SheetAction(onGoToSource, pillarIcon(sourcePillar), goToSourceLabelRes(sourcePillar), onDismiss)
+            SheetAction(
+                onGoToSource,
+                if (extras.music) Icons.Outlined.Person else pillarIcon(sourcePillar),
+                if (extras.music) R.string.go_to_artist else goToSourceLabelRes(sourcePillar),
+                onDismiss,
+            )
+            SheetAction(extras.onGoToAlbum, Icons.Outlined.Album, R.string.go_to_album, onDismiss)
             SheetAction(
                 onSetPlayed?.let { { it(!played) } },
                 if (played) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.CheckCircle,

@@ -58,6 +58,20 @@ internal fun JsonElement.firstVideoId(): String? = when (this) {
 
 internal data class BrowseLink(val browseId: String, val pageType: String?)
 
+internal data class LinkedRun(val text: String, val link: BrowseLink?)
+
+internal fun JsonObject?.linkedRuns(): List<LinkedRun> =
+    (this?.get("runs") as? JsonArray).orEmpty().mapNotNull { run ->
+        val obj = run as? JsonObject ?: return@mapNotNull null
+        LinkedRun(obj.str("text") ?: return@mapNotNull null, obj.obj("navigationEndpoint")?.firstBrowseLink())
+    }
+
+internal fun List<LinkedRun>.idOf(prefix: String): String? =
+    firstNotNullOfOrNull { run -> run.link?.browseId?.takeIf { it.startsWith(prefix) } }
+
+internal fun List<LinkedRun>.titleOf(prefix: String): String? =
+    firstOrNull { run -> run.link?.browseId?.startsWith(prefix) == true }?.text
+
 internal fun JsonElement.firstBrowseLink(): BrowseLink? = when (this) {
     is JsonObject -> obj("browseEndpoint")?.let { endpoint ->
         endpoint.str("browseId")?.let { id ->

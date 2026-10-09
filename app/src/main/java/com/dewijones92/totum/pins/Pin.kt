@@ -5,6 +5,7 @@ import com.dewijones92.totum.backup.toPlayable
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.canonicalItemId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -19,7 +20,7 @@ sealed interface Pin {
     @Serializable
     @SerialName("item")
     data class Item(val item: BackupItem) : Pin {
-        override val key: String get() = "item:${item.itemId}"
+        override val key: String get() = "$ITEM_PREFIX${canonicalItemId(item.itemId)}"
         override val title: String get() = item.title
         override val artUrl: String? get() = item.thumbnailUrl
         fun playable(): PlayableItem? = item.toPlayable()
@@ -95,3 +96,9 @@ internal object PinCodec {
 
     fun decode(text: String): List<Pin> = json.decodeFromString(list, text)
 }
+
+private const val ITEM_PREFIX = "item:"
+
+/** A key as a pin now writes it, so an icon made before v26 still finds its pin. */
+fun canonicalPinKey(key: String): String =
+    if (key.startsWith(ITEM_PREFIX)) ITEM_PREFIX + canonicalItemId(key.removePrefix(ITEM_PREFIX)) else key
