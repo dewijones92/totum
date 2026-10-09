@@ -130,7 +130,7 @@ fun SearchScreen(
         onRemoveHistory = viewModel::removeHistory,
         onClearHistory = viewModel::clearHistory,
         actions = actions,
-        onLoadMoreVideos = viewModel::loadMoreVideos,
+        more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
         onGoToChannel = { item ->
             actions.goToSource(item) { source ->
                 (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
@@ -168,7 +168,7 @@ internal fun SearchContent(
     onClearHistory: () -> Unit,
     actions: MediaItemActions,
     onGoToChannel: (MediaItem) -> Unit,
-    onLoadMoreVideos: () -> Unit,
+    more: SearchMore,
     modifier: Modifier = Modifier,
     header: SearchHeader = SearchHeader(stringResource(R.string.destination_search), null),
     idle: (@Composable () -> Unit)? = null,
@@ -212,7 +212,7 @@ internal fun SearchContent(
                 onPlayTorrent,
                 actions,
                 onGoToChannel,
-                onLoadMoreVideos,
+                more,
                 query = submitted,
             )
         }
@@ -332,11 +332,13 @@ private fun SearchHistory(
  * before you read its heading — and it is the same glyph the rows in that block wear.
  */
 @Composable
-private fun labelled(emoji: String, titleRes: Int): String = "$emoji " + stringResource(titleRes)
+internal fun labelled(emoji: String, titleRes: Int): String = "$emoji " + stringResource(titleRes)
 
 private fun Results.Loaded.selectableItems(): List<MediaItem> =
     (
-        songs.itemsOrNull.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) } +
+        songs.itemsOrNull?.items.orEmpty().take(shown(MusicShelf.SONGS)).map {
+            it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE)
+        } +
             videos.itemsOrNull?.items.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_VIDEO_SOURCE) }
         ).distinctBy { it.id }
 
@@ -350,14 +352,14 @@ private fun ResultsList(
     onPlayTorrent: (SearchHit.Torrent) -> Unit,
     actions: MediaItemActions,
     onGoToChannel: (MediaItem) -> Unit,
-    onLoadMoreVideos: () -> Unit,
+    more: SearchMore,
     modifier: Modifier = Modifier,
     query: String = "",
 ) {
     val listState = rememberLazyListState()
     // The same scroll trigger the account feeds and channel tabs use.
     val shownVideos = results.videos.itemsOrNull?.items?.size ?: 0
-    LoadMoreOnScrollToEnd(listState, results.canLoadMore && !results.loadingMore, shownVideos, onLoadMoreVideos)
+    LoadMoreOnScrollToEnd(listState, results.canLoadMore && !results.loadingMore, shownVideos, more.videos)
     val selectable = remember(results) { results.selectableItems() }
     SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize(), key = query) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
@@ -370,16 +372,8 @@ private fun ResultsList(
                     onSubscribe = { onSubscribe(hit) },
                 )
             }
-            hitSection({ labelled(FactEmoji.SONG, R.string.section_songs) }, results.songs) {
-                    hit: SearchHit.Song ->
-                SongHitRow(
-                    hit = hit,
-                    resolving = state.resolving == hit.watchUrl.value,
-                    onPlay = { onPlaySong(hit) },
-                    actions = actions,
-                )
-            }
-            musicCollectionSections(results)
+            songSection(results, state.resolving, onPlaySong, actions, more.music)
+            musicCollectionSections(results, more.music)
             hitSection(
                 { labelled(FactEmoji.CHANNEL, R.string.destination_videos) },
                 results.videos.map { page -> page.items },
@@ -488,7 +482,7 @@ private fun VideoHitRow(
  * the shared formatter would render an upload date it does not have.
  */
 @Composable
-private fun SongHitRow(
+internal fun SongHitRow(
     hit: SearchHit.Song,
     resolving: Boolean,
     onPlay: () -> Unit,

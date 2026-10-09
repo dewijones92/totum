@@ -96,6 +96,13 @@
     <string name="go_to_podcast">Go to podcast</string>
     <string name="go_to_artist">Go to artist</string>
     <string name="go_to_album">Go to album</string>
+    <string name="music_see_all_songs">See all songs</string>
+    <string name="music_see_all_albums">See all albums</string>
+    <string name="music_see_all_singles">See all singles and EPs</string>
+    <string name="music_all_songs_of">All songs · %1$s</string>
+    <string name="music_more_songs">More songs</string>
+    <string name="search_more_albums">More albums</string>
+    <string name="search_more_artists">More artists</string>
     <string name="lyrics_title">Lyrics</string>
     <string name="lyrics_show">Show lyrics</string>
     <string name="lyrics_hide">Hide lyrics</string>

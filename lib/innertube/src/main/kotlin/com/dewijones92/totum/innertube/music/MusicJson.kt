@@ -56,7 +56,7 @@ internal fun JsonElement.firstVideoId(): String? = when (this) {
     else -> null
 }
 
-internal data class BrowseLink(val browseId: String, val pageType: String?)
+internal data class BrowseLink(val browseId: String, val pageType: String?, val params: String? = null)
 
 internal data class LinkedRun(val text: String, val link: BrowseLink?)
 
@@ -77,7 +77,7 @@ internal fun JsonElement.firstBrowseLink(): BrowseLink? = when (this) {
         endpoint.str("browseId")?.let { id ->
             val pageType = endpoint.obj("browseEndpointContextSupportedConfigs")
                 ?.obj("browseEndpointContextMusicConfig")?.str("pageType")
-            BrowseLink(id, pageType)
+            BrowseLink(id, pageType, endpoint.str("params"))
         }
     } ?: values.firstNotNullOfOrNull { it.firstBrowseLink() }
     is JsonArray -> firstNotNullOfOrNull { it.firstBrowseLink() }

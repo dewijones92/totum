@@ -241,7 +241,7 @@ class SearchStreamsPerSectionTest {
         assertTrue("everything has answered", !results.stillSearching)
         assertEquals(1, results.videos.itemsOrNull?.items?.size)
         assertEquals(1, results.podcasts.itemsOrNull?.size)
-        assertEquals(1, results.songs.itemsOrNull?.size)
+        assertEquals(1, results.songs.itemsOrNull?.items?.size)
     }
 
     /** One source failing still must not hide another, which was true before and stays true. */

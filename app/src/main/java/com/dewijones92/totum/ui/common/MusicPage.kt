@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.youTubeChannelId
+import com.dewijones92.totum.innertube.music.MusicListing
 import com.dewijones92.totum.innertube.music.RadioSeed
 
 sealed interface MusicPage {
@@ -19,6 +20,15 @@ sealed interface MusicPage {
 
     data class Artist(val browseId: String?, val name: String, val radio: RadioSeed? = null) : MusicPage {
         override val label: String get() = "artist ${browseId ?: "by-name"} \"$name\""
+    }
+
+    data class ArtistSongs(val listing: MusicListing, val artist: String) : MusicPage {
+        override val label: String get() = "all songs of \"$artist\" ${listing.browseId}"
+    }
+
+    data class ArtistReleases(val listing: MusicListing, val artist: String, val singles: Boolean) : MusicPage {
+        override val label: String
+            get() = "all ${if (singles) "singles" else "albums"} of \"$artist\" ${listing.browseId}"
     }
 
     data class Playlist(val playlist: com.dewijones92.totum.innertube.playlists.Playlist) : MusicPage {

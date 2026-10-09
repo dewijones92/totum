@@ -101,14 +101,27 @@ class SearchViewModel(
             val podcasts: SearchSection<List<SearchHit.Podcast>>,
             /** Carries its own continuation, so the section knows whether more exists. */
             val videos: SearchSection<Page<SearchHit.Video>>,
-            val songs: SearchSection<List<SearchHit.Song>> = SearchSection.Searching,
-            val albums: SearchSection<List<SearchHit.Album>> = SearchSection.Absent,
-            val artists: SearchSection<List<SearchHit.Artist>> = SearchSection.Absent,
+            val songs: SearchSection<Page<SearchHit.Song>> = SearchSection.Searching,
+            val albums: SearchSection<Page<SearchHit.Album>> = SearchSection.Absent,
+            val artists: SearchSection<Page<SearchHit.Artist>> = SearchSection.Absent,
+            /** How many of each music shelf are on screen; a shelf holds its whole fetched page. */
+            val musicShown: Map<MusicShelf, Int> = emptyMap(),
             /** [SearchSection.Absent] when no home server is set up, which is not a failure. */
             val torrents: SearchSection<List<SearchHit.Torrent>>,
             val loadingMore: Boolean = false,
         ) : Results {
             val canLoadMore: Boolean get() = videos.itemsOrNull?.hasMore == true
+
+            fun shown(shelf: MusicShelf): Int = musicShown[shelf] ?: RESULTS_PER_SECTION
+
+            fun page(shelf: MusicShelf): Page<SearchHit>? = when (shelf) {
+                MusicShelf.SONGS -> songs.itemsOrNull
+                MusicShelf.ALBUMS -> albums.itemsOrNull
+                MusicShelf.ARTISTS -> artists.itemsOrNull
+            }
+
+            fun hasMore(shelf: MusicShelf): Boolean =
+                page(shelf)?.let { it.items.size > shown(shelf) || it.hasMore } == true
 
             /** True while any section is still out — drives the one thin bar at the top. */
             val stillSearching: Boolean
@@ -234,28 +247,28 @@ class SearchViewModel(
             }
         }
         launch {
-            run.section<List<SearchHit.Song>>(
+            run.section<Page<SearchHit.Song>>(
                 name = "songs",
-                updates = { sources.music.updates(query, RESULTS_PER_SECTION) },
+                updates = { sources.music.updates(query, MUSIC_PAGE) },
                 into = { loaded, s -> loaded.copy(songs = s) },
-                select = { it.page.items.filterIsInstance<SearchHit.Song>() },
+                select = { it.page.only<SearchHit.Song>() },
             )
         }
         if (music) {
             launch {
-                run.section<List<SearchHit.Album>>(
+                run.section<Page<SearchHit.Album>>(
                     name = "albums",
-                    updates = { sources.albums.updates(query, RESULTS_PER_SECTION) },
+                    updates = { sources.albums.updates(query, MUSIC_PAGE) },
                     into = { loaded, s -> loaded.copy(albums = s) },
-                    select = { it.page.items.filterIsInstance<SearchHit.Album>() },
+                    select = { it.page.only<SearchHit.Album>() },
                 )
             }
             launch {
-                run.section<List<SearchHit.Artist>>(
+                run.section<Page<SearchHit.Artist>>(
                     name = "artists",
-                    updates = { sources.artists.updates(query, RESULTS_PER_SECTION) },
+                    updates = { sources.artists.updates(query, MUSIC_PAGE) },
                     into = { loaded, s -> loaded.copy(artists = s) },
-                    select = { it.page.items.filterIsInstance<SearchHit.Artist>() },
+                    select = { it.page.only<SearchHit.Artist>() },
                 )
             }
         }
@@ -393,9 +406,79 @@ class SearchViewModel(
     private fun Page<SearchHit>.videosOnly(): Page<SearchHit.Video> =
         Page(items.filterIsInstance<SearchHit.Video>(), next)
 
+    private inline fun <reified T : SearchHit> Page<SearchHit>.only(): Page<T> = Page(items.filterIsInstance<T>(), next)
+
+    /**
+     * Shows more of one music shelf: the rest of the page already fetched first, then the next page.
+     */
+    fun moreMusic(shelf: MusicShelf) {
+        val current = results.value as? Results.Loaded ?: return
+        val page = current.page(shelf) ?: return
+        val shown = current.shown(shelf)
+        if (shown < page.items.size) {
+            Diag.log(
+                "search",
+                "more ${shelf.name.lowercase()}: showing ${minOf(
+                    page.items.size,
+                    shown + RESULTS_PER_SECTION
+                )} of ${page.items.size} fetched"
+            )
+            results.value = current.copy(musicShown = current.musicShown + (shelf to shown + RESULTS_PER_SECTION))
+            return
+        }
+        val token = page.next ?: return
+        val query = activeQuery ?: return
+        if (current.loadingMore) return
+        results.value = current.copy(loadingMore = true)
+        viewModelScope.launch {
+            val outcome = sources.of(shelf).search(query, MUSIC_PAGE, token)
+            val latest = results.value as? Results.Loaded ?: return@launch
+            if (activeQuery != query) return@launch
+            results.value = when (outcome) {
+                is SearchOutcome.Success -> latest.withMore(shelf, outcome.page).also {
+                    Diag.log(
+                        "search",
+                        "more ${shelf.name.lowercase()} -> ${outcome.page.items.size} returned, " +
+                            "${it.page(shelf)?.items?.size} in all (more=${outcome.page.hasMore})",
+                    )
+                }
+                is SearchOutcome.Failure -> latest.copy(loadingMore = false).also {
+                    Diag.warn("search", "more ${shelf.name.lowercase()} failed: ${outcome.detail}")
+                }
+            }
+        }
+    }
+
+    private fun SearchSources.of(shelf: MusicShelf): SearchSource = when (shelf) {
+        MusicShelf.SONGS -> music
+        MusicShelf.ALBUMS -> albums
+        MusicShelf.ARTISTS -> artists
+    }
+
+    private fun Results.Loaded.withMore(shelf: MusicShelf, more: Page<SearchHit>): Results.Loaded {
+        val shown = musicShown + (shelf to shown(shelf) + RESULTS_PER_SECTION)
+        fun <T : SearchHit> SearchSection<Page<T>>.grown(extra: Page<T>): SearchSection<Page<T>> =
+            itemsOrNull?.let { SearchSection.Found(it.append(extra) { hit -> hit.key() }) } ?: this
+        return when (shelf) {
+            MusicShelf.SONGS -> copy(songs = songs.grown(more.only()), musicShown = shown, loadingMore = false)
+            MusicShelf.ALBUMS -> copy(albums = albums.grown(more.only()), musicShown = shown, loadingMore = false)
+            MusicShelf.ARTISTS -> copy(artists = artists.grown(more.only()), musicShown = shown, loadingMore = false)
+        }
+    }
+
+    private fun SearchHit.key(): String = when (this) {
+        is SearchHit.Song -> song.videoId
+        is SearchHit.Album -> ref.browseId
+        is SearchHit.Artist -> ref.browseId
+        else -> title
+    }
+
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
         private const val RESULTS_PER_SECTION = 8
+
+        /** A music search answers about 20 a page; a shelf keeps the lot and shows [RESULTS_PER_SECTION] at a time. */
+        private const val MUSIC_PAGE = 25
         private const val DEBOUNCE_MILLIS = 300L
 
         /**

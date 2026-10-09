@@ -6,7 +6,7 @@ import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 
 public class InnerTubeMusicAlbumSearchSource(private val catalogue: YouTubeMusicCatalogue) : SearchSource {
     override suspend fun search(query: SearchQuery, limit: Int, after: PageToken?): SearchOutcome =
-        when (val result = catalogue.albums(query.value, limit)) {
+        when (val result = catalogue.albums(query.value, limit, after)) {
             is MusicResult.Failure -> SearchOutcome.Failure(result.detail)
             is MusicResult.Success -> SearchOutcome.Success(result.value.map { SearchHit.Album(it) })
         }
@@ -14,7 +14,7 @@ public class InnerTubeMusicAlbumSearchSource(private val catalogue: YouTubeMusic
 
 public class InnerTubeMusicArtistSearchSource(private val catalogue: YouTubeMusicCatalogue) : SearchSource {
     override suspend fun search(query: SearchQuery, limit: Int, after: PageToken?): SearchOutcome =
-        when (val result = catalogue.artists(query.value, limit)) {
+        when (val result = catalogue.artists(query.value, limit, after)) {
             is MusicResult.Failure -> SearchOutcome.Failure(result.detail)
             is MusicResult.Success -> SearchOutcome.Success(result.value.map { SearchHit.Artist(it) })
         }

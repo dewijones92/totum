@@ -81,8 +81,17 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
                         onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
                     )
                 }
+                seeAll(R.string.music_see_all_songs, artist.allSongs?.let { MusicPage.ArtistSongs(it, artist.name) })
                 releases("${FactEmoji.ALBUM} ", R.string.section_albums, artist.albums, "album")
+                seeAll(
+                    R.string.music_see_all_albums,
+                    artist.allAlbums?.let { MusicPage.ArtistReleases(it, artist.name, singles = false) },
+                )
                 releases("${FactEmoji.ALBUM} ", R.string.section_singles, artist.singles, "single")
+                seeAll(
+                    R.string.music_see_all_singles,
+                    artist.allSingles?.let { MusicPage.ArtistReleases(it, artist.name, singles = true) },
+                )
                 similarArtists(artist)
             }
         }
@@ -98,6 +107,20 @@ private fun LazyListScope.releases(emoji: String, titleRes: Int, albums: List<Mu
             Diag.log("music", "artist page -> $kind ${album.browseId} \"${album.title}\"")
             open?.invoke(MusicPage.Album(album.browseId, title = album.title))
         })
+    }
+}
+
+private fun LazyListScope.seeAll(labelRes: Int, page: MusicPage?) {
+    if (page == null) return
+    item(key = "see-all:" + page.label) {
+        val open = LocalOpenMusicPage.current
+        TextButton(
+            onClick = {
+                Diag.log("music", "artist page -> ${page.label}")
+                open?.invoke(page)
+            },
+            modifier = Modifier.padding(horizontal = 8.dp),
+        ) { Text(stringResource(labelRes)) }
     }
 }
 

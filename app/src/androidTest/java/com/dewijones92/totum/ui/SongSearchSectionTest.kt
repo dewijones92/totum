@@ -15,6 +15,7 @@ import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.search.SearchContent
+import com.dewijones92.totum.ui.search.SearchMore
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 import com.dewijones92.totum.ui.search.SearchViewModel.UiState
 import org.junit.Assert.assertEquals
@@ -55,7 +56,7 @@ class SongSearchSectionTest {
                     onClearHistory = {},
                     actions = rememberMediaItemActions(FakeAppContainer()),
                     onGoToChannel = {},
-                    onLoadMoreVideos = {},
+                    more = SearchMore(),
                 )
             }
         }
@@ -63,7 +64,7 @@ class SongSearchSectionTest {
 
     @Test
     fun songsAreShownWithTheirArtistAndAlbum() {
-        show(loaded(songs = SearchSection.Found(listOf(song()))))
+        show(loaded(songs = SearchSection.Found(Page.last(listOf(song())))))
 
         composeTestRule.onNodeWithText("Songs", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Feeling Good", substring = true).assertIsDisplayed()
@@ -72,7 +73,7 @@ class SongSearchSectionTest {
 
     @Test
     fun tappingASongAsksToPlayThatSong() {
-        show(loaded(songs = SearchSection.Found(listOf(song(), song(title = "Sinnerman")))))
+        show(loaded(songs = SearchSection.Found(Page.last(listOf(song(), song(title = "Sinnerman"))))))
 
         composeTestRule.onNodeWithText("Sinnerman", substring = true).performClick()
 
@@ -87,7 +88,7 @@ class SongSearchSectionTest {
     fun songsSitAboveTheVideoResults(): Unit = with(composeTestRule) {
         show(
             loaded(
-                songs = SearchSection.Found(listOf(song())),
+                songs = SearchSection.Found(Page.last(listOf(song()))),
                 videos = SearchSection.Found(Page.last(listOf(video()))),
             ),
         )
@@ -101,7 +102,7 @@ class SongSearchSectionTest {
     /** An empty music answer must leave no heading behind, like every other section. */
     @Test
     fun aSearchThatFoundNoSongsShowsNoSongsHeading() {
-        show(loaded(songs = SearchSection.Found(emptyList())))
+        show(loaded(songs = SearchSection.Found(Page.empty())))
 
         assertEquals(
             0,
@@ -110,7 +111,7 @@ class SongSearchSectionTest {
     }
 
     private fun loaded(
-        songs: SearchSection<List<SearchHit.Song>> = SearchSection.Found(emptyList()),
+        songs: SearchSection<Page<SearchHit.Song>> = SearchSection.Found(Page.empty()),
         videos: SearchSection<Page<SearchHit.Video>> = SearchSection.Found(Page.last(emptyList())),
     ) = Results.Loaded(
         podcasts = SearchSection.Found(emptyList()),

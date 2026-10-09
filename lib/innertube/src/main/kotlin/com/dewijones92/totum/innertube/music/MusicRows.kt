@@ -77,3 +77,16 @@ private val COUNT_WORDS = listOf("views", "plays", "audience", "subscribers", "s
 private val TYPE_WORDS = setOf(
     "song", "video", "album", "artist", "playlist", "single", "ep", "episode", "podcast", "profile",
 )
+
+internal fun JsonObject.toAlbumRef(browseId: String, artist: String?): MusicAlbumRef? {
+    val title = obj("title").text() ?: return null
+    val details = obj("subtitle").text().orEmpty().segments()
+    return MusicAlbumRef(
+        browseId = browseId,
+        title = title,
+        artist = details.filter { it.isCredit() }.joinToString(", ").ifBlank { null } ?: artist,
+        year = details.lastOrNull { it.isYear() },
+        kind = releaseKindOf(details.firstOrNull { !it.isYear() }),
+        thumbnailUrl = obj("thumbnailRenderer")?.bestThumbnailUrl(),
+    )
+}

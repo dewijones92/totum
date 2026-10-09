@@ -20,3 +20,8 @@ data class SearchSources(
 )
 
 enum class SearchScope { EVERYTHING, MUSIC }
+
+enum class MusicShelf { SONGS, ALBUMS, ARTISTS }
+
+/** Asking a results list for more: videos as the list scrolls to its end, a music shelf by its button. */
+data class SearchMore(val videos: () -> Unit = {}, val music: (MusicShelf) -> Unit = {})

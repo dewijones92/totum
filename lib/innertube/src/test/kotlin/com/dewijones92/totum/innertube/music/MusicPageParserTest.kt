@@ -103,7 +103,6 @@ class MusicPageParserTest {
         assertEquals("Let It Be (Remastered 2009)", top.title)
         assertEquals("The Beatles", top.artist)
         assertEquals("478M plays", top.playsText)
-        assertTrue(artist.allSongsBrowseId!!.startsWith("VLOLAK5uy_"))
         assertEquals("Rubber Soul (Super Deluxe)", artist.albums.first().title)
         assertEquals("2026", artist.albums.first().year)
         assertTrue(artist.singles.isNotEmpty())

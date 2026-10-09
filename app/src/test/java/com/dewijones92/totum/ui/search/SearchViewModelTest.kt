@@ -132,9 +132,46 @@ class SearchViewModelTest {
         assertEquals(SearchSection.Absent, results.podcasts)
         assertEquals(SearchSection.Absent, results.videos)
         assertEquals(SearchSection.Absent, results.torrents)
-        assertEquals(listOf(SearchHit.Album(album)), results.albums.itemsOrNull)
-        assertEquals(listOf(SearchHit.Artist(artist)), results.artists.itemsOrNull)
+        assertEquals(listOf(SearchHit.Album(album)), results.albums.itemsOrNull?.items)
+        assertEquals(listOf(SearchHit.Artist(artist)), results.artists.itemsOrNull?.items)
         assertTrue(results.songs is SearchSection.Found)
+    }
+
+    @Test
+    fun `more albums shows the rest of the page it has, then fetches the next`() = runTest(dispatcher) {
+        fun album(n: Int) = SearchHit.Album(
+            MusicAlbumRef("MPREb_$n", "Album $n", "Someone", null, MusicReleaseKind.ALBUM, null)
+        )
+        val asked = mutableListOf<String?>()
+        val viewModel = viewModel(
+            albumSearch = SearchSource { _, _, after ->
+                asked += after?.value
+                if (after == null) {
+                    SearchOutcome.Success(Page((1..12).map(::album), PageToken("p2")))
+                } else {
+                    SearchOutcome.Success(Page.last((13..15).map(::album)))
+                }
+            },
+            scope = SearchScope.MUSIC,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.search("flamenco")
+        advanceUntilIdle()
+        fun loaded() = viewModel.uiState.value.results as Results.Loaded
+
+        assertEquals(8, loaded().shown(MusicShelf.ALBUMS))
+        assertTrue(loaded().hasMore(MusicShelf.ALBUMS))
+
+        viewModel.moreMusic(MusicShelf.ALBUMS)
+        advanceUntilIdle()
+        assertEquals("the rest of the page needs no fetch", listOf<String?>(null), asked)
+        assertTrue(loaded().shown(MusicShelf.ALBUMS) >= 12)
+
+        viewModel.moreMusic(MusicShelf.ALBUMS)
+        advanceUntilIdle()
+        assertEquals(listOf(null, "p2"), asked)
+        assertEquals(15, loaded().albums.itemsOrNull?.items?.size)
+        assertFalse(loaded().hasMore(MusicShelf.ALBUMS))
     }
 
     @Test

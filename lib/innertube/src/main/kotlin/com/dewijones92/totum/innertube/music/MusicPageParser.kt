@@ -64,31 +64,20 @@ internal object MusicPageParser {
         val topShelf = root.firstObject("musicShelfRenderer")
         val topSongs = LinkedHashMap<String, MusicSong>()
         topShelf?.collectEach(ROW) { row -> row.toSongOrNull()?.let { topSongs.putIfAbsent(it.videoId, it) } }
-        val albums = mutableListOf<MusicAlbumRef>()
-        val singles = mutableListOf<MusicAlbumRef>()
-        val similar = mutableListOf<MusicArtistRef>()
-        root.collectEach("musicCarouselShelfRenderer") { carousel ->
-            carousel.collectEach(TWO_ROW) { item ->
-                val link = item.obj("navigationEndpoint")?.firstBrowseLink() ?: return@collectEach
-                when (link.pageType) {
-                    ALBUM_PAGE -> item.toAlbumRef(link.browseId, artist = name)?.let { ref ->
-                        if (ref.kind == MusicReleaseKind.ALBUM) albums += ref else singles += ref
-                    }
-                    ARTIST_PAGE -> item.toArtistRef(link.browseId)?.let { similar += it }
-                    else -> Unit
-                }
-            }
-        }
+        val shelves = ArtistShelves(name)
+        root.collectEach("musicCarouselShelfRenderer", shelves::add)
         return MusicArtist(
             browseId = browseId,
             name = name,
             description = header.obj("description").text(),
             thumbnailUrl = header.obj("thumbnail")?.bestThumbnailUrl(),
             topSongs = topSongs.values.toList(),
-            allSongsBrowseId = topShelf?.obj("bottomEndpoint")?.firstBrowseLink()?.browseId,
-            albums = albums.distinctBy { it.browseId },
-            singles = singles.distinctBy { it.browseId },
-            similar = similar.distinctBy { it.browseId },
+            allSongs = topShelf?.obj("bottomEndpoint")?.firstBrowseLink()?.let { MusicListing(it.browseId, it.params) },
+            allAlbums = shelves.allAlbums,
+            allSingles = shelves.allSingles,
+            albums = shelves.albums.distinctBy { it.browseId },
+            singles = shelves.singles.distinctBy { it.browseId },
+            similar = shelves.similar.distinctBy { it.browseId },
             radio = header.obj("startRadioButton")?.seed(),
             shuffle = header.obj("playButton")?.seed(),
         )
@@ -134,20 +123,7 @@ internal object MusicPageParser {
         return seed
     }
 
-    private fun JsonObject.toAlbumRef(browseId: String, artist: String?): MusicAlbumRef? {
-        val title = obj("title").text() ?: return null
-        val details = obj("subtitle").text().orEmpty().segments()
-        return MusicAlbumRef(
-            browseId = browseId,
-            title = title,
-            artist = details.filter { it.isCredit() }.joinToString(", ").ifBlank { null } ?: artist,
-            year = details.lastOrNull { it.isYear() },
-            kind = releaseKindOf(details.firstOrNull { !it.isYear() }),
-            thumbnailUrl = obj("thumbnailRenderer")?.bestThumbnailUrl(),
-        )
-    }
-
-    private fun JsonObject.toArtistRef(browseId: String): MusicArtistRef? = MusicArtistRef(
+    fun JsonObject.toArtistRef(browseId: String): MusicArtistRef? = MusicArtistRef(
         browseId = browseId,
         name = obj("title").text() ?: return null,
         subtitle = obj("subtitle").text(),
@@ -174,7 +150,49 @@ internal object MusicPageParser {
     }
 
     private const val ROW = "musicResponsiveListItemRenderer"
-    private const val TWO_ROW = "musicTwoRowItemRenderer"
+    const val TWO_ROW = "musicTwoRowItemRenderer"
     private const val ALBUM_PREFIX = "MPREb_"
     private const val ALBUM_PLAYLIST_PREFIX = "OLAK5uy_"
+}
+
+/** An artist page's carousels: releases split into albums and singles, similar artists, and each shelf's See all. */
+private class ArtistShelves(private val artist: String) {
+    val albums = mutableListOf<MusicAlbumRef>()
+    val singles = mutableListOf<MusicAlbumRef>()
+    val similar = mutableListOf<MusicArtistRef>()
+    var allAlbums: MusicListing? = null
+        private set
+    var allSingles: MusicListing? = null
+        private set
+
+    fun add(carousel: JsonObject) {
+        val releases = mutableListOf<MusicAlbumRef>()
+        carousel.collectEach(MusicPageParser.TWO_ROW) { item ->
+            val link = item.obj("navigationEndpoint")?.firstBrowseLink() ?: return@collectEach
+            when (link.pageType) {
+                ALBUM_PAGE -> item.toAlbumRef(link.browseId, artist)?.let { releases += it }
+                ARTIST_PAGE -> with(MusicPageParser) { item.toArtistRef(link.browseId) }?.let { similar += it }
+                else -> Unit
+            }
+        }
+        val (shelfAlbums, shelfSingles) = releases.partition { it.kind == MusicReleaseKind.ALBUM }
+        albums += shelfAlbums
+        singles += shelfSingles
+        val more = carousel.seeAll() ?: return
+        if (releases.isEmpty()) return
+        if (shelfAlbums.size >= shelfSingles.size) allAlbums = allAlbums ?: more else allSingles = allSingles ?: more
+    }
+
+    private fun JsonObject.seeAll(): MusicListing? =
+        obj("header")?.obj("musicCarouselShelfBasicHeaderRenderer")?.obj("moreContentButton")
+            ?.firstBrowseLink()?.takeIf { it.pageType == DISCOGRAPHY_PAGE }?.let {
+                MusicListing(
+                    it.browseId,
+                    it.params
+                )
+            }
+
+    private companion object {
+        const val DISCOGRAPHY_PAGE = "MUSIC_PAGE_TYPE_ARTIST_DISCOGRAPHY"
+    }
 }
