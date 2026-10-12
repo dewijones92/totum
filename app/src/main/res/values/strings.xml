@@ -566,4 +566,7 @@
         <item quantity="one">%d pause cut</item>
         <item quantity="other">%d pauses cut</item>
     </plurals>
+    <string name="out_of_date_title">Totum is out of date</string>
+    <string name="out_of_date_detail">You\'re on v%1$s. v%2$s is out.</string>
+    <string name="out_of_date_update">Update</string>
 </resources>

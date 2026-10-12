@@ -38,6 +38,7 @@ internal class DiagnosticSnapshot(
         val stuckAccountUpdates: () -> String,
         val isMetered: () -> Boolean,
         val exsurge: () -> Map<String, String> = { emptyMap() },
+        val appUpdate: () -> Map<String, String> = { emptyMap() },
     )
 
     fun capture(): Map<String, String> = buildMap {
@@ -102,6 +103,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAccountState(entries) }
         runCatching { put("network.metered", live.isMetered().toString()) }
         runCatching { putAll(live.exsurge()) }
+        runCatching { putAll(live.appUpdate()) }
     }
 
     /** The account block: who is signed in, whether listening reaches them, and what has been acted on. */

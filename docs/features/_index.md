@@ -12,6 +12,7 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |
 | Phone rotation opens video fullscreen; portrait restores the player page | player | shipped | [player-redesign.md](player-redesign.md) |
 | Offline shared links recover their titles in queue and downloads | queue/downloads | shipped | [shared-link-metadata.md](shared-link-metadata.md) |

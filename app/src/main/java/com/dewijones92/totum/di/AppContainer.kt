@@ -58,6 +58,8 @@ import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
+import com.dewijones92.totum.data.update.AppUpdateCheck
+import com.dewijones92.totum.data.update.GitHubLatestRelease
 import com.dewijones92.totum.database.RoomAccountProgressOutbox
 import com.dewijones92.totum.database.RoomChannelLatestStore
 import com.dewijones92.totum.database.RoomDownloadStore
@@ -408,6 +410,8 @@ interface AppContainer {
      * signed out.
      */
     fun refreshSubscriptions()
+
+    val appUpdate: AppUpdateCheck
 }
 
 // The count is the app's whole integration surface — every start*/install* entry point the
@@ -465,6 +469,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun refreshExtractorEngine() {
         applicationScope.launch { ytDlpUpdater.ensureLatest() }
+    }
+
+    override val appUpdate: AppUpdateCheck by lazy {
+        AppUpdateCheck(BuildConfig.VERSION_NAME, GitHubLatestRelease(OkHttpTextFetcher(transferClient)))
     }
 
     override val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -961,6 +969,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
                 isMetered = networkStatus::isMetered,
                 exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
+                appUpdate = appUpdate::diagnostics,
             ),
         )
     }

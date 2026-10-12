@@ -14,6 +14,7 @@ import com.dewijones92.totum.playback.startGapless
 import com.dewijones92.totum.settings.NetworkStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.minutes
 
 class TotumApplication : Application(), SingletonImageLoader.Factory {
     val container: AppContainer by lazy { DefaultAppContainer(this) }
@@ -25,6 +26,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // Fetch the latest yt-dlp in the background so YouTube-breaking changes
         // self-heal; the download applies on the next start.
         container.refreshExtractorEngine()
+        container.applicationScope.launch { container.appUpdate.keepChecking(UPDATE_CHECK_INTERVAL) }
         // Mirror video watch-progress to YouTube as playback advances.
         container.startWatchHistorySync()
         // Load the account's subscribed channels (read live, never copied locally).
@@ -60,6 +62,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         @Volatile
         internal var warmEngineAfterLaunch: Boolean = true
         private const val ENGINE_WARM_DELAY_MS = 10_000L
+        private val UPDATE_CHECK_INTERVAL = 30.minutes
     }
 
     /**

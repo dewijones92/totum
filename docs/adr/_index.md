@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-09
+updated: 2026-10-12
 ---
 
 # Architecture decision records
@@ -44,3 +44,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 26 | [Albums, artists and your library come from YouTube Music; Play inserts after what is playing](0026-albums-artists-and-the-youtube-music-library.md) | Accepted |
 | 27 | [Radio tops itself up; repeat and shuffle are queue features, for both pillars](0027-radio-repeat-and-shuffle-are-queue-features.md) | Accepted |
 | 28 | [Anything can be pinned; a pin plays at once, from the app or the home screen](0028-pins-and-home-screen-shortcuts.md) | Accepted |
+| 29 | [An out-of-date build says so on every tab](0029-an-out-of-date-build-says-so-on-every-tab.md) | Accepted |

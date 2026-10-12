@@ -42,6 +42,8 @@ import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.subscription.fake.InMemorySubscriptionStore
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.update.AppUpdateCheck
+import com.dewijones92.totum.data.update.ReleaseLookup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.NoReconciledAccountProgress
@@ -98,6 +100,7 @@ import kotlinx.coroutines.flow.Flow
 
 /** In-memory [AppContainer] for previews and UI tests. */
 class FakeAppContainer(
+    override val appUpdate: AppUpdateCheck = AppUpdateCheck("0.1.0-dev", { ReleaseLookup.Unavailable("fake") }),
     override val podcastRepository: PodcastRepository = FakePodcastRepository(),
     override val channelRepository: ChannelRepository = FakeChannelRepository(),
     override val ytDlpEngine: YtDlpEngine = FakeYtDlpEngine(),

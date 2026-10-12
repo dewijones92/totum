@@ -40,6 +40,7 @@ import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.OutOfDateBanner
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
@@ -131,6 +132,7 @@ fun AppShell(
         }) {
             Box(modifier = modifier.fillMaxSize()) {
                 Scaffold(
+                    topBar = { OutOfDateBanner(container.appUpdate) },
                     bottomBar = {
                         BottomBar(
                             playbackState,
