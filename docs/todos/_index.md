@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Music favourites saved to the YouTube Music account](account-backed-music-favourites.md) | music/account | medium | refining — like songs, follow artists, save albums; account state reflected in Totum with easy favourites browsing |
 | [Playback findings from the 0.1.601 phone reports](playback-defects-0.1.601.md) | playback/downloads | high | triaged 2026-10-12: sponsor list lost on download handover, Watch plays a stale item, Listen ignores full downloads, file switches lose exact position; boost discussion and buffering cause remain open |
 | [Intelligent search ("the best soothing flamenco album")](ai-search.md) | search | — | to discuss with Dewi |
 | [Search's video hits use the watch URL as their id; everything else uses the video id](search-video-hit-ids.md) | search | medium | open — found 2026-10-09; music items moved to the video id, videos left for a decision |
