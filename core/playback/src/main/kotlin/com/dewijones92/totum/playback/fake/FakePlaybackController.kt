@@ -113,6 +113,9 @@ public class FakePlaybackController : PlaybackController {
     public var lastStartPositionMs: Long = 0
         private set
 
+    public var lastAudioOnly: Boolean = false
+        private set
+
     override fun play(
         item: MediaItem,
         kind: MediaKind,
@@ -121,6 +124,7 @@ public class FakePlaybackController : PlaybackController {
         audioUrl: HttpUrl?,
         subtitles: List<SubtitleTrack>,
         startPositionMs: Long,
+        audioOnly: Boolean,
     ) {
         played += item.id.value
         if (adoptable?.id == item.id) adopted += item.id.value
@@ -134,6 +138,7 @@ public class FakePlaybackController : PlaybackController {
         lastLocalPath = localPath
         lastAudioUrl = audioUrl
         lastStartPositionMs = startPositionMs
+        lastAudioOnly = audioOnly
         _state.value = PlaybackState(
             itemId = item.id,
             title = item.title,
@@ -227,6 +232,8 @@ public class FakePlaybackController : PlaybackController {
         private set
     public var armedAudioUrl: HttpUrl? = null
         private set
+    public var armedAudioOnly: Boolean = false
+        private set
     public val disarmReasons: MutableList<String> = mutableListOf()
     public val adopted: MutableList<String> = mutableListOf()
     private var adoptable: MediaItem? = null
@@ -240,10 +247,12 @@ public class FakePlaybackController : PlaybackController {
         localPath: String?,
         audioUrl: HttpUrl?,
         subtitles: List<SubtitleTrack>,
+        audioOnly: Boolean,
     ) {
         armedItem = item
         armedLocalPath = localPath
         armedAudioUrl = audioUrl
+        armedAudioOnly = audioOnly
     }
 
     override fun disarmNext(reason: String) {

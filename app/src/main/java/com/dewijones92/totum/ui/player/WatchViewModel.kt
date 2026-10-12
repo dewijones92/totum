@@ -75,7 +75,7 @@ constructor(
     fun listen() {
         PlaybackIntent.mark("listen (player)")
         preferences.setPlaybackMode(PlaybackMode.AUDIO)
-        launcher.listen()
+        changePlayingMode()
     }
 
     /** Leave audio-only and return to watching the video ("Watch"). */
@@ -84,7 +84,7 @@ constructor(
         PlaybackIntent.mark("watch (player)")
         preferences.setPlaybackMode(PlaybackMode.VIDEO)
         clearAnyEarlierRefusal()
-        launcher.watch()
+        changePlayingMode()
     }
 
     /**
@@ -94,7 +94,12 @@ constructor(
     fun watchOnce() {
         PlaybackIntent.mark("watch this one (player)")
         clearAnyEarlierRefusal()
-        launcher.watch()
+        changePlayingMode(forceVideo = true)
+    }
+
+    private fun changePlayingMode(forceVideo: Boolean = false) {
+        val expected = queue.nowPlaying.value?.item?.id ?: return
+        viewModelScope.launch { queue.switchCurrentMode(expected, forceVideo) }
     }
 
     /**

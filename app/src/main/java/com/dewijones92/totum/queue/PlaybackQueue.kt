@@ -672,6 +672,16 @@ class PlaybackQueue(
         )
     }
 
+    private val modeSwitch = QueueModeSwitch(controller, { playingNow }, { playNow(it) }) { item, position, video ->
+        becameCurrent(item, fresh = true)
+        route(item, position, forceVideo = video)
+    }
+
+    suspend fun playInChosenMode(item: PlayableItem): Boolean = modeSwitch.play(item)
+
+    suspend fun switchCurrentMode(expected: MediaItemId, forceVideo: Boolean = false): Boolean =
+        modeSwitch.current(expected, forceVideo)
+
     /**
      * Replays whatever is current from [positionMs] — how an expired stream is recovered.
      *
@@ -965,10 +975,11 @@ class PlaybackQueue(
         queued: PlayableItem,
         streamRefused: Boolean = false,
         forceAudio: Boolean = false,
+        forceVideo: Boolean = false,
     ): Decision {
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
-        val audioNow = forceAudio || pictures.soundOnly(queued) || audioPreferred()
+        val audioNow = !forceVideo && (forceAudio || pictures.soundOnly(queued) || audioPreferred())
         val route = queued.routeNow(
             onDisk,
             offline = offlineNow,
@@ -984,6 +995,7 @@ class PlaybackQueue(
         streamRefused: Boolean = false,
         /** Forces the audio-only route, for the rescue rung that IS "play this without its picture". */
         forceAudio: Boolean = false,
+        forceVideo: Boolean = false,
     ): Boolean {
         val queued = withSourceArtwork(listed)
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
@@ -992,7 +1004,7 @@ class PlaybackQueue(
         // 0.1.390 did, ten seconds after the downloaded audio had started playing.
         val request = launcher.beginPlay()
         val startedAt = plays
-        val decision = decide(queued, streamRefused, forceAudio)
+        val decision = decide(queued, streamRefused, forceAudio, forceVideo)
         if (startedAt != plays) {
             Diag.log(
                 "queue",
@@ -1015,21 +1027,18 @@ class PlaybackQueue(
         recentRoutes.remember(routeLine)
         lastRoute = queued.item.id to route
         return when (route) {
-            is PlayRoute.VideoFile -> {
-                launcher.playLocal(route.playable.item, route.path, onDisk?.skipSegments.orEmpty())
-                refreshSkips(route.playable.item.id)
-                true
-            }
-            is PlayRoute.AudioFile -> {
-                controller.play(
+            is PlayRoute.File -> {
+                val audioOnly = route is PlayRoute.AudioFile
+                launcher.playLocal(
                     route.playable.item,
-                    queued.pillar,
-                    skipSegments = onDisk?.skipSegments.orEmpty(),
-                    localPath = route.path,
+                    route.path,
+                    onDisk?.skipSegments.orEmpty(),
                     startPositionMs = startPositionMs,
+                    kind = queued.pillar,
+                    audioOnly = audioOnly,
                 )
                 refreshSkips(route.playable.item.id)
-                if (queued.pillar == MediaKind.VIDEO) scope.launch { readyThePicture(queued) }
+                if (audioOnly && queued.pillar == MediaKind.VIDEO) scope.launch { readyThePicture(queued) }
                 true
             }
             is PlayRoute.VideoStream ->
@@ -1039,6 +1048,7 @@ class PlaybackQueue(
                     startPositionMs,
                     request,
                     audioOnly = pictures.soundOnly(queued),
+                    forceVideo = forceVideo,
                 )
             is PlayRoute.AudioStream -> {
                 controller.play(route.playable.item, queued.pillar, startPositionMs = startPositionMs)

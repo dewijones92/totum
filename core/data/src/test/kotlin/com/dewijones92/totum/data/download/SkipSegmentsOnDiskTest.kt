@@ -19,6 +19,25 @@ import kotlin.time.Duration.Companion.seconds
 
 class SkipSegmentsOnDiskTest {
 
+    @Test
+    fun `a concurrent download refresh leaves its segments available to the playing item`() = runTest {
+        val (store, _) = stored(cut = false, segments = emptyList())
+        val lookup = SkipSegmentsOnDisk({ SegmentLookup.Answered(fresh) }, store)
+        lookup.refresh(video.item.id)
+        assertEquals(fresh, lookup.refresh(video.item.id))
+    }
+
+    @Test
+    fun `a failed lookup returns segments stored by another refresh while it was waiting`() = runTest {
+        val (store, copy) = stored(cut = false, segments = emptyList())
+        val disk = SkipSegmentsOnDisk({
+            store.rememberSkipSegments(video.item.id, fresh)
+            SegmentLookup.Unavailable("rate limited")
+        }, store)
+
+        assertEquals(fresh, disk.refresh(copy))
+    }
+
     private val video = PlayableItem(
         MediaItem(MediaItemId("abc123def45"), SourceId("src"), "A video", publishedAt = null, duration = null),
         PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=abc123def45")),
@@ -47,14 +66,14 @@ class SkipSegmentsOnDiskTest {
     @Test
     fun `offline, the stored segments are kept`() = runTest {
         val (store, copy) = stored(cut = false, segments = old)
-        assertNull(SkipSegmentsOnDisk({ SegmentLookup.Unavailable("offline") }, store).refresh(copy))
+        assertEquals(old, SkipSegmentsOnDisk({ SegmentLookup.Unavailable("offline") }, store).refresh(copy))
         assertEquals(old, store.observeDownloaded().first().single().skipSegments)
     }
 
     @Test
     fun `an unchanged answer changes nothing`() = runTest {
         val (store, copy) = stored(cut = false, segments = old)
-        assertNull(SkipSegmentsOnDisk({ SegmentLookup.Answered(old) }, store).refresh(copy))
+        assertEquals(old, SkipSegmentsOnDisk({ SegmentLookup.Answered(old) }, store).refresh(copy))
     }
 
     @Test

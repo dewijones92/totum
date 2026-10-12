@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-09
+updated: 2026-10-12
 ---
 
 # Testing
@@ -26,6 +26,9 @@ instead).
 
 | Area | Kind | Notes |
 |---|---|---|
+| Player/row mode switches use the playing item and exact position, including full local files and a stale earlier stream | JVM + instrumented | `:app` `ModeSwitchUsesThePlayingItemTest` (four original cases observed failing on baseline, plus Watch-once preference coverage); `DownloadedVideoModeSwitchTest` (all three baseline device failures reproduced, changed build passes: full-copy Listen, mode-switch position, pending-resume segments); `:core:domain` `PlayRouteTest` full-copy Listen cases |
+| Shorts requests video once per item and leaves recovered audio playing after a picture failure | instrumented | `:app` `ShortsReelAdvanceTest` (5); the picture-loss case caught a repeated replay introduced by the first shared-routing change |
+| Already-refreshed SponsorBlock storage still reaches the playing file, including an unavailable lookup | JVM integration | `:core:data` `SkipSegmentsOnDiskTest`; `:app` `StoredSponsorsReachThePlayingFileTest` (both old failures observed) |
 | YouTube Music: catalogue and library parsing, requests, radio, sound-only routing, one id per song, the Music search scope | JVM + live | `:lib:innertube` `MusicPageParserTest`, `HttpYouTubeMusicTest`, `LiveMusicCatalogueTest` (`RUN_LIVE_MUSIC=1`); `:app` `MusicRadioTest`, `MusicPlaysAsSoundTest`, `OneSongOneIdTest`, `SearchViewModelTest`; see [youtube-music.md](../features/youtube-music.md) |
 | Pins: codec, store, playing each kind, backup | JVM | `:app` `PinsTest`, `PinBackupTest` |
 | Repeat one / queue, shuffle up next, album offline counts | JVM | `:app` `AutoAdvancerTest`, `GaplessArmerTest`, `ShuffleUpNextTest`; `:core:domain` `OfflineCountTest` |

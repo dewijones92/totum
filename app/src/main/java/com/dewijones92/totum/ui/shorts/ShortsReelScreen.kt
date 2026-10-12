@@ -52,7 +52,6 @@ import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.ItemActionSheet
-import com.dewijones92.totum.video.VideoPlaybackLauncher
 
 /**
  * A full-screen vertical Shorts reel: swipe up/down between shorts, each playing
@@ -81,7 +80,6 @@ fun ShortsReelScreen(
         return
     }
     val playback = container.playbackController
-    val launcher = container.videoPlaybackLauncher
     val queue = container.playbackQueue
     // The container's answer, not `mode == AUDIO`: that is false on AUTO -- the default -- however
     // metered the connection is, so on mobile data this reel offered "Listen only" while already
@@ -99,7 +97,7 @@ fun ShortsReelScreen(
     val openOn = reel.index.coerceIn(0, (shorts.size - 1).coerceAtLeast(0))
     val pager = rememberPagerState(initialPage = openOn) { shorts.size }
 
-    ReelQueueBinding(shorts, state, pager, queue, launcher, runTitle = shortsRun)
+    ReelQueueBinding(shorts, state, pager, queue, runTitle = shortsRun)
 
     Surface(color = Color.Black, modifier = modifier.fillMaxSize()) {
         VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
@@ -137,7 +135,6 @@ private fun ReelQueueBinding(
     state: PlaybackState?,
     pager: PagerState,
     queue: PlaybackQueue,
-    launcher: VideoPlaybackLauncher,
     runTitle: String,
 ) {
     LaunchedEffect(shorts) {
@@ -152,7 +149,8 @@ private fun ReelQueueBinding(
     // A Shorts reel is inherently visual: show the picture even in audio mode, for these
     // items only. The mode itself is left alone (and said so, by the toast).
     LaunchedEffect(state?.itemId) {
-        if (state?.hasVideo == false) launcher.watch()
+        val id = state?.itemId ?: return@LaunchedEffect
+        if (!state.hasVideo && shorts.any { it.id == id }) queue.switchCurrentMode(id, forceVideo = true)
     }
 
     // Swiping picks a short: move the queue cursor rather than playing outside the queue, so

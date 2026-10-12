@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.SessionAvailabilityListener
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -96,6 +97,14 @@ public class PlaybackService : MediaSessionService() {
                 // The service's own view of what started playing. Worth a line: the app logs the
                 // transition it ASKED for, which is not evidence the player made it.
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    val audioOnly = mediaItem?.requestMetadata?.extras?.getBoolean(EXTRA_AUDIO_ONLY) == true
+                    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                        .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, audioOnly)
+                        .build()
+                    Diag.log(
+                        "playback",
+                        "${mediaItem?.mediaId}: video track ${if (audioOnly) "disabled" else "enabled"}"
+                    )
                     Diag.log("playback", "service now on ${mediaItem?.mediaId ?: "nothing"} (reason $reason)")
                     cachedPreloader?.releaseIfPlaying(mediaItem)
                 }
@@ -424,5 +433,6 @@ private class MergingAudioVideoFactory(
 internal const val EXTRA_AUDIO_URL: String = "com.dewijones92.totum.AUDIO_URL"
 
 internal const val EXTRA_START_MS: String = "com.dewijones92.totum.START_MS"
+internal const val EXTRA_AUDIO_ONLY: String = "com.dewijones92.totum.AUDIO_ONLY"
 
 private const val MICROS_PER_MILLI = 1_000L

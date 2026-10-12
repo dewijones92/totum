@@ -45,17 +45,22 @@ public enum class Refusal {
  */
 public sealed interface PlayRoute {
 
+    public sealed interface File : PlayRoute {
+        public val playable: PlayableItem
+        public val path: String
+    }
+
     /** A file on disk with a picture in it. */
     public data class VideoFile(
-        public val playable: PlayableItem,
-        public val path: String,
-    ) : PlayRoute
+        override val playable: PlayableItem,
+        override val path: String,
+    ) : File
 
-    /** A file on disk with audio alone — a podcast enclosure, or a video fetched audio-only. */
+    /** A file played without its picture — a podcast, audio-only download, or a full file in Listen mode. */
     public data class AudioFile(
-        public val playable: PlayableItem,
-        public val path: String,
-    ) : PlayRoute
+        override val playable: PlayableItem,
+        override val path: String,
+    ) : File
 
     /** Re-resolve and stream a video. The watch URL, never a stream URL: those expire. */
     public data class VideoStream(
@@ -97,13 +102,7 @@ public fun PlayableItem.routeNow(
     val audioUrl = (handle as? PlayHandle.Podcast)?.audioUrl?.takeIf { audioPreferred }
     val hasStream = handle is PlayHandle.Video || item.mediaUrl != null || audioUrl != null
     return when {
-        usable != null -> playedFromDisk(usable).let { local ->
-            if (usable.audioOnly || handle.pillar == MediaKind.PODCAST) {
-                PlayRoute.AudioFile(local, usable.path)
-            } else {
-                PlayRoute.VideoFile(local, usable.path)
-            }
-        }
+        usable != null -> fileRoute(usable, audioPreferred)
         // Checked before the network, because "there is nothing to play" is true either way and
         // is the more useful thing to be told.
         !hasStream -> PlayRoute.Refused(Refusal.NothingToPlay)
@@ -114,6 +113,15 @@ public fun PlayableItem.routeNow(
         handle is PlayHandle.Video -> PlayRoute.VideoStream(this, handle.watchUrl)
         audioUrl != null -> PlayRoute.AudioStream(copy(item = item.copy(mediaUrl = audioUrl)), viaAudioOnlyUrl = true)
         else -> PlayRoute.AudioStream(this, viaAudioOnlyUrl = false)
+    }
+}
+
+private fun PlayableItem.fileRoute(copy: LocalCopy, audioPreferred: Boolean): PlayRoute.File {
+    val local = playedFromDisk(copy)
+    return if (copy.audioOnly || audioPreferred || handle.pillar == MediaKind.PODCAST) {
+        PlayRoute.AudioFile(local, copy.path)
+    } else {
+        PlayRoute.VideoFile(local, copy.path)
     }
 }
 

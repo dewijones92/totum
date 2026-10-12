@@ -1,7 +1,7 @@
 ---
 title: Playback findings from the 0.1.601 phone reports
 kind: todo
-status: triaged — fixes outstanding; volume boost needs discussion
+status: partly fixed locally — four verified repairs; buffering and boost remain open
 area: playback/downloads
 priority: high
 requested: 2026-10-12
@@ -12,8 +12,9 @@ updated: 2026-10-12
 
 Dewi requested that older reports be marked considered and the current-build reports investigated.
 All five current reports identify `0.1.601`, commit `42273dc`, which matches both `main` and the
-`v0.1.601` release tag at triage. These findings still apply to that source. No playback code was
-changed, no fix was released, and no emulator reproduction was attempted during triage.
+`v0.1.601` release tag at triage. The original triage below describes that source. Four fixes are now implemented locally, with
+failing-before/passing-after JVM and device regressions and the required paired soak comparison.
+The changes are not yet pushed or released; buffering and boost remain open.
 
 The server stores the per-report findings and their state; the identifiers below refer to those
 records. `triaged` makes a report considered without asserting that its problem is fixed.
@@ -122,13 +123,84 @@ The subtitle failures and media stalls overlap, but these reports do not establi
 subtitle retries caused the stalls. Their cause remains open. These are subtitle `429`s, not
 media URL `403`s, and no recurrence of the position reset fixed in `v0.1.599` was established.
 
+### Controlled subtitle investigation — 2026-10-12
+
+A scratch API-35 probe used healthy WAV media and sideloaded TTML captions from local HTTP
+servers. Healthy captions reached READY in 174ms; delayed HTTP 429 captions remained buffering
+at position zero for the full 30-second observation, after seven requests. A repeat reached READY
+before the caption response arrived and observed only one further second, so it does not rule out
+a later stall. Neither probe recorded selected tracks throughout the failure. This establishes a
+useful reproduction candidate, not a completed diagnosis of both phone intervals.
+
+The exact Media3 1.10.1 source shows that sideloaded TTML uses a progressive source with the load
+error policy. Playback waits for its enabled renderers; a terminal subtitle stream error disables
+that track, matching the phone's recovery immediately after the text-track error at 22:12:13.
+Source archive: [official Media3 1.10.1 sources](https://dl.google.com/dl/android/maven2/androidx/media3/media3-exoplayer/1.10.1/media3-exoplayer-1.10.1-sources.jar).
+
+Next: verify caption selection and observe the complete failure/recovery window against healthy
+media. If reproduced, compare ordinary retries with immediate abandonment of HTTP 429 for the
+item's explicitly known optional caption URI. Keep media-load retries unchanged and verify that
+caption abandonment neither restarts the item nor loses its position. The scratch source/APK/logs
+are in `~/claude-tasks/totum-playback-fixes-20261012/`; no probe or retry-policy change is shipped.
+
 ## Older reports considered by request
 
 `20261008T220628-07f2b904` and `20261008T180001-1cad320a` (`0.1.593`), plus
 `20261008T095903-bfb3844c` (`0.1.587`), were marked `triaged` with a note that Dewi requested
 consideration by build age, without individual investigation or an assertion that they were fixed.
 
-## Verification needed when fixes are implemented
+## Implementation and validation — 2026-10-12
+
+- Player Watch/Listen and the playing row's mode action route the actual now-playing item through
+  `QueueModeSwitch` and the shared queue. They retain the current position and invalidate the armed
+  successor before rerouting. A different row still starts normally.
+- `routeNow` selects sound-only playback for a full local copy in Listen mode. Both file variants
+  use the same launcher path, clear stale stream options, and carry the exact position and pillar.
+  The service applies the item's audio-only flag on each playlist transition; `hasVideo` reflects
+  the selected video track, including armed local files. The controller applies video and subtitle
+  choices together so preparing captions cannot undo Listen's video flag.
+- Segment refresh returns the current list even when storage already matches it, or a lookup is
+  unavailable. Cut files retain their existing no-live-skip behaviour. The controller also retains
+  a refreshed list arriving while its asynchronous resume lookup is still pending.
+
+Observed failures against the unchanged production source: two full-copy routing tests, the
+concurrent segment refresh regression, four player/row mode-switch integration cases, and the
+real queue's already-refreshed-store handover case. All of these pass against the local changes.
+All three real-player `DownloadedVideoModeSwitchTest` cases failed on the baseline APK and pass
+on the changed build: initial full-file Listen, Listen/Watch retaining the current position, and
+segments arriving before the resume lookup finishes. The first changed-build attempt revealed that
+applying subtitle choices undid the video's disabled flag; the corrected build applies them together.
+All five `ShortsReelAdvanceTest` cases pass, with the shared reel inspected during the repeat-advance
+case. The picture-loss case caught and corrected an extra replay introduced by the first Shorts
+routing change; the reel now requests the picture once per playing item and leaves recovered audio alone. The full local gate and preflight pass. Both baseline and changed-build playback/queue soaks are complete; results are recorded below.
+
+No boost or HTTP retry policy has been changed. Buffering causality remains open.
+
+### Paired soak results
+
+Same API-35 AVD, official emulator 36.6.11 with SwiftShader, muted; VIDEO mode and automatic queue
+downloads off; Exsurge and all daily alarm rows disabled. The alarm-board service remains running
+even with disabled rows, including both queue runs. Baseline production source is the archived
+`v0.1.601` / `42273dc`; both locally built APKs identify themselves as `0.1.0-dev`.
+
+- Three passes over ten videos: baseline **26/30 PASS**, changed build **25/30 PASS**. The comparison
+  reports **0 regressions under its configured thresholds**: no quality loss or startup-time
+  regression. Occasional underruns and the recurring `edon5wb5Qsc` stream failure remain;
+  this is not a claim that every play passed or that the phone's buffering issue is solved.
+- Queue, gapless off: baseline gaps **1660/1677/1986ms**; first changed run
+  **1834/1566/1674ms**, repeat **797/686/1888ms**. Each run recorded the normal rebuild buffer
+  interval at each handover; none recorded fatal media 403s.
+- Queue, gapless on: baseline **3/3 adopted, 0ms gaps, no stalls**. The first changed run
+  recorded **2/3**, with no gap timing for the last handover. The required repeat recorded
+  **3/3 adopted, 0ms gaps, no stalls**, matching the baseline. Both changed runs are retained.
+
+Raw JSON reports, detailed queue-repeat events, comparison output, failing-before proofs and the
+final tested APK checksum are in `~/claude-tasks/totum-playback-fixes-20261012/`. The initial changed
+soak was superseded after the Shorts recovery correction; only the final APK's completed run is
+used above. The emulator's saved preferences were backed up and restored after validation.
+
+
+## Required validation
 
 - Reproduce each confirmed defect with a failing regression test before changing its code.
 - Exercise mode switches for streams, full local videos and audio-only copies, after item changes

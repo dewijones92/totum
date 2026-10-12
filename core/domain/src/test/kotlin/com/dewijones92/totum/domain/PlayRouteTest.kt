@@ -15,6 +15,23 @@ import org.junit.Test
  */
 class PlayRouteTest {
 
+    @Test
+    fun `listening to a full download uses its sound offline and online`() {
+        for (offline in listOf(false, true)) {
+            val route = video().routeNow(fullCopy, offline = offline, audioPreferred = true)
+            assertEquals(PlayRoute.AudioFile(video().playedFromDisk(fullCopy), fullCopy.path), route)
+        }
+    }
+
+    @Test
+    fun `a full file played from the library also obeys listen mode`() {
+        val local = PlayableItem(item(), PlayHandle.LocalVideo(fullCopy.path))
+        assertEquals(
+            PlayRoute.AudioFile(local, fullCopy.path),
+            local.routeNow(onDisk = null, offline = true, audioPreferred = true),
+        )
+    }
+
     private val watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=aaaaaaaaaaa")
     private val enclosure = HttpUrl.of("https://example.test/episode.mp3")
     private val remuxedAudio = HttpUrl.of("https://home.test/ts/stream/audio.m3u8")

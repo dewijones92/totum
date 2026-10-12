@@ -80,6 +80,7 @@ public class Media3PlaybackController(
     override val player: Player? get() = controller
     private val pendingCommands = mutableListOf<(MediaController) -> Unit>()
     private var itemContext: ItemContext = ItemContext.NONE
+    private var requestedContext: ItemContext = ItemContext.NONE
     private var subtitleLanguage: String? = null
 
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
@@ -204,9 +205,7 @@ public class Media3PlaybackController(
                                 Diag.log(
                                     "playback",
                                     "video size=${player.videoSize.width}x${player.videoSize.height} " +
-                                        "hasVideo=${player.currentTracks.groups.any {
-                                            it.type == C.TRACK_TYPE_VIDEO
-                                        }}",
+                                        "hasVideo=${player.currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO)}",
                                 )
                             }
                             connected.duration.takeIf { it > 0 }?.let { lastDurationMs = it }
@@ -230,6 +229,7 @@ public class Media3PlaybackController(
         audioUrl: HttpUrl?,
         subtitles: List<SubtitleTrack>,
         startPositionMs: Long,
+        audioOnly: Boolean,
     ) {
         val uri = localPath?.let { File(it).toURI().toString() }
             ?: requireNotNull(item.mediaUrl) { "MediaItem ${item.id.value} has no mediaUrl" }.value
@@ -253,7 +253,8 @@ public class Media3PlaybackController(
         // auto-advance) whose async loads resume out of order and would otherwise
         // leave the player on one item with another's source/segments/chapters.
         val generation = ++playGeneration
-        val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles)
+        requestedContext = ItemContext.of(item, kind, skipSegments, subtitles)
+        val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, audioOnly = audioOnly)
         // Resume where this item was left (both pillars). Fetched first so we
         // can hand the start position straight to the player — no jump from 0.
         scope.launch {
@@ -275,17 +276,17 @@ public class Media3PlaybackController(
                 // so its media item and state never clobber the current item.
                 if (generation != playGeneration) return@withController
                 if (adopting(controller, item.id.value, uri, audioUrl, startPositionMs)) {
-                    itemContext = ItemContext.of(item, kind, skipSegments, subtitles)
-                    applyChoices(controller, tuned, boost)
+                    itemContext = requestedContext
+                    applyChoices(controller, tuned, boost, audioOnly)
                     if (startPaused) controller.pause()
                     _state.value = controller.currentPlaybackState()
                     return@withController
                 }
                 nextInLine.forgetOnRebuild(item.id.value)
                 noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
-                becameCurrent(ItemContext.of(item, kind, skipSegments, subtitles))
+                becameCurrent(requestedContext)
                 controller.setMediaItem(media3Item, resumeMs)
-                applyChoices(controller, tuned, boost)
+                applyChoices(controller, tuned, boost, audioOnly)
                 controller.prepare()
                 if (startPaused) controller.pause() else controller.play()
             }
@@ -294,12 +295,17 @@ public class Media3PlaybackController(
 
     // Re-applied on EVERY item, and told to the service too: the rate the user chose
     // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).
-    private fun applyChoices(controller: MediaController, tuned: ItemTuning, boost: VolumeBoost) {
+    private fun applyChoices(
+        controller: MediaController,
+        tuned: ItemTuning,
+        boost: VolumeBoost,
+        audioOnly: Boolean,
+    ) {
         tuning = tuned
         applyUserSpeed(controller, tuned.speed)
         sendSkipSilence(controller, tuned.skipSilence)
         applySilenceMode(controller, silenceMode.value)
-        applySubtitleLanguage(controller)
+        applySubtitleLanguage(controller, audioOnly)
         if (boost != volumeBoost) setVolumeBoost(boost)
     }
 
@@ -313,10 +319,12 @@ public class Media3PlaybackController(
         audioUrl: HttpUrl?,
         subtitles: List<SubtitleTrack>,
         startMs: Long = 0,
+        audioOnly: Boolean = false,
     ): Media3MediaItem {
         // A separate audio track (higher-than-muxed qualities) rides along in
         // the request metadata; the service merges it with the video-only URI.
         val extras = Bundle().apply {
+            putBoolean(EXTRA_AUDIO_ONLY, audioOnly)
             audioUrl?.let { putString(EXTRA_AUDIO_URL, it.value) }
             if (startMs > 0) putLong(EXTRA_START_MS, startMs)
         }
@@ -453,6 +461,7 @@ public class Media3PlaybackController(
         localPath: String?,
         audioUrl: HttpUrl?,
         subtitles: List<SubtitleTrack>,
+        audioOnly: Boolean,
     ) {
         val uri = localPath?.let { File(it).toURI().toString() } ?: item.mediaUrl?.value ?: run {
             Diag.warn("gapless", "not arming ${item.id.value}: it has nothing to play from")
@@ -461,7 +470,7 @@ public class Media3PlaybackController(
         val behind = itemContext.id
         scope.launch {
             val startMs = progressStore.resumePositionMs(item.id) ?: 0L
-            val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, startMs)
+            val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, startMs, audioOnly)
             withController { controller ->
                 val playing = controller.currentMediaItem?.mediaId
                 when {
@@ -573,15 +582,20 @@ public class Media3PlaybackController(
      * next video"* — and re-asserting it costs nothing, where relying on the player to carry
      * selection parameters across a `setMediaItem` is relying on something nobody wrote down.
      */
-    private fun applySubtitleLanguage(controller: MediaController) {
+    private fun applySubtitleLanguage(
+        controller: MediaController,
+        audioOnly: Boolean = controller.currentMediaItem?.requestMetadata?.extras?.getBoolean(EXTRA_AUDIO_ONLY) == true,
+    ) {
         controller.trackSelectionParameters = controller.trackSelectionParameters
             .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, audioOnly)
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, subtitleLanguage == null)
             .setPreferredTextLanguage(subtitleLanguage)
             .build()
     }
 
     override fun updateSkipSegments(itemId: MediaItemId, segments: List<SkipSegment>) {
+        if (requestedContext.id == itemId.value) requestedContext = requestedContext.copy(skipSegments = segments)
         withController {
             val playing = _state.value?.itemId
             if (playing != itemId) {
@@ -788,7 +802,7 @@ public class Media3PlaybackController(
             // dead air at up to 8x, and reporting that made the speed button flick to "4x" during
             // every pause in speech — the app appearing to change a setting nobody touched.
             speed = userSpeed,
-            hasVideo = currentTracks.groups.any { it.type == C.TRACK_TYPE_VIDEO },
+            hasVideo = currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO),
             videoAspectRatio = videoSize.takeIf { it.width > 0 && it.height > 0 }
                 ?.let { it.width * it.pixelWidthHeightRatio / it.height },
             hasEnded = playbackState == Player.STATE_ENDED,

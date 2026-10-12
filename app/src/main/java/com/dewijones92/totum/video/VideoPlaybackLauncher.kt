@@ -6,6 +6,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
@@ -122,12 +123,26 @@ class VideoPlaybackLauncher(
     }
 
     /** Plays an already-downloaded file — no re-resolution, and no quality choice (it's one merged file). */
-    fun playLocal(item: MediaItem, localPath: String, skipSegments: List<SkipSegment> = emptyList()) {
+    fun playLocal(
+        item: MediaItem,
+        localPath: String,
+        skipSegments: List<SkipSegment> = emptyList(),
+        startPositionMs: Long = 0,
+        kind: MediaKind = MediaKind.VIDEO,
+        audioOnly: Boolean = false,
+    ) {
         beginPlay()
         current = null
         currentWatchUrl = null
-        _quality.value = QualityState()
-        playback.play(item, skipSegments = skipSegments, localPath = localPath)
+        _quality.value = QualityState(canListen = kind == MediaKind.VIDEO, listening = audioOnly)
+        playback.play(
+            item,
+            kind,
+            skipSegments = skipSegments,
+            localPath = localPath,
+            startPositionMs = startPositionMs,
+            audioOnly = audioOnly,
+        )
     }
 
     /**
@@ -161,7 +176,8 @@ class VideoPlaybackLauncher(
          * 403'd, at a 10-14 second extraction per cycle (0.1.437, "tennis video not working????").
          */
         audioOnly: Boolean = false,
-    ): Boolean = play(Attempt(listing, watchUrl, startPositionMs, request, audioOnly)) {
+        forceVideo: Boolean = false,
+    ): Boolean = play(Attempt(listing, watchUrl, startPositionMs, request, audioOnly, forceVideo)) {
         // `asked` names WHO wanted this, because a report showed one video extracted four
         // times in thirty seconds and the log could not say by whom.
         resolver.resolve(watchUrl, listing.sourceId, asked = "play")
@@ -209,6 +225,7 @@ class VideoPlaybackLauncher(
         val startPositionMs: Long,
         val request: Long,
         val audioOnly: Boolean,
+        val forceVideo: Boolean = false,
     )
 
     private suspend fun play(
@@ -261,7 +278,8 @@ class VideoPlaybackLauncher(
         // startPositionMs on BOTH branches. The audio branch dropped it, so a rescue that asked to
         // resume an hour in restarted from zero whenever the mode was audio -- which every diagnostics
         // report from Dewi's phone says it is.
-        if ((audioOnly || audioPreferred()) && resolved.audioOnlyUrl != null) {
+        val soundWanted = audioOnly || (!attempt.forceVideo && audioPreferred())
+        if (soundWanted && resolved.audioOnlyUrl != null) {
             if (audioOnly) {
                 Diag.log(
                     "playback",

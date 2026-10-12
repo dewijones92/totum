@@ -32,7 +32,8 @@ internal class QueueArming(private val controller: PlaybackController, private v
                     route.playable.item,
                     queued.pillar,
                     skipSegments = skipSegments,
-                    localPath = route.path
+                    localPath = route.path,
+                    audioOnly = true,
                 )
                 true
             }

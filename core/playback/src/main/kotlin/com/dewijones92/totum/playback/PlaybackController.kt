@@ -68,6 +68,7 @@ public interface PlaybackController {
         audioUrl: HttpUrl? = null,
         subtitles: List<SubtitleTrack> = emptyList(),
         startPositionMs: Long = 0,
+        audioOnly: Boolean = false,
     )
 
     /**
@@ -133,6 +134,7 @@ public interface PlaybackController {
         localPath: String? = null,
         audioUrl: HttpUrl? = null,
         subtitles: List<SubtitleTrack> = emptyList(),
+        audioOnly: Boolean = false,
     )
 
     public fun disarmNext(reason: String)

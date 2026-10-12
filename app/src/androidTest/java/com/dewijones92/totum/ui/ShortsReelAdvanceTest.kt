@@ -112,6 +112,23 @@ class ShortsReelAdvanceTest {
         assertEquals("s1", playback.state.value?.itemId?.value)
     }
 
+    @Test
+    fun aPictureDroppedDuringRecoveryIsNotRequestedAgainForTheSameShort() {
+        openReel()
+        composeTestRule.runOnIdle {
+            playback.emitState(requireNotNull(playback.state.value).copy(hasVideo = true))
+        }
+        composeTestRule.waitForIdle()
+        val plays = playback.played.size
+        composeTestRule.runOnIdle {
+            playback.emitState(requireNotNull(playback.state.value).copy(hasVideo = false))
+        }
+        composeTestRule.mainClock.advanceTimeBy(1000)
+        composeTestRule.waitForIdle()
+
+        assertEquals("Losing the picture must keep the recovered audio", plays, playback.played.size)
+    }
+
     /** The behaviour Dewi asked for: a short ending rolls on, on the shared path. */
     @Test
     fun aShortEnding_advancesToTheNext() {

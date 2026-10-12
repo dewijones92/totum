@@ -29,12 +29,13 @@ public class SkipSegmentsOnDisk(
         }
         return when (val answer = lookup.lookup(videoId)) {
             is SegmentLookup.Unavailable -> {
-                Diag.log(TAG, "$id on disk: lookup failed (${answer.reason}); keeping ${copy.skipSegments.size} stored")
-                null
+                val stored = (copyOf(copy.item.id) ?: copy).segmentsToSkip
+                Diag.log(TAG, "$id on disk: lookup failed (${answer.reason}); keeping ${stored.size} stored")
+                stored
             }
             is SegmentLookup.Answered -> if (answer.segments == copy.skipSegments) {
                 Diag.log(TAG, "$id on disk: ${answer.segments.size} segment(s), unchanged")
-                null
+                answer.segments
             } else {
                 store.rememberSkipSegments(copy.item.id, answer.segments)
                 Diag.log(TAG, "$id on disk: segments ${copy.skipSegments.size} -> ${answer.segments.size}, stored")

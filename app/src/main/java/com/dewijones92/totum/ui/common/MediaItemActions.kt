@@ -93,7 +93,7 @@ class MediaItemActions internal constructor(
         if (!toAudio) queue.wantsThePictureAgain(item.id)
         ui.announce(if (toAudio) audioOnMessage else videoOnMessage)
         val playable = item.toPlayableOrNull() ?: return
-        scope.launch { queue.playNow(playable) }
+        scope.launch { queue.playInChosenMode(playable) }
     }
     fun playNext(item: MediaItem) {
         item.toPlayableOrNull()?.let(queue::playNext)

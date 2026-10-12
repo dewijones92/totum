@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-07
+updated: 2026-10-12
 ---
 
 # Playback queue
@@ -62,3 +62,20 @@ playing slot with the playing one next.
 A shared link queued under its placeholder title learns its metadata in the background once the
 network returns, even when its audio was downloaded and playback takes the local-file route. The
 same repair reaches downloads kept only in Library. See [shared-link metadata](shared-link-metadata.md).
+
+## Changing the playing item's mode
+
+The player Watch/Listen buttons and a mode action on the playing row reroute the actual playing
+item through the shared queue, retaining its current position and queue slot. A stale item id is
+ignored. A mode change disarms the prepared successor so it can be routed for the new mode.
+Shorts uses this same route to request the picture for the playing short without changing the
+saved playback mode. It requests the picture once per playing item, so recovery can keep audio
+playing after a failed picture without the reel requesting it again. A full downloaded video stays on disk in Listen mode, with its video track disabled; switching
+back to Watch restores that track. An audio-only copy can switch to its stream for Watch.
+Every local-file play clears the launcher's previous stream choices and forwards its resume point.
+
+Sponsor refresh returns the latest segment list even when a concurrent download refresh has
+already stored it. The player keeps updates arriving before its asynchronous resume lookup finishes.
+
+These repairs are verified locally on 2026-10-12 with failing-before/passing-after regressions,
+eight device cases, and the paired playback/queue comparison. They are not yet pushed or released. See [current phone findings](../todos/playback-defects-0.1.601.md).
