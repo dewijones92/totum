@@ -185,6 +185,8 @@ hand-over (crossed over or not, silence, stalls, adopted) with gapless off and t
 3.7 / 4.4 s, on 0 / 0 / 0 s. It caught a race no device test reproduced (an item under 45 s never put its
 successor in line, because the queue's adoption cancelled the arming); local files win that race, streams lose it.
 
+Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
+
 Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the
 queue soak after it with `;`, not `&&` (an `&&` silently skipped the baseline's queue soak); and the queue
 soak drives the app through a broadcast, which a **force-stopped app never receives** (every hand-over
