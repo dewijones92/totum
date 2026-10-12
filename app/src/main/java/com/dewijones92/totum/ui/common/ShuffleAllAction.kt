@@ -44,6 +44,7 @@ fun ShuffleAllAction(shuffleAll: ShuffleAll, scope: CoroutineScope, target: Shuf
         scope.launch {
             val outcome = shuffleAll.shuffle(target, includeShorts)
             val message = when (outcome) {
+                ShuffleOutcome.AlreadyLoading -> return@launch
                 ShuffleOutcome.Nothing -> context.getString(R.string.shuffle_all_nothing)
                 is ShuffleOutcome.Shuffled ->
                     context.resources.getQuantityString(R.plurals.shuffle_all_done, outcome.count, outcome.count) +

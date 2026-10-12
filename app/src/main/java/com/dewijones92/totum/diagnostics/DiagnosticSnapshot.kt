@@ -72,9 +72,9 @@ internal class DiagnosticSnapshot(
         runCatching {
             put("queue.size", entries.size.toString())
             put("queue.currentIndex", currentIndex.toString())
-            put("queue.items", entries.joinToString(" | ") { "${it.item.item.title}" })
+            put("queue.items", listedAround(entries, currentIndex, LISTED_BEFORE, LISTED_AFTER) { it.item.item.title })
         }
-        runCatching { putDownloadState(entries) }
+        runCatching { putDownloadState(entries, currentIndex) }
         runCatching {
             val settings = live.settings()
             put("settings.playbackMode", settings.playbackMode.name)
@@ -139,13 +139,14 @@ internal class DiagnosticSnapshot(
         put("account.subscriptionTitles", subs.joinToString(" | ") { it.title })
     }
 
-    private fun MutableMap<String, String>.putDownloadState(entries: List<QueueEntry>) {
+    private fun MutableMap<String, String>.putDownloadState(entries: List<QueueEntry>, currentIndex: Int) {
         val states = live.downloadStates()
+        val byId = entries.associateBy { it.item.item.id }
         val readiness = OfflineReadiness.of(
             entries.map { it.item.item.id },
             stateOf = { id -> states[id] ?: DownloadState.NotDownloaded },
             fetchedAutomatically = { id ->
-                entries.firstOrNull { it.item.item.id == id }?.item?.hasAudioOnlyFetch ?: true
+                byId[id]?.item?.hasAudioOnlyFetch ?: true
             },
         )
         put("downloads.queueReady", readiness.ready.toString())
@@ -164,7 +165,7 @@ internal class DiagnosticSnapshot(
         // Per item, because a count cannot say whether the one that was TAPPED was there.
         put(
             "downloads.queueStates",
-            entries.joinToString(" | ") { entry ->
+            listedAround(entries, currentIndex, LISTED_BEFORE, LISTED_AFTER) { entry ->
                 val title = entry.item.item.title.take(DIAG_TITLE_CHARS)
                 "$title=${states[entry.item.item.id].forDiagnostics()}"
             },
@@ -186,9 +187,25 @@ internal class DiagnosticSnapshot(
 
     private companion object {
         const val DIAG_TITLE_CHARS = 40
+        const val LISTED_BEFORE = 50
+        const val LISTED_AFTER = 200
 
         /** A failure keeps this much of its reason — enough to tell "members-only" from "timeout". */
         const val DIAG_FAILURE_CHARS = 30
         const val PERCENT = 100
     }
+}
+
+internal fun <T> listedAround(
+    entries: List<T>,
+    current: Int,
+    before: Int,
+    after: Int,
+    describe: (T) -> String,
+): String {
+    val from = (current - before).coerceIn(0, entries.size)
+    val to = (maxOf(current, 0) + after).coerceIn(from, entries.size)
+    val shown = entries.subList(from, to).joinToString(" | ", transform = describe)
+    if (from == 0 && to == entries.size) return shown
+    return "[items ${from + 1}-$to of ${entries.size}, around the playing one] $shown"
 }

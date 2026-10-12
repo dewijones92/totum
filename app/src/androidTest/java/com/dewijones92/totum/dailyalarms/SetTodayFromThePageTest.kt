@@ -23,10 +23,16 @@ class SetTodayFromThePageTest {
     private val zone = ZoneId.of("Europe/London")
     private val monday = LocalDate.of(2026, 10, 5)
 
+    private val questions = mutableListOf<AlarmEffect.ShowQuestion>()
+    private val ports = object : DailyAlarmPorts by NoDailyAlarmPorts {
+        override fun showQuestion(alarm: DailyAlarm, question: AlarmEffect.ShowQuestion) {
+            questions += question
+        }
+    }
+
     private fun pageAt(hour: Int): DailyAlarmController {
         val instant = ZonedDateTime.of(monday.atTime(hour, 0), zone).toInstant()
-        val alarms =
-            DailyAlarmController(InMemoryDailyAlarmStore(), NoDailyAlarmPorts, clock = { instant }, zone = { zone })
+        val alarms = DailyAlarmController(InMemoryDailyAlarmStore(), ports, clock = { instant }, zone = { zone })
         composeTestRule.setContent { TotumTheme { DailyAlarmsScreen(alarms, onBack = {}) } }
         return alarms
     }
@@ -40,6 +46,16 @@ class SetTodayFromThePageTest {
 
         assertTrue(alarms.view.value.alarms.single().enabled)
         assertEquals(DayState.Set(monday, LocalTime.of(17, 30)), alarms.view.value.state("pickup"))
+    }
+
+    @Test
+    fun settingItMidMorningNeverShowsTheMorningQuestion() {
+        val alarms = pageAt(hour = 10)
+
+        composeTestRule.onNodeWithTag("dailyalarm-today-pickup-17:30").performScrollTo().performClick()
+
+        assertEquals(DayState.Set(monday, LocalTime.of(17, 30)), alarms.view.value.state("pickup"))
+        assertEquals(emptyList<AlarmEffect.ShowQuestion>(), questions)
     }
 
     @Test

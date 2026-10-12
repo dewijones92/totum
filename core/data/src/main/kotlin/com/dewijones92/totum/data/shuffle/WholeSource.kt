@@ -8,6 +8,9 @@ import com.dewijones92.totum.domain.MediaSource
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
 
 public enum class SourcePart { UPLOADS, SHORTS }
@@ -22,7 +25,10 @@ public class WholeSource(
     private val pages: SourcePages,
     private val attemptsPerPage: Int = 3,
     private val runawayPageLimit: Int = 2_000,
+    private val retryBackoffMs: Long = 1_000,
+    concurrentRequests: Int = 4,
 ) {
+    private val requests = Semaphore(concurrentRequests)
     public suspend fun everything(
         sources: List<MediaSource>,
         includeShorts: Boolean,
@@ -61,7 +67,13 @@ public class WholeSource(
             fetched++
             items += page.items
             progress(loaded.addAndGet(page.items.size))
-            val next = page.next ?: break
+            val next = page.next
+            if (next == null) {
+                if (page.items.isEmpty() && fetched > 1) {
+                    Diag.warn(TAG, "\"${source.title}\" $part ended on empty page $fetched: unparsed, or the end")
+                }
+                break
+            }
             if (!seen.add(next)) return stop(source, part, items, fetched, "continuation repeated")
             after = next
         }
@@ -71,9 +83,10 @@ public class WholeSource(
 
     private suspend fun fetchWithRetries(source: MediaSource, part: SourcePart, after: PageToken?): Page<MediaItem>? {
         repeat(attemptsPerPage) { attempt ->
-            pages.page(source, part, after)?.let { return it }
+            requests.withPermit { pages.page(source, part, after) }?.let { return it }
             val which = if (after == null) "first page" else "a later page"
             Diag.warn(TAG, "\"${source.title}\" $part $which failed (attempt ${attempt + 1} of $attemptsPerPage)")
+            if (attempt < attemptsPerPage - 1) delay(retryBackoffMs shl attempt)
         }
         return null
     }

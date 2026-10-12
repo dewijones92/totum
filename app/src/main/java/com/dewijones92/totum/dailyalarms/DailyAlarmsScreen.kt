@@ -1,5 +1,6 @@
 package com.dewijones92.totum.dailyalarms
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -22,10 +23,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -34,6 +37,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.ui.common.BackHeader
+import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -42,12 +46,22 @@ import java.util.Locale
 
 private typealias Change = (DailyAlarm.() -> DailyAlarm) -> Unit
 
+private const val NOW_REFRESH_MS = 30_000L
+
 private class Today(val now: LocalDateTime, val set: (LocalTime) -> Unit, val cancel: () -> Unit)
 
 @Composable
 fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier: Modifier = Modifier) {
     KeepScreenAwake("dailyalarm settings")
     val view by alarms.view.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val gone = stringResource(R.string.dailyalarm_set_today_gone)
+    val now by produceState(alarms.localNow(), alarms) {
+        while (true) {
+            delay(NOW_REFRESH_MS)
+            value = alarms.localNow()
+        }
+    }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             BackHeader(stringResource(R.string.dailyalarm_name), onBack)
@@ -61,10 +75,11 @@ fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier
                     alarms.update("settings") { list -> list.map { if (it.id == alarm.id) it.edit() else it } }
                 }
                 val today = Today(
-                    now = alarms.localNow(),
+                    now = now,
                     set = { time ->
-                        if (!alarm.enabled) change { copy(enabled = true) }
-                        alarms.dispatch(alarm.id, AlarmEvent.SetToday(time), "page")
+                        if (!alarms.setToday(alarm.id, time, "page")) {
+                            Toast.makeText(context, gone, Toast.LENGTH_LONG).show()
+                        }
                     },
                     cancel = { alarms.dispatch(alarm.id, AlarmEvent.Cancel, "page") },
                 )

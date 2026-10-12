@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.common
 
+import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.search.SearchHit
@@ -8,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.innertube.channel.ChannelVideos
 import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.music.toMediaItem
 import java.time.Instant
@@ -73,3 +75,6 @@ fun SearchHit.Video.toMediaItem(sourceId: SourceId, observedAt: Instant = Instan
 )
 
 fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = song.toMediaItem(sourceId)
+
+fun ChannelVideos.toMediaItemPage(sourceId: SourceId): Page<MediaItem>? =
+    (this as? ChannelVideos.Success)?.page?.map { it.toMediaItem(sourceId) }

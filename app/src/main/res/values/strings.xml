@@ -572,6 +572,7 @@
     <string name="dailyalarm_set_today">Set for today</string>
     <string name="dailyalarm_set_today_other">Other time…</string>
     <string name="dailyalarm_cancel_today">Cancel today</string>
+    <string name="dailyalarm_set_today_gone">That time has already gone today</string>
     <string name="shuffle_all">Shuffle all</string>
     <string name="shuffle_all_nothing">Nothing to shuffle</string>
     <string name="shuffle_all_incomplete"> (some pages could not be loaded)</string>

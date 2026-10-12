@@ -108,6 +108,34 @@ class DailyAlarmControllerTest {
         assertEquals(listOf(RowStatus.Set, RowStatus.Asking), board.rows.map { it.status })
     }
 
+    @Test
+    fun `setting today from the page on an alarm that is off asks no question`() {
+        val alarms = controller()
+        at(10)
+
+        val set = alarms.setToday("pickup", LocalTime.of(17, 30), "page")
+
+        assertTrue(set)
+        assertTrue(alarms.view.value.alarms.single().enabled)
+        assertEquals(
+            DayState.Set(now.atZone(zone).toLocalDate(), LocalTime.of(17, 30)),
+            alarms.view.value.state("pickup")
+        )
+        assertEquals(emptyList<AlarmEffect.ShowQuestion>(), ports.questions)
+    }
+
+    @Test
+    fun `a time already gone is refused from the page and leaves the alarm off`() {
+        val alarms = controller()
+        at(18)
+
+        val set = alarms.setToday("pickup", LocalTime.of(17, 30), "page")
+
+        assertFalse(set)
+        assertFalse(alarms.view.value.alarms.single().enabled)
+        assertEquals(DayState.Idle, alarms.view.value.state("pickup"))
+    }
+
     private class RecordingPorts : DailyAlarmPorts {
         val schedules = mutableListOf<Pair<String, Instant?>>()
         var ringScheduled = false

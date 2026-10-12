@@ -9,8 +9,9 @@ updated: 2026-10-12
 # Shuffle all
 
 🔀 on a channel page or a podcast page, or **Shuffle all** under the feed chips when a group is
-selected, loads everything that source (or every source in the group) has ever published, shuffles
-it, and puts it after what is playing as one queue group. A channel asks **Include Shorts?** first.
+selected, loads every upload of each channel (and its Shorts, if you say so) and every episode a
+podcast's feed still lists, shuffles them, puts them after what is playing as one queue group, and
+starts the first. A channel asks **Include Shorts?** first. Members-only videos are left out.
 Decision and reasons: [ADR 30](../adr/0030-shuffle-all-walks-every-page-into-one-queue-group.md).
 
 ## Seam
@@ -26,6 +27,7 @@ Decision and reasons: [ADR 30](../adr/0030-shuffle-all-walks-every-page-into-one
 - `WholeSourceTest` (JVM): every page to the end; Shorts only when asked; a failing page keeps what came
   before and says so; a flaky page is retried; a repeating continuation stops; a group's channels and
   podcasts merged once each.
-- `AppSourcePagesTest` (JVM): InnerTube paging by id; yt-dlp for a handle; stored podcast episodes.
+- `AppSourcePagesTest` (JVM): InnerTube paging by id; a handle resolved once then paged with its Shorts
+  (observed failing first: it returned yt-dlp's 20); stored podcast episodes.
 - `ShuffleAllActionTest` (instrumented): the Shorts question and both answers; a podcast with no
   question; everything lands in the queue as one `shuffle:` group.

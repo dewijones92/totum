@@ -66,14 +66,19 @@ class AppSourcePagesTest {
     }
 
     @Test
-    fun `a channel known only by handle comes from yt-dlp in one page`() = runTest {
-        val innerTube = FakeYouTubeChannel()
+    fun `a channel known only by handle is resolved once then paged like any other with its shorts`() = runTest {
+        val innerTube = FakeYouTubeChannel(
+            videos = listOf(video("v1")),
+            videosNext = PageToken("p2"),
+            videoPages = mapOf("p2" to Page(listOf(video("v2")), null)),
+            shorts = listOf(video("s1", FeedVideo.Kind.SHORT)),
+        )
         val pages = AppSourcePages(innerTube, FakeChannelRepository(), FakePodcastRepository())
 
         val gathered = WholeSource(pages).everything(listOf(handleOnly), includeShorts = true)
 
-        assertTrue(gathered.items.isNotEmpty())
-        assertTrue(innerTube.requested.isEmpty())
+        assertEquals(setOf("v1", "v2", "s1"), gathered.items.map { it.title }.toSet())
+        assertEquals(listOf(null, PageToken("p2")), innerTube.requested)
         assertTrue(gathered.unfinished.isEmpty())
     }
 

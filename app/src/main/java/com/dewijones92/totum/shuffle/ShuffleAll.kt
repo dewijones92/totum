@@ -13,17 +13,18 @@ import com.dewijones92.totum.data.shuffle.SourcePart
 import com.dewijones92.totum.data.shuffle.WholeSource
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.domain.youTubeChannelId
-import com.dewijones92.totum.innertube.channel.ChannelVideos
 import com.dewijones92.totum.innertube.channel.YouTubeChannel
 import com.dewijones92.totum.queue.PlaybackQueue
-import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.ui.common.toMediaItemPage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.TimeSource
 
 class AppSourcePages(
@@ -31,6 +32,8 @@ class AppSourcePages(
     private val channels: ChannelRepository,
     private val podcasts: PodcastRepository,
 ) : SourcePages {
+    private val resolved = ConcurrentHashMap<SourceId, String>()
+
     override suspend fun page(source: MediaSource, part: SourcePart, after: PageToken?): Page<MediaItem>? =
         when (source) {
             is MediaSource.VideoChannel -> channelPage(source, part, after)
@@ -42,20 +45,26 @@ class AppSourcePages(
         part: SourcePart,
         after: PageToken?,
     ): Page<MediaItem>? {
-        val id = source.youTubeChannelId ?: return when (part) {
-            SourcePart.SHORTS -> Page.empty()
-            SourcePart.UPLOADS -> when (val r = channels.fetchChannelVideos(source.channelUrl)) {
-                is ChannelVideosResult.Success -> Page.last(r.videos)
-                is ChannelVideosResult.Failure -> null.also { Diag.warn(TAG, "\"${source.title}\" via yt-dlp: $r") }
-            }
-        }
+        val id = source.youTubeChannelId ?: resolvedId(source) ?: return null
         val result = when (part) {
             SourcePart.UPLOADS -> innerTube.videos(id, after)
             SourcePart.SHORTS -> innerTube.shorts(id, after)
         }
-        return when (result) {
-            is ChannelVideos.Success -> result.page.map { it.toMediaItem(source.id) }
-            is ChannelVideos.Failure -> null.also { Diag.warn(TAG, "\"${source.title}\" $part page: $result") }
+        return result.toMediaItemPage(source.id)
+            ?: null.also { Diag.warn(TAG, "\"${source.title}\" $part page: $result") }
+    }
+
+    private suspend fun resolvedId(source: MediaSource.VideoChannel): String? {
+        resolved[source.id]?.let { return it }
+        return when (val r = channels.fetchChannelVideos(source.channelUrl)) {
+            is ChannelVideosResult.Success -> r.channelId.also {
+                resolved[source.id] = it
+                Diag.log(TAG, "\"${source.title}\" known only by handle; resolved to $it, paging InnerTube")
+            }
+            is ChannelVideosResult.Failure -> {
+                Diag.warn(TAG, "\"${source.title}\" could not be resolved: $r")
+                null
+            }
         }
     }
 
@@ -78,6 +87,7 @@ data class ShuffleTarget(val key: String, val title: String, val sources: List<M
 sealed interface ShuffleOutcome {
     data class Shuffled(val count: Int, val unfinished: List<String>) : ShuffleOutcome
     data object Nothing : ShuffleOutcome
+    data object AlreadyLoading : ShuffleOutcome
 }
 
 class ShuffleAll(private val whole: WholeSource, private val queue: PlaybackQueue) {
@@ -88,7 +98,7 @@ class ShuffleAll(private val whole: WholeSource, private val queue: PlaybackQueu
         val (key, title, sources) = target
         if (key in mutableLoading.value) {
             Diag.log(TAG, "\"$title\" is already loading; ignoring a second tap")
-            return ShuffleOutcome.Nothing
+            return ShuffleOutcome.AlreadyLoading
         }
         val started = TimeSource.Monotonic.markNow()
         Diag.log(TAG, "shuffle all \"$title\": ${sources.size} source(s), shorts=$includeShorts")

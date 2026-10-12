@@ -30,6 +30,7 @@ import com.dewijones92.totum.innertube.channel.YouTubeChannel
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.ui.common.toMediaItemPage
 import com.dewijones92.totum.video.AccountSubscriptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -387,8 +388,7 @@ class ChannelViewModel(
     }
 
     /** A tab result as domain items, or null when it failed. */
-    private fun videoPage(result: ChannelVideos): Page<MediaItem>? =
-        (result as? ChannelVideos.Success)?.page?.map { it.toMediaItem(source.id) }
+    private fun videoPage(result: ChannelVideos): Page<MediaItem>? = result.toMediaItemPage(source.id)
 
     /**
      * The paging step, once, for any tab. The three tabs differ only in which state they

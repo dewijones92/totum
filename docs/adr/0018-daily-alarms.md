@@ -42,7 +42,10 @@ alarm card has **Set for today** (time chips, Other time…, Cancel today). It s
 `AlarmEvent.SetToday` rather than widening `Answer`: `Answer` still refuses a day that is idle or has
 rung, so a stale morning notification tapped the next day cannot quietly arm an alarm. `SetToday` is
 accepted in every state except ringing and snoozed, for today, any day of the week. A time already gone
-is refused. Tapping it on an alarm that is off turns the alarm on first.
+is refused. Tapping it on an alarm that is off turns the alarm on in the same step
+(`DailyAlarmController.setToday`): switching it on through the settings path first ran a tick that
+posted the morning question, with its sound, just before the set cancelled it (found by review, shown
+by a test of the old sequence). A refused time leaves the alarm off and the page says so.
 
 ## Consequences
 

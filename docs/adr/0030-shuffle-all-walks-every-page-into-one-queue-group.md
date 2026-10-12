@@ -20,13 +20,17 @@ time as you scrolled, and nothing could fetch the lot.
 ## Decision
 
 - One seam for both pillars: `WholeSource` (`:core:data`) walks a list of sources to the end through a
-  `SourcePages` port, concurrently per source, three attempts per page, stopping on a repeated
-  continuation or a runaway 2,000 pages, and says which parts it could not finish.
-- `AppSourcePages` is the only place that knows pillars: a channel known by id pages InnerTube's
-  uploads (and Shorts when asked); a handle-only channel comes from yt-dlp in one page; a podcast
-  gives its stored episodes, or a preview of its feed.
+  `SourcePages` port, concurrently per source but at most four requests at once, three attempts per
+  page one and two seconds apart, stopping on a repeated continuation or a runaway 2,000 pages, and
+  says which parts it could not finish. A walk ending on an empty page is logged as such, not as
+  complete, because an unparsed reply looks the same.
+- `AppSourcePages` is the only place that knows pillars: a channel pages InnerTube's uploads (and
+  Shorts when asked); a channel known only by its handle is resolved to its id once through yt-dlp
+  and then paged the same way (yt-dlp alone stops at 20); a podcast gives its stored episodes, or a
+  preview of its feed, which is whatever the RSS feed still lists.
 - `ShuffleAll` shuffles everything gathered and inserts it after what is playing as one `QueueGroup`
-  (`shuffle:<source>`), like album shuffle, so it can be collapsed, skipped or removed in one go.
+  (`shuffle:<source>`), like album shuffle, so it can be collapsed, skipped or removed in one go, and
+  starts playing the first shuffled item at once (`playAll`).
   Members-only videos are left out (they cannot play) and counted in the log.
 - 🔀 in the header of the channel page and the podcast page; a **Shuffle all** row under the feed
   chips when a group is selected. "Include Shorts?" is asked whenever a channel is involved; a
@@ -38,5 +42,9 @@ time as you scrolled, and nothing could fetch the lot.
 - Playback starts once every page has loaded (a large channel can take tens of seconds; the count
   shows progress), not at the first page. A uniform shuffle needs the whole list.
 - A huge channel goes into the queue in full, as Dewi asked; the queue's own group collapse is what
-  keeps it manageable.
+  keeps it manageable. Reports list a window of 250 titles around the playing item, with the counts
+  still exact, so a 3,000-item queue does not make a report megabytes long.
+- Open (asked 2026-10-12): queue auto-download fetches audio for every queued item, so a large
+  shuffle on Wi-Fi would download all of it. Dewi to choose: only the next ~20, never for shuffle
+  groups, or everything.
 - Logged under `[shuffle]`: sources, pages, items, unfinished parts, members-only left out, time taken.

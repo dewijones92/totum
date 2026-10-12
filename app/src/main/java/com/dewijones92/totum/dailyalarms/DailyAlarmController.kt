@@ -164,6 +164,30 @@ class DailyAlarmController(
 
     fun localNow(): LocalDateTime = LocalDateTime.ofInstant(clock(), zone())
 
+    @Synchronized
+    fun setToday(alarmId: String, time: LocalTime, source: String): Boolean {
+        val alarm = alarms.firstOrNull { it.id == alarmId }
+        if (alarm == null) {
+            Diag.warn(TAG, "dewidebug dailyalarm set today $time from $source for unknown alarm $alarmId")
+            return false
+        }
+        val now = localNow()
+        if (!time.isAfter(now.toLocalTime())) {
+            Diag.log(TAG, "dewidebug dailyalarm $alarmId set today $time from $source refused: it is already $now")
+            return false
+        }
+        val enabled = if (alarm.enabled) alarm else alarm.copy(enabled = true)
+        if (!alarm.enabled) {
+            alarms = alarms.map { if (it.id == alarmId) enabled else it }
+            store.saveAlarms(alarms)
+            Diag.log(TAG, "dewidebug dailyalarm $alarmId switched on by set today from $source")
+        }
+        lastEvent = "$alarmId set today $time from $source at ${clock()}"
+        run(enabled, AlarmEvent.SetToday(time), source)
+        publish()
+        return states[alarmId] is DayState.Set
+    }
+
     companion object {
         const val TAG = "DailyAlarm"
         const val PICKUP_ID = "pickup"

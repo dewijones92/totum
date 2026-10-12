@@ -161,11 +161,6 @@ fun VideosScreen(
     }
 }
 
-/**
- * The row action that flips between listening and watching. It sets the **mode**, not
- * just this item, and says so — a row action quietly changing a global setting would
- * be baffling.
- */
 @Composable
 private fun ShuffleGroup(container: AppContainer, group: SourceGroup) {
     ShuffleAllAction(
@@ -176,6 +171,11 @@ private fun ShuffleGroup(container: AppContainer, group: SourceGroup) {
     )
 }
 
+/**
+ * The row action that flips between listening and watching. It sets the **mode**, not
+ * just this item, and says so — a row action quietly changing a global setting would
+ * be baffling.
+ */
 @Composable
 private fun rememberModeSwitch(actions: MediaItemActions): (MediaItem) -> Unit {
     val audioOn = stringResource(R.string.mode_audio_on)
