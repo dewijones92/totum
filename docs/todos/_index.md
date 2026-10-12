@@ -11,6 +11,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | refining — only the morning notification can arm an alarm today; five questions for Dewi |
+| [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | refining — no load-every-page loop exists yet; one seam for both pillars proposed; five questions for Dewi |
 | [Music favourites saved to the YouTube Music account](account-backed-music-favourites.md) | music/account | medium | refining — like songs, follow artists, save albums; account state reflected in Totum with easy favourites browsing |
 | [Playback findings from the 0.1.601 phone reports](playback-defects-0.1.601.md) | playback/downloads | high | four repairs and the local-podcast picture correction released in 0.1.603; APK verified and server findings #37–41 fixed; attempt 602 withdrawn; live CI remains red on streaming failures; boost discussion and buffering cause remain open |
 | [Intelligent search ("the best soothing flamenco album")](ai-search.md) | search | — | to discuss with Dewi |
