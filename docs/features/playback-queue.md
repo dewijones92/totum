@@ -80,8 +80,12 @@ and gapless preparation apply the same flag.
 Sponsor refresh returns the latest segment list even when a concurrent download refresh has
 already stored it. The player keeps updates arriving before its asynchronous resume lookup finishes.
 
-These repairs are verified locally on 2026-10-12 with failing-before/passing-after regressions,
-eight device cases, and the paired playback/queue comparison. Release attempt `v0.1.602` is
-withdrawn from stable updates; the podcast-picture correction above passes the full local gate,
-device regressions and repeat paired soak criteria and awaits replacement publication.
+These repairs ship in [v0.1.603](https://github.com/dewijones92/totum/releases/tag/v0.1.603),
+verified on 2026-10-12 with failing-before/passing-after regressions, real-player and Shorts cases,
+and the paired playback/queue comparison. Release attempt `v0.1.602` remains withdrawn from stable
+updates; 603 includes the podcast-picture correction and passes the full local gate, affected
+device cases and fresh paired soak criteria. Its downloaded APK version, signature and release
+commit were verified.
+CI's build and offline device suites passed. The separate live-streaming suite remains red on
+a repeated long-video stall and a SABR failure also present in 601; those streaming issues remain open.
 See [current phone findings](../todos/playback-defects-0.1.601.md).

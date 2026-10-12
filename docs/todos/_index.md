@@ -12,7 +12,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [Music favourites saved to the YouTube Music account](account-backed-music-favourites.md) | music/account | medium | refining — like songs, follow artists, save albums; account state reflected in Totum with easy favourites browsing |
-| [Playback findings from the 0.1.601 phone reports](playback-defects-0.1.601.md) | playback/downloads | high | four repairs and the local-podcast picture correction pass regressions and fresh paired soak criteria; release attempt 602 withdrawn, corrected replacement pending; boost discussion and buffering cause remain open |
+| [Playback findings from the 0.1.601 phone reports](playback-defects-0.1.601.md) | playback/downloads | high | four repairs and the local-podcast picture correction released in 0.1.603; APK verified and server findings #37–41 fixed; attempt 602 withdrawn; live CI remains red on streaming failures; boost discussion and buffering cause remain open |
 | [Intelligent search ("the best soothing flamenco album")](ai-search.md) | search | — | to discuss with Dewi |
 | [Search's video hits use the watch URL as their id; everything else uses the video id](search-video-hit-ids.md) | search | medium | open — found 2026-10-09; music items moved to the video id, videos left for a decision |
 | [A premium ("triple-A") look and better recommendations](premium-ui-and-recommendations.md) | ui | — | to discuss with Dewi: what "triple A" means, which screens, what recommendations draw on |

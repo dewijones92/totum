@@ -1,7 +1,7 @@
 ---
 title: Playback findings from the 0.1.601 phone reports
 kind: todo
-status: partly fixed locally — four verified repairs; buffering and boost remain open
+status: partly fixed — four repairs released in 0.1.603; buffering and boost remain open
 area: playback/downloads
 priority: high
 requested: 2026-10-12
@@ -12,10 +12,11 @@ updated: 2026-10-12
 
 Dewi requested that older reports be marked considered and the current-build reports investigated.
 All five current reports identify `0.1.601`, commit `42273dc`, which matches both `main` and the
-`v0.1.601` release tag at triage. The original triage below describes that source. Four fixes are now implemented locally, with
+`v0.1.601` release tag at triage. The original triage below describes that source. Four fixes are
+released in [v0.1.603](https://github.com/dewijones92/totum/releases/tag/v0.1.603), with
 failing-before/passing-after JVM and device regressions and the required paired soak comparison.
-The first release attempt, `v0.1.602`, exposed a local-podcast video regression in CI and is
-withdrawn from stable updates while its correction is verified. Buffering and boost remain open.
+The first release attempt, `v0.1.602`, exposed a local-podcast video regression in CI and remains
+withdrawn from stable updates. Release 603 includes its verified correction. Buffering and boost remain open.
 
 The server stores the per-report findings and their state; the identifiers below refer to those
 records. `triaged` makes a report considered without asserting that its problem is fixed.
@@ -244,3 +245,34 @@ used above. The emulator's saved preferences were backed up and restored after v
 - Apply the repository's playback and queue soak requirements before shipping playback changes.
 - Judge a boost redesign against real music and speech, including quiet-to-loud transitions;
   zero clipped samples alone does not establish acceptable sound quality.
+
+## Deployment — 2026-10-12
+
+Published **v0.1.603** from `0ac0d8c5e21681a4de4cdc395a9c2573ae3522c7`, containing the original
+`3fe88605` repairs and the podcast-picture correction. The downloaded APK is package
+`com.dewijones92.totum`, versionName **0.1.603**, versionCode **703**. Its signature verifies and
+its certificate matches the preceding stable release; its SHA-256 matches the GitHub asset digest:
+`cff629bb3005ca3bdca77607662c78625fd1588836570a84b06a2dcc5000e0d0`.
+The release tag resolves to that exact source commit and GitHub identifies 603 as Latest stable.
+
+Server findings **#37–#41** are `fixed` with `fixed_in=v0.1.603`, confirmed by fresh read-back.
+Their earlier local-only notes are retained and superseded by deployment evidence. Findings #42
+(boost) and #43/#44 (buffering) remain open. CI's build and offline jobs passed. The emulator job
+passed all 327 offline device cases, including the repairs, then passed 19/20 live cases. Its one
+failure was `AnHourLongItemDoesNotRebufferTest`: video stalled once at 19405ms in a 60-second
+window. The player recovered after roughly 1.8 seconds; two media loads and a timedtext request
+were outstanding, which does not establish a subtitle cause. The unchanged commit's retry again
+passed the offline suite, but passed **18/20 live cases**: the same long-video case stalled once
+at **19407ms**, and `SabrPlaysAcrossVideoTypesTest` received no SABR media for
+`uSMGENDH_QI:251`. The identical SABR failure occurs in the archived `v0.1.601` CI report,
+before these repairs. Both attempts' reports and logcat are retained. The repeated direct-stream
+stall still needs diagnosis; the coincident caption request alone is insufficient. **Live CI
+remains red**. Its job is deliberately separate from the signed-release gate, so the four verified
+repairs stay published; no buffering/SABR repair is asserted and no test was weakened or excluded.
+Both long-item cases passed locally on the corrected APK and unchanged 601. Both local Watch
+cases used HLS, while the failed CI case used a direct media URL, so these passes do not refute
+that direct-stream failure. Listen used direct URLs; the baseline also resumed a different
+account position, limiting that control. The local logs are retained alongside the CI failure.
+[Release run 603](https://github.com/dewijones92/totum/actions/runs/38256355632).
+The downloaded APK, manifest/signature proof, release metadata and server read-backs are preserved
+in the deployment scratch folder above. The emulator's original preferences were restored and verified.
