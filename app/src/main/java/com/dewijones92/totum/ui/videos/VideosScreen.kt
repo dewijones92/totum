@@ -45,9 +45,11 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.ReelStart
+import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.shortsReelFrom
+import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
@@ -63,6 +65,7 @@ import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShowWhenAskedButton
+import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SortControl
 import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
@@ -137,6 +140,7 @@ fun VideosScreen(
                 onDeleteDownload = viewModel::deleteDownload,
                 onSelectFeed = viewModel::select,
                 onChannelClick = { nav.channel = it },
+                groupAction = { group -> ShuffleGroup(container, group) },
                 onSwitchMode = switchMode,
                 onGoToChannel = { item ->
                     actions.goToSource(item) { source ->
@@ -162,6 +166,16 @@ fun VideosScreen(
  * just this item, and says so — a row action quietly changing a global setting would
  * be baffling.
  */
+@Composable
+private fun ShuffleGroup(container: AppContainer, group: SourceGroup) {
+    ShuffleAllAction(
+        container.shuffleAll,
+        container.applicationScope,
+        ShuffleTarget("group:${group.id.value}", group.name, group.members),
+        wide = true,
+    )
+}
+
 @Composable
 private fun rememberModeSwitch(actions: MediaItemActions): (MediaItem) -> Unit {
     val audioOn = stringResource(R.string.mode_audio_on)
@@ -243,6 +257,7 @@ internal fun VideosContent(
     modifier: Modifier = Modifier,
     feedHidden: Boolean = false,
     onShowFeed: () -> Unit = {},
+    groupAction: @Composable (SourceGroup) -> Unit = {},
 ) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -278,6 +293,7 @@ internal fun VideosContent(
                     onSetFilter = onSetFilter,
                     feedHidden = feedHidden,
                     onShowFeed = onShowFeed,
+                    groupAction = groupAction,
                 )
             }
         }
@@ -372,6 +388,7 @@ private fun ChannelsAndVideos(
     modifier: Modifier = Modifier,
     feedHidden: Boolean = false,
     onShowFeed: () -> Unit = {},
+    groupAction: @Composable (SourceGroup) -> Unit = {},
 ) {
     val playStates = LocalPlayStates.current
     val listState = rememberLazyListState()
@@ -403,7 +420,7 @@ private fun ChannelsAndVideos(
             videosHeader(state, newUploadsCount, onOpenNotifications, onSetSort) {
                 if (!feedHidden) FilterToggle(listFilter, unwatchedFiltered.size)
             }
-            feedHeader(state, onChannelClick, showChannels = !feedHidden) {
+            feedHeader(state, onChannelClick, showChannels = !feedHidden, groupAction = groupAction) {
                 FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts)
             }
             if (!feedStandIn(state, feedHidden, onShowFeed)) {

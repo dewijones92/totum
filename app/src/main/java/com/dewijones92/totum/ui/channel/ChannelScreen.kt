@@ -40,6 +40,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
+import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
@@ -51,6 +52,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
@@ -93,6 +95,13 @@ fun ChannelScreen(
 
     ChannelContent(
         state = state,
+        headerAction = {
+            ShuffleAllAction(
+                container.shuffleAll,
+                container.applicationScope,
+                ShuffleTarget("channel:${source.id.value}", source.title, listOf(source)),
+            )
+        },
         onBack = onBack,
         onOpenGroups = { showGroups = true },
         onToggleSubscribed = viewModel::toggleSubscribed,
@@ -140,6 +149,7 @@ internal fun ChannelContent(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
     sourceKey: String = state.title,
+    headerAction: @Composable () -> Unit = {},
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -154,7 +164,10 @@ internal fun ChannelContent(
                 onOpenGroups = onOpenGroups,
                 pillar = MediaKind.VIDEO,
                 artworkUrl = state.artworkUrl,
-                actions = { ChannelFilterToggle(state, videosFilter, shortsFilter, playlistsFilter) },
+                actions = {
+                    ChannelFilterToggle(state, videosFilter, shortsFilter, playlistsFilter)
+                    headerAction()
+                },
             )
             ChannelTabs(state.tab, onSelectTab)
             when (state.tab) {

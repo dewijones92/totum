@@ -572,4 +572,19 @@
     <string name="dailyalarm_set_today">Set for today</string>
     <string name="dailyalarm_set_today_other">Other time…</string>
     <string name="dailyalarm_cancel_today">Cancel today</string>
+    <string name="shuffle_all">Shuffle all</string>
+    <string name="shuffle_all_nothing">Nothing to shuffle</string>
+    <string name="shuffle_all_incomplete"> (some pages could not be loaded)</string>
+    <string name="shuffle_all_shorts_title">Include Shorts?</string>
+    <string name="shuffle_all_shorts_body">Shuffle everything from %1$s.</string>
+    <string name="shuffle_all_with_shorts">Include Shorts</string>
+    <string name="shuffle_all_videos_only">Videos only</string>
+    <plurals name="shuffle_all_done">
+        <item quantity="one">Shuffled 1 item into the queue</item>
+        <item quantity="other">Shuffled %1$d items into the queue</item>
+    </plurals>
+    <plurals name="shuffle_all_loading">
+        <item quantity="one">Loading… 1</item>
+        <item quantity="other">Loading… %1$d</item>
+    </plurals>
 </resources>

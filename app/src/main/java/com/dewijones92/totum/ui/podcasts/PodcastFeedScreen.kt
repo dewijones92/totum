@@ -41,6 +41,7 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
@@ -50,6 +51,7 @@ import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PinToggle
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
@@ -145,6 +147,11 @@ fun PodcastFeedScreen(
                 actions = {
                     FilterToggle(listFilter, episodes.size)
                     PinToggle(Pin.of(page.source))
+                    ShuffleAllAction(
+                        container.shuffleAll,
+                        container.applicationScope,
+                        ShuffleTarget("podcast:${source.id.value}", page.source.title, listOf(page.source)),
+                    )
                 },
                 onToggleSubscribed = {
                     if (page.subscribed) {

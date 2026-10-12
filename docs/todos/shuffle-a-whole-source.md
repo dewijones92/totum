@@ -1,7 +1,7 @@
 ---
 title: Shuffle everything a channel (or podcast) has ever published
 kind: todo
-status: decided — ready to build
+status: built 2026-10-12 — see features/shuffle-all.md and ADR 30
 area: queue/channel
 priority: medium
 requested: 2026-10-12

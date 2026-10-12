@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.SourceAvatarStrip
@@ -30,6 +31,7 @@ internal fun LazyListScope.feedHeader(
     state: VideosViewModel.UiState,
     onChannelClick: (MediaSource.VideoChannel) -> Unit,
     showChannels: Boolean = true,
+    groupAction: @Composable (SourceGroup) -> Unit = {},
     selector: @Composable () -> Unit,
 ) {
     if (showChannels && state.subscriptions.isNotEmpty()) {
@@ -46,6 +48,7 @@ internal fun LazyListScope.feedHeader(
     if (state.signedIn || state.groups.isNotEmpty()) {
         item { selector() }
     }
+    (state.selected as? FeedChoice.Group)?.let { selected -> item { groupAction(selected.group) } }
 }
 
 @Composable

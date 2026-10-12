@@ -51,6 +51,7 @@ import com.dewijones92.totum.data.search.SearchHistoryStore
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.TorrentSearchSource
 import com.dewijones92.totum.data.search.YtDlpVideoSearchSource
+import com.dewijones92.totum.data.shuffle.WholeSource
 import com.dewijones92.totum.data.source.DefaultSourceLocator
 import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
@@ -164,6 +165,8 @@ import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
+import com.dewijones92.totum.shuffle.AppSourcePages
+import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
@@ -412,6 +415,8 @@ interface AppContainer {
     fun refreshSubscriptions()
 
     val appUpdate: AppUpdateCheck
+
+    val shuffleAll: ShuffleAll
 }
 
 // The count is the app's whole integration surface — every start*/install* entry point the
@@ -469,6 +474,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun refreshExtractorEngine() {
         applicationScope.launch { ytDlpUpdater.ensureLatest() }
+    }
+
+    override val shuffleAll: ShuffleAll by lazy {
+        ShuffleAll(WholeSource(AppSourcePages(youTubeChannel, channelRepository, podcastRepository)), playbackQueue)
     }
 
     override val appUpdate: AppUpdateCheck by lazy {

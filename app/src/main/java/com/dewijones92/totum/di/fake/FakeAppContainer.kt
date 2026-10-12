@@ -37,6 +37,7 @@ import com.dewijones92.totum.data.search.SearchOutcome
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.YtDlpVideoSearchSource
 import com.dewijones92.totum.data.search.fake.InMemorySearchHistoryStore
+import com.dewijones92.totum.data.shuffle.WholeSource
 import com.dewijones92.totum.data.source.DefaultSourceLocator
 import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
@@ -87,6 +88,8 @@ import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
+import com.dewijones92.totum.shuffle.AppSourcePages
+import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -176,6 +179,10 @@ class FakeAppContainer(
     ),
 ) : AppContainer {
     override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
+
+    override val shuffleAll: ShuffleAll by lazy {
+        ShuffleAll(WholeSource(AppSourcePages(youTubeChannel, channelRepository, podcastRepository)), playbackQueue)
+    }
 
     override val pinStore: PinStore = InMemoryPinStore()
 

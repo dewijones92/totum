@@ -12,6 +12,7 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| Shuffle all (channel, podcast, group) | queue/channel | built 2026-10-12 — every page, Shorts asked, one queue group | [shuffle-all.md](shuffle-all.md) |
 | Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |
 | Phone rotation opens video fullscreen; portrait restores the player page | player | shipped | [player-redesign.md](player-redesign.md) |

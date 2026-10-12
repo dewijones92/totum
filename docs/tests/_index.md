@@ -26,6 +26,9 @@ instead).
 
 | Area | Kind | Notes |
 |---|---|---|
+| Out-of-date banner: numeric version compare, dev builds never ask, failed lookup keeps the verdict; banner on every tab | JVM + instrumented | `:core:data` `AppUpdateCheckTest` (10); `:app` `OutOfDateBannerTest` (2) |
+| Set today's alarm from the page: idle/unscheduled/after-rung days, refusals; chips turn the alarm on; cancel | JVM + instrumented | `:lib:dailyalarms` `DailyAlarmMachineTest` (5 new, observed failing on a stub first); `:app` `SetTodayFromThePageTest` (3) |
+| Shuffle all: every page, Shorts on request, failing/repeating pages, both pillars, one queue group | JVM + instrumented | `:core:data` `WholeSourceTest` (6); `:app` `AppSourcePagesTest` (3), `ShuffleAllActionTest` (3) |
 | Player/row mode switches use the playing item and exact position, including full local files and a stale earlier stream | JVM + instrumented | `:app` `ModeSwitchUsesThePlayingItemTest` (four original cases observed failing on baseline, Watch-once preference coverage, and a local-podcast picture case observed failing on the first release attempt); `DownloadedVideoModeSwitchTest` (all three baseline device failures reproduced, changed build passes: full-copy Listen, mode-switch position, pending-resume segments); `:core:domain` `PlayRouteTest` full-copy Listen cases |
 | Full local podcast enclosures retain their video except in Listen, with the same choice for an armed successor | JVM + instrumented | `ModeSwitchUsesThePlayingItemTest`, `GaplessQueueTest`; real-picture coverage in `MeteredAudioSwitchDeviceTest` and `SilenceIsReallyCutTest` |
 | Shorts requests video once per item and leaves recovered audio playing after a picture failure | instrumented | `:app` `ShortsReelAdvanceTest` (5); the picture-loss case caught a repeated replay introduced by the first shared-routing change |

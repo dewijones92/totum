@@ -45,3 +45,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 27 | [Radio tops itself up; repeat and shuffle are queue features, for both pillars](0027-radio-repeat-and-shuffle-are-queue-features.md) | Accepted |
 | 28 | [Anything can be pinned; a pin plays at once, from the app or the home screen](0028-pins-and-home-screen-shortcuts.md) | Accepted |
 | 29 | [An out-of-date build says so on every tab](0029-an-out-of-date-build-says-so-on-every-tab.md) | Accepted |
+| 30 | [Shuffle all walks every page of a source into one queue group](0030-shuffle-all-walks-every-page-into-one-queue-group.md) | Accepted |
