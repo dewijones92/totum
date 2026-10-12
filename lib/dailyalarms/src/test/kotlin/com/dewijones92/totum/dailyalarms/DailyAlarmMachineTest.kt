@@ -191,4 +191,52 @@ class DailyAlarmMachineTest {
 
         assertEquals(Done(monday, Outcome.RANG), result.state)
     }
+
+    @Test
+    fun `the page sets today's alarm before the morning question, and no question follows`() {
+        val set = run(Idle, AlarmEvent.SetToday(LocalTime.of(17, 30)), at(6))
+
+        assertEquals(Set(monday, LocalTime.of(17, 30)), set.state)
+        assertTrue(set.effects.contains(AlarmEffect.ShowSet("pickup", LocalTime.of(17, 30))))
+        val atEight = run(set.state, AlarmEvent.Tick, at(8))
+        assertEquals(set.state, atEight.state)
+        assertTrue(atEight.effects.none { it is AlarmEffect.ShowQuestion })
+    }
+
+    @Test
+    fun `the page sets an alarm on a day it is not scheduled`() {
+        val saturday = monday.plusDays(5)
+
+        val result = run(Idle, AlarmEvent.SetToday(LocalTime.of(10, 0)), at(9, date = saturday))
+
+        assertEquals(Set(saturday, LocalTime.of(10, 0)), result.state)
+    }
+
+    @Test
+    fun `the page answers an open question, and moves a set alarm later`() {
+        val asked = run(Asking(monday, asks = 1), AlarmEvent.SetToday(LocalTime.of(18, 0)), at(9))
+        val moved = run(Set(monday, LocalTime.of(17, 30)), AlarmEvent.SetToday(LocalTime.of(18, 15)), at(9))
+
+        assertEquals(Set(monday, LocalTime.of(18, 0)), asked.state)
+        assertTrue(asked.effects.contains(AlarmEffect.HideQuestion("pickup")))
+        assertEquals(Set(monday, LocalTime.of(18, 15)), moved.state)
+    }
+
+    @Test
+    fun `the page sets a second ring after the first has rung or been missed`() {
+        listOf(Outcome.RANG, Outcome.MISSED, Outcome.DECLINED).forEach { outcome ->
+            val result = run(Done(monday, outcome), AlarmEvent.SetToday(LocalTime.of(18, 0)), at(17, 40))
+            assertEquals(outcome.name, Set(monday, LocalTime.of(18, 0)), result.state)
+        }
+    }
+
+    @Test
+    fun `the page cannot set a time already gone, or interrupt a ringing alarm`() {
+        val gone = run(Idle, AlarmEvent.SetToday(LocalTime.of(7, 0)), at(9))
+        val ringing = run(Ringing(monday, LocalTime.of(17, 30)), AlarmEvent.SetToday(LocalTime.of(18, 0)), at(17, 31))
+
+        assertEquals(Idle, gone.state)
+        assertTrue(gone.notes.any { it.contains("already gone") })
+        assertEquals(Ringing(monday, LocalTime.of(17, 30)), ringing.state)
+    }
 }

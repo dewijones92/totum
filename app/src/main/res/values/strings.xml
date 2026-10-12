@@ -569,4 +569,7 @@
     <string name="out_of_date_title">Totum is out of date</string>
     <string name="out_of_date_detail">You\'re on v%1$s. v%2$s is out.</string>
     <string name="out_of_date_update">Update</string>
+    <string name="dailyalarm_set_today">Set for today</string>
+    <string name="dailyalarm_set_today_other">Other time…</string>
+    <string name="dailyalarm_cancel_today">Cancel today</string>
 </resources>

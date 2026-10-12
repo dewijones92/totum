@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -160,6 +161,8 @@ class DailyAlarmController(
     }
 
     fun board(): AlarmBoard = alarmBoard(alarms, states, clock(), zone())
+
+    fun localNow(): LocalDateTime = LocalDateTime.ofInstant(clock(), zone())
 
     companion object {
         const val TAG = "DailyAlarm"

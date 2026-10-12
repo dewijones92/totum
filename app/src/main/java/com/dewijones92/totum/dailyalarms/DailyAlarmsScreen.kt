@@ -35,11 +35,14 @@ import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.ui.common.BackHeader
 import java.time.DayOfWeek
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
 
 private typealias Change = (DailyAlarm.() -> DailyAlarm) -> Unit
+
+private class Today(val now: LocalDateTime, val set: (LocalTime) -> Unit, val cancel: () -> Unit)
 
 @Composable
 fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -57,7 +60,15 @@ fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier
                 val change: Change = { edit ->
                     alarms.update("settings") { list -> list.map { if (it.id == alarm.id) it.edit() else it } }
                 }
-                AlarmCard(alarm, view.state(alarm.id), change) {
+                val today = Today(
+                    now = alarms.localNow(),
+                    set = { time ->
+                        if (!alarm.enabled) change { copy(enabled = true) }
+                        alarms.dispatch(alarm.id, AlarmEvent.SetToday(time), "page")
+                    },
+                    cancel = { alarms.dispatch(alarm.id, AlarmEvent.Cancel, "page") },
+                )
+                AlarmCard(alarm, view.state(alarm.id), change, today) {
                     alarms.update("settings") { list -> list.filterNot { it.id == alarm.id } }
                 }
             }
@@ -74,7 +85,7 @@ fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier
 }
 
 @Composable
-private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, remove: () -> Unit) {
+private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, today: Today, remove: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(
             horizontal = 16.dp,
@@ -88,6 +99,7 @@ private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, remove
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
             )
+            SetForToday(alarm, state, today)
             DayChips(alarm, change)
             TimeRow(
                 stringResource(R.string.dailyalarm_time),
@@ -106,6 +118,41 @@ private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, remove
                 Text(stringResource(R.string.dailyalarm_delete))
             }
         }
+    }
+}
+
+@Composable
+private fun SetForToday(alarm: DailyAlarm, state: DayState, today: Today) {
+    if (state is DayState.Ringing || state is DayState.Snoozed) return
+    var picking by remember { mutableStateOf(false) }
+    val now = today.now.toLocalTime()
+    val dayTime = alarm.timeOn(today.now.dayOfWeek)
+    val offered = (listOf(dayTime) + alarm.choices).distinct().sorted()
+    Text(stringResource(R.string.dailyalarm_set_today), style = MaterialTheme.typography.titleSmall)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        offered.forEach { time ->
+            FilterChip(
+                selected = state is DayState.Set && state.time == time,
+                enabled = time.isAfter(now),
+                onClick = { today.set(time) },
+                label = { Text(DailyAlarmNotifications.hhmm(time)) },
+                modifier = Modifier.testTag("dailyalarm-today-${alarm.id}-${DailyAlarmNotifications.hhmm(time)}"),
+            )
+        }
+        TextButton(onClick = { picking = true }, modifier = Modifier.testTag("dailyalarm-today-other-${alarm.id}")) {
+            Text(stringResource(R.string.dailyalarm_set_today_other))
+        }
+        if (state is DayState.Set) {
+            TextButton(onClick = today.cancel, modifier = Modifier.testTag("dailyalarm-today-cancel-${alarm.id}")) {
+                Text(stringResource(R.string.dailyalarm_cancel_today))
+            }
+        }
+    }
+    if (picking) {
+        TimePickDialog(stringResource(R.string.dailyalarm_set_today), dayTime, {
+            today.set(it)
+            picking = false
+        }) { picking = false }
     }
 }
 

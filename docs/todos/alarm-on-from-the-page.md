@@ -1,7 +1,7 @@
 ---
 title: Set today's alarm from the alarms page, not only from the morning notification
 kind: todo
-status: decided — ready to build
+status: built 2026-10-12 — see features/daily-alarms.md and the ADR 18 amendment
 area: side-quest
 priority: medium
 requested: 2026-10-12

@@ -2,7 +2,7 @@
 title: Daily alarms — asked each morning, rung by Totum itself
 kind: adr
 status: accepted
-updated: 2026-10-08
+updated: 2026-10-12
 ---
 
 # 18. Daily alarms — asked each morning, rung by Totum itself
@@ -34,6 +34,15 @@ the backlog item is [todos/daily-alarms](../todos/daily-alarms.md).
   escalating calls bring the takeover back after.
 - A ring missed while the phone was off still rings if under 30 minutes late; later is recorded `MISSED`.
 - Settings → Daily alarms, and a Quick Settings tile showing today's state.
+
+## Amendment (2026-10-12): set today from the page
+
+Dewi: *"in the alarms page, I wanna be able to turn on an alarm??? not just via the notification"*. Each
+alarm card has **Set for today** (time chips, Other time…, Cancel today). It sends a separate
+`AlarmEvent.SetToday` rather than widening `Answer`: `Answer` still refuses a day that is idle or has
+rung, so a stale morning notification tapped the next day cannot quietly arm an alarm. `SetToday` is
+accepted in every state except ringing and snoozed, for today, any day of the week. A time already gone
+is refused. Tapping it on an alarm that is off turns the alarm on first.
 
 ## Consequences
 

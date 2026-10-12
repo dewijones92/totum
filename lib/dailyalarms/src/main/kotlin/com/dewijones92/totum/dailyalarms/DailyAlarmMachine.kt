@@ -32,6 +32,7 @@ public object DailyAlarmMachine {
             val next = when (event) {
                 AlarmEvent.Tick -> tick(current)
                 is AlarmEvent.Answer -> answer(current, event.time)
+                is AlarmEvent.SetToday -> setToday(current, event.time)
                 AlarmEvent.Decline -> decline(current)
                 AlarmEvent.Change -> change(current)
                 AlarmEvent.Cancel -> cancel(current)
@@ -97,6 +98,14 @@ public object DailyAlarmMachine {
             return state
         }
 
+        private fun setToday(state: DayState, time: LocalTime): DayState = when (state) {
+            is Ringing, is Snoozed -> state.also { notes += "set today ignored while $state" }
+            Idle, is Asking, is Set, is Done -> {
+                notes += "set from the page (was $state)"
+                setFor(state, today, time)
+            }
+        }
+
         private fun answer(state: DayState, time: LocalTime): DayState {
             val date = when {
                 state is Asking -> state.date
@@ -105,6 +114,10 @@ public object DailyAlarmMachine {
                     state.date.also { notes += "set after all (was ${state.outcome})" }
                 else -> return state.also { notes += "answer ignored in $state" }
             }
+            return setFor(state, date, time)
+        }
+
+        private fun setFor(state: DayState, date: LocalDate, time: LocalTime): DayState {
             if (!on(date, time).isAfter(now)) return state.also { notes += "answer refused: $time has already gone" }
             if (state is Set) effects += AlarmEffect.HideSet(id) else effects += AlarmEffect.HideQuestion(id)
             effects += AlarmEffect.ShowSet(id, time)
