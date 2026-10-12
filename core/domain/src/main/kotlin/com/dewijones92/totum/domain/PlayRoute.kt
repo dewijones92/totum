@@ -48,18 +48,22 @@ public sealed interface PlayRoute {
     public sealed interface File : PlayRoute {
         public val playable: PlayableItem
         public val path: String
+        public val audioOnly: Boolean
     }
 
     /** A file on disk with a picture in it. */
     public data class VideoFile(
         override val playable: PlayableItem,
         override val path: String,
-    ) : File
+    ) : File {
+        override val audioOnly: Boolean = false
+    }
 
-    /** A file played without its picture — a podcast, audio-only download, or a full file in Listen mode. */
+    /** A podcast enclosure, audio-only download, or a full file in Listen mode. */
     public data class AudioFile(
         override val playable: PlayableItem,
         override val path: String,
+        override val audioOnly: Boolean = true,
     ) : File
 
     /** Re-resolve and stream a video. The watch URL, never a stream URL: those expire. */
@@ -119,7 +123,7 @@ public fun PlayableItem.routeNow(
 private fun PlayableItem.fileRoute(copy: LocalCopy, audioPreferred: Boolean): PlayRoute.File {
     val local = playedFromDisk(copy)
     return if (copy.audioOnly || audioPreferred || handle.pillar == MediaKind.PODCAST) {
-        PlayRoute.AudioFile(local, copy.path)
+        PlayRoute.AudioFile(local, copy.path, audioOnly = copy.audioOnly || audioPreferred)
     } else {
         PlayRoute.VideoFile(local, copy.path)
     }

@@ -23,17 +23,13 @@ internal class QueueArming(private val controller: PlaybackController, private v
         }
         Diag.log("gapless", "arming $id -> ${route.describe()}")
         return when (route) {
-            is PlayRoute.VideoFile -> {
-                controller.armNext(route.playable.item, skipSegments = skipSegments, localPath = route.path)
-                true
-            }
-            is PlayRoute.AudioFile -> {
+            is PlayRoute.File -> {
                 controller.armNext(
                     route.playable.item,
                     queued.pillar,
                     skipSegments = skipSegments,
                     localPath = route.path,
-                    audioOnly = true,
+                    audioOnly = route.audioOnly,
                 )
                 true
             }

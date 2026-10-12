@@ -1028,7 +1028,7 @@ class PlaybackQueue(
         lastRoute = queued.item.id to route
         return when (route) {
             is PlayRoute.File -> {
-                val audioOnly = route is PlayRoute.AudioFile
+                val audioOnly = route.audioOnly
                 launcher.playLocal(
                     route.playable.item,
                     route.path,

@@ -14,7 +14,8 @@ Dewi requested that older reports be marked considered and the current-build rep
 All five current reports identify `0.1.601`, commit `42273dc`, which matches both `main` and the
 `v0.1.601` release tag at triage. The original triage below describes that source. Four fixes are now implemented locally, with
 failing-before/passing-after JVM and device regressions and the required paired soak comparison.
-The changes are not yet pushed or released; buffering and boost remain open.
+The first release attempt, `v0.1.602`, exposed a local-podcast video regression in CI and is
+withdrawn from stable updates while its correction is verified. Buffering and boost remain open.
 
 The server stores the per-report findings and their state; the identifiers below refer to those
 records. `triaged` makes a report considered without asserting that its problem is fixed.
@@ -175,6 +176,39 @@ case. The picture-loss case caught and corrected an extra replay introduced by t
 routing change; the reel now requests the picture once per playing item and leaves recovered audio alone. The full local gate and preflight pass. Both baseline and changed-build playback/queue soaks are complete; results are recorded below.
 
 No boost or HTTP retry policy has been changed. Buffering causality remains open.
+
+### Release-attempt correction
+
+CI run 602 passed the build gates and published its APK before cancellation completed, but the
+separate emulator suite reported three failures among 327 cases: both `MeteredAudioSwitchDeviceTest`
+cases and the picture case in `SilenceIsReallyCutTest`. All eight original repair/Shorts device
+cases passed there. The release was marked prerelease and `v0.1.601` restored as Latest.
+
+The file route had incorrectly treated every podcast enclosure as a request to disable video.
+Podcast enclosures can contain a picture. `PlayRoute.File.audioOnly` now carries the explicit
+choice: an audio-only copy or Listen requests sound alone; a full podcast enclosure retains its
+picture otherwise. Immediate and armed file playback use that same decision. A new player/queue
+JVM regression failed before this correction; the gapless case checks that the prepared successor
+receives the same picture choice. The full local gate and preflight pass. The three failed CI
+picture cases and the eight original repair/Shorts cases pass on the corrected APK. The broader
+18-case device run had one AAC timing miss (10380ms against a 10000ms limit); all eight silence
+cases passed in the retained repeat. The corrected APK's 30-play soak recorded 23/30 passes versus
+26/30 in the earlier baseline. The comparator flagged one regression: `p4NlCQi9x9Y` stalled in
+2/3 plays versus 0/3 earlier. No startup-time or quality regressions were flagged. This blocked the
+replacement push until the unchanged-source baseline was rerun; the failed comparison is retained.
+
+The unchanged `v0.1.601` APK's repeat recorded 24/30 passes and reproduced the tennis underrun in
+1/3 plays. Comparing this fresh baseline with the corrected APK reports **0 regressions under the
+repository's configured thresholds**, which allow one additional failure per three plays. Startup
+time and quality also satisfy the gate. This is not evidence that all media stalls are fixed. The
+baseline repeat ran after the corrected soak, with the same AVD, account, VIDEO mode, alarms off,
+automatic downloads off and cold-start/cache-clearing procedure; both headers list no other services.
+
+The corrected queue soak records off gaps **2117/1333/2354ms**, three normal rebuild stalls and
+no fatal 403s. On records **3/3 adopted, 0ms gaps, no stalls or fatal 403s**, matching the unchanged
+baseline's queue result. Its header includes the disabled-rows alarm board and JS sandbox, as the
+earlier queue runs did. The normal and queue JSONs, both comparator outputs, CI failure proofs and
+device repeat are preserved in `~/claude-tasks/totum-playback-fixes-20261012/deployment/`.
 
 ### Paired soak results
 

@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
+import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -42,6 +43,28 @@ class GaplessQueueTest {
     )
 
     private fun queue() = PlaybackQueue(controller, launcher, CoroutineScope(dispatcher), InMemoryQueueStore())
+
+    @Test
+    fun `a local podcast successor keeps the same picture choice as the playing item`() = runTest(dispatcher) {
+        for (listening in listOf(false, true)) {
+            val q = PlaybackQueue(
+                controller,
+                launcher,
+                CoroutineScope(dispatcher),
+                InMemoryQueueStore(),
+                audioPreferred = { listening },
+                localCopy = { LocalCopy("/downloads/${it.value}.mp4") },
+            )
+            q.playAll(listOf(podcast("a"), podcast("b")))
+            advanceUntilIdle()
+
+            assertTrue(q.armNext(allowStream = false))
+
+            assertEquals("b", controller.armedItem?.id?.value)
+            assertEquals(listening, controller.lastAudioOnly)
+            assertEquals(listening, controller.armedAudioOnly)
+        }
+    }
 
     @Test
     fun `the item after the playing one is put in line`() = runTest(dispatcher) {

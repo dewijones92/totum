@@ -57,6 +57,24 @@ class ModeSwitchUsesThePlayingItemTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
+    fun `a full local podcast file retains its picture except in Listen mode`() = runTest(dispatcher) {
+        val (queue, _) = fixture(backgroundScope)
+        val local = video("current").copy(handle = PlayHandle.Podcast("/downloads/episode.mp4"))
+        preferences.setPlaybackMode(PlaybackMode.VIDEO)
+
+        queue.peek(local)
+
+        assertEquals(false, controller.lastAudioOnly)
+        assertEquals("/downloads/episode.mp4", controller.lastLocalPath)
+
+        preferences.setPlaybackMode(PlaybackMode.AUDIO)
+        queue.peek(local)
+
+        assertEquals(true, controller.lastAudioOnly)
+        assertEquals("/downloads/episode.mp4", controller.lastLocalPath)
+    }
+
+    @Test
     fun `the row mode switch keeps the current full download at its exact position`() = runTest(dispatcher) {
         val (queue, _) = fixture(backgroundScope)
         copies[MediaItemId("current")] = LocalCopy("/downloads/current.mkv")

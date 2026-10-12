@@ -73,9 +73,15 @@ saved playback mode. It requests the picture once per playing item, so recovery 
 playing after a failed picture without the reel requesting it again. A full downloaded video stays on disk in Listen mode, with its video track disabled; switching
 back to Watch restores that track. An audio-only copy can switch to its stream for Watch.
 Every local-file play clears the launcher's previous stream choices and forwards its resume point.
+The file route carries an explicit audio-only flag. A podcast enclosure can contain video, so its
+picture is retained unless Listen or an audio-only copy requires sound alone. Immediate playback
+and gapless preparation apply the same flag.
 
 Sponsor refresh returns the latest segment list even when a concurrent download refresh has
 already stored it. The player keeps updates arriving before its asynchronous resume lookup finishes.
 
 These repairs are verified locally on 2026-10-12 with failing-before/passing-after regressions,
-eight device cases, and the paired playback/queue comparison. They are not yet pushed or released. See [current phone findings](../todos/playback-defects-0.1.601.md).
+eight device cases, and the paired playback/queue comparison. Release attempt `v0.1.602` is
+withdrawn from stable updates; the podcast-picture correction above passes the full local gate,
+device regressions and repeat paired soak criteria and awaits replacement publication.
+See [current phone findings](../todos/playback-defects-0.1.601.md).

@@ -117,11 +117,11 @@ class PlayRouteTest {
         val copy = LocalCopy("/data/episode.mp3")
 
         assertEquals(
-            PlayRoute.AudioFile(podcast().playedFromDisk(copy), copy.path),
+            PlayRoute.AudioFile(podcast().playedFromDisk(copy), copy.path, audioOnly = false),
             podcast().routeNow(copy, offline = true, audioPreferred = false),
         )
         assertEquals(
-            PlayRoute.AudioFile(podcast().playedFromDisk(copy), copy.path),
+            PlayRoute.AudioFile(podcast().playedFromDisk(copy), copy.path, audioOnly = false),
             podcast().routeNow(copy, offline = false, audioPreferred = false),
         )
     }
