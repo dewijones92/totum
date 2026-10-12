@@ -1,7 +1,7 @@
 ---
 title: Shuffle everything a channel (or podcast) has ever published
 kind: todo
-status: decided — ready to build (channel groups open)
+status: decided — ready to build
 area: queue/channel
 priority: medium
 requested: 2026-10-12
@@ -53,4 +53,6 @@ ends at the last one.
    feel separate enough.
 4. **No cap**: the whole channel goes in, however large. Start playing from the first page; the rest
    streams in as pages load (with a visible count).
-5. Podcasts: **yes**, by the Unified rule (not answered explicitly). Channel groups: still open.
+5. Podcasts: **yes**, by the Unified rule (not answered explicitly).
+6. **Groups: yes** (Dewi). Shuffle all on a group walks every source in it (channels and podcasts), then
+   shuffles them all together into one queue group. The Shorts question is asked once for the whole group.

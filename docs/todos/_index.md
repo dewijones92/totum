@@ -12,7 +12,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | decided — a Set-for-today button on each card, any day, again after it rang; ready to build |
-| [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | decided — ask about Shorts, keep watched, own queue group, no cap; ready to build |
+| [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | decided — channels, podcasts and groups; ask about Shorts, keep watched, own queue group, no cap; ready to build |
 | [Music favourites saved to the YouTube Music account](account-backed-music-favourites.md) | music/account | medium | refining — like songs, follow artists, save albums; account state reflected in Totum with easy favourites browsing |
 | [Playback findings from the 0.1.601 phone reports](playback-defects-0.1.601.md) | playback/downloads | high | four repairs and the local-podcast picture correction released in 0.1.603; APK verified and server findings #37–41 fixed; attempt 602 withdrawn; live CI remains red on streaming failures; boost discussion and buffering cause remain open |
 | [Intelligent search ("the best soothing flamenco album")](ai-search.md) | search | — | to discuss with Dewi |
