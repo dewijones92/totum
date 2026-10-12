@@ -1,7 +1,7 @@
 ---
 title: Shuffle everything a channel (or podcast) has ever published
 kind: todo
-status: refining — questions for Dewi below
+status: decided — ready to build (channel groups open)
 area: queue/channel
 priority: medium
 requested: 2026-10-12
@@ -43,13 +43,14 @@ ends at the last one.
 - Tests: the page walk against a fake channel with three pages and a broken continuation; exclusions;
   a podcast going through the same seam.
 
-## Questions for Dewi
+## Decided (2026-10-12, Dewi)
 
-1. ❓ **Shorts**: included, or the Videos tab only? (Proposed: Videos only.)
-2. ❓ **Already watched**: skip finished videos/episodes, or shuffle everything? (Proposed: skip
-   finished, keep half-watched.)
-3. ❓ **Where it goes**: insert after what's playing (like album shuffle, keeps your queue), or replace
-   the queue?
-4. ❓ **Huge channels**: put the whole channel in, or cap it (e.g. 500 random picks), given the queue
-   is already 269 items on your phone?
-5. ❓ Also on **podcasts** by default (the Unified rule says yes), and on **channel groups**?
+1. **Shorts: ask each time.** When the channel has Shorts, Shuffle all pops up "Include Shorts?".
+2. **Watched items are not skipped**: everything is shuffled.
+3. **It lands as its own group**, a `QueueGroup` for the source (as album shuffle does), so it can be
+   collapsed, skipped or removed as one, without disturbing the rest of the queue. Dewi floated "a
+   separate queue thing". A group gives that without a second queue model; revisit if it does not
+   feel separate enough.
+4. **No cap**: the whole channel goes in, however large. Start playing from the first page; the rest
+   streams in as pages load (with a visible count).
+5. Podcasts: **yes**, by the Unified rule (not answered explicitly). Channel groups: still open.

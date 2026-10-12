@@ -1,7 +1,7 @@
 ---
 title: Set today's alarm from the alarms page, not only from the morning notification
 kind: todo
-status: refining — questions for Dewi below
+status: decided — ready to build
 area: side-quest
 priority: medium
 requested: 2026-10-12
@@ -44,13 +44,15 @@ notification"*.
 - Tests first, in `lib/dailyalarms` (`DailyAlarmMachine` is pure): answering from `Idle` before the
   ask, on a non-scheduled day, after `Done(RANG)`, and with a past time.
 
-## Questions for Dewi
+## Decided (2026-10-12)
 
-1. ❓ By "turn on", do you mean **set today's alarm for a time** (above), or "the enabled switch should
-   take effect today straight away"?
-2. ❓ Should it work on a day the alarm is **not scheduled** (e.g. a one-off Saturday), or only on its
-   own days?
-3. ❓ Before 08:00, should setting it from the page **cancel the 08:00 question** for that day?
-   (Proposed: yes.)
-4. ❓ Set **tomorrow's** alarm tonight as well, or just today's?
-5. ❓ Should it be possible to set it **again after it has rung** (a second ring the same day)?
+Dewi: *"i wanna be able to press a button that sets e.g. the 5:30 alarm to go off later"*. He left the
+rest to Claude's judgement:
+
+1. **Set today's alarm for a time**: a button on each card, as in the proposed shape above. It is not
+   about the enabled switch.
+2. **Any day**, including one the alarm is not scheduled for, so a one-off Saturday works.
+3. **Setting it before 08:00 cancels that day's morning question.**
+4. **Today only.** Tomorrow's is set tomorrow, by the page or by the question.
+5. **Yes, again after it has rung**: a second ring on the same day is set the same way. The machine
+   accepts `Answer` from `Done(RANG)` and `Done(MISSED)` too, as a fresh `Set`.
