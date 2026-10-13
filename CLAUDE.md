@@ -186,6 +186,8 @@ hand-over (crossed over or not, silence, stalls, adopted) with gapless off and t
 3.7 / 4.4 s, on 0 / 0 / 0 s. It caught a race no device test reproduced (an item under 45 s never put its
 successor in line, because the queue's adoption cancelled the arming); local files win that race, streams lose it.
 
+**A schema bump blocks the baseline (2026-10-13):** Room has no downgrade path, so the previous build crashes on the newer database. Roll it back in place rather than wiping it: force-stop, pull `databases/totum.db*` with `run-as … cat`, `PRAGMA wal_checkpoint(TRUNCATE)`, drop the new columns, `PRAGMA user_version=<old>`, and set `room_master_table.identity_hash` to the old build's hash (`RoomOpenDelegate(<old>, "<hash>"` in its `build/generated/ksp`); push it back and delete `-wal`/`-shm`. The new build re-migrates it. Also: in `echo "$(date +%T) exit $?"` the `$?` is `date`'s, not the soak's.
+
 Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
 
 Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the
