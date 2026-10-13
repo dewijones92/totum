@@ -580,6 +580,30 @@
     <string name="shuffle_all_shorts_body">Shuffle everything from %1$s.</string>
     <string name="shuffle_all_with_shorts">Include Shorts</string>
     <string name="shuffle_all_videos_only">Videos only</string>
+    <string name="cleanup_title">Suggested clean-up</string>
+    <string name="cleanup_free">🧹 Free %1$s</string>
+    <string name="cleanup_review_hint">Everything is ticked. Untick anything you want to keep.</string>
+    <string name="cleanup_cancel">Cancel</string>
+    <plurals name="cleanup_not_opened">
+        <item quantity="one">1 not opened in %2$d days</item>
+        <item quantity="other">%1$d not opened in %2$d days</item>
+    </plurals>
+    <plurals name="cleanup_finished">
+        <item quantity="one">1 finished</item>
+        <item quantity="other">%1$d finished</item>
+    </plurals>
+    <plurals name="cleanup_big">
+        <item quantity="one">1 over %2$s</item>
+        <item quantity="other">%1$d over %2$s</item>
+    </plurals>
+    <plurals name="cleanup_not_queued">
+        <item quantity="one">1 not in the queue</item>
+        <item quantity="other">%1$d not in the queue</item>
+    </plurals>
+    <plurals name="cleanup_delete">
+        <item quantity="one">Delete 1 · %2$s</item>
+        <item quantity="other">Delete %1$d · %2$s</item>
+    </plurals>
     <plurals name="shuffle_all_done">
         <item quantity="one">Shuffled 1 item into the queue</item>
         <item quantity="other">Shuffled %1$d items into the queue</item>

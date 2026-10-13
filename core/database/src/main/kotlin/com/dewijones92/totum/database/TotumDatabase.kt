@@ -24,7 +24,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ReconciledAccountProgressEntity::class,
         ChannelLatestEntity::class,
     ],
-    version = 26,
+    version = 27,
     exportSchema = false,
 )
 @Suppress("TooManyFunctions")
@@ -86,7 +86,19 @@ public abstract class TotumDatabase : RoomDatabase() {
                 MIGRATION_23_24,
                 MIGRATION_24_25,
                 MIGRATION_25_26,
+                MIGRATION_26_27,
             )
+
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE downloads ADD COLUMN downloadedAtEpochMs INTEGER")
+                db.execSQL("ALTER TABLE downloads ADD COLUMN openedAtEpochMs INTEGER")
+                db.execSQL(
+                    "UPDATE downloads SET downloadedAtEpochMs = CAST(strftime('%s','now') AS INTEGER) * 1000 " +
+                        "WHERE status = 'downloaded'",
+                )
+            }
+        }
 
         private val MIGRATION_25_26 = object : Migration(25, 26) {
             override fun migrate(db: SupportSQLiteDatabase) {

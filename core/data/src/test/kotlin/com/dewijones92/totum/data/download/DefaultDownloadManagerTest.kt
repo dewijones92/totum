@@ -261,6 +261,8 @@ internal class InMemoryDownloadStore : DownloadStore {
 
     override suspend fun remove(id: MediaItemId) { states.update { it - id } }
 
+    override suspend fun noteOpened(id: MediaItemId): Boolean = states.value.containsKey(id)
+
     private val segments = MutableStateFlow<Map<MediaItemId, List<SkipSegment>>>(emptyMap())
 
     override suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>) =

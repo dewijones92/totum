@@ -1,7 +1,7 @@
 ---
 title: Suggest groups of downloads to delete
 kind: todo
-status: refined — answers in, not started
+status: built 2026-10-13 — see features/downloads-cleanup.md and ADR 31
 area: downloads
 priority: high
 requested: 2026-10-13
@@ -56,4 +56,5 @@ request.
 
 ## Open
 
-- Nothing from Dewi. To check while building: file mtime as the download date.
+- Nothing. File mtime was rejected as the download date: yt-dlp's default stamps the server's date
+  (ADR 31), so the row records its own dates instead.

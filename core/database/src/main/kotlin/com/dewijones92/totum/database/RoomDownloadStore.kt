@@ -11,13 +11,17 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Room-backed [DownloadStore]; the only place download entities and domain state meet. */
 // The count is DownloadStore's surface plus the small entity<->domain mappers; this is the one
 // place those two meet, and scattering them would defeat the point of the class.
 @Suppress("TooManyFunctions")
-public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
+public class RoomDownloadStore(
+    private val dao: DownloadDao,
+    private val clock: () -> Instant = Instant::now,
+) : DownloadStore {
 
     override suspend fun learnFacts(resolved: MediaItem): Unit = dao.learnFacts(resolved)
 
@@ -55,6 +59,8 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
         dao.delete(id.value)
     }
 
+    override suspend fun noteOpened(id: MediaItemId): Boolean = dao.noteOpened(id.value, clock().toEpochMilli()) > 0
+
     override suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>) {
         dao.setSkipSegments(id.value, encodeSkipSegments(segments))
     }
@@ -76,6 +82,8 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
             audioOnly,
             sponsorSegmentsCut,
             decodeSkipSegments(skipSegments),
+            downloadedAtEpochMs?.let(Instant::ofEpochMilli),
+            openedAtEpochMs?.let(Instant::ofEpochMilli),
         )
     }
 
@@ -94,6 +102,7 @@ public class RoomDownloadStore(private val dao: DownloadDao) : DownloadStore {
             // meant retrying an audio-only download quietly fetched the whole video.
             audioOnly = (this as? DownloadState.Downloaded)?.audioOnly ?: requestedAudioOnly,
             sponsorSegmentsCut = (this as? DownloadState.Downloaded)?.sponsorSegmentsCut ?: false,
+            downloadedAtEpochMs = (this as? DownloadState.Downloaded)?.let { clock().toEpochMilli() },
             title = media.title,
             author = media.author,
             publisher = media.publisher,

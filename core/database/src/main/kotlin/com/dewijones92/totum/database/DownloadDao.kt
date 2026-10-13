@@ -30,9 +30,18 @@ public interface DownloadDao {
     public suspend fun putKeepingFacts(entity: DownloadEntity) {
         val existing = get(entity.itemId)
         val held = existing?.let(::playlistItemFrom)?.item
-        val keepingSegments = entity.copy(skipSegments = entity.skipSegments ?: existing?.skipSegments)
+        val stillDownloaded = existing?.status == entity.status && existing.localPath == entity.localPath
+        val keepingSegments = entity.copy(
+            skipSegments = entity.skipSegments ?: existing?.skipSegments,
+            downloadedAtEpochMs = existing?.downloadedAtEpochMs?.takeIf { stillDownloaded }
+                ?: entity.downloadedAtEpochMs,
+            openedAtEpochMs = entity.openedAtEpochMs ?: existing?.openedAtEpochMs,
+        )
         upsert(if (held == null) keepingSegments else keepingSegments.learningFactsFrom(held))
     }
+
+    @Query("UPDATE downloads SET openedAtEpochMs = :at WHERE itemId = :id")
+    public suspend fun noteOpened(id: String, at: Long): Int
 
     @Query("UPDATE downloads SET skipSegments = :segments WHERE itemId = :id")
     public suspend fun setSkipSegments(id: String, segments: String)

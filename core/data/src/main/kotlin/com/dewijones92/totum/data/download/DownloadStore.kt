@@ -41,6 +41,8 @@ public interface DownloadStore {
 
     public suspend fun remove(id: MediaItemId)
 
+    public suspend fun noteOpened(id: MediaItemId): Boolean
+
     public suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>)
 
     /**

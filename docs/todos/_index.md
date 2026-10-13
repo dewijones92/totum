@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [Suggest groups of downloads to delete](suggest-downloads-to-delete.md) | downloads | high | refined 2026-10-13, top of the backlog: four groups (30+ days unopened, finished, over 500 MB, not queued), review then delete, deleting a queued file dequeues it |
+| [Suggest groups of downloads to delete](suggest-downloads-to-delete.md) | downloads | high | built 2026-10-13 → [features/downloads-cleanup.md](../features/downloads-cleanup.md), ADR 31 |
 | [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | built 2026-10-12 → [features/daily-alarms.md](../features/daily-alarms.md) |
 | [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | built 2026-10-12 → [features/shuffle-all.md](../features/shuffle-all.md) |
 | [Music favourites saved to the YouTube Music account](account-backed-music-favourites.md) | music/account | medium | refining — like songs, follow artists, save albums; account state reflected in Totum with easy favourites browsing |

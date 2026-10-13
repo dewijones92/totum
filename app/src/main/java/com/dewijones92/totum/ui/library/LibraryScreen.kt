@@ -49,6 +49,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
+import com.dewijones92.totum.domain.CleanupGroup
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlaylistId
@@ -154,6 +155,7 @@ private fun LibraryHome(
     val storage by viewModel.storage.collectAsStateWithLifecycle()
     val sort by viewModel.sortOrder.collectAsStateWithLifecycle()
     val albums by viewModel.albums.collectAsStateWithLifecycle()
+    val cleanup by viewModel.cleanup.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
 
     LibraryContent(
@@ -176,6 +178,7 @@ private fun LibraryHome(
         onSetSort = viewModel::setSort,
         modifier = modifier,
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
+        cleanup = Cleanup(cleanup, viewModel::deleteSuggested),
     )
 }
 
@@ -201,8 +204,10 @@ internal fun LibraryContent(
     onSetSort: (DownloadSort) -> Unit,
     modifier: Modifier = Modifier,
     phoneAlbums: PhoneAlbums = PhoneAlbums(),
+    cleanup: Cleanup = Cleanup(),
 ) {
     val actions = LocalItemActions.current
+    var reviewing by rememberSaveable { mutableStateOf<CleanupGroup?>(null) }
     val listFilter = rememberListFilter("downloads")
     val shown = listFilter.filter(downloaded, { it.item.searchableText })
     Column(modifier = modifier.fillMaxSize()) {
@@ -238,6 +243,7 @@ internal fun LibraryContent(
                         )
                     }
                     item { StorageSummary(storage) }
+                    cleanupSection(cleanup) { reviewing = it }
                     filterField(listFilter, shown.size, downloaded.size, hosted = true)
                     items(shown, key = { it.item.id.value }) { entry ->
                         MediaItemRow(
@@ -264,6 +270,7 @@ internal fun LibraryContent(
         }
         BuildInfoFooter()
     }
+    CleanupReviewOf(cleanup, reviewing, downloaded) { reviewing = null }
 }
 
 /**

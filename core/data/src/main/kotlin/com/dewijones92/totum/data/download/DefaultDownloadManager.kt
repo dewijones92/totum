@@ -213,6 +213,10 @@ public class DefaultDownloadManager(
         store.remove(id)
     }
 
+    override suspend fun noteOpened(id: MediaItemId) {
+        if (store.noteOpened(id)) Diag.log("download", "opened ${id.value}: its download is marked opened now")
+    }
+
     private companion object {
         const val EVENT_BUFFER = 64
 

@@ -67,6 +67,8 @@ class VideoIdMigrationTest {
             raw.execSQL("ALTER TABLE $table DROP COLUMN albumId")
             raw.execSQL("ALTER TABLE $table DROP COLUMN albumTitle")
         }
+        raw.execSQL("ALTER TABLE downloads DROP COLUMN downloadedAtEpochMs")
+        raw.execSQL("ALTER TABLE downloads DROP COLUMN openedAtEpochMs")
         raw.execSQL("PRAGMA user_version = 25")
         fresh.close()
         db = null

@@ -8,25 +8,35 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.CleanupCandidate
+import com.dewijones92.totum.domain.CleanupGroup
+import com.dewijones92.totum.domain.CleanupSuggestion
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.StorageUsage
+import com.dewijones92.totum.domain.formatBytes
+import com.dewijones92.totum.domain.suggestCleanup
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.Instant
 
 /**
  * Shows everything available offline — downloaded items across both pillars.
@@ -39,6 +49,8 @@ class LibraryViewModel(
     private val downloads: DownloadManager,
     private val fileSize: (String) -> Long = { File(it).length() },
     private val freeSpace: () -> Long? = { null },
+    private val playStates: Flow<Map<MediaItemId, PlayState>> = flowOf(emptyMap()),
+    private val now: () -> Instant = Instant::now,
     /** Injected so a test can drive the sizing pass; it is real disk IO in the app. */
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : TrackedViewModel("library") {
@@ -128,6 +140,51 @@ class LibraryViewModel(
         .map { entries -> StorageUsage(entries.size, entries.sumOf { it.sizeBytes }, freeSpace()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), StorageUsage.Empty)
 
+    val cleanup: StateFlow<List<CleanupSuggestion>> = combine(
+        downloaded,
+        playStates,
+        queue.state.map { snapshot -> snapshot.entries.map { it.item.item.id }.toSet() }.distinctUntilChanged(),
+    ) { entries, states, queued ->
+        val candidates = entries.map { entry ->
+            CleanupCandidate(
+                id = entry.item.id,
+                sizeBytes = entry.sizeBytes,
+                downloadedAt = entry.media.downloadedAt,
+                openedAt = entry.media.openedAt,
+                finished = states[entry.item.id] == PlayState.Played,
+                queued = entry.item.id in queued,
+            )
+        }
+        suggestCleanup(candidates, now()).also { groups ->
+            val loaded = lastCleanupLine != null || entries.isNotEmpty()
+            cleanupLine(candidates, groups).takeIf { loaded && it != lastCleanupLine }?.let {
+                lastCleanupLine = it
+                Diag.log("library", it)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+
+    private var lastCleanupLine: String? = null
+
+    fun deleteSuggested(group: CleanupGroup, ids: List<MediaItemId>) {
+        if (ids.isEmpty()) return
+        val byId = downloaded.value.associateBy { it.item.id }
+        val bytes = ids.sumOf { byId[it]?.sizeBytes ?: 0L }
+        val queued = queue.state.value.entries.filter { it.item.item.id in ids }
+        val dequeued = queued.count { queue.remove(it) != null }
+        Diag.log(
+            "library",
+            "clean-up $group: deleting ${ids.size} file(s), ${formatBytes(bytes)}, $dequeued taken out of the queue: " +
+                ids.joinToString { id ->
+                    val entry = byId[id]
+                    "${id.value} (${entry?.sizeBytes?.let(::formatBytes) ?: "size unknown"}, " +
+                        "downloaded=${entry?.media?.downloadedAt ?: "unknown"} " +
+                        "opened=${entry?.media?.openedAt ?: "never"})"
+                },
+        )
+        viewModelScope.launch { ids.forEach { downloads.delete(it) } }
+    }
+
     /** Songs on the phone gathered by album, for playing or removing a whole album at once. */
     val albums: StateFlow<List<AlbumOnPhone>> = downloads.observeDownloaded()
         .map(::albumsOnThisPhone)
@@ -191,8 +248,16 @@ class LibraryViewModel(
                     queue = container.playbackQueue,
                     downloads = container.downloadManager,
                     freeSpace = container::freeDownloadSpaceBytes,
+                    playStates = container.playbackProgressStore.observeStates(),
                 )
             }
         }
     }
+}
+
+private fun cleanupLine(candidates: List<CleanupCandidate>, groups: List<CleanupSuggestion>): String {
+    val line = groups.joinToString { "${it.group}=${it.count}/${formatBytes(it.bytes)}" }.ifEmpty { "none" }
+    val undated = candidates.count { it.lastTouched == null }
+    return "clean-up suggestions from ${candidates.size} download(s): $line " +
+        "(no download or open date on $undated, so never called unopened)"
 }

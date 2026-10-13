@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import java.time.Instant
 
 /** In-memory [DownloadManager] for tests and previews; downloads complete instantly. */
 // The count is DownloadManager's surface plus the hooks a test drives it with; a fake exists to be
@@ -105,6 +106,19 @@ public class FakeDownloadManager : DownloadManager {
         downloads.update { it + (media.id to DownloadState.Downloaded(path, audioOnly = audioOnly)) }
         completed.update { it.filterNot { done -> done.item.id == media.id } + DownloadedMedia(item, path, audioOnly) }
         _events.tryEmit(DownloadEvent(media, DownloadState.Downloaded(path, audioOnly)))
+    }
+
+    public fun place(copy: DownloadedMedia) {
+        known.update { it + (copy.item.id to copy.playable) }
+        downloads.update { it + (copy.item.id to DownloadState.Downloaded(copy.localPath, copy.audioOnly)) }
+        completed.update { it.filterNot { done -> done.item.id == copy.item.id } + copy }
+    }
+
+    public val opened: MutableList<MediaItemId> = mutableListOf()
+
+    override suspend fun noteOpened(id: MediaItemId) {
+        opened += id
+        completed.update { done -> done.map { if (it.item.id == id) it.copy(openedAt = Instant.now()) else it } }
     }
 
     /** Every item asked for, in order, with the variant requested — for assertions. */

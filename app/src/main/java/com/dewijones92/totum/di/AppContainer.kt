@@ -82,6 +82,7 @@ import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.LocalCopy
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
@@ -565,11 +566,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // stable), so record their history here; videos are recorded at the
             // launcher, which knows the stable watch URL.
             onPlay = { item, kind ->
-                val handle = when (kind) {
-                    MediaKind.PODCAST -> PlayHandle.Podcast()
-                    MediaKind.VIDEO -> item.mediaUrl?.takeIf { item.pillar == MediaKind.VIDEO }?.let(PlayHandle::Video)
-                }
-                handle?.let { applicationScope.launch { playHistoryStore.record(PlayableItem(item, it)) } }
+                applicationScope.launch { recordPlay(playHistoryStore, downloadManager, item, kind) }
             },
             silenceMode = appPreferences.settings
                 .map { it.silenceMode }
@@ -1438,4 +1435,18 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 private fun deviceLanguages(): List<String> {
     val locales = LocaleListCompat.getDefault()
     return (0 until locales.size()).mapNotNull { locales[it]?.language?.ifBlank { null } }.distinct()
+}
+
+private suspend fun recordPlay(
+    history: PlayHistoryStore,
+    downloads: DownloadManager,
+    item: MediaItem,
+    kind: MediaKind,
+) {
+    val handle = when (kind) {
+        MediaKind.PODCAST -> PlayHandle.Podcast()
+        MediaKind.VIDEO -> item.mediaUrl?.takeIf { item.pillar == MediaKind.VIDEO }?.let(PlayHandle::Video)
+    }
+    handle?.let { history.record(PlayableItem(item, it)) }
+    downloads.noteOpened(item.id)
 }

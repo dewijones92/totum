@@ -94,6 +94,7 @@ class StoredSponsorsReachThePlayingFileTest {
         override suspend fun get(id: MediaItemId): DownloadState = error("unused")
         override suspend fun request(id: MediaItemId): DownloadRequest? = error("unused")
         override suspend fun remove(id: MediaItemId): Unit = error("unused")
+        override suspend fun noteOpened(id: MediaItemId): Boolean = error("unused")
         override fun observeRecords(): Flow<List<DownloadRecord>> = error("unused")
     }
 }
