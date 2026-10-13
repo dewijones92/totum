@@ -2,7 +2,7 @@
 title: Shuffle all walks every page of a source into one queue group
 kind: adr
 status: accepted
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # 30. Shuffle all walks every page of a source into one queue group
@@ -44,7 +44,7 @@ time as you scrolled, and nothing could fetch the lot.
 - A huge channel goes into the queue in full, as Dewi asked; the queue's own group collapse is what
   keeps it manageable. Reports list a window of 250 titles around the playing item, with the counts
   still exact, so a 3,000-item queue does not make a report megabytes long.
-- Open (asked 2026-10-12): queue auto-download fetches audio for every queued item, so a large
-  shuffle on Wi-Fi would download all of it. Dewi to choose: only the next ~20, never for shuffle
-  groups, or everything.
+- Queue auto-download treats a shuffle like any other queued item and downloads all of it (on
+  Wi-Fi only, if that setting is on). Dewi chose this on 2026-10-13 over keeping only the next ~20
+  or never downloading shuffle groups.
 - Logged under `[shuffle]`: sources, pages, items, unfinished parts, members-only left out, time taken.
