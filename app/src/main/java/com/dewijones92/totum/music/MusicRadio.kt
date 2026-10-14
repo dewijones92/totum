@@ -47,7 +47,10 @@ class MusicRadio(
 
     suspend fun start(seed: RadioSeed, title: String): Boolean {
         val group = QueueGroup(id = "radio:${seed.playlistId}", title = "Radio · $title")
-        Diag.log("radio", "starting \"${group.title}\" from ${seed.videoId ?: "-"}/${seed.playlistId}")
+        Diag.log(
+            "radio",
+            "starting \"${group.title}\" from ${seed.videoId ?: "-"}/${seed.playlistId} params=${seed.params ?: "-"}"
+        )
         val batch = when (val result = catalogue.radio(seed)) {
             is MusicResult.Failure -> {
                 Diag.warn("radio", "could not start \"${group.title}\": ${result.detail}")
@@ -68,7 +71,13 @@ class MusicRadio(
         )
         queue.playAll(batch.songs.map { it.toPlayable(source) }, group)
         recent?.record(
-            Pin.Radio(seed.videoId, seed.playlistId, title, batch.songs.firstOrNull()?.thumbnailUrl?.value),
+            Pin.Radio(
+                seed.videoId,
+                seed.playlistId,
+                title,
+                batch.songs.firstOrNull()?.thumbnailUrl?.value,
+                seed.params
+            ),
             from = "radio",
         )
         return true

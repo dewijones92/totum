@@ -113,6 +113,13 @@ class MusicPageParserTest {
     }
 
     @Test
+    fun `the artist Shuffle keeps the button's params, which make it the YouTube Music shuffle`() {
+        val artist = requireNotNull(MusicPageParser.artist(fixture("artist.json"), "UC2XdaAVUannpujzv32jcouQ"))
+
+        assertEquals("wAEB8gECGAE%3D", artist.shuffle?.params)
+    }
+
+    @Test
     fun `a radio batch reads each song and the continuation`() {
         val batch = MusicPageParser.radio(fixture("radio.json"))
 

@@ -113,11 +113,13 @@ internal object MusicPageParser {
         var seed: RadioSeed? = null
         collectEach("watchEndpoint") { endpoint ->
             val playlist = endpoint.str("playlistId")
-            if (seed == null && playlist != null) seed = RadioSeed(endpoint.str("videoId"), playlist)
+            if (seed == null && playlist != null) {
+                seed = RadioSeed(endpoint.str("videoId"), playlist, endpoint.str("params"))
+            }
         }
         if (seed == null) {
             collectEach("watchPlaylistEndpoint") { endpoint ->
-                endpoint.str("playlistId")?.let { if (seed == null) seed = RadioSeed(null, it) }
+                endpoint.str("playlistId")?.let { if (seed == null) seed = RadioSeed(null, it, endpoint.str("params")) }
             }
         }
         return seed

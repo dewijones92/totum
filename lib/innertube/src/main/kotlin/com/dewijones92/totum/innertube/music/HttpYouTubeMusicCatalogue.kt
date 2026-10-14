@@ -37,7 +37,7 @@ public class HttpYouTubeMusicCatalogue(private val client: InnerTubeClient) : Yo
 
     override suspend fun radio(seed: RadioSeed, continuation: String?): MusicResult<RadioBatch> {
         val target = continuation?.let { MusicNextTarget.Continuation(seed.playlistId, it) }
-            ?: MusicNextTarget.Radio(seed.videoId, seed.playlistId)
+            ?: MusicNextTarget.Radio(seed.videoId, seed.playlistId, seed.params)
         return client.nextMusic(target).map(MusicPageParser::radio)
     }
 

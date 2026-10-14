@@ -69,6 +69,7 @@ sealed interface Pin {
         val playlistId: String,
         override val title: String,
         override val artUrl: String?,
+        val params: String? = null,
     ) : Pin {
         override val key: String get() = "radio:$playlistId"
     }
@@ -94,6 +95,18 @@ sealed interface Pin {
         val includeShorts: Boolean,
     ) : Pin {
         override val key: String get() = "shuffle:$target"
+    }
+
+    @Serializable
+    @SerialName("artist-songs")
+    data class ArtistSongs(
+        val listingBrowseId: String,
+        val listingParams: String?,
+        val artist: String,
+        override val artUrl: String?,
+    ) : Pin {
+        override val key: String get() = "artist-songs:$listingBrowseId"
+        override val title: String get() = "$artist · All songs"
     }
 
     companion object {

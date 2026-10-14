@@ -76,6 +76,7 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
 import com.dewijones92.totum.music.AccountFollows
+import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.pins.HomeScreenShortcuts
@@ -208,6 +209,7 @@ class FakeAppContainer(
             podcastRepository,
             playState = { PlayState.Unplayed },
             shuffleAll = shuffleAll,
+            artistShuffle = ArtistShuffle(musicCatalogue, playbackQueue, recentActions),
         )
     }
 

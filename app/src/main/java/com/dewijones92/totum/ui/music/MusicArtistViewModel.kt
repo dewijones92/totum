@@ -13,6 +13,8 @@ import com.dewijones92.totum.innertube.music.MusicArtist
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.music.ArtistShuffle
+import com.dewijones92.totum.music.ArtistSongs
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toMediaItem
@@ -31,6 +33,7 @@ class MusicArtistViewModel(
     private val queue: PlaybackQueue,
     private val radio: MusicRadio,
     private val appScope: CoroutineScope,
+    private val artistShuffle: ArtistShuffle,
 ) : ViewModel() {
 
     sealed interface State {
@@ -96,6 +99,14 @@ class MusicArtistViewModel(
 
     fun shuffle() = startStation((_state.value as? State.Loaded)?.artist?.shuffle ?: currentMix(), "shuffle")
 
+    fun shuffleAllSongs(onDone: (Int) -> Unit) {
+        val artist = (_state.value as? State.Loaded)?.artist ?: return
+        val listing = artist.allSongs ?: return Diag.warn("music", "artist \"${artist.name}\" has no all-songs listing")
+        appScope.launch {
+            onDone(artistShuffle.shuffleAll(ArtistSongs(artist.name, listing, artist.thumbnailUrl?.value)))
+        }
+    }
+
     private fun currentMix(): RadioSeed? = (_state.value as? State.Loaded)?.artist?.radio ?: page.radio
 
     private fun startStation(seed: RadioSeed?, what: String) {
@@ -115,6 +126,7 @@ class MusicArtistViewModel(
                     container.playbackQueue,
                     container.musicRadio,
                     container.applicationScope,
+                    ArtistShuffle(container.musicCatalogue, container.playbackQueue, container.recentActions),
                 )
             }
         }

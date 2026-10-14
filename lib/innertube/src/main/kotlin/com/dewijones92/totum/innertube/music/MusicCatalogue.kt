@@ -22,7 +22,11 @@ public data class MusicArtistRef(
     public val thumbnailUrl: HttpUrl?,
 )
 
-public data class RadioSeed(public val videoId: String?, public val playlistId: String) {
+public data class RadioSeed(
+    public val videoId: String?,
+    public val playlistId: String,
+    public val params: String? = null,
+) {
     public companion object {
         public fun forSong(videoId: String): RadioSeed = RadioSeed(videoId, "RDAMVM$videoId")
 

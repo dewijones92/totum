@@ -12,6 +12,7 @@ import com.dewijones92.totum.innertube.music.MusicListing
 import com.dewijones92.totum.innertube.music.MusicReleaseKind
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicCatalogue
+import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MusicPage
@@ -72,7 +73,7 @@ class SeeAllTest {
             ),
         )
         val (queue, work) = queue()
-        val vm = ArtistSongsViewModel(MusicPage.ArtistSongs(listing, "The Beatles"), catalogue, queue)
+        val vm = songsPage(catalogue, queue, work)
         advanceUntilIdle()
 
         assertEquals(
@@ -93,6 +94,36 @@ class SeeAllTest {
         assertEquals(listOf("a2", "a3"), entries.map { it.item.item.id.value })
         assertEquals("The Beatles · All songs", entries.first().group?.title)
         assertTrue(entries.all { it.item.item.contentKind == MediaContentKind.MUSIC })
+        work.cancel()
+    }
+
+    private fun songsPage(catalogue: FakeYouTubeMusicCatalogue, queue: PlaybackQueue, work: CoroutineScope) =
+        ArtistSongsViewModel(
+            MusicPage.ArtistSongs(listing, "The Beatles"),
+            catalogue,
+            queue,
+            ArtistShuffle(catalogue, queue, recent = null),
+            work,
+        )
+
+    @Test
+    fun `shuffle on the all-songs page shuffles every song, not only the page on screen`() = runTest(dispatcher) {
+        val catalogue = FakeYouTubeMusicCatalogue(
+            listingPages = mapOf(
+                null to Page(listOf(song("a1"), song("a2")), PageToken("p2")),
+                "p2" to Page.last(listOf(song("a3"))),
+            ),
+        )
+        val (queue, work) = queue()
+        val vm = songsPage(catalogue, queue, work)
+        advanceUntilIdle()
+        var shuffled = -1
+
+        vm.shuffle { shuffled = it }
+        advanceUntilIdle()
+
+        assertEquals(3, shuffled)
+        assertEquals(setOf("a1", "a2", "a3"), queue.state.value.entries.map { it.item.item.id.value }.toSet())
         work.cancel()
     }
 

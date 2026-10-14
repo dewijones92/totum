@@ -1,7 +1,7 @@
 ---
 title: The artist page gets "Shuffle all songs", and its Shuffle station matches YouTube Music's
 kind: todo
-status: open — agreed with Dewi 2026-10-14; in the 2026-10-14 batch
+status: built 2026-10-14 → ADR 30 (amended), docs/features/youtube-music.md
 area: music
 priority: high
 requested: 2026-10-14

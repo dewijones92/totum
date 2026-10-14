@@ -13,11 +13,14 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.innertube.music.MusicListing
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.playlists.PlaylistVideosResult
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
+import com.dewijones92.totum.music.ArtistShuffle
+import com.dewijones92.totum.music.ArtistSongs
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toPlayable
@@ -42,6 +45,7 @@ class PinPlayer(
     private val podcasts: PodcastRepository,
     private val playState: suspend (MediaItemId) -> PlayState,
     private val shuffleAll: ShuffleAll? = null,
+    private val artistShuffle: ArtistShuffle? = null,
 ) {
     suspend fun play(pin: Pin, from: String): PinPlayed {
         Diag.log("pin", "play ${pin.key} \"${pin.title}\" from $from")
@@ -50,9 +54,13 @@ class PinPlayer(
             is Pin.Album -> playAlbum(pin)
             is Pin.Playlist -> playPlaylist(pin)
             is Pin.Artist -> playArtist(pin)
-            is Pin.Radio -> started(radio.start(RadioSeed(pin.videoId, pin.playlistId), pin.title), "no radio")
+            is Pin.Radio -> started(
+                radio.start(RadioSeed(pin.videoId, pin.playlistId, pin.params), pin.title),
+                "no radio"
+            )
             is Pin.Show -> playShow(pin)
             is Pin.ShuffleAllOf -> replayShuffleAll(shuffleAll, pin)
+            is Pin.ArtistSongs -> replayArtistSongs(artistShuffle, pin)
         }
         Diag.log("pin", "${pin.key} -> $result")
         return result
@@ -129,6 +137,14 @@ class PinPlayer(
     } else {
         PinPlayed.Failed(why)
     }
+}
+
+private suspend fun replayArtistSongs(shuffler: ArtistShuffle?, pin: Pin.ArtistSongs): PinPlayed {
+    shuffler ?: return PinPlayed.Failed("shuffle all songs is not available here")
+    val count = shuffler.shuffleAll(
+        ArtistSongs(pin.artist, MusicListing(pin.listingBrowseId, pin.listingParams), pin.artUrl)
+    )
+    return if (count > 0) PinPlayed.Started(showsPicture = false) else PinPlayed.Failed("no songs found")
 }
 
 private suspend fun replayShuffleAll(shuffler: ShuffleAll?, pin: Pin.ShuffleAllOf): PinPlayed {

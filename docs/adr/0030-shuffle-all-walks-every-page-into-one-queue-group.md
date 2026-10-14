@@ -2,7 +2,7 @@
 title: Shuffle all walks every page of a source into one queue group
 kind: adr
 status: accepted
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # 30. Shuffle all walks every page of a source into one queue group
@@ -48,3 +48,15 @@ time as you scrolled, and nothing could fetch the lot.
   Wi-Fi only, if that setting is on). Dewi chose this on 2026-10-13 over keeping only the next ~20
   or never downloading shuffle groups.
 - Logged under `[shuffle]`: sources, pages, items, unfinished parts, members-only left out, time taken.
+
+## Amended 2026-10-14: an artist's songs
+
+Dewi, 2026-10-14: *"the shuffle button on the artist page … shuffle all songs of the artist or?"*. It was
+YouTube Music's Shuffle station (an endless radio: 9 of 49 songs by Erik Satie, because the button's `params`
+were dropped). The artist page now has both: **Shuffle all songs** walks every page of the artist's All songs
+listing (`walkAllSongs` in `music/ArtistShuffle.kt`: every song once, ending at the last page, a failed page,
+or a page that adds nothing new) into one shuffled `artist-all:` group, recorded in Recently as
+`Pin.ArtistSongs`; the All songs page's Shuffle uses the same walk (it had shuffled only the pages on
+screen). **Shuffle radio** sends the button's `params` (`RadioSeed.params`). Live on the emulator: Erik Satie,
+149 songs over 2 pages in 1.0 s; the station request carried `params=wAEB8gECGAE%3D`.
+

@@ -14,11 +14,14 @@ import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.music.ArtistShuffle
+import com.dewijones92.totum.music.ArtistSongs
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MusicPage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +31,8 @@ class ArtistSongsViewModel(
     private val page: MusicPage.ArtistSongs,
     private val catalogue: YouTubeMusicCatalogue,
     private val queue: PlaybackQueue,
+    private val artistShuffle: ArtistShuffle,
+    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     sealed interface State {
@@ -88,7 +93,9 @@ class ArtistSongsViewModel(
         "from ${fromIndex + 1}"
     )
 
-    fun shuffle() = playAll((_state.value as? State.Loaded)?.raw.orEmpty().shuffled(), "shuffled")
+    fun shuffle(onDone: (Int) -> Unit) {
+        appScope.launch { onDone(artistShuffle.shuffleAll(ArtistSongs(page.artist, page.listing, artUrl = null))) }
+    }
 
     private fun playAll(songs: List<MusicSong>, how: String) {
         if (songs.isEmpty()) return
@@ -106,7 +113,15 @@ class ArtistSongsViewModel(
             container: AppContainer,
             page: MusicPage.ArtistSongs
         ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { ArtistSongsViewModel(page, container.musicCatalogue, container.playbackQueue) }
+            initializer {
+                ArtistSongsViewModel(
+                    page,
+                    container.musicCatalogue,
+                    container.playbackQueue,
+                    ArtistShuffle(container.musicCatalogue, container.playbackQueue, container.recentActions),
+                    container.applicationScope,
+                )
+            }
         }
     }
 }

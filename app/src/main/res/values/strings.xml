@@ -423,6 +423,9 @@
     <string name="pin_gone">That shortcut is no longer pinned in Totum</string>
     <string name="music_play">Play</string>
     <string name="music_shuffle">Shuffle</string>
+    <string name="music_shuffle_all_songs">Shuffle all songs</string>
+    <string name="music_shuffle_radio">Shuffle radio</string>
+    <string name="music_gathering_songs">Gathering every song by %1$s…</string>
     <string name="music_add_to_end">Add to end</string>
     <string name="music_download_album">Download</string>
     <string name="music_radio">Radio</string>

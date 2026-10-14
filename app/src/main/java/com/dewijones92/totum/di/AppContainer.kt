@@ -135,6 +135,7 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
 import com.dewijones92.totum.music.AccountFollows
+import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.notifications.DataSaverNotifier
@@ -1479,4 +1480,5 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     c.podcastRepository,
     playState = c.playbackProgressStore::playState,
     shuffleAll = c.shuffleAll,
+    artistShuffle = ArtistShuffle(c.musicCatalogue, c.playbackQueue, c.recentActions),
 )

@@ -13,6 +13,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +35,8 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
         viewModel(key = page.label, factory = ArtistSongsViewModel.factory(container, page))
     val state by viewModel.state.collectAsStateWithLifecycle()
     val actions = LocalItemActions.current
+    val context = LocalContext.current
+    val gathering = stringResource(R.string.music_gathering_songs, page.artist)
     LazyColumn(Modifier.fillMaxSize()) {
         item { BackHeader(title = stringResource(R.string.music_all_songs_of, page.artist), onBack = onBack) }
         when (val current = state) {
@@ -48,7 +51,10 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
                                 Icons.Filled.PlayArrow,
                                 primary = true
                             ) { viewModel.play() },
-                            MusicButton(R.string.music_shuffle, Icons.Filled.Shuffle) { viewModel.shuffle() },
+                            MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
+                                toast(context, gathering)
+                                viewModel.shuffle { count -> toast(context, shuffledText(context, count)) }
+                            },
                         ),
                     )
                 }

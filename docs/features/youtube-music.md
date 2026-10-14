@@ -18,7 +18,7 @@ and [27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md); this page 
 | Music tab | `ui/music/MusicScreen.kt` | `SearchViewModel` in `SearchScope.MUSIC`: Songs, Albums, Artists. Idle: songs played here, then your YouTube Music recent albums, albums, playlists and artists (signed in) |
 | Search everywhere | `ui/common/ShellNavigation.kt`, `ui/TabNavigation.kt` | 🔍 in every tab header; opens over the tab with the dock visible |
 | Album page | `ui/music/MusicAlbumScreen.kt` | Play / Shuffle insert after what is playing as a group; Add to end; Download (audio); Radio; "N of M songs on this phone" |
-| Artist page | `ui/music/MusicArtistScreen.kt` | Top songs, albums, singles, fans also like; Shuffle and Mix are YouTube Music's own stations |
+| Artist page | `ui/music/MusicArtistScreen.kt` | Top songs, albums, singles, fans also like; **Shuffle all songs** walks every page of the artist's song list into one shuffled group (`music/ArtistShuffle.kt`, also the All songs page's Shuffle, and a Recently entry); **Shuffle radio** and **Mix** are YouTube Music's own stations, the Shuffle one now sent with its button's `params` |
 | Radio | `music/MusicRadio.kt` | Tops itself up from the continuation when ≤3 left; `[radio]` log lines say every decision |
 | Plays as sound | `queue/PictureChoices.kt` | `MediaContentKind.MUSIC`; Watch asks for the picture |
 | Shared album links | `SharedLink.kt`, `MainActivity` | `list=OLAK5uy_…` opens the album; a song inside one also plays |
@@ -131,6 +131,7 @@ songs would put rows in the list that do nothing when tapped.
 | unit | `lib/innertube/…/HttpYouTubeActionsTest`, `HttpYouTubeMusicTest` | album save/remove requests; the liked count from the header, not a song titled "12 songs" |
 | instrumented | `app/…/MusicFavouritesScreensTest` | Save, Remove asking first, a refused save never showing Saved, Follow, the favourites section, Like from a song's menu |
 | unit | `app/…/AutoAdvancerTest`, `ShuffleUpNextTest`, `core/domain/…/OfflineCountTest` | repeat one / queue, shuffle, offline counts |
+| unit | `app/…/music/WalkAllSongsTest`, `SeeAllTest`, `innertube/…/MusicNextFieldsTest`, `MusicPageParserTest` | every song once across pages, a failed or repeating page ends the walk, the All songs Shuffle takes every page, station `params` parsed and sent |
 
 `songs-search.json` is a real response trimmed to four rows with every field the parser reads left
 exactly as YouTube sent it. A hand-written fixture would only prove the parser agrees with my idea
