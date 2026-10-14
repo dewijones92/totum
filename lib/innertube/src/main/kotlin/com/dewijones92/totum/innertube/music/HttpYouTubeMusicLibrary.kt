@@ -30,6 +30,9 @@ public class HttpYouTubeMusicLibrary(
     override suspend fun artists(): LibraryResult<List<LibraryArtist>> =
         browse(ARTISTS) { MusicLibraryParser.libraryArtists(it) }
 
+    override suspend fun likedSongCount(): LibraryResult<Int?> =
+        browse(YouTubeMusicLibrary.LIKED_MUSIC_BROWSE_ID) { MusicLibraryParser.songCount(it) }
+
     private suspend fun <T> browse(browseId: String, read: (String) -> T): LibraryResult<T> {
         val token = when (val result = account.accessToken()) {
             is AccessTokenResult.Available -> result.token

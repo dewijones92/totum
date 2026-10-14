@@ -16,6 +16,12 @@ public class FakeYouTubeActions(
     public val ratingCalls: MutableList<Pair<String, VideoRating>> = mutableListOf()
     public val watchLaterCalls: MutableList<Pair<String, Boolean>> = mutableListOf()
     public val commentCalls: MutableList<Pair<String, String>> = mutableListOf()
+    public val savedPlaylistCalls: MutableList<Pair<String, Boolean>> = mutableListOf()
+
+    override suspend fun setPlaylistSaved(playlistId: String, saved: Boolean): ActionResult {
+        savedPlaylistCalls += playlistId to saved
+        return result
+    }
 
     override suspend fun setSubscribed(channelId: String, subscribed: Boolean): ActionResult {
         subscribeCalls += channelId to subscribed
@@ -24,6 +30,7 @@ public class FakeYouTubeActions(
 
     override suspend fun setRating(videoId: String, rating: VideoRating): ActionResult {
         ratingCalls += videoId to rating
+        if (result is ActionResult.Success) ratings = ratings + (videoId to rating)
         return result
     }
 

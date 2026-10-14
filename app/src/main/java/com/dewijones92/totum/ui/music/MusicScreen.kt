@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -25,7 +26,9 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.LibraryArtist
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
+import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
 import com.dewijones92.totum.innertube.playlists.Playlist
+import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
@@ -35,6 +38,7 @@ import com.dewijones92.totum.ui.common.pinnedSection
 import com.dewijones92.totum.ui.search.SearchScope
 import com.dewijones92.totum.ui.search.SearchScreen
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
 
 @Composable
 fun MusicScreen(container: AppContainer, modifier: Modifier = Modifier) {
@@ -54,25 +58,31 @@ private fun MusicHome(container: AppContainer) {
     val open = LocalOpenMusicPage.current
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
     val library = state.library
+    val favourites = state.favourites
+    val openAlbum: (MusicAlbumRef) -> Unit = { open?.invoke(MusicPage.Album(it.browseId, title = it.title)) }
     LazyColumn(Modifier.fillMaxSize()) {
         pinnedSection()
+        favouritesSection(
+            favourites,
+            expanded,
+            onLikedSongs = { open?.invoke(MusicPage.Playlist(likedMusic(favourites.likedSongs))) },
+            onAlbum = openAlbum,
+            onArtist = { artist ->
+                open?.invoke(MusicPage.Artist(browseId = null, name = artist.name, radio = artist.radio))
+            },
+        )
         playedHere(state.playedHere, expanded) { item ->
             val playable = item.toPlayableOrNull() ?: return@playedHere
             container.applicationScope.launch { container.playbackQueue.playNow(playable) }
         }
         when {
-            library.loading -> item { MusicLoading() }
-            library.signedOut -> item { Hint(stringResource(R.string.music_sign_in_for_library)) }
-            library.failed -> item { MusicFailed(viewModel::refresh) }
+            state.loading -> item { MusicLoading() }
+            state.signedOut -> item { Hint(stringResource(R.string.music_sign_in_for_library)) }
+            state.failed -> item { MusicFailed(viewModel::refresh) }
         }
-        val openAlbum: (MusicAlbumRef) -> Unit = { open?.invoke(MusicPage.Album(it.browseId, title = it.title)) }
         albumSection("recent", R.string.music_library_recent, library.recent, expanded, openAlbum)
-        albumSection("albums", R.string.music_library_albums, library.albums, expanded, openAlbum)
         playlistSection(library.playlists, expanded) { open?.invoke(MusicPage.Playlist(it)) }
-        artistSection(library.artists, expanded) { artist ->
-            open?.invoke(MusicPage.Artist(browseId = null, name = artist.name, radio = artist.radio))
-        }
-        if (state.playedHere.isEmpty() && library.nothingToShow) {
+        if (state.nothingToShow) {
             item { Hint(stringResource(R.string.music_home_empty)) }
         }
     }
@@ -112,13 +122,55 @@ private fun LazyListScope.playlistSection(
     }
 }
 
+const val FAVOURITES_TAG = "music-favourites"
+const val LIKED_SONGS_TAG = "music-liked-songs"
+
+private fun likedMusic(count: Int?) = Playlist(
+    browseId = YouTubeMusicLibrary.LIKED_MUSIC_BROWSE_ID,
+    title = "Liked music",
+    videoCountText = count?.let { "$it songs" },
+    thumbnailUrl = null,
+)
+
+private fun LazyListScope.favouritesSection(
+    shelf: MusicFavourites.Shelf,
+    expanded: MutableMap<String, Boolean>,
+    onLikedSongs: () -> Unit,
+    onAlbum: (MusicAlbumRef) -> Unit,
+    onArtist: (LibraryArtist) -> Unit,
+) {
+    if (shelf.isEmpty) return
+    item {
+        MusicSectionTitle(
+            "⭐ " + stringResource(R.string.music_favourites),
+            modifier = Modifier.testTag(FAVOURITES_TAG),
+        )
+    }
+    item(key = "favourites:liked") {
+        PlaylistRow(
+            "❤️ " + stringResource(R.string.music_liked_songs),
+            shelf.likedSongs?.let {
+                pluralStringResource(R.plurals.music_song_count, it, NumberFormat.getIntegerInstance().format(it))
+            },
+            null,
+            onOpen = {
+                Diag.log("music", "home -> liked songs (${shelf.likedSongs ?: "count not said"})")
+                onLikedSongs()
+            },
+            modifier = Modifier.testTag(LIKED_SONGS_TAG),
+        )
+    }
+    albumSection("albums", R.string.music_saved_albums, shelf.albums, expanded, onAlbum, title = false)
+    artistSection(shelf.artists, expanded, onArtist)
+}
+
 private fun LazyListScope.artistSection(
     artists: List<LibraryArtist>,
     expanded: MutableMap<String, Boolean>,
     onOpen: (LibraryArtist) -> Unit,
 ) {
     if (artists.isEmpty()) return
-    item { MusicSectionTitle("${FactEmoji.ARTIST} " + stringResource(R.string.music_library_artists)) }
+    item { MusicSubTitle("${FactEmoji.ARTIST} " + stringResource(R.string.music_followed_artists)) }
     capped("artists", artists, expanded) { artist ->
         ArtistRow(artist.name, null, artist.thumbnailUrl, onOpen = {
             Diag.log("music", "home -> library artist \"${artist.name}\" (no channel id; by name)")
@@ -133,9 +185,13 @@ private fun LazyListScope.albumSection(
     albums: List<MusicAlbumRef>,
     expanded: MutableMap<String, Boolean>,
     onOpen: (MusicAlbumRef) -> Unit,
+    title: Boolean = true,
 ) {
     if (albums.isEmpty()) return
-    item { MusicSectionTitle("${FactEmoji.ALBUM} " + stringResource(titleRes)) }
+    item {
+        val text = "${FactEmoji.ALBUM} " + stringResource(titleRes)
+        if (title) MusicSectionTitle(text) else MusicSubTitle(text)
+    }
     capped(key, albums, expanded) { album ->
         AlbumRow(album, onOpen = {
             Diag.log("music", "home $key -> album ${album.browseId} \"${album.title}\"")

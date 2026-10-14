@@ -48,6 +48,9 @@ internal fun ProvideItemActions(
         LocalOpenSource provides openSource,
         LocalStartRadio provides { item -> startRadio(container, item) },
         LocalPins provides rememberPinActions(container),
+        LocalFavourites provides remember(container) {
+            FavouritesHost(container.musicFavourites, container.applicationScope)
+        },
         content = content,
     )
 }

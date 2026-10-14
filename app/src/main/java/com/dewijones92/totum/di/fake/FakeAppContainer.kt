@@ -75,6 +75,8 @@ import com.dewijones92.totum.innertube.playlists.fake.FakeYouTubePlaylists
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
+import com.dewijones92.totum.music.AccountFollows
+import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.InMemoryPinStore
@@ -166,6 +168,8 @@ class FakeAppContainer(
     override val youTubePlaylists: YouTubePlaylists = FakeYouTubePlaylists(),
     override val musicCatalogue: YouTubeMusicCatalogue = FakeYouTubeMusicCatalogue(),
     override val musicLibrary: YouTubeMusicLibrary = FakeYouTubeMusicLibrary(),
+    override val musicFavourites: MusicFavourites =
+        MusicFavourites(musicLibrary, youTubeActions, AccountFollows(accountSubscriptions)),
     override val musicAlbumSearchSource: SearchSource = InnerTubeMusicAlbumSearchSource(musicCatalogue),
     override val musicArtistSearchSource: SearchSource = InnerTubeMusicArtistSearchSource(musicCatalogue),
     override val bellSeenTracker: SeenItemsTracker = InMemorySeenItemsTracker(),

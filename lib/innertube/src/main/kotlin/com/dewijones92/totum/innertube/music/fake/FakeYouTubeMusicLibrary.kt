@@ -11,7 +11,10 @@ public class FakeYouTubeMusicLibrary(
     public var recentAlbums: LibraryResult<List<MusicAlbumRef>> = LibraryResult.SignedOut,
     public var playlists: LibraryResult<List<Playlist>> = LibraryResult.SignedOut,
     public var artists: LibraryResult<List<LibraryArtist>> = LibraryResult.SignedOut,
+    public var likedSongCount: LibraryResult<Int?> = LibraryResult.SignedOut,
 ) : YouTubeMusicLibrary {
+    override suspend fun likedSongCount(): LibraryResult<Int?> = likedSongCount
+
     override suspend fun albums(): LibraryResult<List<MusicAlbumRef>> = albums
 
     override suspend fun recentAlbums(): LibraryResult<List<MusicAlbumRef>> = recentAlbums

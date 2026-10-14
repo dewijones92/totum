@@ -38,6 +38,7 @@ data class SheetExtras(
     val pin: Pin? = null,
     val onGoToAlbum: (() -> Unit)? = null,
     val music: Boolean = false,
+    val songId: String? = null,
 )
 
 @Composable
@@ -46,7 +47,10 @@ internal fun sheetExtrasFor(item: MediaItem, onStartRadio: (() -> Unit)?): Sheet
     pin = item.toPlayableOrNull()?.let(Pin::of),
     onGoToAlbum = LocalItemActions.current?.albumLink(item),
     music = item.contentKind == MediaContentKind.MUSIC,
+    songId = item.id.value.takeIf { item.contentKind == MediaContentKind.MUSIC && VIDEO_ID.matches(it) },
 )
+
+private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
 
 @Composable
 internal fun rememberPinActions(container: AppContainer): PinActions {

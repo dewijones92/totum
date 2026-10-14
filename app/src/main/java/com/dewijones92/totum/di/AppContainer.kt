@@ -134,6 +134,8 @@ import com.dewijones92.totum.innertube.related.RelatedResult
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
+import com.dewijones92.totum.music.AccountFollows
+import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.notifications.DataSaverNotifier
 import com.dewijones92.totum.notifications.DownloadNotifier
@@ -369,6 +371,8 @@ interface AppContainer {
     val musicCatalogue: YouTubeMusicCatalogue
 
     val musicLibrary: YouTubeMusicLibrary
+
+    val musicFavourites: MusicFavourites
 
     val musicRadio: MusicRadio
 
@@ -1365,6 +1369,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val musicCatalogue: YouTubeMusicCatalogue by lazy { HttpYouTubeMusicCatalogue(innerTubeClient) }
 
     override val musicLibrary: YouTubeMusicLibrary by lazy { HttpYouTubeMusicLibrary(youTubeAccount, innerTubeClient) }
+
+    override val musicFavourites: MusicFavourites by lazy {
+        MusicFavourites(musicLibrary, youTubeActions, AccountFollows(accountSubscriptions))
+    }
 
     override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
 

@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -120,6 +121,7 @@ internal fun ActionSheet(
             SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
+            SongLikeAction(extras.songId, title, onDismiss)
             PinSheetActions(pins, extras.pin, onDismiss)
             SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
             SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
@@ -164,11 +166,18 @@ private fun PinSheetActions(pins: PinActions?, pin: Pin?, onDismiss: () -> Unit)
 }
 
 @Composable
-internal fun SheetAction(action: (() -> Unit)?, icon: ImageVector, labelRes: Int, onDismiss: () -> Unit) {
+internal fun SheetAction(
+    action: (() -> Unit)?,
+    icon: ImageVector,
+    labelRes: Int,
+    onDismiss: () -> Unit,
+    tag: String? = null,
+) {
     action?.let {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
+                .let { modifier -> tag?.let { modifier.testTag(it) } ?: modifier }
                 .fillMaxWidth()
                 .clickable {
                     onDismiss()

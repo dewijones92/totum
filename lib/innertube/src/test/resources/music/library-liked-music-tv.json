@@ -1,0 +1,103 @@
+{
+ "responseContext": {},
+ "contents": {
+  "tvBrowseRenderer": {
+   "content": {
+    "tvSurfaceContentRenderer": {
+     "content": {
+      "twoColumnRenderer": {
+       "rightColumn": {
+        "playlistVideoListRenderer": {
+         "contents": [
+          {
+           "tileRenderer": {
+            "contentType": "TILE_CONTENT_TYPE_VIDEO",
+            "contentId": "aaaaaaaaaaa",
+            "metadata": {
+             "tileMetadataRenderer": {
+              "title": {
+               "runs": [
+                {
+                 "text": "12 songs"
+                }
+               ]
+              },
+              "lines": [
+               {
+                "lineRenderer": {
+                 "items": [
+                  {
+                   "lineItemRenderer": {
+                    "text": {
+                     "simpleText": "An artist"
+                    }
+                   }
+                  }
+                 ]
+                }
+               }
+              ]
+             }
+            }
+           }
+          }
+         ]
+        }
+       },
+       "leftColumn": {
+        "entityMetadataRenderer": {
+         "title": {
+          "simpleText": "Liked music"
+         },
+         "bylines": [
+          {
+           "lineRenderer": {
+            "items": [
+             {
+              "lineItemRenderer": {
+               "text": {
+                "simpleText": "Auto playlist"
+               }
+              }
+             },
+             {
+              "lineItemRenderer": {
+               "text": {
+                "simpleText": "•"
+               }
+              }
+             },
+             {
+              "lineItemRenderer": {
+               "text": {
+                "simpleText": "Account name"
+               }
+              }
+             },
+             {
+              "lineItemRenderer": {
+               "text": {
+                "simpleText": "•"
+               }
+              }
+             },
+             {
+              "lineItemRenderer": {
+               "text": {
+                "simpleText": "1,206 songs"
+               }
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

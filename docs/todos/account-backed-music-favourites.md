@@ -1,18 +1,21 @@
 ---
 title: Music favourites saved to the YouTube Music account
 kind: todo
-status: refining
+status: built 2026-10-14 — see features/youtube-music.md and ADR 32
 area: music/account
 priority: medium
 requested: 2026-10-12
-updated: 2026-10-12
+updated: 2026-10-14
 ---
 
 # Music favourites saved to the YouTube Music account
 
 Dewi asked for an equivalent to starring a song or artist, reflected server-side. He confirmed
 that this means his YouTube Music account, with favourites easy to browse again in Totum, and
-requested a backlog item. Implementation has not started.
+requested a backlog item. **Built 2026-10-14** ([ADR 32](../adr/0032-music-favourites-live-on-the-account.md)):
+Like in a song's menu, Save on album pages, Follow on artist pages, "Your favourites" on the Music home.
+The three decisions below were answered: YouTube Music's own labels, a section near the top of the Music
+home, and no offline queue (a write needs the network and says so when it fails).
 
 ## Requested behaviour
 

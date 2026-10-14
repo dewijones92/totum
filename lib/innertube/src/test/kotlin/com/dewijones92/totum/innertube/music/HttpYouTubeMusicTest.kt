@@ -104,6 +104,27 @@ class HttpYouTubeMusicTest {
     }
 
     @Test
+    fun `the liked song count comes from the playlist header, not a song called 12 songs`() = runBlocking {
+        ok(fixture("library-liked-music-tv.json"))
+        val account = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore(TOKENS), nowEpochSeconds = { 0 })
+
+        val count = HttpYouTubeMusicLibrary(account, client()).likedSongCount()
+
+        assertEquals(LibraryResult.Success(1206), count)
+        val request = server.takeRequest()
+        assertEquals("Bearer at", request.headers["Authorization"])
+        assertTrue(request.body!!.utf8().contains(""""browseId":"VLLM""""))
+    }
+
+    @Test
+    fun `a liked list with no header count is a success with no count`() = runBlocking {
+        ok("""{"contents":{}}""")
+        val account = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore(TOKENS), nowEpochSeconds = { 0 })
+
+        assertEquals(LibraryResult.Success(null), HttpYouTubeMusicLibrary(account, client()).likedSongCount())
+    }
+
+    @Test
     fun `the library says signed out when there is no account`() = runBlocking {
         val account = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore(null), nowEpochSeconds = { 0 })
 

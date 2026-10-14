@@ -2,6 +2,9 @@ package com.dewijones92.totum.innertube.music
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 internal object MusicLibraryParser {
 
@@ -55,6 +58,24 @@ internal object MusicLibraryParser {
         return out.values.toList()
     }
 
+    fun songCount(body: String): Int? {
+        var count: Int? = null
+        parseMusicRoot(body)?.collectEach("entityMetadataRenderer") { header ->
+            if (count == null) count = header["bylines"]?.firstSongCount()
+        }
+        return count
+    }
+
+    private fun JsonElement.firstSongCount(): Int? = when (this) {
+        is JsonPrimitive -> contentOrNull?.asSongCount()
+        is JsonObject -> values.firstNotNullOfOrNull { it.firstSongCount() }
+        is JsonArray -> firstNotNullOfOrNull { it.firstSongCount() }
+    }
+
+    private fun String.asSongCount(): Int? =
+        SONG_COUNT.matchEntire(trim())?.groupValues?.get(1)?.replace(",", "")?.toIntOrNull()
+
+    private val SONG_COUNT = Regex("""([\d,]+) songs?""")
     private const val CHANNEL_TILE = "TILE_CONTENT_TYPE_CHANNEL"
     private const val RADIO_PREFIX = "RD"
 }

@@ -10,11 +10,11 @@ import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
-import com.dewijones92.totum.innertube.music.LibraryArtist
 import com.dewijones92.totum.innertube.music.LibraryResult
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
 import com.dewijones92.totum.innertube.playlists.Playlist
+import com.dewijones92.totum.music.MusicFavourites
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 
 class MusicHomeViewModel(
     private val library: YouTubeMusicLibrary,
+    private val favourites: MusicFavourites,
     history: PlayHistoryStore,
 ) : ViewModel() {
 
@@ -34,26 +35,34 @@ class MusicHomeViewModel(
         val signedOut: Boolean = false,
         val failed: Boolean = false,
         val recent: List<MusicAlbumRef> = emptyList(),
-        val albums: List<MusicAlbumRef> = emptyList(),
         val playlists: List<Playlist> = emptyList(),
-        val artists: List<LibraryArtist> = emptyList(),
     ) {
-        val isEmpty: Boolean get() = recent.isEmpty() && albums.isEmpty() && playlists.isEmpty() && artists.isEmpty()
-        val nothingToShow: Boolean get() = isEmpty && !loading && !signedOut
+        val isEmpty: Boolean get() = recent.isEmpty() && playlists.isEmpty()
     }
 
-    data class UiState(val library: Library = Library(), val playedHere: List<MediaItem> = emptyList())
+    data class UiState(
+        val library: Library = Library(),
+        val favourites: MusicFavourites.Shelf = MusicFavourites.Shelf(),
+        val playedHere: List<MediaItem> = emptyList(),
+    ) {
+        val loading: Boolean get() = library.loading || favourites.loading
+        val signedOut: Boolean get() = library.signedOut || favourites.signedOut
+        val failed: Boolean get() = (library.failed || favourites.failed) && !signedOut
+        val nothingToShow: Boolean get() =
+            library.isEmpty && favourites.isEmpty && playedHere.isEmpty() && !loading && !signedOut
+    }
 
     private val libraryState = MutableStateFlow(Library())
 
     val uiState: StateFlow<UiState> = combine(
         libraryState,
+        favourites.shelf,
         history.observe().map { played ->
             played.map { it.item }.filter { it.contentKind == MediaContentKind.MUSIC }.distinctBy { it.id }.take(
                 PLAYED_HERE
             )
         },
-    ) { lib, here -> UiState(lib, here) }
+    ) { lib, shelf, here -> UiState(lib, shelf, here) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), UiState())
 
     init {
@@ -61,13 +70,12 @@ class MusicHomeViewModel(
     }
 
     fun refresh() {
+        viewModelScope.launch { favourites.refresh() }
         viewModelScope.launch {
             libraryState.value = libraryState.value.copy(loading = true, failed = false)
             val recent = async { library.recentAlbums() }
-            val albums = async { library.albums() }
             val playlists = async { library.playlists() }
-            val artists = async { library.artists() }
-            val results = listOf(recent.await(), albums.await(), playlists.await(), artists.await())
+            val results = listOf(recent.await(), playlists.await())
             val signedOut = results.any { it is LibraryResult.SignedOut }
             val failures = results.filterIsInstance<LibraryResult.Failure>()
             libraryState.value = Library(
@@ -75,15 +83,12 @@ class MusicHomeViewModel(
                 signedOut = signedOut,
                 failed = failures.isNotEmpty() && !signedOut,
                 recent = recent.await().orEmpty(),
-                albums = albums.await().orEmpty(),
                 playlists = playlists.await().orEmpty(),
-                artists = artists.await().orEmpty(),
             )
             Diag.log(
                 "music",
                 "library: signedOut=$signedOut recent=${libraryState.value.recent.size} " +
-                    "albums=${libraryState.value.albums.size} playlists=${libraryState.value.playlists.size} " +
-                    "artists=${libraryState.value.artists.size} failures=${failures.map { it.detail }}",
+                    "playlists=${libraryState.value.playlists.size} failures=${failures.map { it.detail }}",
             )
         }
     }
@@ -95,7 +100,13 @@ class MusicHomeViewModel(
         private const val PLAYED_HERE = 20
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { MusicHomeViewModel(container.musicLibrary, container.playHistoryStore) }
+            initializer {
+                MusicHomeViewModel(
+                    container.musicLibrary,
+                    container.musicFavourites,
+                    container.playHistoryStore
+                )
+            }
         }
     }
 }

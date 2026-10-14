@@ -64,8 +64,11 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
             is MusicAlbumViewModel.State.Loaded -> {
                 item { AlbumHeader(current.album) }
                 item {
+                    val save = rememberAlbumSave(container.musicFavourites, container.applicationScope, current.album)
                     MusicButtons(
-                        albumButtons(current.album, viewModel, context, offline) + pinButtons(current.album.asPin())
+                        albumButtons(current.album, viewModel, context, offline) +
+                            listOfNotNull(save?.saveButton()) +
+                            pinButtons(current.album.asPin()),
                     )
                 }
                 item { OfflineLine(offline) }

@@ -37,7 +37,7 @@ class HttpYouTubeActionsTest {
                 unsubscribe = mock,
                 like = mock,
                 dislike = server.url("/act/dislike").toString(),
-                removeLike = mock,
+                removeLike = server.url("/act/removelike").toString(),
                 createComment = mock,
                 editPlaylist = mock,
                 next = server.url("/next").toString(),
@@ -118,6 +118,31 @@ class HttpYouTubeActionsTest {
         assertTrue(body.contains(""""playlistId":"WL""""))
         assertTrue(body.contains("ACTION_ADD_VIDEO"))
         assertTrue(body.contains(""""addedVideoId":"vid12345678""""))
+    }
+
+    @Test
+    fun `saving an album likes its playlist, as the account`() = runBlocking {
+        ok()
+        assertEquals(ActionResult.Success, actions().setPlaylistSaved("OLAK5uy_album", saved = true))
+        val request = server.takeRequest()
+        assertEquals("Bearer at", request.headers["Authorization"])
+        assertTrue(request.target.endsWith("/act"))
+        assertTrue(request.body?.utf8().orEmpty().contains(""""target":{"playlistId":"OLAK5uy_album"}"""))
+    }
+
+    @Test
+    fun `removing an album takes the like off its playlist`() = runBlocking {
+        ok()
+        assertEquals(ActionResult.Success, actions().setPlaylistSaved("OLAK5uy_album", saved = false))
+        val request = server.takeRequest()
+        assertTrue(request.target.contains("/act/removelike"))
+        assertTrue(request.body?.utf8().orEmpty().contains(""""playlistId":"OLAK5uy_album""""))
+    }
+
+    @Test
+    fun `saving an album while signed out sends nothing`() = runBlocking {
+        assertEquals(ActionResult.SignedOut, actions(signedIn = false).setPlaylistSaved("OLAK5uy_album", saved = true))
+        assertEquals(0, server.requestCount)
     }
 
     @Test

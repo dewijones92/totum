@@ -61,8 +61,15 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
                 val artist = current.artist
                 item { ArtistHeader(artist) }
                 item {
+                    val follow = rememberArtistFollow(
+                        container.musicFavourites,
+                        container.applicationScope,
+                        artist.browseId,
+                        artist.name
+                    )
                     MusicButtons(
                         artistButtons(artist, viewModel, context) +
+                            listOfNotNull(follow?.followButton()) +
                             pinButtons(artist.asPin()),
                     )
                 }

@@ -47,6 +47,11 @@ public class HttpYouTubeActions(
         return act(url) { """"target":{"videoId":"${escape(videoId)}"}""" }
     }
 
+    override suspend fun setPlaylistSaved(playlistId: String, saved: Boolean): ActionResult =
+        act(if (saved) endpoints.like else endpoints.removeLike) {
+            """"target":{"playlistId":"${escape(playlistId)}"}"""
+        }
+
     override suspend fun rating(videoId: String): VideoRating? {
         val token = (account.accessToken() as? AccessTokenResult.Available)?.token ?: return null
         val answer = innerTube.action(endpoints.next, """"videoId":"${escape(videoId)}"""", token)
@@ -118,7 +123,7 @@ public class HttpYouTubeActions(
         const val STATUS_FAILED = "STATUS_FAILED"
         const val ERROR_OBJECT = "\"error\""
     }
-
-    private fun escape(value: String): String =
-        value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
 }
+
+private fun escape(value: String): String =
+    value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")

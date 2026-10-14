@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -47,11 +48,21 @@ internal fun MusicFailed(onRetry: () -> Unit, extra: (@Composable () -> Unit)? =
 }
 
 @Composable
-internal fun MusicSectionTitle(text: String) {
+internal fun MusicSectionTitle(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+internal fun MusicSubTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
     )
 }
 
@@ -59,6 +70,8 @@ internal data class MusicButton(
     val labelRes: Int,
     val icon: ImageVector,
     val primary: Boolean = false,
+    val enabled: Boolean = true,
+    val tag: String? = null,
     val onClick: () -> Unit,
 )
 
@@ -75,10 +88,11 @@ internal fun MusicButtons(buttons: List<MusicButton>) {
                 Icon(button.icon, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
                 Text(stringResource(button.labelRes))
             }
+            val modifier = button.tag?.let { Modifier.testTag(it) } ?: Modifier
             if (button.primary) {
-                Button(onClick = button.onClick) { content() }
+                Button(onClick = button.onClick, enabled = button.enabled, modifier = modifier) { content() }
             } else {
-                FilledTonalButton(onClick = button.onClick) { content() }
+                FilledTonalButton(onClick = button.onClick, enabled = button.enabled, modifier = modifier) { content() }
             }
         }
     }

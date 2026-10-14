@@ -11,6 +11,10 @@ public interface YouTubeActions {
     /** The account's rating of a video or song, or null when signed out or YouTube did not say. */
     public suspend fun rating(videoId: String): VideoRating? = null
 
+    /** Saves a playlist or album (its `OLAK5uy_` playlist) to the account library, or removes it. */
+    public suspend fun setPlaylistSaved(playlistId: String, saved: Boolean): ActionResult =
+        ActionResult.Failure("not supported")
+
     /** Adds or removes the video from the account's Watch Later playlist. */
     public suspend fun setSavedToWatchLater(videoId: String, saved: Boolean): ActionResult
     public suspend fun postComment(videoId: String, text: String): ActionResult

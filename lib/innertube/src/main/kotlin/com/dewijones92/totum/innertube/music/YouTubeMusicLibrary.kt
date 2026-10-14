@@ -24,6 +24,9 @@ public interface YouTubeMusicLibrary {
 
     public suspend fun artists(): LibraryResult<List<LibraryArtist>>
 
+    /** How many songs the account has liked, or a success holding null when YouTube did not say. */
+    public suspend fun likedSongCount(): LibraryResult<Int?>
+
     public companion object {
         public const val LIKED_MUSIC_BROWSE_ID: String = "VLLM"
     }

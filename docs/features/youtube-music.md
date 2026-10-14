@@ -3,7 +3,7 @@ title: YouTube Music
 kind: feature
 status: shipped
 area: music
-updated: 2026-10-09
+updated: 2026-10-14
 ---
 
 # YouTube Music: a Music tab, albums, artists, radio and your library
@@ -23,6 +23,7 @@ and [27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md); this page 
 | Plays as sound | `queue/PictureChoices.kt` | `MediaContentKind.MUSIC`; Watch asks for the picture |
 | Shared album links | `SharedLink.kt`, `MainActivity` | `list=OLAK5uy_…` opens the album; a song inside one also plays |
 | Repeat, shuffle up next | `playback/AutoAdvancer.kt`, `QueueScreen` | For both pillars |
+| Favourites | `music/MusicFavourites.kt`, `ui/music/FavouriteButtons.kt` | Like (song menu), Save (album page), Follow (artist page) write to the account and count only once it shows the change; "Your favourites" on the Music home: liked songs, saved albums, followed artists ([ADR 32](../adr/0032-music-favourites-live-on-the-account.md)) |
 | Catalogue and library | `:lib:innertube/music` | `HttpYouTubeMusicCatalogue` (WEB_REMIX, anonymous), `HttpYouTubeMusicLibrary` (TV client, signed in) |
 
 Limits that remain: the radio is not persisted (after a restart its queued songs stay but it no longer
@@ -126,6 +127,9 @@ songs would put rows in the list that do nothing when tapped.
 | live | `lib/innertube/…/LiveMusicCatalogueTest` | albums, an album link, an artist, a radio's second batch — 4/4 on 2026-10-09 |
 | unit | `app/…/MusicRadioTest`, `MusicPlaysAsSoundTest`, `OneSongOneIdTest` | top-up, stop, no repeats offered; music routed and armed as sound; one id per song |
 | unit | `app/…/SearchViewModelTest` | the Music scope asks only music; global search never asks for albums or artists |
+| unit | `app/…/MusicFavouritesTest` | each write read back until the account shows it (a lagging read still counts), refusals, signed out, no playlist |
+| unit | `lib/innertube/…/HttpYouTubeActionsTest`, `HttpYouTubeMusicTest` | album save/remove requests; the liked count from the header, not a song titled "12 songs" |
+| instrumented | `app/…/MusicFavouritesScreensTest` | Save, Remove asking first, a refused save never showing Saved, Follow, the favourites section, Like from a song's menu |
 | unit | `app/…/AutoAdvancerTest`, `ShuffleUpNextTest`, `core/domain/…/OfflineCountTest` | repeat one / queue, shuffle, offline counts |
 
 `songs-search.json` is a real response trimmed to four rows with every field the parser reads left
