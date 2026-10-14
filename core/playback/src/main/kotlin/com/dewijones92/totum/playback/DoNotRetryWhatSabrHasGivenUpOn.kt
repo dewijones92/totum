@@ -46,16 +46,6 @@ internal class DoNotRetryWhatSabrHasGivenUpOn : DefaultLoadErrorHandlingPolicy()
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         if (loadErrorInfo.exception.isSabrGivingUp()) return C.TIME_UNSET
         val url = loadErrorInfo.loadEventInfo.uri.toString()
-        subtitleRefusalDelayMs(loadErrorInfo.exception.httpStatus(), url, loadErrorInfo.errorCount)?.let { wait ->
-            Vitals.add("subtitles.refused429")
-            Diag.warn(
-                "subtitles",
-                "YouTube refused the ${captionLanguage(url)} subtitles with 429 (too many requests, refusal " +
-                    "${loadErrorInfo.errorCount}); " +
-                    "asking again in ${wait / MS_PER_SECOND}s rather than every second, which only adds to the limit",
-            )
-            return wait
-        }
         val now = System.currentTimeMillis()
         val young = if (loadErrorInfo.exception.httpStatus() == HTTP_FORBIDDEN) {
             YoungStreamUrl.ageMs(url, now)?.let { YoungStreamUrl.window.refused(it, now) }
@@ -88,15 +78,6 @@ internal fun Throwable.httpStatus(): Int? {
 }
 
 private const val HTTP_FORBIDDEN = 403
-private const val HTTP_TOO_MANY_REQUESTS = 429
-private const val SUBTITLE_REFUSAL_STEP_MS = 30_000L
-private const val SUBTITLE_REFUSAL_MAX_MS = 120_000L
-private const val MS_PER_SECOND = 1_000L
-
-internal fun subtitleRefusalDelayMs(status: Int?, url: String, errorCount: Int): Long? {
-    if (status != HTTP_TOO_MANY_REQUESTS || "/api/timedtext" !in url) return null
-    return (SUBTITLE_REFUSAL_STEP_MS * errorCount.coerceAtLeast(1)).coerceAtMost(SUBTITLE_REFUSAL_MAX_MS)
-}
 
 internal fun captionLanguage(url: String): String {
     val lang = Regex("""[?&]lang=([^&]+)""").find(url)?.groupValues?.get(1) ?: "unnamed"

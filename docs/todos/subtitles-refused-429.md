@@ -1,7 +1,7 @@
 ---
 title: YouTube refuses subtitles with 429 for minutes at a time; the app hammered it and said nothing
 kind: todo
-status: back-off shipped 2026-10-14; the user-facing message and a second caption source are open
+status: a refusal now loads an empty subtitle (2026-10-14, evening); the on-screen message and a second source are open
 area: playback
 priority: high
 requested: 2026-10-13
@@ -32,11 +32,25 @@ afternoon, so the refusal comes and goes.
 
 ## Done (2026-10-14)
 
-`subtitleRefusalDelayMs` in `DoNotRetryWhatSabrHasGivenUpOn`: a 429 on `/api/timedtext` waits 30 s, then
-60 s, up to 120 s, instead of every second; logged as `[subtitles] YouTube refused the subtitles with 429 …`
-and counted in `subtitles.refused429`. Not "never retry": a subtitle period is lazy and its own source, and
-a fatal error there would end playback (see the 0.1.597 rewind notes, `UnaskedRewindGuard`).
+Morning: `subtitleRefusalDelayMs` made a 429 wait 30 s, 60 s, up to 120 s before asking again.
+
+Evening, reports `20261014T180612` and `20261014T181056` (*"English subs not working??"*, then *"it just
+buffering???"*): that back-off **froze the video**. While a side-loaded subtitle waits to retry, its period's
+next load position stays at the start point. Media3's `CompositeSequenceableLoader` only asks the loader at the
+lowest next load position, or one already behind playback, to continue; a progressive load pauses every 1 MB
+and waits to be asked. So the picture and sound stopped refilling. On a loopback server serving a 429 for the
+captions, a WAV stopped at exactly 6.0 s (1 MB) and never moved in 25 s.
+
+Now `RefusedSubtitlesLoadEmpty` (outermost data source, in `playbackSources`) answers a 429 from
+`/api/timedtext` with an empty subtitle file in the asked-for format, so the subtitle load finishes and the
+item plays on with no captions. Logged as `[subtitles] YouTube refused the … subtitles with 429 …; showing none
+for this item`, counted in `subtitles.refused429`. The back-off is gone. Tests:
+`ARefusedSubtitleDoesNotStarveThePlaybackTest` (device; red at 6000 ms before, 24.8 s and no rebuffer after),
 `SubtitleRefusalTest`.
+
+Separately, the refused track in those reports was a translation that should never have been offered: on a
+dubbed video `en` was Arabic translated to English, and the real `en-orig` (200 from the same network) lost
+to it. See `docs/features/subtitles.md`.
 
 ## Open
 

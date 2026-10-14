@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import android.app.PendingIntent
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -149,17 +150,7 @@ public class PlaybackService : MediaSessionService() {
     // and the annotation has to sit somewhere it understands.
     @UnstableApi
     private fun sourceFactory(): MergingAudioVideoFactory = cachedSourceFactory ?: run {
-        MergingAudioVideoFactory(
-            DefaultMediaSourceFactory(this).setLoadErrorHandlingPolicy(
-                DoNotRetryWhatSabrHasGivenUpOn(),
-            ).setDataSourceFactory(
-                // sabr:// URLs are served from a registered session; everything else goes through
-                // the ranged fetcher exactly as before, so the path that already works is untouched.
-                SabrDataSourceFactory(
-                    ChunkedDataSource.Factory(DefaultDataSource.Factory(this)),
-                ),
-            ),
-        ).also { cachedSourceFactory = it }
+        MergingAudioVideoFactory(playbackSources(this)).also { cachedSourceFactory = it }
     }
 
     /** Holds the first seconds of what is coming next; see [NextItemPreloader]. */
@@ -443,3 +434,15 @@ internal const val EXTRA_START_MS: String = "com.dewijones92.totum.START_MS"
 internal const val EXTRA_AUDIO_ONLY: String = "com.dewijones92.totum.AUDIO_ONLY"
 
 private const val MICROS_PER_MILLI = 1_000L
+
+// sabr:// URLs are served from a registered session; everything else goes through
+// the ranged fetcher exactly as before, so the path that already works is untouched.
+@UnstableApi
+internal fun playbackSources(context: Context): DefaultMediaSourceFactory =
+    DefaultMediaSourceFactory(context)
+        .setLoadErrorHandlingPolicy(DoNotRetryWhatSabrHasGivenUpOn())
+        .setDataSourceFactory(
+            RefusedSubtitlesLoadEmpty(
+                SabrDataSourceFactory(ChunkedDataSource.Factory(DefaultDataSource.Factory(context)))
+            ),
+        )
