@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-12
+updated: 2026-10-14
 ---
 
 # Testing
@@ -95,10 +95,6 @@ instead).
 | A played row is washed cyan and an unplayed one is not, in BOTH themes | instrumented | `:app` `PlayedRowIsTintedTest` — reads a pixel inside the card's top padding (it read the corner until rows became inset cards, 2026-09-25), because a test of the colour function stays green if the modifier is dropped. Mutation-proven both ways, and again after the move |
 | Nothing in the app truncates text | preflight (grep) | `tools/ci/preflight.py` — deliberately not a Compose test: a truncated `Text` reports its whole string to the semantics tree, so no text assertion can see it |
 | The truncation guard's own holes (a `"*/*"` literal blinding it, a second `Ellipsis` spelling, a count-based allowance) | python | `tools/ci/preflight_text_test.py` — the guard is the only thing enforcing the rule, so it is guarded too |
-| A queue drag stepping by the height of the row it CROSSES, with rows of different heights | JVM unit | `:app` `ReorderStateTest` — every earlier case made rows uniform by construction, which is why uncapping titles broke the drag invisibly |
-| The heights travelling WITH the rows (a drag down and back comes home; crossing into an unmeasured row does not double-move) | JVM unit | `:app` `ReorderStateTest` — the first three mixed-height cases are byte-identical with the swap deleted, so these two are what guard it |
-| Measurements for rows a shortened list no longer has being dropped | JVM unit | `:app` `ReorderStateTest` — the stale height must sit at exactly `itemCount`, the only index off the end a drag can reach; at index 4 with `itemCount = 2` the case passed with the prune deleted |
-| A mixed-height list still dragging sanely under a REAL gesture | instrumented | `:app` `ReorderAutoScrollTest` — **a smoke test, not a guard**: the shared-height mutant passes it, because which row measures last is not something a test controls |
 | A CHANNEL's rows surviving the v22 repair untouched | instrumented | `:core:database` `DownloadsMigrationTest` — both podcast tables hold channels too, and the episodes repair was scoped by nothing |
 | A restored subscription keeping its publisher | JVM unit | `:app` `BackupServiceTest` |
 | v22 repairing pre-existing podcast rows (and leaving video rows and orphaned episodes alone) | instrumented | `:core:database` `DownloadsMigrationTest` — `author` changed MEANING, so additive-only would have mislabelled every queued episode for ever |
@@ -112,10 +108,6 @@ instead).
 | Views + dates on a **page-2** feed video | JVM unit | `:app` `VideosPagingTest` — where "scrolled down" can actually break |
 | Views + dates crossing the media session | instrumented | `:app` `PlayerMetadataTest` — extras written but never read compile fine and deliver nothing |
 | Views + dates on a row 60 deep, the last row, and one scrolled back into view | instrumented | `:app` `ScrolledRowMetadataTest` |
-| A queue drag continuing the same item across swaps, reversals, and the list resizing | JVM unit | `:app` `ReorderStateTest` |
-| A queue drag surviving the list changing SIZE under it | instrumented | `:app` `ReorderAutoScrollTest` — `itemCount` was the gesture's second key; watched failing at 0 moves |
-| A queue drag surviving its own swaps | instrumented | `:app` `ReorderAutoScrollTest` — needs composition to settle BETWEEN pointer events; a frozen clock (every other case there) cannot see it, which is why a one-place-only drag shipped |
-| A queue drag of ten places in one motion | JVM unit | `:app` `ReorderStateTest` — the accumulator over distance. Deliberately NOT a gesture: that version failed on CI twice on screen size and frame timing while passing locally |
 | Views + dates surviving the **database** | instrumented | `:core:database` `ItemFactsSurviveStorageTest` — queue and history; the boundary where they were dying |
 
 | SABR carrying every content type it can | instrumented, live | `:app` `SabrPlaysAcrossVideoTypesTest` — five shapes through the real `SabrResolve` seam; 1080p30 VOD, 1080p25 kids, 480p30 on a 4K60 upload, live refused by name |
@@ -290,6 +282,10 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | The SABR request's playback rate is a float on the wire and a sticky resolution goes in fields 16/21 only when set | `VideoPlaybackAbrRequestTest` | every commit |
 | A queue row is removed from its ⋮ menu — exactly that row — and put back by Undo, with the playing item still playing; a swipe removes nothing | `QueueRemoveTest` (instrumented), `PlaybackQueueTest` | every commit — the swipe was withdrawn on 2026-09-15 after it twice removed several rows at once, so the gesture being inert is itself asserted |
 | A grip on the REAL queue screen drags its row, about one place per row of travel | `QueueRowDragTest` (instrumented) | every commit — `ReorderAutoScrollTest` drives a synthetic list, so nothing watched where `Modifier.reorderable` is attached in the screen itself, which is exactly what broke on cbf9916 |
+| The dragged row staying within 24dp of the finger across group headers (red on the hand-rolled drag at 88–90dp) | `QueueRowDragTest` (instrumented) | every commit — ADR 40; steps every frame, because skipping frames showed a spike the screen never draws |
+| A group header dragging its whole group; a drag held at the bottom scrolling past a screenful; a drag surviving the queue growing under it | `QueueRowDragTest` (instrumented) | every commit — the auto-scroll case caught a 1dp top spacer stalling the library's edge scroll |
+| Group menu: Move to top and Play next move the whole group; Shuffle the order of groups keeps each group together | `QueueGroupMenuTest` (instrumented) | every commit |
+| Group blocks, move to top/bottom/next, shuffle inside, shuffle order, and drag keys to queue moves | `:app` `QueueGroupMovesTest` (JVM) | every commit — pure functions in `queue/QueueGroupMoves.kt` and `queue/QueueDrag.kt` |
 | A stale Undo does not put an entry back that has since been queued again | `PlaybackQueueTest` | every commit — two rows under one LazyColumn key is a crash, not a cosmetic fault; found by an Astra review of the removal change |
 | The n-solver keeps yt-dlp's preprocessed player between solves and prunes old builds; answers are memoised per build | `SolverPlayerCacheTest` (Python, via preflight), `MemoisedNSolverTest` | every commit |
 | The SABR reader claims the header end time of what it holds contiguously, and re-asks the same time when an answer was spent on another format | `TheClaimFollowsTheHeadersNotTheByteRatioTest`, `AnAnswerSpentOnAnotherFormatIsNotAGapTest` | every commit |

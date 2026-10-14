@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-12
+updated: 2026-10-14
 ---
 
 # Playback queue
@@ -30,6 +30,17 @@ Tap a row to jump to it: the cursor moves there and nothing is reordered. The ro
 | Play next | Moves the row to just after the playing item |
 | Remove from queue | Removes it, with Undo in a snackbar |
 | Move to top / Move to bottom | Reorders it |
+
+**Dragging** (ADR 40): the ≡ grip drags a row; it follows the finger by the list's real positions, the other
+rows slide aside, and holding it at an edge scrolls. A group header's ≡ drags the **whole group** (it folds
+first). While any drag is in flight a split group's second header is hidden, so the layout cannot shift under
+the finger.
+
+**Groups** (ADR 40; Dewi, 2026-10-14: *"i want to be able to shuffle them and move them (just like any other
+queue item)"*): a group header's ⋮ has Play next, Move to top, Move to bottom, Shuffle this group and Remove
+these. A group moves as one block, gathered in order even if it had been split. The Queue header's 🔀 asks
+**Shuffle up next** or **Shuffle the order of groups** when up next has a group (each group stays together and
+in order). Neither touches what has played or what is playing.
 
 **Play now, then back to what's playing** (Dewi, 2026-09-26: *"an option on a queue item to move it
 in to the position of the current in play one? And the current in play one just moves down one

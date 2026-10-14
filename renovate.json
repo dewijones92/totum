@@ -9,13 +9,13 @@
     "dependencies"
   ],
   "schedule": [
-    "before 6am on monday"
+    "every weekend"
   ],
   "prConcurrentLimit": 5,
   "minimumReleaseAge": "3 days",
   "packageRules": [
     {
-      "description": "Auto-merge low-risk updates once CI (detekt/lint/test/kover/build) is green.",
+      "description": "Auto-merge low-risk updates once CI (detekt/lint/test/kover/build) is green. Renovate merges them itself (platformAutomerge off): main has no branch protection, so GitHub's auto-merge would not wait for CI.",
       "matchUpdateTypes": [
         "patch",
         "minor"
@@ -34,6 +34,18 @@
       "groupName": "gradle dependencies"
     },
     {
+      "description": "Media3 is the playback engine, and a playback change ships only after a soak against the build before it (CLAUDE.md) - so it gets its own PR and never auto-merges.",
+      "matchPackageNames": [
+        "androidx.media3**"
+      ],
+      "groupName": "media3",
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "needs-soak"
+      ]
+    },
+    {
       "description": "Group and auto-merge GitHub Actions bumps (also clears the Node 20 deprecation warnings).",
       "matchManagers": [
         "github-actions"
@@ -41,7 +53,7 @@
       "groupName": "github actions"
     },
     {
-      "description": "Kotlin and KSP must move in lockstep and can break builds \u2014 review manually.",
+      "description": "Kotlin and KSP must move in lockstep and can break builds — review manually.",
       "matchPackageNames": [
         "org.jetbrains.kotlin**",
         "com.google.devtools.ksp**"
@@ -50,21 +62,21 @@
       "automerge": false
     },
     {
-      "description": "AGP updates gate on compileSdk compatibility \u2014 review manually.",
+      "description": "AGP updates gate on compileSdk compatibility — review manually.",
       "matchPackageNames": [
         "com.android.**"
       ],
       "automerge": false
     },
     {
-      "description": "Chaquopy is pinned to the build-host Python minor (3.12) \u2014 review manually.",
+      "description": "Chaquopy is pinned to the build-host Python minor (3.12) — review manually.",
       "matchPackageNames": [
         "com.chaquo.python**"
       ],
       "automerge": false
     },
     {
-      "description": "Bumping a bundled binary means re-running its build script by hand and committing new .so files, which no CI job does \u2014 so these must never auto-merge.",
+      "description": "Bumping a bundled binary means re-running its build script by hand and committing new .so files, which no CI job does — so these must never auto-merge.",
       "matchDepNames": [
         "quickjs-ng/quickjs",
         "FFmpeg/FFmpeg"
@@ -78,7 +90,7 @@
   ],
   "customManagers": [
     {
-      "description": "QuickJS, cross-compiled by tools/quickjs. Its version is a shell variable that no built-in manager reads \u2014 which is how it sat on 0.10.1, a release yt-dlp warns is far too slow to solve its JS challenges (500s vs 8s).",
+      "description": "QuickJS, cross-compiled by tools/quickjs. Its version is a shell variable that no built-in manager reads — which is how it sat on 0.10.1, a release yt-dlp warns is far too slow to solve its JS challenges (500s vs 8s).",
       "customType": "regex",
       "managerFilePatterns": [
         "/^tools/quickjs/build-quickjs-android\\.sh$/"
@@ -102,5 +114,6 @@
       "datasourceTemplate": "github-tags",
       "extractVersionTemplate": "^n(?<version>.+)$"
     }
-  ]
+  ],
+  "platformAutomerge": false
 }

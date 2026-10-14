@@ -92,6 +92,10 @@
     </plurals>
     <string name="queue_remove_group">Remove these</string>
     <string name="queue_reorder">Drag to reorder</string>
+    <string name="queue_group_reorder">Drag %1$s to reorder</string>
+    <string name="queue_group_menu">More for %1$s</string>
+    <string name="queue_group_shuffle">Shuffle this group</string>
+    <string name="queue_shuffle_groups">Shuffle the order of groups</string>
     <string name="go_to_channel">Go to channel</string>
     <string name="go_to_podcast">Go to podcast</string>
     <string name="go_to_artist">Go to artist</string>

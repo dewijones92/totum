@@ -463,6 +463,8 @@ class PlaybackQueue(
         mutate("remove-group") { snapshot -> snapshot.removing { it.group?.id == groupId } }
     }
 
+    internal fun reorder(why: String, change: (QueueSnapshot) -> QueueSnapshot) = mutate(why, change)
+
     /** Reorders one entry, carrying the cursor with the entry it points at. */
     fun move(from: Int, to: Int) {
         mutate("move $from->$to") { snapshot ->

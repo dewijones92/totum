@@ -1,11 +1,10 @@
 package com.dewijones92.totum.ui.queue
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,12 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
@@ -40,8 +33,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,7 +50,14 @@ import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.unavailableOfflineNow
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.queue.GroupDestination
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.blocks
+import com.dewijones92.totum.queue.groupedBlockCount
+import com.dewijones92.totum.queue.moveGroup
+import com.dewijones92.totum.queue.queueGroupHeaderKey
+import com.dewijones92.totum.queue.shuffleGroup
+import com.dewijones92.totum.queue.shuffleGroupOrder
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
@@ -71,15 +71,14 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
-import com.dewijones92.totum.ui.common.ReorderState
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
-import com.dewijones92.totum.ui.common.rememberReorderState
-import com.dewijones92.totum.ui.common.reorderable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.ReorderableLazyListState
 
 /**
  * The queue: what is playing now and what follows, for both pillars at once.
@@ -113,6 +112,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 listState = listState,
                 listFilter = listFilter,
                 onShuffle = { queue.shuffleUpNext() }.takeIf { snapshot.upNext.size > 1 },
+                onShuffleGroups = shuffleGroupsOrNull(queue, snapshot.upNext),
             )
             if (entries.isEmpty()) {
                 EmptyState(
@@ -130,7 +130,6 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 // Survives rotation and process death: a collapsed 24-episode season staying
                 // collapsed is the entire point, and re-expanding on every return would undo it.
                 var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
-                val reorder = rememberReorderState(listState = listState, onMove = queue::move)
                 val actions = rememberQueueActions(
                     container = container,
                     queue = queue,
@@ -139,16 +138,10 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     collapsedGroups = collapsedGroups,
                     onCollapsedChange = { collapsedGroups = it },
                 )
+                val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
-                    listFilter,
-                    entries,
-                    downloads,
-                    container,
-                    snapshot.currentIndex,
-                    playing,
-                    listState,
-                    reorder,
-                    actions
+                    listFilter, entries, downloads, container, snapshot.currentIndex, playing, listState, reorder,
+                    actions,
                 )
             }
         }
@@ -187,6 +180,17 @@ private fun rememberRemoveWithUndo(
     }
 }
 
+private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
+    onToggle = { groups.toggle(id) },
+    onRemove = { onRemoveGroup(id) },
+    onMove = { onMoveGroup(id, it) },
+    onShuffle = { onShuffleGroup(id) },
+)
+
+private fun shuffleGroupsOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>): (() -> Unit)? = {
+    queue.shuffleGroupOrder()
+}.takeIf { upNext.groupedBlockCount() > 0 && upNext.blocks().size > 1 }
+
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
 @Composable
 private fun rememberQueueActions(
@@ -197,12 +201,16 @@ private fun rememberQueueActions(
     collapsedGroups: Set<String>,
     onCollapsedChange: (Set<String>) -> Unit,
 ): QueueActions {
+    val dragSession = rememberQueueDragSession()
     val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
     return QueueActions(
         onPlay = queue::jumpTo,
         onPlayInstead = { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } },
         onRemove = onRemove,
         onRemoveGroup = queue::removeGroup,
+        onMoveGroup = queue::moveGroup,
+        onShuffleGroup = { queue.shuffleGroup(it) },
+        dragSession = dragSession,
         onMove = queue::move,
         // A manual retry: the queue fetches audio by itself, but a failed
         // or skipped fetch otherwise leaves no way to ask again.
@@ -227,6 +235,9 @@ private data class QueueActions(
     /** Removal hands over the entry, because the snackbar's Undo needs to put it back. */
     val onRemove: (QueueEntry) -> Unit,
     val onRemoveGroup: (String) -> Unit,
+    val onMoveGroup: (String, GroupDestination) -> Unit,
+    val onShuffleGroup: (String) -> Unit,
+    val dragSession: QueueDragSession,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,
     val onDownloadVideo: (MediaItem) -> Unit,
@@ -281,10 +292,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
     entries: List<QueueEntry>,
     nowPlaying: NowPlaying,
     availability: QueueAvailability,
-    reorder: ReorderState,
+    reorder: ReorderableLazyListState,
     actions: QueueActions,
 ) {
     val groups = actions.groups
+    val blockCount = entries.blocks().size
+    val session = actions.dragSession
     entries.forEachIndexed { index, entry ->
         val group = entry.group
         val startsRun = group != null && entries.getOrNull(index - 1)?.group?.id != group.id
@@ -294,26 +307,51 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
         // So a collapsed group shows one header: the first run's.
         val isFirstRunOfGroup = group != null && entries.take(index).none { it.group?.id == group.id }
         val alreadyCollapsedAbove = group != null && groups.isCollapsed(group.id) && !isFirstRunOfGroup
-        if (startsRun && !alreadyCollapsedAbove) {
+        val splitHeaderMidDrag = !isFirstRunOfGroup && session.dragging
+        if (startsRun && !alreadyCollapsedAbove && !splitHeaderMidDrag) {
             val run = entries.filter { it.group?.id == group.id }
-            item(key = "group-$index-${group.id}") {
-                GroupHeader(
-                    groupId = group.id,
-                    isFirstRun = isFirstRunOfGroup,
-                    title = group.title,
-                    count = run.size,
-                    collapsed = groups.isCollapsed(group.id),
-                    containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
-                    onToggle = { groups.toggle(group.id) },
-                    onRemoveGroup = { actions.onRemoveGroup(group.id) },
-                )
+            val key = if (isFirstRunOfGroup) queueGroupHeaderKey(group.id) else "group-$index-${group.id}"
+            item(key = key) {
+                val header: @Composable (QueueRowDrag?) -> Unit = { drag ->
+                    GroupHeader(
+                        model = GroupHeaderModel(
+                            groupId = group.id,
+                            isFirstRun = isFirstRunOfGroup,
+                            title = group.title,
+                            count = run.size,
+                            collapsed = groups.isCollapsed(group.id),
+                            containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
+                            draggable = isFirstRunOfGroup && blockCount > 1,
+                        ),
+                        actions = actions.forGroup(group.id),
+                        drag = drag,
+                    )
+                }
+                if (isFirstRunOfGroup) {
+                    ReorderableItem(reorder, key, enabled = session.draggingGroup) { dragging ->
+                        header(QueueRowDrag(this, dragging, key, session))
+                    }
+                } else {
+                    header(null)
+                }
             }
         }
         // Hidden, not removed: the entry keeps its index, so reordering and "play this" still
         // address the same item once it is shown again.
         if (group != null && groups.isCollapsed(group.id)) return@forEachIndexed
-        item(key = entry.item.item.id.value) {
-            QueueRow(entry, index, entries, nowPlaying, availability, reorder, actions)
+        val key = entry.item.item.id.value
+        item(key = key) {
+            ReorderableItem(reorder, key) { dragging ->
+                QueueRow(
+                    entry,
+                    index,
+                    entries,
+                    nowPlaying,
+                    availability,
+                    QueueRowDrag(this, dragging, key, session),
+                    actions
+                )
+            }
         }
     }
 }
@@ -327,7 +365,7 @@ private fun FilterableQueue(
     currentIndex: Int,
     playing: PlaybackState?,
     listState: LazyListState,
-    reorder: ReorderState,
+    reorder: ReorderableLazyListState,
     actions: QueueActions,
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
@@ -345,13 +383,11 @@ private fun FilterableQueue(
         extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }) },
     ) {
         if (!listFilter.filtering) {
-            CompositionLocalProvider(LocalLongPressHeldElsewhere provides { reorder.gripHeld }) {
-                LazyColumn(
-                    state = listState,
-                    // The container has to be known for a drag held at an edge to scroll the list;
-                    // without it dragging still works, it just cannot reach past the screen.
-                    modifier = with(reorder) { Modifier.fillMaxSize().reorderContainer() },
-                ) {
+            CompositionLocalProvider(
+                LocalLongPressHeldElsewhere provides { actions.dragSession.grip.held },
+            ) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }
                     itemsWithGroupHeaders(
                         availability = availability,
                         entries = entries,
@@ -366,7 +402,7 @@ private fun FilterableQueue(
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
-                    QueueRow(entry, index, entries, nowPlaying, availability, reorder = null, actions = actions)
+                    QueueRow(entry, index, entries, nowPlaying, availability, drag = null, actions = actions)
                 }
             }
         }
@@ -398,44 +434,55 @@ private fun QueueRow(
     entries: List<QueueEntry>,
     nowPlaying: NowPlaying,
     availability: QueueAvailability,
-    reorder: ReorderState?,
+    drag: QueueRowDrag?,
     actions: QueueActions,
 ) {
     val media = entry.item.item
-    if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
-    val downloadState = availability.stateOf(media.id)
-    MediaItemRow(
-        item = media,
-        // Says why a row will be passed over, rather than leaving it to be discovered.
-        // It REPLACES the facts rather than joining them: "this will be skipped" is the
-        // only thing worth reading on a row you cannot play.
-        subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
-            listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
-        } else {
-            mediaItemFacts(media, entry.item.pillar, LocalNow.current)
-        },
-        // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
-        // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
-        modifier = reorder?.let { Modifier.reorderable(it, index) } ?: Modifier,
-        downloadState = downloadState,
-        pillar = entry.item.pillar,
-        onPlay = { actions.onPlay(index) },
-        onDownload = { actions.onDownload(media) },
-        onDeleteDownload = { actions.onDeleteDownload(media.id) },
-        onRemoveFromQueue = { actions.onRemove(entry) },
-        onPlayInsteadOfCurrent = { actions.onPlayInstead(entry) }
-            .takeIf { nowPlaying.index >= 0 && index != nowPlaying.index },
-        onAddToQueue = null,
-        onDownloadVideo = { actions.onDownloadVideo(media) },
-        onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
-        onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
-            .takeIf { index < entries.lastIndex },
-        trailing = reorder?.let { state ->
-            {
-                with(state) { DragHandle(modifier = Modifier.dragHandle(index, entries.size)) }
-            }
-        },
-    )
+    Column {
+        if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
+        val downloadState = availability.stateOf(media.id)
+        MediaItemRow(
+            item = media,
+            // Says why a row will be passed over, rather than leaving it to be discovered.
+            // It REPLACES the facts rather than joining them: "this will be skipped" is the
+            // only thing worth reading on a row you cannot play.
+            subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
+                listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
+            } else {
+                mediaItemFacts(media, entry.item.pillar, LocalNow.current)
+            },
+            // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
+            // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
+            modifier = Modifier.graphicsLayer {
+                val lifted = drag?.isDragging == true
+                shadowElevation = if (lifted) DRAG_ELEVATION else 0f
+                scaleX = if (lifted) DRAG_SCALE else 1f
+                scaleY = scaleX
+            },
+            downloadState = downloadState,
+            pillar = entry.item.pillar,
+            onPlay = { actions.onPlay(index) },
+            onDownload = { actions.onDownload(media) },
+            onDeleteDownload = { actions.onDeleteDownload(media.id) },
+            onRemoveFromQueue = { actions.onRemove(entry) },
+            onPlayInsteadOfCurrent = { actions.onPlayInstead(entry) }
+                .takeIf { nowPlaying.index >= 0 && index != nowPlaying.index },
+            onAddToQueue = null,
+            onDownloadVideo = { actions.onDownloadVideo(media) },
+            onMoveToTop = { actions.onMove(index, 0) }.takeIf { index > 0 },
+            onMoveToBottom = { actions.onMove(index, entries.lastIndex) }
+                .takeIf { index < entries.lastIndex },
+            trailing = drag?.let { row ->
+                {
+                    QueueDragHandle(
+                        row,
+                        stringResource(R.string.queue_reorder),
+                        Modifier.testTag(queueRowGripTag(media.id.value)),
+                    )
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -459,15 +506,12 @@ private fun QueueHeader(
     listState: LazyListState,
     listFilter: ListFilter,
     onShuffle: (() -> Unit)? = null,
+    onShuffleGroups: (() -> Unit)? = null,
 ) {
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             FilterToggle(listFilter, count)
-            onShuffle?.let { shuffle ->
-                IconButton(onClick = shuffle) {
-                    Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.queue_shuffle_up_next))
-                }
-            }
+            onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
             if (count > 0) {
                 TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
             }
@@ -518,90 +562,10 @@ private fun NowPlayingLabel(progress: Float?, isPlaying: Boolean) {
     }
 }
 
-/** The header over a run of entries that arrived together. */
-@Composable
-private fun GroupHeader(
-    groupId: String,
-    /** Whether this is the group's FIRST run; only that one is tagged, so the tag stays unique. */
-    isFirstRun: Boolean,
-    title: String,
-    /** How many entries this run holds — the point of collapsing is to know without seeing. */
-    count: Int,
-    collapsed: Boolean,
-    /** Whether the item playing right now is inside this run; said so a collapse cannot hide it. */
-    containsNowPlaying: Boolean,
-    onToggle: () -> Unit,
-    onRemoveGroup: () -> Unit,
-) {
-    val expandOrCollapse = stringResource(
-        if (collapsed) R.string.queue_group_expand_action else R.string.queue_group_collapse_action,
-    )
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            // The whole header toggles, not just the chevron: a 24dp target for something this
-            // routine would be a worse version of the drag handle problem.
-            .clickable(onClickLabel = expandOrCollapse, onClick = onToggle)
-            // Tagged because a UI test cannot otherwise reach this reliably: merged semantics
-            // combine TEXT but not ACTIONS, so the node carrying the title has no click, and a
-            // coordinate tap on the first row of a lazy list does not land.
-            .then(if (isFirstRun) Modifier.testTag(queueGroupHeaderTag(groupId)) else Modifier)
-            .padding(start = 16.dp, end = 8.dp, top = 12.dp),
-    ) {
-        Icon(
-            imageVector = if (collapsed) Icons.Filled.ChevronRight else Icons.Filled.ExpandMore,
-            contentDescription = stringResource(
-                if (collapsed) R.string.queue_group_expand else R.string.queue_group_collapse,
-                title,
-            ),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            // Only when collapsed: expanded, the rows are right there and a count is noise.
-            if (collapsed) {
-                Text(
-                    text = if (containsNowPlaying) {
-                        pluralStringResource(R.plurals.queue_group_hidden_playing, count, count)
-                    } else {
-                        pluralStringResource(R.plurals.queue_group_hidden, count, count)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        TextButton(onClick = onRemoveGroup) { Text(stringResource(R.string.queue_remove_group)) }
-    }
-}
-
-/** The grip to long-press and drag. Removal lives in the row's ⋮ menu, beside the move actions. */
-@Composable
-private fun DragHandle(modifier: Modifier) {
-    Icon(
-        Icons.Filled.DragHandle,
-        contentDescription = stringResource(R.string.queue_reorder),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(horizontal = 8.dp),
-    )
-}
-
 private val PROGRESS_HEIGHT = 2.dp
-
-/**
- * The header row for one RUN of a queue group, so a UI test can toggle exactly the one it means.
- *
- * Only the group's FIRST header carries it. A group is not necessarily contiguous — queueing
- * something else mid-season splits it, and each part draws its own header when expanded — so
- * tagging every one produced duplicate tags and a test that could not say which it meant.
- * Caught by CI rather than locally, where the split happened to lay out differently.
- */
-internal fun queueGroupHeaderTag(groupId: String): String = "queue-group-header-$groupId"
+private const val DRAG_ELEVATION = 12f
+private const val QUEUE_TOP_KEY = "queue-top"
+private const val DRAG_SCALE = 1.02f
 
 /**
  * How much of the queue is playable with no signal.

@@ -1,7 +1,7 @@
 ---
 title: Queue groups move and shuffle like items
 kind: todo
-status: open — agreed with Dewi 2026-10-14; in the 2026-10-14 batch
+status: built 2026-10-14 → ADR 40, docs/features/playback-queue.md
 area: queue
 priority: high
 requested: 2026-10-14
@@ -19,3 +19,6 @@ like any other queue item)"*.
 - The group header's menu gains **Move to top**, **Move to bottom** and **Play next**.
 - **Shuffle inside a group** from its header; and a way to **shuffle the order of the groups** themselves.
 - Both pillars; one queue operation per action, logged with the group, its size and where it went.
+
+Also in the same change (Dewi, 2026-10-14: *"make the drag (in queue page) far more usable - maybe rewrite it"*):
+the whole queue drag moved to the Reorderable library; see ADR 40.
