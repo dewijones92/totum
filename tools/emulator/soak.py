@@ -149,6 +149,15 @@ def cold_start(args):
     time.sleep(args.warm_up)
 
 
+def keep_log(out, n, video, attempt, events):
+    folder = os.path.splitext(out)[0] + ".logs"
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, f"{n:02d}-{video}-pass{attempt}.log")
+    with open(path, "w") as f:
+        f.writelines(f"{stamp} [{tag}] {message}\n" for stamp, tag, message in events)
+    return path
+
+
 def run(args):
     facts = preflight()
     print(f"device {facts['serial']} app {facts['version']} signedIn={facts['signedIn']} "
@@ -163,8 +172,10 @@ def run(args):
         play_link(video)
         wait_for_start(video, args.start_timeout)
         time.sleep(args.hold)
-        row = measure(video, trail())
+        events = trail()
+        row = measure(video, events)
         row["attempt"] = attempt
+        row["log"] = keep_log(args.out, n, video, attempt, events)
         row["verdict"] = verdict(row, args.start_budget_ms)
         rows.append(row)
         print(f"{time.strftime('%T')}   -> {row['verdict']} sound={row['soundMs']} video={row['videoDecoded']} "
