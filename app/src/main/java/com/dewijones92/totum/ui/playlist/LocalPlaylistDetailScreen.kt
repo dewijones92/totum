@@ -38,12 +38,11 @@ import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ListFilter
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.rowFacts
 
 /** One local playlist: Play all, play from an item, remove items, rename/delete. */
 @Composable
@@ -132,7 +131,7 @@ private fun PlaylistBody(
                     val media = playlistItem.item
                     MediaItemRow(
                         item = media,
-                        subtitleLines = mediaItemFacts(media, playlistItem.pillar, LocalNow.current),
+                        subtitleLines = rowFacts(media, playlistItem.pillar),
                         downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
                         pillar = playlistItem.pillar,
                         onPlay = { viewModel.playFrom(playlistItem) },

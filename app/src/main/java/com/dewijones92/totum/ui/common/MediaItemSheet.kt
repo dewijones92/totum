@@ -123,6 +123,7 @@ internal fun ActionSheet(
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
             SongLikeAction(extras.songId, title, onDismiss)
             PinSheetActions(pins, extras.pin, onDismiss)
+            extras.item?.let { DetailsSection(it) }
             SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
             SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
             SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)

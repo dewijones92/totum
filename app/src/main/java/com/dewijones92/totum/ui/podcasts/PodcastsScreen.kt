@@ -48,7 +48,6 @@ import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FilterToggle
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.PodcastFeedSaver
@@ -60,9 +59,9 @@ import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
 @Composable
@@ -235,7 +234,7 @@ private fun SubscriptionsAndEpisodes(
             items(shown, key = { it.id.value }) { episode ->
                 MediaItemRow(
                     item = episode,
-                    subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
+                    subtitleLines = rowFacts(episode, MediaKind.PODCAST),
                     downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                     pillar = MediaKind.PODCAST,
                     onPlay = { onPlayEpisode(episode) },

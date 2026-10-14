@@ -73,6 +73,8 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.SkipNextButton
+import com.dewijones92.totum.ui.common.SkipPreviousButton
 import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
 import com.dewijones92.totum.ui.player.WatchViewModel.PostState
@@ -174,31 +176,33 @@ fun FullPlayerOverlay(
                 onSeekForward = onSeekForward,
             )
         } else {
-            DraggablePlayerContent(
-                state = state,
-                videoPlayer = videoPlayer,
-                comments = comments,
-                replies = replies,
-                related = related,
-                watchActions = watchActions,
-                quality = quality,
-                sleepTimer = sleepTimer,
-                queue = queue,
-                onEnterFullscreen = { fullscreenMode = FullscreenMode.MANUAL },
-                onDismiss = onDismiss,
-                onPlayRelated = onPlayRelated,
-                onStartSleep = onStartSleep,
-                onStopSleepAfterItem = onStopSleepAfterItem,
-                onCancelSleep = onCancelSleep,
-                onTogglePlayPause = onTogglePlayPause,
-                onSeekTo = onSeekTo,
-                onSeekBackward = onSeekBackward,
-                onSeekForward = onSeekForward,
-                onSetSpeed = onSetSpeed,
-                onSetSubtitleLanguage = onSetSubtitleLanguage,
-                onMore = onMore,
-                toggles = toggles,
-            )
+            IdleBlackout(active = videoPlayer != null && state.isPlaying) {
+                DraggablePlayerContent(
+                    state = state,
+                    videoPlayer = videoPlayer,
+                    comments = comments,
+                    replies = replies,
+                    related = related,
+                    watchActions = watchActions,
+                    quality = quality,
+                    sleepTimer = sleepTimer,
+                    queue = queue,
+                    onEnterFullscreen = { fullscreenMode = FullscreenMode.MANUAL },
+                    onDismiss = onDismiss,
+                    onPlayRelated = onPlayRelated,
+                    onStartSleep = onStartSleep,
+                    onStopSleepAfterItem = onStopSleepAfterItem,
+                    onCancelSleep = onCancelSleep,
+                    onTogglePlayPause = onTogglePlayPause,
+                    onSeekTo = onSeekTo,
+                    onSeekBackward = onSeekBackward,
+                    onSeekForward = onSeekForward,
+                    onSetSpeed = onSetSpeed,
+                    onSetSubtitleLanguage = onSetSubtitleLanguage,
+                    onMore = onMore,
+                    toggles = toggles,
+                )
+            }
         }
     }
 }
@@ -681,6 +685,7 @@ internal fun TransportControls(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        SkipPreviousButton(Modifier.size(56.dp), size = 32.dp)
         IconButton(onClick = onSeekBackward, modifier = Modifier.size(56.dp)) {
             Icon(
                 Icons.Filled.Replay10,
@@ -691,7 +696,7 @@ internal fun TransportControls(
         FilledIconButton(
             onClick = onTogglePlayPause,
             modifier = Modifier
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 12.dp)
                 .size(72.dp),
         ) {
             val icon = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow
@@ -705,6 +710,7 @@ internal fun TransportControls(
                 modifier = Modifier.size(36.dp),
             )
         }
+        SkipNextButton(Modifier.size(56.dp), size = 32.dp)
     }
 }
 

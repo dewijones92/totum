@@ -14,11 +14,16 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.channel.fake.FakeYouTubeChannel
 import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.LastShuffleChoice
+import com.dewijones92.totum.ui.common.RANDOM_STARTS_TAG
 import com.dewijones92.totum.ui.common.SHUFFLE_ALL_TAG
+import com.dewijones92.totum.ui.common.SHUFFLE_ASK_GO_TAG
 import com.dewijones92.totum.ui.common.ShuffleAllAction
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class ShuffleAllActionTest {
 
@@ -88,7 +93,7 @@ class ShuffleAllActionTest {
     }
 
     @Test
-    fun aPodcastShufflesStraightAwayWithNoQuestion() {
+    fun aPodcastAsksNoShortsQuestionOnlyWhetherToStartAtRandom() {
         val episodes = listOf("e1", "e2", "e3").map { id ->
             MediaItem(
                 id = MediaItemId(id),
@@ -105,7 +110,32 @@ class ShuffleAllActionTest {
         composeTestRule.onNodeWithTag(SHUFFLE_ALL_TAG).performClick()
 
         composeTestRule.onNodeWithText("Include Shorts?").assertDoesNotExist()
+        composeTestRule.onNodeWithTag(SHUFFLE_ASK_GO_TAG).performClick()
         composeTestRule.waitUntil(5_000) { queued(container).size == 3 }
         assertEquals(setOf("shuffle:podcast:pod"), queued(container).map { it.second }.toSet())
+    }
+
+    @Test
+    fun tickingRandomStartsGivesEveryShuffledEpisodeARandomStartingPoint() {
+        val episodes = listOf("e1", "e2").map { id ->
+            MediaItem(
+                id = MediaItemId(id),
+                sourceId = feed.id,
+                title = id,
+                publishedAt = null,
+                duration = 30.minutes,
+                mediaUrl = HttpUrl.of("https://example.com/$id.mp3"),
+            )
+        }
+        val container = FakeAppContainer(podcastRepository = FakePodcastRepository(initialEpisodes = episodes))
+        show(container, ShuffleTarget("podcast:pod", "A podcast", listOf(feed)))
+
+        composeTestRule.onNodeWithTag(SHUFFLE_ALL_TAG).performClick()
+        composeTestRule.onNodeWithTag(RANDOM_STARTS_TAG).performClick()
+        composeTestRule.onNodeWithTag(SHUFFLE_ASK_GO_TAG).performClick()
+
+        composeTestRule.waitUntil(5_000) { queued(container).size == 2 }
+        assertTrue(episodes.all { container.randomStarts.peek(it.id) != null })
+        LastShuffleChoice.randomStarts = false
     }
 }

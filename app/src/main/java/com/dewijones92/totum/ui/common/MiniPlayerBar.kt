@@ -68,6 +68,7 @@ fun MiniPlayerBar(
                 ArtworkWithPillarBadge(state)
                 NowPlayingText(state, modifier = Modifier.weight(1f))
                 SwitchListeningButton("mini player")
+                if (onSkipNext != null) SkipPreviousButton()
                 // The bar is where you spend most of the time, and it was the one
                 // surface that showed nothing while stalled — so a stall here was
                 // indistinguishable from the app simply having stopped.

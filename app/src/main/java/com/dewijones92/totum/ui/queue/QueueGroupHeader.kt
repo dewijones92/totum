@@ -32,6 +32,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.music.RADIO_GROUP_PREFIX
 import com.dewijones92.totum.queue.GroupDestination
 
 internal data class GroupHeaderModel(
@@ -42,7 +43,10 @@ internal data class GroupHeaderModel(
     val collapsed: Boolean,
     val containsNowPlaying: Boolean,
     val draggable: Boolean,
-)
+    val downloading: Boolean = true,
+) {
+    val endless: Boolean get() = groupId.startsWith(RADIO_GROUP_PREFIX)
+}
 
 internal data class GroupHeaderActions(
     val onToggle: () -> Unit,
@@ -50,6 +54,7 @@ internal data class GroupHeaderActions(
     val onMove: (GroupDestination) -> Unit,
     val onShuffle: () -> Unit,
     val onShuffleAndPlay: () -> Unit,
+    val onSetDownload: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -118,6 +123,14 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
+        if (model.endless) {
+            Text(
+                text = stringResource(R.string.queue_group_endless),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag(QUEUE_GROUP_ENDLESS_TAG),
+            )
+        }
         if (model.collapsed) {
             Text(
                 text = if (model.containsNowPlaying) {
@@ -148,6 +161,11 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
             MenuItem(R.string.queue_move_to_top, close) { actions.onMove(GroupDestination.TOP) }
             MenuItem(R.string.queue_move_to_bottom, close) { actions.onMove(GroupDestination.BOTTOM) }
             if (model.count > 1) MenuItem(R.string.queue_group_shuffle, close, actions.onShuffle)
+            if (model.downloading) {
+                MenuItem(R.string.queue_group_stop_download, close) { actions.onSetDownload(false) }
+            } else {
+                MenuItem(R.string.queue_group_download, close) { actions.onSetDownload(true) }
+            }
             MenuItem(R.string.queue_remove_group, close, actions.onRemove)
         }
     }
@@ -189,3 +207,5 @@ internal fun queueRowGripTag(itemId: String): String = "queue-grip-$itemId"
 internal fun queueGroupHandleTag(groupId: String): String = "queue-group-handle-$groupId"
 
 private const val DRAG_ELEVATION = 12f
+
+internal const val QUEUE_GROUP_ENDLESS_TAG = "queue-group-endless"

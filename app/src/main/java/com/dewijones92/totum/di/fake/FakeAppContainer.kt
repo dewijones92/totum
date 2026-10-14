@@ -76,6 +76,7 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
 import com.dewijones92.totum.music.AccountFollows
+import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
@@ -89,8 +90,10 @@ import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.fake.FakePlaybackController
+import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.shuffle.AppSourcePages
@@ -196,6 +199,7 @@ class FakeAppContainer(
             playbackQueue,
             recentActions,
             statsLog,
+            randomStarts,
         )
     }
 
@@ -203,6 +207,9 @@ class FakeAppContainer(
 
     override val recentActions: RecentActions = RecentActions()
     override val statsLog: StatsLog = StatsLog(null, applicationScope)
+    override val groupDownloads: GroupDownloads = GroupDownloads(null, applicationScope)
+    override val albumYears: AlbumYears by lazy { AlbumYears(musicCatalogue, applicationScope, null) }
+    override val randomStarts: RandomStarts by lazy { RandomStarts(playbackProgressStore, null, applicationScope) }
 
     override val pinPlayer: PinPlayer by lazy {
         PinPlayer(

@@ -83,6 +83,8 @@ public class Media3PlaybackController(
 
     private val _switchRequests = MutableSharedFlow<String>(extraBufferCapacity = EVENT_BUFFER)
     override val switchRequests: Flow<String> = _switchRequests.asSharedFlow()
+    private val _skipRequests = MutableSharedFlow<SkipDirection>(extraBufferCapacity = EVENT_BUFFER)
+    override val skipRequests: Flow<SkipDirection> = _skipRequests.asSharedFlow()
 
     private var controller: MediaController? = null
     override val player: Player? get() = controller
@@ -587,6 +589,17 @@ public class Media3PlaybackController(
             command: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            if (command.customAction == ACTION_QUEUE_SKIP_REQUEST) {
+                val direction = args.getString(EXTRA_SKIP_DIRECTION)
+                    ?.let { name -> SkipDirection.entries.firstOrNull { it.name == name } }
+                    ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
+                val from = args.getString(EXTRA_SKIP_FROM) ?: "the session"
+                Diag.log(
+                    "queue",
+                    "queue $direction requested from $from; delivered=${_skipRequests.tryEmit(direction)}"
+                )
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (command.customAction != ACTION_SWITCH_LISTENING) {
                 return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
             }

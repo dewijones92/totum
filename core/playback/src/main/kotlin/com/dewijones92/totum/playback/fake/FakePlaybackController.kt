@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.StreamFailure
 import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,8 @@ public class FakePlaybackController : PlaybackController {
 
     private val switches = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val switchRequests: Flow<String> = switches
+    public val skips: MutableSharedFlow<SkipDirection> = MutableSharedFlow(extraBufferCapacity = 8)
+    override val skipRequests: Flow<SkipDirection> = skips
 
     public var switchButton: Listening? = null
         private set

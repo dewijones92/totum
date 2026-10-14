@@ -39,9 +39,11 @@ import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
+import com.dewijones92.totum.ui.common.LocalQueueSkip
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.OutOfDateBanner
 import com.dewijones92.totum.ui.common.ProvidePlayStates
+import com.dewijones92.totum.ui.common.QueueSkip
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
@@ -58,6 +60,7 @@ import com.dewijones92.totum.ui.player.playerLinksFor
 import com.dewijones92.totum.ui.player.rememberIsInPictureInPicture
 import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
+import com.dewijones92.totum.ui.queue.GroupDownloadAsk
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
@@ -95,14 +98,10 @@ fun AppShell(
     val controller = container.playbackController
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
 
-    // Unconditional, and above everything: a dialog that waits for a playback state is a dialog
-    // that opens over a playing video and pauses it.
-    askForNotifications()
+    ShellPrompts(container, askForNotifications)
     // The stage reports where the picture is, so the system animates from it rather
     // than cross-fading the whole app into the floating window.
     val videoBounds = remember { VideoBounds() }
-    // The mini player's skip is a UI gesture; the advance itself is app-scoped elsewhere.
-    val skipScope = rememberCoroutineScope()
     val inPip = floatingWindowState(playbackState, controller, videoBounds)
     WatchBindings(playbackState, watchViewModel)
 
@@ -119,6 +118,7 @@ fun AppShell(
 
     CompositionLocalProvider(
         LocalVideoBounds provides videoBounds,
+        LocalQueueSkip provides rememberQueueSkip(container),
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides { showFullPlayer = true },
         LocalOpenSearch provides tabs.searchOpener(over = selected),
@@ -140,7 +140,7 @@ fun AppShell(
                             controller::togglePlayPause,
                             onExpand = { showFullPlayer = true },
                             onSelect = tabs.choosing { selected = it },
-                            onSkipNext = { skipScope.launch { container.playbackQueue.playNextInQueue() } },
+                            onSkipNext = LocalQueueSkip.current?.next ?: {},
                         )
                     },
                 ) { innerPadding ->
@@ -416,4 +416,23 @@ private fun FloatingVideo(state: PlaybackState?, player: androidx.media3.common.
             )
         }
     }
+}
+
+@Composable
+private fun rememberQueueSkip(container: AppContainer): QueueSkip {
+    val scope = rememberCoroutineScope()
+    return remember(container) {
+        QueueSkip(
+            previous = { scope.launch { container.playbackQueue.playPreviousInQueue() } },
+            next = { scope.launch { container.playbackQueue.playNextInQueue() } },
+        )
+    }
+}
+
+@Composable
+private fun ShellPrompts(container: AppContainer, askForNotifications: @Composable () -> Unit) {
+    // Unconditional, and above everything: a dialog that waits for a playback state is a dialog
+    // that opens over a playing video and pauses it.
+    askForNotifications()
+    GroupDownloadAsk(container)
 }

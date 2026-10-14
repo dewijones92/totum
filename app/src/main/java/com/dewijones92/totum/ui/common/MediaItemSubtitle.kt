@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PublishedAge
@@ -27,16 +28,33 @@ import kotlin.time.Duration
  * Duration is deliberately NOT here — it rides on the thumbnail corner, where nothing can truncate
  * it and it costs no vertical space. His call when choosing this layout.
  */
-fun mediaItemFacts(item: MediaItem, pillar: MediaKind, now: Instant = Instant.now()): List<String> = mediaFacts(
-    author = item.author,
-    publisher = item.publisher,
-    dateText = mediaDateText(item.publishedText, item.publishedAt, now),
-    viewsText = item.viewsText,
-    // Which badge the maker gets. [pillar] is PASSED, not inferred from the URL — every caller
-    // already knows it exactly (it hands the same value to `MediaItemRow` on the next line), and
-    // `MediaItem.pillar` is documented as a guess for items that have no handle yet. Re-deriving
-    // it here would put back the second rule that a Shorts URL once fell down the gap between.
-    authorEmoji = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL,
+fun mediaItemFacts(
+    item: MediaItem,
+    pillar: MediaKind,
+    now: Instant = Instant.now(),
+    albumYear: String? = null,
+): List<String> = if (item.contentKind == MediaContentKind.MUSIC) {
+    songFacts(item, now, albumYear)
+} else {
+    mediaFacts(
+        author = item.author,
+        publisher = item.publisher,
+        dateText = mediaDateText(item.publishedText, item.publishedAt, now),
+        viewsText = item.viewsText,
+        // Which badge the maker gets. [pillar] is PASSED, not inferred from the URL — every caller
+        // already knows it exactly (it hands the same value to `MediaItemRow` on the next line), and
+        // `MediaItem.pillar` is documented as a guess for items that have no handle yet. Re-deriving
+        // it here would put back the second rule that a Shorts URL once fell down the gap between.
+        authorEmoji = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL,
+    )
+}
+
+fun songFacts(item: MediaItem, now: Instant = Instant.now(), albumYear: String? = null): List<String> = listOfNotNull(
+    item.author.labelled(FactEmoji.ARTIST),
+    item.album?.title?.let { title -> listOfNotNull(title, albumYear).joinToString(" · ") }.labelled(FactEmoji.ALBUM),
+    item.viewsText.labelled(FactEmoji.VIEWS),
+    (mediaDateText(item.publishedText, item.publishedAt, now) ?: albumYear.takeIf { item.album == null })
+        .labelled(FactEmoji.PUBLISHED),
 )
 
 /**

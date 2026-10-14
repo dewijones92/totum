@@ -94,8 +94,15 @@ class ArtistSongsViewModel(
         "from ${fromIndex + 1}"
     )
 
-    fun shuffle(onDone: (Int) -> Unit) {
-        appScope.launch { onDone(artistShuffle.shuffleAll(ArtistSongs(page.artist, page.listing, artUrl = null))) }
+    fun shuffle(startAtRandom: Boolean, onDone: (Int) -> Unit) {
+        appScope.launch {
+            onDone(
+                artistShuffle.shuffleAll(
+                    ArtistSongs(page.artist, page.listing, artUrl = null),
+                    startAtRandom = startAtRandom
+                ),
+            )
+        }
     }
 
     private fun playAll(songs: List<MusicSong>, how: String) {

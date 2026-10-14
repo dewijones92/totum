@@ -23,6 +23,7 @@ import com.dewijones92.totum.music.toPlayable
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.MusicPage
@@ -44,6 +45,7 @@ class MusicAlbumViewModel(
     private val appScope: CoroutineScope,
     private val recent: RecentActions? = null,
     private val stats: StatsLog? = null,
+    private val randomStarts: RandomStarts? = null,
 ) : ViewModel() {
 
     sealed interface State {
@@ -109,10 +111,12 @@ class MusicAlbumViewModel(
         loaded.remember(shuffled = false)
     }
 
-    fun shuffle() {
+    fun shuffle(startAtRandom: Boolean = false) {
         val loaded = _state.value as? State.Loaded ?: return
         Diag.log("music", "shuffle album \"${loaded.album.title}\": ${loaded.tracks.size} inserted after current")
-        queue.playAll(loaded.playables().shuffled(), loaded.group())
+        val shuffled = loaded.playables().shuffled()
+        if (startAtRandom) randomStarts?.assign(shuffled.map { it.item }, "album \"${loaded.album.title}\"")
+        queue.playAll(shuffled, loaded.group())
         stats?.use(UseKind.SHUFFLE, "album")
         loaded.remember(shuffled = true)
     }
@@ -163,6 +167,7 @@ class MusicAlbumViewModel(
                     container.applicationScope,
                     container.recentActions,
                     container.statsLog,
+                    container.randomStarts,
                 )
             }
         }

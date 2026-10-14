@@ -45,7 +45,9 @@ import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.TrackLikeHeart
+import com.dewijones92.totum.ui.common.rememberShuffleAsk
 
 @Composable
 fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () -> Unit) {
@@ -67,8 +69,9 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
                 item { AlbumHeader(current.album) }
                 item {
                     val save = rememberAlbumSave(container.musicFavourites, container.applicationScope, current.album)
+                    val ask = rememberShuffleAsk()
                     MusicButtons(
-                        albumButtons(current.album, viewModel, context, offline) +
+                        albumButtons(current.album, viewModel, context, offline, ask) +
                             listOfNotNull(save?.saveButton()) +
                             pinButtons(current.album.asPin()),
                     )
@@ -142,13 +145,14 @@ private fun albumButtons(
     viewModel: MusicAlbumViewModel,
     context: Context,
     offline: OfflineCount,
+    ask: ShuffleAsk,
 ): List<MusicButton> =
     listOfNotNull(
         MusicButton(R.string.music_play, Icons.Filled.PlayArrow, primary = true) {
             viewModel.play()
             toast(context, context.getString(R.string.music_album_queued, album.title))
         },
-        MusicButton(R.string.music_shuffle, Icons.Filled.Shuffle) { viewModel.shuffle() },
+        MusicButton(R.string.music_shuffle, Icons.Filled.Shuffle) { ask { viewModel.shuffle(it) } },
         MusicButton(R.string.music_add_to_end, Icons.AutoMirrored.Filled.QueueMusic) {
             viewModel.addToEnd()
             toast(context, context.getString(R.string.music_album_added, album.title))

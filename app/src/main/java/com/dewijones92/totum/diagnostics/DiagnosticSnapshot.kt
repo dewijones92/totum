@@ -8,6 +8,7 @@ import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.pathTaken
+import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.settings.AppPreferences
@@ -39,6 +40,7 @@ internal class DiagnosticSnapshot(
         val isMetered: () -> Boolean,
         val exsurge: () -> Map<String, String> = { emptyMap() },
         val appUpdate: () -> Map<String, String> = { emptyMap() },
+        val groupDownloads: () -> GroupDownloads? = { null },
     )
 
     fun capture(): Map<String, String> = buildMap {
@@ -146,8 +148,17 @@ internal class DiagnosticSnapshot(
             entries.map { it.item.item.id },
             stateOf = { id -> states[id] ?: DownloadState.NotDownloaded },
             fetchedAutomatically = { id ->
-                byId[id]?.item?.hasAudioOnlyFetch ?: true
+                byId[id]?.let { entry ->
+                    live.groupDownloads()?.fetchesAutomatically(entry) ?: entry.item.hasAudioOnlyFetch
+                } ?: true
             },
+        )
+        val choices = live.groupDownloads()?.choices?.value.orEmpty()
+        put(
+            "downloads.groups",
+            choices.entries.joinToString(" | ") { (id, choice) ->
+                "$id=$choice (${entries.count { it.group?.id == id }})"
+            }.ifEmpty { "none" },
         )
         put("downloads.queueReady", readiness.ready.toString())
         put("downloads.queueDownloading", readiness.downloading.toString())

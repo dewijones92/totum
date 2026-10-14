@@ -60,3 +60,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 42 | [One tap switches between music and talk, within the queue](0042-one-tap-switches-between-music-and-talk.md) | Accepted |
 | 43 | [Every state string starts with an emoji, and nothing spoken carries one](0043-every-state-string-starts-with-an-emoji.md) | Accepted |
 | 44 | [Stats are an append-only event log, aggregated when the page opens](0044-stats-are-an-append-only-event-log.md) | Accepted |
+| 45 | [A group asks before it downloads](0045-a-group-asks-before-it-downloads.md) | Accepted |
+| 46 | [A shuffle can start each item at a random point](0046-a-shuffle-can-start-each-item-at-a-random-point.md) | Accepted |
+| 47 | [Next and previous in the queue, everywhere the player is](0047-next-and-previous-everywhere.md) | Accepted |
+| 48 | [The video page goes black when left alone](0048-the-video-page-goes-black-when-left-alone.md) | Accepted |

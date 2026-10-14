@@ -41,25 +41,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
-import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.unavailableOfflineNow
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.GroupDestination
+import com.dewijones92.totum.queue.GroupDownload
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.blocks
-import com.dewijones92.totum.queue.groupedBlockCount
 import com.dewijones92.totum.queue.moveGroup
 import com.dewijones92.totum.queue.queueGroupHeaderKey
 import com.dewijones92.totum.queue.shuffleAndPlayGroup
 import com.dewijones92.totum.queue.shuffleGroup
-import com.dewijones92.totum.queue.shuffleGroupOrder
-import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
@@ -70,15 +66,16 @@ import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalLongPressHeldElsewhere
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.filter
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberShuffleAsk
+import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -107,6 +104,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
     val listFilter = rememberListFilter("queue")
     ForgetTheFilterWhenTheQueueEmpties(entries.isEmpty(), listFilter)
+    val ask = rememberShuffleAsk()
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -115,8 +113,8 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onClear = queue::clear,
                 listState = listState,
                 listFilter = listFilter,
-                onShuffle = shuffleUpNextOrNull(queue, snapshot.upNext, container.statsLog),
-                onShuffleGroups = shuffleGroupsOrNull(queue, snapshot.upNext, container.statsLog),
+                onShuffle = shuffleUpNextOrNull(container, snapshot.upNext, ask),
+                onShuffleGroups = shuffleGroupsOrNull(container, snapshot.upNext, ask),
             )
             if (entries.isEmpty()) {
                 EmptyState(
@@ -125,12 +123,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     supportingText = stringResource(R.string.queue_empty),
                 )
             } else {
-                val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
-                OfflineSummary(
-                    readiness = readinessOf(entries, downloads),
-                    autoDownloadOff = !settings.autoDownloadQueue,
-                    waitingForWifi = settings.autoDownloadQueue && !container.autoDownloadAllowedNow(),
-                )
+                QueueOfflineSummary(container, entries, downloads)
                 // Survives rotation and process death: a collapsed 24-episode season staying
                 // collapsed is the entire point, and re-expanding on every return would undo it.
                 var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -141,6 +134,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     scope = scope,
                     collapsedGroups = collapsedGroups,
                     onCollapsedChange = { collapsedGroups = it },
+                    ask = ask,
                 )
                 val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
@@ -190,17 +184,8 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onMove = { onMoveGroup(id, it) },
     onShuffle = { onShuffleGroup(id) },
     onShuffleAndPlay = { onShuffleAndPlayGroup(id) },
+    onSetDownload = { onSetGroupDownload(id, it) },
 )
-
-private fun shuffleUpNextOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>, stats: StatsLog): (() -> Unit)? = {
-    queue.shuffleUpNext()
-    stats.use(UseKind.SHUFFLE, "up next")
-}.takeIf { upNext.size > 1 }
-
-private fun shuffleGroupsOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>, stats: StatsLog): (() -> Unit)? = {
-    queue.shuffleGroupOrder()
-    stats.use(UseKind.SHUFFLE, "group order")
-}.takeIf { upNext.groupedBlockCount() > 0 && upNext.blocks().size > 1 }
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
 @Composable
@@ -211,22 +196,38 @@ private fun rememberQueueActions(
     scope: CoroutineScope,
     collapsedGroups: Set<String>,
     onCollapsedChange: (Set<String>) -> Unit,
+    ask: ShuffleAsk,
 ): QueueActions {
     val dragSession = rememberQueueDragSession()
     val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
+    val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     return QueueActions(
         onPlay = queue::jumpTo,
         onPlayInstead = { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } },
         onRemove = onRemove,
         onRemoveGroup = queue::removeGroup,
         onMoveGroup = queue::moveGroup,
-        onShuffleGroup = {
-            queue.shuffleGroup(it)
-            container.statsLog.use(UseKind.SHUFFLE, "inside a group")
+        onShuffleGroup = { id ->
+            ask { startAtRandom ->
+                queue.shuffleGroup(id)
+                container.statsLog.use(UseKind.SHUFFLE, "inside a group")
+                if (startAtRandom) {
+                    val after = queue.state.value.let { it.entries.drop((it.currentIndex + 1).coerceAtLeast(0)) }
+                    container.randomStarts.assign(after.filter { it.group?.id == id }.map { it.item.item }, "group $id")
+                }
+            }
         },
-        onShuffleAndPlayGroup = {
-            queue.shuffleAndPlayGroup(it)
-            container.statsLog.use(UseKind.SHUFFLE, "shuffle and play a group")
+        groupDownloading = { groupChoices[it] == GroupDownload.YES },
+        onSetGroupDownload = { id, on ->
+            container.groupDownloads.choose(id, if (on) GroupDownload.YES else GroupDownload.NO, "the group's menu")
+        },
+        onShuffleAndPlayGroup = { id ->
+            ask { startAtRandom ->
+                queue.shuffleAndPlayGroup(id) { members ->
+                    if (startAtRandom) container.randomStarts.assign(members.map { it.item.item }, "group $id")
+                }
+                container.statsLog.use(UseKind.SHUFFLE, "shuffle and play a group")
+            }
         },
         dragSession = dragSession,
         onMove = queue::move,
@@ -256,6 +257,8 @@ private data class QueueActions(
     val onMoveGroup: (String, GroupDestination) -> Unit,
     val onShuffleGroup: (String) -> Unit,
     val onShuffleAndPlayGroup: (String) -> Unit,
+    val groupDownloading: (String) -> Boolean,
+    val onSetGroupDownload: (String, Boolean) -> Unit,
     val dragSession: QueueDragSession,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,
@@ -341,6 +344,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                             collapsed = groups.isCollapsed(group.id),
                             containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
                             draggable = isFirstRunOfGroup && blockCount > 1,
+                            downloading = actions.groupDownloading(group.id),
                         ),
                         actions = actions.forGroup(group.id),
                         drag = drag,
@@ -468,7 +472,7 @@ private fun QueueRow(
             subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
                 listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
             } else {
-                mediaItemFacts(media, entry.item.pillar, LocalNow.current)
+                rowFacts(media, entry.item.pillar)
             },
             // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
             // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).
@@ -586,20 +590,3 @@ private val PROGRESS_HEIGHT = 2.dp
 private const val DRAG_ELEVATION = 12f
 private const val QUEUE_TOP_KEY = "queue-top"
 private const val DRAG_SCALE = 1.02f
-
-/**
- * How much of the queue is playable with no signal.
- *
- * `fetchedAutomatically` uses the SAME rule the downloader does ([hasAudioOnlyFetch]), so the
- * banner cannot promise a fetch that is never coming.
- */
-private fun readinessOf(
-    entries: List<QueueEntry>,
-    downloads: Map<MediaItemId, DownloadState>,
-): OfflineReadiness = OfflineReadiness.of(
-    entries.map { it.item.item.id },
-    stateOf = { downloads[it] ?: DownloadState.NotDownloaded },
-    fetchedAutomatically = { id ->
-        entries.firstOrNull { it.item.item.id == id }?.item?.hasAudioOnlyFetch ?: true
-    },
-)

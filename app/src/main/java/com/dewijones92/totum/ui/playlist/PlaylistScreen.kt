@@ -33,15 +33,14 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PinToggle
 import com.dewijones92.totum.ui.common.SectionHeaderWithSort
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rowFacts
 
 /** A playlist's videos, played/downloaded through the same shared row as everywhere else. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,7 +96,7 @@ fun PlaylistScreen(
                             items(shown, key = { it.id.value }) { video ->
                                 MediaItemRow(
                                     item = video,
-                                    subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                                    subtitleLines = rowFacts(video, MediaKind.VIDEO),
                                     downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                                     pillar = MediaKind.VIDEO,
                                     onPlay = { viewModel.play(video) },

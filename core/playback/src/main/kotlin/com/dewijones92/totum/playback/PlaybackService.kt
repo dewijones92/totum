@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -40,7 +41,8 @@ import com.google.common.util.concurrent.ListenableFuture
 public class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
-    private val switchButton by lazy { ListeningSwitchButton(this) }
+    private val queueSkip by lazy { QueueSkipButtons(this) }
+    private val switchButton by lazy { ListeningSwitchButton(this, queueSkip::buttons) }
 
     /** The user's skip-silences intent. Applies to both pillars now. */
     @Volatile
@@ -92,6 +94,7 @@ public class PlaybackService : MediaSessionService() {
         // Where the detail behind a stall comes from: chosen format, per-chunk
         // throughput, load failures, dropped frames. Media3 exposes it only here.
         player.addAnalyticsListener(PlaybackAnalytics { player.videoDecoderCounters })
+        player.addAnalyticsListener(SubtitleTrail())
         player.addListener(UnaskedRewindGuard { player })
         currentPlayer = player
         player.addListener(
@@ -133,6 +136,7 @@ public class PlaybackService : MediaSessionService() {
         setUpCast(player)
         mediaSession = MediaSession.Builder(this, currentPlayer ?: player)
             .setCallback(SkipSilenceCallback())
+            .setMediaButtonPreferences(queueSkip.buttons())
             .apply { openAppIntent()?.let { setSessionActivity(it) } }
             .build()
     }
@@ -169,6 +173,17 @@ public class PlaybackService : MediaSessionService() {
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult =
             MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .apply {
+                    if (session.isMediaNotificationController(controller) || controller.packageName != packageName) {
+                        setAvailablePlayerCommands(
+                            QueueSkipButtons.notQueueAware
+                                .fold(
+                                    MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                                ) { b, c -> b.remove(c) }
+                                .build(),
+                        )
+                    }
+                }
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY))
@@ -178,9 +193,17 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SWITCH_BUTTON, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SWITCH_LISTENING, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_QUEUE_PREVIOUS, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_QUEUE_NEXT, Bundle.EMPTY))
                         .build(),
                 )
                 .build()
+
+        override fun onMediaButtonEvent(
+            session: MediaSession,
+            controllerInfo: MediaSession.ControllerInfo,
+            intent: Intent,
+        ): Boolean = queueSkip.onMediaButton(session, controllerInfo, intent)
 
         override fun onCustomCommand(
             session: MediaSession,
@@ -188,6 +211,10 @@ public class PlaybackService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            if (queueSkip.handles(customCommand.customAction)) {
+                queueSkip.onCommand(session, controller, customCommand.customAction)
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (switchButton.handles(customCommand.customAction)) {
                 switchButton.onCommand(session, controller, customCommand.customAction, args)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))

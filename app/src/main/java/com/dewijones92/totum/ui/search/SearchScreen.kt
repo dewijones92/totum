@@ -63,7 +63,6 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -72,9 +71,9 @@ import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.VideoChannelSaver
 import com.dewijones92.totum.ui.common.mediaFacts
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.pillFieldColors
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.ui.playlist.PlaylistScreen
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
@@ -460,7 +459,7 @@ private fun VideoHitRow(
         item = item,
         // The hit is already a MediaItem here, so it reads through the one shared
         // formatter rather than assembling a second, subtly different subtitle.
-        subtitleLines = mediaItemFacts(item, MediaKind.VIDEO, LocalNow.current),
+        subtitleLines = rowFacts(item, MediaKind.VIDEO),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
         onPlayNext = { actions.playNext(item) },

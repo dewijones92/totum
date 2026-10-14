@@ -45,7 +45,6 @@ import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -55,9 +54,9 @@ import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.podcasts.PodcastsViewModel.Subscribing
 
 /**
@@ -224,7 +223,7 @@ private fun EpisodeList(
                 items(shown, key = { it.id.value }) { episode ->
                     MediaItemRow(
                         item = episode,
-                        subtitleLines = mediaItemFacts(episode, MediaKind.PODCAST, LocalNow.current),
+                        subtitleLines = rowFacts(episode, MediaKind.PODCAST),
                         downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                         pillar = MediaKind.PODCAST,
                         onPlay = { viewModel.play(episode) },

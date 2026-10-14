@@ -21,13 +21,12 @@ import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.rowTint
 
 /**
@@ -70,7 +69,7 @@ fun NotificationsScreen(
                                 }
                                 MediaItemRow(
                                     item = upload.item,
-                                    subtitleLines = mediaItemFacts(upload.item, MediaKind.VIDEO, LocalNow.current),
+                                    subtitleLines = rowFacts(upload.item, MediaKind.VIDEO),
                                     pillar = MediaKind.VIDEO,
                                     onPlay = { viewModel.play(upload.item) },
                                     // Through the row's own tint rather than a background of our own:

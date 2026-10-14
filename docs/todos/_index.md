@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [A radio seeded from several songs](radio-from-several-songs.md) | music | high | requested 2026-10-14, to refine |
 | [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | built 2026-10-14 → ADR 39; minSdk 33, verified on totum-api33 |
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
 | [Artist page: Shuffle all songs, and the Shuffle station fixed](artist-shuffle-all-songs.md) | music | high | built 2026-10-14 → ADR 30 amended |

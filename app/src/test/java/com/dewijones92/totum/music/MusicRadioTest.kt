@@ -131,22 +131,61 @@ class MusicRadioTest {
     }
 
     @Test
-    fun `playing something outside the radio stops it topping up`() = runTest {
+    fun `playing something outside the radio pauses its top-ups, and coming back resumes them`() = runTest {
         val catalogue = FakeYouTubeMusicCatalogue(
-            radioBatches = listOf(batch("a", 10, next = 1), batch("b", 5, next = 2)),
+            radioBatches = listOf(batch("a", 4, next = 1), batch("b", 5, next = 2)),
         )
         val rig = Rig(this, catalogue)
         rig.radio.start(RadioSeed.forSong("seed"), "Feeling Good")
         advanceUntilIdle()
+        val requestsBefore = catalogue.radioRequests.size
         rig.queue.enqueue(song("other").toPlayable(MusicSources.radio("x")))
-        advanceUntilIdle()
-
         rig.queue.jumpTo(rig.queue.state.value.entries.lastIndex)
         advanceUntilIdle()
 
-        assertEquals(1, catalogue.radioRequests.size)
-        assertFalse(rig.radio.isActive)
+        assertTrue("still a radio", rig.radio.isActive)
+        val whileAway = catalogue.radioRequests.size
+
+        val group = rig.radio.activeGroupId
+        rig.queue.jumpTo(rig.queue.state.value.entries.indexOfLast { it.group?.id == group })
+        advanceUntilIdle()
+
+        assertEquals("no fetching while away", requestsBefore, whileAway)
+        assertTrue("fetching again once back in it", catalogue.radioRequests.size > whileAway)
         rig.work.cancel()
+    }
+
+    @Test
+    fun `when YouTube offers no more, the radio carries on from its last song`() = runTest {
+        val catalogue = FakeYouTubeMusicCatalogue(radioBatches = listOf(batch("a", 3, next = null)))
+        val rig = Rig(this, catalogue)
+        rig.radio.start(RadioSeed.forSong("seed"), "Feeling Good")
+        advanceUntilIdle()
+
+        val reseeded = catalogue.radioRequests.drop(1).map { it.first }
+        assertEquals(RadioSeed.forSong("a3"), reseeded.firstOrNull())
+        assertTrue(rig.radio.isActive)
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `a radio carries on after the app restarts`() = runTest {
+        val file = kotlin.io.path.createTempFile("radio", ".txt").toFile().apply { delete() }
+        val catalogue = FakeYouTubeMusicCatalogue(
+            radioBatches = listOf(batch("a", 10, next = 1), batch("b", 5, next = 2)),
+        )
+        val work = CoroutineScope(coroutineContext + kotlinx.coroutines.SupervisorJob())
+        val queue = Rig(this, catalogue).queue
+        val first = MusicRadio(catalogue, queue, work, file = file)
+        first.start(RadioSeed.forSong("seed"), "Feeling Good")
+        advanceUntilIdle()
+
+        val again = MusicRadio(catalogue, queue, work, file = file)
+        advanceUntilIdle()
+
+        assertEquals("radio:RDAMVMseed", again.activeGroupId)
+        work.cancel()
+        file.delete()
     }
 
     @Test

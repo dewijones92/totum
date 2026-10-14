@@ -63,7 +63,6 @@ import com.dewijones92.totum.ui.common.BuildInfoFooter
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LocalItemActions
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
@@ -71,11 +70,11 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.pinnedSection
 import com.dewijones92.totum.ui.common.recentlySection
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
@@ -259,7 +258,7 @@ internal fun LibraryContent(
                             // tell you which download is the one worth deleting. Its own line, like
                             // every other fact — it used to be glued onto the end of the subtitle,
                             // which is precisely where an ellipsis reached it first.
-                            subtitleLines = mediaItemFacts(entry.item, entry.media.pillar, LocalNow.current) +
+                            subtitleLines = rowFacts(entry.item, entry.media.pillar) +
                                 "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}",
                             downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
                             pillar = entry.media.pillar,

@@ -11,6 +11,7 @@ import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MusicRadio(
@@ -18,6 +19,7 @@ class MusicRadio(
     private val queue: PlaybackQueue,
     private val scope: CoroutineScope,
     private val recent: RecentActions? = null,
+    private val file: java.io.File? = null,
 ) {
     private data class Station(
         val seed: RadioSeed,
@@ -42,11 +44,15 @@ class MusicRadio(
     } ?: "no radio"
 
     init {
-        scope.launch { queue.state.collect(::onQueueChanged) }
+        scope.launch {
+            queue.hydrated.first { it }
+            restore()
+            queue.state.collect(::onQueueChanged)
+        }
     }
 
     suspend fun start(seed: RadioSeed, title: String): Boolean {
-        val group = QueueGroup(id = "radio:${seed.playlistId}", title = "Radio · $title")
+        val group = QueueGroup(id = "$RADIO_GROUP_PREFIX${seed.playlistId}", title = "Radio · $title")
         Diag.log(
             "radio",
             "starting \"${group.title}\" from ${seed.videoId ?: "-"}/${seed.playlistId} params=${seed.params ?: "-"}"
@@ -65,6 +71,7 @@ class MusicRadio(
         val source = MusicSources.radio(seed.playlistId)
         fetching?.cancel()
         station = Station(seed, group, batch.continuation, batch.songs.mapTo(mutableSetOf()) { it.videoId })
+        save()
         Diag.log(
             "radio",
             "\"${group.title}\" started with ${batch.songs.size} songs, continuation=${batch.continuation != null}",
@@ -90,25 +97,37 @@ class MusicRadio(
         val live = station ?: return
         when {
             snapshot.entries.none { it.group?.id == live.group.id } -> stop("its songs are no longer in the queue")
-            live.reachedPlayhead && snapshot.current != null && currentGroup != live.group.id ->
-                stop("now playing \"${snapshot.current?.item?.item?.title}\", which is not part of it")
-            else -> considerTopUp(snapshot, live)
+            live.reachedPlayhead && currentGroup != live.group.id -> if (!awayLogged) {
+                awayLogged = true
+                Diag.log("radio", "\"${live.group.title}\": playing something else, so not topping up until it is back")
+            }
+            else -> {
+                awayLogged = false
+                considerTopUp(snapshot, live)
+            }
         }
     }
+
+    private var awayLogged = false
 
     private fun considerTopUp(snapshot: QueueSnapshot, live: Station) {
         val ahead = snapshot.entries.drop((snapshot.currentIndex + 1).coerceAtLeast(0))
             .count { it.group?.id == live.group.id }
         if (ahead > TOP_UP_WHEN_LEFT) return
-        if (live.continuation == null) {
-            if (!live.exhaustedLogged) {
-                Diag.log("radio", "\"${live.group.title}\": $ahead left and YouTube offered no more")
-                station = live.copy(exhaustedLogged = true)
-            }
-            return
-        }
         if (fetching?.isActive == true) return
-        fetching = scope.launch { topUp(live, ahead, attempt = 1) }
+        val reseedFrom = snapshot.entries.lastOrNull { it.group?.id == live.group.id }?.item?.item?.id?.value
+        if (live.continuation == null && (live.exhaustedLogged || reseedFrom == null)) return
+        fetching = scope.launch {
+            if (live.continuation == null) {
+                Diag.log(
+                    "radio",
+                    "\"${live.group.title}\": YouTube offered no more, so carrying on from its last song $reseedFrom",
+                )
+                topUp(live.copy(seed = RadioSeed.forSong(checkNotNull(reseedFrom))), ahead, attempt = 1)
+            } else {
+                topUp(live, ahead, attempt = 1)
+            }
+        }
     }
 
     private suspend fun topUp(from: Station, ahead: Int, attempt: Int) {
@@ -134,7 +153,11 @@ class MusicRadio(
             continuation = batch.continuation,
             offered = from.offered + batch.songs.map { it.videoId }
         )
-        station = updated.copy(reachedPlayhead = station?.reachedPlayhead ?: from.reachedPlayhead)
+        station = updated.copy(
+            reachedPlayhead = station?.reachedPlayhead ?: from.reachedPlayhead,
+            exhaustedLogged = added == 0 && batch.continuation == null,
+        )
+        save()
         Diag.log(
             "radio",
             "\"${from.group.title}\": +$added of ${batch.songs.size} " +
@@ -150,6 +173,58 @@ class MusicRadio(
         Diag.log("radio", "\"${ended.group.title}\" stopped topping up: $why")
         fetching?.cancel()
         station = null
+        save()
+    }
+
+    private fun save() {
+        val file = file ?: return
+        val now = station
+        runCatching {
+            if (now == null) {
+                file.delete()
+            } else {
+                file.writeText(
+                    listOf(
+                        now.seed.videoId.orEmpty(),
+                        now.seed.playlistId,
+                        now.seed.params.orEmpty(),
+                        now.group.id,
+                        now.group.title,
+                        now.continuation.orEmpty(),
+                        now.offered.joinToString(","),
+                    ).joinToString("\n"),
+                )
+            }
+        }.onFailure { Diag.warn("radio", "radio not saved: $it") }
+    }
+
+    private fun restore() {
+        val lines = file?.takeIf { it.exists() }?.let { runCatching { it.readLines() }.getOrNull() } ?: return
+        if (lines.size < Saved.entries.size) {
+            return Diag.warn(
+                "radio",
+                "saved radio unreadable (${lines.size} lines); ignoring it"
+            )
+        }
+        fun line(at: Saved) = lines[at.ordinal]
+        val group = QueueGroup(line(Saved.GROUP_ID), line(Saved.GROUP_TITLE))
+        if (queue.state.value.entries.none { it.group?.id == group.id }) {
+            Diag.log("radio", "saved radio \"${group.title}\" is no longer in the queue; not restoring it")
+            file?.delete()
+            return
+        }
+        station = Station(
+            seed = RadioSeed(
+                line(Saved.VIDEO).ifEmpty { null },
+                line(Saved.PLAYLIST),
+                line(Saved.PARAMS).ifEmpty { null },
+            ),
+            group = group,
+            continuation = line(Saved.CONTINUATION).ifEmpty { null },
+            offered = line(Saved.OFFERED).split(',').filter { it.isNotEmpty() }.toSet(),
+            reachedPlayhead = true,
+        )
+        Diag.log("radio", "restored \"${group.title}\" after a restart: ${describe()}")
     }
 
     private companion object {
@@ -157,3 +232,7 @@ class MusicRadio(
         const val MAX_EMPTY_ATTEMPTS = 3
     }
 }
+
+const val RADIO_GROUP_PREFIX: String = "radio:"
+
+private enum class Saved { VIDEO, PLAYLIST, PARAMS, GROUP_ID, GROUP_TITLE, CONTINUATION, OFFERED }

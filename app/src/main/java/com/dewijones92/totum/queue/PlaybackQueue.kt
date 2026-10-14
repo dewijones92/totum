@@ -21,6 +21,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.domain.withArtworkFrom
+import com.dewijones92.totum.music.labelledForPlay
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
@@ -184,6 +185,9 @@ class PlaybackQueue(
      */
     private var touched = false
 
+    private val _hydrated = MutableStateFlow(false)
+    val hydrated: StateFlow<Boolean> = _hydrated.asStateFlow()
+
     init {
         scope.launch {
             val saved = store.load().deduplicated()
@@ -193,6 +197,7 @@ class PlaybackQueue(
                     if (touched) " — discarded, the user got there first" else "",
             )
             if (!touched) _state.value = saved
+            _hydrated.value = true
         }
         // Persist every subsequent change. `drop(1)` skips the initial empty value
         // so an empty start can't wipe a saved queue before hydration lands.
@@ -503,40 +508,16 @@ class PlaybackQueue(
      * while nothing had actually moved on, and why the report was harder to read than it should
      * have been.
      */
-    suspend fun playNextInQueue(): Boolean {
-        val snapshot = _state.value
-        val playingId = _nowPlaying.value?.item?.id
-        val from = advanceFrom(snapshot, playingId)
-        var index = from + 1
-        if (index > snapshot.entries.lastIndex) {
-            Diag.log("queue", "nothing after ${playingId?.value ?: "cursor $from"} of ${snapshot.entries.size}")
-            return false
+    suspend fun playNextInQueue(): Boolean = step(FORWARD)
+
+    suspend fun playPreviousInQueue(): Boolean {
+        val positionMs = controller.state.value?.positionMs ?: 0L
+        if (positionMs > RESTART_BEFORE_PREVIOUS_MS) {
+            Diag.log("queue", "previous: ${positionMs}ms in, so back to the start of this item")
+            controller.seekTo(0)
+            return true
         }
-        while (index <= _state.value.entries.lastIndex) {
-            val entry = _state.value.entries[index]
-            val title = entry.item.item.title.take(TITLE_CHARS)
-            // Never advance onto the thing already playing. Belt and braces alongside the index
-            // fix above: it also covers a duplicate that predates the de-duplication work.
-            if (entry.item.item.id == playingId) {
-                Diag.log("queue", "skipping index $index \"$title\" — it is what just played")
-            } else if (playAt(index, rollBackOnRefusal = true)) {
-                // The SUCCESS says what it advanced to, not just that it did. Only the refusals
-                // said anything, so a report of a queue advancing wrongly showed "advance=true"
-                // and nothing about which of sixty items it had landed on.
-                Diag.log(
-                    "queue",
-                    "advanced from index $from to $index of ${_state.value.entries.size} — \"$title\"",
-                )
-                return true
-            } else {
-                // An item the player would not start. Silent before, so "nothing playable after
-                // index 3" with a full queue gave no clue WHICH items were refused.
-                Diag.warn("queue", "index $index \"$title\" would not play; trying the next one")
-            }
-            index++
-        }
-        Diag.log("queue", "nothing playable after index $from")
-        return false
+        return step(BACKWARD).also { moved -> if (!moved) controller.seekTo(0) }
     }
 
     /**
@@ -557,7 +538,7 @@ class PlaybackQueue(
     }
 
     suspend fun armNext(allowStream: Boolean): Boolean {
-        val queued = withSourceArtwork(peekNext() ?: return false)
+        val queued = withSourceArtwork(peekNext() ?: return false).labelledForPlay(_state.value)
         val decision = decide(queued)
         armedAtPlay = plays
         return QueueArming(controller, launcher).arm(
@@ -591,7 +572,7 @@ class PlaybackQueue(
      * The index advancing counts from: where the PLAYING item sits, falling back to the cursor
      * when what is playing is not a queue member at all.
      */
-    private fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =
+    internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =
         playingId
             ?.let { id -> snapshot.entries.indexOfFirst { it.item.item.id == id } }
             ?.takeIf { it >= 0 }
@@ -610,7 +591,7 @@ class PlaybackQueue(
      * The cursor is restored rather than left alone up front, because `play` -> `route` reads
      * `_state.value.current` to decide what to play, so the move has to happen before the attempt.
      */
-    private suspend fun playAt(index: Int, rollBackOnRefusal: Boolean = false): Boolean {
+    internal suspend fun playAt(index: Int, rollBackOnRefusal: Boolean = false): Boolean {
         val entry = _state.value.entries.getOrNull(index) ?: return false
         val cursorBefore = _state.value.currentIndex
         val playingBefore = _nowPlaying.value
@@ -1000,7 +981,7 @@ class PlaybackQueue(
         forceAudio: Boolean = false,
         forceVideo: Boolean = false,
     ): Boolean {
-        val queued = withSourceArtwork(listed)
+        val queued = withSourceArtwork(listed).labelledForPlay(_state.value)
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
         // controller directly, so without claiming it here a streaming resolve still in flight
         // would land later and take playback back to the network — which is exactly what report
@@ -1186,6 +1167,7 @@ private fun QueueSnapshot.removingAt(index: Int): QueueSnapshot {
  */
 private const val REPEAT_WINDOW_MS = 400L
 private const val TITLE_CHARS = 60
+private const val RESTART_BEFORE_PREVIOUS_MS = 5_000L
 
 /** Room for a burst of starts, so a play is never dropped because nobody has collected yet. */
 private const val FRESH_START_BUFFER = 8

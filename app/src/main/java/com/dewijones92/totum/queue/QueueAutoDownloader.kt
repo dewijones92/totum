@@ -13,9 +13,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
@@ -66,6 +70,8 @@ class QueueAutoDownloader(
      * immediate value: what is playing is what the rescue ladder falls back to when the stream stalls.
      */
     private val playingNow: () -> MediaItemId? = { null },
+    private val groupAllows: (String) -> Boolean = { true },
+    private val groupChoicesChanged: Flow<Any?> = emptyFlow(),
     private val maxAttempts: Int = MAX_ATTEMPTS,
     /**
      * How many downloads may be in flight at once.
@@ -94,7 +100,8 @@ class QueueAutoDownloader(
             // one moment the ordering matters. Cancelling a pass loses nothing: the downloads
             // themselves live in the manager's own scope and carry on, and the next pass skips
             // whatever is already in flight.
-            queue.collectLatest { snapshot -> pass(snapshot) }
+            combine(queue, groupChoicesChanged.onStart { emit(null) }) { snapshot, _ -> snapshot }
+                .collectLatest { snapshot -> pass(snapshot) }
         }
     }
 
@@ -267,6 +274,8 @@ class QueueAutoDownloader(
         entry.item.handle is PlayHandle.LocalVideo -> ""
         state is DownloadState.Downloaded || state is DownloadState.Downloading -> ""
         // Said once per item, and worth saying: silence here would read as a broken auto-download.
+        entry.group?.let { !groupAllows(it.id) } == true ->
+            "its group \"${entry.group?.title}\" is not downloaded automatically until you say yes"
         !fetchesAudioOnly(entry.item) ->
             "there is no audio-only fetch for it, and fetching the whole thing is not this feature"
         // Nothing to fetch yet — a feed item whose enclosure hasn't been read. Asking

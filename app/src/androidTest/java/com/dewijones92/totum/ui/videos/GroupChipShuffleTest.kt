@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.SourceGroupId
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.SHUFFLE_ASK_GO_TAG
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -57,6 +58,7 @@ class GroupChipShuffleTest {
 
         composeTestRule.onNodeWithTag(groupChipShuffleTag("g-comedy")).assertExists()
         composeTestRule.onNodeWithTag(groupChipShuffleTag("g-news")).performClick()
+        composeTestRule.onNodeWithTag(SHUFFLE_ASK_GO_TAG).performClick()
 
         composeTestRule.waitUntil(5_000) { container.playbackQueue.state.value.entries.size == 2 }
         val entries = container.playbackQueue.state.value.entries

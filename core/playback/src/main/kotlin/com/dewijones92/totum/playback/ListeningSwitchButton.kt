@@ -12,7 +12,10 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Listening
 import com.google.common.collect.ImmutableList
 
-internal class ListeningSwitchButton(private val context: Context) {
+internal class ListeningSwitchButton(
+    private val context: Context,
+    private val alwaysShown: () -> List<CommandButton> = { emptyList() },
+) {
 
     fun handles(action: String): Boolean = action == ACTION_SWITCH_BUTTON || action == ACTION_SWITCH_LISTENING
 
@@ -20,7 +23,7 @@ internal class ListeningSwitchButton(private val context: Context) {
     fun onCommand(session: MediaSession, from: MediaSession.ControllerInfo, action: String, args: Bundle) {
         if (action == ACTION_SWITCH_BUTTON) {
             val to = args.getString(EXTRA_SWITCH_TO)?.let { name -> Listening.entries.firstOrNull { it.name == name } }
-            session.setMediaButtonPreferences(to?.let { ImmutableList.of(button(it)) } ?: ImmutableList.of())
+            session.setMediaButtonPreferences(ImmutableList.copyOf(alwaysShown() + listOfNotNull(to?.let(::button))))
             Diag.log(TAG, "switch button -> ${to ?: "hidden"}")
             return
         }

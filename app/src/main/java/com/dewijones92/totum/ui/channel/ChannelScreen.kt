@@ -47,7 +47,6 @@ import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -56,8 +55,8 @@ import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.group.GroupPicker
 import com.dewijones92.totum.ui.channel.ChannelViewModel.Tab as ChannelTab
 
@@ -295,7 +294,7 @@ private fun MediaItemTab(
                     items(shown, key = { it.id.value }) { video ->
                         MediaItemRow(
                             item = video,
-                            subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                            subtitleLines = rowFacts(video, MediaKind.VIDEO),
                             downloadState = downloadStates[video.id] ?: DownloadState.NotDownloaded,
                             pillar = MediaKind.VIDEO,
                             onPlay = { onPlay(video) },

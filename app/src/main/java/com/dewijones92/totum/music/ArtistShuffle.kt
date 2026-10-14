@@ -12,6 +12,7 @@ import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.stats.UseKind
 import kotlin.random.Random
@@ -56,8 +57,9 @@ class ArtistShuffle(
     private val recent: RecentActions?,
     private val stats: StatsLog? = null,
     private val random: Random = Random.Default,
+    private val randomStarts: RandomStarts? = null,
 ) {
-    suspend fun shuffleAll(target: ArtistSongs, onProgress: (Int) -> Unit = {}): Int {
+    suspend fun shuffleAll(target: ArtistSongs, onProgress: (Int) -> Unit = {}, startAtRandom: Boolean = false): Int {
         val started = TimeSource.Monotonic.markNow()
         Diag.log(TAG, "shuffle all songs of \"${target.artist}\" from ${target.listing.browseId}")
         val walk = walkAllSongs({ after -> catalogue.songs(target.listing, after) }, onProgress)
@@ -68,8 +70,10 @@ class ArtistShuffle(
         )
         if (walk.songs.isEmpty()) return 0
         val source = MusicSources.artist(target.listing.browseId)
+        val shuffled = walk.songs.shuffled(random).map { it.toPlayable(source) }
+        if (startAtRandom) randomStarts?.assign(shuffled.map { it.item }, "all songs of \"${target.artist}\"")
         queue.playAll(
-            walk.songs.shuffled(random).map { it.toPlayable(source) },
+            shuffled,
             QueueGroup("artist-all:${target.listing.browseId}", "${target.artist} · All songs"),
         )
         stats?.use(UseKind.SHUFFLE, "artist songs")
@@ -85,4 +89,5 @@ class ArtistShuffle(
     }
 }
 
-fun AppContainer.artistShuffle(): ArtistShuffle = ArtistShuffle(musicCatalogue, playbackQueue, recentActions, statsLog)
+fun AppContainer.artistShuffle(): ArtistShuffle =
+    ArtistShuffle(musicCatalogue, playbackQueue, recentActions, statsLog, randomStarts = randomStarts)

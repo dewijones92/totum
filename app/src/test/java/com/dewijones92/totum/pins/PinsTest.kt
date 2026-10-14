@@ -245,7 +245,7 @@ class PinsTest {
         rig.player.play(Pin.Artist(null, "Someone", null, radioPlaylistId = "RDEMabc"), from = "test")
         advanceUntilIdle()
 
-        assertEquals("RDEMabc", catalogue.radioRequests.single().first.playlistId)
+        assertEquals("RDEMabc", catalogue.radioRequests.first().first.playlistId)
         assertEquals(2, rig.queue.state.value.entries.size)
         rig.work.cancel()
     }

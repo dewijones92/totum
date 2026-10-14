@@ -101,3 +101,11 @@ Portuguese/Spanish), selecting English logged `[subtitles] language -> en`, and 
   so this is a parser plus a feed field, not a redesign.
 - **Remembering the choice** across items — currently captions default to off each time.
 - Styling options (size, background). One legible default for now.
+
+## What the trail now says (2026-10-14)
+
+Report `20261014T195413` (0.1.614, *"subtitles not working??"*): English (Original) was chosen and nothing more
+was logged, because a load that worked and a caption that showed said nothing. `SubtitleTrail` now logs the text
+track selected (and how many were offered), each caption file loaded (language, bytes, time) and the first caption
+on screen. `AnOriginalLanguageTrackShowsCuesTest` (device) shows an `en-orig` track rendering cues exactly as `en`
+does, and the real `en-orig` TTML for that video parses, so the phone's cause is not yet known.

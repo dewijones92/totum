@@ -162,3 +162,14 @@ first, then one a second); started, finished and failed states are always writte
 logged when the download ends. `DefaultDownloadManagerTest`: 1,000 ticks in a burst were each written before (the test failed), at
 most 4 after.
 
+## At most four at once (2026-10-14)
+
+Dewi: *"limit maximum concurrent downloads to like four … so we don't smash their servers"*. Automatic queue
+downloads were already three lanes; a tapped download bypassed that. `DefaultDownloadManager` now holds four
+slots for every download, both pillars, whoever asked; a fifth waits and the log says *waiting for a free slot*.
+`DefaultDownloadManagerTest` (six started, four ran; red on the old code).
+
+⚠️ Correction to the section above: the once-a-second progress write did not end the lag. Report
+`20261014T195237` (0.1.614, *"laggy just now?"*) still shows ~100 MB collections every 1–3 s and eight
+"Skipped frames" while Shorts finished every 2–3 s, with the throttle visibly working. The cause is still open
+and is being profiled; the progress write was at most part of it.

@@ -135,6 +135,7 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
 import com.dewijones92.totum.music.AccountFollows
+import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
@@ -158,13 +159,16 @@ import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
 import com.dewijones92.totum.playback.SharedPrefsVolumeBoostStore
+import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.startStreamRecovery
+import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
+import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.startSharedMetadataRepair
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
@@ -431,6 +435,9 @@ interface AppContainer {
 
     val recentActions: RecentActions
     val statsLog: StatsLog
+    val groupDownloads: GroupDownloads
+    val randomStarts: RandomStarts
+    val albumYears: AlbumYears
 }
 
 // The count is the app's whole integration surface — every start*/install* entry point the
@@ -533,11 +540,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    private val resumePositions: PlaybackProgressStore by lazy {
-        // Resumes and deliberate seeks are account-aware. `playState` deliberately delegates to the
-        // raw store — it answers "what does THIS DEVICE know", which is the question the account
-        // rule is built on rather than an answer it should already contain.
-        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions)
+    // Resumes and deliberate seeks are account-aware. `playState` deliberately delegates to the
+    // raw store — it answers "what does THIS DEVICE know", which is the question the account
+    // rule is built on rather than an answer it should already contain.
+    override val randomStarts: RandomStarts by lazy {
+        RandomStarts.saved(
+            AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions),
+            context,
+            applicationScope
+        )
     }
 
     override val rowPlayStates: Flow<Map<MediaItemId, PlayState>> by lazy {
@@ -570,7 +581,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         Media3PlaybackController(
             context,
             applicationScope,
-            resumePositions,
+            randomStarts,
             SharedPrefsPlaybackSpeedStore(context),
             SharedPrefsVolumeBoostStore(context),
             // Podcasts play straight through the controller (their enclosure URL is
@@ -756,7 +767,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 preferAccount = { accountSubscriptions.signedIn.value },
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
-            resumePositionMs = playbackProgressStore::resumePositionMs,
+            resumePositionMs = { id -> randomStarts.peek(id) ?: playbackProgressStore.resumePositionMs(id) },
             // The phone's own languages, best first. YouTube offers automatic dubs as ordinary
             // formats, so without this the app plays whichever the extractor happened to list
             // first — report 0.1.373 watched an English talk in German.
@@ -970,6 +981,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 isMetered = networkStatus::isMetered,
                 exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
                 appUpdate = appUpdate::diagnostics,
+                groupDownloads = { groupDownloads },
             ),
         )
     }
@@ -986,6 +998,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override fun startQueueAutoDownload() {
+        followSkipRequests(this)
         startSharedMetadataRepair(
             playbackQueue,
             videoPlaybackLauncher,
@@ -993,22 +1006,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             networkStatus,
             applicationScope
         )
-        QueueAutoDownloader(
-            queue = playbackQueue.state,
-            downloads = downloadManager,
-            scope = applicationScope,
-            isEnabled = { appPreferences.settings.value.autoDownloadQueue },
-            isAllowedOnThisNetwork = {
-                autoDownloadAllowedNow()
-            },
-            // The one place pillar routing lives. A torrent has no audio-only fetch — the server's
-            // audio is HLS — so an automatic "fetch the audio" would silently pull a whole film.
-            fetchesAudioOnly = { it.hasAudioOnlyFetch },
-            // NOT the cursor: a peek leaves it at -1 by design, and a peek is how the reported case
-            // arose — a Ms Rachel video 52 minutes in, first in a 47-item queue, with no download
-            // event at all while the pass ground through a 403ing podcast ahead of it.
-            playingNow = { playbackQueue.nowPlaying.value?.item?.id },
-        ).start()
+        startQueueAutoDownloader(this)
     }
 
     override val readyAhead: ReadyAhead by lazy {
@@ -1369,18 +1367,28 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val musicRadio: MusicRadio by lazy {
-        MusicRadio(
-            musicCatalogue,
-            playbackQueue,
-            applicationScope,
-            recentActions
-        )
+        MusicRadio(musicCatalogue, playbackQueue, applicationScope, recentActions, File(context.filesDir, "radio.txt"))
     }
 
     override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
     override val statsLog: StatsLog by lazy { StatsLog(File(context.filesDir, "stats"), applicationScope) }
+
+    override val albumYears by lazy {
+        AlbumYears(
+            musicCatalogue,
+            applicationScope,
+            File(context.filesDir, "album-years.txt")
+        )
+    }
+    override val groupDownloads: GroupDownloads by lazy {
+        GroupDownloads.startedFor(
+            playbackQueue,
+            context,
+            applicationScope
+        )
+    }
 
     override val pinPlayer: PinPlayer by lazy { pinPlayerOf(this) }
     override val listeningSwitcher: ListeningSwitcher by lazy { listeningSwitcherOf(this) }
@@ -1457,6 +1465,7 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
     c.playbackQueue,
     c.recentActions,
     c.statsLog,
+    c.randomStarts,
 )
 
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */
@@ -1503,3 +1512,33 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     shuffleAll = c.shuffleAll,
     artistShuffle = c.artistShuffle(),
 )
+
+private fun followSkipRequests(c: DefaultAppContainer) = c.applicationScope.launch {
+    c.playbackController.skipRequests.collect { direction ->
+        when (direction) {
+            SkipDirection.NEXT -> c.playbackQueue.playNextInQueue()
+            SkipDirection.PREVIOUS -> c.playbackQueue.playPreviousInQueue()
+        }
+    }
+}
+
+private fun startQueueAutoDownloader(c: DefaultAppContainer) {
+    QueueAutoDownloader(
+        queue = c.playbackQueue.state,
+        downloads = c.downloadManager,
+        scope = c.applicationScope,
+        isEnabled = { c.appPreferences.settings.value.autoDownloadQueue },
+        isAllowedOnThisNetwork = {
+            c.autoDownloadAllowedNow()
+        },
+        // The one place pillar routing lives. A torrent has no audio-only fetch — the server's
+        // audio is HLS — so an automatic "fetch the audio" would silently pull a whole film.
+        fetchesAudioOnly = { it.hasAudioOnlyFetch },
+        // NOT the cursor: a peek leaves it at -1 by design, and a peek is how the reported case
+        // arose — a Ms Rachel video 52 minutes in, first in a 47-item queue, with no download
+        // event at all while the pass ground through a 403ing podcast ahead of it.
+        playingNow = { c.playbackQueue.nowPlaying.value?.item?.id },
+        groupAllows = c.groupDownloads::allows,
+        groupChoicesChanged = c.groupDownloads.choices,
+    ).start()
+}

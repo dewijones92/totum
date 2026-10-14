@@ -461,6 +461,11 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
 ## Working agreements
 
 - Commit as you go — small, coherent commits at each green state.
+- **After each bulk of work, a second Opus reviews it** (Dewi, 2026-10-14: *"ideally after each … bulk of
+  work, we want to spin up another opus to review what we've done"*). When a batch is built and pushed, start a
+  `reviewer` agent (Opus) on the batch's commits, giving it the requests and accepted decisions, and run the soak
+  alongside it. Read its whole report, check each finding against the code before acting, and fix what holds up
+  with a test seen red first.
 - Remote: `github.com/dewijones92/totum` (public; renamed from `dewiuniapp` on
   2026-07-25 — GitHub redirects the old URL, so stale clones keep working). Local
   clone is `~/code/totum`, and the Pi's is `~/code/totum`. The **signing**

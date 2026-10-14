@@ -21,6 +21,7 @@ import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinnedSource
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.toMediaItemPage
@@ -100,11 +101,12 @@ class ShuffleAll(
     private val queue: PlaybackQueue,
     private val recent: RecentActions? = null,
     private val stats: StatsLog? = null,
+    private val randomStarts: RandomStarts? = null,
 ) {
     private val mutableLoading = MutableStateFlow<Map<String, Int>>(emptyMap())
     val loading: StateFlow<Map<String, Int>> = mutableLoading.asStateFlow()
 
-    suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean): ShuffleOutcome {
+    suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean, startAtRandom: Boolean = false): ShuffleOutcome {
         val (key, title, sources) = target
         if (key in mutableLoading.value) {
             Diag.log(TAG, "\"$title\" is already loading; ignoring a second tap")
@@ -128,7 +130,9 @@ class ShuffleAll(
                     "in ${started.elapsedNow()}",
             )
             if (playable.isEmpty()) return ShuffleOutcome.Nothing
-            queue.playAll(playable.shuffled(), QueueGroup(id = "shuffle:$key", title = title))
+            val shuffled = playable.shuffled()
+            if (startAtRandom) randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"")
+            queue.playAll(shuffled, QueueGroup(id = "shuffle:$key", title = title))
             stats?.use(UseKind.SHUFFLE, "shuffle all")
             recent?.record(
                 Pin.ShuffleAllOf(

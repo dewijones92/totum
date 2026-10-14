@@ -44,6 +44,9 @@ import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.ShuffleAsk
+import com.dewijones92.totum.ui.common.rememberShuffleAsk
+import com.dewijones92.totum.ui.common.rowFacts
 
 @Composable
 fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: () -> Unit) {
@@ -61,6 +64,7 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
                 val artist = current.artist
                 item { ArtistHeader(artist) }
                 item {
+                    val ask = rememberShuffleAsk()
                     val follow = rememberArtistFollow(
                         container.musicFavourites,
                         container.applicationScope,
@@ -68,7 +72,7 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
                         artist.name
                     )
                     MusicButtons(
-                        artistButtons(artist, viewModel, context) +
+                        artistButtons(artist, viewModel, context, ask) +
                             listOfNotNull(follow?.followButton()) +
                             pinButtons(artist.asPin()),
                     )
@@ -82,7 +86,7 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
                 itemsIndexed(current.topSongs, key = { _, item -> "top:" + item.id.value }) { index, item ->
                     MediaItemRow(
                         item = item,
-                        subtitleLines = listOfNotNull(item.author?.let { "${FactEmoji.ARTIST} $it" }, item.viewsText),
+                        subtitleLines = rowFacts(item, MediaKind.VIDEO),
                         pillar = MediaKind.VIDEO,
                         onPlay = { viewModel.playTop(fromIndex = index) },
                         onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
@@ -161,13 +165,20 @@ private fun ArtistFailed(
     }
 }
 
-private fun artistButtons(artist: MusicArtist, viewModel: MusicArtistViewModel, context: Context): List<MusicButton> =
+private fun artistButtons(
+    artist: MusicArtist,
+    viewModel: MusicArtistViewModel,
+    context: Context,
+    ask: ShuffleAsk,
+): List<MusicButton> =
     listOfNotNull(
         MusicButton(R.string.music_play, Icons.Filled.PlayArrow, primary = true) { viewModel.playTop() }
             .takeIf { artist.topSongs.isNotEmpty() },
         MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
-            toast(context, context.getString(R.string.music_gathering_songs, artist.name))
-            viewModel.shuffleAllSongs(shuffledToast(context))
+            ask { startAtRandom ->
+                toast(context, context.getString(R.string.music_gathering_songs, artist.name))
+                viewModel.shuffleAllSongs(startAtRandom, shuffledToast(context))
+            }
         }.takeIf { artist.allSongs != null },
         MusicButton(R.string.music_shuffle_radio, Icons.Outlined.Radio) {
             viewModel.shuffle()

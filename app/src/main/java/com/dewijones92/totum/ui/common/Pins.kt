@@ -41,6 +41,7 @@ data class SheetExtras(
     val onGoToAlbum: (() -> Unit)? = null,
     val music: Boolean = false,
     val songId: String? = null,
+    val item: MediaItem? = null,
 )
 
 @Composable
@@ -50,6 +51,7 @@ internal fun sheetExtrasFor(item: MediaItem, onStartRadio: (() -> Unit)?): Sheet
     onGoToAlbum = LocalItemActions.current?.albumLink(item),
     music = item.contentKind == MediaContentKind.MUSIC,
     songId = item.id.value.takeIf { item.contentKind == MediaContentKind.MUSIC && isYouTubeVideoId(it) },
+    item = item,
 )
 
 @Composable

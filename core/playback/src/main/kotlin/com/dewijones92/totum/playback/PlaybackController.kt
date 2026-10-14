@@ -112,6 +112,8 @@ public interface PlaybackController {
 
     public val switchRequests: Flow<String>
 
+    public val skipRequests: Flow<SkipDirection>
+
     public fun showSwitchButton(to: Listening?)
 
     /**

@@ -119,7 +119,7 @@ class SeeAllTest {
         advanceUntilIdle()
         var shuffled = -1
 
-        vm.shuffle { shuffled = it }
+        vm.shuffle(startAtRandom = false) { shuffled = it }
         advanceUntilIdle()
 
         assertEquals(3, shuffled)

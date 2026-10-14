@@ -90,6 +90,32 @@ class DefaultDownloadManagerTest {
     }
 
     @Test
+    fun `no more than four downloads run at once, whoever asked for them`() = runTest {
+        val running = MutableStateFlow(0)
+        var most = 0
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val strategy = DownloadStrategy { _, target, _ ->
+            flow {
+                running.update { it + 1 }
+                most = maxOf(most, running.value)
+                release.await()
+                running.update { it - 1 }
+                emit(DownloadState.Downloaded(target.absolutePath))
+            }
+        }
+        val manager = manager(strategy, backgroundScope)
+
+        (1..6).forEach { manager.download(item.copy(id = MediaItemId("ep-$it"))) }
+        running.first { it >= 4 }
+        delay(1_000)
+        assertEquals(4, running.value)
+
+        release.complete(Unit)
+        store.observeAll().first { states -> states.values.count { it is DownloadState.Downloaded } == 6 }
+        assertEquals(4, most)
+    }
+
+    @Test
     fun `download records progress then completion`() = runTest {
         val strategy = DownloadStrategy { _, target, _ ->
             flowOf(

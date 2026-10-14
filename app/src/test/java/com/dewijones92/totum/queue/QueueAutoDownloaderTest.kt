@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.queue.QueueEntry
+import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
@@ -66,6 +67,32 @@ class QueueAutoDownloaderTest {
         advanceUntilIdle()
 
         assertEquals(listOf("a" to true, "b" to true), downloads.requested.map { it.first.value to it.second })
+    }
+
+    @Test
+    fun `a group is fetched only once you say yes, and a single item as before`() = runTest(dispatcher) {
+        val choices = MutableStateFlow(mapOf("album:a" to GroupDownload.ASK))
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { true },
+            groupAllows = { choices.value[it] == GroupDownload.YES },
+            groupChoicesChanged = choices,
+        ).start()
+        val album = QueueGroup("album:a", "An album")
+        queue.value = QueueSnapshot(
+            listOf(entry("single"), entry("t1").copy(group = album), entry("t2").copy(group = album)),
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf("single"), downloads.requested.map { it.first.value })
+
+        choices.value = mapOf("album:a" to GroupDownload.YES)
+        advanceUntilIdle()
+
+        assertEquals(listOf("single", "t1", "t2"), downloads.requested.map { it.first.value })
     }
 
     @Test

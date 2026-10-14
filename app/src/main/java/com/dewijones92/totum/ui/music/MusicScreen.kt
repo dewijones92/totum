@@ -36,6 +36,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.pinnedSection
 import com.dewijones92.totum.ui.common.recentlySection
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.search.SearchScope
 import com.dewijones92.totum.ui.search.SearchScreen
 import kotlinx.coroutines.launch
@@ -108,7 +109,7 @@ private fun LazyListScope.playedHere(
         val actions = LocalItemActions.current
         MediaItemRow(
             item = item,
-            subtitleLines = listOfNotNull(item.author?.let { "${FactEmoji.ARTIST} $it" }),
+            subtitleLines = rowFacts(item, MediaKind.VIDEO),
             pillar = MediaKind.VIDEO,
             onPlay = { onPlay(item) },
             onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },

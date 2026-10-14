@@ -116,6 +116,25 @@ class QueueGroupPlaybackTest {
         }
     }
 
+    @Test
+    fun `previous goes back one item, or restarts the item once it is well under way`() = runTest(dispatcher) {
+        queue.playAll(listOf("t1", "t2", "t3").map(::track), album)
+        advanceUntilIdle()
+        queue.playNextInQueue()
+        advanceUntilIdle()
+        assertEquals("t2", playingId())
+
+        queue.playPreviousInQueue()
+        advanceUntilIdle()
+        assertEquals("t1", playingId())
+
+        controller.seekTo(60_000)
+        queue.playPreviousInQueue()
+        advanceUntilIdle()
+        assertEquals("t1", playingId())
+        assertEquals(0L, controller.state.value?.positionMs)
+    }
+
     private companion object {
         const val SEED = 7
         const val SEEDS = 20

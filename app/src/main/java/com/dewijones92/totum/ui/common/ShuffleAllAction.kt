@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.common
 
 import android.widget.Toast
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -45,10 +46,13 @@ fun ShuffleAllAction(
     val loaded = loading[target.key]
     val context = LocalContext.current.applicationContext
     var asking by remember(target.key) { mutableStateOf(false) }
-    val start: (Boolean) -> Unit = { includeShorts ->
+    var randomStarts by remember(target.key) { mutableStateOf(LastShuffleChoice.randomStarts) }
+    val ask = rememberShuffleAsk()
+    val start: (Boolean, Boolean) -> Unit = { includeShorts, startAtRandom ->
         asking = false
+        LastShuffleChoice.randomStarts = startAtRandom
         scope.launch {
-            val outcome = shuffleAll.shuffle(target, includeShorts)
+            val outcome = shuffleAll.shuffle(target, includeShorts, startAtRandom)
             val message = when (outcome) {
                 ShuffleOutcome.AlreadyLoading -> return@launch
                 ShuffleOutcome.Nothing -> context.getString(R.string.shuffle_all_nothing)
@@ -59,7 +63,9 @@ fun ShuffleAllAction(
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
-    val onTap = { if (target.sources.any { it is MediaSource.VideoChannel }) asking = true else start(false) }
+    val onTap = {
+        if (target.sources.any { it is MediaSource.VideoChannel }) asking = true else ask { start(false, it) }
+    }
     val label = loaded?.let { pluralStringResource(R.plurals.shuffle_all_loading, it, it) }
         ?: stringResource(R.string.shuffle_all)
     if (wide) {
@@ -79,20 +85,36 @@ fun ShuffleAllAction(
         }
     }
     if (asking) {
-        AlertDialog(
-            onDismissRequest = { asking = false },
-            title = { Text(stringResource(R.string.shuffle_all_shorts_title)) },
-            text = { Text(stringResource(R.string.shuffle_all_shorts_body, target.title)) },
-            confirmButton = {
-                TextButton(
-                    onClick = { start(true) }
-                ) { Text(stringResource(R.string.shuffle_all_with_shorts)) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { start(false) }
-                ) { Text(stringResource(R.string.shuffle_all_videos_only)) }
-            },
-        )
+        ShortsQuestion(target.title, randomStarts, { randomStarts = it }, { asking = false }, start)
     }
+}
+
+@Composable
+private fun ShortsQuestion(
+    title: String,
+    randomStarts: Boolean,
+    onRandomStarts: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    start: (Boolean, Boolean) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.shuffle_all_shorts_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.shuffle_all_shorts_body, title))
+                RandomStartsCheckbox(randomStarts, onRandomStarts)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { start(true, randomStarts) }
+            ) { Text(stringResource(R.string.shuffle_all_with_shorts)) }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { start(false, randomStarts) }
+            ) { Text(stringResource(R.string.shuffle_all_videos_only)) }
+        },
+    )
 }

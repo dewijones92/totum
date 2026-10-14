@@ -46,6 +46,7 @@ internal fun ProvidePlayStates(
         LocalDownloadStates provides downloads,
         LocalSetPlayed provides setPlayed,
         LocalSourceArtwork provides artwork,
+        LocalAlbumYears provides container.albumYears,
     ) {
         ProvideFollowing(container) { ProvideItemActions(container, onOpenSource, content) }
     }

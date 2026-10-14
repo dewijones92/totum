@@ -57,7 +57,6 @@ import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
-import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -73,10 +72,10 @@ import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
-import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberFeedGate
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.notifications.NotificationsScreen
 import com.dewijones92.totum.ui.notifications.NotificationsViewModel
 import com.dewijones92.totum.ui.playlist.PlaylistScreen
@@ -434,7 +433,7 @@ private fun ChannelsAndVideos(
                 items(shown, key = { it.id.value }) { video ->
                     MediaItemRow(
                         item = video,
-                        subtitleLines = mediaItemFacts(video, MediaKind.VIDEO, LocalNow.current),
+                        subtitleLines = rowFacts(video, MediaKind.VIDEO),
                         downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                         pillar = MediaKind.VIDEO,
                         onPlay = { onPlay(video) },

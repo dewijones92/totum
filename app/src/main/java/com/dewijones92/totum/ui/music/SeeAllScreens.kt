@@ -23,11 +23,12 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.ui.common.BackHeader
-import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.rememberShuffleAsk
+import com.dewijones92.totum.ui.common.rowFacts
 
 @Composable
 fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBack: () -> Unit) {
@@ -44,6 +45,7 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
             is ArtistSongsViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
             is ArtistSongsViewModel.State.Loaded -> {
                 item {
+                    val ask = rememberShuffleAsk()
                     MusicButtons(
                         listOf(
                             MusicButton(
@@ -52,8 +54,10 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
                                 primary = true
                             ) { viewModel.play() },
                             MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
-                                toast(context, gathering)
-                                viewModel.shuffle(shuffledToast(context))
+                                ask { startAtRandom ->
+                                    toast(context, gathering)
+                                    viewModel.shuffle(startAtRandom, shuffledToast(context))
+                                }
                             },
                         ),
                     )
@@ -61,10 +65,7 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
                 itemsIndexed(current.songs, key = { _, item -> "all:" + item.id.value }) { index, item ->
                     MediaItemRow(
                         item = item,
-                        subtitleLines = listOfNotNull(
-                            item.album?.title?.let { "${FactEmoji.ALBUM} $it" },
-                            item.viewsText
-                        ),
+                        subtitleLines = rowFacts(item, MediaKind.VIDEO),
                         pillar = MediaKind.VIDEO,
                         onPlay = { viewModel.play(fromIndex = index) },
                         onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },

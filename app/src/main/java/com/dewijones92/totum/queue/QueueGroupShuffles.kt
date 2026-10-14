@@ -1,13 +1,19 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import kotlin.random.Random
 
 fun PlaybackQueue.shuffleGroup(id: String, random: Random = Random.Default) =
     reorder("shuffle inside group ${state.value.groupLabel(id)}") { it.shufflingWithin(id, random) }
 
-fun PlaybackQueue.shuffleAndPlayGroup(id: String, random: Random = Random.Default) {
+fun PlaybackQueue.shuffleAndPlayGroup(
+    id: String,
+    random: Random = Random.Default,
+    beforePlaying: (List<QueueEntry>) -> Unit = {},
+) {
     reorder("shuffle and play group ${state.value.groupLabel(id)}") { it.shufflingToPlay(id, random) }
+    beforePlaying(state.value.entries.filter { it.group?.id == id })
     val start = state.value.entries.indexOfFirst { it.group?.id == id }
     if (start >= 0) jumpTo(start)
 }

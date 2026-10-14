@@ -143,3 +143,11 @@ of the shape, which is the very thing that is wrong when this breaks.
 A **Recently** row (Music home and Library) holds the last 8 actions: shuffle all, album played or shuffled,
 radio; tapping replays it, and the newest two lead the app icon's shortcuts ([ADR 36](../adr/0036-recent-actions-come-back.md)).
 Album pages show a heart on every track row (`TrackLikeHeart`), reading each song's like as it scrolls in.
+
+## Richer song rows and Details (2026-10-14)
+
+Dewi: *"songs to have their date and artist, date published … general metadata"*, both rows and a details view.
+Every row now goes through `rowFacts`; a song shows 🎤 artist, 💿 album · year, 👁️ plays and 📅 date when known.
+The year comes from the album, looked up once by `AlbumYears` (two at a time, saved in `files/album-years.txt`).
+Every item's menu has an ℹ️ **Details** section listing everything known (`itemDetails`). Tests:
+`SongFactsAndDetailsTest`.

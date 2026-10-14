@@ -13,12 +13,12 @@ class GroupHeaderShufflePlayTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun show(count: Int, onShuffleAndPlay: () -> Unit) {
+    private fun show(count: Int, groupId: String = "album:a", onShuffleAndPlay: () -> Unit) {
         composeTestRule.setContent {
             TotumTheme {
                 GroupHeader(
                     GroupHeaderModel(
-                        groupId = "album:a",
+                        groupId = groupId,
                         isFirstRun = true,
                         title = "An album",
                         count = count,
@@ -54,5 +54,17 @@ class GroupHeaderShufflePlayTest {
         show(count = 1) {}
 
         composeTestRule.onNodeWithTag(queueGroupShufflePlayTag("album:a")).assertDoesNotExist()
+    }
+
+    @Test
+    fun aRadioGroupSaysItIsEndless() {
+        show(count = 3, groupId = "radio:RDAMVMseed") {}
+        composeTestRule.onNodeWithTag(QUEUE_GROUP_ENDLESS_TAG, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun anAlbumGroupIsNotEndless() {
+        show(count = 3) {}
+        composeTestRule.onNodeWithTag(QUEUE_GROUP_ENDLESS_TAG, useUnmergedTree = true).assertDoesNotExist()
     }
 }

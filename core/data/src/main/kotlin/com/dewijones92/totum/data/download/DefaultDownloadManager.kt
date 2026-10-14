@@ -17,7 +17,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 
 /**
@@ -36,6 +38,8 @@ public class DefaultDownloadManager(
     private val onDownloaded: suspend (PlayableItem) -> Unit = {},
     private val nowMs: () -> Long = { System.nanoTime() / NANOS_PER_MS },
 ) : DownloadManager {
+
+    private val slots = Semaphore(MAX_AT_ONCE)
 
     override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
 
@@ -72,6 +76,37 @@ public class DefaultDownloadManager(
     private val _events = MutableSharedFlow<DownloadEvent>(extraBufferCapacity = EVENT_BUFFER)
 
     override fun events(): Flow<DownloadEvent> = _events.asSharedFlow()
+
+    private suspend fun fetchIn(item: PlayableItem, media: MediaItem, target: File, audioOnly: Boolean) {
+        var lastProgressAt = Long.MIN_VALUE
+        var heldBack = 0
+        strategy.download(item, target, audioOnly).collect { state ->
+            if (state is DownloadState.Downloading) {
+                val now = nowMs()
+                if (lastProgressAt != Long.MIN_VALUE && now - lastProgressAt < PROGRESS_WRITE_EVERY_MS) {
+                    heldBack++
+                    return@collect
+                }
+                lastProgressAt = now
+            } else if (heldBack > 0) {
+                Diag.log("download", "${media.title}: $heldBack progress tick(s) not written, at most one a second")
+            }
+            store.put(item, state, audioOnly)
+            _events.tryEmit(DownloadEvent(media, state))
+            when (state) {
+                is DownloadState.Failed -> Diag.warn("download", "failed ${media.title}: ${state.reason}")
+                is DownloadState.Downloaded -> {
+                    // Whatever produced the finished file, no part-fetched copy of it may
+                    // survive: the next fetch of this id would resume from bytes belonging to
+                    // a download that has already finished.
+                    target.partialDownload().delete()
+                    Diag.log("download", "done ${media.title} sponsorSegmentsCut=${state.sponsorSegmentsCut}")
+                    onDownloaded(item)
+                }
+                else -> Unit
+            }
+        }
+    }
 
     override fun observeDownloads(): Flow<Map<MediaItemId, DownloadState>> = store.observeAll()
 
@@ -121,34 +156,10 @@ public class DefaultDownloadManager(
         val target = File(downloadDir.apply { mkdirs() }, media.id.fileName())
         Diag.log("download", "start audioOnly=$audioOnly ${media.title}")
         val job = scope.launch {
-            var lastProgressAt = Long.MIN_VALUE
-            var heldBack = 0
-            strategy.download(item, target, audioOnly).collect { state ->
-                if (state is DownloadState.Downloading) {
-                    val now = nowMs()
-                    if (lastProgressAt != Long.MIN_VALUE && now - lastProgressAt < PROGRESS_WRITE_EVERY_MS) {
-                        heldBack++
-                        return@collect
-                    }
-                    lastProgressAt = now
-                } else if (heldBack > 0) {
-                    Diag.log("download", "${media.title}: $heldBack progress tick(s) not written, at most one a second")
-                }
-                store.put(item, state, audioOnly)
-                _events.tryEmit(DownloadEvent(media, state))
-                when (state) {
-                    is DownloadState.Failed -> Diag.warn("download", "failed ${media.title}: ${state.reason}")
-                    is DownloadState.Downloaded -> {
-                        // Whatever produced the finished file, no part-fetched copy of it may
-                        // survive: the next fetch of this id would resume from bytes belonging to
-                        // a download that has already finished.
-                        target.partialDownload().delete()
-                        Diag.log("download", "done ${media.title} sponsorSegmentsCut=${state.sponsorSegmentsCut}")
-                        onDownloaded(item)
-                    }
-                    else -> Unit
-                }
+            if (slots.availablePermits == 0) {
+                Diag.log("download", "waiting for a free slot: ${media.title} (at most $MAX_AT_ONCE at once)")
             }
+            slots.withPermit { fetchIn(item, media, target, audioOnly) }
         }
         // Releasing its own claim on the way out, so the map tracks what is ACTUALLY running rather
         // than everything ever started — otherwise "cancel" would cancel an already-completed job,
@@ -246,4 +257,5 @@ public class DefaultDownloadManager(
 }
 
 private const val PROGRESS_WRITE_EVERY_MS = 1_000L
+private const val MAX_AT_ONCE = 4
 private const val NANOS_PER_MS = 1_000_000L

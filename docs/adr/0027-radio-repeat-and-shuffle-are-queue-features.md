@@ -37,3 +37,16 @@ belong to their pages; repeat and shuffling what is queued are not music-specifi
 
 - A podcast queue can repeat and shuffle exactly as music does.
 - Repeat QUEUE wraps without gapless: the first item is not armed from the last.
+
+## Amended 2026-10-14: the radio is endless, and says so
+
+Dewi, 2026-10-14: *"make the radio, the music radio, continuous … label it … really obvious"*; report
+`20261014T193916`, *"the radio doesn't seem to be infinite"*. The station was held only in memory, so an app
+restart (every update) ended it; playing anything outside it stopped it for good; and when YouTube offered no
+continuation it simply ran out. Now `MusicRadio` saves its station (`files/radio.txt`) and restores it after a
+restart while its songs are queued; playing something else pauses the top-ups until the radio is playing again;
+with no continuation left it carries on from its last song (`RadioSeed.forSong`). A radio group's header says
+**♾️ Endless radio**, and each radio song is played with its artist line as **♾️ Endless radio · artist**
+(`labelledForPlay`, at the queue's hand-off), so the mini player, the player, the notification and the lock
+screen all show it. Tests: `MusicRadioTest`, `EndlessLabelTest`, `GroupHeaderShufflePlayTest`.
+
