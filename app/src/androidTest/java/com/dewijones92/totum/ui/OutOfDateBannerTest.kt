@@ -44,7 +44,7 @@ class OutOfDateBannerTest {
         shellWith(installed = "0.1.602")
 
         composeTestRule.onNodeWithText(text(R.string.out_of_date_title)).assertIsDisplayed()
-        composeTestRule.onNodeWithText("You're on v0.1.602. v0.1.603 is out.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("🆕 You're on v0.1.602. v0.1.603 is out.").assertIsDisplayed()
         for (tab in listOf(R.string.destination_podcasts, R.string.destination_queue, R.string.destination_library)) {
             composeTestRule.onNodeWithText(text(tab)).performClick()
             composeTestRule.onNodeWithTag(OUT_OF_DATE_BANNER_TAG).assertIsDisplayed()

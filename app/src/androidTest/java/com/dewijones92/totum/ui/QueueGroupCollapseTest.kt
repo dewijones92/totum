@@ -117,7 +117,7 @@ class QueueGroupCollapseTest {
         // ONE line, not one per run: this queue splits the season (playAll inserts the second
         // batch after the current item), and three identical "3 items hidden" lines would be
         // three claims about the same three items.
-        composeTestRule.onNodeWithText("3 items hidden").assertIsDisplayed()
+        composeTestRule.onNodeWithText("🙈 3 items hidden").assertIsDisplayed()
     }
 
     @Test
