@@ -95,6 +95,7 @@
     <string name="queue_group_reorder">Drag %1$s to reorder</string>
     <string name="queue_group_menu">More for %1$s</string>
     <string name="queue_group_shuffle">Shuffle this group</string>
+    <string name="queue_group_shuffle_play">Shuffle and play %1$s</string>
     <string name="queue_shuffle_groups">Shuffle the order of groups</string>
     <string name="go_to_channel">Go to channel</string>
     <string name="go_to_podcast">Go to podcast</string>
@@ -610,6 +611,7 @@
     <string name="dailyalarm_cancel_today">Cancel today</string>
     <string name="dailyalarm_set_today_gone">⌛ That time has already gone today</string>
     <string name="shuffle_all">Shuffle all</string>
+    <string name="shuffle_all_of">Shuffle all of %1$s</string>
     <string name="shuffle_all_nothing">🤷 Nothing to shuffle</string>
     <string name="shuffle_all_incomplete"> (some pages could not be loaded)</string>
     <string name="shuffle_all_shorts_title">Include Shorts?</string>

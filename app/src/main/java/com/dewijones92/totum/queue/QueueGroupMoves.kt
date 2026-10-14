@@ -2,7 +2,6 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
-import kotlin.random.Random
 
 internal data class QueueBlock(val groupId: String?, val entries: List<QueueEntry>)
 
@@ -13,12 +12,6 @@ fun PlaybackQueue.moveGroupPast(id: String, target: Int) =
 
 fun PlaybackQueue.moveGroup(id: String, to: GroupDestination) =
     reorder("move group ${state.value.groupLabel(id)} to $to") { it.movingGroup(id, to) }
-
-fun PlaybackQueue.shuffleGroup(id: String, random: Random = Random.Default) =
-    reorder("shuffle inside group ${state.value.groupLabel(id)}") { it.shufflingWithin(id, random) }
-
-fun PlaybackQueue.shuffleGroupOrder(random: Random = Random.Default) =
-    reorder("shuffle the order of ${state.value.upNext.blocks().size} block(s)") { it.shufflingGroupOrder(random) }
 
 internal fun List<QueueEntry>.blocks(): List<QueueBlock> {
     val blocks = mutableListOf<QueueBlock>()
@@ -76,28 +69,11 @@ internal fun QueueSnapshot.movingGroup(groupId: String, destination: GroupDestin
     return rebuiltFrom(reordered)
 }
 
-internal fun QueueSnapshot.shufflingWithin(groupId: String, random: Random): QueueSnapshot {
-    val after = (currentIndex + 1).coerceAtLeast(0)
-    val slots = entries.indices.filter { it >= after && entries[it].group?.id == groupId }
-    if (slots.size < 2) return this
-    val shuffled = slots.map { entries[it] }.shuffled(random)
-    val reordered = entries.toMutableList()
-    slots.forEachIndexed { i, slot -> reordered[slot] = shuffled[i] }
-    return copy(entries = reordered)
-}
-
-internal fun QueueSnapshot.shufflingGroupOrder(random: Random): QueueSnapshot {
-    val after = (currentIndex + 1).coerceAtLeast(0)
-    val blocks = entries.drop(after).blocks()
-    if (blocks.size < 2) return this
-    return copy(entries = entries.take(after) + blocks.shuffled(random).flatMap { it.entries })
-}
-
 internal fun QueueSnapshot.groupLabel(id: String): String = "$id x${entries.count { it.group?.id == id }}"
 
 internal fun List<QueueEntry>.groupedBlockCount(): Int = blocks().count { it.groupId != null }
 
-private fun QueueSnapshot.rebuiltFrom(reordered: List<QueueEntry>): QueueSnapshot {
+internal fun QueueSnapshot.rebuiltFrom(reordered: List<QueueEntry>): QueueSnapshot {
     val current = current
     return copy(
         entries = reordered,

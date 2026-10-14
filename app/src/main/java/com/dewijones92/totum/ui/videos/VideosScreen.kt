@@ -63,6 +63,7 @@ import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaSort
+import com.dewijones92.totum.ui.common.SHUFFLE_ALL_TAG
 import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShowWhenAskedButton
@@ -141,7 +142,7 @@ fun VideosScreen(
                 onDeleteDownload = viewModel::deleteDownload,
                 onSelectFeed = viewModel::select,
                 onChannelClick = { nav.channel = it },
-                groupAction = { group -> ShuffleGroup(container, group) },
+                groupAction = { group, wide -> ShuffleGroup(container, group, wide) },
                 onSwitchMode = switchMode,
                 onGoToChannel = { item ->
                     actions.goToSource(item) { source ->
@@ -163,12 +164,13 @@ fun VideosScreen(
 }
 
 @Composable
-private fun ShuffleGroup(container: AppContainer, group: SourceGroup) {
+internal fun ShuffleGroup(container: AppContainer, group: SourceGroup, wide: Boolean) {
     ShuffleAllAction(
         container.shuffleAll,
         container.applicationScope,
         ShuffleTarget("group:${group.id.value}", group.name, group.members),
-        wide = true,
+        wide = wide,
+        tag = if (wide) SHUFFLE_ALL_TAG else groupChipShuffleTag(group.id.value),
     )
 }
 
@@ -258,7 +260,7 @@ internal fun VideosContent(
     modifier: Modifier = Modifier,
     feedHidden: Boolean = false,
     onShowFeed: () -> Unit = {},
-    groupAction: @Composable (SourceGroup) -> Unit = {},
+    groupAction: @Composable (SourceGroup, Boolean) -> Unit = { _, _ -> },
 ) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -389,7 +391,7 @@ private fun ChannelsAndVideos(
     modifier: Modifier = Modifier,
     feedHidden: Boolean = false,
     onShowFeed: () -> Unit = {},
-    groupAction: @Composable (SourceGroup) -> Unit = {},
+    groupAction: @Composable (SourceGroup, Boolean) -> Unit = { _, _ -> },
 ) {
     val playStates = LocalPlayStates.current
     val listState = rememberLazyListState()
@@ -422,7 +424,7 @@ private fun ChannelsAndVideos(
                 if (!feedHidden) FilterToggle(listFilter, unwatchedFiltered.size)
             }
             feedHeader(state, onChannelClick, showChannels = !feedHidden, groupAction = groupAction) {
-                FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts)
+                FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) { groupAction(it, false) }
             }
             if (!feedStandIn(state, feedHidden, onShowFeed)) {
                 playStateFilter(filter, onSetFilter)

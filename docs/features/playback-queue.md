@@ -48,7 +48,10 @@ in order). Neither touches what has played or what is playing.
 
 A group keeps what has played (Dewi, 2026-10-14: *"I don't want the group to shrink if I've played
 things"*): playing through it and tapping a song already in it both leave the song in its group.
-`GroupsKeepPlayedItemsTest`.
+`QueueGroupPlaybackTest`.
+
+A group header's 🔀 shuffles the whole group and plays it (ADR 40, amended 2026-10-14); never the same song
+again when the group is already playing.
 
 **Play now, then back to what's playing** (Dewi, 2026-09-26: *"an option on a queue item to move it
 in to the position of the current in play one? And the current in play one just moves down one

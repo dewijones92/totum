@@ -14,7 +14,7 @@ alone until they need more.
 |---|---|---|---|
 | Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |
-| Shuffle all (channel, podcast, group) | queue/channel | built 2026-10-12 — every page, Shorts asked, one queue group | [shuffle-all.md](shuffle-all.md) |
+| Shuffle all (channel, podcast, group) | queue/channel | shipped — every page, Shorts asked, one queue group; 🔀 on every group chip (2026-10-14) | [shuffle-all.md](shuffle-all.md) |
 | Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |
 | Phone rotation opens video fullscreen; portrait restores the player page | player | shipped | [player-redesign.md](player-redesign.md) |

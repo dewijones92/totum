@@ -56,6 +56,7 @@ import com.dewijones92.totum.queue.blocks
 import com.dewijones92.totum.queue.groupedBlockCount
 import com.dewijones92.totum.queue.moveGroup
 import com.dewijones92.totum.queue.queueGroupHeaderKey
+import com.dewijones92.totum.queue.shuffleAndPlayGroup
 import com.dewijones92.totum.queue.shuffleGroup
 import com.dewijones92.totum.queue.shuffleGroupOrder
 import com.dewijones92.totum.stats.StatsLog
@@ -188,6 +189,7 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onRemove = { onRemoveGroup(id) },
     onMove = { onMoveGroup(id, it) },
     onShuffle = { onShuffleGroup(id) },
+    onShuffleAndPlay = { onShuffleAndPlayGroup(id) },
 )
 
 private fun shuffleUpNextOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>, stats: StatsLog): (() -> Unit)? = {
@@ -222,6 +224,10 @@ private fun rememberQueueActions(
             queue.shuffleGroup(it)
             container.statsLog.use(UseKind.SHUFFLE, "inside a group")
         },
+        onShuffleAndPlayGroup = {
+            queue.shuffleAndPlayGroup(it)
+            container.statsLog.use(UseKind.SHUFFLE, "shuffle and play a group")
+        },
         dragSession = dragSession,
         onMove = queue::move,
         // A manual retry: the queue fetches audio by itself, but a failed
@@ -249,6 +255,7 @@ private data class QueueActions(
     val onRemoveGroup: (String) -> Unit,
     val onMoveGroup: (String, GroupDestination) -> Unit,
     val onShuffleGroup: (String) -> Unit,
+    val onShuffleAndPlayGroup: (String) -> Unit,
     val dragSession: QueueDragSession,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,

@@ -60,3 +60,10 @@ or a page that adds nothing new) into one shuffled `artist-all:` group, recorded
 screen). **Shuffle radio** sends the button's `params` (`RadioSeed.params`). Live on the emulator: Erik Satie,
 149 songs over 2 pages in 1.0 s; the station request carried `params=wAEB8gECGAE%3D`.
 
+## Amended 2026-10-14: a 🔀 on every group
+
+Dewi, 2026-10-14: *"I want a shuffle icon on each group please - that shuffles and plays"*, for both kinds of
+group. Every group chip on the Videos tab now has its own 🔀 beside it, the same `ShuffleAllAction` (compact)
+as a channel page, so a group no longer has to be selected first; the wide **Shuffle all** under a selected
+group stays. Queue groups get theirs in ADR 40.
+

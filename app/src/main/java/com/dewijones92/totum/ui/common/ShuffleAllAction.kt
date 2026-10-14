@@ -34,7 +34,13 @@ import kotlinx.coroutines.launch
 const val SHUFFLE_ALL_TAG = "shuffle-all"
 
 @Composable
-fun ShuffleAllAction(shuffleAll: ShuffleAll, scope: CoroutineScope, target: ShuffleTarget, wide: Boolean = false) {
+fun ShuffleAllAction(
+    shuffleAll: ShuffleAll,
+    scope: CoroutineScope,
+    target: ShuffleTarget,
+    wide: Boolean = false,
+    tag: String = SHUFFLE_ALL_TAG,
+) {
     val loading by shuffleAll.loading.collectAsStateWithLifecycle()
     val loaded = loading[target.key]
     val context = LocalContext.current.applicationContext
@@ -60,16 +66,16 @@ fun ShuffleAllAction(shuffleAll: ShuffleAll, scope: CoroutineScope, target: Shuf
         OutlinedButton(
             onClick = onTap,
             enabled = loaded == null,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag(SHUFFLE_ALL_TAG),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag(tag),
         ) {
             Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
             Text(label)
         }
     } else if (loaded != null) {
-        Text(label, modifier = Modifier.padding(horizontal = 8.dp).testTag(SHUFFLE_ALL_TAG))
+        Text(label, modifier = Modifier.padding(horizontal = 8.dp).testTag(tag))
     } else {
-        IconButton(onClick = onTap, modifier = Modifier.testTag(SHUFFLE_ALL_TAG)) {
-            Icon(Icons.Filled.Shuffle, contentDescription = label)
+        IconButton(onClick = onTap, modifier = Modifier.testTag(tag)) {
+            Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.shuffle_all_of, target.title))
         }
     }
     if (asking) {

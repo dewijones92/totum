@@ -64,3 +64,14 @@ numbers on both versions; see Consequences.
   up), and leaves every other entry where it was. `QueueGroupMovesTest` has the reviewer's case (album split around
   the playing item by a "Play next" episode), red on the old code.
 - A group folded by its own drag unfolds again when it is dropped.
+
+## Amended 2026-10-14: shuffle and play
+
+Dewi, 2026-10-14: *"I want a shuffle icon on each group please - that shuffles and plays"*. A queue group header
+with more than one item has a 🔀 beside its ⋮: `shuffleAndPlayGroup` gathers the whole group (played items
+included, since a group now keeps them) into one block where it starts, shuffles it, and plays its first item.
+If the group is the one playing, the playing item is never first, so a tap always moves to a different song.
+"Shuffle this group" in the ⋮ still reorders only what is up next, without playing. Logged as
+`shuffle and play group <id> xN`; counted as a shuffle in the stats. Tests: `QueueGroupPlaybackTest`,
+`GroupHeaderShufflePlayTest`.
+

@@ -49,6 +49,7 @@ internal data class GroupHeaderActions(
     val onRemove: () -> Unit,
     val onMove: (GroupDestination) -> Unit,
     val onShuffle: () -> Unit,
+    val onShuffleAndPlay: () -> Unit,
 )
 
 @Composable
@@ -76,6 +77,7 @@ internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, d
             tint = MaterialTheme.colorScheme.primary,
         )
         GroupTitle(model, Modifier.weight(1f).padding(start = 4.dp))
+        if (model.count > 1) GroupShufflePlay(model, actions.onShuffleAndPlay)
         GroupMenu(model, actions)
         if (model.draggable && drag != null) {
             QueueDragHandle(
@@ -93,6 +95,18 @@ internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, d
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun GroupShufflePlay(model: GroupHeaderModel, onClick: () -> Unit) {
+    val tag = if (model.isFirstRun) Modifier.testTag(queueGroupShufflePlayTag(model.groupId)) else Modifier
+    IconButton(onClick = onClick, modifier = tag) {
+        Icon(
+            Icons.Filled.Shuffle,
+            contentDescription = stringResource(R.string.queue_group_shuffle_play, model.title),
+            tint = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
@@ -167,6 +181,8 @@ internal fun QueueShuffleButton(onShuffleUpNext: () -> Unit, onShuffleGroups: ((
 internal fun queueGroupHeaderTag(groupId: String): String = "queue-group-header-$groupId"
 
 internal fun queueGroupMenuTag(groupId: String): String = "queue-group-menu-$groupId"
+
+internal fun queueGroupShufflePlayTag(groupId: String): String = "queue-group-shuffle-play-$groupId"
 
 internal fun queueRowGripTag(itemId: String): String = "queue-grip-$itemId"
 

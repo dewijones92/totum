@@ -20,10 +20,13 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class GroupsKeepPlayedItemsTest {
+class QueueGroupPlaybackTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val controller = FakePlaybackController()
@@ -76,5 +79,45 @@ class GroupsKeepPlayedItemsTest {
 
         assertEquals(setOf("t1", "t2", "t3"), inAlbum().toSet())
         assertEquals("t3", queue.state.value.current?.item?.item?.id?.value)
+    }
+
+    private fun playingId() = queue.state.value.current?.item?.item?.id?.value
+
+    @Test
+    fun `shuffle and play gathers the group, shuffles it and plays its first song`() = runTest(dispatcher) {
+        queue.playAll(listOf(track("other")))
+        queue.enqueueAll(listOf("t1", "t2", "t3", "t4", "t5").map(::track), album)
+        advanceUntilIdle()
+
+        queue.shuffleAndPlayGroup(album.id, Random(SEED))
+        advanceUntilIdle()
+
+        val entries = queue.state.value.entries
+        val first = entries.indexOfFirst { it.group?.id == album.id }
+        assertEquals(setOf("t1", "t2", "t3", "t4", "t5"), inAlbum().toSet())
+        assertTrue("the group stays together", entries.drop(first).take(5).all { it.group?.id == album.id })
+        assertEquals(inAlbum().first(), playingId())
+        assertEquals(inAlbum().first(), controller.state.value?.itemId?.value)
+        assertTrue("the other item stays queued", entries.any { it.item.item.id.value == "other" })
+    }
+
+    @Test
+    fun `shuffle and play inside the playing group moves to a different song`() = runTest(dispatcher) {
+        repeat(SEEDS) { seed ->
+            queue.playAll(listOf("t1", "t2", "t3").map(::track), album)
+            advanceUntilIdle()
+            val before = playingId()
+
+            queue.shuffleAndPlayGroup(album.id, Random(seed))
+            advanceUntilIdle()
+
+            assertNotEquals("seed $seed", before, playingId())
+            assertEquals(setOf("t1", "t2", "t3"), inAlbum().toSet())
+        }
+    }
+
+    private companion object {
+        const val SEED = 7
+        const val SEEDS = 20
     }
 }

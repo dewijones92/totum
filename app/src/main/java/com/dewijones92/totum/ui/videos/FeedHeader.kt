@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.videos
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
@@ -16,6 +17,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,7 +33,7 @@ internal fun LazyListScope.feedHeader(
     state: VideosViewModel.UiState,
     onChannelClick: (MediaSource.VideoChannel) -> Unit,
     showChannels: Boolean = true,
-    groupAction: @Composable (SourceGroup) -> Unit = {},
+    groupAction: @Composable (SourceGroup, Boolean) -> Unit = { _, _ -> },
     selector: @Composable () -> Unit,
 ) {
     if (showChannels && state.subscriptions.isNotEmpty()) {
@@ -48,7 +50,7 @@ internal fun LazyListScope.feedHeader(
     if (state.signedIn || state.groups.isNotEmpty()) {
         item { selector() }
     }
-    (state.selected as? FeedChoice.Group)?.let { selected -> item { groupAction(selected.group) } }
+    (state.selected as? FeedChoice.Group)?.let { selected -> item { groupAction(selected.group, true) } }
 }
 
 @Composable
@@ -57,6 +59,7 @@ internal fun FeedSelector(
     onSelectFeed: (FeedChoice?) -> Unit,
     onOpenPlaylists: () -> Unit,
     onOpenShorts: () -> Unit,
+    groupShuffle: @Composable (SourceGroup) -> Unit = {},
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -75,11 +78,14 @@ internal fun FeedSelector(
         // they are the same kind of thing to choose between — "what am I looking at" —
         // and a group he made is likelier to be what he wants than HISTORY.
         items(state.groups, key = { it.id.value }) { group ->
-            FilterChip(
-                selected = (state.selected as? FeedChoice.Group)?.group?.id == group.id,
-                onClick = { onSelectFeed(FeedChoice.Group(group)) },
-                label = { Text(group.name) },
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FilterChip(
+                    selected = (state.selected as? FeedChoice.Group)?.group?.id == group.id,
+                    onClick = { onSelectFeed(FeedChoice.Group(group)) },
+                    label = { Text(group.name) },
+                )
+                groupShuffle(group)
+            }
         }
         // Not feed filters — open the Shorts reel and the playlists list.
         item {
@@ -129,3 +135,5 @@ internal fun feedTitle(selected: FeedChoice?): String = when (selected) {
 internal fun LazyListScope.playStateFilter(filter: MediaFilter, onSetFilter: (MediaFilter) -> Unit) {
     item { MediaFilterChips(selected = filter, onSelect = onSetFilter) }
 }
+
+internal fun groupChipShuffleTag(groupId: String): String = "group-chip-shuffle-$groupId"
