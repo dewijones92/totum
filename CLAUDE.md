@@ -192,6 +192,8 @@ successor in line, because the queue's adoption cancelled the arming); local fil
 
 **Name the baseline by its commit, and expect a wide noise band (2026-10-14):** a baseline directory reused from an earlier day was v0.1.604, not the 0.1.605 it was reported as, so a "605 vs 606" soak measured three changes. Build the baseline fresh from the previous release's tag (`gh release list`, then `git archive v0.1.<n>`) into a directory named after it. The same build failed 3/30 and 8/30 an hour apart (all underruns and `edon5wb5Qsc` give-ups), and emulator CPU did not separate failed plays from passing ones (idle ~100% vs ~110% of 400%, app ~140% either way), so a gap of a few failures between builds is noise until a third run repeats it.
 
+**Queue auto-download confounds a soak (2026-10-14):** each soak play leaves its video in the queue, so later runs inherit more undownloaded items and the queue auto-download fetches them during the plays (0 and 1 downloads in the two v0.1.606 runs, 3 and 5 in the two later runs of the new build, whose failures were 7 and 7 against 3 and 4). Check the header's other services for `DownloadKeepAliveService`, and clear the queue or switch queue auto-download off before every run.
+
 Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
 
 Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the
