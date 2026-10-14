@@ -32,6 +32,28 @@ lowering `minSdk` to 33, below. Not started.
   (API 34), the Android 16 Live Update banner (already version-gated), partial media-permission
   handling, predictive back, and the exact-alarm permission flow.
 
+## Investigation (2026-10-14, a read-only scout, its key sites re-checked by grep)
+
+Small code change; the effort is the API-33 run, not the edits. No library needs 34 (the cached
+javascriptengine, media3, work, mediarouter, room and navigation3 all ask for 26 or less); the floor is
+CLAUDE.md's recorded choice, which no ADR records, so lowering it needs a new ADR.
+
+| Site | API | On Android 13 | Fix |
+|---|---|---|---|
+| `exsurge/AndroidExsurgePorts.kt:52` `canUseFullScreenIntent()` | 34 | unguarded: expected crash when a takeover shows | `if (SDK_INT >= 34) … else true` |
+| `ui/settings/ExsurgeSettingsScreen.kt` permissions row (`canUseFullScreenIntent`, `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`) | 34 | expected crash building the Exsurge page | omit the row below 34 |
+| `exsurge/ExsurgeBannerService.kt:48` `FOREGROUND_SERVICE_TYPE_HEALTH` | 34 | unknown; inside `runCatching`, failure stops the step counter | test on 33; two-argument `startForeground` below 34 |
+| `dailyalarms/RingService.kt:46`, `AlarmBoardService.kt:30` `FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED` | 34 | unknown; failure rings unpinned / posts the board unpinned | same |
+
+- Manifest: the 34-only `FOREGROUND_SERVICE_*` permissions and `health`/`systemExempted` types are
+  expected to be ignored on 33; to be checked on the device.
+- Live Update (API 36) is already guarded; everything else used is API 31 or older.
+- CI emulators are API 35 (`ci.yml:87`, `exsurge.yml:89`); add an API-33 job or a local `totum-api33`.
+- Docs that cite minSdk 34 as a reason: CLAUDE.md Decisions row, `docs/features/brand.md:89`,
+  `tools/ffmpeg/README.md:6` (W^X is older than 14, so that wording is likely wrong; unverified).
+- ADRs 5, 18 and 21 describe Android 14 behaviour (swipeable ongoing notifications, `systemExempted`);
+  their 33 behaviour has to be checked.
+
 ## Done when
 
 Totum installs and its main flows (playback, downloads, Exsurge, Daily alarms) work on the 4a, checked on
