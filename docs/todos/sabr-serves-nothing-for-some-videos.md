@@ -1,9 +1,9 @@
 ---
 title: SABR serves nothing at all for some videos, and the app blames the fixture
 kind: todo
-status: closed 2026-09-25: it is the ANDROID endpoint's ~60 s wall, seen from the fresh stream recovery opens after it; tracked in po-token-minting.md
+status: closed 2026-09-25, REOPENED for a re-check 2026-10-14 — the same failure is back on CI (3 of the last 8 red runs on main)
 area: playback
-updated: 2026-09-25
+updated: 2026-10-14
 ---
 
 # The failure, and the retraction that has to come first
@@ -75,3 +75,19 @@ is unavailable"), fall back to the ANDROID endpoint, and that endpoint stops ser
 media. The test passes because it only asks for 10 s. The wall itself belongs to
 [po-token-minting.md](po-token-minting.md).
 
+## 2026-10-14: back on CI, so the closure needs re-checking
+
+The closure above held for the runs read on 2026-09-25. Since the live phase started running again on
+2026-10-08 (see [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md)),
+`sabrCarriesEveryContentType` has failed in 3 of the last 8 red runs on `main`, with the same signature:
+
+| Run | Date | Video |
+|---|---|---|
+| 37957711766 | 10-09 | Ms Rachel (kids) — `SABR served nothing for gngPQ771Ahk:251` |
+| 38004468268 | 10-09 | 97-minute VOD — `SABR served nothing for uSMGENDH_QI:251` |
+| 38256355632 | 10-12 | 97-minute VOD — `SABR served nothing for uSMGENDH_QI:251` |
+
+Not yet checked: whether these are the ~60 s ANDROID-endpoint wall the closure named (the per-test logcat
+in each run's `instrumented-reports` artifact has the timings), or something new. `uSMGENDH_QI` is also the
+video in the hour-long stall, so read both together. Until that is checked, the closure is a claim about
+September only.
