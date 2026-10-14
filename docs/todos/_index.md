@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Backlog
@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | open — designed with Dewi 2026-10-14, top of the backlog, not started |
 | [Suggest groups of downloads to delete](suggest-downloads-to-delete.md) | downloads | high | built 2026-10-13 → [features/downloads-cleanup.md](../features/downloads-cleanup.md), ADR 31 |
 | [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | built 2026-10-12 → [features/daily-alarms.md](../features/daily-alarms.md) |
 | [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | built 2026-10-12 → [features/shuffle-all.md](../features/shuffle-all.md) |
