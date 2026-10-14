@@ -5,7 +5,7 @@ status: state-dependent; 18:4x recurrence was host load (a second emulator at ~1
 area: testing
 priority: low
 requested: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-14
 ---
 
 # The Continue Totum video test times out on the emulator
@@ -44,3 +44,18 @@ any audio had been rendered, so the reported position was ExoPlayer's clock extr
 On resume it re-synced to the audio sink's real head (10000 ms), which is lower. The passing run at
 c568b90e had paused at 10073 ms and resumed at 10082 ms. Fix: the test now waits until the position
 reaches 10.3 s before it pauses, so `before` is a position that was really played.
+
+## 2026-10-14: in the batch to make it deterministic
+
+Every recorded failure so far has had an environmental cause (a long-running emulator with a banner service
+left over; a starved host), and none was the code under test. That is exactly what a test should not depend
+on. The batch should make the start state explicit instead of hoping for a clean emulator:
+
+- At the test's start, **record** `ExsurgeBannerService.running`, the host load average (from the runner's
+  log, not the device) and whether another foreground service is running, and **stop** a banner service
+  left over from earlier use before the test begins.
+- Replace the 10 s wait for `isPlaying` on the local video fixture with a wait on decoded progress that
+  says what it saw when it gives up (the decoder's last `format` line and the position), so a starved host
+  fails with a message that names the starvation.
+- Done when: three full Exsurge runs in a row on `totum-api35` pass it, including one straight after a
+  manual Exsurge session.
