@@ -162,6 +162,7 @@ import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.startStreamRecovery
+import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.startSharedMetadataRepair
@@ -382,6 +383,7 @@ interface AppContainer {
     val pinStore: PinStore
 
     val pinPlayer: PinPlayer
+    val listeningSwitcher: ListeningSwitcher
 
     val homeScreenShortcuts: HomeScreenShortcuts?
 
@@ -594,28 +596,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * whose cookie jar holds the oauth2-proxy session obtained at sign-in. Authentication is
      * therefore a property of the HTTP client rather than something this class knows about.
      */
-    override val homeTorrentServer: HomeTorrentServer? by lazy {
-        val settings = appPreferences.settings.value
-        val base = settings.homeServerBase.takeIf { it.isNotBlank() } ?: return@lazy null
-        HttpHomeTorrentServer(
-            // Its own read timeout, because a torrent search is nothing like the app's other
-            // requests: it fans out to every indexer and waits for the slowest. Measured
-            // 2026-08-02, one query answered in 10.7s and another was still going at 60s — both
-            // well past the 20s that suits a feed fetch, and a cut-off would have looked to the
-            // person searching exactly like "no results". Shares the connection pool, so this
-            // costs nothing but the setting.
-            client = httpClient.newBuilder()
-                .readTimeout(TORRENT_SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .callTimeout(TORRENT_SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .build(),
-            base = "https://totum.$base",
-            // BOTH read per call, so signing in takes effect immediately rather than after a
-            // restart. The key used to be captured here by value, which meant a fresh install
-            // built this with no key and never picked up the one sign-in delivered.
-            prowlarrApiKey = { appPreferences.settings.value.prowlarrApiKey },
-            token = { appPreferences.settings.value.homeServerToken },
-        )
-    }
+    override val homeTorrentServer: HomeTorrentServer? by lazy { homeTorrentServerOf(appPreferences, httpClient) }
 
     override val torrentSearchSource: SearchSource? by lazy {
         homeTorrentServer?.let(::TorrentSearchSource)
@@ -1395,6 +1376,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
 
     override val pinPlayer: PinPlayer by lazy { pinPlayerOf(this) }
+    override val listeningSwitcher: ListeningSwitcher by lazy { listeningSwitcherOf(this) }
 
     override val homeScreenShortcuts: HomeScreenShortcuts by lazy { HomeScreenShortcuts(context) }
 
@@ -1434,9 +1416,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         const val ACCOUNT_WATCHED_REFRESH_MS = 5 * 60 * 1_000L
 
         const val HTTP_TIMEOUT_SECONDS = 20L
-
-        /** Matches the home server's own 180s ceiling for a fan-out indexer search. */
-        const val TORRENT_SEARCH_TIMEOUT_SECONDS = 180L
     }
 }
 
@@ -1470,6 +1449,40 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
     WholeSource(AppSourcePages(c.youTubeChannel, c.channelRepository, c.podcastRepository)),
     c.playbackQueue,
     c.recentActions,
+)
+
+/** Matches the home server's own 180s ceiling for a fan-out indexer search. */
+private const val TORRENT_SEARCH_TIMEOUT_SECONDS = 180L
+
+private fun homeTorrentServerOf(prefs: AppPreferences, httpClient: OkHttpClient): HomeTorrentServer? {
+    val settings = prefs.settings.value
+    val base = settings.homeServerBase.takeIf { it.isNotBlank() } ?: return null
+    return HttpHomeTorrentServer(
+        // Its own read timeout, because a torrent search is nothing like the app's other
+        // requests: it fans out to every indexer and waits for the slowest. Measured
+        // 2026-08-02, one query answered in 10.7s and another was still going at 60s — both
+        // well past the 20s that suits a feed fetch, and a cut-off would have looked to the
+        // person searching exactly like "no results". Shares the connection pool, so this
+        // costs nothing but the setting.
+        client = httpClient.newBuilder()
+            .readTimeout(TORRENT_SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(TORRENT_SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build(),
+        base = "https://totum.$base",
+        // BOTH read per call, so signing in takes effect immediately rather than after a
+        // restart. The key used to be captured here by value, which meant a fresh install
+        // built this with no key and never picked up the one sign-in delivered.
+        prowlarrApiKey = { prefs.settings.value.prowlarrApiKey },
+        token = { prefs.settings.value.homeServerToken },
+    )
+}
+
+private fun listeningSwitcherOf(c: DefaultAppContainer) = ListeningSwitcher(
+    c.playbackQueue,
+    c.playbackController,
+    c.recentActions,
+    { c.pinPlayer.play(it, "music toggle") },
+    c.applicationScope,
 )
 
 private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(

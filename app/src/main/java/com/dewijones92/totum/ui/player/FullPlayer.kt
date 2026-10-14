@@ -73,6 +73,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
 import com.dewijones92.totum.ui.player.WatchViewModel.PostState
 import com.dewijones92.totum.ui.player.WatchViewModel.RelatedState
@@ -430,11 +431,14 @@ const val PLAYER_METADATA_TAG: String = "player-views-and-date"
 @Composable
 private fun UpNextSection(queue: QueueControls) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = stringResource(R.string.queue_up_next_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 4.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.queue_up_next_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 4.dp).weight(1f),
+            )
+            SwitchListeningButton("full player")
+        }
         queue.upNext.forEachIndexed { index, queued ->
             val item = queued.item.item
             Row(

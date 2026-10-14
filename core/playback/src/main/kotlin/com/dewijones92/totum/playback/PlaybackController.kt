@@ -4,6 +4,7 @@ import androidx.media3.common.Player
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.domain.Chapter
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -108,6 +109,10 @@ public interface PlaybackController {
 
     /** Lifts quiet audio; remembered per source. Local playback only (not Cast). */
     public fun setVolumeBoost(boost: VolumeBoost)
+
+    public val switchRequests: Flow<String>
+
+    public fun showSwitchButton(to: Listening?)
 
     /**
      * Asks the service to hold the first seconds of [url], so the next track change is not a wait.

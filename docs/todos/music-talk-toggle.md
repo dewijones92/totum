@@ -1,7 +1,7 @@
 ---
 title: One tap to switch between music and talk (podcasts, videos) in the queue
 kind: todo
-status: open — agreed with Dewi 2026-10-14; in the 2026-10-14 batch after the Pixel 4a work
+status: built 2026-10-14 → ADR 42
 area: queue/playback
 priority: high
 requested: 2026-10-14

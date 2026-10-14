@@ -40,6 +40,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
                 .collect { (pins, recent) -> container.homeScreenShortcuts?.publish(pins, recent) }
         }
         container.startDownloadNotifications()
+        container.listeningSwitcher.start()
         startGapless(container, NetworkStatus(this)::isMetered)
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)

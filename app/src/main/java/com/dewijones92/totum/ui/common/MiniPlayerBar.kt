@@ -67,32 +67,11 @@ fun MiniPlayerBar(
                 // rather than taking a slot of its own.
                 ArtworkWithPillarBadge(state)
                 NowPlayingText(state, modifier = Modifier.weight(1f))
+                SwitchListeningButton("mini player")
                 // The bar is where you spend most of the time, and it was the one
                 // surface that showed nothing while stalled — so a stall here was
                 // indistinguishable from the app simply having stopped.
-                if (state.isBuffering) {
-                    CircularProgressIndicator(
-                        strokeWidth = 2.dp,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .size(20.dp)
-                            .semantics { contentDescription = buffering },
-                    )
-                } else {
-                    FilledIconButton(
-                        onClick = onTogglePlayPause,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    ) {
-                        if (state.isPlaying) {
-                            Icon(Icons.Filled.Pause, contentDescription = stringResource(R.string.pause))
-                        } else {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.play))
-                        }
-                    }
-                }
+                PlayPauseOrBuffering(state, onTogglePlayPause, buffering)
                 // Skip-next belongs here now the queue is the spine: reaching the next item
                 // otherwise means opening the full player to press one button.
                 onSkipNext?.let { skip ->
@@ -115,6 +94,33 @@ fun MiniPlayerBar(
                 gapSize = 0.dp,
                 drawStopIndicator = {},
             )
+        }
+    }
+}
+
+@Composable
+private fun PlayPauseOrBuffering(state: PlaybackState, onTogglePlayPause: () -> Unit, buffering: String) {
+    if (state.isBuffering) {
+        CircularProgressIndicator(
+            strokeWidth = 2.dp,
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .size(20.dp)
+                .semantics { contentDescription = buffering },
+        )
+    } else {
+        FilledIconButton(
+            onClick = onTogglePlayPause,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
+            if (state.isPlaying) {
+                Icon(Icons.Filled.Pause, contentDescription = stringResource(R.string.pause))
+            } else {
+                Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.play))
+            }
         }
     }
 }

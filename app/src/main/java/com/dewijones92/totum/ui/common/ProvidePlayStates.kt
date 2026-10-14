@@ -42,6 +42,7 @@ internal fun ProvidePlayStates(
     // remember to wire them — the screens that forgot are why these are defaults.
     CompositionLocalProvider(
         LocalPlayStates provides states,
+        LocalListeningSwitch provides listeningSwitchUi(container),
         LocalDownloadStates provides downloads,
         LocalSetPlayed provides setPlayed,
         LocalSourceArtwork provides artwork,

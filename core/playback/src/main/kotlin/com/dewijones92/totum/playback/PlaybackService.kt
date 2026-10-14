@@ -39,6 +39,7 @@ import com.google.common.util.concurrent.ListenableFuture
 public class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+    private val switchButton by lazy { ListeningSwitchButton(this) }
 
     /** The user's skip-silences intent. Applies to both pillars now. */
     @Volatile
@@ -184,6 +185,8 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_SILENCE_MODE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_SWITCH_BUTTON, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_SWITCH_LISTENING, Bundle.EMPTY))
                         .build(),
                 )
                 .build()
@@ -194,6 +197,10 @@ public class PlaybackService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            if (switchButton.handles(customCommand.customAction)) {
+                switchButton.onCommand(session, controller, customCommand.customAction, args)
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (customCommand.customAction == ACTION_PRELOAD_NEXT) {
                 val uri = args.getString(EXTRA_PRELOAD_URI)
                 val itemId = args.getString(EXTRA_PRELOAD_ITEM_ID)

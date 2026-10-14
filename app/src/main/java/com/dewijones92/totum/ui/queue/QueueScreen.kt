@@ -72,6 +72,7 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.rememberListFilter
@@ -511,6 +512,7 @@ private fun QueueHeader(
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             FilterToggle(listFilter, count)
+            SwitchListeningButton("queue header")
             onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
             if (count > 0) {
                 TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }

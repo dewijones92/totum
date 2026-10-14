@@ -3,6 +3,7 @@ package com.dewijones92.totum.playback.fake
 import androidx.media3.common.Player
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -24,6 +25,20 @@ import kotlinx.coroutines.flow.update
 // implementation carries the same suppression for the same reason.
 @Suppress("TooManyFunctions")
 public class FakePlaybackController : PlaybackController {
+
+    private val switches = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    override val switchRequests: Flow<String> = switches
+
+    public var switchButton: Listening? = null
+        private set
+
+    override fun showSwitchButton(to: Listening?) {
+        switchButton = to
+    }
+
+    public fun tapSwitchInNotification() {
+        switches.tryEmit("notification")
+    }
 
     /** Every play() in order — lets a test assert how MANY times something was played. */
     public val played: MutableList<String> = mutableListOf()

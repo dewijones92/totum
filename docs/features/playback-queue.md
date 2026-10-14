@@ -36,6 +36,10 @@ rows slide aside, and holding it at an edge scrolls. A group header's ≡ drags 
 first). While any drag is in flight a split group's second header is hidden, so the layout cannot shift under
 the finger.
 
+**Music ⇄ talk** (ADR 42): 🎵 / 🎙️ in the mini player, the full player's Up next, the Queue header and the
+media notification jumps to the other kind within the queue (the one left last, else the nearest); with no
+music queued it plays the newest music from Recently. `dewidebug [switch]` lines say what it chose and why.
+
 **Groups** (ADR 40; Dewi, 2026-10-14: *"i want to be able to shuffle them and move them (just like any other
 queue item)"*): a group header's ⋮ has Play next, Move to top, Move to bottom, Shuffle this group and Remove
 these. A group moves as one block, gathered in order even if it had been split. The Queue header's 🔀 asks

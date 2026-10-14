@@ -89,6 +89,7 @@ import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.fake.FakePlaybackController
+import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
@@ -210,6 +211,16 @@ class FakeAppContainer(
             playState = { PlayState.Unplayed },
             shuffleAll = shuffleAll,
             artistShuffle = ArtistShuffle(musicCatalogue, playbackQueue, recentActions),
+        )
+    }
+
+    override val listeningSwitcher: ListeningSwitcher by lazy {
+        ListeningSwitcher(
+            playbackQueue,
+            playbackController,
+            recentActions,
+            { pinPlayer.play(it, "music toggle") },
+            applicationScope,
         )
     }
 

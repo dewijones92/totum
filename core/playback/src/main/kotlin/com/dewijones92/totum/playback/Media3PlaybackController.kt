@@ -17,16 +17,21 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.skipTargetFor
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +81,9 @@ public class Media3PlaybackController(
 
     override val events: Flow<PlaybackEvent> = _events.asSharedFlow()
 
+    private val _switchRequests = MutableSharedFlow<String>(extraBufferCapacity = EVENT_BUFFER)
+    override val switchRequests: Flow<String> = _switchRequests.asSharedFlow()
+
     private var controller: MediaController? = null
     override val player: Player? get() = controller
     private val pendingCommands = mutableListOf<(MediaController) -> Unit>()
@@ -98,7 +106,7 @@ public class Media3PlaybackController(
 
     init {
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val future = MediaController.Builder(context, token).buildAsync()
+        val future = MediaController.Builder(context, token).setListener(switchListener()).buildAsync()
         future.addListener(
             {
                 val connected = future.get()
@@ -561,6 +569,31 @@ public class Media3PlaybackController(
             _state.value = it.currentPlaybackState()
         }
         scope.launch { boostStore.save(boost) }
+    }
+
+    override fun showSwitchButton(to: Listening?) {
+        withController {
+            it.sendCustomCommand(
+                SessionCommand(ACTION_SWITCH_BUTTON, Bundle.EMPTY),
+                bundleOf(EXTRA_SWITCH_TO to to?.name)
+            )
+        }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun switchListener() = object : MediaController.Listener {
+        override fun onCustomCommand(
+            controller: MediaController,
+            command: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            if (command.customAction != ACTION_SWITCH_LISTENING) {
+                return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+            }
+            val from = args.getString(EXTRA_SWITCH_FROM) ?: "the session"
+            Diag.log("switch", "switch requested from $from; delivered=${_switchRequests.tryEmit(from)}")
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
     }
 
     override fun setSubtitleLanguage(languageCode: String?) {

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playback_switch_to_music">Switch to music</string>
+    <string name="playback_switch_to_talk">Switch to talk</string>
+</resources>

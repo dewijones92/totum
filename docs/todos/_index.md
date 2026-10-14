@@ -17,7 +17,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A stats page with drill-downs](stats-page.md) | library | high | open — agreed 2026-10-14; the log in this batch, the page next |
 | [Queue groups move and shuffle like items](queue-groups-move-and-shuffle.md) | queue | high | built 2026-10-14 → ADR 40, with the drag rewrite |
 | [Surgius cries when Exsurge is off or paused](surgius-cries-when-off.md) | side-quest | medium | built 2026-10-14 → exsurge-et-disce feature doc |
-| [One tap to switch between music and talk](music-talk-toggle.md) | queue/playback | high | open — agreed 2026-10-14, in this batch after the Pixel 4a |
+| [One tap to switch between music and talk](music-talk-toggle.md) | queue/playback | high | built 2026-10-14 → ADR 42 |
 | [Exsurge nudges when the phone has lain flat while it is off](exsurge-flat-phone-nudge.md) | side-quest | high | built 2026-10-14 → ADRs 37, 38 |
 | [An "Even out" loudness mode](even-out-loudness.md) | playback | high | built 2026-10-14 → ADR 35 |
 | [Recent actions as a Recently row and app shortcuts](recently-row-and-shortcuts.md) | queue/ui | medium | built 2026-10-14 → ADR 36 |
