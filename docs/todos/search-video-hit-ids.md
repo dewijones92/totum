@@ -1,11 +1,11 @@
 ---
 title: Search's video hits use the watch URL as their id; everything else uses the video id
 kind: todo
-status: open — found 2026-10-09, not changed (outside the Music tab work)
+status: done — fixed in 94463e75 (database v26); this file said "open" until 2026-10-14
 area: search
 priority: medium
 requested: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-14
 ---
 
 # One video, two ids
@@ -23,3 +23,14 @@ that is a decision about shipped behaviour.
 
 To decide: move video hits to the video id (and optionally rewrite stored ids once, keyed by the watch URL),
 or accept the split.
+
+## Done (found stale on 2026-10-14)
+
+Fixed the same day it was found, in `94463e75` ("one id per video (DB v26)"): `SearchHit.Video.toMediaItem`
+takes the id from the watch URL, and `VideoIdMigration` (run by `MIGRATION_25_26`) rewrote stored watch-URL
+ids to the bare id in `play_history`, `downloads`, `playback_progress`, both account-progress tables,
+`local_playlist_items` (per playlist) and `queue_items`, keeping the better row where both existed (newer
+play or progress, a finished download over an unfinished one). Backups restore through `canonicalItemId`.
+Covered by `VideoIdMigrationTest` (instrumented) and `OneSongOneIdTest`. This file kept saying "open",
+which put it back in a batch on 2026-10-14 (Dewi chose "rewrite them once", which is what v26 already did).
+A sweep of every `MediaItemId(` construction on 2026-10-14 found no other place building one from a URL.
