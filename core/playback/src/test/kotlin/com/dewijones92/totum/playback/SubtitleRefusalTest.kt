@@ -19,6 +19,8 @@ class SubtitleRefusalTest {
     fun `other failures keep the ordinary policy`() {
         assertNull(subtitleRefusalDelayMs(403, captions, errorCount = 1))
         assertNull(subtitleRefusalDelayMs(null, captions, errorCount = 1))
-        assertNull(subtitleRefusalDelayMs(429, "https://rr2---sn-x.googlevideo.com/videoplayback?itag=18", errorCount = 1))
+        assertNull(
+            subtitleRefusalDelayMs(429, "https://rr2---sn-x.googlevideo.com/videoplayback?itag=18", errorCount = 1)
+        )
     }
 }
