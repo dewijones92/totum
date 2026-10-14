@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -144,7 +145,7 @@ private fun Countdown(ring: RingReading, view: ExsurgeView) {
 private fun RankBadge(stats: ExsurgeStats) {
     val laurel = LocalLaurel.current
     Text(
-        stringResource(R.string.exsurge_rank_badge, stats.rank.latin, stats.laurels),
+        pluralStringResource(R.plurals.exsurge_rank_badge, stats.laurels, stats.rank.latin, stats.laurels),
         style = MaterialTheme.typography.labelLarge,
         color = laurel.onContainer,
         modifier = Modifier

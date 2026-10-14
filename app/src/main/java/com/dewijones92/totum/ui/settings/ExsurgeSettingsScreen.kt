@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -158,7 +159,7 @@ private class SwitchSpec(
 private val TIMING = listOf(
     StepperSpec(
         R.string.exsurge_settings_sitting,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         5,
         ExsurgeSettings.SITTING_RANGE,
         { it.sittingMinutes }
@@ -167,7 +168,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_break,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         1,
         ExsurgeSettings.BREAK_RANGE,
         { it.breakMinutes }
@@ -176,7 +177,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_steps,
-        R.string.exsurge_unit_steps,
+        R.plurals.exsurge_unit_steps,
         5,
         ExsurgeSettings.STEPS_TO_RISE_RANGE,
         { it.stepsToRise }
@@ -185,7 +186,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_walk,
-        R.string.exsurge_unit_steps,
+        R.plurals.exsurge_unit_steps,
         25,
         ExsurgeSettings.WALK_RESET_RANGE,
         { it.walkResetSteps }
@@ -194,7 +195,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_snooze,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         1,
         ExsurgeSettings.SNOOZE_RANGE,
         { it.snoozeMinutes }
@@ -203,7 +204,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_call_interval,
-        R.string.exsurge_unit_seconds,
+        R.plurals.exsurge_unit_seconds,
         15,
         ExsurgeSettings.CALL_INTERVAL_RANGE,
         { it.callIntervalSeconds },
@@ -212,7 +213,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_rise_timeout,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         1,
         ExsurgeSettings.RISE_TIMEOUT_RANGE,
         { it.riseTimeoutMinutes },
@@ -221,7 +222,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_walk_window,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         1,
         ExsurgeSettings.WALK_WINDOW_RANGE,
         { it.walkWindowMinutes }
@@ -230,7 +231,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_mid_cue_minutes,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         1,
         ExsurgeSettings.MID_CUE_RANGE,
         { it.midCueMinutes }
@@ -239,7 +240,7 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_pause_minutes,
-        R.string.exsurge_unit_minutes,
+        R.plurals.exsurge_unit_minutes,
         15,
         ExsurgeSettings.PAUSE_RANGE,
         { it.pauseMinutes }
@@ -251,7 +252,7 @@ private val TIMING = listOf(
 private val VOLUME =
     StepperSpec(
         R.string.exsurge_settings_volume,
-        R.string.exsurge_unit_percent,
+        R.plurals.exsurge_unit_percent,
         10,
         0..100,
         { it.voiceVolumePercent }
@@ -468,13 +469,13 @@ private fun Stepper(
     settings: ExsurgeSettings,
     update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit,
 ) {
-    val unit = stringResource(spec.unit)
+    val resources = LocalResources.current
     SnappingSlider(
         label = stringResource(spec.label),
         value = spec.get(settings),
         range = spec.range,
         step = spec.step,
-        shown = { unit.format(it) },
+        shown = { resources.getQuantityString(spec.unit, it, it) },
         tag = "exsurge-slider-${spec.label}",
     ) { chosen -> update { spec.set(this, chosen) } }
 }

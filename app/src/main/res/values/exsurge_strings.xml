@@ -99,7 +99,6 @@
     <string name="exsurge_perm_destination">%1$s installed</string>
     <string name="exsurge_perm_grant">Grant</string>
     <string name="exsurge_settings_stats">Cursus honorum</string>
-    <string name="exsurge_stats_rank">%1$s · laurels: %2$d</string>
     <string name="exsurge_stats_next_rank">%2$s in: %1$d</string>
     <string name="exsurge_stats_top_rank">The highest rank in Rome</string>
     <string name="exsurge_stats_today">Today · done: %1$d (practised: %5$d) · skipped: %2$d · missed: %3$d · steps: %4$d</string>
@@ -113,9 +112,24 @@
     <string name="exsurge_ring_steps">steps to rise</string>
     <string name="exsurge_ring_summoned">Exsurge!</string>
     <string name="exsurge_ring_off">Surgius is resting</string>
-    <string name="exsurge_rank_badge">🌿 %1$s · %2$d laurels</string>
-    <string name="exsurge_unit_minutes">%d min</string>
-    <string name="exsurge_unit_steps">%d steps</string>
-    <string name="exsurge_unit_seconds">%d s</string>
-    <string name="exsurge_unit_percent">%d%%</string>
+    <plurals name="exsurge_rank_badge">
+        <item quantity="one">🌿 %1$s · %2$d laurel</item>
+        <item quantity="other">🌿 %1$s · %2$d laurels</item>
+    </plurals>
+    <plurals name="exsurge_unit_minutes">
+        <item quantity="one">%d min</item>
+        <item quantity="other">%d min</item>
+    </plurals>
+    <plurals name="exsurge_unit_steps">
+        <item quantity="one">%d step</item>
+        <item quantity="other">%d steps</item>
+    </plurals>
+    <plurals name="exsurge_unit_seconds">
+        <item quantity="one">%d s</item>
+        <item quantity="other">%d s</item>
+    </plurals>
+    <plurals name="exsurge_unit_percent">
+        <item quantity="one">%d%%</item>
+        <item quantity="other">%d%%</item>
+    </plurals>
 </resources>
