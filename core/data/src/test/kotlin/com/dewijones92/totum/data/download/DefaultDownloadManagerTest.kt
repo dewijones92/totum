@@ -56,13 +56,37 @@ class DefaultDownloadManagerTest {
     fun `a finished download is handed on so its segments can be stored straight away`() = runTest {
         val finished = mutableListOf<PlayableItem>()
         val strategy = DownloadStrategy { _, target, _ -> flowOf(DownloadState.Downloaded(target.absolutePath)) }
-        val manager = DefaultDownloadManager(tempFolder.root, store, strategy, backgroundScope) { finished += it }
+        val manager =
+            DefaultDownloadManager(tempFolder.root, store, strategy, backgroundScope, onDownloaded = { finished += it })
 
         manager.download(item)
         store.observeAll().map { it[item.id] }.first { it is DownloadState.Downloaded }
         advanceUntilIdle()
 
         assertEquals(listOf(item.id), finished.map { it.item.id })
+    }
+
+    @Test
+    fun `a burst of progress is written at most once a second, and the finish always`() = runTest {
+        val strategy = DownloadStrategy { _, target, _ ->
+            flow {
+                repeat(BURST) { emit(DownloadState.Downloading(it.toLong(), BURST.toLong())) }
+                delay(1_500)
+                emit(DownloadState.Downloading(BURST.toLong(), BURST.toLong()))
+                emit(DownloadState.Downloaded(target.absolutePath))
+            }
+        }
+        val manager = DefaultDownloadManager(tempFolder.root, store, strategy, backgroundScope, {}) {
+            testScheduler.currentTime
+        }
+
+        manager.download(item)
+        store.observeAll().map { it[item.id] }.first { it is DownloadState.Downloaded }
+
+        val progress = store.puts.filterIsInstance<DownloadState.Downloading>()
+        assertTrue("${progress.size} progress writes for $BURST ticks", progress.size <= 4)
+        assertEquals(DownloadState.Downloading(BURST.toLong(), BURST.toLong()), progress.last())
+        assertTrue(store.puts.last() is DownloadState.Downloaded)
     }
 
     @Test
@@ -247,8 +271,12 @@ internal class InMemoryDownloadStore : DownloadStore {
         }
     }
 
-    override suspend fun put(item: PlayableItem, state: DownloadState, audioOnly: Boolean) =
+    val puts = mutableListOf<DownloadState>()
+
+    override suspend fun put(item: PlayableItem, state: DownloadState, audioOnly: Boolean) {
+        puts += state
         states.update { it + (item.item.id to PlayableAndState(item, state, audioOnly)) }
+    }
 
     override fun observeRecords(): Flow<List<DownloadRecord>> =
         states.map { rows -> rows.values.map { DownloadRecord(it.item, it.state) } }
@@ -299,3 +327,5 @@ private data class PlayableAndState(
     val state: DownloadState,
     val audioOnly: Boolean = false,
 )
+
+private const val BURST = 1_000

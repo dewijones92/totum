@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-05
+updated: 2026-10-14
 ---
 
 # Managing downloads
@@ -150,3 +150,15 @@ the queue uses (`fillingSilenceFrom`). The Room update is transactional, preserv
 variant and handle, and does not recreate a deleted record. Later download-progress writes preserve
 facts already learned, so an in-flight download cannot restore its original placeholder title.
 See [shared-link metadata](shared-link-metadata.md) for the background retry that uses this seam.
+
+## Progress is written at most once a second (2026-10-14)
+
+Report `20261014T184802` (0.1.613, *"video player page very leggy???"*): while the queue auto-download fetched 78
+Peep Show items three at a time, the app ran a garbage collection every 2–3 s freeing ~185 MB each, with two
+"Skipped 41/54 frames" warnings, and it stopped the second the last download finished. Every yt-dlp progress tick
+(one per network block) was a Room write, and each write made every observer re-query all ~400 download rows and
+recompose. `DefaultDownloadManager` now writes a `Downloading` state at most once a second per download (the
+first, then one a second); started, finished and failed states are always written, and the number held back is
+logged when the download ends. `DefaultDownloadManagerTest`: 1,000 ticks in a burst were each written before (the test failed), at
+most 4 after.
+

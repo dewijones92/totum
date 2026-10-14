@@ -34,6 +34,7 @@ public class DefaultDownloadManager(
     private val strategy: DownloadStrategy,
     private val scope: CoroutineScope,
     private val onDownloaded: suspend (PlayableItem) -> Unit = {},
+    private val nowMs: () -> Long = { System.nanoTime() / NANOS_PER_MS },
 ) : DownloadManager {
 
     override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
@@ -120,7 +121,19 @@ public class DefaultDownloadManager(
         val target = File(downloadDir.apply { mkdirs() }, media.id.fileName())
         Diag.log("download", "start audioOnly=$audioOnly ${media.title}")
         val job = scope.launch {
+            var lastProgressAt = Long.MIN_VALUE
+            var heldBack = 0
             strategy.download(item, target, audioOnly).collect { state ->
+                if (state is DownloadState.Downloading) {
+                    val now = nowMs()
+                    if (lastProgressAt != Long.MIN_VALUE && now - lastProgressAt < PROGRESS_WRITE_EVERY_MS) {
+                        heldBack++
+                        return@collect
+                    }
+                    lastProgressAt = now
+                } else if (heldBack > 0) {
+                    Diag.log("download", "${media.title}: $heldBack progress tick(s) not written, at most one a second")
+                }
                 store.put(item, state, audioOnly)
                 _events.tryEmit(DownloadEvent(media, state))
                 when (state) {
@@ -231,3 +244,6 @@ public class DefaultDownloadManager(
     /** Opaque, filesystem-safe name derived from the stable item id. */
     private fun MediaItemId.fileName(): String = "${value.hashCode().toUInt()}.media"
 }
+
+private const val PROGRESS_WRITE_EVERY_MS = 1_000L
+private const val NANOS_PER_MS = 1_000_000L
