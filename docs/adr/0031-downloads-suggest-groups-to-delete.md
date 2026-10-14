@@ -34,7 +34,7 @@ default stamps a downloaded file with the server's date, so the file's own date 
   "not queued" is absent from the current queue. A file can be in several groups; each lists its largest
   first and states the bytes it would free; empty groups are not shown.
 - Cards at the top of Downloads open a review dialog with every file ticked. Only what stays ticked is
-  deleted, and those items are taken out of the queue in the same action (`PlaybackQueue.removeItems`)
+  deleted, and those items are taken out of the queue in the same action (`PlaybackQueue.remove`, once per matching entry)
   so queue auto-download does not fetch them straight back.
 - Logged under `[library]`: each change in the suggestions (group, count, bytes, how many downloads have
   no dates), a card opened, ticked versus kept, and per deleted file its size and both dates; under

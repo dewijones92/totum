@@ -22,7 +22,7 @@ Deleted items leave the queue too. Both pillars, one rule. Decision and reasons:
   surfaced on `DownloadedMedia`; `DownloadManager.noteOpened`, called from the controller's `onPlay` in
   `AppContainer`.
 - `app/…/ui/library/LibraryViewModel.kt`: `cleanup` (downloads × play states × queue) and
-  `deleteSuggested`; `PlaybackQueue.removeItems`.
+  `deleteSuggested`, which takes each matching entry out with `PlaybackQueue.remove`.
 - `app/…/ui/library/CleanupCards.kt`: the cards and the review dialog, placed by `LibraryContent`.
 
 ## Logs
