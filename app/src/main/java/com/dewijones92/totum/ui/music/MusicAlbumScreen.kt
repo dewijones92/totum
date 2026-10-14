@@ -35,6 +35,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.OfflineCount
+import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.BackHeader
@@ -44,6 +45,7 @@ import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.TrackLikeHeart
 
 @Composable
 fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () -> Unit) {
@@ -74,15 +76,19 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
                 item { OfflineLine(offline) }
                 item { AboutText(current.album.description) }
                 itemsIndexed(current.tracks, key = { _, item -> item.id.value }) { index, item ->
-                    MediaItemRow(
-                        item = item,
-                        subtitleLines = listOfNotNull(
-                            "${index + 1}. " + (item.author ?: current.album.artist.orEmpty()),
-                        ),
-                        pillar = MediaKind.VIDEO,
-                        onPlay = { viewModel.play(fromIndex = index) },
-                        onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MediaItemRow(
+                            item = item,
+                            subtitleLines = listOfNotNull(
+                                "${index + 1}. " + (item.author ?: current.album.artist.orEmpty()),
+                            ),
+                            pillar = MediaKind.VIDEO,
+                            onPlay = { viewModel.play(fromIndex = index) },
+                            onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (isYouTubeVideoId(item.id.value)) TrackLikeHeart(item.id.value, item.title)
+                    }
                 }
             }
         }

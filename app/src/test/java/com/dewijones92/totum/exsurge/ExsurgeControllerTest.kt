@@ -254,9 +254,25 @@ class ExsurgeControllerTest {
     fun `turning it off cancels the alarm`() {
         val exsurge = controller()
         exsurge.turnOn()
+        exsurge.updateSettings("test") { it.copy(offForToday = false) }
         exsurge.updateSettings("test") { it.copy(enabled = false) }
         assertEquals(null, ports.wakes.last())
         assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+    }
+
+    @Test
+    fun `turned off for today it wakes when the next active day starts and switches itself back on`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.updateSettings("test") { it.copy(enabled = false) }
+        val backOn = exsurge.view.value.settings.backOnAfterOff(now, zone)
+        assertEquals(backOn, ports.wakes.last())
+
+        now = backOn!!
+        exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
+
+        assertTrue(exsurge.view.value.settings.enabled)
+        assertEquals(null, exsurge.view.value.settings.backOnAtEpochMs)
     }
 
     @Test
@@ -327,7 +343,7 @@ class ExsurgeControllerTest {
         now = now.plus(Duration.ofHours(10))
         exsurge.turnOn()
         exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
-        exsurge.updateSettings("test") { it.copy(enabled = false) }
+        exsurge.updateSettings("test") { it.copy(enabled = false, offForToday = false) }
         assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
         assertEquals(null, ports.wakes.last())
     }

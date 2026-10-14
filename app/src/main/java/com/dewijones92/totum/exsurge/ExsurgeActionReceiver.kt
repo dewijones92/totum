@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import java.time.LocalDate
 
 class ExsurgeActionReceiver : BroadcastReceiver() {
 
@@ -20,7 +21,11 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
             SNOOZE -> exsurge.dispatch(ExsurgeEvent.Snooze, "notification")
             SKIP -> exsurge.dispatch(ExsurgeEvent.Skip, "notification")
             JUST_WALK -> exsurge.dispatch(ExsurgeEvent.JustWalk, "notification")
-            TURN_ON -> exsurge.updateSettings("banner") { it.copy(enabled = true) }
+            TURN_ON -> {
+                FlatPhoneNudge.dismiss(context)
+                exsurge.updateSettings("banner") { it.copy(enabled = true) }
+            }
+            NUDGE_NOT_TODAY -> FlatPhoneNudge.muteToday(context, LocalDate.now())
             RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock, "banner")
             SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
             PAUSE_HOUR -> exsurge.dispatch(ExsurgeEvent.PauseHour, "banner")
@@ -57,8 +62,10 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
         const val JUST_WALK = "com.dewijones92.totum.exsurge.JUST_WALK"
         const val TURN_ON = "com.dewijones92.totum.exsurge.TURN_ON"
         const val RESTART_CLOCK = "com.dewijones92.totum.exsurge.RESTART_CLOCK"
-        private val requestCodes =
-            listOf(TICK, SNOOZE, SKIP, SUMMON_NOW, PAUSE_HOUR, REPOST, JUST_WALK, RESTART_CLOCK, TURN_ON)
+        const val NUDGE_NOT_TODAY = "com.dewijones92.totum.exsurge.NUDGE_NOT_TODAY"
+        private val requestCodes = listOf(
+            TICK, SNOOZE, SKIP, SUMMON_NOW, PAUSE_HOUR, REPOST, JUST_WALK, RESTART_CLOCK, TURN_ON, NUDGE_NOT_TODAY,
+        )
 
         fun pending(context: Context, action: String): PendingIntent = PendingIntent.getBroadcast(
             context,

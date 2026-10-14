@@ -1,7 +1,7 @@
 ---
 title: Recent actions (shuffle all, albums, radios) come back as a Recently row and app shortcuts
 kind: todo
-status: open — agreed with Dewi 2026-10-14; build after the 2026-10-14 soak
+status: built 2026-10-14 — ADR 36
 area: queue/ui
 priority: medium
 requested: 2026-10-14
@@ -20,7 +20,8 @@ a shortcut somewhere???"*. Today it does not: pins are manual and hold an item, 
 - Show them as a **Recently** row on the **Music home** and in **Library**, and as Android's recent
   shortcuts on the **app icon long-press** (`ShortcutManagerCompat.pushDynamicShortcut` +
   `reportShortcutUsed`, which lint already notes is missing).
-- Tapping one does the action again (a fresh shuffle); any can be pinned to keep it.
+- Tapping one does the action again (a fresh shuffle, with the Shorts choice made the first time, Dewi
+  2026-10-14); any can be pinned to keep it.
 
 ## Notes for the build
 

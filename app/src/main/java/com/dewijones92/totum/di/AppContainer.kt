@@ -144,7 +144,9 @@ import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayer
 import com.dewijones92.totum.pins.PinStore
+import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.pins.SharedPrefsPinStore
+import com.dewijones92.totum.pins.SharedPrefsRecentActions
 import com.dewijones92.totum.pins.withPins
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
@@ -422,6 +424,8 @@ interface AppContainer {
     val appUpdate: AppUpdateCheck
 
     val shuffleAll: ShuffleAll
+
+    val recentActions: RecentActions
 }
 
 // The count is the app's whole integration surface — every start*/install* entry point the
@@ -481,9 +485,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         applicationScope.launch { ytDlpUpdater.ensureLatest() }
     }
 
-    override val shuffleAll: ShuffleAll by lazy {
-        ShuffleAll(WholeSource(AppSourcePages(youTubeChannel, channelRepository, podcastRepository)), playbackQueue)
-    }
+    override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
 
     override val appUpdate: AppUpdateCheck by lazy {
         AppUpdateCheck(BuildConfig.VERSION_NAME, GitHubLatestRelease(OkHttpTextFetcher(transferClient)))
@@ -1370,24 +1372,28 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val musicLibrary: YouTubeMusicLibrary by lazy { HttpYouTubeMusicLibrary(youTubeAccount, innerTubeClient) }
 
-    override val musicFavourites: MusicFavourites by lazy {
-        MusicFavourites(musicLibrary, youTubeActions, AccountFollows(accountSubscriptions))
+    override val musicFavourites by lazy {
+        MusicFavourites(
+            musicLibrary,
+            youTubeActions,
+            AccountFollows(accountSubscriptions)
+        )
     }
 
-    override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
+    override val musicRadio: MusicRadio by lazy {
+        MusicRadio(
+            musicCatalogue,
+            playbackQueue,
+            applicationScope,
+            recentActions
+        )
+    }
 
     override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
 
-    override val pinPlayer: PinPlayer by lazy {
-        PinPlayer(
-            playbackQueue,
-            musicCatalogue,
-            youTubePlaylists,
-            musicRadio,
-            podcastRepository,
-            playState = playbackProgressStore::playState,
-        )
-    }
+    override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
+
+    override val pinPlayer: PinPlayer by lazy { pinPlayerOf(this) }
 
     override val homeScreenShortcuts: HomeScreenShortcuts by lazy { HomeScreenShortcuts(context) }
 
@@ -1458,3 +1464,19 @@ private suspend fun recordPlay(
     handle?.let { history.record(PlayableItem(item, it)) }
     downloads.noteOpened(item.id)
 }
+
+private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
+    WholeSource(AppSourcePages(c.youTubeChannel, c.channelRepository, c.podcastRepository)),
+    c.playbackQueue,
+    c.recentActions,
+)
+
+private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
+    c.playbackQueue,
+    c.musicCatalogue,
+    c.youTubePlaylists,
+    c.musicRadio,
+    c.podcastRepository,
+    playState = c.playbackProgressStore::playState,
+    shuffleAll = c.shuffleAll,
+)

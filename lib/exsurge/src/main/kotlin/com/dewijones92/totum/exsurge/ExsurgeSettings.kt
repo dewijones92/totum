@@ -41,6 +41,10 @@ public data class ExsurgeSettings(
     val walkWindowMinutes: Int = 5,
     val pauseMinutes: Int = 60,
     val midCueMinutes: Int = 2,
+    val flatNudge: Boolean = true,
+    val flatNudgeMinutes: Int = 1,
+    val offForToday: Boolean = true,
+    val backOnAtEpochMs: Long? = null,
 ) {
     internal fun fromBeforeRouteVersion(): ExsurgeSettings =
         if (destinationRoute.trim() == LEGACY_PRACTICE_ROUTE) {
@@ -65,6 +69,7 @@ public data class ExsurgeSettings(
         walkWindowMinutes = walkWindowMinutes.coerceIn(WALK_WINDOW_RANGE),
         pauseMinutes = pauseMinutes.coerceIn(PAUSE_RANGE),
         midCueMinutes = midCueMinutes.coerceIn(MID_CUE_RANGE),
+        flatNudgeMinutes = flatNudgeMinutes.coerceIn(FLAT_NUDGE_RANGE),
     )
 
     public val sitting: Duration get() = Duration.ofMinutes(sittingMinutes.toLong())
@@ -93,6 +98,9 @@ public data class ExsurgeSettings(
             .map { startOn(it, zone) }
             .firstOrNull { it.isAfter(after) }
     }
+
+    public fun backOnAfterOff(at: Instant, zone: ZoneId): Instant? =
+        nextActiveStart(at.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1), zone)
 
     public fun activeEndAfter(at: Instant, zone: ZoneId): Instant {
         var day = at.atZone(zone).toLocalDate()
@@ -133,6 +141,7 @@ public data class ExsurgeSettings(
         public val CALL_INTERVAL_RANGE: IntRange = 30..300
         public val RISE_TIMEOUT_RANGE: IntRange = 1..10
         public val WALK_WINDOW_RANGE: IntRange = 1..15
+        public val FLAT_NUDGE_RANGE: IntRange = 1..15
         public val PAUSE_RANGE: IntRange = 15..240
         public val MID_CUE_RANGE: IntRange = 1..5
         public const val MINUTES_PER_HOUR: Int = 60

@@ -3,7 +3,7 @@ title: Quiet podcasts made audible, automatically
 kind: feature
 area: playback
 status: shipped
-updated: 2026-09-26
+updated: 2026-10-14
 ---
 
 # Quiet podcasts made audible, automatically
@@ -223,3 +223,11 @@ and 30 dB, each comes back within 0.5 dB of its mastered loudness with 0 clipped
 flat tops, the limiter pulling more than 3 dB on at most 2.1% of samples; at 36 dB down the +30 dB
 cap leaves it about 6 dB short (measured 2026-09-26). If it is still not loud enough in practice, the honest lever is the target level or the +30 dB
 cap, and the look-ahead limiter is what makes raising either safe to try.
+
+## Even out (2026-10-14, ADR 35)
+
+A third choice, **Even out**, rides the level passage by passage: the gate's peak memory fades over 400 ms,
+the level is tracked in decibels over 400 ms, the gain falls over 120 ms and rises over 500 ms, and it may
+bring a loud passage down 6 dB. A 3-second quiet spell comes within 2x of the loud passages around it
+(`EvenOutLoudnessTest`), and real speech dropping 20 dB every 4 s comes back within 6 dB, at least 6 dB
+closer than Auto (`RealSpeechEvenOutTest`, audio-quality suite). Silence is never lifted.

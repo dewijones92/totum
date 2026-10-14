@@ -6,6 +6,8 @@ import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -15,6 +17,7 @@ class MusicRadio(
     private val catalogue: YouTubeMusicCatalogue,
     private val queue: PlaybackQueue,
     private val scope: CoroutineScope,
+    private val recent: RecentActions? = null,
 ) {
     private data class Station(
         val seed: RadioSeed,
@@ -64,6 +67,10 @@ class MusicRadio(
             "\"${group.title}\" started with ${batch.songs.size} songs, continuation=${batch.continuation != null}",
         )
         queue.playAll(batch.songs.map { it.toPlayable(source) }, group)
+        recent?.record(
+            Pin.Radio(seed.videoId, seed.playlistId, title, batch.songs.firstOrNull()?.thumbnailUrl?.value),
+            from = "radio",
+        )
         return true
     }
 

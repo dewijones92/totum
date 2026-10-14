@@ -35,6 +35,7 @@ import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.pinnedSection
+import com.dewijones92.totum.ui.common.recentlySection
 import com.dewijones92.totum.ui.search.SearchScope
 import com.dewijones92.totum.ui.search.SearchScreen
 import kotlinx.coroutines.launch
@@ -66,6 +67,7 @@ private fun MusicHome(container: AppContainer) {
     }
     LazyColumn(Modifier.fillMaxSize()) {
         pinnedSection()
+        recentlySection()
         favouritesSection(
             favourites,
             likedCount,

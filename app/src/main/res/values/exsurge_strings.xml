@@ -132,4 +132,16 @@
         <item quantity="one">%d%%</item>
         <item quantity="other">%d%%</item>
     </plurals>
+    <string name="exsurge_channel_nudge">Exsurge nudge</string>
+    <string name="exsurge_nudge_title">Sat down?</string>
+    <string name="exsurge_nudge_not_today">Not today</string>
+    <plurals name="exsurge_nudge_text">
+        <item quantity="one">Your phone has lain flat for %d minute. Turn Exsurge on?</item>
+        <item quantity="other">Your phone has lain flat for %d minutes. Turn Exsurge on?</item>
+    </plurals>
+    <string name="exsurge_settings_flat_nudge">Nudge when the phone lies flat</string>
+    <string name="exsurge_settings_flat_nudge_summary">While Exsurge is off, in its hours, a phone left flat and still suggests turning it on</string>
+    <string name="exsurge_settings_flat_nudge_minutes">Flat for before the nudge</string>
+    <string name="exsurge_settings_off_for_today">Off means off for today</string>
+    <string name="exsurge_settings_off_for_today_summary">Turned off, it switches itself back on when your next active day starts</string>
 </resources>

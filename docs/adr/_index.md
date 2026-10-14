@@ -50,3 +50,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 32 | [Music favourites live on the YouTube Music account, and a change counts only once the account shows it](0032-music-favourites-live-on-the-account.md) | Accepted |
 | 33 | [A range that drips is asked for again from the byte it reached](0033-a-dripping-range-is-asked-for-again.md) | Accepted |
 | 34 | [The side quests look Roman and bold, with laurel gold that only they use](0034-the-side-quests-look-roman-and-bold.md) | Accepted |
+| 35 | [An "Even out" boost rides the level passage by passage](0035-even-out-rides-the-level.md) | Accepted |
+| 36 | [Recent actions come back as a Recently row and app-icon shortcuts](0036-recent-actions-come-back.md) | Accepted |
+| 37 | [Exsurge nudges when the phone has lain flat while it is off](0037-exsurge-nudges-a-flat-phone.md) | Accepted |
+| 38 | [Exsurge switched off comes back on when the next active day starts](0038-exsurge-off-means-off-for-today.md) | Accepted |

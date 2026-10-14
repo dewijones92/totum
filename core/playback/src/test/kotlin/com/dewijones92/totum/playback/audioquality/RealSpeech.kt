@@ -202,8 +202,8 @@ internal object RealSpeech {
         return Cut(out.toShortArray(), cutter.skippedFrames, cutter.gapsCut)
     }
 
-    fun boosted(samples: ShortArray, chunk: Int = 4096): Boosted {
-        val boost = LoudnessBoost(RATE).apply { level = VolumeBoost.AUTO }
+    fun boosted(samples: ShortArray, chunk: Int = 4096, mode: VolumeBoost = VolumeBoost.AUTO): Boosted {
+        val boost = LoudnessBoost(RATE).apply { level = mode }
         val out = ShortArray(samples.size)
         var written = 0
         var at = 0

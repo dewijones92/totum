@@ -31,15 +31,21 @@ class HomeScreenShortcuts(private val context: Context) {
         return asked
     }
 
-    suspend fun publish(pins: List<Pin>) {
-        val shown = pins.takeLast(
-            ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).coerceAtMost(MAX_DYNAMIC)
-        )
+    suspend fun publish(pins: List<Pin>, recent: List<Pin> = emptyList()) {
+        val room = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).coerceAtMost(MAX_DYNAMIC)
+        val shown = appIconShortcuts(pins, recent, room)
         val shortcuts = shown.map { shortcut(it, artwork(it)) }
         val ok = runCatching { ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts) }
             .onFailure { Diag.warn("pin", "could not publish app-icon shortcuts", it) }
             .getOrDefault(false)
-        Diag.log("pin", "app-icon shortcuts: ${shortcuts.size} of ${pins.size} pin(s) published=$ok")
+        recent.firstOrNull()?.takeIf { newest -> shown.any { it.key == newest.key } }?.let {
+            ShortcutManagerCompat.reportShortcutUsed(context, it.key)
+        }
+        Diag.log(
+            "pin",
+            "app-icon shortcuts: ${shortcuts.size} published=$ok from ${recent.size} recent and ${pins.size} pinned " +
+                "[${shown.joinToString { it.key }}]",
+        )
     }
 
     private fun shortcut(pin: Pin, art: Bitmap?): ShortcutInfoCompat =
@@ -84,3 +90,8 @@ class HomeScreenShortcuts(private val context: Context) {
             uri?.takeIf { it.scheme == SCHEME && it.host == HOST }?.pathSegments?.firstOrNull()
     }
 }
+
+fun appIconShortcuts(pins: List<Pin>, recent: List<Pin>, room: Int): List<Pin> =
+    (recent.take(RECENT_FIRST) + pins.asReversed() + recent.drop(RECENT_FIRST)).distinctBy { it.key }.take(room)
+
+private const val RECENT_FIRST = 2

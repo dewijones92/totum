@@ -195,6 +195,7 @@
     <string name="volume_boost">Volume boost</string>
     <string name="boost_off">Off</string>
     <string name="boost_auto">Auto</string>
+    <string name="boost_even_out">Even out</string>
     <string name="settings_downloads_section">Downloads</string>
     <string name="settings_diagnostics_section">Diagnostics</string>
     <string name="settings_check_content">Check for new content now</string>
@@ -640,4 +641,5 @@
         <item quantity="one">Loading… 1</item>
         <item quantity="other">Loading… %1$d</item>
     </plurals>
+    <string name="recently_title">🕘 Recently</string>
 </resources>

@@ -62,6 +62,23 @@ class PinsTest {
         Pin.Artist(null, "Pablo Sáinz-Villegas", null, radioPlaylistId = "RDEMabc"),
         Pin.Radio("BNMKGYiJpvg", "RDAMVMBNMKGYiJpvg", "Feeling Good", null),
         Pin.Show("feed-1", "https://feed.test/rss", "A show", null),
+        Pin.Album("MPREb_x", "Guitar Recital", "https://art/x", shuffled = true),
+        Pin.ShuffleAllOf(
+            target = "channel:UCabc",
+            title = "A channel",
+            artUrl = null,
+            sources = listOf(
+                PinnedSource(
+                    feed = false,
+                    "https://www.youtube.com/channel/UCabc",
+                    "A channel",
+                    "https://www.youtube.com/channel/UCabc",
+                    null
+                ),
+                PinnedSource(feed = true, "feed-1", "A show", "https://feed.test/rss", "https://art/s"),
+            ),
+            includeShorts = false,
+        ),
     )
 
     @Test
@@ -133,11 +150,12 @@ class PinsTest {
             scope = work,
         )
         val played = mutableSetOf<String>()
+        val recent = RecentActions()
         val player = PinPlayer(
             queue,
             catalogue,
             FakeYouTubePlaylists(),
-            MusicRadio(catalogue, queue, work),
+            MusicRadio(catalogue, queue, work, recent),
             podcasts,
             playState = { id -> if (id.value in played) PlayState.Played else PlayState.Unplayed },
         )
@@ -152,6 +170,38 @@ class PinsTest {
         null,
         HttpUrl.of("https://www.youtube.com/watch?v=$id"),
     )
+
+    @Test
+    fun `a shuffled album pin plays every track, and a pinned source comes back as the same source`() = runTest {
+        val album = MusicAlbum(
+            "MPREb_x", "Guitar Recital", null, null, null, MusicReleaseKind.ALBUM, null, null, null,
+            "OLAK5uy_x", (1..12).map { song("t$it") },
+        )
+        val rig = Rig(this, FakeYouTubeMusicCatalogue(albumsById = mapOf("MPREb_x" to album)), FakePodcastRepository())
+
+        rig.player.play(Pin.Album("MPREb_x", "Guitar Recital", null, shuffled = true), from = "test")
+        advanceUntilIdle()
+
+        assertEquals(
+            (1..12).map { "t$it" }.toSet(),
+            rig.queue.state.value.entries.map { it.item.item.id.value }.toSet()
+        )
+        val feed = PinnedSource(feed = true, "feed-1", "A show", "https://feed.test/rss", null)
+        assertEquals(feed, PinnedSource.of(feed.toSource()!!))
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `starting a radio puts it first among the recent actions`() = runTest {
+        val catalogue = FakeYouTubeMusicCatalogue(radioBatches = listOf(RadioBatch(listOf(song("r1")), null)))
+        val rig = Rig(this, catalogue, FakePodcastRepository())
+
+        rig.player.play(Pin.Radio("r1", "RDAMVMr1", "Feeling Good", null), from = "test")
+        advanceUntilIdle()
+
+        assertEquals("radio:RDAMVMr1", rig.recent.recent.value.first().key)
+        rig.work.cancel()
+    }
 
     @Test
     fun `a pinned album plays as a group, as music`() = runTest {

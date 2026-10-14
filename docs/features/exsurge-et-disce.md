@@ -228,3 +228,10 @@ Two SUSPECTED findings were fixed by design rather than by test:
 Roman and bold: the page opens on a hero (Surgius inside a laurel-gold countdown ring, "12:34 until you
 rise", the rank badge, the actions as buttons); every setting sits in an icon card and every number is a
 slider on the old steps; the takeover puts Surgius on a laurel medallion. See [ADR 34](../adr/0034-the-side-quests-look-roman-and-bold.md).
+
+## Flat-phone nudge and off for today (2026-10-14, ADRs 37, 38)
+
+While Exsurge is off, in its hours, a phone flat and still for a minute (setting, 1–15) gets one "Sat down?"
+heads-up with **Turn on** and **Not today**, one short buzz, at most hourly (`FlatPhoneNudge`, verified on the
+emulator with a faked accelerometer: posted after 60 s). **Off means off for today** (on by default): switched
+off, it comes back when the next active day starts.

@@ -247,6 +247,15 @@ private val TIMING = listOf(
     ) {
         copy(pauseMinutes = it)
     },
+    StepperSpec(
+        R.string.exsurge_settings_flat_nudge_minutes,
+        R.plurals.exsurge_unit_minutes,
+        1,
+        ExsurgeSettings.FLAT_NUDGE_RANGE,
+        { it.flatNudgeMinutes },
+    ) {
+        copy(flatNudgeMinutes = it)
+    },
 )
 
 private val VOLUME =
@@ -276,6 +285,20 @@ private val BEHAVIOUR = listOf(
         { it.pausePlayback },
     ) {
         copy(pausePlayback = it)
+    },
+    SwitchSpec(
+        R.string.exsurge_settings_off_for_today,
+        R.string.exsurge_settings_off_for_today_summary,
+        { it.offForToday },
+    ) {
+        copy(offForToday = it)
+    },
+    SwitchSpec(
+        R.string.exsurge_settings_flat_nudge,
+        R.string.exsurge_settings_flat_nudge_summary,
+        { it.flatNudge },
+    ) {
+        copy(flatNudge = it)
     },
     SwitchSpec(
         R.string.exsurge_settings_over_apps,

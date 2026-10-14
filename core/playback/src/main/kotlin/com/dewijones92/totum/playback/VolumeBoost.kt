@@ -26,6 +26,8 @@ public enum class VolumeBoost {
      * levels did, audibly, from Medium upwards.
      */
     AUTO,
+
+    EVEN_OUT,
     ;
 
     public companion object {
@@ -40,6 +42,7 @@ public enum class VolumeBoost {
         public fun fromStoredName(name: String?): VolumeBoost = when (name) {
             null, OFF.name -> OFF
             AUTO.name -> AUTO
+            EVEN_OUT.name -> EVEN_OUT
             else -> AUTO
         }
     }

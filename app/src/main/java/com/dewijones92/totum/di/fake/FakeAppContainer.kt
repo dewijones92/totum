@@ -82,6 +82,7 @@ import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.InMemoryPinStore
 import com.dewijones92.totum.pins.PinPlayer
 import com.dewijones92.totum.pins.PinStore
+import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.playback.NoOpPlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
@@ -182,13 +183,21 @@ class FakeAppContainer(
         channelResolver = channelRepository,
     ),
 ) : AppContainer {
-    override val musicRadio: MusicRadio by lazy { MusicRadio(musicCatalogue, playbackQueue, applicationScope) }
+    override val musicRadio: MusicRadio by lazy {
+        MusicRadio(musicCatalogue, playbackQueue, applicationScope, recentActions)
+    }
 
     override val shuffleAll: ShuffleAll by lazy {
-        ShuffleAll(WholeSource(AppSourcePages(youTubeChannel, channelRepository, podcastRepository)), playbackQueue)
+        ShuffleAll(
+            WholeSource(AppSourcePages(youTubeChannel, channelRepository, podcastRepository)),
+            playbackQueue,
+            recentActions,
+        )
     }
 
     override val pinStore: PinStore = InMemoryPinStore()
+
+    override val recentActions: RecentActions = RecentActions()
 
     override val pinPlayer: PinPlayer by lazy {
         PinPlayer(
@@ -198,6 +207,7 @@ class FakeAppContainer(
             musicRadio,
             podcastRepository,
             playState = { PlayState.Unplayed },
+            shuffleAll = shuffleAll,
         )
     }
 

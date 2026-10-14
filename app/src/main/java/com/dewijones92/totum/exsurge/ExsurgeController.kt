@@ -97,10 +97,17 @@ class ExsurgeController(
             put("exsurge.streakDays", view.stats.streakDays.toString())
             put("exsurge.rank", "${view.stats.rank.latin} laurels=${view.stats.laurels}")
             put("exsurge.settings", settings.toString())
+            put("exsurge.backOnAt", settings.backOnAtEpochMs?.let(Instant::ofEpochMilli)?.toString() ?: "-")
         }
 
     @Synchronized
     fun dispatch(event: ExsurgeEvent, source: String) {
+        val due = settings.backOnAtEpochMs?.let(Instant::ofEpochMilli)
+        if (due != null && !settings.enabled && !clock().isBefore(due)) {
+            Diag.log(TAG, "dewidebug exsurge back on after a day off (due $due, noticed by $source)")
+            updateSettings("back on after a day off") { it.copy(enabled = true) }
+            return
+        }
         lastEvent = "$event from $source at ${clock()}"
         apply(event, source)
         val seed = lastStepTotal
@@ -141,7 +148,17 @@ class ExsurgeController(
         Diag.log(TAG, "dewidebug exsurge settings from=$source ${diff(settings, next)}")
         if (next.walkWindow != settings.walkWindow) stepWindow = StepWindow(next.walkWindow)
         val turnedOff = settings.enabled && !next.enabled
-        settings = next
+        settings = when {
+            next.enabled -> next.copy(backOnAtEpochMs = null)
+            turnedOff && next.offForToday -> next.copy(
+                backOnAtEpochMs = next.backOnAfterOff(clock(), zone())?.toEpochMilli(),
+            ).also { off ->
+                val backOn = off.backOnAtEpochMs?.let(Instant::ofEpochMilli)
+                Diag.log(TAG, "dewidebug exsurge off for today: back on at $backOn")
+            }
+            !next.offForToday -> next.copy(backOnAtEpochMs = null)
+            else -> next
+        }
         store.saveSettings(settings)
         dispatch(if (turnedOff) ExsurgeEvent.TurnOff else ExsurgeEvent.SettingsChanged, source)
     }
@@ -249,7 +266,8 @@ class ExsurgeController(
     private fun publish(at: Instant) {
         val view = viewAt(at)
         _view.value = view
-        ports.scheduleWake(view.nextWake)
+        val backOn = settings.backOnAtEpochMs?.takeIf { !settings.enabled }?.let(Instant::ofEpochMilli)
+        ports.scheduleWake(listOfNotNull(view.nextWake, backOn).minOrNull())
         ports.viewChanged(view)
     }
 

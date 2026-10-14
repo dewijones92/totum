@@ -1,7 +1,7 @@
 ---
 title: Exsurge nudges when the phone has lain flat while it is off
 kind: todo
-status: open — agreed with Dewi 2026-10-14; build after the 2026-10-14 soak
+status: built 2026-10-14 — ADRs 37, 38
 area: side-quest
 priority: high
 requested: 2026-10-14
@@ -18,7 +18,8 @@ silent always-present banner.
 
 - While Exsurge is **off**, inside its **active days and hours**, if the phone has lain **flat and still
   for 1 minute** (Dewi changed it from 5 on 2026-10-14), post one notification: "Sat down? Turn Exsurge on", with **Turn on**.
-- At most once an hour; not while a call, a ringing alarm or a summons is up.
+- At most once an hour, with **Not today** to stop it until tomorrow; one short buzz, no sound (Dewi,
+  2026-10-14). Also built that day: Off means off for today ([ADR 38](../adr/0038-exsurge-off-means-off-for-today.md)).
 - Not the sitting clock: flat-on-the-table does not become "sitting" (pocket-sitting would be missed).
 
 ## Notes for the build

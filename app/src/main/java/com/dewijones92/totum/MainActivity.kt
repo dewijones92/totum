@@ -139,7 +139,7 @@ class MainActivity : FragmentActivity() {
             Diag.log("pin", "ignored a replayed shortcut $key [${arrival.why}; via=$via]")
             return true
         }
-        val pin = container.pinStore.find(key)
+        val pin = container.pinStore.find(key) ?: container.recentActions.find(key)
         if (pin == null) {
             Diag.warn("pin", "home-screen shortcut $key is no longer pinned; nothing played [via=$via]")
             Toast.makeText(this, getString(R.string.pin_gone), Toast.LENGTH_LONG).show()

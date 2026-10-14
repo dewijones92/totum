@@ -72,6 +72,7 @@ import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.mediaItemFacts
 import com.dewijones92.totum.ui.common.pinnedSection
+import com.dewijones92.totum.ui.common.recentlySection
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
@@ -215,6 +216,7 @@ internal fun LibraryContent(
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item { ScreenHeader(stringResource(R.string.destination_library)) }
                 pinnedSection()
+                recentlySection()
                 item {
                     LibraryTiles(
                         onOpenPlaylists = onOpenPlaylists,

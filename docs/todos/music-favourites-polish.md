@@ -1,7 +1,7 @@
 ---
 title: Music favourites polish — a cover for Liked songs, and Like on album track rows
 kind: todo
-status: cover done 2026-10-14 (a drawn heart in the brand tangerine); the per-row heart is a question for Dewi
+status: done 2026-10-14 (cover, track-row hearts); player Like merge open
 area: music
 priority: low
 requested: 2026-10-14
@@ -37,7 +37,7 @@ answered and recorded here.
 
 1. Done: `HeartCover` in `ui/music/MusicCollectionRows.kt` (the hero tangerine, `colorScheme.primary`, with
    a filled heart), passed to `PlaylistRow` as a `cover`; screenshotted on `totum-api35`.
-2. Put to Dewi in the batch report; not built.
+2. Dewi chose the heart on every track row (2026-10-14); built as `TrackLikeHeart` on the album page.
 3. From the batch review (2026-10-14): the player's Like (`WatchViewModel.setRating`, optimistic, no
    read-back) and the song menu's Like (`MusicFavourites.setSongLiked`, read back, refreshes the count) are
    two paths for one write. A like in the player never updates the shelf's count. Route the player through

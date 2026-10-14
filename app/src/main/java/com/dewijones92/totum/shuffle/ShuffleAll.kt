@@ -17,6 +17,9 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.channel.YouTubeChannel
+import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.pins.PinnedSource
+import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.toMediaItemPage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,7 +93,11 @@ sealed interface ShuffleOutcome {
     data object AlreadyLoading : ShuffleOutcome
 }
 
-class ShuffleAll(private val whole: WholeSource, private val queue: PlaybackQueue) {
+class ShuffleAll(
+    private val whole: WholeSource,
+    private val queue: PlaybackQueue,
+    private val recent: RecentActions? = null,
+) {
     private val mutableLoading = MutableStateFlow<Map<String, Int>>(emptyMap())
     val loading: StateFlow<Map<String, Int>> = mutableLoading.asStateFlow()
 
@@ -119,6 +126,16 @@ class ShuffleAll(private val whole: WholeSource, private val queue: PlaybackQueu
             )
             if (playable.isEmpty()) return ShuffleOutcome.Nothing
             queue.playAll(playable.shuffled(), QueueGroup(id = "shuffle:$key", title = title))
+            recent?.record(
+                Pin.ShuffleAllOf(
+                    target = key,
+                    title = title,
+                    artUrl = sources.firstNotNullOfOrNull { it.artworkUrl }?.value,
+                    sources = sources.map(PinnedSource::of),
+                    includeShorts = includeShorts,
+                ),
+                from = "shuffle all",
+            )
             return ShuffleOutcome.Shuffled(playable.size, gathered.unfinished)
         } finally {
             mutableLoading.update { it - key }

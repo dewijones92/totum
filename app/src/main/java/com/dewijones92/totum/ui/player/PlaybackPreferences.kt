@@ -148,6 +148,7 @@ internal fun BoostControl(boost: VolumeBoost, onSetBoost: (VolumeBoost) -> Unit,
 private fun VolumeBoost.labelRes(): Int = when (this) {
     VolumeBoost.OFF -> R.string.boost_off
     VolumeBoost.AUTO -> R.string.boost_auto
+    VolumeBoost.EVEN_OUT -> R.string.boost_even_out
 }
 
 @Composable

@@ -2,9 +2,11 @@ package com.dewijones92.totum.pins
 
 import com.dewijones92.totum.backup.toBackup
 import com.dewijones92.totum.backup.toPlayable
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.canonicalItemId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -28,8 +30,13 @@ sealed interface Pin {
 
     @Serializable
     @SerialName("album")
-    data class Album(val browseId: String, override val title: String, override val artUrl: String?) : Pin {
-        override val key: String get() = "album:$browseId"
+    data class Album(
+        val browseId: String,
+        override val title: String,
+        override val artUrl: String?,
+        val shuffled: Boolean = false,
+    ) : Pin {
+        override val key: String get() = if (shuffled) "album-shuffled:$browseId" else "album:$browseId"
     }
 
     @Serializable
@@ -77,11 +84,45 @@ sealed interface Pin {
         override val key: String get() = "show:$sourceId"
     }
 
+    @Serializable
+    @SerialName("shuffle-all")
+    data class ShuffleAllOf(
+        val target: String,
+        override val title: String,
+        override val artUrl: String?,
+        val sources: List<PinnedSource>,
+        val includeShorts: Boolean,
+    ) : Pin {
+        override val key: String get() = "shuffle:$target"
+    }
+
     companion object {
         fun of(item: PlayableItem): Pin = Item(item.toBackup())
 
         fun of(show: MediaSource.PodcastFeed): Pin =
             Show(show.id.value, show.feedUrl.value, show.title, show.artworkUrl?.value)
+    }
+}
+
+@Serializable
+data class PinnedSource(val feed: Boolean, val id: String, val title: String, val url: String, val artUrl: String?) {
+    fun toSource(): MediaSource? {
+        val link = HttpUrl.parse(url) ?: return null
+        val art = artUrl?.let(HttpUrl::parse)
+        return if (feed) {
+            MediaSource.PodcastFeed(SourceId(id), title, link, artworkUrl = art)
+        } else {
+            MediaSource.VideoChannel(SourceId(id), title, link, art)
+        }
+    }
+
+    companion object {
+        fun of(source: MediaSource): PinnedSource = when (source) {
+            is MediaSource.VideoChannel ->
+                PinnedSource(false, source.id.value, source.title, source.channelUrl.value, source.artworkUrl?.value)
+            is MediaSource.PodcastFeed ->
+                PinnedSource(true, source.id.value, source.title, source.feedUrl.value, source.artworkUrl?.value)
+        }
     }
 }
 

@@ -56,6 +56,8 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     /** A slow average of the audio's level, ignoring silence — what "how loud is this item" means. */
     private var loudness = 0f
 
+    private var logLoudness = Float.NaN
+
     /** Recent peak: rises instantly, decays slowly. Sets the level below which audio is a pause. */
     private var recentPeak = 0f
 
@@ -83,8 +85,8 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     private var blockPeak = 0f
     private var blockFill = 0
     private var audibleFrames = 0L
-    private val blockFrames = framesOf(DYNAMICS_BLOCK_MS).toInt().coerceAtLeast(1)
-    private val dynamicsTimeout = framesOf(DYNAMICS_TIMEOUT_MS)
+    private val blockFrames = framesOf(sampleRate, DYNAMICS_BLOCK_MS).toInt().coerceAtLeast(1)
+    private val dynamicsTimeout = framesOf(sampleRate, DYNAMICS_TIMEOUT_MS)
 
     /**
      * Samples that hit the rail. Expected to be zero for the life of the app: the look-ahead limiter
@@ -121,6 +123,10 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     private val loudnessSettle = coefficientFor(LOUDNESS_SETTLE_MS, sampleRate)
     private val loudnessWarmup = coefficientFor(LOUDNESS_WARMUP_MS, sampleRate)
     private val warmupLimit = sampleRate.toLong() * WARMUP_SECONDS
+    private val evenSettle = coefficientFor(EVEN_SETTLE_MS, sampleRate)
+    private val evenRise = coefficientFor(EVEN_RISE_MS, sampleRate)
+    private val evenFall = coefficientFor(EVEN_FALL_MS, sampleRate)
+    private val evenPeakDecay = 1f - coefficientFor(EVEN_PEAK_DECAY_MS, sampleRate)
 
     /**
      * Boosts [count] samples of [input], returning [outputSamples] of them from the returned array.
@@ -157,7 +163,8 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
 
         // Track the recent peak, up at once and down slowly, so a pause is measured against the
         // speech either side of it rather than against a fixed number.
-        recentPeak = if (magnitude > recentPeak) magnitude else recentPeak * peakDecay
+        val decay = if (level == VolumeBoost.EVEN_OUT) evenPeakDecay else peakDecay
+        recentPeak = if (magnitude > recentPeak) magnitude else recentPeak * decay
 
         noteDynamics(magnitude)
 
@@ -166,24 +173,41 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
             // down and wind the gain up, so every pause would end in a blast.
             // The first couple of seconds settle fast, or an episode would start unboosted and
             // audibly swell — the estimate has to be roughly right by the time speech begins.
-            val rate = if (warmupSamples < warmupLimit) loudnessWarmup else loudnessSettle
-            loudness += (magnitude - loudness) * rate
+            measure(magnitude)
             warmupSamples++
         }
 
         // Exactly the gain that brings this item to a comfortable level, and no more.
-        val wanted = if (loudness > EPSILON) {
-            (TARGET_LEVEL / loudness).coerceIn(MIN_GAIN, MAX_GAIN)
-        } else {
-            MIN_GAIN
-        }
+        val evening = level == VolumeBoost.EVEN_OUT
+        val floor = if (evening) EVEN_MIN_GAIN else MIN_GAIN
+        val wanted = if (loudness > EPSILON) (TARGET_LEVEL / loudness).coerceIn(floor, MAX_GAIN) else MIN_GAIN
 
         // Drift towards it — slowly, so a change of level is never heard as the gain moving...
-        applied += (wanted - applied) * gainRise
+        applied += (wanted - applied) * if (wanted < applied) falling else rising
         val allowed = if (magnitude > EPSILON) minOf(applied, CEILING / magnitude) else applied
 
         limiter.push(input, at, allowed, applied, write)
     }
+
+    private fun measure(magnitude: Float) {
+        val rate = when {
+            warmupSamples < warmupLimit -> loudnessWarmup
+            level == VolumeBoost.EVEN_OUT -> evenSettle
+            else -> loudnessSettle
+        }
+        if (level == VolumeBoost.EVEN_OUT) {
+            val heard = ln(magnitude)
+            logLoudness = if (logLoudness.isNaN()) heard else logLoudness + (heard - logLoudness) * rate
+            loudness = exp(logLoudness)
+        } else {
+            loudness += (magnitude - loudness) * rate
+            logLoudness = Float.NaN
+        }
+    }
+
+    private val rising: Float get() = if (level == VolumeBoost.EVEN_OUT) evenRise else gainRise
+
+    private val falling: Float get() = if (level == VolumeBoost.EVEN_OUT) evenFall else gainRise
 
     private fun noteDynamics(magnitude: Float) {
         if (heardDynamics) return
@@ -210,8 +234,6 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         blockPeak = 0f
         blockFill = 0
     }
-
-    private fun framesOf(milliseconds: Long): Long = sampleRate.toLong() * milliseconds / MILLIS_PER_SECOND.toLong()
 
     private fun ensureRoom(frames: Int) {
         val needed = frames * channels
@@ -282,6 +304,12 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         private const val LOUDNESS_WARMUP_MS = 150f
         private const val WARMUP_SECONDS = 2
 
+        private const val EVEN_SETTLE_MS = 400f
+        private const val EVEN_RISE_MS = 500f
+        private const val EVEN_FALL_MS = 120f
+        private const val EVEN_PEAK_DECAY_MS = 400f
+        private const val EVEN_MIN_GAIN = 0.5f
+
         /** Just under full scale, so rounding cannot take a limited peak over it. */
         private const val CEILING = 0.95f
 
@@ -311,3 +339,8 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         private const val LN_10 = 2.302_585f
     }
 }
+
+private fun framesOf(sampleRate: Int, milliseconds: Long): Long =
+    sampleRate.toLong() * milliseconds / MILLIS_IN_A_SECOND
+
+private const val MILLIS_IN_A_SECOND = 1_000L

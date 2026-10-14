@@ -22,6 +22,9 @@ import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toPlayable
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.shuffle.ShuffleAll
+import com.dewijones92.totum.shuffle.ShuffleOutcome
+import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.ui.common.toMediaItem
 import kotlinx.coroutines.flow.first
 
@@ -38,6 +41,7 @@ class PinPlayer(
     private val radio: MusicRadio,
     private val podcasts: PodcastRepository,
     private val playState: suspend (MediaItemId) -> PlayState,
+    private val shuffleAll: ShuffleAll? = null,
 ) {
     suspend fun play(pin: Pin, from: String): PinPlayed {
         Diag.log("pin", "play ${pin.key} \"${pin.title}\" from $from")
@@ -48,6 +52,7 @@ class PinPlayer(
             is Pin.Artist -> playArtist(pin)
             is Pin.Radio -> started(radio.start(RadioSeed(pin.videoId, pin.playlistId), pin.title), "no radio")
             is Pin.Show -> playShow(pin)
+            is Pin.ShuffleAllOf -> replayShuffleAll(shuffleAll, pin)
         }
         Diag.log("pin", "${pin.key} -> $result")
         return result
@@ -64,6 +69,7 @@ class PinPlayer(
         is MusicResult.Success ->
             album.value.tracks
                 .map { it.toPlayable(MusicSources.album(pin.browseId)) }
+                .let { tracks -> if (pin.shuffled) tracks.shuffled() else tracks }
                 .let { tracks -> playRun(tracks, QueueGroup("album:${pin.browseId}", album.value.title)) }
     }
 
@@ -122,5 +128,16 @@ class PinPlayer(
         )
     } else {
         PinPlayed.Failed(why)
+    }
+}
+
+private suspend fun replayShuffleAll(shuffler: ShuffleAll?, pin: Pin.ShuffleAllOf): PinPlayed {
+    shuffler ?: return PinPlayed.Failed("shuffle all is not available here")
+    val sources = pin.sources.mapNotNull { it.toSource() }
+    if (sources.isEmpty()) return PinPlayed.Failed("none of its sources could be rebuilt")
+    return when (shuffler.shuffle(ShuffleTarget(pin.target, pin.title, sources), pin.includeShorts)) {
+        is ShuffleOutcome.Shuffled -> PinPlayed.Started(showsPicture = false)
+        ShuffleOutcome.Nothing -> PinPlayed.Failed("nothing in it to play")
+        ShuffleOutcome.AlreadyLoading -> PinPlayed.Failed("already shuffling it")
     }
 }

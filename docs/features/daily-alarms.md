@@ -66,3 +66,8 @@ effects=…; nextWake=…`; ringing logs the tone, voice and foreground start. R
 Each alarm is a compact card: name and switch, the next ring in huge type (`DailyAlarm.nextRing`), today's
 state, the Set for today chips and laurel day initials; Edit opens the full editor. The ring screen shows the
 time inside a laurel circle. See [ADR 34](../adr/0034-the-side-quests-look-roman-and-bold.md).
+
+## At a glance (2026-10-14)
+
+The card's today line starts with an emoji per state: ⏳ waiting, ❓ asking, ✅ set for 17:30, 🔔 ringing,
+😴 snoozed until …, and per outcome 🏁 rang, 🚫 you said no, ✖️ cancelled, 🤷 no answer, ⚠️ missed.

@@ -135,3 +135,9 @@ songs would put rows in the list that do nothing when tapped.
 `songs-search.json` is a real response trimmed to four rows with every field the parser reads left
 exactly as YouTube sent it. A hand-written fixture would only prove the parser agrees with my idea
 of the shape, which is the very thing that is wrong when this breaks.
+
+## Recently and track hearts (2026-10-14)
+
+A **Recently** row (Music home and Library) holds the last 8 actions: shuffle all, album played or shuffled,
+radio; tapping replays it, and the newest two lead the app icon's shortcuts ([ADR 36](../adr/0036-recent-actions-come-back.md)).
+Album pages show a heart on every track row (`TrackLikeHeart`), reading each song's like as it scrolls in.

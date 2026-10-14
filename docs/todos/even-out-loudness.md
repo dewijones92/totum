@@ -1,7 +1,7 @@
 ---
 title: An "Even out" loudness mode that brings quiet passages up to the loud ones
 kind: todo
-status: open — agreed with Dewi 2026-10-14; build after the 2026-10-14 soak
+status: built 2026-10-14 — ADR 35
 area: playback
 priority: high
 requested: 2026-10-14

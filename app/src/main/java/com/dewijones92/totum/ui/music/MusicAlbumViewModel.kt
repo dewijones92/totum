@@ -20,6 +20,8 @@ import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable
+import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MusicPage
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +40,7 @@ class MusicAlbumViewModel(
     private val downloads: DownloadManager,
     private val radio: MusicRadio,
     private val appScope: CoroutineScope,
+    private val recent: RecentActions? = null,
 ) : ViewModel() {
 
     sealed interface State {
@@ -100,12 +103,21 @@ class MusicAlbumViewModel(
             "play album \"${loaded.album.title}\" from track ${fromIndex + 1}: ${run.size} inserted after current"
         )
         queue.playAll(run, loaded.group())
+        loaded.remember(shuffled = false)
     }
 
     fun shuffle() {
         val loaded = _state.value as? State.Loaded ?: return
         Diag.log("music", "shuffle album \"${loaded.album.title}\": ${loaded.tracks.size} inserted after current")
         queue.playAll(loaded.playables().shuffled(), loaded.group())
+        loaded.remember(shuffled = true)
+    }
+
+    private fun State.Loaded.remember(shuffled: Boolean) {
+        recent?.record(
+            Pin.Album(album.browseId, album.title, album.thumbnailUrl?.value, shuffled),
+            from = if (shuffled) "album shuffled" else "album played",
+        )
     }
 
     fun addToEnd() {
@@ -145,6 +157,7 @@ class MusicAlbumViewModel(
                     container.downloadManager,
                     container.musicRadio,
                     container.applicationScope,
+                    container.recentActions,
                 )
             }
         }

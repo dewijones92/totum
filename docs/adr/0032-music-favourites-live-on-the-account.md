@@ -39,7 +39,8 @@ write undone straight after):
   an artist followed here is a channel subscription everywhere, including the follow marks (ADR 22). Its
   state comes from the subscription list by channel id.
 - A song's like is read when its long-press menu opens (`next` as the TV client, as the player already
-  does), not from the liked list.
+  does), not from the liked list. On an album page every track row also has a heart (Dewi, 2026-10-14,
+  accepting one lookup per track as rows come into view).
 - Save on the album page and Follow on the artist page; removing or unfollowing asks first, as an
   unsubscribe does (ADR 22). Like toggles straight away, as in the player.
 - Writes run in the application scope, so leaving the page or closing the menu does not cancel one.

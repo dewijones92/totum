@@ -49,6 +49,7 @@ import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -374,8 +375,19 @@ private fun todayText(state: DayState): String = when (state) {
     is DayState.Asking -> stringResource(R.string.dailyalarm_today_asking, state.asks)
     is DayState.Set -> stringResource(R.string.dailyalarm_today_set, DailyAlarmNotifications.hhmm(state.time))
     is DayState.Ringing -> stringResource(R.string.dailyalarm_today_ringing)
-    is DayState.Snoozed -> stringResource(R.string.dailyalarm_today_snoozed)
-    is DayState.Done -> stringResource(R.string.dailyalarm_today_done, state.outcome.name.lowercase())
+    is DayState.Snoozed -> stringResource(
+        R.string.dailyalarm_today_snoozed,
+        DailyAlarmNotifications.hhmm(LocalTime.ofInstant(state.until, ZoneId.systemDefault())),
+    )
+    is DayState.Done -> stringResource(
+        when (state.outcome) {
+            Outcome.RANG -> R.string.dailyalarm_today_rang
+            Outcome.DECLINED -> R.string.dailyalarm_today_declined
+            Outcome.CANCELLED -> R.string.dailyalarm_today_cancelled
+            Outcome.UNANSWERED -> R.string.dailyalarm_today_unanswered
+            Outcome.MISSED -> R.string.dailyalarm_today_missed
+        },
+    )
 }
 
 private fun shortName(day: DayOfWeek): String = day.getDisplayName(TextStyle.SHORT, Locale.UK)
