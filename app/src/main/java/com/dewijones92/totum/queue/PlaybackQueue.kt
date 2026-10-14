@@ -283,9 +283,10 @@ class PlaybackQueue(
         }
 
         var index = NOTHING_PLAYING
-        mutate("play-now") { snapshot ->
+        val kept = group ?: _state.value.entries.firstOrNull { it.item.item.id == item.item.id }?.group
+        mutate("play-now${kept?.let { " (stays in \"${it.title}\")" }.orEmpty()}") { snapshot ->
             val withoutIt = snapshot.removing { it.item.item.id == item.item.id }
-            withoutIt.inserted(listOf(QueueEntry(item, group))).also { index = it.currentIndex + 1 }
+            withoutIt.inserted(listOf(QueueEntry(item, kept))).also { index = it.currentIndex + 1 }
         }
         return playAt(index)
     }
