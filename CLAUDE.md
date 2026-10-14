@@ -188,6 +188,8 @@ successor in line, because the queue's adoption cancelled the arming); local fil
 
 **A schema bump blocks the baseline (2026-10-13):** Room has no downgrade path, so the previous build crashes on the newer database. Roll it back in place rather than wiping it: force-stop, pull `databases/totum.db*` with `run-as … cat`, `PRAGMA wal_checkpoint(TRUNCATE)`, drop the new columns, `PRAGMA user_version=<old>`, and set `room_master_table.identity_hash` to the old build's hash (`RoomOpenDelegate(<old>, "<hash>"` in its `build/generated/ksp`); push it back and delete `-wal`/`-shm`. The new build re-migrates it. Also: in `echo "$(date +%T) exit $?"` the `$?` is `date`'s, not the soak's.
 
+**Name the baseline by its commit, and expect a wide noise band (2026-10-14):** a baseline directory reused from an earlier day was v0.1.604, not the 0.1.605 it was reported as, so a "605 vs 606" soak measured three changes. Build the baseline fresh from the previous release's tag (`gh release list`, then `git archive v0.1.<n>`) into a directory named after it. The same build failed 3/30 and 8/30 an hour apart (all underruns and `edon5wb5Qsc` give-ups), and emulator CPU did not separate failed plays from passing ones (idle ~100% vs ~110% of 400%, app ~140% either way), so a gap of a few failures between builds is noise until a third run repeats it.
+
 Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
 
 Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the
