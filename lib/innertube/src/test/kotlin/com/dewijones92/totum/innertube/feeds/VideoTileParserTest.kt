@@ -20,6 +20,16 @@ class VideoTileParserTest {
      * node beside that text. Nothing failed — members-only just always reported false.
      */
     @Test
+    fun `a song tile whose title comes in runs is kept, as Liked songs sends it`() {
+        val body = checkNotNull(javaClass.getResourceAsStream("/tile_song_title_runs_tv_sample.json")) { "missing" }
+            .bufferedReader().readText()
+        val videos = (VideoTileParser.parse(body) as FeedResult.Success).page.items
+
+        assertEquals(listOf("A liked song"), videos.map { it.title })
+        assertEquals("An artist", videos.single().author)
+    }
+
+    @Test
     fun `a members-only badge is read off the tile`() {
         val body = checkNotNull(javaClass.getResourceAsStream("/tile_badges_tv_sample.json")) { "missing" }
             .bufferedReader().readText()

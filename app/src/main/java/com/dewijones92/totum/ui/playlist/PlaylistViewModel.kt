@@ -114,9 +114,10 @@ class PlaylistViewModel(
             videos = result.page.items.map { it.listed() },
             loading = false,
             next = result.page.next,
-        )
+        ).also { Diag.log("feed", "playlist $browseId loaded ${it.videos.size} item(s), more=${result.page.hasMore}") }
 
         else -> FetchState(videos = fetch.value.videos, loading = false, error = true)
+            .also { Diag.warn("feed", "playlist $browseId failed to load: $result") }
     }
 
     /**

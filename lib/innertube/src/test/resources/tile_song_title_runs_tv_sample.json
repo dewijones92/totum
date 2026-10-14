@@ -1,0 +1,7 @@
+{"contents":{"tvBrowseRenderer":{"content":{"tvSurfaceContentRenderer":{"content":{"twoColumnRenderer":{"rightColumn":{"playlistVideoListRenderer":{"contents":[
+{"tileRenderer":{"style":"TILE_STYLE_YTLR_DEFAULT","contentType":"TILE_CONTENT_TYPE_VIDEO","contentId":"aaaaaaaaaaa",
+ "onSelectCommand":{"watchEndpoint":{"videoId":"aaaaaaaaaaa","playlistId":"LM"}},
+ "metadata":{"tileMetadataRenderer":{"title":{"runs":[{"text":"A liked "},{"text":"song"}]},
+  "lines":[{"lineRenderer":{"items":[{"lineItemRenderer":{"text":{"simpleText":"An artist"}}}]}},
+           {"lineRenderer":{"items":[{"lineItemRenderer":{"text":{"simpleText":"Song • 16K views"}}}]}}]}}}}
+]}}}}}}}}}

@@ -129,6 +129,7 @@ songs would put rows in the list that do nothing when tapped.
 | unit | `app/…/SearchViewModelTest` | the Music scope asks only music; global search never asks for albums or artists |
 | unit | `app/…/MusicFavouritesTest` | each write read back until the account shows it (a lagging read still counts), refusals, signed out, no playlist |
 | unit | `lib/innertube/…/HttpYouTubeActionsTest`, `HttpYouTubeMusicTest` | album save/remove requests; the liked count from the header, not a song titled "12 songs" |
+| unit | `lib/innertube/…/VideoTileParserTest` | a song tile whose title comes in `runs` is kept: Liked songs (`VLLM`) sends them that way, and the page showed none (report `20261014T175145`) |
 | instrumented | `app/…/MusicFavouritesScreensTest` | Save, Remove asking first, a refused save never showing Saved, Follow, the favourites section, Like from a song's menu |
 | unit | `app/…/AutoAdvancerTest`, `ShuffleUpNextTest`, `core/domain/…/OfflineCountTest` | repeat one / queue, shuffle, offline counts |
 | unit | `app/…/music/WalkAllSongsTest`, `SeeAllTest`, `innertube/…/MusicNextFieldsTest`, `MusicPageParserTest` | every song once across pages, a failed or repeating page ends the walk, the All songs Shuffle takes every page, station `params` parsed and sent |

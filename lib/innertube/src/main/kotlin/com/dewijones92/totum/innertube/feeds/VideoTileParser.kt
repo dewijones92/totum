@@ -107,7 +107,7 @@ internal object VideoTileParser {
         val videoId = watchVideoId() ?: stringAt("contentId") ?: return null
         val watchUrl = FeedVideo.watchUrlFor(videoId) ?: return null
         val metadata = (this["metadata"] as? JsonObject)?.get("tileMetadataRenderer") as? JsonObject
-        val title = (metadata?.get("title") as? JsonObject)?.stringAt("simpleText") ?: return null
+        val title = (metadata?.get("title") as? JsonObject)?.readText() ?: return null
         return FeedVideo(
             videoId = videoId,
             title = title,
