@@ -50,6 +50,7 @@ class AppShellTest {
     @Test
     fun tappingLibrary_showsLibraryPillar() {
         composeTestRule.onNodeWithText(text(R.string.destination_library)).performClick()
-        composeTestRule.onNodeWithText(text(R.string.library_empty_headline)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(text(R.string.stats_tile)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(text(R.string.library_empty_headline)).assertExists()
     }
 }
