@@ -48,3 +48,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 30 | [Shuffle all walks every page of a source into one queue group](0030-shuffle-all-walks-every-page-into-one-queue-group.md) | Accepted |
 | 31 | [Downloads suggest groups to delete, reviewed before anything goes](0031-downloads-suggest-groups-to-delete.md) | Accepted |
 | 32 | [Music favourites live on the YouTube Music account, and a change counts only once the account shows it](0032-music-favourites-live-on-the-account.md) | Accepted |
+| 33 | [A range that drips is asked for again from the byte it reached](0033-a-dripping-range-is-asked-for-again.md) | Accepted |

@@ -1,13 +1,27 @@
 ---
 title: The hour-long live test stalls about nine seconds in, on CI only
 kind: todo
-status: open; since 2026-10-08 it fails on EVERY CI run that reaches it, at media position 19.41 s (see the 2026-10-14 section); cause not established; passes on totum-api35 (signed in)
+status: cause found 2026-10-14 (one request at play start drips); re-ask fix committed (ADR 33); the next CI run is the proof
 area: playback
 priority: high — it is the standing reason CI is red on main
 updated: 2026-10-14
 ---
 
 # `AnHourLongItemDoesNotRebufferTest` stalls early, on CI
+
+## Cause found (2026-10-14)
+
+From 0.1.603 to 0.1.606 it failed on **every** `main` run, always one stall at **19.41 s ± 4 ms**. The
+per-test logcat of run 38429636795 (`instrumented-reports`) settles it: the two requests opening the
+direct-URL stream start together (`startedAt=1373152`); one runs at full speed, the other logs
+`slow track--1 chunk: 280KB in 21850ms (~105kbps)`. Playback reaches 19.4 s on what the fast one brought,
+waits 2.2 s for the slow one, then the same stream runs at ~43 Mbps. Not the network and not a timer: one
+starved request with nothing to abandon it. This answers the hypotheses in the section below: not the URL
+as a whole (hypothesis 1: the same URL runs at ~43 Mbps right after) and not the buffer targets (3), but
+one of the requests opened at play start, which is the "oldest load in flight 20–21.6 s" in every run of
+the table. Fixed by re-asking a dripping range from the byte it reached
+([ADR 33](../adr/0033-a-dripping-range-is-asked-for-again.md), `DripWatch`, `ChunkedDataSourceTest`). The
+next CI run is the proof; if it still stalls, read its `[chunked] range dripping` lines first.
 
 `anHourLongVideoPlaysOnWithoutRebuffering` is the most frequent red in the instrumented job. Counted
 from the check-run annotations of the last 13 CI runs on `main` (2026-09-22 → 2026-09-25):

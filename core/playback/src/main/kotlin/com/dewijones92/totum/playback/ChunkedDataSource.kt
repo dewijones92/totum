@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import android.net.Uri
+import android.os.SystemClock
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
@@ -37,10 +38,12 @@ import com.dewijones92.totum.common.Vitals
 internal class ChunkedDataSource(
     private val upstream: DataSource,
     private val chunkBytes: Long = DEFAULT_CHUNK_BYTES,
+    private val drip: DripWatch = DripWatch(RangeSpeeds.shared, SystemClock::elapsedRealtime),
 ) : DataSource {
 
     private var spec: DataSpec? = null
     private var read: ChunkedRead? = null
+    private var remote = false
 
     override fun addTransferListener(transferListener: TransferListener) {
         upstream.addTransferListener(transferListener)
@@ -48,6 +51,7 @@ internal class ChunkedDataSource(
 
     override fun open(dataSpec: DataSpec): Long {
         spec = dataSpec
+        remote = dataSpec.uri.scheme?.lowercase() in REMOTE_SCHEMES
         val cursor = ChunkedRead(remainingFor(dataSpec), chunkBytes)
         read = cursor
         openNextRange(cursor)
@@ -113,11 +117,30 @@ internal class ChunkedDataSource(
         return length
     }
 
-    private fun openNextRange(cursor: ChunkedRead) {
+    private fun openNextRange(cursor: ChunkedRead, fresh: Boolean = true) {
         val current = spec ?: return
         if (cursor.finished) return
         val range = cursor.nextRange()
         cursor.opened(upstream.open(current.subrange(range.offset, range.bytes)))
+        if (remote) drip.rangeOpened(fresh)
+    }
+
+    private fun reaskIfDripping(cursor: ChunkedRead) {
+        if (!remote || !cursor.rangeOpen) return
+        val dripping = drip.drip() ?: return
+        Diag.warn("chunked", "range dripping: ${dripping.describe()} — ${cursor.describe()}")
+        Vitals.add("playback.dripsReasked")
+        closeRange()
+        cursor.abandonRange()
+        openNextRange(cursor, fresh = false)
+    }
+
+    private fun rangeDone() {
+        if (!remote) return
+        val speed = drip.rangeFinished() ?: return
+        if (drip.reasks > 0) {
+            Diag.log("chunked", "a re-asked range finished at ~${speed / BYTES_PER_KB}KB/s after ${drip.reasks} re-ask(s)")
+        }
     }
 
     /**
@@ -135,9 +158,16 @@ internal class ChunkedDataSource(
             val got = upstream.read(buffer, offset, cursor.cap(length))
             if (got != C.RESULT_END_OF_INPUT) {
                 cursor.served(got)
-                if (!cursor.rangeOpen) closeRange()
+                if (remote) drip.served(got)
+                if (!cursor.rangeOpen) {
+                    rangeDone()
+                    closeRange()
+                } else {
+                    reaskIfDripping(cursor)
+                }
                 return got
             }
+            rangeDone()
             closeRange()
             when (cursor.endOfRange()) {
                 // This range is spent and there is more resource after it: open the next one.
@@ -186,5 +216,7 @@ internal class ChunkedDataSource(
          * throttle never engages. Roughly ten seconds of a 1080p stream.
          */
         const val DEFAULT_CHUNK_BYTES = 2L * 1024 * 1024
+        private const val BYTES_PER_KB = 1024L
+        private val REMOTE_SCHEMES = setOf("http", "https")
     }
 }

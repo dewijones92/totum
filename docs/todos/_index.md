@@ -41,7 +41,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [sabr-serves-nothing-for-some-videos](sabr-serves-nothing-for-some-videos.md) | playback | — | **reopened for a re-check 2026-10-14**: the same "SABR served nothing" failure is back on CI (3 of the last 8 red runs); closed 2026-09-25 as the ANDROID endpoint's ~60 s wall |
 | [subtitles-fail-to-parse-over-sabr](subtitles-fail-to-parse-over-sabr.md) | playback | low | FIXED and confirmed in run 35529171153: asks=vtt, zero parse failures, and the loads verified to have actually run |
 | [instrumented-tests-read-the-wrong-item](instrumented-tests-read-the-wrong-item.md) | testing | medium | done 2026-10-08: all fourteen converted tests pass on totum-api35; CI's live phase had been skipping (stale home-IP secret), now follows the home domain |
-| [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | medium | cause found 2026-10-14: one request drips (280 KB in 21.9 s); re-ask fix shipped (ADR 33), next CI run is the proof |
+| [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | high | cause found 2026-10-14: one request opened at play start drips (280 KB in 21.9 s); re-ask fix committed (ADR 33), unpushed; the next CI run is the proof |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | not seen since 0.1.477 (10 phone reports, mostly local files); cause not established; its detector cried wolf on every seek and is fixed |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |

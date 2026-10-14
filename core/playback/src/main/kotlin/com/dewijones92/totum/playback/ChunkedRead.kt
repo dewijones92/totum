@@ -118,6 +118,12 @@ internal class ChunkedRead(
         if (rangeRemaining == 0L) rangeOpen = false
     }
 
+    /** Gives up on the open range; the next one starts at the byte this one reached. */
+    fun abandonRange() {
+        rangeOpen = false
+        rangeRemaining = UNKNOWN_LENGTH
+    }
+
     /**
      * Upstream said end-of-input. What that means for the read as a whole.
      *

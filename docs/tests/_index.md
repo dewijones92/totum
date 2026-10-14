@@ -597,6 +597,12 @@ green tick beside it. Full write-up: `../todos/stalls-near-the-end-of-an-item.md
 
 Full write-up: `../todos/stalls-near-the-end-of-an-item.md`.
 
+**Dripping ranges (2026-10-14, ADR 33):** `DripWatchTest` (JVM, 8: the CI drip, grace, a slow network
+judged against itself, the re-ask cap, the median) and `ChunkedDataSourceTest` "a range that drips is
+asked for again from where it reached" (failed with re-asking off: the second request started at byte
+1024, not 300) plus "a slow local file is never re-asked". The live proof is
+`AnHourLongItemDoesNotRebufferTest` on CI, red on every run from 0.1.603 to 0.1.606.
+
 ## A test whose name is broader than its coverage hides the gap (2026-08-06)
 
 `OfflineSkipsUnavailableTest` had *"offline, a video is declined without resolving"* — true, and

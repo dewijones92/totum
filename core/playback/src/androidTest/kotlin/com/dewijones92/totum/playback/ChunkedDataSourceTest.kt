@@ -147,6 +147,36 @@ class ChunkedDataSourceTest {
     }
 
     /**
+     * The CI failure of 2026-10-13: one range dripped 280KB in 21.85 s while its partner ran at full
+     * speed, and the video stalled at 19.4 s waiting for it. A dripping range is asked for again from
+     * the byte it reached, and the bytes still arrive whole and in order.
+     */
+    @Test
+    fun `a range that drips is asked for again from where it reached`() {
+        var clock = 0L
+        val server = DripsOnce(content(size = 10_000), dripBytes = 100, msPerDrip = 1_000) { clock += it }
+        val source = ChunkedDataSource(server, CHUNK, DripWatch(RangeSpeeds(), now = { clock }))
+
+        source.open(server.spec(position = 0))
+        val read = source.drain()
+
+        assertTrue("the wrong bytes came back", read.contentEquals(server.content))
+        assertEquals("the drip must be asked for again from the byte it reached: ${server.asked}", 300L, server.asked[1].first)
+    }
+
+    @Test
+    fun `a slow local file is never re-asked`() {
+        var clock = 0L
+        val server = DripsOnce(content(size = 3_000), dripBytes = 100, msPerDrip = 1_000, uri = LOCAL) { clock += it }
+        val source = ChunkedDataSource(server, CHUNK, DripWatch(RangeSpeeds(), now = { clock }))
+
+        source.open(server.spec(position = 0))
+
+        assertTrue(source.drain().contentEquals(server.content))
+        assertEquals("a file on the disk has no server to ask again: ${server.asked}", CHUNK, server.asked[1].first)
+    }
+
+    /**
      * A stand-in for googlevideo: bounded ranges are honoured, and a range starting at or past the
      * end of the content answers with **no bytes** rather than an error.
      *
@@ -160,6 +190,7 @@ class ChunkedDataSourceTest {
         val content: ByteArray,
         /** What the URL says the resource's length is; null states nothing, as some URLs do not. */
         private val claims: Int? = content.size,
+        uri: String? = null,
     ) : DataSource {
 
         /** Every range asked for, so a request past the end of the resource is provable. */
@@ -168,8 +199,8 @@ class ChunkedDataSourceTest {
         private var cursor = 0
         private var end = 0
 
-        private val uri = "https://rr1---sn-test.googlevideo.com/videoplayback?itag=399" +
-            claims?.let { "&clen=$it" }.orEmpty()
+        private val uri = uri ?: ("https://rr1---sn-test.googlevideo.com/videoplayback?itag=399" +
+            claims?.let { "&clen=$it" }.orEmpty())
 
         fun spec(position: Long, length: Long = C.LENGTH_UNSET.toLong()): DataSpec =
             DataSpec.Builder().setUri(uri).setPosition(position).setLength(length).build()
@@ -213,6 +244,38 @@ class ChunkedDataSourceTest {
             isOpen = false
         }
 
+        override fun getUri() = null
+        override fun addTransferListener(transferListener: TransferListener) = Unit
+    }
+
+    /** Drips its first range a little at a time, as the clock runs; every later range is served at once. */
+    private class DripsOnce(
+        content: ByteArray,
+        private val dripBytes: Int,
+        private val msPerDrip: Long,
+        private val uri: String? = null,
+        private val advance: (Long) -> Unit,
+    ) : DataSource {
+        private val real = RangeServer(content, uri = uri)
+        private var opens = 0
+
+        val content get() = real.content
+        val asked get() = real.asked
+
+        fun spec(position: Long) = real.spec(position)
+
+        override fun open(dataSpec: DataSpec): Long {
+            opens++
+            return real.open(dataSpec)
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (opens > 1) return real.read(buffer, offset, length)
+            advance(msPerDrip)
+            return real.read(buffer, offset, minOf(length, dripBytes))
+        }
+
+        override fun close() = real.close()
         override fun getUri() = null
         override fun addTransferListener(transferListener: TransferListener) = Unit
     }
@@ -272,6 +335,7 @@ class ChunkedDataSourceTest {
 
     private companion object {
         const val CHUNK = 1_024L
+        const val LOCAL = "file:///data/user/0/com.dewijones92.totum/files/downloads/item.media?clen=3000"
 
         /** Not a round number and not a multiple of the chunk, so a boundary bug has to show. */
         const val READ_BUFFER = 337
