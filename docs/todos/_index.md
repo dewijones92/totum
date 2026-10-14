@@ -12,6 +12,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
+| [Exsurge nudges when the phone has lain flat while it is off](exsurge-flat-phone-nudge.md) | side-quest | high | open — agreed 2026-10-14, build next |
+| [An "Even out" loudness mode](even-out-loudness.md) | playback | high | open — agreed 2026-10-14, build next |
+| [Recent actions as a Recently row and app shortcuts](recently-row-and-shortcuts.md) | queue/ui | medium | open — agreed 2026-10-14, build next |
 | [Suggest groups of downloads to delete](suggest-downloads-to-delete.md) | downloads | high | built 2026-10-13 → [features/downloads-cleanup.md](../features/downloads-cleanup.md), ADR 31 |
 | [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | built 2026-10-12 → [features/daily-alarms.md](../features/daily-alarms.md) |
 | [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | built 2026-10-12 → [features/shuffle-all.md](../features/shuffle-all.md) |
