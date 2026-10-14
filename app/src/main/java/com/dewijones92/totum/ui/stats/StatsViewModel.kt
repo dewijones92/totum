@@ -72,10 +72,10 @@ class StatsViewModel(
     private val _detail = MutableStateFlow<Detail?>(null)
     val detail: StateFlow<Detail?> = _detail.asStateFlow()
 
-    init {
+    fun reload() {
         viewModelScope.launch {
             events = load()
-            show(Period.WEEK)
+            show(_page.value?.period ?: Period.WEEK)
         }
     }
 

@@ -21,7 +21,7 @@ import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueDrag
 import com.dewijones92.totum.queue.dragMove
-import com.dewijones92.totum.queue.moveBlock
+import com.dewijones92.totum.queue.moveGroupPast
 import com.dewijones92.totum.ui.common.GripHold
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -85,7 +85,7 @@ internal fun rememberQueueReorder(
         session.moved(fromKey, toKey, drag)
         when (drag) {
             is QueueDrag.Item -> queue.move(drag.from, drag.to)
-            is QueueDrag.Block -> queue.moveBlock(drag.from, drag.to)
+            is QueueDrag.Group -> queue.moveGroupPast(drag.groupId, drag.target)
             is QueueDrag.Ignored -> return@rememberReorderableLazyListState
         }
         val target = queue.state.value
@@ -110,6 +110,7 @@ internal fun QueueDragHandle(
     modifier: Modifier = Modifier,
     group: Boolean = false,
     onPickedUp: () -> Unit = {},
+    onDropped: () -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
     Icon(
@@ -126,6 +127,7 @@ internal fun QueueDragHandle(
                     },
                     onDragStopped = {
                         drag.session.released(drag.key)
+                        onDropped()
                         haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
                     },
                 )

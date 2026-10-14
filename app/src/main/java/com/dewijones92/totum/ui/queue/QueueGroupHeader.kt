@@ -53,6 +53,7 @@ internal data class GroupHeaderActions(
 
 @Composable
 internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, drag: QueueRowDrag?) {
+    var foldedByDrag by remember { mutableStateOf(false) }
     val expandOrCollapse = stringResource(
         if (model.collapsed) R.string.queue_group_expand_action else R.string.queue_group_collapse_action,
     )
@@ -82,7 +83,14 @@ internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, d
                 description = stringResource(R.string.queue_group_reorder, model.title),
                 modifier = Modifier.testTag(queueGroupHandleTag(model.groupId)),
                 group = true,
-                onPickedUp = { if (!model.collapsed) actions.onToggle() },
+                onPickedUp = {
+                    foldedByDrag = !model.collapsed
+                    if (foldedByDrag) actions.onToggle()
+                },
+                onDropped = {
+                    if (foldedByDrag) actions.onToggle()
+                    foldedByDrag = false
+                },
             )
         }
     }

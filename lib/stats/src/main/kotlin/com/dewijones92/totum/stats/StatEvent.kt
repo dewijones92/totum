@@ -9,6 +9,23 @@ public enum class NudgeWhat { POSTED, NOT_TODAY }
 
 public enum class UseKind { SEARCH, DOWNLOAD, PIN, SHUFFLE, VIDEOS_SHOWN }
 
+public enum class ExsurgeMove {
+    SUMMON_NOW,
+    GO,
+    JUST_WALK,
+    CONTINUE_TOTUM,
+    RESTART_CLOCK,
+    SNOOZE,
+    SKIP,
+    WALKED,
+    PAUSE_HOUR,
+    TURN_OFF,
+}
+
+public enum class AlarmStep { TICK, ANSWER, SET_TODAY, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS }
+
+public enum class AlarmPhase { IDLE, ASKING, SET, RINGING, SNOOZED, DONE }
+
 @Serializable
 public sealed interface StatEvent {
     public val at: Long
@@ -33,7 +50,7 @@ public sealed interface StatEvent {
     @SerialName("exsurge")
     public data class ExsurgeAction(
         override val at: Long,
-        val action: String,
+        val action: ExsurgeMove,
         val from: String,
         val before: String,
         val after: String,
@@ -53,9 +70,9 @@ public sealed interface StatEvent {
         override val at: Long,
         val alarmId: String,
         val label: String,
-        val event: String,
-        val before: String,
-        val after: String,
+        val event: AlarmStep,
+        val before: AlarmPhase,
+        val after: AlarmPhase,
     ) : StatEvent
 
     @Serializable

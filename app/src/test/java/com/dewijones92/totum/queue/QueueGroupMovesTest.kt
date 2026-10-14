@@ -104,18 +104,27 @@ class QueueGroupMovesTest {
     }
 
     @Test
-    fun `dragging a block one place swaps it with the whole block beside it`() {
-        val down = snapshot(current = 0).movingBlock(1, 2)
+    fun `dragging a group down past a row puts it after that row, up past a row puts it before`() {
+        val down = snapshot(current = 0).movingGroupPast(album.id, 3)
         assertEquals(listOf("x", "y", "a1", "a2", "s1", "s2", "s3"), down.ids())
 
-        val up = snapshot(current = 0).movingBlock(3, 2)
+        val up = snapshot(current = 0).movingGroupPast(season.id, 3)
         assertEquals(listOf("x", "a1", "a2", "s1", "s2", "s3", "y"), up.ids())
         assertEquals("x", up.playing())
     }
 
     @Test
-    fun `a block index out of range changes nothing`() {
-        assertEquals(snapshot().ids(), snapshot().movingBlock(0, 9).ids())
+    fun `dragging past another group passes the whole of its run`() {
+        assertEquals(
+            listOf("x", "y", "s1", "s2", "s3", "a1", "a2"),
+            snapshot(current = 0).movingGroupPast(album.id, 4).ids()
+        )
+    }
+
+    @Test
+    fun `a target outside the queue or inside the dragged group changes nothing`() {
+        assertEquals(snapshot().ids(), snapshot().movingGroupPast(album.id, 9).ids())
+        assertEquals(snapshot().ids(), snapshot().movingGroupPast(album.id, 2).ids())
     }
 
     @Test
@@ -175,14 +184,14 @@ class QueueGroupMovesTest {
 
     @Test
     fun `a group header dragged over a row moves its block to that row's block`() {
-        assertEquals(QueueDrag.Block(1, 3), snapshot().dragMove(queueGroupHeaderKey(album.id), "s2"))
-        assertEquals(QueueDrag.Block(3, 2), snapshot().dragMove(queueGroupHeaderKey(season.id), "y"))
+        assertEquals(QueueDrag.Group(album.id, 5), snapshot().dragMove(queueGroupHeaderKey(album.id), "s2"))
+        assertEquals(QueueDrag.Group(season.id, 3), snapshot().dragMove(queueGroupHeaderKey(season.id), "y"))
     }
 
     @Test
     fun `a group header dragged over another header swaps the two groups`() {
         assertEquals(
-            QueueDrag.Block(1, 3),
+            QueueDrag.Group(album.id, 4),
             snapshot().dragMove(queueGroupHeaderKey(album.id), queueGroupHeaderKey(season.id)),
         )
     }
@@ -193,7 +202,40 @@ class QueueGroupMovesTest {
         assertEquals(true, snapshot().dragMove(queueGroupHeaderKey("gone"), "x") is QueueDrag.Ignored)
     }
 
+    @Test
+    fun `dragging a group moves only that group, leaving a split group and a play-next item alone`() {
+        val split = QueueSnapshot(
+            listOf(
+                entry("a1", album),
+                entry("a2", album),
+                entry("p"),
+                entry("a3", album),
+                entry("a4", album),
+                entry("s1", season),
+                entry("s2", season),
+            ),
+            currentIndex = 1,
+        )
+
+        val moved = split.afterDrag(queueGroupHeaderKey(season.id), "a4").afterDrag(queueGroupHeaderKey(season.id), "p")
+
+        assertEquals(listOf("a1", "a2", "s1", "s2", "p", "a3", "a4"), moved.ids())
+        assertEquals("a2", moved.playing())
+    }
+
     private companion object {
         const val SEED = 7
     }
+
+    private fun QueueSnapshot.afterDrag(fromKey: String, toKey: String): QueueSnapshot =
+        when (val drag = dragMove(fromKey, toKey)) {
+            is QueueDrag.Item -> movingTo(
+                entries[drag.from].item.item.id,
+                drag.to,
+                current!!.item.item.id,
+                currentIndex
+            )
+            is QueueDrag.Group -> movingGroupPast(drag.groupId, drag.target)
+            is QueueDrag.Ignored -> this
+        }
 }

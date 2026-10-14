@@ -8,7 +8,8 @@ internal data class QueueBlock(val groupId: String?, val entries: List<QueueEntr
 
 enum class GroupDestination { TOP, BOTTOM, NEXT }
 
-fun PlaybackQueue.moveBlock(from: Int, to: Int) = reorder("move block $from->$to") { it.movingBlock(from, to) }
+fun PlaybackQueue.moveGroupPast(id: String, target: Int) =
+    reorder("move group ${state.value.groupLabel(id)} past place ${target + 1}") { it.movingGroupPast(id, target) }
 
 fun PlaybackQueue.moveGroup(id: String, to: GroupDestination) =
     reorder("move group ${state.value.groupLabel(id)} to $to") { it.movingGroup(id, to) }
@@ -35,11 +36,24 @@ internal fun List<QueueEntry>.blocks(): List<QueueBlock> {
     return blocks
 }
 
-internal fun QueueSnapshot.movingBlock(from: Int, to: Int): QueueSnapshot {
-    val blocks = entries.blocks()
-    if (from !in blocks.indices || to !in blocks.indices || from == to) return this
-    val reordered = blocks.toMutableList().apply { add(to, removeAt(from)) }
-    return rebuiltFrom(reordered.flatMap { it.entries })
+internal fun QueueSnapshot.movingGroupPast(groupId: String, target: Int): QueueSnapshot {
+    val first = entries.indexOfFirst { it.group?.id == groupId }
+    if (first < 0 || target !in entries.indices || entries[target].group?.id == groupId) return this
+    val moving = entries.filter { it.group?.id == groupId }
+    val others = entries.filterNot { it.group?.id == groupId }
+    val runs = others.runs()
+    val run = runs.indexOfFirst { entries[target] in it }
+    val at = runs.take(if (target > first) run + 1 else run).sumOf { it.size }
+    return rebuiltFrom(others.take(at) + moving + others.drop(at))
+}
+
+internal fun List<QueueEntry>.runs(): List<List<QueueEntry>> = fold(
+    mutableListOf<MutableList<QueueEntry>>()
+) { runs, entry ->
+    val last = runs.lastOrNull()
+    val id = entry.group?.id
+    if (id != null && last != null && last.last().group?.id == id) last += entry else runs += mutableListOf(entry)
+    runs
 }
 
 internal fun QueueSnapshot.movingGroup(groupId: String, destination: GroupDestination): QueueSnapshot {

@@ -23,8 +23,8 @@ item is kept. He chose a new mode beside it rather than replacing it.
 - Same machinery as AUTO (`LoudnessBoost`, the relative and absolute silence gates, `LookaheadLimiter`),
   tuned to follow passages: the silence gate's memory of the recent peak fades over 400 ms instead of 2 s
   (so a quieter passage starts being measured within half a second); the level estimate settles over
-  600 ms instead of 2 s; the gain falls over
-  120 ms and rises over 700 ms; and it may bring a loud passage down by up to 6 dB, where AUTO never turns
+  400 ms instead of 2 s; the gain falls over
+  120 ms and rises over 500 ms; and it may bring a loud passage down by up to 6 dB, where AUTO never turns
   anything down. The cap stays +30 dB.
 - Near-silence is never lifted: the gates keep pauses and digital silence out of the measurement, so the
   gain holds at the speech either side.

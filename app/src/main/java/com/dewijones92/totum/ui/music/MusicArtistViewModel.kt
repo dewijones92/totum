@@ -17,6 +17,7 @@ import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.ArtistSongs
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
+import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -126,12 +127,7 @@ class MusicArtistViewModel(
                     container.playbackQueue,
                     container.musicRadio,
                     container.applicationScope,
-                    ArtistShuffle(
-                        container.musicCatalogue,
-                        container.playbackQueue,
-                        container.recentActions,
-                        container.statsLog
-                    ),
+                    container.artistShuffle(),
                 )
             }
         }

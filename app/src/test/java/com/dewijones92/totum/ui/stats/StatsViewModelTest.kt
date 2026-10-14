@@ -41,7 +41,7 @@ class StatsViewModelTest {
         durationMs = 180_000,
     )
 
-    private val events = listOf(
+    private val events = mutableListOf(
         listen("2026-10-14T09:00:00Z", "Satie"),
         listen("2026-10-14T10:00:00Z", "Satie"),
         listen("2026-10-01T10:00:00Z", "Chopin"),
@@ -58,6 +58,7 @@ class StatsViewModelTest {
     @Test
     fun `the page opens on the week, and a period chip changes everything on it`() = runTest(dispatcher) {
         val model = model()
+        model.reload()
         advanceUntilIdle()
 
         assertEquals(Period.WEEK, model.page.value?.period)
@@ -71,6 +72,7 @@ class StatsViewModelTest {
     @Test
     fun `a bar and a top entry each open the listens behind them`() = runTest(dispatcher) {
         val model = model()
+        model.reload()
         advanceUntilIdle()
 
         model.openBar(model.page.value!!.bars.last())
@@ -80,5 +82,18 @@ class StatsViewModelTest {
         model.show(Period.MONTH)
         model.openTop(TopKind.ARTISTS, model.page.value!!.top.getValue(TopKind.ARTISTS).last())
         assertEquals("Chopin", model.detail.value?.listens?.single()?.author)
+    }
+
+    @Test
+    fun `opening the page again reads what was recorded since`() = runTest(dispatcher) {
+        val model = model()
+        model.reload()
+        advanceUntilIdle()
+        events += listen("2026-10-14T14:00:00Z", "Debussy")
+
+        model.reload()
+        advanceUntilIdle()
+
+        assertEquals(3, model.page.value?.totals?.all?.plays)
     }
 }

@@ -65,7 +65,14 @@ open class StatsLog(
                     file.delete()
                 } else {
                     file.parentFile?.mkdirs()
-                    file.writeText(text)
+                    val next = File(file.parentFile, "$PENDING.new")
+                    next.writeText(text)
+                    if (!next.renameTo(
+                            file
+                        )
+                    ) {
+                        Diag.warn(TAG, "dewidebug stats could not move the play in progress into place")
+                    }
                 }
             }.onFailure { Diag.warn(TAG, "dewidebug stats could not save the play in progress", it) }
         }

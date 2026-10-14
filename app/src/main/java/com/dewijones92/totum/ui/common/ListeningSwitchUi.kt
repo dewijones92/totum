@@ -8,6 +8,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -41,7 +42,8 @@ fun SwitchListeningButton(from: String, modifier: Modifier = Modifier) {
 @Composable
 fun listeningSwitchUi(container: AppContainer): ListeningSwitchUi {
     val target by container.listeningSwitcher.target.collectAsStateWithLifecycle()
-    return ListeningSwitchUi(target, container.listeningSwitcher::tap)
+    val switcher = container.listeningSwitcher
+    return remember(target, switcher) { ListeningSwitchUi(target, switcher::tap) }
 }
 
 fun switchListeningTag(from: String): String = "switch-listening-$from"

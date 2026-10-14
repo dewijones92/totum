@@ -53,7 +53,7 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
                             ) { viewModel.play() },
                             MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
                                 toast(context, gathering)
-                                viewModel.shuffle { count -> toast(context, shuffledText(context, count)) }
+                                viewModel.shuffle(shuffledToast(context))
                             },
                         ),
                     )

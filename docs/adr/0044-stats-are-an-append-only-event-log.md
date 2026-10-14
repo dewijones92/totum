@@ -43,3 +43,15 @@ kept only today; searches only the last 10. Exsurge kept its last 5,000 outcomes
 - Not in backups yet, and nothing prunes the log.
 - Verified on `totum-api35`: a video played 49 s was logged and counted; the page showed it, the week's bars,
   the heatmap cell, and 38 Exsurge summons from its history.
+
+## Amended 2026-10-14, after the batch review
+
+- **Names in the log are enums, never class names.** The first version stored `::class.simpleName` for Exsurge moves
+  and alarm events and compared them with literals; R8 renames those classes in a release build (the repo had met
+  this before as `handle=wr3`), so every alarm number and the Just walk and pause counts would have read 0 on the
+  phone. `ExsurgeMove`, `AlarmStep` and `AlarmPhase` are mapped from the sealed types by exhaustive `when`s, and
+  kotlinx.serialization writes their names from generated code. Rows written by v0.1.608 with the old names are
+  unreadable and skipped (counted in the `stats read` line).
+- **The page reads the log every time it opens** (`StatsViewModel.reload`), not once per activity.
+- The play in progress is written to a temporary file and renamed into place; its length is refreshed every tick,
+  so "half the item" holds when the length arrives after the play began.

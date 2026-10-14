@@ -34,7 +34,8 @@ class FlatPhoneNudge(
 
     private val sensors = context.getSystemService(SensorManager::class.java)
     private val manager = context.getSystemService(NotificationManager::class.java)
-    private val accelerometer: Sensor? = sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    private val accelerometer: Sensor? = sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER, true)
+        ?: sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val stillness = FlatStillness()
     private var listening = false
     private var lastNudgeAt: Instant? = null
@@ -58,19 +59,24 @@ class FlatPhoneNudge(
     private fun check() {
         val settings = exsurge.view.value.settings
         val now = clock()
-        val wanted = !settings.enabled && settings.flatNudge && settings.isActiveAt(now, zone())
+        val muted = mutedOn(context) == now.atZone(zone()).toLocalDate()
+        val wanted = !settings.enabled && settings.flatNudge && settings.isActiveAt(now, zone()) && !muted
         if (wanted == listening) return
         listening = wanted
         if (wanted) {
             stillness.reset()
             val ok = sensors?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL, BATCH_US) == true
-            Diag.log(TAG, "dewidebug flat-phone nudge listening=$ok (Exsurge off, in active hours)")
+            Diag.log(
+                TAG,
+                "dewidebug flat-phone nudge listening=$ok (Exsurge off, in active hours) " +
+                    "sensor=${accelerometer?.name} wakeUp=${accelerometer?.isWakeUpSensor}",
+            )
         } else {
             sensors?.unregisterListener(this)
             Diag.log(
                 TAG,
                 "dewidebug flat-phone nudge stopped listening [enabled=${settings.enabled} " +
-                    "nudge=${settings.flatNudge} activeNow=${settings.isActiveAt(now, zone())}]",
+                    "nudge=${settings.flatNudge} activeNow=${settings.isActiveAt(now, zone())} mutedToday=$muted]",
             )
         }
     }
@@ -160,7 +166,7 @@ class FlatPhoneNudge(
         private const val NUDGE_ID = 7304
         private const val BUZZ_MS = 200L
         private const val CHECK_MS = 60_000L
-        private const val BATCH_US = 10_000_000
+        private const val BATCH_US = 30_000_000
         private const val NANOS_PER_MS = 1_000_000L
         private const val MS_PER_S = 1_000L
         private const val ICON_PX = 96

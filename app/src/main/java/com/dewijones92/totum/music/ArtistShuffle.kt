@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.innertube.music.MusicListing
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.MusicSong
@@ -83,3 +84,5 @@ class ArtistShuffle(
         const val TAG = "music"
     }
 }
+
+fun AppContainer.artistShuffle(): ArtistShuffle = ArtistShuffle(musicCatalogue, playbackQueue, recentActions, statsLog)

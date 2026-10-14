@@ -33,3 +33,11 @@ by it.
 - A phone in a pocket never nudges; a phone left on a desk while you walk around can.
 - Every decision is logged once per change of reason (`flat-phone nudge not yet: …`, `posted`,
   `listening=`), so a report says why a nudge did or did not come.
+
+## Amended 2026-10-14, after the batch review
+
+The nudge asks for the **wake-up** accelerometer where the phone has one (falling back to the ordinary one, and
+saying which in the log), with 30 s batching, so a phone lying flat with its screen off still delivers readings.
+The ordinary sensor stops while the processor sleeps, which is exactly when the phone is on the desk; the emulator,
+which never sleeps, could not show it. The sensor is released for the rest of the day after "Not today". Battery
+cost on the Pixel is still to be measured.

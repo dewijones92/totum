@@ -1,6 +1,8 @@
 package com.dewijones92.totum.dailyalarms
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.stats.AlarmPhase
+import com.dewijones92.totum.stats.AlarmStep
 import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -146,9 +148,9 @@ class DailyAlarmController(
                     clock().toEpochMilli(),
                     alarm.id,
                     alarm.label,
-                    event::class.simpleName.orEmpty(),
-                    before::class.simpleName.orEmpty(),
-                    result.state::class.simpleName.orEmpty(),
+                    event.step,
+                    before.phase,
+                    result.state.phase,
                 ),
             )
         }
@@ -209,3 +211,25 @@ class DailyAlarmController(
         const val PICKUP_ID = "pickup"
     }
 }
+
+private val AlarmEvent.step: AlarmStep
+    get() = when (this) {
+        AlarmEvent.Tick -> AlarmStep.TICK
+        is AlarmEvent.Answer -> AlarmStep.ANSWER
+        is AlarmEvent.SetToday -> AlarmStep.SET_TODAY
+        AlarmEvent.Decline -> AlarmStep.DECLINE
+        AlarmEvent.Change -> AlarmStep.CHANGE
+        AlarmEvent.Cancel -> AlarmStep.CANCEL
+        AlarmEvent.Snooze -> AlarmStep.SNOOZE
+        AlarmEvent.Dismiss -> AlarmStep.DISMISS
+    }
+
+private val DayState.phase: AlarmPhase
+    get() = when (this) {
+        DayState.Idle -> AlarmPhase.IDLE
+        is DayState.Asking -> AlarmPhase.ASKING
+        is DayState.Set -> AlarmPhase.SET
+        is DayState.Ringing -> AlarmPhase.RINGING
+        is DayState.Snoozed -> AlarmPhase.SNOOZED
+        is DayState.Done -> AlarmPhase.DONE
+    }

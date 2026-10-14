@@ -54,3 +54,13 @@ numbers on both versions; see Consequences.
   only `ui/queue/QueueDrag.kt` and the `ReorderableItem` calls in `QueueScreen` would change.
 - Logged: `drag picked up item|group <key>`, each move as `move a->b` / `move block a->b`, `drag released
   <key> after N move(s)`, and any ignored target with its reason.
+
+## Amended 2026-10-14, after the batch review
+
+- **A dragged group moves past whole runs, and only it is gathered.** The first version treated every group as one
+  block and rebuilt the whole queue, so dragging one group pulled every other split group back together: a "Play
+  next" item that had split the playing album was carried off to after it. Now `movingGroupPast` takes the
+  dragged group's entries, steps past the consecutive run the finger is over (after it going down, before it going
+  up), and leaves every other entry where it was. `QueueGroupMovesTest` has the reviewer's case (album split around
+  the playing item by a "Play next" episode), red on the old code.
+- A group folded by its own drag unfolds again when it is dropped.

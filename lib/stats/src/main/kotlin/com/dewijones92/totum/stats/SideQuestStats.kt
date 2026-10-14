@@ -41,8 +41,8 @@ public fun exsurgeTotals(
         skipped = inRange.count { it.kind == BreakKind.SKIPPED },
         missed = inRange.count { it.kind == BreakKind.MISSED },
         snoozes = inRange.sumOf { it.snoozes },
-        walkPresses = actions.count { it.action == "JustWalk" },
-        pauses = actions.count { it.action == "PauseHour" },
+        walkPresses = actions.count { it.action == ExsurgeMove.JUST_WALK },
+        pauses = actions.count { it.action == ExsurgeMove.PAUSE_HOUR },
         steps = inRange.sumOf { it.steps },
         standingMs = inRange.sumOf { it.standingMs },
         practised = inRange.count { it.credited && it.practised },
@@ -97,18 +97,19 @@ public fun alarmTotals(events: List<StatEvent>, since: Long?): AlarmTotals {
     val ringingSince = mutableMapOf<String, Long>()
     val stops = mutableListOf<Long>()
     changes.forEach { change ->
-        if (change.after == RINGING && change.before != RINGING && change.before != SNOOZED) {
+        val startsRinging = change.before != AlarmPhase.RINGING && change.before != AlarmPhase.SNOOZED
+        if (change.after == AlarmPhase.RINGING && startsRinging) {
             ringingSince[change.alarmId] = change.at
         }
-        if (change.event == DISMISS) ringingSince.remove(change.alarmId)?.let { stops += change.at - it }
+        if (change.event == AlarmStep.DISMISS) ringingSince.remove(change.alarmId)?.let { stops += change.at - it }
     }
     return AlarmTotals(
-        asked = changes.count { it.after == ASKING && it.before != ASKING },
-        yes = changes.count { it.event.startsWith("Answer") || it.event.startsWith("SetToday") },
-        no = changes.count { it.event == "Decline" },
-        rang = changes.count { it.after == RINGING && it.before != RINGING },
-        snoozed = changes.count { it.event == "Snooze" },
-        dismissed = changes.count { it.event == DISMISS },
+        asked = changes.count { it.after == AlarmPhase.ASKING && it.before != AlarmPhase.ASKING },
+        yes = changes.count { it.event == AlarmStep.ANSWER || it.event == AlarmStep.SET_TODAY },
+        no = changes.count { it.event == AlarmStep.DECLINE },
+        rang = changes.count { it.after == AlarmPhase.RINGING && it.before != AlarmPhase.RINGING },
+        snoozed = changes.count { it.event == AlarmStep.SNOOZE },
+        dismissed = changes.count { it.event == AlarmStep.DISMISS },
         averageStopMs = stops.takeIf { it.isNotEmpty() }?.average()?.toLong(),
     )
 }
@@ -136,7 +137,3 @@ public fun useTotals(events: List<StatEvent>, since: Long?): UseTotals {
 }
 
 private const val NUDGE_ANSWER_MS = 15 * 60 * 1_000L
-private const val RINGING = "Ringing"
-private const val SNOOZED = "Snoozed"
-private const val ASKING = "Asking"
-private const val DISMISS = "Dismiss"

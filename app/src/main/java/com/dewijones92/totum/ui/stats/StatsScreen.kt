@@ -15,6 +15,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,6 +44,7 @@ fun StatsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier 
     val viewModel: StatsViewModel = viewModel(factory = StatsViewModel.factory(container))
     val page by viewModel.page.collectAsStateWithLifecycle()
     val detail by viewModel.detail.collectAsStateWithLifecycle()
+    LaunchedEffect(viewModel) { viewModel.reload() }
     BackHandler(enabled = detail != null) { viewModel.closeDetail() }
     detail?.let { open ->
         StatsDetail(open, onBack = viewModel::closeDetail, modifier = modifier)

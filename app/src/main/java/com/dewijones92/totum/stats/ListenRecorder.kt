@@ -2,8 +2,9 @@ package com.dewijones92.totum.stats
 
 import android.os.SystemClock
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.domain.MediaContentKind
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
@@ -71,6 +72,7 @@ class ListenRecorder(
         play = current.copy(
             heardMs = current.heardMs + elapsed.coerceIn(0, MAX_STEP_MS),
             watched = current.watched || state.hasVideo,
+            durationMs = state.durationMs ?: current.durationMs,
         )
         sinceSave += elapsed
         if (sinceSave >= SAVE_EVERY_MS) {
@@ -82,7 +84,7 @@ class ListenRecorder(
     private fun begin(state: PlaybackState): StatEvent.Listen {
         val item = queue.state.value.entries.firstOrNull { it.item.item.id == state.itemId }?.item?.item
         val kind = when {
-            item?.contentKind == MediaContentKind.MUSIC -> ListenKind.MUSIC
+            item?.listening == Listening.MUSIC -> ListenKind.MUSIC
             state.kind == MediaKind.PODCAST -> ListenKind.PODCAST
             else -> ListenKind.VIDEO
         }

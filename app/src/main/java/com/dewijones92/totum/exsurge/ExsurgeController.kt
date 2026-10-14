@@ -1,6 +1,7 @@
 package com.dewijones92.totum.exsurge
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.stats.ExsurgeMove
 import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -113,9 +114,7 @@ class ExsurgeController(
         lastEvent = "$event from $source at ${clock()}"
         val before = memory.state
         apply(event, source)
-        if (event.byPerson) {
-            record(statOf(clock().toEpochMilli(), event, source, before, memory.state))
-        }
+        event.move?.let { record(statOf(clock().toEpochMilli(), it, source, before, memory.state)) }
         val seed = lastStepTotal
         val rising = when (event) {
             ExsurgeEvent.Go, ExsurgeEvent.JustWalk, ExsurgeEvent.ContinueTotum -> true
@@ -331,14 +330,20 @@ private fun ExsurgeEffect.label(): String = when (this) {
     is ExsurgeEffect.Record -> "record:${outcome.kind}"
 }
 
-private fun statOf(at: Long, event: ExsurgeEvent, source: String, before: ExsurgeState, after: ExsurgeState) =
-    StatEvent.ExsurgeAction(
-        at = at,
-        action = event::class.simpleName ?: event.toString(),
-        from = source,
-        before = before::class.simpleName.orEmpty(),
-        after = after::class.simpleName.orEmpty(),
-    )
+private fun statOf(at: Long, move: ExsurgeMove, source: String, before: ExsurgeState, after: ExsurgeState) =
+    StatEvent.ExsurgeAction(at = at, action = move, from = source, before = before.label(), after = after.label())
 
-private val ExsurgeEvent.byPerson: Boolean
-    get() = this !is ExsurgeEvent.Tick && this !is ExsurgeEvent.StepsCounted && this !is ExsurgeEvent.SettingsChanged
+private val ExsurgeEvent.move: ExsurgeMove?
+    get() = when (this) {
+        ExsurgeEvent.SummonNow -> ExsurgeMove.SUMMON_NOW
+        ExsurgeEvent.Go -> ExsurgeMove.GO
+        ExsurgeEvent.JustWalk -> ExsurgeMove.JUST_WALK
+        ExsurgeEvent.ContinueTotum -> ExsurgeMove.CONTINUE_TOTUM
+        ExsurgeEvent.RestartClock -> ExsurgeMove.RESTART_CLOCK
+        ExsurgeEvent.Snooze -> ExsurgeMove.SNOOZE
+        ExsurgeEvent.Skip -> ExsurgeMove.SKIP
+        ExsurgeEvent.Walked -> ExsurgeMove.WALKED
+        ExsurgeEvent.PauseHour -> ExsurgeMove.PAUSE_HOUR
+        ExsurgeEvent.TurnOff -> ExsurgeMove.TURN_OFF
+        ExsurgeEvent.Tick, ExsurgeEvent.SettingsChanged, is ExsurgeEvent.StepsCounted -> null
+    }

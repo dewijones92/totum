@@ -40,8 +40,8 @@ class SideQuestStatsTest {
             ),
         )
         val events = listOf(
-            StatEvent.ExsurgeAction(1_500, "JustWalk", "takeover", "Summoned", "Rising"),
-            StatEvent.ExsurgeAction(2_500, "PauseHour", "banner", "Sitting", "Paused"),
+            StatEvent.ExsurgeAction(1_500, ExsurgeMove.JUST_WALK, "takeover", "Summoned", "Rising"),
+            StatEvent.ExsurgeAction(2_500, ExsurgeMove.PAUSE_HOUR, "banner", "Sitting", "Paused"),
         )
 
         val totals = exsurgeTotals(breaks, events, since = null, now = 4_000, onNow = true)
@@ -87,15 +87,15 @@ class SideQuestStatsTest {
 
     @Test
     fun `alarm totals follow the day's changes, and time to stop includes snoozes`() {
-        fun change(at: Long, event: String, before: String, after: String) =
+        fun change(at: Long, event: AlarmStep, before: AlarmPhase, after: AlarmPhase) =
             StatEvent.AlarmChange(at, "pickup", "Pick up", event, before, after)
         val events = listOf(
-            change(0, "Tick", "Idle", "Asking"),
-            change(minute, "Answer", "Asking", "Set"),
-            change(hour, "Tick", "Set", "Ringing"),
-            change(hour + minute, "Snooze", "Ringing", "Snoozed"),
-            change(hour + 10 * minute, "Tick", "Snoozed", "Ringing"),
-            change(hour + 11 * minute, "Dismiss", "Ringing", "Done"),
+            change(0, AlarmStep.TICK, AlarmPhase.IDLE, AlarmPhase.ASKING),
+            change(minute, AlarmStep.ANSWER, AlarmPhase.ASKING, AlarmPhase.SET),
+            change(hour, AlarmStep.TICK, AlarmPhase.SET, AlarmPhase.RINGING),
+            change(hour + minute, AlarmStep.SNOOZE, AlarmPhase.RINGING, AlarmPhase.SNOOZED),
+            change(hour + 10 * minute, AlarmStep.TICK, AlarmPhase.SNOOZED, AlarmPhase.RINGING),
+            change(hour + 11 * minute, AlarmStep.DISMISS, AlarmPhase.RINGING, AlarmPhase.DONE),
         )
 
         val totals = alarmTotals(events, since = null)
@@ -119,5 +119,26 @@ class SideQuestStatsTest {
 
         assertEquals(UseTotals(1, 2, 1_500, 0, 0, 1), useTotals(events, since = null))
         assertEquals(UseTotals(0, 1, 500, 0, 0, 1), useTotals(events, since = 2))
+    }
+
+    @Test
+    fun `the log stores each move by its own name, which minification cannot rename`() {
+        val line = StatsCodec.line(StatEvent.ExsurgeAction(0, ExsurgeMove.JUST_WALK, "takeover", "summoned", "rising"))
+        val alarm = StatsCodec.line(
+            StatEvent.AlarmChange(0, "pickup", "Pick up", AlarmStep.DISMISS, AlarmPhase.RINGING, AlarmPhase.DONE)
+        )
+
+        assertEquals(true, line.contains("\"JUST_WALK\""))
+        assertEquals(true, alarm.contains("\"DISMISS\"") && alarm.contains("\"RINGING\""))
+    }
+
+    @Test
+    fun `a row written with an unknown name is skipped and counted, not fatal`() {
+        val decoded = StatsCodec.read(
+            sequenceOf("""{"type":"exsurge","at":0,"action":"c","from":"x","before":"a","after":"b"}""")
+        )
+
+        assertEquals(0, decoded.events.size)
+        assertEquals(1, decoded.unreadable)
     }
 }
