@@ -152,6 +152,21 @@ class SubtitleParsingTest {
         assertEquals(1, tracks.size)
     }
 
+    @Test
+    fun `a transcription in the language wins over a translation into it`() {
+        val tracks = extract(
+            """"automatic_captions":{
+                 "ar-orig":[{"ext":"ttml","url":"https://e/ar-orig","name":"Arabic (Original)"}],
+                 "en":[{"ext":"ttml","url":"https://e/ar-to-en","name":"English"}],
+                 "fr":[{"ext":"ttml","url":"https://e/ar-to-fr","name":"French"}],
+                 "en-orig":[{"ext":"ttml","url":"https://e/en-orig","name":"English (Original)"}]
+               }""",
+        )
+
+        assertEquals(listOf("en-orig", "fr"), tracks.map { it.languageCode })
+        assertEquals("https://e/en-orig", tracks.first().url.toString())
+    }
+
     /** Author-provided variants are a real choice, so they are not collapsed. */
     @Test
     fun `author regional variants are both kept`() {

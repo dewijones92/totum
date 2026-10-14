@@ -3,7 +3,7 @@ title: Subtitles and captions
 kind: feature
 status: shipped
 area: playback
-updated: 2026-07-25
+updated: 2026-10-14
 ---
 
 # Subtitles
@@ -57,6 +57,13 @@ both "English" *and* "English (Original) (auto)" for a Veritasium video, because
 keys the original-language ASR as **`en-orig`** — which an exact-code comparison sees as a
 different language. Same for "Portuguese" and "Portuguese (Portugal)" machine versions of
 one thing. Hence `SubtitleTrack.baseLanguage`, and three tests using those exact shapes.
+
+Within a language a `-orig` track wins (2026-10-14, report `20261014T180612`, *"English subs not
+working??"*). On a dubbed video YouTube lists one transcription per audio track, Arabic first, and
+the bare `en` is that Arabic transcription machine-translated to English; the real English one comes
+later as `en-orig`. Keeping the first per language offered the translation, which YouTube answered
+with 429 while `en-orig` answered 200 from the same network. Test: `a transcription in the language
+wins over a translation into it`.
 
 ## Playback details worth knowing
 
