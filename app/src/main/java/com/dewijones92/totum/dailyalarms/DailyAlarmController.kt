@@ -1,6 +1,7 @@
 package com.dewijones92.totum.dailyalarms
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +64,7 @@ class DailyAlarmController(
     private val ports: DailyAlarmPorts,
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
+    private val record: (StatEvent) -> Unit = {},
 ) {
     private var alarms = store.loadAlarms().ifEmpty { listOf(DailyAlarm(id = PICKUP_ID)) }
     private var states = store.loadStates()
@@ -138,6 +140,18 @@ class DailyAlarmController(
             "dewidebug dailyalarm ${alarm.id} $event from $source: $before -> ${result.state}; " +
                 "notes=${result.notes}; effects=${result.effects}; nextWake=${result.nextWake}",
         )
+        if (event !is AlarmEvent.Tick || before::class != result.state::class) {
+            record(
+                StatEvent.AlarmChange(
+                    clock().toEpochMilli(),
+                    alarm.id,
+                    alarm.label,
+                    event::class.simpleName.orEmpty(),
+                    before::class.simpleName.orEmpty(),
+                    result.state::class.simpleName.orEmpty(),
+                ),
+            )
+        }
         result.effects.forEach { effect -> execute(alarm, effect) }
         wakes[alarm.id] = result.nextWake
         ports.schedule(alarm.id, result.nextWake, ring = result.state is DayState.Set)

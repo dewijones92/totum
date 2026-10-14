@@ -23,6 +23,8 @@ import com.dewijones92.totum.music.toPlayable
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.MusicPage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +43,7 @@ class MusicAlbumViewModel(
     private val radio: MusicRadio,
     private val appScope: CoroutineScope,
     private val recent: RecentActions? = null,
+    private val stats: StatsLog? = null,
 ) : ViewModel() {
 
     sealed interface State {
@@ -110,6 +113,7 @@ class MusicAlbumViewModel(
         val loaded = _state.value as? State.Loaded ?: return
         Diag.log("music", "shuffle album \"${loaded.album.title}\": ${loaded.tracks.size} inserted after current")
         queue.playAll(loaded.playables().shuffled(), loaded.group())
+        stats?.use(UseKind.SHUFFLE, "album")
         loaded.remember(shuffled = true)
     }
 
@@ -158,6 +162,7 @@ class MusicAlbumViewModel(
                     container.musicRadio,
                     container.applicationScope,
                     container.recentActions,
+                    container.statsLog,
                 )
             }
         }

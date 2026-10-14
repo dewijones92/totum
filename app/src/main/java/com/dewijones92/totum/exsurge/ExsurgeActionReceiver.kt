@@ -8,12 +8,14 @@ import android.os.Handler
 import android.os.Looper
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.stats.NudgeWhat
+import com.dewijones92.totum.stats.StatEvent
 import java.time.LocalDate
 
 class ExsurgeActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val exsurge = (context.applicationContext as TotumApplication).container.exsurge
+        val exsurge = container(context).exsurge
         val action = intent.action.orEmpty()
         Diag.log(ExsurgeController.TAG, "dewidebug exsurge receiver action=$action")
         when (action) {
@@ -25,7 +27,10 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
                 FlatPhoneNudge.dismiss(context)
                 exsurge.updateSettings("banner") { it.copy(enabled = true) }
             }
-            NUDGE_NOT_TODAY -> FlatPhoneNudge.muteToday(context, LocalDate.now())
+            NUDGE_NOT_TODAY -> {
+                FlatPhoneNudge.muteToday(context, LocalDate.now())
+                container(context).statsLog.record(StatEvent.Nudge(System.currentTimeMillis(), NudgeWhat.NOT_TODAY))
+            }
             RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock, "banner")
             SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
             PAUSE_HOUR -> exsurge.dispatch(ExsurgeEvent.PauseHour, "banner")
@@ -38,6 +43,8 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
             else -> Diag.warn(ExsurgeController.TAG, "dewidebug exsurge receiver ignored unknown action=$action")
         }
     }
+
+    private fun container(context: Context) = (context.applicationContext as TotumApplication).container
 
     private fun tickAfterFlush(exsurge: ExsurgeController) {
         if (!ExsurgeBannerService.flushSteps()) return exsurge.dispatch(ExsurgeEvent.Tick, "alarm")

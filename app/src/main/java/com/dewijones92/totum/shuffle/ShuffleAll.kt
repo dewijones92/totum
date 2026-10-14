@@ -21,6 +21,8 @@ import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinnedSource
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.toMediaItemPage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -97,6 +99,7 @@ class ShuffleAll(
     private val whole: WholeSource,
     private val queue: PlaybackQueue,
     private val recent: RecentActions? = null,
+    private val stats: StatsLog? = null,
 ) {
     private val mutableLoading = MutableStateFlow<Map<String, Int>>(emptyMap())
     val loading: StateFlow<Map<String, Int>> = mutableLoading.asStateFlow()
@@ -126,6 +129,7 @@ class ShuffleAll(
             )
             if (playable.isEmpty()) return ShuffleOutcome.Nothing
             queue.playAll(playable.shuffled(), QueueGroup(id = "shuffle:$key", title = title))
+            stats?.use(UseKind.SHUFFLE, "shuffle all")
             recent?.record(
                 Pin.ShuffleAllOf(
                     target = key,

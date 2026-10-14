@@ -174,6 +174,7 @@ import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
+import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
@@ -429,6 +430,7 @@ interface AppContainer {
     val shuffleAll: ShuffleAll
 
     val recentActions: RecentActions
+    val statsLog: StatsLog
 }
 
 // The count is the app's whole integration surface — every start*/install* entry point the
@@ -775,8 +777,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         SleepTimer(playbackController, applicationScope)
     }
 
-    override val exsurge: ExsurgeController by lazy { exsurgeController(context, playbackController, applicationScope) }
-    override val dailyAlarms by lazy { dailyAlarmController(context, playbackController, applicationScope) }
+    override val exsurge: ExsurgeController by lazy {
+        exsurgeController(context, playbackController, applicationScope, record = statsLog::record)
+    }
+    override val dailyAlarms by lazy {
+        dailyAlarmController(context, playbackController, applicationScope, statsLog::record)
+    }
 
     override val queueStore: QueueStore by lazy { RoomQueueStore(database.queueDao()) }
 
@@ -1374,6 +1380,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
+    override val statsLog: StatsLog by lazy { StatsLog(File(context.filesDir, "stats"), applicationScope) }
 
     override val pinPlayer: PinPlayer by lazy { pinPlayerOf(this) }
     override val listeningSwitcher: ListeningSwitcher by lazy { listeningSwitcherOf(this) }
@@ -1449,6 +1456,7 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
     WholeSource(AppSourcePages(c.youTubeChannel, c.channelRepository, c.podcastRepository)),
     c.playbackQueue,
     c.recentActions,
+    c.statsLog,
 )
 
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */
@@ -1493,5 +1501,5 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     c.podcastRepository,
     playState = c.playbackProgressStore::playState,
     shuffleAll = c.shuffleAll,
-    artistShuffle = ArtistShuffle(c.musicCatalogue, c.playbackQueue, c.recentActions),
+    artistShuffle = ArtistShuffle(c.musicCatalogue, c.playbackQueue, c.recentActions, c.statsLog),
 )

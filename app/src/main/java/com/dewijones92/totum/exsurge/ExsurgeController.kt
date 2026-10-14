@@ -1,6 +1,7 @@
 package com.dewijones92.totum.exsurge
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,6 +73,7 @@ class ExsurgeController(
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val sensorStepsAvailable: () -> Boolean,
     private val maxOutcomes: Int = MAX_OUTCOMES,
+    private val record: (StatEvent) -> Unit = {},
 ) {
     private var settings = store.loadSettings()
     private var memory = store.loadMemory()
@@ -109,7 +111,11 @@ class ExsurgeController(
             return
         }
         lastEvent = "$event from $source at ${clock()}"
+        val before = memory.state
         apply(event, source)
+        if (event.byPerson) {
+            record(statOf(clock().toEpochMilli(), event, source, before, memory.state))
+        }
         val seed = lastStepTotal
         val rising = when (event) {
             ExsurgeEvent.Go, ExsurgeEvent.JustWalk, ExsurgeEvent.ContinueTotum -> true
@@ -141,6 +147,8 @@ class ExsurgeController(
         publish(at)
     }
 
+    val breaks: List<BreakOutcome> get() = outcomes
+
     @Synchronized
     fun updateSettings(source: String, transform: (ExsurgeSettings) -> ExsurgeSettings) {
         val next = transform(settings).validated()
@@ -148,6 +156,11 @@ class ExsurgeController(
         Diag.log(TAG, "dewidebug exsurge settings from=$source ${diff(settings, next)}")
         if (next.walkWindow != settings.walkWindow) stepWindow = StepWindow(next.walkWindow)
         val turnedOff = settings.enabled && !next.enabled
+        if (next.enabled != settings.enabled) {
+            record(
+                StatEvent.ExsurgeSwitch(clock().toEpochMilli(), next.enabled, source)
+            )
+        }
         settings = when {
             next.enabled -> next.copy(backOnAtEpochMs = null)
             turnedOff && next.offForToday -> next.copy(
@@ -317,3 +330,15 @@ private fun ExsurgeEffect.label(): String = when (this) {
     ExsurgeEffect.ResumePlayback -> "resume"
     is ExsurgeEffect.Record -> "record:${outcome.kind}"
 }
+
+private fun statOf(at: Long, event: ExsurgeEvent, source: String, before: ExsurgeState, after: ExsurgeState) =
+    StatEvent.ExsurgeAction(
+        at = at,
+        action = event::class.simpleName ?: event.toString(),
+        from = source,
+        before = before::class.simpleName.orEmpty(),
+        after = after::class.simpleName.orEmpty(),
+    )
+
+private val ExsurgeEvent.byPerson: Boolean
+    get() = this !is ExsurgeEvent.Tick && this !is ExsurgeEvent.StepsCounted && this !is ExsurgeEvent.SettingsChanged

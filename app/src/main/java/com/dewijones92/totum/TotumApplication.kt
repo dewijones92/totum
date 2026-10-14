@@ -13,6 +13,8 @@ import com.dewijones92.totum.exsurge.FlatPhoneNudge
 import com.dewijones92.totum.notifications.NewContentWorker
 import com.dewijones92.totum.playback.startGapless
 import com.dewijones92.totum.settings.NetworkStatus
+import com.dewijones92.totum.stats.ListenRecorder
+import com.dewijones92.totum.stats.recordFinishedDownloads
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -45,7 +47,16 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")
-        FlatPhoneNudge(this, container.exsurge, container.applicationScope).start()
+        FlatPhoneNudge(this, container.exsurge, container.applicationScope, container.statsLog).start()
+        ListenRecorder(
+            container.playbackController,
+            container.playbackQueue,
+            container.statsLog,
+            container.applicationScope
+        ).start()
+        container.applicationScope.launch {
+            recordFinishedDownloads(container.downloadManager.observeDownloads(), container.statsLog)
+        }
         container.dailyAlarms.tickAll("startup")
         warmTheEngineSoon()
     }

@@ -59,6 +59,7 @@ say why it is the way it is.
 | Recently and Even out (Oct 2026) | Recent actions (shuffle all, albums, radios) come back as a Recently row and app-icon shortcuts; a third boost mode, Even out, rides the level passage by passage | [ADRs 35, 36](docs/adr/_index.md) |
 | Exsurge nudges (Oct 2026) | Off means off for today; while off, a phone flat for a minute in active hours gets a "Sat down?" nudge | [ADRs 37, 38](docs/adr/_index.md) |
 | Out-of-date banner (Oct 2026) | The installed version is checked against GitHub's latest release at launch and every 30 min; when behind, a red, undismissable banner tops every tab with **Update** (Obtainium, else the release page); reports carry `update.*` | A report came from 0.1.602 with 0.1.603 already out; [ADR 29](docs/adr/0029-an-out-of-date-build-says-so-on-every-tab.md) |
+| Stats (Oct 2026) | Library → 📊 Stats from an append-only JSON-lines log (`:lib:stats` pure, `StatsLog` in the app; not Room, so no schema bump), aggregated when the page opens; a play counts at 30 s or half; Exsurge back-fills from its outcomes | Dewi's "pretty rich stats page with drill downs"; [ADR 44](docs/adr/0044-stats-are-an-append-only-event-log.md) |
 | State emoji (Oct 2026) | Every state string (status, setting value, empty/error, notification) starts with an emoji, in the string itself; nothing spoken or used as a description carries one; one vocabulary (✅ ❌ ⚠️ ⏳ 📭 …) | Dewi's "prefix … with emoji"; [ADR 43](docs/adr/0043-every-state-string-starts-with-an-emoji.md) |
 | Music ⇄ talk (Oct 2026) | One tap jumps within the queue between music (`MediaContentKind.MUSIC`) and talk: the item of the other kind left last, else the nearest; no music queued plays the newest music from Recently; mini player, full player, Queue header and an extra notification slot | Dewi's "save me going in to the queue ui each time"; [ADR 42](docs/adr/0042-one-tap-switches-between-music-and-talk.md) |
 | Queue drag and groups (Oct 2026) | The queue drags with `sh.calvin.reorderable` by real positions (Dewi's choice over a hand-rolled rewrite); a group header drags its whole group, and its ⋮ moves it to top / bottom / next or shuffles it; 🔀 also shuffles the order of groups; a split group's second header is hidden mid-drag | The hand-rolled drag jumped 88–90dp off the finger crossing a group; [ADR 40](docs/adr/0040-the-queue-drags-by-real-positions.md) |
@@ -443,6 +444,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   waveforms, choice lists, next-weekday-time maths and time serializers; exact and alarm-clock alarms, an
   alarm-channel voice (clips and text-to-speech), the alarm tone, the buzzer, chips, a clock picker, a
   lock-screen helper and a JSON prefs store.
+- `:lib:stats` — the stats log's events and every aggregation, pure; `app/…/stats/` records them and
+  `app/…/ui/stats/` shows them (ADR 44).
 - `:lib:dailyalarms` — **Daily alarms** (ADR 18): `DailyAlarm` and the per-day state machine.
   `app/…/dailyalarms/` holds the controller, `RingService` (systemExempted foreground service that owns
   the ringing), the question and ring screens, notifications, receiver, tile and settings.

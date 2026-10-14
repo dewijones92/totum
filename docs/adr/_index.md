@@ -59,3 +59,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 41 | [Renovate runs at weekends, merges only its own green PRs, and Media3 waits for a soak](0041-renovate-runs-at-weekends-and-media3-waits-for-a-soak.md) | Accepted |
 | 42 | [One tap switches between music and talk, within the queue](0042-one-tap-switches-between-music-and-talk.md) | Accepted |
 | 43 | [Every state string starts with an emoji, and nothing spoken carries one](0043-every-state-string-starts-with-an-emoji.md) | Accepted |
+| 44 | [Stats are an append-only event log, aggregated when the page opens](0044-stats-are-an-append-only-event-log.md) | Accepted |

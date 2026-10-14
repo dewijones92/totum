@@ -22,6 +22,7 @@ import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinPlayed
+import com.dewijones92.totum.stats.UseKind
 import kotlinx.coroutines.launch
 
 interface PinActions {
@@ -75,6 +76,7 @@ private class ContainerPinActions(
             say(R.string.pin_removed, pin.title)
         } else {
             container.pinStore.pin(pin)
+            container.statsLog.use(UseKind.PIN, pin.key)
             say(R.string.pin_added, pin.title)
         }
     }

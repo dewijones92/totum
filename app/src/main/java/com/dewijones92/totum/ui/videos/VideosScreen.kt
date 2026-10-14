@@ -50,6 +50,7 @@ import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.shortsReelFrom
 import com.dewijones92.totum.shuffle.ShuffleTarget
+import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
@@ -154,7 +155,7 @@ fun VideosScreen(
                 onSetSort = viewModel::setSort,
                 onLoadMore = viewModel::loadMore,
                 feedHidden = feedHidden,
-                onShowFeed = feedGate::show,
+                onShowFeed = container.statsLog.counting(UseKind.VIDEOS_SHOWN, feedGate::show),
                 modifier = modifier,
             )
         }

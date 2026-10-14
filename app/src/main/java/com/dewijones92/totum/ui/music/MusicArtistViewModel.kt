@@ -126,7 +126,12 @@ class MusicArtistViewModel(
                     container.playbackQueue,
                     container.musicRadio,
                     container.applicationScope,
-                    ArtistShuffle(container.musicCatalogue, container.playbackQueue, container.recentActions),
+                    ArtistShuffle(
+                        container.musicCatalogue,
+                        container.playbackQueue,
+                        container.recentActions,
+                        container.statsLog
+                    ),
                 )
             }
         }

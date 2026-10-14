@@ -12,6 +12,9 @@ import android.hardware.SensorManager
 import androidx.core.content.edit
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.stats.NudgeWhat
+import com.dewijones92.totum.stats.StatEvent
+import com.dewijones92.totum.stats.StatsLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -24,6 +27,7 @@ class FlatPhoneNudge(
     private val context: Context,
     private val exsurge: ExsurgeController,
     private val scope: CoroutineScope,
+    private val stats: StatsLog? = null,
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) : SensorEventListener {
@@ -81,6 +85,7 @@ class FlatPhoneNudge(
                 lastNudgeAt = now
                 lastWhy = null
                 post(exsurge.view.value.settings.flatNudgeMinutes)
+                stats?.record(StatEvent.Nudge(now.toEpochMilli(), NudgeWhat.POSTED))
                 Diag.log(TAG, "dewidebug flat-phone nudge posted: flat and still for ${flatFor?.div(MS_PER_S)}s")
             }
             is FlatNudge.Not -> {

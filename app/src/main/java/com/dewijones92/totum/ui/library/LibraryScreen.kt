@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Subscriptions
@@ -79,6 +80,7 @@ import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
+import com.dewijones92.totum.ui.stats.StatsScreen
 import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
 
 @Composable
@@ -87,12 +89,13 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
     var showHistory by rememberSaveable { mutableStateOf(false) }
     var showSubscriptions by rememberSaveable { mutableStateOf(false) }
     var showAccount by rememberSaveable { mutableStateOf(false) }
+    var showStats by rememberSaveable { mutableStateOf(false) }
     // The id is a value class over a String, so it saves as one and needs no saver.
     var openPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
     val playlist = openPlaylistId?.let(::PlaylistId)
     TrackPlace("library") {
         "playlists=$showPlaylists history=$showHistory subscriptions=$showSubscriptions account=$showAccount " +
-            "playlist=$openPlaylistId"
+            "stats=$showStats playlist=$openPlaylistId"
     }
 
     val open = listOf(
@@ -101,6 +104,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
         "history" to showHistory,
         "subscriptions" to showSubscriptions,
         "account" to showAccount,
+        "stats" to showStats,
     ).firstOrNull { it.second }?.first
     BackHandler(enabled = open != null) {
         Diag.log("nav", "back from library $open")
@@ -109,6 +113,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
             showPlaylists -> showPlaylists = false
             showHistory -> showHistory = false
             showSubscriptions -> showSubscriptions = false
+            showStats -> showStats = false
             else -> showAccount = false
         }
     }
@@ -129,12 +134,14 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
             AllSubscriptionsScreen(container, onBack = { showSubscriptions = false }, modifier = modifier)
         showAccount ->
             AccountScreen(container, modifier = modifier, onBack = { showAccount = false })
+        showStats -> StatsScreen(container, onBack = { showStats = false }, modifier = modifier)
         else -> LibraryHome(
             container,
             onOpenPlaylists = { showPlaylists = true },
             onOpenHistory = { showHistory = true },
             onOpenSubscriptions = { showSubscriptions = true },
             onOpenAccount = { showAccount = true },
+            onOpenStats = { showStats = true },
             modifier = modifier,
         )
     }
@@ -147,6 +154,7 @@ private fun LibraryHome(
     onOpenHistory: () -> Unit,
     onOpenSubscriptions: () -> Unit,
     onOpenAccount: () -> Unit,
+    onOpenStats: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
@@ -180,6 +188,7 @@ private fun LibraryHome(
         modifier = modifier,
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
         cleanup = Cleanup(cleanup, viewModel::deleteSuggested),
+        onOpenStats = onOpenStats,
     )
 }
 
@@ -206,6 +215,7 @@ internal fun LibraryContent(
     modifier: Modifier = Modifier,
     phoneAlbums: PhoneAlbums = PhoneAlbums(),
     cleanup: Cleanup = Cleanup(),
+    onOpenStats: () -> Unit = {},
 ) {
     val actions = LocalItemActions.current
     var reviewing by rememberSaveable { mutableStateOf<CleanupGroup?>(null) }
@@ -218,12 +228,7 @@ internal fun LibraryContent(
                 pinnedSection()
                 recentlySection()
                 item {
-                    LibraryTiles(
-                        onOpenPlaylists = onOpenPlaylists,
-                        onOpenSubscriptions = onOpenSubscriptions,
-                        onOpenHistory = onOpenHistory,
-                        onOpenAccount = onOpenAccount,
-                    )
+                    LibraryTiles(onOpenPlaylists, onOpenSubscriptions, onOpenHistory, onOpenAccount, onOpenStats)
                 }
                 phoneAlbumsSection(phoneAlbums)
                 // In-progress FIRST, and outside the empty check: a fresh install with everything
@@ -317,12 +322,21 @@ private fun LibraryTiles(
     onOpenSubscriptions: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAccount: () -> Unit,
+    onOpenStats: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
         verticalArrangement = Arrangement.spacedBy(TILE_GAP),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
+        LibraryTile(
+            Icons.Outlined.BarChart,
+            R.string.stats_tile,
+            scheme.tertiary,
+            scheme.onTertiary,
+            onOpenStats,
+            Modifier.fillMaxWidth(),
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
             LibraryTile(
                 Icons.AutoMirrored.Filled.PlaylistPlay,

@@ -58,6 +58,8 @@ import com.dewijones92.totum.queue.moveGroup
 import com.dewijones92.totum.queue.queueGroupHeaderKey
 import com.dewijones92.totum.queue.shuffleGroup
 import com.dewijones92.totum.queue.shuffleGroupOrder
+import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
@@ -112,8 +114,8 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onClear = queue::clear,
                 listState = listState,
                 listFilter = listFilter,
-                onShuffle = { queue.shuffleUpNext() }.takeIf { snapshot.upNext.size > 1 },
-                onShuffleGroups = shuffleGroupsOrNull(queue, snapshot.upNext),
+                onShuffle = shuffleUpNextOrNull(queue, snapshot.upNext, container.statsLog),
+                onShuffleGroups = shuffleGroupsOrNull(queue, snapshot.upNext, container.statsLog),
             )
             if (entries.isEmpty()) {
                 EmptyState(
@@ -188,8 +190,14 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onShuffle = { onShuffleGroup(id) },
 )
 
-private fun shuffleGroupsOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>): (() -> Unit)? = {
+private fun shuffleUpNextOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>, stats: StatsLog): (() -> Unit)? = {
+    queue.shuffleUpNext()
+    stats.use(UseKind.SHUFFLE, "up next")
+}.takeIf { upNext.size > 1 }
+
+private fun shuffleGroupsOrNull(queue: PlaybackQueue, upNext: List<QueueEntry>, stats: StatsLog): (() -> Unit)? = {
     queue.shuffleGroupOrder()
+    stats.use(UseKind.SHUFFLE, "group order")
 }.takeIf { upNext.groupedBlockCount() > 0 && upNext.blocks().size > 1 }
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -210,7 +218,10 @@ private fun rememberQueueActions(
         onRemove = onRemove,
         onRemoveGroup = queue::removeGroup,
         onMoveGroup = queue::moveGroup,
-        onShuffleGroup = { queue.shuffleGroup(it) },
+        onShuffleGroup = {
+            queue.shuffleGroup(it)
+            container.statsLog.use(UseKind.SHUFFLE, "inside a group")
+        },
         dragSession = dragSession,
         onMove = queue::move,
         // A manual retry: the queue fetches audio by itself, but a failed

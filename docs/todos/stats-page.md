@@ -1,7 +1,7 @@
 ---
 title: A stats page with drill-downs
 kind: todo
-status: open — agreed with Dewi 2026-10-14; log in the 2026-10-14 batch, page in the next
+status: built 2026-10-14 → ADR 44, docs/features/stats.md
 area: library
 priority: high
 requested: 2026-10-14

@@ -11,6 +11,8 @@ import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.stats.UseKind
 import kotlin.random.Random
 import kotlin.time.TimeSource
 
@@ -51,6 +53,7 @@ class ArtistShuffle(
     private val catalogue: YouTubeMusicCatalogue,
     private val queue: PlaybackQueue,
     private val recent: RecentActions?,
+    private val stats: StatsLog? = null,
     private val random: Random = Random.Default,
 ) {
     suspend fun shuffleAll(target: ArtistSongs, onProgress: (Int) -> Unit = {}): Int {
@@ -68,6 +71,7 @@ class ArtistShuffle(
             walk.songs.shuffled(random).map { it.toPlayable(source) },
             QueueGroup("artist-all:${target.listing.browseId}", "${target.artist} · All songs"),
         )
+        stats?.use(UseKind.SHUFFLE, "artist songs")
         recent?.record(
             Pin.ArtistSongs(target.listing.browseId, target.listing.params, target.artist, target.artUrl),
             from = "shuffle all songs",

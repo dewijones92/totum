@@ -27,6 +27,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import com.dewijones92.totum.ui.common.toMediaItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,6 +74,7 @@ class SearchViewModel(
     private val queue: PlaybackQueue,
     private val history: SearchHistoryStore,
     val scope: SearchScope = SearchScope.EVERYTHING,
+    private val onSearched: (SearchScope) -> Unit = {},
 ) : TrackedViewModel("search") {
 
     data class UiState(
@@ -201,6 +203,7 @@ class SearchViewModel(
         val trimmed = rawQuery.trim()
         if (trimmed.length >= MIN_QUERY_LENGTH) {
             viewModelScope.launch { history.record(trimmed) }
+            onSearched(scope)
         }
     }
 
@@ -520,6 +523,7 @@ class SearchViewModel(
                     queue = container.playbackQueue,
                     history = container.searchHistoryStore,
                     scope = scope,
+                    onSearched = { container.statsLog.use(UseKind.SEARCH, it.name) },
                 )
             }
         }

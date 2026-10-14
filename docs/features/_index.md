@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-12
+updated: 2026-10-14
 ---
 
 # Features
@@ -12,6 +12,7 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |
 | Shuffle all (channel, podcast, group) | queue/channel | built 2026-10-12 — every page, Shorts asked, one queue group | [shuffle-all.md](shuffle-all.md) |
 | Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |

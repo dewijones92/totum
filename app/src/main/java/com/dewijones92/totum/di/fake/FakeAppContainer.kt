@@ -95,6 +95,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
+import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -194,12 +195,14 @@ class FakeAppContainer(
             WholeSource(AppSourcePages(youTubeChannel, channelRepository, podcastRepository)),
             playbackQueue,
             recentActions,
+            statsLog,
         )
     }
 
     override val pinStore: PinStore = InMemoryPinStore()
 
     override val recentActions: RecentActions = RecentActions()
+    override val statsLog: StatsLog = StatsLog(null, applicationScope)
 
     override val pinPlayer: PinPlayer by lazy {
         PinPlayer(
@@ -210,7 +213,7 @@ class FakeAppContainer(
             podcastRepository,
             playState = { PlayState.Unplayed },
             shuffleAll = shuffleAll,
-            artistShuffle = ArtistShuffle(musicCatalogue, playbackQueue, recentActions),
+            artistShuffle = ArtistShuffle(musicCatalogue, playbackQueue, recentActions, statsLog),
         )
     }
 

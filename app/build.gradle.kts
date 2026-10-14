@@ -108,6 +108,7 @@ dependencies {
   implementation(project(":lib:innertube"))
   implementation(project(":lib:exsurge"))
   implementation(project(":lib:dailyalarms"))
+  implementation(project(":lib:stats"))
 
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)

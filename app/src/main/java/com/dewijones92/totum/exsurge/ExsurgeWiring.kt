@@ -4,6 +4,7 @@ import android.content.Context
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackInterruption
+import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -12,6 +13,7 @@ fun exsurgeController(
     playback: PlaybackController,
     scope: CoroutineScope,
     alarmRinging: () -> Boolean = { (context.applicationContext as TotumApplication).container.dailyAlarms.ringingNow },
+    record: (StatEvent) -> Unit = {},
 ): ExsurgeController {
     val interruption by lazy {
         PlaybackInterruption(playback, ExsurgeController.TAG).also { interruption ->
@@ -22,5 +24,6 @@ fun exsurgeController(
         store = SharedPrefsExsurgeStore(context),
         ports = AndroidExsurgePorts(context, { playback }, alarmRinging) { interruption },
         sensorStepsAvailable = { ExsurgeBannerService.countingSteps },
+        record = record,
     )
 }
