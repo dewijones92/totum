@@ -5,7 +5,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -16,6 +15,8 @@ import android.os.Looper
 import android.os.SystemClock
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.ForegroundKind
+import com.dewijones92.totum.reminders.kit.startForegroundTyped
 import java.time.Instant
 
 class ExsurgeBannerService : Service(), SensorEventListener {
@@ -42,10 +43,11 @@ class ExsurgeBannerService : Service(), SensorEventListener {
         if (intent?.action == ACTION_REST && !needsService(exsurge.view.value)) return rest()
         val notification = ExsurgeNotifications(this).banner(exsurge.view.value)
         val started = runCatching {
-            startForeground(
+            startForegroundTyped(
                 ExsurgeNotifications.FOREGROUND_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+                ForegroundKind.HEALTH,
+                ExsurgeController.TAG,
             )
         }.onFailure {
             Diag.warn(

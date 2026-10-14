@@ -3,7 +3,6 @@ package com.dewijones92.totum.dailyalarms
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -13,7 +12,9 @@ import com.dewijones92.totum.reminders.Waveforms
 import com.dewijones92.totum.reminders.kit.AlarmTone
 import com.dewijones92.totum.reminders.kit.AlarmVoice
 import com.dewijones92.totum.reminders.kit.Buzzer
+import com.dewijones92.totum.reminders.kit.ForegroundKind
 import com.dewijones92.totum.reminders.kit.Utterance
+import com.dewijones92.totum.reminders.kit.startForegroundTyped
 import java.time.LocalTime
 
 class RingService : Service() {
@@ -40,10 +41,11 @@ class RingService : Service() {
         val time = intent.getStringExtra(EXTRA_TIME)?.let(LocalTime::parse) ?: alarm.defaultTime
         val notification = DailyAlarmNotifications(this).ring(alarm, time)
         val foreground = runCatching {
-            startForeground(
+            startForegroundTyped(
                 DailyAlarmNotifications.RING_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+                ForegroundKind.SYSTEM_EXEMPTED,
+                tag,
             )
         }.onFailure {
             Diag.warn(

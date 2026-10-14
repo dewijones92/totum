@@ -4,12 +4,13 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.IBinder
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.ForegroundKind
 import com.dewijones92.totum.reminders.kit.LiveUpdate
 import com.dewijones92.totum.reminders.kit.PinnedChannel
+import com.dewijones92.totum.reminders.kit.startForegroundTyped
 
 class AlarmBoardService : Service() {
 
@@ -24,10 +25,11 @@ class AlarmBoardService : Service() {
         val board = latest ?: (application as TotumApplication).container.dailyAlarms.board()
         val notification = DailyAlarmNotifications(this).board(board)
         val pinned = runCatching {
-            startForeground(
+            startForegroundTyped(
                 DailyAlarmNotifications.BOARD_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+                ForegroundKind.SYSTEM_EXEMPTED,
+                TAG,
             )
         }.onFailure {
             Diag.warn(TAG, "dewidebug dailyalarm board could not be pinned; posting it unpinned", it)

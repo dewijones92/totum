@@ -17,6 +17,7 @@ import com.dewijones92.totum.reminders.kit.AlarmVoice
 import com.dewijones92.totum.reminders.kit.Buzzer
 import com.dewijones92.totum.reminders.kit.ExactAlarm
 import com.dewijones92.totum.reminders.kit.Utterance
+import com.dewijones92.totum.reminders.kit.mayUseFullScreenIntent
 import java.time.Instant
 
 class AndroidExsurgePorts(
@@ -49,7 +50,7 @@ class AndroidExsurgePorts(
             notifications.showSummons(request)
         }
         val overApps = request.overOtherApps && Settings.canDrawOverlays(context)
-        val fullScreen = context.getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
+        val fullScreen = mayUseFullScreenIntent(context.getSystemService(android.app.NotificationManager::class.java))
         Diag.log(
             ExsurgeController.TAG,
             "dewidebug exsurge takeover #${request.summonsId} call=${request.call} " +

@@ -32,7 +32,7 @@ say why it is the way it is.
 |---|---|---|
 | Scope | Both pillars from day one | Unified data model proven early |
 | Stack | Kotlin + Jetpack Compose, single Gradle project | Native fit, strongest type safety |
-| minSdk | **34** (Android 14) | Personal modern devices; simplifies stack. Deliberate — drops the API-23 floor of the original apps |
+| minSdk | **33** (Android 13; was 34 until 2026-10-14) | Personal modern devices, including Dewi's Pixel 4a on stock Android 13; Android-14 calls are guarded in `reminders/kit/ForegroundKind.kt`. [ADR 39](docs/adr/0039-minsdk-33-for-the-pixel-4a.md) |
 | Extraction | **From-scratch library in this repo** (`:lib:ytdlp`), replacing dewijones92/youtubedl-android fork | Own a clean, tested Kotlin API around the real yt-dlp |
 | Python runtime | Chaquopy 17 (revised from "official CPython" once that proved tier-3/no artifact) | Mature drop-in embed, MIT, pip support |
 | ffmpeg | **Bundled** — minimal static build in jniLibs | Merges best-quality DASH streams (SponsorBlock is no longer cut from downloads: [ADR 16](docs/adr/0016-downloads-keep-sponsor-segments.md)) |

@@ -54,3 +54,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 36 | [Recent actions come back as a Recently row and app-icon shortcuts](0036-recent-actions-come-back.md) | Accepted |
 | 37 | [Exsurge nudges when the phone has lain flat while it is off](0037-exsurge-nudges-a-flat-phone.md) | Accepted |
 | 38 | [Exsurge switched off comes back on when the next active day starts](0038-exsurge-off-means-off-for-today.md) | Accepted |
+| 39 | [The floor is Android 13 (minSdk 33), so Totum runs on a Pixel 4a](0039-minsdk-33-for-the-pixel-4a.md) | Accepted |

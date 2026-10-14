@@ -5,6 +5,7 @@ import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -457,11 +458,15 @@ private fun checks(
             context.getString(R.string.exsurge_perm_notifications),
             NotificationManagerCompat.from(context).areNotificationsEnabled(),
         ) { askNotifications(Manifest.permission.POST_NOTIFICATIONS) },
-        Check(
-            context.getString(R.string.exsurge_perm_full_screen),
-            notifications.canUseFullScreenIntent(),
-            open(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
-        ),
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            Check(
+                context.getString(R.string.exsurge_perm_full_screen),
+                notifications.canUseFullScreenIntent(),
+                open(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+            )
+        } else {
+            null
+        },
         liveUpdate,
         Check(context.getString(R.string.exsurge_perm_activity), ExsurgeBannerService.stepsPermitted(context)) {
             askActivity(Manifest.permission.ACTIVITY_RECOGNITION)

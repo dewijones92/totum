@@ -3,7 +3,7 @@
 `app/src/main/jniLibs/<abi>/libffmpeg.so` is a **statically linked ffmpeg
 executable** (not a shared library), named `lib*.so` so Android's installer
 extracts it to the app's `nativeLibraryDir`, the one app-private location that
-stays executable under Android 14's W^X policy (minSdk 34). yt-dlp is pointed
+stays executable under Android's W^X policy (minSdk 33). yt-dlp is pointed
 at it via `ffmpeg_location` (see `ChaquopyYtDlpEngine` / `FfmpegBinary`).
 
 ## Why bundled

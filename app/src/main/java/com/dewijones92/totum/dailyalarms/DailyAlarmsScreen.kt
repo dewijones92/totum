@@ -377,7 +377,7 @@ private fun todayText(state: DayState): String = when (state) {
     is DayState.Ringing -> stringResource(R.string.dailyalarm_today_ringing)
     is DayState.Snoozed -> stringResource(
         R.string.dailyalarm_today_snoozed,
-        DailyAlarmNotifications.hhmm(LocalTime.ofInstant(state.until, ZoneId.systemDefault())),
+        DailyAlarmNotifications.hhmm(state.until.atZone(ZoneId.systemDefault()).toLocalTime()),
     )
     is DayState.Done -> stringResource(
         when (state.outcome) {

@@ -86,7 +86,7 @@ one mark. White on a tangerine gradient.
 - Everything sits inside the 66dp safe zone, so no launcher mask crops it.
 - White-on-transparent, so the foreground doubles as the **monochrome** layer for Android's
   themed icons (which tint by alpha).
-- The legacy raster `mipmap-*dpi` fallbacks were **deleted**: minSdk is 34, so adaptive
+- The legacy raster `mipmap-*dpi` fallbacks were **deleted**: minSdk is 33 (it was 34 when written), so adaptive
   icons are always used, and those files were both dead weight and the old template art.
 
 ## Verified on-device

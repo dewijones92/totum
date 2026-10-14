@@ -74,7 +74,7 @@ class FlatPhoneNudge(
     override fun onSensorChanged(event: SensorEvent) {
         val flatFor = stillness.feed(event.values[0], event.values[1], event.values[2], event.timestamp / NANOS_PER_MS)
         val now = clock()
-        val muted = mutedOn(context) == LocalDate.ofInstant(now, zone())
+        val muted = mutedOn(context) == now.atZone(zone()).toLocalDate()
         val decision = flatNudgeFor(exsurge.view.value.settings, flatFor, now, zone(), lastNudgeAt, muted)
         when (decision) {
             FlatNudge.Nudge -> {

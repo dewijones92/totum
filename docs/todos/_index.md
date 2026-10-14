@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | **top of the backlog** (Dewi 2026-10-14); stock Android 13, minSdk 34 → 33: 5 call sites + an API-33 test run |
+| [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | built 2026-10-14 → ADR 39; minSdk 33, verified on totum-api33 |
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
 | [Artist page: Shuffle all songs, and the Shuffle station fixed](artist-shuffle-all-songs.md) | music | high | open — agreed 2026-10-14, in this batch |
 | [One tap to switch between music and talk](music-talk-toggle.md) | queue/playback | high | open — agreed 2026-10-14, in this batch after the Pixel 4a |

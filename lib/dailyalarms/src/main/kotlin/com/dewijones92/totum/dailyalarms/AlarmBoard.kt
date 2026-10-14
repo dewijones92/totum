@@ -68,9 +68,9 @@ public fun alarmBoard(alarms: List<DailyAlarm>, states: Map<String, DayState>, n
 public data class NextRing(val date: LocalDate, val time: LocalTime, val setForToday: Boolean)
 
 public fun DailyAlarm.nextRing(state: DayState, now: Instant, zone: ZoneId): NextRing? {
-    val rows = BoardRows(this, now, LocalDate.ofInstant(now, zone), zone)
+    val rows = BoardRows(this, now, now.atZone(zone).toLocalDate(), zone)
     val row = rows.rowFor(state)?.takeUnless { it.status is RowStatus.Skipped } ?: rows.nextAfterToday() ?: return null
-    val snoozedUntil = (row.status as? RowStatus.Snoozed)?.until?.let { LocalTime.ofInstant(it, zone) }
+    val snoozedUntil = (row.status as? RowStatus.Snoozed)?.until?.let { it.atZone(zone).toLocalTime() }
     return NextRing(row.date, snoozedUntil ?: row.time, setForToday = row.status.rings())
 }
 

@@ -1,7 +1,7 @@
 ---
 title: Make Totum run on a Pixel 4a
 kind: todo
-status: top of the backlog (Dewi 2026-10-14) — in progress
+status: built 2026-10-14 — ADR 39; verified on totum-api33; the real 4a is next
 area: platform
 priority: high
 requested: 2026-10-14
