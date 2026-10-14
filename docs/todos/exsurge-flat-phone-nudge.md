@@ -17,7 +17,7 @@ silent always-present banner.
 ## Agreed
 
 - While Exsurge is **off**, inside its **active days and hours**, if the phone has lain **flat and still
-  for about 5 minutes**, post one notification: "Sat down? Turn Exsurge on", with **Turn on**.
+  for 1 minute** (Dewi changed it from 5 on 2026-10-14), post one notification: "Sat down? Turn Exsurge on", with **Turn on**.
 - At most once an hour; not while a call, a ringing alarm or a summons is up.
 - Not the sitting clock: flat-on-the-table does not become "sitting" (pocket-sitting would be missed).
 
