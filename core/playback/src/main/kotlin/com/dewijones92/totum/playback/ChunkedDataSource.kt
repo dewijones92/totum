@@ -139,7 +139,10 @@ internal class ChunkedDataSource(
         if (!remote) return
         val speed = drip.rangeFinished() ?: return
         if (drip.reasks > 0) {
-            Diag.log("chunked", "a re-asked range finished at ~${speed / BYTES_PER_KB}KB/s after ${drip.reasks} re-ask(s)")
+            Diag.log(
+                "chunked",
+                "a re-asked range finished at ~${speed / BYTES_PER_KB}KB/s after ${drip.reasks} re-ask(s)"
+            )
         }
     }
 

@@ -161,7 +161,11 @@ class ChunkedDataSourceTest {
         val read = source.drain()
 
         assertTrue("the wrong bytes came back", read.contentEquals(server.content))
-        assertEquals("the drip must be asked for again from the byte it reached: ${server.asked}", 300L, server.asked[1].first)
+        assertEquals(
+            "the drip must be asked for again from the byte it reached: ${server.asked}",
+            300L,
+            server.asked[1].first
+        )
     }
 
     @Test
@@ -199,8 +203,10 @@ class ChunkedDataSourceTest {
         private var cursor = 0
         private var end = 0
 
-        private val uri = uri ?: ("https://rr1---sn-test.googlevideo.com/videoplayback?itag=399" +
-            claims?.let { "&clen=$it" }.orEmpty())
+        private val uri = uri ?: (
+            "https://rr1---sn-test.googlevideo.com/videoplayback?itag=399" +
+                claims?.let { "&clen=$it" }.orEmpty()
+            )
 
         fun spec(position: Long, length: Long = C.LENGTH_UNSET.toLong()): DataSpec =
             DataSpec.Builder().setUri(uri).setPosition(position).setLength(length).build()
