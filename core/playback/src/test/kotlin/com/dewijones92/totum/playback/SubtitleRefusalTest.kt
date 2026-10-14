@@ -23,4 +23,11 @@ class SubtitleRefusalTest {
             subtitleRefusalDelayMs(429, "https://rr2---sn-x.googlevideo.com/videoplayback?itag=18", errorCount = 1)
         )
     }
+
+    @Test
+    fun `the log says which subtitles were refused`() {
+        assertEquals("\"en\"", captionLanguage(captions))
+        assertEquals("\"en\" translated to \"cy\"", captionLanguage("$captions&tlang=cy"))
+        assertEquals("\"unnamed\"", captionLanguage("https://www.youtube.com/api/timedtext?v=x"))
+    }
 }

@@ -38,3 +38,7 @@ answered and recorded here.
 1. Done: `HeartCover` in `ui/music/MusicCollectionRows.kt` (the hero tangerine, `colorScheme.primary`, with
    a filled heart), passed to `PlaylistRow` as a `cover`; screenshotted on `totum-api35`.
 2. Put to Dewi in the batch report; not built.
+3. From the batch review (2026-10-14): the player's Like (`WatchViewModel.setRating`, optimistic, no
+   read-back) and the song menu's Like (`MusicFavourites.setSongLiked`, read back, refreshes the count) are
+   two paths for one write. A like in the player never updates the shelf's count. Route the player through
+   `MusicFavourites`.

@@ -31,21 +31,32 @@ internal class DripWatch(
         val bytesPerSecond: Long,
         val threshold: Long,
         val reask: Int,
+        val limit: Int,
     ) {
         fun describe(): String =
             "${bytes / BYTES_PER_KB}KB in ${elapsedMs}ms (~${bytesPerSecond / BYTES_PER_KB}KB/s, " +
-                "below ${threshold / BYTES_PER_KB}KB/s); re-asking from where it reached ($reask of $MAX_REASKS)"
+                "below ${threshold / BYTES_PER_KB}KB/s, time inside reads only); re-asking from where it reached " +
+                "($reask of $limit)"
     }
 
-    private var openedAt = 0L
+    private var readMs = 0L
     private var bytes = 0L
     var reasks = 0
         private set
 
     fun rangeOpened(fresh: Boolean) {
-        openedAt = now()
+        readMs = 0
         bytes = 0
         if (fresh) reasks = 0
+    }
+
+    fun <T> reading(read: () -> T): T {
+        val started = now()
+        try {
+            return read()
+        } finally {
+            readMs += now() - started
+        }
     }
 
     fun served(count: Int) {
@@ -53,7 +64,7 @@ internal class DripWatch(
     }
 
     fun rangeFinished(): Long? {
-        val elapsed = now() - openedAt
+        val elapsed = readMs
         if (elapsed < MIN_MEASURED_MS || bytes < MIN_MEASURED_BYTES) return null
         return (bytes * MS_PER_SECOND / elapsed).also(speeds::record)
     }
@@ -63,13 +74,13 @@ internal class DripWatch(
 
     fun drip(): Drip? {
         if (reasks >= maxReasks) return null
-        val elapsed = now() - openedAt
+        val elapsed = readMs
         if (elapsed < graceMs) return null
         val rate = bytes * MS_PER_SECOND / elapsed
         val threshold = threshold()
         if (rate >= threshold) return null
         reasks++
-        return Drip(bytes, elapsed, rate, threshold, reasks)
+        return Drip(bytes, elapsed, rate, threshold, reasks, maxReasks)
     }
 
     companion object {

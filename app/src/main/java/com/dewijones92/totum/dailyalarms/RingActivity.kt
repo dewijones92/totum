@@ -11,12 +11,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -119,8 +120,10 @@ private fun RingClock(time: String) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(RING_CIRCLE)
-            .border(RING_STROKE, LocalLaurel.current.accent, CircleShape),
+            .sizeIn(minWidth = RING_CIRCLE, minHeight = RING_CIRCLE)
+            .aspectRatio(1f)
+            .border(RING_STROKE, LocalLaurel.current.accent, CircleShape)
+            .padding(RING_INSET),
     ) {
         Text(
             time,
@@ -132,4 +135,5 @@ private fun RingClock(time: String) {
 
 private val RING_CIRCLE = 280.dp
 private val RING_STROKE = 8.dp
+private val RING_INSET = 24.dp
 private val CLOCK_SIZE = 76.sp

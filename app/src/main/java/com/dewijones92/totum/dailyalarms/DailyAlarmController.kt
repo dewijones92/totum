@@ -164,6 +164,8 @@ class DailyAlarmController(
 
     fun localNow(): LocalDateTime = LocalDateTime.ofInstant(clock(), zone())
 
+    fun nextRing(alarm: DailyAlarm, state: DayState): NextRing? = alarm.nextRing(state, clock(), zone())
+
     @Synchronized
     fun setToday(alarmId: String, time: LocalTime, source: String): Boolean {
         val alarm = alarms.firstOrNull { it.id == alarmId }

@@ -9,9 +9,13 @@ import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicReleaseKind
 import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicLibrary
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -172,6 +176,45 @@ class MusicFavouritesTest {
 
         assertTrue(signedOut.shelf.value.signedOut)
         assertTrue(signedOut.shelf.value.isEmpty)
+    }
+
+    @Test
+    fun `a liked list whose count YouTube did not say still counts as something to show`() = runBlocking {
+        library.likedSongCount = LibraryResult.Success(null)
+
+        favourites.refresh()
+
+        assertFalse(favourites.shelf.value.isEmpty)
+        assertNull(favourites.shelf.value.likedSongs)
+    }
+
+    @Test
+    fun `a first read cancelled part way is asked again by the next page`() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        var reads = 0
+        val slow = object : YouTubeMusicLibrary by library {
+            override suspend fun albums(): LibraryResult<List<MusicAlbumRef>> {
+                reads++
+                if (reads == 1) gate.await()
+                return LibraryResult.Success(listOf(album))
+            }
+        }
+        val favourites = MusicFavourites(slow, actions, follows, pause = {})
+
+        val first = launch { favourites.loadOnce() }
+        repeat(MAX_YIELDS) { if (reads == 0) yield() }
+        assertEquals("the first read must be waiting inside the library when it is cancelled", 1, reads)
+        first.cancelAndJoin()
+        gate.complete(Unit)
+        assertFalse("a cancelled read must not leave the shelf loading for ever", favourites.shelf.value.loading)
+
+        favourites.loadOnce()
+        assertEquals(2, reads)
+        assertTrue(favourites.isSaved("MPREb_album"))
+    }
+
+    private companion object {
+        const val MAX_YIELDS = 20
     }
 
     private class FakeFollows : MusicFavourites.Follows {

@@ -91,7 +91,8 @@ fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier
                     },
                     cancel = { alarms.dispatch(alarm.id, AlarmEvent.Cancel, "page") },
                 )
-                AlarmCard(alarm, view.state(alarm.id), change, today) {
+                val next = remember(alarm, view.state(alarm.id), now) { alarms.nextRing(alarm, view.state(alarm.id)) }
+                AlarmCard(alarm, view.state(alarm.id), next, change, today) {
                     alarms.update("settings") { list -> list.filterNot { it.id == alarm.id } }
                 }
             }
@@ -108,7 +109,14 @@ fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier
 }
 
 @Composable
-private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, today: Today, remove: () -> Unit) {
+private fun AlarmCard(
+    alarm: DailyAlarm,
+    state: DayState,
+    next: NextRing?,
+    change: Change,
+    today: Today,
+    remove: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(
             horizontal = 16.dp,
@@ -118,7 +126,7 @@ private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, today:
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             var editing by rememberSaveable(alarm.id) { mutableStateOf(false) }
             NameAndSwitch(alarm, change)
-            BigNextTime(alarm, state, today.now)
+            BigNextTime(alarm, next, today.now)
             Text(
                 todayText(state),
                 style = MaterialTheme.typography.bodyMedium,
@@ -229,8 +237,8 @@ private fun LabelField(alarm: DailyAlarm, change: Change) {
 }
 
 @Composable
-private fun BigNextTime(alarm: DailyAlarm, state: DayState, now: LocalDateTime) {
-    val next = alarm.nextRing(state, now) ?: return
+private fun BigNextTime(alarm: DailyAlarm, next: NextRing?, now: LocalDateTime) {
+    if (next == null) return
     val laurel = LocalLaurel.current
     val day = when (next.date) {
         now.toLocalDate() -> stringResource(R.string.dailyalarm_next_today)

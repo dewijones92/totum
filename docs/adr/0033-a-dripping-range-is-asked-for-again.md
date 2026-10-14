@@ -22,7 +22,11 @@ stream into bounded 2 MB ranges to avoid YouTube's open-ended throttle) had no w
 
 ## Decision
 
-- `DripWatch` judges each open **network** range after a 3 s grace: below a threshold it is a drip. The
+- `DripWatch` judges each open **network** range on the **time spent inside its reads only**, after 3 s of
+  that: below a threshold it is a drip. Wall time was wrong (found in review the same day and confirmed in
+  the soak logs: six re-asks at exactly 1024 KB): Media3's progressive loader blocks between reads after
+  every ~1 MiB while the buffer is full, with the range still open, so every full-buffer pause, user pause
+  or preload hold looked like a drip. The
   threshold is an eighth of the typical speed of recent ranges (the median of the last nine, shared by
   every source in the process), kept between 4 KB/s and 256 KB/s; before any history it is 32 KB/s.
 - A drip closes that range and opens a new one from the byte it reached (`ChunkedRead.abandonRange`); the
@@ -34,7 +38,7 @@ stream into bounded 2 MB ranges to avoid YouTube's open-ended throttle) had no w
 
 ## Consequences
 
-- A starved request costs about 3 s of its own time instead of holding playback until it finishes.
+- A starved request costs about 3 s of its own reading time instead of holding playback until it finishes.
 - Moving from fast Wi-Fi to a slow mobile network can re-ask a few ranges until the typical speed
   catches up (two per 2 MB range at most).
 - Whether a fresh request is served at full speed is YouTube's choice; the first CI run after this

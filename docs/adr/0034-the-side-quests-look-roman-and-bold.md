@@ -28,8 +28,9 @@ huge next time and an Edit for the rest; and the takeover, ring and question scr
 - **Exsurge settings** in `QuestCard`s (on/off, hours, timing, behaviour, permissions, destination);
   every number is a `SnappingSlider` that commits once on release and can only land where the stepper
   could (`snapToStep`), logged as `[sidequest] slider "…" a -> b`.
-- **Alarms**: name and switch, the next ring huge (`DailyAlarm.nextRing` in `:lib:dailyalarms`: the time
-  set for today, else today's own time while it is still ahead and not done, else the next active day),
+- **Alarms**: name and switch, the next ring huge (`DailyAlarm.nextRing` in `AlarmBoard.kt`, built on the
+  board's own row rule so the card and the board cannot disagree: a snooze shows its new time, a skipped
+  day shows the next active day, and yesterday's state is never read as today's),
   today's state, the Set for today chips, laurel day initials, and Edit opening the old editor in full.
 - **Takeover**: Surgius on a laurel medallion, a black-weight title and the rank. **Ring screen**: the
   time inside a laurel circle. **Question screen**: a heavier heading with a laurel rule.

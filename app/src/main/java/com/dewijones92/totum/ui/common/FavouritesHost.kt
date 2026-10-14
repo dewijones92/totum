@@ -19,5 +19,6 @@ internal fun SongLikeAction(songId: String?, title: String, onDismiss: () -> Uni
     val host = LocalFavourites.current ?: return
     if (songId == null) return
     val like = rememberSongLike(host.favourites, host.scope, songId, title)
+    if (like.on == null) return
     SheetAction(like.flip, like.likeIcon, like.likeLabel, onDismiss, tag = SONG_LIKE_TAG)
 }

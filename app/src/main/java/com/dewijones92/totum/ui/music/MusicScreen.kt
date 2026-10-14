@@ -60,16 +60,23 @@ private fun MusicHome(container: AppContainer) {
     val library = state.library
     val favourites = state.favourites
     val openAlbum: (MusicAlbumRef) -> Unit = { open?.invoke(MusicPage.Album(it.browseId, title = it.title)) }
+    val likedTitle = stringResource(R.string.music_liked_songs)
+    val likedCount = favourites.likedSongs?.let {
+        pluralStringResource(R.plurals.music_song_count, it, NumberFormat.getIntegerInstance().format(it))
+    }
     LazyColumn(Modifier.fillMaxSize()) {
         pinnedSection()
         favouritesSection(
             favourites,
+            likedCount,
             expanded,
-            onLikedSongs = { open?.invoke(MusicPage.Playlist(likedMusic(favourites.likedSongs))) },
-            onAlbum = openAlbum,
-            onArtist = { artist ->
-                open?.invoke(MusicPage.Artist(browseId = null, name = artist.name, radio = artist.radio))
-            },
+            FavouritesOpen(
+                likedSongs = { open?.invoke(MusicPage.Playlist(likedMusic(likedTitle, likedCount))) },
+                album = openAlbum,
+                artist = { artist ->
+                    open?.invoke(MusicPage.Artist(browseId = null, name = artist.name, radio = artist.radio))
+                },
+            ),
         )
         playedHere(state.playedHere, expanded) { item ->
             val playable = item.toPlayableOrNull() ?: return@playedHere
@@ -125,19 +132,24 @@ private fun LazyListScope.playlistSection(
 const val FAVOURITES_TAG = "music-favourites"
 const val LIKED_SONGS_TAG = "music-liked-songs"
 
-private fun likedMusic(count: Int?) = Playlist(
+private fun likedMusic(title: String, countText: String?) = Playlist(
     browseId = YouTubeMusicLibrary.LIKED_MUSIC_BROWSE_ID,
-    title = "Liked music",
-    videoCountText = count?.let { "$it songs" },
+    title = title,
+    videoCountText = countText,
     thumbnailUrl = null,
+)
+
+private class FavouritesOpen(
+    val likedSongs: () -> Unit,
+    val album: (MusicAlbumRef) -> Unit,
+    val artist: (LibraryArtist) -> Unit,
 )
 
 private fun LazyListScope.favouritesSection(
     shelf: MusicFavourites.Shelf,
+    likedCount: String?,
     expanded: MutableMap<String, Boolean>,
-    onLikedSongs: () -> Unit,
-    onAlbum: (MusicAlbumRef) -> Unit,
-    onArtist: (LibraryArtist) -> Unit,
+    open: FavouritesOpen,
 ) {
     if (shelf.isEmpty) return
     item {
@@ -149,20 +161,18 @@ private fun LazyListScope.favouritesSection(
     item(key = "favourites:liked") {
         PlaylistRow(
             stringResource(R.string.music_liked_songs),
-            shelf.likedSongs?.let {
-                pluralStringResource(R.plurals.music_song_count, it, NumberFormat.getIntegerInstance().format(it))
-            },
+            likedCount,
             null,
             onOpen = {
                 Diag.log("music", "home -> liked songs (${shelf.likedSongs ?: "count not said"})")
-                onLikedSongs()
+                open.likedSongs()
             },
             modifier = Modifier.testTag(LIKED_SONGS_TAG),
             cover = { HeartCover() },
         )
     }
-    albumSection("albums", R.string.music_saved_albums, shelf.albums, expanded, onAlbum, title = false)
-    artistSection(shelf.artists, expanded, onArtist)
+    albumSection("albums", R.string.music_saved_albums, shelf.albums, expanded, open.album, title = false)
+    artistSection(shelf.artists, expanded, open.artist)
 }
 
 private fun LazyListScope.artistSection(

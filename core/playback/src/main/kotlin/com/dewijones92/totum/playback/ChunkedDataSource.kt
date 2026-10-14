@@ -158,7 +158,13 @@ internal class ChunkedDataSource(
         val cursor = read ?: return C.RESULT_END_OF_INPUT
         while (!cursor.finished) {
             if (!cursor.rangeOpen) openNextRange(cursor)
-            val got = upstream.read(buffer, offset, cursor.cap(length))
+            val got = if (remote) {
+                drip.reading {
+                    upstream.read(buffer, offset, cursor.cap(length))
+                }
+            } else {
+                upstream.read(buffer, offset, cursor.cap(length))
+            }
             if (got != C.RESULT_END_OF_INPUT) {
                 cursor.served(got)
                 if (remote) drip.served(got)

@@ -18,6 +18,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinPlayed
@@ -47,10 +48,8 @@ internal fun sheetExtrasFor(item: MediaItem, onStartRadio: (() -> Unit)?): Sheet
     pin = item.toPlayableOrNull()?.let(Pin::of),
     onGoToAlbum = LocalItemActions.current?.albumLink(item),
     music = item.contentKind == MediaContentKind.MUSIC,
-    songId = item.id.value.takeIf { item.contentKind == MediaContentKind.MUSIC && VIDEO_ID.matches(it) },
+    songId = item.id.value.takeIf { item.contentKind == MediaContentKind.MUSIC && isYouTubeVideoId(it) },
 )
-
-private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
 
 @Composable
 internal fun rememberPinActions(container: AppContainer): PinActions {

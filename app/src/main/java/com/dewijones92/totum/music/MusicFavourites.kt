@@ -8,6 +8,7 @@ import com.dewijones92.totum.innertube.music.LibraryArtist
 import com.dewijones92.totum.innertube.music.LibraryResult
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -36,10 +37,11 @@ class MusicFavourites(
         val signedOut: Boolean = false,
         val failed: Boolean = false,
         val likedSongs: Int? = null,
+        val likedKnown: Boolean = false,
         val albums: List<MusicAlbumRef> = emptyList(),
         val artists: List<LibraryArtist> = emptyList(),
     ) {
-        val isEmpty: Boolean get() = likedSongs == null && albums.isEmpty() && artists.isEmpty()
+        val isEmpty: Boolean get() = !likedKnown && albums.isEmpty() && artists.isEmpty()
     }
 
     enum class Outcome(val phrase: String) {
@@ -61,29 +63,39 @@ class MusicFavourites(
         refresh()
     }
 
-    suspend fun refresh() = coroutineScope {
-        asked = true
-        _shelf.update { it.copy(loading = true, failed = false) }
-        val liked = async { library.likedSongCount() }
-        val albums = async { library.albums() }
-        val artists = async { library.artists() }
-        val results = listOf(liked.await(), albums.await(), artists.await())
-        val signedOut = results.any { it is LibraryResult.SignedOut }
-        val failures = results.filterIsInstance<LibraryResult.Failure>()
-        _shelf.value = Shelf(
-            loading = false,
-            signedOut = signedOut,
-            failed = failures.isNotEmpty() && !signedOut,
-            likedSongs = (liked.await() as? LibraryResult.Success)?.value,
-            albums = albums.await().orEmpty(),
-            artists = artists.await().orEmpty(),
-        )
-        Diag.log(
-            TAG,
-            "favourites read: signedOut=$signedOut likedSongs=${_shelf.value.likedSongs ?: "not said"} " +
-                "savedAlbums=${_shelf.value.albums.size} followedArtists=${_shelf.value.artists.size} " +
-                "failures=${failures.map { it.detail }}",
-        )
+    suspend fun refresh() {
+        try {
+            coroutineScope {
+                asked = true
+                _shelf.update { it.copy(loading = true, failed = false) }
+                val liked = async { library.likedSongCount() }
+                val albums = async { library.albums() }
+                val artists = async { library.artists() }
+                val results = listOf(liked.await(), albums.await(), artists.await())
+                val signedOut = results.any { it is LibraryResult.SignedOut }
+                val failures = results.filterIsInstance<LibraryResult.Failure>()
+                _shelf.value = Shelf(
+                    loading = false,
+                    signedOut = signedOut,
+                    failed = failures.isNotEmpty() && !signedOut,
+                    likedSongs = (liked.await() as? LibraryResult.Success)?.value,
+                    likedKnown = liked.await() is LibraryResult.Success,
+                    albums = albums.await().orEmpty(),
+                    artists = artists.await().orEmpty(),
+                )
+                Diag.log(
+                    TAG,
+                    "favourites read: signedOut=$signedOut likedSongs=${_shelf.value.likedSongs ?: "not said"} " +
+                        "savedAlbums=${_shelf.value.albums.size} followedArtists=${_shelf.value.artists.size} " +
+                        "failures=${failures.map { it.detail }}",
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            asked = false
+            _shelf.update { it.copy(loading = false) }
+            Diag.log(TAG, "favourites read cancelled before it finished; the next page asks again")
+            throw cancelled
+        }
     }
 
     fun isSaved(albumBrowseId: String): Boolean = _shelf.value.albums.any { it.browseId == albumBrowseId }

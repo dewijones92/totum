@@ -50,7 +50,8 @@ internal class DoNotRetryWhatSabrHasGivenUpOn : DefaultLoadErrorHandlingPolicy()
             Vitals.add("subtitles.refused429")
             Diag.warn(
                 "subtitles",
-                "YouTube refused the subtitles with 429 (too many requests, refusal ${loadErrorInfo.errorCount}); " +
+                "YouTube refused the ${captionLanguage(url)} subtitles with 429 (too many requests, refusal " +
+                    "${loadErrorInfo.errorCount}); " +
                     "asking again in ${wait / MS_PER_SECOND}s rather than every second, which only adds to the limit",
             )
             return wait
@@ -95,4 +96,10 @@ private const val MS_PER_SECOND = 1_000L
 internal fun subtitleRefusalDelayMs(status: Int?, url: String, errorCount: Int): Long? {
     if (status != HTTP_TOO_MANY_REQUESTS || "/api/timedtext" !in url) return null
     return (SUBTITLE_REFUSAL_STEP_MS * errorCount.coerceAtLeast(1)).coerceAtMost(SUBTITLE_REFUSAL_MAX_MS)
+}
+
+internal fun captionLanguage(url: String): String {
+    val lang = Regex("""[?&]lang=([^&]+)""").find(url)?.groupValues?.get(1) ?: "unnamed"
+    val translated = Regex("""[?&]tlang=([^&]+)""").find(url)?.groupValues?.get(1)
+    return if (translated == null) "\"$lang\"" else "\"$lang\" translated to \"$translated\""
 }

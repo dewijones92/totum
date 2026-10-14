@@ -62,7 +62,7 @@ internal fun rememberAlbumSave(
     val shelf by favourites.shelf.collectAsStateWithLifecycle()
     LaunchedEffect(favourites) { favourites.loadOnce() }
     if (shelf.signedOut) return null
-    val saved = if (shelf.loading) null else shelf.albums.any { it.browseId == album.browseId }
+    val saved = if (shelf.loading || shelf.failed) null else shelf.albums.any { it.browseId == album.browseId }
     return rememberToggle(
         scope = scope,
         on = saved,
@@ -82,6 +82,14 @@ internal fun rememberArtistFollow(
     name: String,
 ): FavouriteToggle? {
     val followed by remember(browseId) { favourites.followed(browseId) }.collectAsStateWithLifecycle(null)
+    LaunchedEffect(browseId, followed == null) {
+        if (followed == null) {
+            Diag.log(
+                "favourites",
+                "no Follow on artist $browseId \"$name\": signed out or subscriptions not loaded yet"
+            )
+        }
+    }
     val known = followed ?: return null
     return rememberToggle(
         scope = scope,
