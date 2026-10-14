@@ -58,3 +58,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 40 | [The queue drags with the Reorderable library, and a group moves as one block](0040-the-queue-drags-by-real-positions.md) | Accepted |
 | 41 | [Renovate runs at weekends, merges only its own green PRs, and Media3 waits for a soak](0041-renovate-runs-at-weekends-and-media3-waits-for-a-soak.md) | Accepted |
 | 42 | [One tap switches between music and talk, within the queue](0042-one-tap-switches-between-music-and-talk.md) | Accepted |
+| 43 | [Every state string starts with an emoji, and nothing spoken carries one](0043-every-state-string-starts-with-an-emoji.md) | Accepted |

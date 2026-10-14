@@ -42,7 +42,7 @@ class OfflineSummaryTest {
     fun aFullyDownloadedQueueSaysSoPlainly() {
         show(OfflineReadiness(ready = 12, downloading = 0, waiting = 0, unavailableOffline = 0))
 
-        composeTestRule.onNodeWithText("All 12 ready to play offline").assertIsDisplayed()
+        composeTestRule.onNodeWithText("✅ All 12 ready to play offline").assertIsDisplayed()
     }
 
     /**
@@ -53,14 +53,14 @@ class OfflineSummaryTest {
     fun itemsThatCanNeverDownloadAreCountedSeparately() {
         show(OfflineReadiness(ready = 73, downloading = 0, waiting = 0, unavailableOffline = 4))
 
-        composeTestRule.onNodeWithText("73 ready offline · 4 can't be downloaded").assertIsDisplayed()
+        composeTestRule.onNodeWithText("⚠️ 73 ready offline · 4 can't be downloaded").assertIsDisplayed()
     }
 
     @Test
     fun workInProgressSaysHowMuchIsLeft() {
         show(OfflineReadiness(ready = 60, downloading = 1, waiting = 16, unavailableOffline = 0))
 
-        composeTestRule.onNodeWithText("60 of 77 ready offline · 17 still to fetch").assertIsDisplayed()
+        composeTestRule.onNodeWithText("⬇️ 60 of 77 ready offline · 17 still to fetch").assertIsDisplayed()
     }
 
     /**
@@ -74,7 +74,7 @@ class OfflineSummaryTest {
             waitingForWifi = true,
         )
 
-        composeTestRule.onNodeWithText("Waiting for Wi-Fi to download 9 items").assertIsDisplayed()
+        composeTestRule.onNodeWithText("📶 Waiting for Wi-Fi to download 9 items").assertIsDisplayed()
     }
 
     /** Singular reads as a sentence, not as "1 item(s)" — the point of the plurals. */
@@ -85,7 +85,7 @@ class OfflineSummaryTest {
             waitingForWifi = true,
         )
 
-        composeTestRule.onNodeWithText("Waiting for Wi-Fi to download 1 item").assertIsDisplayed()
+        composeTestRule.onNodeWithText("📶 Waiting for Wi-Fi to download 1 item").assertIsDisplayed()
     }
 
     /**
@@ -96,7 +96,7 @@ class OfflineSummaryTest {
     fun oneItemDownloadingReadsAsProgress() {
         show(OfflineReadiness(ready = 40, downloading = 1, waiting = 36, unavailableOffline = 4))
 
-        composeTestRule.onNodeWithText("40 of 81 ready offline · 37 still to fetch").assertIsDisplayed()
+        composeTestRule.onNodeWithText("⬇️ 40 of 81 ready offline · 37 still to fetch").assertIsDisplayed()
     }
 
     /** Automatic downloads switched off must never be reported as "still to fetch". */
@@ -108,7 +108,7 @@ class OfflineSummaryTest {
         )
 
         composeTestRule
-            .onNodeWithText("Automatic downloads are off · 5 items not saved offline")
+            .onNodeWithText("⚪ Automatic downloads are off · 5 items not saved offline")
             .assertIsDisplayed()
     }
 }

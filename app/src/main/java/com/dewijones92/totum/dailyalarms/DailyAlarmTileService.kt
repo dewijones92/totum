@@ -15,12 +15,12 @@ class DailyAlarmTileService : TileService() {
         val tile = qsTile ?: return
         tile.label = first?.label ?: getString(com.dewijones92.totum.R.string.dailyalarm_tile_label)
         tile.subtitle = when (val state = first?.let { alarms.state(it.id) }) {
-            null, DayState.Idle -> if (first?.enabled == true) "Waiting" else "Off"
-            is DayState.Asking -> "Asked"
-            is DayState.Set -> "Set ${DailyAlarmNotifications.hhmm(state.time)}"
-            is DayState.Ringing -> "Ringing"
-            is DayState.Snoozed -> "Snoozed"
-            is DayState.Done -> "Done today"
+            null, DayState.Idle -> if (first?.enabled == true) "⏳ Waiting" else "⚪ Off"
+            is DayState.Asking -> "❓ Asked"
+            is DayState.Set -> "✅ Set ${DailyAlarmNotifications.hhmm(state.time)}"
+            is DayState.Ringing -> "🔔 Ringing"
+            is DayState.Snoozed -> "😴 Snoozed"
+            is DayState.Done -> "🏁 Done today"
         }
         tile.state = if (first?.enabled == true) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.updateTile()

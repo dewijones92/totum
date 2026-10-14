@@ -41,7 +41,7 @@ class DailyAlarmDeviceTest {
     fun theQuestionOffersYesOtherTimeAndNo() {
         notifications.showQuestion(alarm, LocalTime.of(17, 30), last = false)
         val posted = waitFor(DailyAlarmNotifications.questionId(alarm.id))!!
-        assertEquals("Pick up time: alarm at 17:30 today?", posted.extras.getString("android.title"))
+        assertEquals("❓ Pick up time: alarm at 17:30 today?", posted.extras.getString("android.title"))
         assertEquals(listOf("Yes, 17:30", "Other time", "No"), posted.actions.map { it.title.toString() })
     }
 
@@ -91,8 +91,8 @@ class DailyAlarmDeviceTest {
             alarmBoard(listOf(alarm), mapOf(alarm.id to DayState.Done(monday, Outcome.DECLINED)), now, zone)
         )
 
-        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "No alarm today")
-        assertEquals("No alarm today", posted?.extras?.getString("android.title"))
+        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "🚫 No alarm today")
+        assertEquals("🚫 No alarm today", posted?.extras?.getString("android.title"))
         assertTrue(posted!!.extras.getCharSequence("android.bigText").toString().startsWith("17:30 Pick up time"))
     }
 
@@ -102,8 +102,8 @@ class DailyAlarmDeviceTest {
 
         AlarmBoardService.reconcile(context, alarmBoard(listOf(alarm.copy(enabled = false)), emptyMap(), now, zone))
 
-        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "Alarms off")
-        assertEquals("Alarms off", posted?.extras?.getString("android.title"))
+        val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "⚪ Alarms off")
+        assertEquals("⚪ Alarms off", posted?.extras?.getString("android.title"))
         assertEquals(listOf("Turn on", "Open"), posted!!.actions.map { it.title.toString() })
         assertTrue("still pinned", posted.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
     }

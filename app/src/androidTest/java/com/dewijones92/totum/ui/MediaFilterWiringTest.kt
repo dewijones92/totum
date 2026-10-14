@@ -102,7 +102,7 @@ class MediaFilterWiringTest {
     fun unplayedHidesTheFinishedItem() {
         setContent()
 
-        composeTestRule.onNodeWithText("Unplayed").performClick()
+        composeTestRule.onNodeWithText("🆕 Unplayed").performClick()
 
         composeTestRule.onNodeWithText("Already watched").assertDoesNotExist()
         composeTestRule.onNodeWithText("Half watched").assertIsDisplayed()
@@ -113,7 +113,7 @@ class MediaFilterWiringTest {
     fun inProgressKeepsOnlyTheStartedOne() {
         setContent()
 
-        composeTestRule.onNodeWithText("In progress").performClick()
+        composeTestRule.onNodeWithText("⏯️ In progress").performClick()
 
         composeTestRule.onNodeWithText("Already watched").assertDoesNotExist()
         composeTestRule.onNodeWithText("Never opened").assertDoesNotExist()
@@ -152,7 +152,7 @@ class MediaFilterWiringTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Nothing matches this filter").assertIsDisplayed()
+        composeTestRule.onNodeWithText("🔍 Nothing matches this filter").assertIsDisplayed()
     }
 
     private fun item(id: String, title: String) = MediaItem(

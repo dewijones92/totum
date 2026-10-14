@@ -93,8 +93,8 @@ class CleanupCardsTest {
 
         composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag("$CLEANUP_CARD_TAG-FINISHED"))
         composeTestRule.onNodeWithText("🧹 Free 900 MB").assertExists()
-        composeTestRule.onNodeWithText("2 not opened in 30 days").assertExists()
-        composeTestRule.onNodeWithText("1 finished").assertExists()
+        composeTestRule.onNodeWithText("💤 2 not opened in 30 days").assertExists()
+        composeTestRule.onNodeWithText("🏁 1 finished").assertExists()
     }
 
     @Test

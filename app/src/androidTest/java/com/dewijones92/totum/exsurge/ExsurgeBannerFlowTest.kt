@@ -118,7 +118,7 @@ class ExsurgeBannerFlowTest {
     private fun offBanner(): Boolean = manager.activeNotifications.let { posted ->
         posted.none { it.id == ExsurgeNotifications.FOREGROUND_ID } &&
             posted.firstOrNull { it.id == ExsurgeNotifications.BANNER_ID }
-                ?.notification?.extras?.getString("android.title") == "Exsurge et Disce is off"
+                ?.notification?.extras?.getString("android.title") == "😢 Exsurge et Disce is off"
     }
 
     private fun action(title: String): Notification.Action {

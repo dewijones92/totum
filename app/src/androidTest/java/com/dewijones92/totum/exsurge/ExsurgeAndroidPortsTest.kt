@@ -90,7 +90,7 @@ class ExsurgeAndroidPortsTest {
             zone = zone,
         )
         val banner = notifications.banner(view)
-        assertEquals("Next summons 10:30", banner.extras.getString("android.title"))
+        assertEquals("🪑 Next summons 10:30", banner.extras.getString("android.title"))
         assertEquals(
             "Sat 17 of 30 min · laurels today: 0 · Tiro",
             banner.extras.getCharSequence("android.text").toString()
@@ -115,8 +115,8 @@ class ExsurgeAndroidPortsTest {
             zone = zone,
         )
         ExsurgeBannerService.reconcile(context, off, notifications)
-        val posted = posted(ExsurgeNotifications.BANNER_ID, titled = "Exsurge et Disce is off")
-        assertEquals("Exsurge et Disce is off", posted.extras.getString("android.title"))
+        val posted = posted(ExsurgeNotifications.BANNER_ID, titled = "😢 Exsurge et Disce is off")
+        assertEquals("😢 Exsurge et Disce is off", posted.extras.getString("android.title"))
         assertTrue(posted.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertNotNull(posted.deleteIntent)
         assertEquals(listOf("Turn on", "Summon now", "Restart clock"), posted.actions.map { it.title.toString() })
@@ -128,8 +128,8 @@ class ExsurgeAndroidPortsTest {
         val now = Instant.parse("2026-10-05T09:00:00Z")
         val zone = ZoneId.of("Europe/London")
         val cases = listOf(
-            ExsurgeState.Paused(now.plusSeconds(3600)) to "Paused until 11:00",
-            ExsurgeState.Dormant(now.plusSeconds(86400)) to "Surgius sleeps · back Tue 10:00",
+            ExsurgeState.Paused(now.plusSeconds(3600)) to "⏸️ Paused until 11:00",
+            ExsurgeState.Dormant(now.plusSeconds(86400)) to "😴 Surgius sleeps · back Tue 10:00",
         )
         cases.forEach { (state, title) ->
             val view = ExsurgeView(
