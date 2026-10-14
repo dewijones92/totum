@@ -94,6 +94,18 @@ class ContinuationsTest {
     }
 
     @Test
+    fun `a channel tab pages its grid, not its sort chips or its About panel`() {
+        val body = checkNotNull(
+            javaClass.getResourceAsStream("/channel_tab_continuations_web_sample.json")
+        ) { "missing" }
+            .bufferedReader().readText()
+
+        val token = find(body)
+
+        assertEquals("GRID", token?.value)
+    }
+
+    @Test
     fun `a blank token is treated as absent rather than crashing`() {
         val body = """{"continuationItemRenderer":{"continuationEndpoint":{"continuationCommand":{"token":""}}}}"""
 

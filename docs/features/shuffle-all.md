@@ -1,15 +1,15 @@
 ---
 title: Shuffle all (a channel, a podcast or a group)
 kind: feature
-status: built 2026-10-12 — not yet on the phone
+status: shipped
 area: queue/channel
-updated: 2026-10-12
+updated: 2026-10-14
 ---
 
 # Shuffle all
 
-🔀 on a channel page or a podcast page, or **Shuffle all** under the feed chips when a group is
-selected, loads every upload of each channel (and its Shorts, if you say so) and every episode a
+🔀 on a channel page or a podcast page, 🔀 beside every group chip on the Videos tab (2026-10-14),
+or **Shuffle all** under the feed chips when a group is selected, loads every upload of each channel (and its Shorts, if you say so) and every episode a
 podcast's feed still lists, shuffles them, puts them after what is playing as one queue group, and
 starts the first. A channel asks **Include Shorts?** first. Members-only videos are left out.
 Decision and reasons: [ADR 30](../adr/0030-shuffle-all-walks-every-page-into-one-queue-group.md).
@@ -31,3 +31,10 @@ Decision and reasons: [ADR 30](../adr/0030-shuffle-all-walks-every-page-into-one
   (observed failing first: it returned yt-dlp's 20); stored podcast episodes.
 - `ShuffleAllActionTest` (instrumented): the Shorts question and both answers; a podcast with no
   question; everything lands in the queue as one `shuffle:` group.
+- `ContinuationsTest` (JVM): a channel tab pages its grid, not its sort chips (`chipBarViewModel`) or the
+  header's About panel (`showEngagementPanelEndpoint`). Report `20261014T184506` (0.1.610, *"was response
+  truncated??"*): Peep Show and The Darkness both stopped at 30 uploads and 48 Shorts, because page 1 now
+  carries those tokens after the grid's and the picker took the last. Live on 3Blue1Brown after the fix:
+  152 uploads in 6 pages, 83 Shorts in 2. Channel pages scrolled past 30 by the same token.
+- `GroupChipShuffleTest` (instrumented): every group chip has its own 🔀; tapping one queues that group's
+  episodes as `shuffle:group:<id>` and plays one of them.

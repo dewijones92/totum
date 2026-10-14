@@ -1,0 +1,98 @@
+{
+ "contents": {
+  "twoColumnBrowseResultsRenderer": {
+   "tabs": [
+    {
+     "tabRenderer": {
+      "content": {
+       "richGridRenderer": {
+        "contents": [
+         {
+          "richItemRenderer": {
+           "content": {
+            "lockupViewModel": {}
+           }
+          }
+         },
+         {
+          "continuationItemRenderer": {
+           "continuationEndpoint": {
+            "continuationCommand": {
+             "token": "GRID"
+            }
+           }
+          }
+         }
+        ],
+        "header": {
+         "chipBarViewModel": {
+          "chips": [
+           {
+            "chipViewModel": {
+             "tapCommand": {
+              "innertubeCommand": {
+               "continuationCommand": {
+                "token": "POPULAR"
+               }
+              }
+             }
+            }
+           }
+          ]
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "header": {
+  "pageHeaderRenderer": {
+   "content": {
+    "pageHeaderViewModel": {
+     "description": {
+      "descriptionPreviewViewModel": {
+       "rendererContext": {
+        "commandContext": {
+         "onTap": {
+          "innertubeCommand": {
+           "showEngagementPanelEndpoint": {
+            "engagementPanel": {
+             "engagementPanelSectionListRenderer": {
+              "content": {
+               "sectionListRenderer": {
+                "contents": [
+                 {
+                  "itemSectionRenderer": {
+                   "contents": [
+                    {
+                     "continuationItemRenderer": {
+                      "continuationEndpoint": {
+                       "continuationCommand": {
+                        "token": "ABOUT"
+                       }
+                      }
+                     }
+                    }
+                   ]
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

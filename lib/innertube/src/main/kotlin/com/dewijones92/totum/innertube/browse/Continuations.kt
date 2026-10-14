@@ -31,7 +31,7 @@ public object Continuations {
     private val TOKEN_HOLDERS = listOf("continuationCommand", "nextContinuationData", "reloadContinuationData")
 
     /** Filter chips; their tokens replace the results rather than continuing them. */
-    private const val FILTERS = "chipCloudRenderer"
+    private val NOT_THE_NEXT_PAGE = setOf("chipCloudRenderer", "chipBarViewModel", "showEngagementPanelEndpoint")
 
     public fun find(root: JsonElement): PageToken? {
         var found: String? = null
@@ -45,7 +45,7 @@ public object Continuations {
                 TOKEN_HOLDERS.forEach { holder ->
                     (node[holder] as? JsonObject)?.tokenField()?.let(onToken)
                 }
-                node.forEach { (key, value) -> if (key != FILTERS) walk(value, onToken) }
+                node.forEach { (key, value) -> if (key !in NOT_THE_NEXT_PAGE) walk(value, onToken) }
             }
             is JsonArray -> node.forEach { walk(it, onToken) }
             else -> Unit
