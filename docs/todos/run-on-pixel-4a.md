@@ -1,7 +1,7 @@
 ---
 title: Make Totum run on a Pixel 4a
 kind: todo
-status: queued — Dewi 2026-10-14: stock Android 13 (not modded); investigate lowering minSdk to 33 when picked up
+status: top of the backlog (Dewi 2026-10-14) — in progress
 area: platform
 priority: high
 requested: 2026-10-14
