@@ -12,7 +12,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
-| [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | open — the 4a stops at Android 13, minSdk is 34; needs Dewi's answers |
+| [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | queued — stock Android 13 (Dewi); investigate minSdk 33 when picked up |
 | [Exsurge nudges when the phone has lain flat while it is off](exsurge-flat-phone-nudge.md) | side-quest | high | open — agreed 2026-10-14, build next |
 | [An "Even out" loudness mode](even-out-loudness.md) | playback | high | open — agreed 2026-10-14, build next |
 | [Recent actions as a Recently row and app shortcuts](recently-row-and-shortcuts.md) | queue/ui | medium | open — agreed 2026-10-14, build next |
