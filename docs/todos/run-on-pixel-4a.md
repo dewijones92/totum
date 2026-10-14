@@ -32,6 +32,14 @@ lowering `minSdk` to 33, below. Not started.
   (API 34), the Android 16 Live Update banner (already version-gated), partial media-permission
   handling, predictive back, and the exact-alarm permission flow.
 
+## Decided (Dewi, 2026-10-14)
+
+- Test on a new **`totum-api33`** emulator (Android 13 Google APIs x86_64 image downloaded into the SDK).
+- CI: **build only**, no API-33 emulator job; lint's `NewApi` check guards the floor.
+- Where Android 13 refuses an API-34 foreground-service type, start the service with the **older type**
+  13 understands, accepting small behaviour differences.
+- Built after the 2026-10-14 batch's four features, reviewed and pushed with them.
+
 ## Investigation (2026-10-14, a read-only scout, its key sites re-checked by grep)
 
 Small code change; the effort is the API-33 run, not the edits. No library needs 34 (the cached
