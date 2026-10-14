@@ -49,3 +49,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 31 | [Downloads suggest groups to delete, reviewed before anything goes](0031-downloads-suggest-groups-to-delete.md) | Accepted |
 | 32 | [Music favourites live on the YouTube Music account, and a change counts only once the account shows it](0032-music-favourites-live-on-the-account.md) | Accepted |
 | 33 | [A range that drips is asked for again from the byte it reached](0033-a-dripping-range-is-asked-for-again.md) | Accepted |
+| 34 | [The side quests look Roman and bold, with laurel gold that only they use](0034-the-side-quests-look-roman-and-bold.md) | Accepted |

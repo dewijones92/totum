@@ -48,6 +48,13 @@ val Sand10 = Color(0xFF1E1813)
 val Sand12 = Color(0xFF231C17)
 val Sand5 = Color(0xFF17120E)
 
+// Laurel — gold, for the side quests only: laurels, ranks and their accents.
+val Laurel90 = Color(0xFFFFE9A8)
+val Laurel80 = Color(0xFFF0C64B)
+val Laurel40 = Color(0xFF8C6A00)
+val Laurel30 = Color(0xFF6A4F00)
+val Laurel20 = Color(0xFF3F2E00)
+
 val Red80 = Color(0xFFFFB4AB)
 val Red40 = Color(0xFFBA1A1A)
 val Red20 = Color(0xFF690005)

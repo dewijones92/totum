@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-08
+updated: 2026-10-14
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -222,3 +222,9 @@ Two SUSPECTED findings were fixed by design rather than by test:
   it recurs, take `debuggerd -j` of the main thread straight away.
 - **The step baseline:** steps taken between GO and the next sensor report used to be missed. The
   last reading before GO is now the baseline (test written red first).
+
+## Look (2026-10-14, ADR 34)
+
+Roman and bold: the page opens on a hero (Surgius inside a laurel-gold countdown ring, "12:34 until you
+rise", the rank badge, the actions as buttons); every setting sits in an icon card and every number is a
+slider on the old steps; the takeover puts Surgius on a laurel medallion. See [ADR 34](../adr/0034-the-side-quests-look-roman-and-bold.md).

@@ -8,7 +8,10 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +42,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +53,7 @@ import com.dewijones92.totum.reminders.kit.ChoiceChips
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.showOverLockScreen
 import com.dewijones92.totum.reminders.minuteChoices
+import com.dewijones92.totum.theme.LocalLaurel
 import com.dewijones92.totum.theme.TotumTheme
 import java.lang.ref.WeakReference
 import java.time.Duration
@@ -203,14 +209,7 @@ fun TakeoverScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp),
             ) {
-                SurgiusFace(Mood.SUMMONING, stringResource(R.string.exsurge_surgius), Modifier.size(faceSize))
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    stringResource(R.string.exsurge_takeover_title),
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center,
-                )
+                TakeoverHeading(faceSize, view.stats)
                 summoned?.let {
                     Text(
                         stringResource(R.string.exsurge_takeover_call, it.call),
@@ -335,3 +334,33 @@ private val BREAK_CHOICES = listOf(2, 5, 10, 15)
 private val SNOOZE_CHOICES = listOf(5, 10, 15, 30)
 private val FACE_SIZE = 220.dp
 private const val FACE_SHARE_OF_HEIGHT = 0.3f
+
+@Composable
+private fun TakeoverHeading(faceSize: Dp, stats: ExsurgeStats) {
+    val laurel = LocalLaurel.current
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(faceSize + MEDALLION_RIM)
+            .background(laurel.container, CircleShape)
+            .border(MEDALLION_STROKE, laurel.accent, CircleShape),
+    ) {
+        SurgiusFace(Mood.SUMMONING, stringResource(R.string.exsurge_surgius), Modifier.size(faceSize))
+    }
+    Spacer(Modifier.height(16.dp))
+    Text(
+        stringResource(R.string.exsurge_takeover_title),
+        style = MaterialTheme.typography.displayLarge,
+        fontWeight = FontWeight.Black,
+        color = MaterialTheme.colorScheme.primary,
+        textAlign = TextAlign.Center,
+    )
+    Text(
+        stringResource(R.string.exsurge_rank_badge, stats.rank.latin, stats.laurels),
+        style = MaterialTheme.typography.labelLarge,
+        color = laurel.accent,
+    )
+}
+
+private val MEDALLION_RIM = 24.dp
+private val MEDALLION_STROKE = 4.dp

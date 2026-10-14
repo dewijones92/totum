@@ -56,4 +56,9 @@
     <string name="dailyalarm_cancel_at">Cancel %1$s</string>
     <string name="dailyalarm_set_after_all">Set it after all</string>
     <string name="dailyalarm_open">Open</string>
+    <string name="dailyalarm_edit">Edit</string>
+    <string name="dailyalarm_edit_done">Done editing</string>
+    <string name="dailyalarm_next_today">today</string>
+    <string name="dailyalarm_next_tomorrow">tomorrow</string>
+    <string name="dailyalarm_next_set">set for %1$s</string>
 </resources>

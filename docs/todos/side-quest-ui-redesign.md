@@ -1,7 +1,7 @@
 ---
 title: A bold Roman redesign of the Exsurge and Daily alarms screens
 kind: todo
-status: open — designed with Dewi 2026-10-14, not started
+status: built 2026-10-14 — ADR 34; ring and question screens not yet seen on a device
 area: side-quest/ui
 priority: high
 requested: 2026-10-14
@@ -11,7 +11,10 @@ updated: 2026-10-14
 # A bold Roman redesign of the Exsurge and Daily alarms screens
 
 Dewi, 2026-10-14: *"please improve the UI of the exsurge page and alarm page??? sexy???? while keeping
-functional"*. Top of the backlog at his request; not to be coded until he picks it up.
+functional"*. Top of the backlog at his request. **Built 2026-10-14** in the same batch at his request
+([ADR 34](../adr/0034-the-side-quests-look-roman-and-bold.md)); the Exsurge page, the takeover and the
+alarms page (light and dark) were screenshotted on `totum-api35`; the ring and morning-question screens
+compile and their tags are unchanged but were not seen ringing.
 
 ## Agreed (Dewi, 2026-10-14)
 
@@ -47,5 +50,5 @@ functional"*. Top of the backlog at his request; not to be coded until he picks 
 
 ## Open
 
-- How the build is run when picked up (worktree or the main working copy) and how it ships: Dewi
-  said "backlog it" to both on 2026-10-14, so ask when it starts.
+- Answered 2026-10-14: built in the main working copy as part of that day's batch, reviewed and pushed
+  with it.

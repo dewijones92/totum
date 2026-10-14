@@ -3,7 +3,7 @@ title: Daily alarms — asked each morning, rung by Totum
 kind: feature
 area: side-quest
 status: built 2026-10-07 — ships switched off; awaiting Dewi's first weekday
-updated: 2026-10-12
+updated: 2026-10-14
 ---
 
 # Daily alarms
@@ -60,3 +60,9 @@ effects=…; nextWake=…`; ringing logs the tone, voice and foreground start. R
   Snooze silenced it and it rang again at 18:12:27; Dismiss ended it (`Done(RANG)`). Screenshots of the
   question, the set notification, the ring screen and the settings screen were looked at.
 - ⏳ The phone: Doze, the real alarm volume and a real weekday morning.
+
+## Look (2026-10-14, ADR 34)
+
+Each alarm is a compact card: name and switch, the next ring in huge type (`DailyAlarm.nextRing`), today's
+state, the Set for today chips and laurel day initials; Edit opens the full editor. The ring screen shows the
+time inside a laurel circle. See [ADR 34](../adr/0034-the-side-quests-look-roman-and-bold.md).

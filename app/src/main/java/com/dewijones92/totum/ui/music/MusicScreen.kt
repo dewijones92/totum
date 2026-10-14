@@ -148,7 +148,7 @@ private fun LazyListScope.favouritesSection(
     }
     item(key = "favourites:liked") {
         PlaylistRow(
-            "❤️ " + stringResource(R.string.music_liked_songs),
+            stringResource(R.string.music_liked_songs),
             shelf.likedSongs?.let {
                 pluralStringResource(R.plurals.music_song_count, it, NumberFormat.getIntegerInstance().format(it))
             },
@@ -158,6 +158,7 @@ private fun LazyListScope.favouritesSection(
                 onLikedSongs()
             },
             modifier = Modifier.testTag(LIKED_SONGS_TAG),
+            cover = { HeartCover() },
         )
     }
     albumSection("albums", R.string.music_saved_albums, shelf.albums, expanded, onAlbum, title = false)

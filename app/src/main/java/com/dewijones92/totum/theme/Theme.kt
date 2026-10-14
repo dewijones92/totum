@@ -7,6 +7,9 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val LightColorScheme = lightColorScheme(
@@ -94,5 +97,16 @@ fun TotumTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(colorScheme = colorScheme, typography = Typography, shapes = Shapes, content = content)
+    CompositionLocalProvider(LocalLaurel provides if (darkTheme) DarkLaurel else LightLaurel) {
+        MaterialTheme(colorScheme = colorScheme, typography = Typography, shapes = Shapes, content = content)
+    }
 }
+
+data class LaurelColors(val accent: Color, val onAccent: Color, val container: Color, val onContainer: Color)
+
+private val LightLaurel =
+    LaurelColors(accent = Laurel40, onAccent = Sand100, container = Laurel90, onContainer = Laurel20)
+private val DarkLaurel =
+    LaurelColors(accent = Laurel80, onAccent = Laurel20, container = Laurel30, onContainer = Laurel90)
+
+val LocalLaurel = staticCompositionLocalOf { LightLaurel }

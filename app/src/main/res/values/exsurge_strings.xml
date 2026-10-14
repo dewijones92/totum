@@ -105,4 +105,17 @@
     <string name="exsurge_stats_today">Today · done: %1$d (practised: %5$d) · skipped: %2$d · missed: %3$d · steps: %4$d</string>
     <string name="exsurge_stats_week">Last 7 days · done: %1$d · minutes standing: %2$d</string>
     <string name="exsurge_stats_streak">Streak (days): %1$d</string>
+    <string name="exsurge_ring_rise_in">until you rise</string>
+    <string name="exsurge_ring_break_left">left of your break</string>
+    <string name="exsurge_ring_snoozed">until Surgius calls again</string>
+    <string name="exsurge_ring_paused">until Surgius returns</string>
+    <string name="exsurge_ring_asleep">until Surgius wakes</string>
+    <string name="exsurge_ring_steps">steps to rise</string>
+    <string name="exsurge_ring_summoned">Exsurge!</string>
+    <string name="exsurge_ring_off">Surgius is resting</string>
+    <string name="exsurge_rank_badge">🌿 %1$s · %2$d laurels</string>
+    <string name="exsurge_unit_minutes">%d min</string>
+    <string name="exsurge_unit_steps">%d steps</string>
+    <string name="exsurge_unit_seconds">%d s</string>
+    <string name="exsurge_unit_percent">%d%%</string>
 </resources>

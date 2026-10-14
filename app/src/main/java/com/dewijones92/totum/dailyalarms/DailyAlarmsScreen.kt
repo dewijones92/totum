@@ -1,14 +1,18 @@
 package com.dewijones92.totum.dailyalarms
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -25,17 +29,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
+import com.dewijones92.totum.theme.LocalLaurel
 import com.dewijones92.totum.ui.common.BackHeader
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
@@ -108,30 +116,48 @@ private fun AlarmCard(alarm: DailyAlarm, state: DayState, change: Change, today:
         ).testTag("dailyalarm-card-${alarm.id}")
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LabelAndSwitch(alarm, change)
+            var editing by rememberSaveable(alarm.id) { mutableStateOf(false) }
+            NameAndSwitch(alarm, change)
+            BigNextTime(alarm, state, today.now)
             Text(
                 todayText(state),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             SetForToday(alarm, state, today)
-            DayChips(alarm, change)
-            TimeRow(
-                stringResource(R.string.dailyalarm_time),
-                alarm.defaultTime,
-                "default"
-            ) { t -> change { copy(defaultTime = t) } }
-            DayTimes(alarm, change)
-            ChoiceEditor(alarm, change)
-            TimeRow(stringResource(R.string.dailyalarm_ask_at), alarm.askAt, "ask") { t -> change { copy(askAt = t) } }
-            TimeRow(
-                stringResource(R.string.dailyalarm_last_ask),
-                alarm.lastAskAt,
-                "last"
-            ) { t -> change { copy(lastAskAt = t) } }
-            TextButton(onClick = remove, modifier = Modifier.testTag("dailyalarm-delete-${alarm.id}")) {
-                Text(stringResource(R.string.dailyalarm_delete))
-            }
+            DayInitials(alarm)
+            TextButton(
+                onClick = {
+                    editing = !editing
+                    Diag.log("dailyalarm", "page ${if (editing) "opened" else "closed"} the editor for ${alarm.id}")
+                },
+                modifier = Modifier.testTag("dailyalarm-edit-${alarm.id}"),
+            ) { Text(stringResource(if (editing) R.string.dailyalarm_edit_done else R.string.dailyalarm_edit)) }
+            if (editing) Editor(alarm, change, remove)
+        }
+    }
+}
+
+@Composable
+private fun Editor(alarm: DailyAlarm, change: Change, remove: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LabelField(alarm, change)
+        DayChips(alarm, change)
+        TimeRow(
+            stringResource(R.string.dailyalarm_time),
+            alarm.defaultTime,
+            "default"
+        ) { t -> change { copy(defaultTime = t) } }
+        DayTimes(alarm, change)
+        ChoiceEditor(alarm, change)
+        TimeRow(stringResource(R.string.dailyalarm_ask_at), alarm.askAt, "ask") { t -> change { copy(askAt = t) } }
+        TimeRow(
+            stringResource(R.string.dailyalarm_last_ask),
+            alarm.lastAskAt,
+            "last"
+        ) { t -> change { copy(lastAskAt = t) } }
+        TextButton(onClick = remove, modifier = Modifier.testTag("dailyalarm-delete-${alarm.id}")) {
+            Text(stringResource(R.string.dailyalarm_delete))
         }
     }
 }
@@ -172,16 +198,12 @@ private fun SetForToday(alarm: DailyAlarm, state: DayState, today: Today) {
 }
 
 @Composable
-private fun LabelAndSwitch(alarm: DailyAlarm, change: Change) {
-    var label by remember(alarm.id) { mutableStateOf(alarm.label) }
+private fun NameAndSwitch(alarm: DailyAlarm, change: Change) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = label,
-            onValueChange = {
-                label = it
-                change { copy(label = it.ifBlank { DailyAlarm.DEFAULT_LABEL }) }
-            },
-            label = { Text(stringResource(R.string.dailyalarm_label)) },
+        Text(
+            alarm.label,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
         Switch(
@@ -191,6 +213,74 @@ private fun LabelAndSwitch(alarm: DailyAlarm, change: Change) {
         )
     }
 }
+
+@Composable
+private fun LabelField(alarm: DailyAlarm, change: Change) {
+    var label by remember(alarm.id) { mutableStateOf(alarm.label) }
+    OutlinedTextField(
+        value = label,
+        onValueChange = {
+            label = it
+            change { copy(label = it.ifBlank { DailyAlarm.DEFAULT_LABEL }) }
+        },
+        label = { Text(stringResource(R.string.dailyalarm_label)) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun BigNextTime(alarm: DailyAlarm, state: DayState, now: LocalDateTime) {
+    val next = alarm.nextRing(state, now) ?: return
+    val laurel = LocalLaurel.current
+    val day = when (next.date) {
+        now.toLocalDate() -> stringResource(R.string.dailyalarm_next_today)
+        now.toLocalDate().plusDays(1) -> stringResource(R.string.dailyalarm_next_tomorrow)
+        else -> next.date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.UK)
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            DailyAlarmNotifications.hhmm(next.time),
+            style = MaterialTheme.typography.displayLarge,
+            fontWeight = FontWeight.Black,
+            color = if (alarm.enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+            modifier = Modifier.testTag("dailyalarm-next-${alarm.id}"),
+        )
+        Text(
+            if (next.setForToday) stringResource(R.string.dailyalarm_next_set, day) else day,
+            style = MaterialTheme.typography.titleMedium,
+            color = if (next.setForToday) laurel.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 12.dp, bottom = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun DayInitials(alarm: DailyAlarm) {
+    val laurel = LocalLaurel.current
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        DayOfWeek.entries.forEach { day ->
+            val on = day in alarm.days
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(INITIAL_SIZE)
+                    .background(
+                        if (on) laurel.container else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        CircleShape
+                    ),
+            ) {
+                Text(
+                    shortName(day).take(1),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                    color = if (on) laurel.onContainer else MaterialTheme.colorScheme.outline,
+                )
+            }
+        }
+    }
+}
+
+private val INITIAL_SIZE = 32.dp
 
 @Composable
 private fun DayChips(alarm: DailyAlarm, change: Change) {

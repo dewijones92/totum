@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -31,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
@@ -40,6 +44,7 @@ import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.reminders.kit.showOverLockScreen
 import com.dewijones92.totum.reminders.timeChoices
+import com.dewijones92.totum.theme.LocalLaurel
 import com.dewijones92.totum.theme.TotumTheme
 import java.time.LocalDate
 import java.time.LocalTime
@@ -101,7 +106,7 @@ fun QuestionScreen(alarm: DailyAlarm, defaultTime: LocalTime, onAnswer: (LocalTi
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
         ) {
-            Text(alarm.label, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
+            QuestionHeading(alarm.label)
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.dailyalarm_question_screen), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(20.dp))
@@ -144,4 +149,20 @@ fun QuestionScreen(alarm: DailyAlarm, defaultTime: LocalTime, onAnswer: (LocalTi
             }
         ) { picking = false }
     }
+}
+
+@Composable
+private fun QuestionHeading(label: String) {
+    Text(
+        label,
+        style = MaterialTheme.typography.displayMedium,
+        fontWeight = FontWeight.Black,
+        color = MaterialTheme.colorScheme.primary,
+        textAlign = TextAlign.Center,
+    )
+    HorizontalDivider(
+        thickness = 4.dp,
+        color = LocalLaurel.current.accent,
+        modifier = Modifier.width(96.dp).padding(vertical = 8.dp),
+    )
 }

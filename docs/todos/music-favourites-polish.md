@@ -1,7 +1,7 @@
 ---
 title: Music favourites polish — a cover for Liked songs, and Like on album track rows
 kind: todo
-status: open — refined 2026-10-14; in the 2026-10-14 batch
+status: cover done 2026-10-14 (a drawn heart in the brand tangerine); the per-row heart is a question for Dewi
 area: music
 priority: low
 requested: 2026-10-14
@@ -32,3 +32,9 @@ shipped (screenshot of the Music home, 2026-10-14):
 
 The Liked songs row shows the heart cover on the emulator (screenshot), and the track-row question is
 answered and recorded here.
+
+## 2026-10-14
+
+1. Done: `HeartCover` in `ui/music/MusicCollectionRows.kt` (the hero tangerine, `colorScheme.primary`, with
+   a filled heart), passed to `PlaylistRow` as a `cover`; screenshotted on `totum-api35`.
+2. Put to Dewi in the batch report; not built.

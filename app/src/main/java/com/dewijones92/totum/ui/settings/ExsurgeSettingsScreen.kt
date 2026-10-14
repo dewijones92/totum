@@ -18,10 +18,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
@@ -56,7 +63,6 @@ import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.ExsurgeSettings
 import com.dewijones92.totum.exsurge.ExsurgeStatusCard
 import com.dewijones92.totum.exsurge.ExsurgeView
-import com.dewijones92.totum.exsurge.SurgiusFace
 import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.clockText
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
@@ -84,27 +90,39 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
             val context = LocalContext.current
             ExsurgeStatusCard(view, onAction = { action -> onStatusAction(context, exsurge, action) })
             StatsCard(view)
-            SwitchRow(
-                label = stringResource(R.string.exsurge_settings_enabled),
-                summary = stringResource(R.string.exsurge_settings_enabled_summary),
-                checked = settings.enabled,
-                onCheckedChange = { on -> update { copy(enabled = on) } },
-            )
-            PermissionsSection(settings)
-            HoursSection(settings, update)
-            SectionTitle(stringResource(R.string.exsurge_settings_timing))
-            TIMING.forEach { spec -> Stepper(spec, settings, update) }
-            SectionTitle(stringResource(R.string.exsurge_settings_behaviour))
-            BEHAVIOUR.forEach { spec ->
+            QuestCard(Icons.Outlined.PowerSettingsNew, stringResource(R.string.exsurge_name)) {
                 SwitchRow(
-                    label = stringResource(spec.label),
-                    summary = stringResource(spec.summary),
-                    checked = spec.get(settings),
-                    onCheckedChange = { v -> update { spec.set(this, v) } },
+                    label = stringResource(R.string.exsurge_settings_enabled),
+                    summary = stringResource(R.string.exsurge_settings_enabled_summary),
+                    checked = settings.enabled,
+                    onCheckedChange = { on -> update { copy(enabled = on) } },
+                    inset = 0.dp,
                 )
             }
-            Stepper(VOLUME, settings, update)
-            DestinationSection(settings, update)
+            QuestCard(Icons.Outlined.Schedule, stringResource(R.string.exsurge_settings_hours)) {
+                HoursSection(settings, update)
+            }
+            QuestCard(Icons.Outlined.Timer, stringResource(R.string.exsurge_settings_timing)) {
+                TIMING.forEach { spec -> Stepper(spec, settings, update) }
+            }
+            QuestCard(Icons.Outlined.Tune, stringResource(R.string.exsurge_settings_behaviour)) {
+                BEHAVIOUR.forEach { spec ->
+                    SwitchRow(
+                        label = stringResource(spec.label),
+                        summary = stringResource(spec.summary),
+                        checked = spec.get(settings),
+                        onCheckedChange = { v -> update { spec.set(this, v) } },
+                        inset = 0.dp,
+                    )
+                }
+                Stepper(VOLUME, settings, update)
+            }
+            QuestCard(Icons.Outlined.VerifiedUser, stringResource(R.string.exsurge_settings_permissions)) {
+                PermissionsSection(settings)
+            }
+            QuestCard(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.exsurge_settings_destination)) {
+                DestinationSection(settings, update)
+            }
             Spacer(Modifier.size(32.dp))
         }
     }
@@ -123,6 +141,7 @@ private fun onStatusAction(context: Context, exsurge: ExsurgeController, action:
 
 private class StepperSpec(
     val label: Int,
+    val unit: Int,
     val step: Int,
     val range: IntRange,
     val get: (ExsurgeSettings) -> Int,
@@ -137,23 +156,54 @@ private class SwitchSpec(
 )
 
 private val TIMING = listOf(
-    StepperSpec(R.string.exsurge_settings_sitting, 5, ExsurgeSettings.SITTING_RANGE, { it.sittingMinutes }) {
+    StepperSpec(
+        R.string.exsurge_settings_sitting,
+        R.string.exsurge_unit_minutes,
+        5,
+        ExsurgeSettings.SITTING_RANGE,
+        { it.sittingMinutes }
+    ) {
         copy(sittingMinutes = it)
     },
-    StepperSpec(R.string.exsurge_settings_break, 1, ExsurgeSettings.BREAK_RANGE, { it.breakMinutes }) {
+    StepperSpec(
+        R.string.exsurge_settings_break,
+        R.string.exsurge_unit_minutes,
+        1,
+        ExsurgeSettings.BREAK_RANGE,
+        { it.breakMinutes }
+    ) {
         copy(breakMinutes = it)
     },
-    StepperSpec(R.string.exsurge_settings_steps, 5, ExsurgeSettings.STEPS_TO_RISE_RANGE, { it.stepsToRise }) {
+    StepperSpec(
+        R.string.exsurge_settings_steps,
+        R.string.exsurge_unit_steps,
+        5,
+        ExsurgeSettings.STEPS_TO_RISE_RANGE,
+        { it.stepsToRise }
+    ) {
         copy(stepsToRise = it)
     },
-    StepperSpec(R.string.exsurge_settings_walk, 25, ExsurgeSettings.WALK_RESET_RANGE, { it.walkResetSteps }) {
+    StepperSpec(
+        R.string.exsurge_settings_walk,
+        R.string.exsurge_unit_steps,
+        25,
+        ExsurgeSettings.WALK_RESET_RANGE,
+        { it.walkResetSteps }
+    ) {
         copy(walkResetSteps = it)
     },
-    StepperSpec(R.string.exsurge_settings_snooze, 1, ExsurgeSettings.SNOOZE_RANGE, { it.snoozeMinutes }) {
+    StepperSpec(
+        R.string.exsurge_settings_snooze,
+        R.string.exsurge_unit_minutes,
+        1,
+        ExsurgeSettings.SNOOZE_RANGE,
+        { it.snoozeMinutes }
+    ) {
         copy(snoozeMinutes = it)
     },
     StepperSpec(
         R.string.exsurge_settings_call_interval,
+        R.string.exsurge_unit_seconds,
         15,
         ExsurgeSettings.CALL_INTERVAL_RANGE,
         { it.callIntervalSeconds },
@@ -162,26 +212,52 @@ private val TIMING = listOf(
     },
     StepperSpec(
         R.string.exsurge_settings_rise_timeout,
+        R.string.exsurge_unit_minutes,
         1,
         ExsurgeSettings.RISE_TIMEOUT_RANGE,
         { it.riseTimeoutMinutes },
     ) {
         copy(riseTimeoutMinutes = it)
     },
-    StepperSpec(R.string.exsurge_settings_walk_window, 1, ExsurgeSettings.WALK_WINDOW_RANGE, { it.walkWindowMinutes }) {
+    StepperSpec(
+        R.string.exsurge_settings_walk_window,
+        R.string.exsurge_unit_minutes,
+        1,
+        ExsurgeSettings.WALK_WINDOW_RANGE,
+        { it.walkWindowMinutes }
+    ) {
         copy(walkWindowMinutes = it)
     },
-    StepperSpec(R.string.exsurge_settings_mid_cue_minutes, 1, ExsurgeSettings.MID_CUE_RANGE, { it.midCueMinutes }) {
+    StepperSpec(
+        R.string.exsurge_settings_mid_cue_minutes,
+        R.string.exsurge_unit_minutes,
+        1,
+        ExsurgeSettings.MID_CUE_RANGE,
+        { it.midCueMinutes }
+    ) {
         copy(midCueMinutes = it)
     },
-    StepperSpec(R.string.exsurge_settings_pause_minutes, 15, ExsurgeSettings.PAUSE_RANGE, { it.pauseMinutes }) {
+    StepperSpec(
+        R.string.exsurge_settings_pause_minutes,
+        R.string.exsurge_unit_minutes,
+        15,
+        ExsurgeSettings.PAUSE_RANGE,
+        { it.pauseMinutes }
+    ) {
         copy(pauseMinutes = it)
     },
 )
 
-private val VOLUME = StepperSpec(R.string.exsurge_settings_volume, 10, 0..100, { it.voiceVolumePercent }) {
-    copy(voiceVolumePercent = it)
-}
+private val VOLUME =
+    StepperSpec(
+        R.string.exsurge_settings_volume,
+        R.string.exsurge_unit_percent,
+        10,
+        0..100,
+        { it.voiceVolumePercent }
+    ) {
+        copy(voiceVolumePercent = it)
+    }
 
 private val BEHAVIOUR = listOf(
     SwitchSpec(R.string.exsurge_settings_escalate, R.string.exsurge_settings_escalate_summary, { it.escalate }) {
@@ -212,58 +288,47 @@ private val BEHAVIOUR = listOf(
 @Composable
 private fun StatsCard(view: ExsurgeView) {
     val stats = view.stats
-    Card(Modifier.fillMaxWidth().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
-            SurgiusFace(view.mood, stringResource(R.string.exsurge_surgius), Modifier.size(96.dp))
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(stringResource(R.string.exsurge_settings_stats), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(R.string.exsurge_stats_rank, stats.rank.latin, stats.laurels),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                val next = stats.rank.next
-                Text(
-                    if (next == null) {
-                        stringResource(R.string.exsurge_stats_top_rank)
-                    } else {
-                        stringResource(R.string.exsurge_stats_next_rank, stats.laurelsToNextRank ?: 0, next.latin)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    stringResource(R.string.exsurge_stats_streak, stats.streakDays),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    stringResource(
-                        R.string.exsurge_stats_today,
-                        stats.today.completed,
-                        stats.today.skipped,
-                        stats.today.missed,
-                        stats.today.steps,
-                        stats.today.practised,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    stringResource(
-                        R.string.exsurge_stats_week,
-                        stats.lastSevenDays.completed,
-                        stats.lastSevenDays.minutesStanding.toInt()
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
+    QuestCard(Icons.Outlined.EmojiEvents, stringResource(R.string.exsurge_settings_stats)) {
+        val next = stats.rank.next
+        Text(
+            if (next == null) {
+                stringResource(R.string.exsurge_stats_top_rank)
+            } else {
+                stringResource(R.string.exsurge_stats_next_rank, stats.laurelsToNextRank ?: 0, next.latin)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            stringResource(R.string.exsurge_stats_streak, stats.streakDays),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            stringResource(
+                R.string.exsurge_stats_today,
+                stats.today.completed,
+                stats.today.skipped,
+                stats.today.missed,
+                stats.today.steps,
+                stats.today.practised,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(
+            stringResource(
+                R.string.exsurge_stats_week,
+                stats.lastSevenDays.completed,
+                stats.lastSevenDays.minutesStanding.toInt(),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 
 @Composable
 private fun HoursSection(settings: ExsurgeSettings, update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit) {
-    SectionTitle(stringResource(R.string.exsurge_settings_hours))
     val locale = LocalConfiguration.current.locales[0]
-    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         DayOfWeek.entries.forEach { day ->
             val on = day in settings.activeDays
             FilterChip(
@@ -287,7 +352,6 @@ private fun HoursSection(settings: ExsurgeSettings, update: (ExsurgeSettings.() 
 
 @Composable
 private fun DestinationSection(settings: ExsurgeSettings, update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit) {
-    SectionTitle(stringResource(R.string.exsurge_settings_destination))
     var packageText by rememberSaveable { mutableStateOf(settings.destinationPackage) }
     var routeText by rememberSaveable { mutableStateOf(settings.destinationRoute) }
     OutlinedTextField(
@@ -297,7 +361,7 @@ private fun DestinationSection(settings: ExsurgeSettings, update: (ExsurgeSettin
             update { copy(destinationPackage = v) }
         },
         label = { Text(stringResource(R.string.exsurge_settings_package)) },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
     OutlinedTextField(
         value = routeText,
@@ -306,7 +370,7 @@ private fun DestinationSection(settings: ExsurgeSettings, update: (ExsurgeSettin
             update { copy(destinationRoute = v) }
         },
         label = { Text(stringResource(R.string.exsurge_settings_route)) },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
 }
 
@@ -323,14 +387,13 @@ private fun PermissionsSection(settings: ExsurgeSettings) {
     val askActivity = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { generation++ }
     val askNotifications =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { generation++ }
-    SectionTitle(stringResource(R.string.exsurge_settings_permissions))
     val checks = remember(generation, settings.destinationPackage) {
         checks(context, settings, askActivity::launch, askNotifications::launch)
     }
     checks.forEach { check ->
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         ) {
             Text(if (check.granted) "✅" else "❌", modifier = Modifier.padding(end = 12.dp))
             Text(check.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -405,36 +468,28 @@ private fun Stepper(
     settings: ExsurgeSettings,
     update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit,
 ) {
-    val value = spec.get(settings)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-    ) {
-        Text(stringResource(spec.label), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        TextButton(
-            onClick = { update { spec.set(this, (value - spec.step).coerceIn(spec.range)) } },
-            enabled = value > spec.range.first,
-        ) { Text("−") }
-        Text(value.toString(), style = MaterialTheme.typography.titleMedium)
-        TextButton(
-            onClick = { update { spec.set(this, (value + spec.step).coerceIn(spec.range)) } },
-            enabled = value < spec.range.last,
-        ) { Text("+") }
-    }
+    val unit = stringResource(spec.unit)
+    SnappingSlider(
+        label = stringResource(spec.label),
+        value = spec.get(settings),
+        range = spec.range,
+        step = spec.step,
+        shown = { unit.format(it) },
+        tag = "exsurge-slider-${spec.label}",
+    ) { chosen -> update { spec.set(this, chosen) } }
 }
 
 @Composable
 private fun TimeStepper(label: String, minuteOfDay: Int, onChange: (Int) -> Unit) {
-    val text = clockText(minuteOfDay)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        TextButton(onClick = { onChange((minuteOfDay - HALF_HOUR).coerceIn(0, MINUTES_PER_DAY)) }) { Text("−") }
-        Text(text, style = MaterialTheme.typography.titleMedium)
-        TextButton(onClick = { onChange((minuteOfDay + HALF_HOUR).coerceIn(0, MINUTES_PER_DAY)) }) { Text("+") }
-    }
+    SnappingSlider(
+        label = label,
+        value = minuteOfDay,
+        range = 0..MINUTES_PER_DAY,
+        step = HALF_HOUR,
+        shown = ::clockText,
+        tag = "exsurge-time-$label",
+        onCommit = onChange,
+    )
 }
 
 private const val HALF_HOUR = 30

@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | open — designed with Dewi 2026-10-14, top of the backlog, not started |
+| [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
 | [Suggest groups of downloads to delete](suggest-downloads-to-delete.md) | downloads | high | built 2026-10-13 → [features/downloads-cleanup.md](../features/downloads-cleanup.md), ADR 31 |
 | [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | built 2026-10-12 → [features/daily-alarms.md](../features/daily-alarms.md) |
 | [Shuffle everything a channel or podcast has published](shuffle-a-whole-source.md) | queue/channel | medium | built 2026-10-12 → [features/shuffle-all.md](../features/shuffle-all.md) |
@@ -34,6 +34,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [exsurge-back-goes-to-totum](exsurge-back-goes-to-totum.md) | side-quest | low | built 2026-10-07: Back opens the player if an item is loaded, else Totum |
 | [exsurge-go-scrolls-to-current-lesson](exsurge-go-scrolls-to-current-lesson.md) | side-quest | medium | built 2026-10-07: GO opens Loquax on Learn, scrolled to the current lesson and highlighted (Loquax ADR 19) |
 | [exsurge-continue-video-test-fails-on-emulator](exsurge-continue-video-test-fails-on-emulator.md) | testing | low | corrected 2026-10-07: state-dependent, passed in two full runs later that day; cause not established |
+| [Music favourites polish — a cover for Liked songs, and Like on album track rows](music-favourites-polish.md) | music | low | cover done 2026-10-14; per-row heart is a question for Dewi |
 | [MultiSelectTest fails locally; the long-press never reaches the row](multiselect-test-fails-locally.md) | testing | medium | open — refined 2026-10-14; leads: a clickable child (the follow mark?) under the title, geometry, merged semantics |
 | [daily-alarms](daily-alarms.md) | side-quest | high | built 2026-10-07 → [features/daily-alarms](../features/daily-alarms.md); ships off, awaiting Dewi's first weekday |
 | [exsurge-ideas](exsurge-ideas.md) | side-quest | low | proposed: 24 ideas waiting on keep / cut / later |
