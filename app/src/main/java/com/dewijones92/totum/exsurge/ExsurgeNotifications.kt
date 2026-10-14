@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit
 class ExsurgeNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private val smallIcon by lazy { Icon.createWithBitmap(SurgiusPainter.glyphBitmap(ICON_PX)) }
+    private val weepingIcon by lazy { Icon.createWithBitmap(SurgiusPainter.glyphBitmap(ICON_PX, weeping = true)) }
     private val faces = mutableMapOf<Mood, Icon>()
     private val liveUpdate = ExsurgeLiveUpdate(context)
 
@@ -45,7 +46,7 @@ class ExsurgeNotifications(private val context: Context) {
         ensureChannels()
         val (title, text, progress) = BannerText(context).describe(view)
         val builder = Notification.Builder(context, BANNER_CHANNEL)
-            .setSmallIcon(smallIcon)
+            .setSmallIcon(if (view.mood == Mood.WEEPING) weepingIcon else smallIcon)
             .setLargeIcon(face(view.mood))
             .setContentTitle(title)
             .setContentText(text)

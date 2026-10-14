@@ -14,6 +14,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | built 2026-10-14 → ADR 39; minSdk 33, verified on totum-api33 |
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
 | [Artist page: Shuffle all songs, and the Shuffle station fixed](artist-shuffle-all-songs.md) | music | high | open — agreed 2026-10-14, in this batch |
+| [A stats page with drill-downs](stats-page.md) | library | high | open — agreed 2026-10-14; the log in this batch, the page next |
+| [Queue groups move and shuffle like items](queue-groups-move-and-shuffle.md) | queue | high | open — agreed 2026-10-14, in this batch |
+| [Surgius cries when Exsurge is off or paused](surgius-cries-when-off.md) | side-quest | medium | built 2026-10-14 → exsurge-et-disce feature doc |
 | [One tap to switch between music and talk](music-talk-toggle.md) | queue/playback | high | open — agreed 2026-10-14, in this batch after the Pixel 4a |
 | [Exsurge nudges when the phone has lain flat while it is off](exsurge-flat-phone-nudge.md) | side-quest | high | built 2026-10-14 → ADRs 37, 38 |
 | [An "Even out" loudness mode](even-out-loudness.md) | playback | high | built 2026-10-14 → ADR 35 |

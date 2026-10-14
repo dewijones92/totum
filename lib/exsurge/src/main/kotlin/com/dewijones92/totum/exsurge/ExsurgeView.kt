@@ -14,10 +14,11 @@ import kotlinx.serialization.json.JsonObject
 import java.time.Duration
 import java.time.Instant
 
-public enum class Mood { CONTENT, SUMMONING, CHEERING, COUNTING, FREEING, WOUNDED, SLEEPING }
+public enum class Mood { CONTENT, SUMMONING, CHEERING, COUNTING, FREEING, WOUNDED, SLEEPING, WEEPING }
 
 public fun moodOf(state: ExsurgeState, at: Instant): Mood = when (state) {
-    Off, is Dormant, is Paused -> Mood.SLEEPING
+    Off, is Paused -> Mood.WEEPING
+    is Dormant -> Mood.SLEEPING
     is Sitting -> when {
         state.after == OutcomeKind.COMPLETED && Duration.between(state.since, at) < FREEING_FOR -> Mood.FREEING
         state.after == OutcomeKind.SKIPPED || state.after == OutcomeKind.MISSED -> Mood.WOUNDED

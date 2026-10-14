@@ -215,7 +215,7 @@ class ExsurgeSupportTest {
     @Test
     fun `moods follow the state`() {
         val now = at(5, 10)
-        assertEquals(Mood.SLEEPING, moodOf(ExsurgeState.Off, now))
+        assertEquals(Mood.WEEPING, moodOf(ExsurgeState.Off, now))
         assertEquals(Mood.CONTENT, moodOf(ExsurgeState.Sitting(now), now))
         assertEquals(Mood.FREEING, moodOf(ExsurgeState.Sitting(now, OutcomeKind.COMPLETED), now.plusSeconds(10)))
         assertEquals(Mood.CONTENT, moodOf(ExsurgeState.Sitting(now, OutcomeKind.COMPLETED), now.plusSeconds(90)))

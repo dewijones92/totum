@@ -57,6 +57,7 @@ object SurgiusPainter {
                 Mood.FREEING -> MoodFaces.freeing(this)
                 Mood.WOUNDED -> MoodFaces.wounded(this)
                 Mood.SLEEPING -> MoodFaces.sleeping(this)
+                Mood.WEEPING -> MoodFaces.weeping(this)
                 Mood.CONTENT -> MoodFaces.content(this)
             }
         }
@@ -80,10 +81,10 @@ object SurgiusPainter {
         canvas.drawCircle(100f, 14f, 9f, fill(laurel))
     }
 
-    fun glyphBitmap(sizePx: Int): Bitmap = createBitmap(sizePx, sizePx).also {
+    fun glyphBitmap(sizePx: Int, weeping: Boolean = false): Bitmap = createBitmap(sizePx, sizePx).also {
         val paint = glyph(Color.WHITE, sizePx * 0.86f)
         val y = sizePx / 2f - (paint.descent() + paint.ascent()) / 2f
-        Canvas(it).drawText(GLYPH, sizePx / 2f, y, paint)
+        Canvas(it).drawText(if (weeping) WEEPING_GLYPH else GLYPH, sizePx / 2f, y, paint)
     }
 
     private fun head(canvas: Canvas) {
@@ -106,6 +107,7 @@ object SurgiusPainter {
     }
 
     private const val GLYPH = "起"
+    private const val WEEPING_GLYPH = "泣"
 }
 
 private object MoodFaces {
@@ -204,6 +206,36 @@ private object MoodFaces {
                 quadTo(22f, 16f, 26f, 8f)
             },
             fill(Cyan80.toArgb())
+        )
+    }
+
+    fun weeping(canvas: Canvas) {
+        val line = stroke(brow, 4f).apply { strokeCap = Paint.Cap.ROUND }
+        canvas.drawLine(-30f, -16f, -12f, -24f, line)
+        canvas.drawLine(30f, -16f, 12f, -24f, line)
+        listOf(-18f, 18f).forEach { x ->
+            canvas.drawPath(
+                Path().apply {
+                    moveTo(x - 8f, -2f)
+                    quadTo(x, -10f, x + 8f, -2f)
+                },
+                line,
+            )
+            canvas.drawPath(
+                Path().apply {
+                    moveTo(x, 2f)
+                    quadTo(x + 6f, 14f, x, 22f)
+                    quadTo(x - 6f, 14f, x, 2f)
+                },
+                fill(Cyan80.toArgb()),
+            )
+        }
+        canvas.drawPath(
+            Path().apply {
+                moveTo(-14f, 32f)
+                quadTo(0f, 20f, 14f, 32f)
+            },
+            stroke(outline, 4f),
         )
     }
 

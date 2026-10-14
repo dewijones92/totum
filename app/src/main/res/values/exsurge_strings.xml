@@ -111,7 +111,7 @@
     <string name="exsurge_ring_asleep">until Surgius wakes</string>
     <string name="exsurge_ring_steps">steps to rise</string>
     <string name="exsurge_ring_summoned">Exsurge!</string>
-    <string name="exsurge_ring_off">Surgius is resting</string>
+    <string name="exsurge_ring_off">Surgius is weeping</string>
     <plurals name="exsurge_rank_badge">
         <item quantity="one">🌿 %1$s · %2$d laurel</item>
         <item quantity="other">🌿 %1$s · %2$d laurels</item>

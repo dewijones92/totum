@@ -108,6 +108,10 @@ everything configurable. The backlog item, with the agreed design and the open i
   exsurge back (…) -> …`, then `open-player request N -> full player on …` or `… dropped: nothing loaded`
   (the shell waits up to 3 s for the player connection). `ExsurgeBackTest` covers the loaded case, red
   then green; the nothing-loaded case was checked by hand on the emulator (no test can unload playback).
+- **Surgius weeps while Exsurge is off or paused** (Dewi, 2026-10-14: *"if the excurge thing is off then I want
+  the notification banner to be him crying"*): `Mood.WEEPING` (raised brows, closed eyes, cyan tears, a frown)
+  on the Exsurge page hero and the banner, and the banner's small status-bar / lock-screen icon becomes the
+  glyph 泣 ("weep"). Outside active hours he still sleeps. `moodOf` decides it; `ExsurgeSupportTest` pins it.
 - **Settings → Exsurge et Disce:** the live status card (above), a stats card with Surgius in his
   current mood, every setting, and a permissions checklist with Grant buttons.
 
