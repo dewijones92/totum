@@ -32,14 +32,9 @@ class SignedInTvPlayer(
                 as? AccessTokenResult.Available
             )?.token ?: return null
         val stamp = runCatching { signatureTimestamps.current() }.getOrNull() ?: return null
-        // DOWNGRADED first, and that ordering is measured. Both clients answer OK for the
-        // same rated video, but the current one withholds all but ONE stream (SABR) while
-        // the downgraded one returns seven — so preferring the current client here means
-        // reaching an age-restricted video and then watching it at 360p. This path only runs
-        // when the anonymous attempt already failed, so there is no ordinary video to lose.
         return withPlayableStreams(videoId, "downgraded TV") {
             innerTubeClient.playerDowngradedTv(videoId, stamp, token)
-        } ?: withPlayableStreams(videoId, "TV") { innerTubeClient.playerAsAccount(videoId, stamp, token) }
+        }
     }
 
     /**
@@ -52,9 +47,8 @@ class SignedInTvPlayer(
      * the downgraded client that would have worked, so the video "resolved" and then refused to
      * play, which reads to a user exactly like the feature not existing.
      *
-     * So success is defined as **a format we can fetch**, never as a status. Both attempts run
-     * through here for that reason: the same trap catches the first one too, since its lone URL
-     * carries an unsolved `n` and would 403 on playback.
+     * So success is defined as **a format we can fetch**, never as a status. A URL with an unsolved
+     * `n` would 403 on playback too.
      */
     private suspend fun withPlayableStreams(
         videoId: String,
@@ -81,7 +75,7 @@ class SignedInTvPlayer(
         // short-circuited the downgraded client that returns seven fetchable URLs, and shipped a
         // feature that resolved and then would not play (2026-08-01).
         if (playable.directlyPlayable.isEmpty()) {
-            Diag.log("resolve", "$videoId as $client -> OK but nothing fetchable; trying the next client")
+            Diag.log("resolve", "$videoId as $client -> OK but nothing fetchable; no signed-in answer (the tracking client's links all 403, ADR 49)")
             return null
         }
         Diag.log("resolve", "$videoId as $client -> ${playable.directlyPlayable.size} fetchable format(s)")

@@ -1,10 +1,16 @@
 ---
 title: The "ask YouTube directly" fallback serves TV URLs that 403
-status: fixed 2026-10-08 by checking before trusting — cause: YouTube refuses TV-client stream URLs without a PO token (reproduced; control served)
-updated: 2026-10-08
+status: cause fixed 2026-10-15 (ADR 49) — the PO-token diagnosis below was WRONG; the request shape was the cause. The 2026-10-08 check-before-trusting stays
+updated: 2026-10-15
 ---
 
 # The "ask YouTube directly" fallback serves TV URLs that 403
+
+> ⚠️ **2026-10-15: the cause recorded below was wrong.** It was not a missing PO token. A capture of signed-in
+> SmartTube showed its TV links served with no token. Three fields decide it: the web-scale timestamp (the TV
+> scale answers OK with links that all 403), SmartTube's Cobalt agent, and `isInlinePlaybackNoAd`. See
+> [ADR 49](../adr/0049-signed-in-tv-links-are-served.md). The table below varied the agent and the script, but
+> never the timestamp scale, which is why it missed the cause.
 
 When yt-dlp offers a single 360p stream, `VideoResolver.betterQualities` asks the signed-in TV client
 for the ladder (`resolved as the signed-in TV client`, `solved 2/2 n parameter(s)`). On 0.1.575 that

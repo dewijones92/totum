@@ -493,6 +493,13 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   in this repo's Actions secrets (CI signing; write-only), and backed up in
   the PRIVATE repo `dewijones92/uniapp-signing-backup` (survives laptop
   loss). versionCode is `100 + run number`, so it only ever increases.
+- **Be a polite client to YouTube** (Dewi, 2026-10-15: *"I want to be mindful of raising suspicion"*). Every
+  YouTube call (InnerTube, yt-dlp extraction and solving, page walks, feeds, subtitles) goes through ONE global
+  gate of at most **4 in flight**; nothing fans out past it, however many items a "shuffle all" or "play all"
+  touches. Player bytes are outside it, and downloads keep their own cap of 4. A **429** (or `Retry-After`) means
+  exponential back-off with jitter, never a tight retry; a **"not a bot"** refusal backs yt-dlp off (1, 2, 4 … 60
+  min, reset by a success). Either one shows a banner on every tab while it lasts, and is logged and counted. A new
+  feature that talks to YouTube uses the gate rather than its own `async` fan-out.
 - **Text wraps; nothing truncates.** No `TextOverflow.Ellipsis` anywhere in `app/src/main`, and a
   `maxLines` cap only with a declared reason in `tools/ci/preflight.py` (Dewi, 2026-09-21: *"dont
   use ... please in the app - just wrap the text"*). A row grows to fit its title. Preflight fails

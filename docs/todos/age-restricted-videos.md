@@ -4,7 +4,7 @@ kind: todo
 area: video
 priority: high
 status: shipped — age-restricted videos play on-device (fallback was DEAD 2026-08-18 → 2026-09-06: TV timestamp scale)
-updated: 2026-09-06
+updated: 2026-10-15
 ---
 
 # Age-restricted videos
@@ -36,6 +36,12 @@ returns SABR-only (one URL out of seven). At `5.20260707` it returns seven fetch
 is exactly why SmartTube keeps a `TV_DOWNGRADED` client in its list and tries it *before* `TV`.
 
 ### signatureTimestamp is not optional, and its absence lies to you
+
+> ⚠️ **2026-10-15: the September answer below no longer holds for this call.** The TV scale is still answered OK, but
+> every link it hands out is refused with 403. The downgraded call now sends the web scale with SmartTube's agent
+> `Mozilla/5.0 (DirectFB; Linux x86_64) Cobalt/4.13031-qa (unlike Gecko) Starboard/1` and `isInlinePlaybackNoAd`.
+> With the old `Cobalt/Version` agent, the web scale is what gets "page needs to be reloaded". See
+> [ADR 49](../adr/0049-signed-in-tv-links-are-served.md). The tracking call keeps the TV scale.
 
 > **And since ~2026-08-18 it must be on the TV scale.** `20697001` where the player script says `20697`;
 > the web-scale value is refused with the same "page needs to be reloaded" as no value at all, which is

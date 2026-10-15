@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Testing
@@ -295,7 +295,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | The n-solver keeps yt-dlp's preprocessed player between solves and prunes old builds; answers are memoised per build | `SolverPlayerCacheTest` (Python, via preflight), `MemoisedNSolverTest` | every commit |
 | The SABR reader claims the header end time of what it holds contiguously, and re-asks the same time when an answer was spent on another format | `TheClaimFollowsTheHeadersNotTheByteRatioTest`, `AnAnswerSpentOnAnotherFormatIsNotAGapTest` | every commit |
 | A row's date is an anchored instant that ages with the clock, YouTube's wording parsed both long and short, a resolution fills a missing date, and a shared row learns its facts | `PublishedAgeTest`, `WithStreamFromTest`, `BridgeJsonTest`, `MediaItemSubtitleTest`, `PlaybackQueueTest` | every commit |
-| Every TV player call declares the signature timestamp on the TV scale (20697001), the WEB call on the web scale — the one field that killed sync for three weeks | `PlayerTimestampScaleTest`, `SignatureTimestampTest`, `HttpYouTubeWatchHistoryTest` | every commit |
+| The tracking TV call declares the signature timestamp on the TV scale (20697001), and the stream-giving downgraded TV call the web scale with SmartTube's agent and `isInlinePlaybackNoAd` (ADR 49: on the TV scale its links all 403), as does the WEB call | `PlayerTimestampScaleTest`, `SignatureTimestampTest`, `HttpYouTubeWatchHistoryTest` | every commit |
 | Progress the account could not be told about is HELD and sent the moment a sender works — offline listening included | `ProgressOutboxDrainTest`, `RoomAccountProgressOutboxTest` (emulator) | every commit — the send used to be fire-and-forget and 0.1.477 shows sixteen minutes of offline listening end `fin=true -> NoSession` and vanish |
 | A row shows a video watched elsewhere as watched-so-far, by the same rule resume uses | `AccountAwarePlayStateTest` | every commit — the Sutton report: half-watched on the website, blank row here |
 | Resuming never waits on the account for long, and not at all offline — so the next item plays | `AccountResumePositionsTest` | every commit — report 0.1.477 "why the next video not playing??": six plays, no transition, the account read hung with no network. Proven to fail with the bound removed |
