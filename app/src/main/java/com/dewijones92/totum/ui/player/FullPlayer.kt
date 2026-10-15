@@ -76,6 +76,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SkipNextButton
 import com.dewijones92.totum.ui.common.SkipPreviousButton
 import com.dewijones92.totum.ui.common.SwitchListeningButton
+import com.dewijones92.totum.ui.common.withLinks
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
 import com.dewijones92.totum.ui.player.WatchViewModel.PostState
 import com.dewijones92.totum.ui.player.WatchViewModel.RelatedState
@@ -619,7 +620,7 @@ internal fun PlayerNote(text: String) {
 private fun DescriptionSection(description: String, onSeekTo: (Long) -> Unit) {
     var expanded by rememberSaveable(description) { mutableStateOf(false) }
     val linkColor = MaterialTheme.colorScheme.primary
-    val annotated = remember(description, linkColor) { description.withTimestampLinks(linkColor, onSeekTo) }
+    val annotated = remember(description, linkColor) { description.withLinks(linkColor, onSeekTo) }
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = stringResource(R.string.description_title),

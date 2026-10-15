@@ -38,8 +38,8 @@ fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault()): List<St
         item.viewsText?.let { "${FactEmoji.VIEWS} $it" },
         "🎞️ ${kindName(item.contentKind)}" + if (item.membersOnly) " · 🔒 members only" else "",
         item.chapters.takeIf { it.isNotEmpty() }?.let { "📑 ${it.size} chapters" },
-        (item.mediaUrl ?: item.sourceUrl)?.let { "🔗 ${it.value}" },
-        "🆔 ${item.id.value}",
+        (item.mediaUrl ?: item.sourceUrl)?.let { "$LINK_PREFIX${it.value}" },
+        "$ID_PREFIX${item.id.value}",
         item.description?.trim()?.takeIf { it.isNotEmpty() }?.let { "📝 $it" },
     )
 }
@@ -71,13 +71,32 @@ internal fun DetailsSection(item: MediaItem) {
     )
     if (open) {
         Column(Modifier.padding(horizontal = 24.dp).testTag(DETAILS_LIST_TAG)) {
+            val linkColor = MaterialTheme.colorScheme.primary
             itemDetails(item).forEach { line ->
-                Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                val style = MaterialTheme.typography.bodyMedium
+                val shown = line.withLinks(linkColor)
+                when {
+                    line.startsWith(ID_PREFIX) -> CopyableText(
+                        line.removePrefix(ID_PREFIX),
+                        stringResource(R.string.details_copy_id),
+                        style,
+                        shown = shown,
+                    )
+                    line.startsWith(LINK_PREFIX) -> CopyableText(
+                        line.removePrefix(LINK_PREFIX),
+                        stringResource(R.string.details_copy_link),
+                        style,
+                        shown = shown,
+                    )
+                    else -> Text(shown, style = style, modifier = Modifier.padding(vertical = 4.dp))
+                }
             }
         }
     }
 }
 
+private const val LINK_PREFIX = "🔗 "
+private const val ID_PREFIX = "🆔 "
 const val DETAILS_TAG = "item-details"
 const val DETAILS_LIST_TAG = "item-details-list"
 private const val SECONDS_PER_HOUR = 3_600

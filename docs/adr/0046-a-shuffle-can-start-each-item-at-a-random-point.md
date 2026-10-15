@@ -2,7 +2,7 @@
 title: A shuffle can start each item at a random point
 kind: adr
 status: accepted
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # 46. A shuffle can start each item at a random point
@@ -27,6 +27,13 @@ some items from halfway through"*. He chose "anywhere": from the start to just b
 - Covered: Shuffle all (channel, podcast, group chip), the queue's up next, group order, a group, shuffle-and-play,
   an artist's songs, All songs, an album. Pinned shortcuts replay without asking.
 - The resolver peeks at it too, so a random start takes the extraction route rather than SABR, which cannot seek.
+
+## Update, 2026-10-15: unticked means from the top
+
+Dewi: *"if I don't select [random], I want to reset the position of each item back to zero"*. Unticked, every
+shuffled item now starts at 0:00 once (`RandomStarts.assign(…, atRandom = false)` holds a start of 0), then
+resumes as usual from its next saved position; a later shuffle from the top replaces an earlier random start.
+The saved place is not deleted, so a mid-listen item is only restarted when it is played from the shuffle.
 
 ## Consequences
 

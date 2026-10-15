@@ -26,9 +26,11 @@ private fun asking(container: AppContainer, ask: ShuffleAsk, what: String, shuff
     ask { startAtRandom ->
         shuffle()
         container.statsLog.use(UseKind.SHUFFLE, what)
-        if (startAtRandom) {
-            container.randomStarts.assign(container.playbackQueue.state.value.upNext.map { it.item.item }, what)
-        }
+        container.randomStarts.assign(
+            container.playbackQueue.state.value.upNext.map { it.item.item },
+            what,
+            startAtRandom,
+        )
     }
 }
 

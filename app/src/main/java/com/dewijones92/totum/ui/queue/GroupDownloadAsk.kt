@@ -1,18 +1,15 @@
 package com.dewijones92.totum.ui.queue
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.queue.GroupDownload
+import com.dewijones92.totum.ui.common.HoldToConfirmDialog
+import com.dewijones92.totum.ui.common.HoldToConfirmTexts
 
 @Composable
 fun GroupDownloadAsk(container: AppContainer) {
@@ -25,22 +22,19 @@ fun GroupDownloadAsk(container: AppContainer) {
     val title = members.firstOrNull()?.group?.title ?: return
     val count = members.size
     val choose = { choice: GroupDownload, why: String -> container.groupDownloads.choose(asking, choice, why) }
-    AlertDialog(
-        onDismissRequest = { choose(GroupDownload.NO, "dismissed the question") },
-        title = { Text(stringResource(R.string.group_download_title, title)) },
-        text = { Text(pluralStringResource(R.plurals.group_download_body, count, count)) },
-        confirmButton = {
-            TextButton(
-                onClick = { choose(GroupDownload.YES, "said download") },
-                modifier = Modifier.testTag(GROUP_DOWNLOAD_YES_TAG),
-            ) { Text(stringResource(R.string.group_download_yes)) }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = { choose(GroupDownload.NO, "said not now") },
-                modifier = Modifier.testTag(GROUP_DOWNLOAD_NO_TAG),
-            ) { Text(stringResource(R.string.group_download_no)) }
-        },
+    HoldToConfirmDialog(
+        texts = HoldToConfirmTexts(
+            title = stringResource(R.string.group_download_title, title),
+            body = pluralStringResource(R.plurals.group_download_body, count, count),
+            yes = stringResource(R.string.group_download_yes),
+            hint = stringResource(R.string.hold_to_download),
+            no = stringResource(R.string.group_download_no),
+        ),
+        onYes = { choose(GroupDownload.YES, "held to download") },
+        onNo = { choose(GroupDownload.NO, "said not now") },
+        onDismiss = { choose(GroupDownload.NO, "dismissed the question") },
+        yesTag = GROUP_DOWNLOAD_YES_TAG,
+        noTag = GROUP_DOWNLOAD_NO_TAG,
     )
 }
 

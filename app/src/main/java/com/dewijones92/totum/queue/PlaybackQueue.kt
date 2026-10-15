@@ -296,6 +296,9 @@ class PlaybackQueue(
         return playAt(index)
     }
 
+    private val refusals = RefusedTaps()
+    val refusedTaps: SharedFlow<RefusedTap> get() = refusals.taps
+
     private var lastPlayNowId: MediaItemId? = null
     private var lastPlayNowAt = 0L
 
@@ -565,7 +568,7 @@ class PlaybackQueue(
             return false
         }
         Diag.log("queue", "crossed over to index $index of ${_state.value.entries.size}; adopting it")
-        return playAt(index)
+        return playAt(index, quiet = true)
     }
 
     /**
@@ -591,12 +594,18 @@ class PlaybackQueue(
      * The cursor is restored rather than left alone up front, because `play` -> `route` reads
      * `_state.value.current` to decide what to play, so the move has to happen before the attempt.
      */
-    internal suspend fun playAt(index: Int, rollBackOnRefusal: Boolean = false): Boolean {
+    internal suspend fun playAt(
+        index: Int,
+        rollBackOnRefusal: Boolean = false,
+        quiet: Boolean = rollBackOnRefusal
+    ): Boolean {
         val entry = _state.value.entries.getOrNull(index) ?: return false
         val cursorBefore = _state.value.currentIndex
         val playingBefore = _nowPlaying.value
         mutate("play-at-$index") { it.copy(currentIndex = index) }
+        refusals.clear()
         if (play(entry.item)) return true
+        if (!quiet) refusals.announce(entry.item.item.title)
         // ONLY for the automatic advance, which is why the caller has to ask. An explicit tap must
         // leave the item it chose as current even when it will not play, because that is what the
         // recovery ladder acts on -- rolling THAT back stops a refused item from ever being rescued,
@@ -997,6 +1006,7 @@ class PlaybackQueue(
             return true
         }
         val route = decision.route
+        refusals.note((route as? PlayRoute.Refused)?.reason)
         val onDisk = decision.onDisk
         val offlineNow = decision.offline
         val audioNow = decision.audio

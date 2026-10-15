@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.queue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
@@ -14,6 +15,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.queue.GroupDownload
+import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.theme.TotumTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -51,10 +53,18 @@ class GroupDownloadAskTest {
     }
 
     @Test
-    fun aGroupJoiningTheQueueAsksAndDownloadMeansYes() {
+    fun aGroupJoiningTheQueueAsksAndHoldingDownloadMeansYes() {
         val container = ask()
 
-        composeTestRule.onNodeWithTag(GROUP_DOWNLOAD_YES_TAG).performClick()
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performClick()
+        composeTestRule.waitForIdle()
+        assertEquals("a tap must not download", GroupDownload.ASK, container.groupDownloads.choices.value["album:a"])
+
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { down(center) }
+        composeTestRule.mainClock.advanceTimeBy(1_700)
+        composeTestRule.mainClock.autoAdvance = true
+        composeTestRule.waitForIdle()
 
         assertEquals(GroupDownload.YES, container.groupDownloads.choices.value["album:a"])
         composeTestRule.onNodeWithTag(GROUP_DOWNLOAD_YES_TAG).assertDoesNotExist()

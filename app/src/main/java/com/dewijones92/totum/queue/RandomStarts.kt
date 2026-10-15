@@ -32,11 +32,22 @@ class RandomStarts(
 
     private val pending = ConcurrentHashMap(load())
 
-    fun assign(items: List<MediaItem>, why: String) {
+    fun assign(items: List<MediaItem>, why: String, atRandom: Boolean) {
+        if (!atRandom) {
+            items.forEach { pending[it.id] = 0L }
+            Diag.log("shuffle", "starts from the top for $why: ${items.size} item(s) play from 0:00 once")
+            save()
+            return
+        }
         var withoutDuration = 0
         items.forEach { item ->
             val start = item.duration?.inWholeMilliseconds?.let { randomStartMs(it, random) }
-            if (start == null) withoutDuration++ else pending[item.id] = start
+            if (start == null) {
+                withoutDuration++
+                pending.remove(item.id)
+            } else {
+                pending[item.id] = start
+            }
         }
         Diag.log(
             "shuffle",
@@ -50,13 +61,20 @@ class RandomStarts(
 
     override suspend fun resumePositionMs(itemId: MediaItemId): Long? {
         val start = pending[itemId] ?: return inner.resumePositionMs(itemId)
-        Diag.log("shuffle", "${itemId.value} starts at ${start}ms, a random point picked when it was shuffled")
+        Diag.log(
+            "shuffle",
+            if (start == 0L) {
+                "${itemId.value} starts from the top: it was shuffled without random starts"
+            } else {
+                "${itemId.value} starts at ${start}ms, a random point picked when it was shuffled"
+            },
+        )
         return start
     }
 
     override suspend fun save(itemId: MediaItemId, positionMs: Long, durationMs: Long?, chosen: Chosen) {
         pending.remove(itemId)?.let {
-            Diag.log("shuffle", "${itemId.value} has played from its random start; it resumes as usual from now on")
+            Diag.log("shuffle", "${itemId.value} has played from its shuffle start; it resumes as usual from now on")
             save()
         }
         inner.save(itemId, positionMs, durationMs, chosen)

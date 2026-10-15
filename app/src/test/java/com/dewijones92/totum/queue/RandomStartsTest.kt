@@ -51,7 +51,7 @@ class RandomStartsTest {
     @Test
     fun `reading a random start does not use it up, so arming the next item cannot lose it`() = runTest {
         val starts = RandomStarts(saved, null, backgroundScope, Random(3))
-        starts.assign(listOf(item("a", 10.minutes), item("b", null)), "test")
+        starts.assign(listOf(item("a", 10.minutes), item("b", null)), "test", atRandom = true)
 
         val armed = starts.resumePositionMs(MediaItemId("a"))
         val played = starts.resumePositionMs(MediaItemId("a"))
@@ -64,7 +64,7 @@ class RandomStartsTest {
     @Test
     fun `once the item has played and saved its place, it resumes as usual`() = runTest {
         val starts = RandomStarts(saved, null, backgroundScope, Random(3))
-        starts.assign(listOf(item("a", 10.minutes)), "test")
+        starts.assign(listOf(item("a", 10.minutes)), "test", atRandom = true)
 
         starts.save(MediaItemId("a"), 120_000, 600_000, Chosen.NO)
 
@@ -74,7 +74,7 @@ class RandomStartsTest {
     @Test
     fun `a random start is forgotten when its item leaves the queue`() = runTest {
         val starts = RandomStarts(saved, null, backgroundScope, Random(3))
-        starts.assign(listOf(item("a", 10.minutes), item("b", 10.minutes)), "test")
+        starts.assign(listOf(item("a", 10.minutes), item("b", 10.minutes)), "test", atRandom = true)
 
         starts.keepOnly(setOf(MediaItemId("b")))
 
@@ -87,10 +87,31 @@ class RandomStartsTest {
         val file = temp.root.resolve("random-starts.txt")
         val io = UnconfinedTestDispatcher(testScheduler)
         val starts = RandomStarts(saved, file, backgroundScope, Random(5), io)
-        starts.assign(listOf(item("a", 10.minutes)), "test")
+        starts.assign(listOf(item("a", 10.minutes)), "test", atRandom = true)
         val picked = starts.peek(MediaItemId("a"))
 
         val again = RandomStarts(saved, file, backgroundScope, Random(5), io)
         assertEquals(picked, again.resumePositionMs(MediaItemId("a")))
+    }
+
+    @Test
+    fun `a shuffle without random starts plays each item from the top once, then resumes as usual`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("a", 10.minutes), item("b", null)), "test", atRandom = false)
+
+        assertEquals(0L, starts.resumePositionMs(MediaItemId("a")))
+        assertEquals("no duration still starts from the top", 0L, starts.resumePositionMs(MediaItemId("b")))
+
+        starts.save(MediaItemId("a"), 120_000, 600_000, Chosen.NO)
+        assertEquals(42_000L, starts.resumePositionMs(MediaItemId("a")))
+    }
+
+    @Test
+    fun `a later shuffle from the top replaces an earlier random start`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("a", 10.minutes)), "first", atRandom = true)
+        starts.assign(listOf(item("a", 10.minutes)), "second", atRandom = false)
+
+        assertEquals(0L, starts.resumePositionMs(MediaItemId("a")))
     }
 }

@@ -216,10 +216,9 @@ private fun rememberQueueActions(
             ask { startAtRandom ->
                 queue.shuffleGroup(id)
                 container.statsLog.use(UseKind.SHUFFLE, "inside a group")
-                if (startAtRandom) {
-                    val after = queue.state.value.let { it.entries.drop((it.currentIndex + 1).coerceAtLeast(0)) }
-                    container.randomStarts.assign(after.filter { it.group?.id == id }.map { it.item.item }, "group $id")
-                }
+                val after = queue.state.value.let { it.entries.drop((it.currentIndex + 1).coerceAtLeast(0)) }
+                val members = after.filter { it.group?.id == id }.map { it.item.item }
+                container.randomStarts.assign(members, "group $id", startAtRandom)
             }
         },
         groupDownloading = { groupChoices[it] == GroupDownload.YES },
@@ -229,7 +228,7 @@ private fun rememberQueueActions(
         onShuffleAndPlayGroup = { id ->
             ask { startAtRandom ->
                 queue.shuffleAndPlayGroup(id) { members ->
-                    if (startAtRandom) container.randomStarts.assign(members.map { it.item.item }, "group $id")
+                    container.randomStarts.assign(members.map { it.item.item }, "group $id", startAtRandom)
                 }
                 container.statsLog.use(UseKind.SHUFFLE, "shuffle and play a group")
             }

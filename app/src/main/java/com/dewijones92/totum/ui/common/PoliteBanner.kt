@@ -31,7 +31,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun PoliteBanner(politeness: Politeness, padStatusBar: Boolean, modifier: Modifier = Modifier) {
+fun PoliteBanner(politeness: Politeness, signedIn: Boolean, padStatusBar: Boolean, modifier: Modifier = Modifier) {
     val slowDown by politeness.gate.slowDown.collectAsStateWithLifecycle()
     val botUntil by politeness.botBackOff.until.collectAsStateWithLifecycle()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -46,8 +46,10 @@ fun PoliteBanner(politeness: Politeness, padStatusBar: Boolean, modifier: Modifi
     val (title, detail) = when {
         slow != null -> stringResource(R.string.polite_slow_down_title) to
             stringResource(R.string.polite_slow_down_detail, clock(slow.untilMs), slow.reason)
-        bot != null -> stringResource(R.string.polite_bot_title) to
+        bot != null && signedIn -> stringResource(R.string.polite_bot_title) to
             stringResource(R.string.polite_bot_detail, clock(bot))
+        bot != null -> stringResource(R.string.polite_bot_signed_out_title) to
+            stringResource(R.string.polite_bot_signed_out_detail)
         else -> return
     }
     Surface(
@@ -75,8 +77,10 @@ private const val REFRESH_MS = 15_000L
 @Composable
 fun ShellBanners(container: AppContainer) {
     val update by container.appUpdate.status.collectAsStateWithLifecycle()
+    val signedIn by container.accountSubscriptions.signedIn.collectAsStateWithLifecycle()
+    RefusedTapToasts(container.playbackQueue, signedIn)
     Column {
         OutOfDateBanner(container.appUpdate)
-        PoliteBanner(container.polite, padStatusBar = update !is UpdateStatus.OutOfDate)
+        PoliteBanner(container.polite, signedIn, padStatusBar = update !is UpdateStatus.OutOfDate)
     }
 }

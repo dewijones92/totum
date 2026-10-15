@@ -131,7 +131,7 @@ class ShuffleAll(
             )
             if (playable.isEmpty()) return ShuffleOutcome.Nothing
             val shuffled = playable.shuffled()
-            if (startAtRandom) randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"")
+            randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"", startAtRandom)
             queue.playAll(shuffled, QueueGroup(id = "shuffle:$key", title = title))
             stats?.use(UseKind.SHUFFLE, "shuffle all")
             recent?.record(

@@ -107,6 +107,8 @@ val LocalLongPressHeldElsewhere = compositionLocalOf<() -> Boolean> { { false } 
 data class BulkAction(
     @param:StringRes val label: Int,
     @param:PluralsRes val confirm: Int? = null,
+    val confirmCount: Int? = null,
+    val holdToConfirm: Boolean = false,
     val run: () -> Unit,
 )
 
@@ -242,8 +244,23 @@ private fun SelectionBar(
 }
 
 @Composable
-private fun ConfirmBulk(action: BulkAction, count: Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+private fun ConfirmBulk(action: BulkAction, selected: Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     val confirm = action.confirm ?: return
+    val count = action.confirmCount ?: selected
+    if (action.holdToConfirm) {
+        HoldToConfirmDialog(
+            texts = HoldToConfirmTexts(
+                title = null,
+                body = pluralStringResource(confirm, count, count),
+                yes = stringResource(action.label),
+                hint = stringResource(R.string.hold_to_download),
+                no = stringResource(R.string.group_download_no),
+            ),
+            onYes = onConfirm,
+            onNo = onDismiss,
+        )
+        return
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(action.label)) } },
@@ -274,7 +291,12 @@ fun mediaBulkActions(
                 BulkAction(R.string.queue_play_next) { a.queue(chosen, next = true) }.takeIf { queueing },
                 BulkAction(R.string.queue_add) { a.queue(chosen, next = false) }.takeIf { queueing },
                 BulkAction(R.string.playlist_add_to) { a.addToPlaylist(chosen) },
-                BulkAction(R.string.download) {
+                BulkAction(
+                    R.string.download,
+                    confirm = R.plurals.bulk_download_confirm,
+                    confirmCount = missing.size,
+                    holdToConfirm = true,
+                ) {
                     val upgrades = missing.count { downloads[it.id] is DownloadState.Downloaded }
                     Diag.log(
                         "select",

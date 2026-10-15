@@ -34,7 +34,9 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountViewModel.FailureReason
 import com.dewijones92.totum.ui.account.AccountViewModel.UiState
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.CopyableText
 import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.LinkText
 import com.dewijones92.totum.ui.settings.SettingsScreen
 
 /**
@@ -139,8 +141,9 @@ private fun ColumnScope.Pairing(code: UiState.AwaitingUser, onCancel: () -> Unit
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
         )
-        Text(
-            text = code.verificationUrl.value.removePrefix("https://"),
+        LinkText(
+            url = code.verificationUrl.value,
+            label = code.verificationUrl.value.removePrefix("https://"),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 16.dp),
         )
@@ -149,11 +152,13 @@ private fun ColumnScope.Pairing(code: UiState.AwaitingUser, onCancel: () -> Unit
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.padding(top = 16.dp),
         ) {
-            Text(
+            CopyableText(
                 text = code.userCode,
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                what = stringResource(R.string.account_code_noun),
+                style = MaterialTheme.typography.displaySmall.copy(
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                modifier = Modifier.padding(start = 24.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
             )
         }
         Text(

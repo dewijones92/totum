@@ -40,6 +40,8 @@ import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.HoldToConfirmAsk
+import com.dewijones92.totum.ui.common.HoldToConfirmTexts
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -47,6 +49,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.TrackLikeHeart
+import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 
 @Composable
@@ -70,8 +73,9 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
                 item {
                     val save = rememberAlbumSave(container.musicFavourites, container.applicationScope, current.album)
                     val ask = rememberShuffleAsk()
+                    val downloadAsk = rememberHoldToConfirmAsk()
                     MusicButtons(
-                        albumButtons(current.album, viewModel, context, offline, ask) +
+                        albumButtons(current.album, viewModel, context, offline, AlbumAsks(ask, downloadAsk)) +
                             listOfNotNull(save?.saveButton()) +
                             pinButtons(current.album.asPin()),
                     )
@@ -145,21 +149,24 @@ private fun albumButtons(
     viewModel: MusicAlbumViewModel,
     context: Context,
     offline: OfflineCount,
-    ask: ShuffleAsk,
+    asks: AlbumAsks,
 ): List<MusicButton> =
     listOfNotNull(
         MusicButton(R.string.music_play, Icons.Filled.PlayArrow, primary = true) {
             viewModel.play()
             toast(context, context.getString(R.string.music_album_queued, album.title))
         },
-        MusicButton(R.string.music_shuffle, Icons.Filled.Shuffle) { ask { viewModel.shuffle(it) } },
+        MusicButton(R.string.music_shuffle, Icons.Filled.Shuffle) { asks.shuffle { viewModel.shuffle(it) } },
         MusicButton(R.string.music_add_to_end, Icons.AutoMirrored.Filled.QueueMusic) {
             viewModel.addToEnd()
             toast(context, context.getString(R.string.music_album_added, album.title))
         },
         MusicButton(R.string.music_download_album, Icons.Outlined.Download) {
-            val count = viewModel.download()
-            toast(context, context.resources.getQuantityString(R.plurals.music_album_downloading, count, count))
+            val toFetch = (offline.total - offline.downloaded - offline.inProgress).takeIf { it > 0 } ?: offline.total
+            asks.download(albumDownloadTexts(context, toFetch, album.title)) {
+                val count = viewModel.download()
+                toast(context, context.resources.getQuantityString(R.plurals.music_album_downloading, count, count))
+            }
         }.takeIf { !offline.complete },
         album.radio?.let {
             MusicButton(R.string.music_radio, Icons.Outlined.Radio) {
@@ -192,3 +199,13 @@ internal fun toast(context: Context, message: String) {
 }
 
 private val ART_SIZE = 132.dp
+
+private class AlbumAsks(val shuffle: ShuffleAsk, val download: HoldToConfirmAsk)
+
+private fun albumDownloadTexts(context: Context, count: Int, title: String) = HoldToConfirmTexts(
+    title = null,
+    body = context.resources.getQuantityString(R.plurals.album_download_confirm, count, count, title),
+    yes = context.getString(R.string.music_download_album),
+    hint = context.getString(R.string.hold_to_download),
+    no = context.getString(R.string.group_download_no),
+)

@@ -71,7 +71,7 @@ class ArtistShuffle(
         if (walk.songs.isEmpty()) return 0
         val source = MusicSources.artist(target.listing.browseId)
         val shuffled = walk.songs.shuffled(random).map { it.toPlayable(source) }
-        if (startAtRandom) randomStarts?.assign(shuffled.map { it.item }, "all songs of \"${target.artist}\"")
+        randomStarts?.assign(shuffled.map { it.item }, "all songs of \"${target.artist}\"", startAtRandom)
         queue.playAll(
             shuffled,
             QueueGroup("artist-all:${target.listing.browseId}", "${target.artist} · All songs"),

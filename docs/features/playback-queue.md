@@ -121,3 +121,10 @@ has groups. Jumping expands the playing item's group if it is collapsed, scrolls
 the row by its key. The collapsed set now lives above the header, so the toggle and the list share it.
 Logged: `jumped to the playing item (…): estimate N, found at M`. Tests: `EstimatedListIndexTest`. Verified on
 `totum-api35` with a 12-item queue on item 10: the tab opened on "Now playing".
+
+## A tap that cannot play says so (2026-10-15)
+
+A queue tap, play now or play all that cannot start shows a toast: ❌ Couldn't play "X": not downloaded and no
+network / its stream will not play / YouTube gave no stream (signed out: "signing in usually fixes this"). An
+automatic advance or a gapless adoption stays quiet. `PlaybackQueue.refusedTaps`, shown by `RefusedTapToasts`.
+Test: `ARefusedTapSaysSoTest`.

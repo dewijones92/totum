@@ -2,7 +2,7 @@
 title: A group asks before it downloads
 kind: adr
 status: accepted
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # 45. A group asks before it downloads
@@ -30,6 +30,14 @@ chose to be asked for every group, whatever its size.
   this group**.
 - The offline banner and the report use the same rule (`GroupDownloads.fetchesAutomatically`); the report carries
   `downloads.groups` (each group's choice and size).
+
+## Update, 2026-10-15: yes is held, no is one tap
+
+Dewi: *"I want the yes … to be difficult to press and the no to be really obvious"*, for every download ask. The
+group ask, a multi-select **Download** and an album page's **Download** all use `HoldToConfirmDialog`: a big
+filled **Not now**, and **Download** as a `HoldToConfirmButton` that fills while held 1.5 s; a tap shows
+"⏳ Hold to download" and does nothing. Tests: `HoldToConfirmButtonTest`, `HoldToConfirmDialogTest`,
+`GroupDownloadAskTest` (device).
 
 ## Consequences
 

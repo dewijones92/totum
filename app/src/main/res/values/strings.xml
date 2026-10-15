@@ -20,6 +20,7 @@
     <string name="feed_url_label">Feed URL</string>
     <string name="subscribe">➕ Subscribe</string>
     <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
     <string name="latest_episodes">Latest episodes</string>
     <string name="duration_minutes">%1$d min</string>
     <string name="error_invalid_url">❌ That doesn\'t look like a valid URL.</string>
@@ -197,7 +198,7 @@
     <string name="queue_removed">🗑️ Removed from the queue</string>
     <string name="queue_undo">Undo</string>
     <string name="shorts_title">Shorts</string>
-    <string name="shorts_empty">No Shorts in this feed</string>
+    <string name="shorts_empty">📭 No Shorts in this feed</string>
     <string name="skip_silence">Skip silences</string>
     <string name="auto_play_next">Auto-play next</string>
     <!-- Says "about a minute" because that is measured, not cautious: YouTube stops serving
@@ -295,7 +296,7 @@
     <string name="library_storage">Using %1$s</string>
     <string name="library_storage_with_free">Using %1$s · %2$s free</string>
     <string name="settings_skip_section">Skip in videos</string>
-    <string name="settings_skip_supporting">SponsorBlock segments to jump, both while playing and when downloading.</string>
+    <string name="settings_skip_supporting">SponsorBlock segments to jump while playing, downloaded copies included.</string>
     <string name="skip_sponsor">Sponsor</string>
     <string name="skip_self_promo">Self-promotion</string>
     <string name="skip_interaction">Subscribe reminders</string>
@@ -618,6 +619,27 @@
     <string name="queue_jump_to_playing">Jump to what\'s playing</string>
     <string name="queue_collapse_all">Collapse all groups</string>
     <string name="queue_expand_all">Expand all groups</string>
+    <string name="copied">✅ Copied the %1$s</string>
+    <string name="copy_what">Copy the %1$s</string>
+    <string name="account_code_noun">sign-in code</string>
+    <string name="details_copy_id">id</string>
+    <string name="version_noun">version</string>
+    <string name="refused_tap">❌ Couldn\'t play “%1$s”: %2$s</string>
+    <string name="refused_offline">it is not downloaded and there is no network</string>
+    <string name="refused_stream">its stream will not play and there is no copy on disk</string>
+    <string name="refused_nothing">there is nothing to play</string>
+    <string name="refused_no_stream">YouTube gave no stream for it</string>
+    <string name="refused_no_stream_signed_out">YouTube gave no stream for it. Signing in usually fixes this: Library → Account</string>
+    <string name="details_copy_link">link</string>
+    <string name="hold_to_download">⏳ Hold to download</string>
+    <plurals name="bulk_download_confirm">
+        <item quantity="one">Download 1 item for offline?</item>
+        <item quantity="other">Download %1$d items for offline?</item>
+    </plurals>
+    <plurals name="album_download_confirm">
+        <item quantity="one">Download 1 song of “%2$s” for offline?</item>
+        <item quantity="other">Download %1$d songs of “%2$s” for offline?</item>
+    </plurals>
     <string name="drive_backup_section">Backup</string>
     <string name="drive_backup_title">☁️ Google Drive backup</string>
     <string name="drive_backup_not_set_up">📭 Not set up: your library lives only on this phone</string>
@@ -656,6 +678,8 @@
     <string name="polite_slow_down_detail">Every YouTube call waits until %1$s (%2$s)</string>
     <string name="polite_bot_title">🤖 YouTube bot check</string>
     <string name="polite_bot_detail">Playing as your account; anonymous YouTube waits until %1$s</string>
+    <string name="polite_bot_signed_out_title">🤖 YouTube is blocking this network</string>
+    <string name="polite_bot_signed_out_detail">YouTube will not play here until you sign in: Library → Account → Sign in</string>
     <string name="out_of_date_detail">🆕 You\'re on v%1$s. v%2$s is out.</string>
     <string name="out_of_date_update">Update</string>
     <string name="dailyalarm_set_today">Set for today</string>

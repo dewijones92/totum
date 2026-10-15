@@ -115,7 +115,7 @@ class MusicAlbumViewModel(
         val loaded = _state.value as? State.Loaded ?: return
         Diag.log("music", "shuffle album \"${loaded.album.title}\": ${loaded.tracks.size} inserted after current")
         val shuffled = loaded.playables().shuffled()
-        if (startAtRandom) randomStarts?.assign(shuffled.map { it.item }, "album \"${loaded.album.title}\"")
+        randomStarts?.assign(shuffled.map { it.item }, "album \"${loaded.album.title}\"", startAtRandom)
         queue.playAll(shuffled, loaded.group())
         stats?.use(UseKind.SHUFFLE, "album")
         loaded.remember(shuffled = true)

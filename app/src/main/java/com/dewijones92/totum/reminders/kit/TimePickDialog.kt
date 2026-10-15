@@ -9,6 +9,8 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.dewijones92.totum.R
 import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -24,9 +26,9 @@ fun TimePickDialog(title: String, initial: LocalTime, onPick: (LocalTime) -> Uni
                 onClick = { onPick(LocalTime.of(state.hour, state.minute)) },
                 modifier = Modifier.testTag("time-picker-ok")
             ) {
-                Text("OK")
+                Text(stringResource(R.string.ok))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
