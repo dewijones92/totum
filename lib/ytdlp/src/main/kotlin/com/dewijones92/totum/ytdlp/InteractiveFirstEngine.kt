@@ -54,6 +54,9 @@ public class InteractiveFirstEngine(
     override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
         asInteractive { delegate.solveSignatures(challenges, playerUrl) }
 
+    override suspend fun mergeStreams(video: java.io.File, audio: java.io.File, output: java.io.File): String? =
+        delegate.mergeStreams(video, audio, output)
+
     /**
      * Waits for interactive work to finish, then downloads.
      *

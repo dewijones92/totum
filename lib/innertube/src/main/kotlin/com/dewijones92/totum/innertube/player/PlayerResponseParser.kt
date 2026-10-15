@@ -134,13 +134,14 @@ public object PlayerResponseParser {
             itag = itag,
             mimeType = stringAt("mimeType"),
             height = this["height"]?.jsonPrimitive?.longOrNull?.toInt(),
+            width = this["width"]?.jsonPrimitive?.longOrNull?.toInt(),
             bitrate = this["bitrate"]?.jsonPrimitive?.longOrNull,
             url = stringAt("url")?.let(HttpUrl::parse),
             lastModified = stringAt("lastModified")?.toLongOrNull(),
             xtags = stringAt("xtags"),
             fps = this["fps"]?.jsonPrimitive?.longOrNull?.toInt(),
             contentLength = stringAt("contentLength")?.toLongOrNull(),
-            cipher = stringAt("signatureCipher")?.let(::signatureCipher),
+            cipher = stringAt("signatureCipher")?.takeIf { stringAt("url") == null }?.let(::signatureCipher),
         )
     }
 

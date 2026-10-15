@@ -54,6 +54,9 @@ class BusyYtDlpEngine(private val delegate: YtDlpEngine) : YtDlpEngine {
     override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
         Busy.during("preparing video") { delegate.solveSignatures(challenges, playerUrl) }
 
+    override suspend fun mergeStreams(video: java.io.File, audio: java.io.File, output: java.io.File): String? =
+        delegate.mergeStreams(video, audio, output)
+
     override fun download(request: DownloadRequest): Flow<DownloadEvent> = delegate.download(request)
 
     private companion object {

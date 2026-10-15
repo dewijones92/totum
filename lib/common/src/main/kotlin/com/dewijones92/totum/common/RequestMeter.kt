@@ -3,7 +3,6 @@ package com.dewijones92.totum.common
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
 
-/** How chatty the app is with each host over the last hour, for diagnostics: calls, 429s and other refusals. */
 public class RequestMeter(private val now: () -> Long = System::currentTimeMillis) {
     private val calls = ConcurrentHashMap<String, ConcurrentLinkedDeque<Pair<Long, Int>>>()
 
@@ -16,6 +15,8 @@ public class RequestMeter(private val now: () -> Long = System::currentTimeMilli
 
     public fun lastHour(): Map<String, String> {
         val since = now() - HOUR_MS
+        calls.values.forEach { log -> while ((log.peekFirst()?.first ?: since) < since) log.pollFirst() }
+        calls.entries.removeIf { it.value.isEmpty() }
         return calls.entries.associate { (host, log) ->
             val recent = log.filter { it.first >= since }
             host to "${recent.size} call(s), ${recent.count { it.second == HTTP_TOO_MANY }} 429, " +

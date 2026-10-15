@@ -50,7 +50,6 @@ fun interface PlayerStreams {
      */
     suspend fun playerForSabr(videoId: String): PlayerResult.Success? = playerFor(videoId)
 
-    /** The signed-in account's answer alone, tried before yt-dlp (ADR 50); null when signed out or refused. */
     suspend fun signedInFor(videoId: String): PlayerResult.Success? = null
 }
 
@@ -109,15 +108,17 @@ class InnerTubePlayerStreams(
     private val accountMisses = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     override suspend fun signedInFor(videoId: String): PlayerResult.Success? {
+        val asked = preferAccount() && account != null && !askedTheAccountMomentsAgo(videoId, log = false)
         val answer = signedInFirst(videoId)
-        if (answer == null) accountMisses[videoId] = now() else accountMisses.remove(videoId)
+        accountMisses.entries.removeIf { now() - it.value > ACCOUNT_MISS_MEMORY_MS }
+        if (answer == null && asked) accountMisses[videoId] = now() else accountMisses.remove(videoId)
         return answer
     }
 
-    private fun askedTheAccountMomentsAgo(videoId: String): Boolean {
+    private fun askedTheAccountMomentsAgo(videoId: String, log: Boolean = true): Boolean {
         val at = accountMisses[videoId] ?: return false
-        if (now() - at > ACCOUNT_MISS_MEMORY_MS) return false.also { accountMisses.remove(videoId) }
-        Diag.log("resolve", "$videoId: the account gave nothing ${now() - at}ms ago; not asking it again")
+        if (now() - at > ACCOUNT_MISS_MEMORY_MS) return false
+        if (log) Diag.log("resolve", "$videoId: the account gave nothing ${now() - at}ms ago; not asking it again")
         return true
     }
 
@@ -281,7 +282,10 @@ class InnerTubePlayerStreams(
  * carries only a mime type), so a shared function would be a shared function with two
  * disjoint halves. What IS shared is [VideoQuality], which is the part that matters.
  */
-internal fun StreamingData.videoQualities(wanted: List<String> = emptyList()): List<VideoQuality> {
+internal fun StreamingData.videoQualities(
+    wanted: List<String> = emptyList(),
+    support: VideoCodecSupport = VideoCodecSupport.Permissive,
+): List<VideoQuality> {
     val audio = bestAudioFormat(wanted)
     val byAudio = audioLanguagePreference(wanted)
     // The bar every height has to clear: the best sound anywhere on this video, muxed streams
@@ -294,12 +298,18 @@ internal fun StreamingData.videoQualities(wanted: List<String> = emptyList()): L
 
     return directlyPlayable
         .filter { it.height != null && it.mimeType?.startsWith("video/") == true }
+        .filter { support.canDecode(it.videoCodec, it.width, it.height) }
         .groupBy { it.height!! }
         .mapNotNull { (height, atHeight) ->
             // A muxed stream needs no merge, so prefer it — but only while its sound is what you
             // asked for; otherwise pair video with the best audio, exactly as the yt-dlp path does.
             val muxed = atHeight.filter { it.carriesSound }.bestSounding(wanted)
-            val videoOnly = atHeight.filterNot { it.carriesSound }.maxByOrNull { it.bitrate ?: 0 }
+            val videoOnly = atHeight.filterNot { it.carriesSound }.sortedWith(
+                compareBy<PlayableFormat> {
+                    it.videoCodec.codecPreference(support.isHardware(it.videoCodec, it.width, it.height))
+                }
+                    .thenByDescending { it.bitrate ?: 0 },
+            ).firstOrNull()
             when {
                 muxed != null && byAudio.compare(muxed.audioTag, bestSound) >= 0 ->
                     muxed.url?.let { quality(height, it, audioUrl = null, audio = muxed.audioTag) }
@@ -316,6 +326,11 @@ internal fun StreamingData.videoQualities(wanted: List<String> = emptyList()): L
 }
 
 /** Whether this format carries audio at all: an audio-only track, or a muxed stream. */
+internal val PlayableFormat.videoCodec: String?
+    get() = CODECS.find(mimeType.orEmpty())?.groupValues?.get(1)?.substringBefore(',')?.trim()
+
+private val CODECS = Regex("""codecs="([^"]+)"""")
+
 private val PlayableFormat.carriesSound: Boolean
     get() = mimeType?.startsWith("audio/") == true || mimeType?.contains("mp4a") == true
 
@@ -357,4 +372,4 @@ private fun PlayerResult?.reasonForLog(): String = when (this) {
     null -> "no answer"
 }
 
-private const val ACCOUNT_MISS_MEMORY_MS = 120_000L
+private const val ACCOUNT_MISS_MEMORY_MS = 20_000L

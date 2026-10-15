@@ -21,6 +21,13 @@ class DownloadFailureTest {
     }
 
     @Test
+    fun `a bot check sends the download to the signed-in route`() {
+        val botCheck = failed("ERROR: [youtube] C6pdB9oikdo: Sign in to confirm you’re not a bot. Use --cookies")
+        assertTrue(botCheck.deservesAnotherRoute)
+        assertTrue(failed("anonymous YouTube is backing off after a bot check").deservesAnotherRoute)
+    }
+
+    @Test
     fun `age-gated is permanent — an unattended retry cannot sign in`() {
         assertTrue(failed("ERROR: Sign in to confirm your age").isPermanent)
     }

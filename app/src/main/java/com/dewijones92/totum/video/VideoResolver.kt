@@ -207,7 +207,8 @@ class VideoResolver(
         fromStore(watchUrl, asked)?.let { return it }
         val startedAt = now()
         overSabr(watchUrl, sourceId, asked, startedAt)?.let { return it }
-        // Extraction FIRST, and the player response only as a fallback. Asking YouTube first was
+        // Signed in, the account answers first (ADR 50). Otherwise extraction, with the anonymous player
+        // response only as a fallback. Asking YouTube first was
         // tried and reverted on the evidence of report 0.1.312, which measured it on a real
         // phone rather than the emulator where it looked wonderful:
         //
@@ -424,7 +425,7 @@ class VideoResolver(
         // has already succeeded. Caught here after a test proved it could.
         val streams = runCatching { fallback.playerFor(id) }.getOrNull()?.streaming
             ?: return qualities.also { reportIfDegraded(id, it) }
-        return servedLadderOr(id, qualities, best, streams.videoQualities(wanted))
+        return servedLadderOr(id, qualities, best, streams.videoQualities(wanted, codecSupport))
     }
 
     private suspend fun servedLadderOr(
@@ -536,7 +537,7 @@ class VideoResolver(
         // yt-dlp ladder, and this ladder IS YouTube's answer. Routing it through anyway fetched
         // the same player response a second time on every single play — caught by a test
         // asserting one fetch and seeing two.
-        val qualities = response.streaming.videoQualities(wanted)
+        val qualities = response.streaming.videoQualities(wanted, codecSupport)
         Vitals.add("resolve.successes")
         Diag.log(
             "resolve",
@@ -681,7 +682,7 @@ class VideoResolver(
         val wanted = wantedAudio(chosen = null)
         val prepared = SabrResolve.prepare(id, response.streaming, response.details, wanted, response.client)
             ?: return null
-        val qualities = response.streaming.videoQualities(wanted)
+        val qualities = response.streaming.videoQualities(wanted, codecSupport)
         Vitals.add("resolve.sabrSuccesses")
         Diag.log(
             "resolve",

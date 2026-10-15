@@ -14,9 +14,17 @@ class BotBackOffTest {
     fun `each bot check doubles the pause, up to an hour`() {
         val minutes = (1..8).map {
             backOff.refused("v$it")
-            (backOff.until.value!! - clock) / 60_000
+            val m = (backOff.until.value!! - clock) / 60_000
+            clock = backOff.until.value!! + 1
+            m
         }
         assertEquals(listOf(1L, 2, 4, 8, 16, 32, 60, 60), minutes)
+    }
+
+    @Test
+    fun `several refusals during one back-off escalate it once`() {
+        repeat(4) { backOff.refused("v$it") }
+        assertEquals(60_000L, backOff.until.value!! - clock)
     }
 
     @Test

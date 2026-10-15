@@ -37,6 +37,9 @@ class PoliteInterceptor(
         return gate.pass(what) { chain.proceed(request) }.also {
             meter.record(host, it.code)
             if (it.isSuccessful) gate.served()
+            if (it.code == HTTP_TOO_MANY_REQUESTS) {
+                gate.tooManyRequests(what, it.header("Retry-After")?.toLongOrNull()?.times(MILLIS_PER_SECOND))
+            }
         }
     }
 

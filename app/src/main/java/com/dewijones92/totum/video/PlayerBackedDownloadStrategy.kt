@@ -41,6 +41,9 @@ class PlayerBackedDownloadStrategy(
     private val resolveAudioUrl: suspend (PlayableItem) -> HttpUrl?,
     /** Plain-HTTP fetch, so an ordinary URL is not downloaded twice in two ways. */
     private val http: DownloadStrategy,
+    private val resolveVideo: suspend (PlayableItem) -> VideoQuality? = { null },
+    private val fetch: RangedFetch? = null,
+    private val merge: suspend (File, File, File) -> String? = { _, _, _ -> "no merger" },
 ) : DownloadStrategy {
 
     override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> = flow {
@@ -48,6 +51,7 @@ class PlayerBackedDownloadStrategy(
             emit(DownloadState.Failed("only a video can be fetched through the player"))
             return@flow
         }
+        if (!audioOnly && bothStreams(item, target) { emit(it) }) return@flow
         val url = resolveAudioUrl(item)
         if (url == null) {
             // Named, because "the signed-in path also failed" and "the signed-in path never ran"
@@ -70,6 +74,61 @@ class PlayerBackedDownloadStrategy(
         }
         emitAll(sabrBytes(stream, item, target))
     }.flowOn(Dispatchers.IO)
+
+    private suspend fun bothStreams(item: PlayableItem, target: File, emit: suspend (DownloadState) -> Unit): Boolean {
+        val fetch = fetch ?: return false
+        val quality = resolveVideo(item) ?: run {
+            Diag.log(
+                "download",
+                "\"${item.item.title}\": the signed-in path gave no video stream; fetching the sound only",
+            )
+            return false
+        }
+        val work = File(
+            target.parentFile,
+            "${target.nameWithoutExtension}.parts"
+        ).apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        try {
+            val audioUrl = quality.audioUrl
+            val video = File(work, "video")
+            val audio = File(work, "audio")
+            val total = listOfNotNull(
+                RangedFetch.lengthOf(quality.videoUrl),
+                audioUrl?.let(RangedFetch::lengthOf)
+            ).sum()
+            Diag.log(
+                "download",
+                "\"${item.item.title}\" as ${quality.label} video + audio through the signed-in path (${total}B, " +
+                    "${if (audioUrl == null) "one muxed stream" else "two streams to merge"})",
+            )
+            val expected = total.takeIf { it > 0 }
+            emit(DownloadState.Downloading(0, expected))
+            val why = fetch.fetch(quality.videoUrl, video) { emit(DownloadState.Downloading(it, expected)) }
+                ?: audioUrl?.let { url ->
+                    val videoBytes = video.length()
+                    fetch.fetch(url, audio) { emit(DownloadState.Downloading(videoBytes + it, expected)) }
+                }
+                ?: if (audioUrl == null) null else merge(video, audio, File(work, "merged"))
+            if (why != null) {
+                Diag.warn("download", "\"${item.item.title}\" video + audio failed ($why); fetching the sound only")
+                return false
+            }
+            val result = if (audioUrl == null) video else File(work, "merged")
+            target.delete()
+            if (!result.renameTo(target)) result.copyTo(target, overwrite = true)
+            Diag.log(
+                "download",
+                "\"${item.item.title}\" downloaded as ${quality.label} video + audio (${target.length()}B)"
+            )
+            emit(DownloadState.Downloaded(target.absolutePath, audioOnly = false))
+            return true
+        } finally {
+            work.deleteRecursively()
+        }
+    }
 
     // A function rather than the call inline: Android lint does not follow an opt-in into a
     // lambda, and `download` builds its work inside `flow { }`. Same workaround as PlaybackService.

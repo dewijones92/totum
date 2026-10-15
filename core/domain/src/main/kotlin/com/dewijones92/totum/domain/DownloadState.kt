@@ -93,6 +93,8 @@ private val REFUSAL_MARKERS = listOf(
     "forbidden",
     "410",
     ": gone",
+    "not a bot",
+    "bot check",
 )
 
 /**

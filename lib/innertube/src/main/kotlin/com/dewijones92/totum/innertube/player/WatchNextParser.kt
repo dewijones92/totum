@@ -6,7 +6,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 
-/** What the TV watch page says a video is, for a signed-in TV `/player` answer that carries no title. */
 public data class WatchNextDetails(val title: String, val author: String?, val channelId: String?)
 
 public object WatchNextParser {

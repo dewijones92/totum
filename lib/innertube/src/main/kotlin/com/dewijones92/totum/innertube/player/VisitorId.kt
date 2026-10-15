@@ -25,7 +25,6 @@ public fun interface VisitorIdSource {
  * embedded player wants a visitor id in its context, and SmartTube fetches exactly this before its first
  * player call (captured 2026-09-06). One per process: a visitor is a session, not a per-video fact.
  */
-/** Keeps one visitor id for the install, so YouTube sees the same visitor across restarts. */
 public interface VisitorIdStore {
     public fun load(): String?
     public fun save(id: String)

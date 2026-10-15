@@ -17,6 +17,7 @@ class Politeness(
         val slow = gate.slowDown.value
         put("polite.slowDown", slow?.let { "until ${Instant.ofEpochMilli(it.untilMs)} (${it.reason})" } ?: "none")
         put("polite.botBackOff", botBackOff.until.value?.let { "until ${Instant.ofEpochMilli(it)}" } ?: "none")
+        putAll(gate.diagnostics())
         meter.lastHour().forEach { (host, line) -> put("polite.lastHour.$host", line) }
     }
 }

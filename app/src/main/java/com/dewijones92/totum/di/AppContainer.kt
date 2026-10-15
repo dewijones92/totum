@@ -195,11 +195,13 @@ import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
 import com.dewijones92.totum.video.ProgressOutboxDrain
+import com.dewijones92.totum.video.RangedFetch
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.SignedInTvPlayer
 import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.StreamStatus
 import com.dewijones92.totum.video.VideoPlaybackLauncher
+import com.dewijones92.totum.video.VideoQuality
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.WatchHistorySync
 import com.dewijones92.totum.ytdlp.InteractiveFirstEngine
@@ -710,6 +712,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                         // handed a different audio format each time, so continuing a part-fetched
                         // file would splice two formats into one that never plays.
                         http = HttpDownloadStrategy(transferClient, resumable = false),
+                        resolveVideo = signedInVideo(videoResolver),
+                        fetch = RangedFetch(transferClient),
+                        merge = ytDlpEngine::mergeStreams,
                     ),
                     // The named domain rule, not a lambda spelled out here. This used to read
                     // `{ it.isPermanent }`, which withheld the second route from every 403 — and on
@@ -1570,8 +1575,19 @@ private fun solvingChallenges(
 private fun politeEngine(context: Context, updateDir: File, polite: Politeness): YtDlpEngine =
     BusyYtDlpEngine(
         PoliteYtDlpEngine(
-            InteractiveFirstEngine(ChaquopyYtDlpEngine(context, updateCacheDir = updateDir)),
+            InteractiveFirstEngine(
+                ChaquopyYtDlpEngine(context, dispatcher = ENGINE_THREADS, updateCacheDir = updateDir),
+            ),
             polite.gate,
             polite.botBackOff,
         ),
     )
+
+private fun signedInVideo(resolver: VideoResolver): suspend (PlayableItem) -> VideoQuality? = { item ->
+    (item.handle as? PlayHandle.Video)?.let { handle ->
+        resolver.resolve(handle.watchUrl, item.item.sourceId, asked = "download")?.qualities?.firstOrNull()
+    }
+}
+
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+private val ENGINE_THREADS = kotlinx.coroutines.Dispatchers.IO.limitedParallelism(16)

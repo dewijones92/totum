@@ -1,15 +1,13 @@
 package com.dewijones92.totum.common
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.runInterruptible
 import java.util.concurrent.Semaphore
 import kotlin.math.min
 import kotlin.math.pow
 
-/** YouTube told us to slow down: until when, and what said so. */
 public data class SlowDown(val untilMs: Long, val reason: String)
 
 public class PoliteGate(
@@ -19,18 +17,29 @@ public class PoliteGate(
     private val now: () -> Long = System::currentTimeMillis,
     private val sleep: (Long) -> Unit = Thread::sleep,
     private val jitter: () -> Double = Math::random,
+    private val pause: suspend (Long) -> Unit = { delay(it) },
 ) {
     private val permits = Semaphore(maxInFlight, true)
     private val bucket = Any()
     private var tokens = burst.toDouble()
     private var refilledAt = now()
     private var level = 0
+    private var waitsSinceLog = 0
+    private var waitedSinceLogMs = 0L
+    private var loggedAt = 0L
     private val slowing = MutableStateFlow<SlowDown?>(null)
     public val slowDown: StateFlow<SlowDown?> = slowing.asStateFlow()
 
+    public val inFlight: Int get() = maxInFlight - permits.availablePermits()
+    public val queued: Int get() = permits.queueLength
+
     public fun <T> pass(what: String, block: () -> T): T {
-        enter(what)
+        val queuedAt = now()
+        permits.acquire()
         try {
+            val slotMs = now() - queuedAt
+            val waitedMs = waitOut(what) { sleep(it) }
+            noteWait(what, slotMs, waitedMs)
             return block()
         } finally {
             permits.release()
@@ -38,8 +47,12 @@ public class PoliteGate(
     }
 
     public suspend fun <T> passing(what: String, block: suspend () -> T): T {
-        runInterruptible(Dispatchers.IO) { enter(what) }
+        val queuedAt = now()
+        while (!permits.tryAcquire()) pause(SLOT_POLL_MS)
         try {
+            val slotMs = now() - queuedAt
+            val waitedMs = waitOutSuspending(what)
+            noteWait(what, slotMs, waitedMs)
             return block()
         } finally {
             permits.release()
@@ -47,19 +60,21 @@ public class PoliteGate(
     }
 
     public fun tooManyRequests(what: String, retryAfterMs: Long?) {
-        val waitMs = synchronized(bucket) {
-            val backOff = BASE_BACK_OFF_MS * 2.0.pow(level)
-            level = min(level + 1, MAX_LEVEL)
-            val jittered = (min(backOff, MAX_BACK_OFF_MS.toDouble()) * (1 + JITTER * (2 * jitter() - 1))).toLong()
-            maxOf(jittered, retryAfterMs ?: 0)
+        val (waitMs, until) = synchronized(bucket) {
+            val at = now()
+            val current = slowing.value?.untilMs?.takeIf { it > at }
+            if (current == null) level = min(level + 1, MAX_LEVEL)
+            val backOff = min(BASE_BACK_OFF_MS * 2.0.pow(level - 1), MAX_BACK_OFF_MS.toDouble())
+            val wait = maxOf((backOff * (1 + JITTER * (2 * jitter() - 1))).toLong(), retryAfterMs ?: 0)
+            val until = maxOf(current ?: 0, at + wait)
+            slowing.value = SlowDown(until, "HTTP 429 on $what")
+            wait to until
         }
-        val until = now() + waitMs
-        slowing.value = SlowDown(until, "HTTP 429 on $what")
         Vitals.add("polite.tooManyRequests")
         Diag.warn(
             "polite",
-            "YouTube said slow down (429) on $what; every YouTube call waits ${waitMs / MILLIS_PER_SECOND}s " +
-                "(level $level${retryAfterMs?.let { ", Retry-After ${it / MILLIS_PER_SECOND}s" }.orEmpty()})",
+            "YouTube said slow down (429) on $what; every YouTube call waits until ${until - now()}ms from now " +
+                "(level $level, this answer alone ${waitMs}ms${retryAfterMs?.let { ", Retry-After ${it}ms" }.orEmpty()})",
         )
     }
 
@@ -71,18 +86,49 @@ public class PoliteGate(
         Diag.log("polite", "YouTube is serving again after a slow-down; back-off reset")
     }
 
-    private fun enter(what: String) {
-        awaitSlowDown(what)
-        val queuedAt = now()
-        permits.acquire()
-        val waitedForSlot = now() - queuedAt
-        val waitedForRate = awaitToken()
-        noteWait(what, waitedForSlot, waitedForRate)
+    public fun diagnostics(): Map<String, String> = mapOf(
+        "polite.inFlight" to "$inFlight of $maxInFlight",
+        "polite.queued" to queued.toString(),
+        "polite.level" to synchronized(bucket) { level }.toString(),
+        "polite.waitsNotYetLogged" to synchronized(bucket) { "$waitsSinceLog call(s), ${waitedSinceLogMs}ms" },
+    )
+
+    private inline fun waitOut(what: String, wait: (Long) -> Unit): Long {
+        var waited = 0L
+        while (true) {
+            val ms = nextWait(what)
+            if (ms == 0L) return waited
+            wait(ms)
+            waited += ms
+        }
     }
 
-    private var waitsSinceLog = 0
-    private var waitedSinceLogMs = 0L
-    private var loggedAt = 0L
+    private suspend fun waitOutSuspending(what: String): Long {
+        var waited = 0L
+        while (true) {
+            val ms = nextWait(what)
+            if (ms == 0L) return waited
+            pause(ms)
+            waited += ms
+        }
+    }
+
+    private fun nextWait(what: String): Long = synchronized(bucket) {
+        val at = now()
+        slowing.value?.untilMs?.let { until ->
+            if (until > at) {
+                Diag.log("polite", "$what held ${until - at}ms: YouTube asked us to slow down")
+                return until - at
+            }
+        }
+        tokens = min(burst.toDouble(), tokens + (at - refilledAt) / MILLIS_PER_SECOND * perSecond)
+        refilledAt = at
+        if (tokens >= 1) {
+            tokens -= 1
+            return 0L
+        }
+        ((1 - tokens) / perSecond * MILLIS_PER_SECOND).toLong().coerceAtLeast(1)
+    }
 
     private fun noteWait(what: String, slotMs: Long, rateMs: Long) {
         Vitals.add("polite.calls")
@@ -102,32 +148,6 @@ public class PoliteGate(
         Diag.log("polite", summary)
     }
 
-    private fun awaitSlowDown(what: String) {
-        val until = slowing.value?.untilMs ?: return
-        val left = until - now()
-        if (left <= 0) return
-        Diag.log("polite", "$what held ${left / MILLIS_PER_SECOND}s: YouTube asked us to slow down")
-        sleep(left)
-    }
-
-    private fun awaitToken(): Long {
-        var waited = 0L
-        while (true) {
-            val pause = synchronized(bucket) {
-                val at = now()
-                tokens = min(burst.toDouble(), tokens + (at - refilledAt) / MILLIS_PER_SECOND.toDouble() * perSecond)
-                refilledAt = at
-                if (tokens >= 1) {
-                    tokens -= 1
-                    return waited
-                }
-                ((1 - tokens) / perSecond * MILLIS_PER_SECOND).toLong().coerceAtLeast(1)
-            }
-            sleep(pause)
-            waited += pause
-        }
-    }
-
     public companion object {
         public const val DEFAULT_IN_FLIGHT: Int = 4
         public const val DEFAULT_PER_SECOND: Double = 2.0
@@ -136,7 +156,8 @@ public class PoliteGate(
         private const val MAX_BACK_OFF_MS = 600_000L
         private const val MAX_LEVEL = 10
         private const val JITTER = 0.2
-        private const val MILLIS_PER_SECOND = 1000L
+        private const val MILLIS_PER_SECOND = 1000.0
         private const val SUMMARY_EVERY_MS = 60_000L
+        private const val SLOT_POLL_MS = 25L
     }
 }

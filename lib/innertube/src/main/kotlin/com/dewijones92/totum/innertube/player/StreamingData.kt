@@ -95,9 +95,9 @@ public data class PlayableFormat(
      */
     val contentLength: Long? = null,
     val cipher: SignatureCipher? = null,
+    val width: Int? = null,
 )
 
-/** A format YouTube hands out without a [PlayableFormat.url]: the link, and the signature to solve and append. */
 public data class SignatureCipher(val signature: String, val parameter: String, val url: HttpUrl)
 
 /**

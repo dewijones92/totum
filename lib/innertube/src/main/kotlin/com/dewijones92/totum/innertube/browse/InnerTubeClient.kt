@@ -225,7 +225,6 @@ public class InnerTubeClient(
     public suspend fun next(videoId: String): InnerTubeResponse =
         execute(nextUrl, webContext(""" "videoId":"$videoId" """), Identity.WEB)
 
-    /** The watch page as the signed-in TV client: title and channel for a TV `/player` answer that has none. */
     public suspend fun nextAsAccount(videoId: String, accessToken: AccessToken): InnerTubeResponse =
         execute(nextUrl, tvContext(""" "videoId":"$videoId" """), Identity.TV, accessToken)
 

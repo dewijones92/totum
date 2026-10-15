@@ -4,9 +4,13 @@ import com.dewijones92.totum.common.BotBackOff
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.ytdlp.ChannelResult
+import com.dewijones92.totum.ytdlp.DownloadEvent
+import com.dewijones92.totum.ytdlp.DownloadRequest
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 class PoliteYtDlpEngine(
     private val delegate: YtDlpEngine,
@@ -23,9 +27,17 @@ class PoliteYtDlpEngine(
         when {
             result is ExtractionResult.Success -> botBackOff.served(what)
             result.toString().contains("not a bot", ignoreCase = true) -> botBackOff.refused(what)
+            TOO_MANY.containsMatchIn(result.toString()) -> gate.tooManyRequests(what, retryAfterMs = null)
         }
         return result
     }
+
+    override fun download(request: DownloadRequest): Flow<DownloadEvent> =
+        if (botBackOff.allows("yt-dlp download")) {
+            delegate.download(request)
+        } else {
+            flowOf(DownloadEvent.Failed(ExtractionResult.Failure.Extractor(BACKING_OFF)))
+        }
 
     override suspend fun searchVideos(query: String, maxResults: Int): VideoSearchResult =
         gate.passing("yt-dlp search") { delegate.searchVideos(query, maxResults) }
@@ -36,5 +48,6 @@ class PoliteYtDlpEngine(
     companion object {
         const val BACKING_OFF = "anonymous YouTube is backing off after a bot check"
         private const val VIDEO_ID_LENGTH = 11
+        private val TOO_MANY = Regex("""HTTP Error 429|Too Many Requests""", RegexOption.IGNORE_CASE)
     }
 }

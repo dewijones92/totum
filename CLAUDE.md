@@ -488,7 +488,10 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   rolling APK, that silently leaves Obtainium without a build. If an old run
   failed spuriously (it happens — a run can complete with zero jobs, which is a
   GitHub scheduling fault, not a test failure), just let the newer commit prove
-  it: the tip is a superset. Learned 2026-07-25, at the cost of the Totum APK. Release signing key lives in
+  it: the tip is a superset. Learned 2026-07-25, at the cost of the Totum APK. A newer push cancels the older
+  run too, but the release is published as soon as the build job is done, so what gets cancelled is the later
+  instrumented tests, not the APK (2026-10-15: two "cancelled" runs had both released). Check
+  `gh release view <tag> --json targetCommitish` before concluding a fix did not ship. Release signing key lives in
   three places, never this repo: locally at `/home/dewi/code/dewiuniapp-signing/`,
   in this repo's Actions secrets (CI signing; write-only), and backed up in
   the PRIVATE repo `dewijones92/uniapp-signing-backup` (survives laptop

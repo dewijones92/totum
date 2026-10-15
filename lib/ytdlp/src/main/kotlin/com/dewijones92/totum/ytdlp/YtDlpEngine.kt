@@ -40,8 +40,10 @@ public interface YtDlpEngine {
      */
     public suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String>
 
-    /** As [solveN], for the `s` of a `signatureCipher`; each answer is appended as the cipher's `sp`. */
     public suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> = emptyMap()
+
+    public suspend fun mergeStreams(video: java.io.File, audio: java.io.File, output: java.io.File): String? =
+        "this engine has no ffmpeg"
 
     public suspend fun warmUp()
 
