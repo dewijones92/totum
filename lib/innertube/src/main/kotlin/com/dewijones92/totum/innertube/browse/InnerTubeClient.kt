@@ -168,6 +168,8 @@ public class InnerTubeClient(
      *
      * The URLs still carry an obfuscated `n` and 403 until it is solved — see
      * [com.dewijones92.totum.innertube.player.withSolvedN]. Resolving is not enough on its own.
+     * They also 403 unless the request is SmartTube's agent, the web-scale timestamp and
+     * `isInlinePlaybackNoAd` (ADR 49).
      */
     public suspend fun playerDowngradedTv(
         videoId: String,
@@ -179,7 +181,8 @@ public class InnerTubeClient(
             """"clientVersion":"$TV_DOWNGRADED_VERSION","hl":"en","gl":"GB"}},""" +
             """"videoId":"$videoId","contentCheckOk":true,"racyCheckOk":true,""" +
             """"playbackContext":{"contentPlaybackContext":""" +
-            """{"html5Preference":"HTML5_PREF_WANTS","signatureTimestamp":${signatureTimestamp.tv}}}}""",
+            """{"html5Preference":"HTML5_PREF_WANTS","isInlinePlaybackNoAd":true,""" +
+            """"signatureTimestamp":${signatureTimestamp.web}}}}""",
         Identity.TV,
         accessToken,
         clientHeaders = mapOf(
@@ -444,9 +447,9 @@ public class InnerTubeClient(
          */
         public const val TV_DOWNGRADED_VERSION: String = "5.20260707"
 
-        /** The stripped Cobalt agent that goes with [TV_DOWNGRADED_VERSION]. */
+        /** SmartTube's Cobalt agent (captured 2026-10-15); see docs/adr/0049-signed-in-tv-links-are-served.md. */
         public const val TV_DOWNGRADED_USER_AGENT: String =
-            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+            "Mozilla/5.0 (DirectFB; Linux x86_64) Cobalt/4.13031-qa (unlike Gecko) Starboard/1"
         public const val WEB_CLIENT_VERSION: String = "2.20240726.00.00"
 
         /** The embedded player as SmartTube 32.38 declares it (captured 2026-09-06). */

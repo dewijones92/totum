@@ -45,11 +45,15 @@ class PlayerTimestampScaleTest {
     }
 
     @Test
-    fun `the downgraded TV player declares the TV scale too`() = runBlocking {
+    fun `the downgraded TV player speaks as SmartTube's Cobalt, whose links YouTube serves`() = runBlocking {
         server.enqueue(ok())
         client.playerDowngradedTv("vid", stamp, token)
-        val body = bodySent()
-        assertTrue(body, body.contains(""""signatureTimestamp":20697001"""))
+        val request = server.takeRequest()
+        val body = request.body!!.utf8()
+        assertTrue(body, body.contains(""""signatureTimestamp":20697}"""))
+        assertTrue(body, body.contains(""""isInlinePlaybackNoAd":true"""))
+        assertEquals(InnerTubeClient.TV_DOWNGRADED_USER_AGENT, request.headers["User-Agent"])
+        assertTrue(InnerTubeClient.TV_DOWNGRADED_USER_AGENT.contains("Cobalt/4.13031-qa"))
     }
 
     @Test

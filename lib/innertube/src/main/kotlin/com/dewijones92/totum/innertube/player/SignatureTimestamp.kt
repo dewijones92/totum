@@ -34,6 +34,7 @@ public fun interface SignatureTimestampSource {
  * and every "TV /player is refused" probe. Found by capturing SmartTube on the emulator
  * (2026-09-06) and varying one field at a time; SmartTube's own source says the same
  * (`QueryBuilder.kt`: *"Web and TV timestamps now differs. TV one should have 001 suffix"*).
+ * Not for streams: the TV scale answers OK with links that all 403 (ADR 49).
  */
 @JvmInline
 public value class SignatureTimestamp(public val web: Int) {
