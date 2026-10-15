@@ -28,7 +28,7 @@ internal fun ItemActionSheet(
     val actions = LocalItemActions.current ?: return
     val readyAhead = LocalReadyAhead.current
     LaunchedEffect(item.id) { readyAhead(item) }
-    val local = LocalDownloadStates.current[item.id]
+    val local = downloadStateOf(item.id)
     val video = pillar == MediaKind.VIDEO
     ActionSheet(
         title = item.title,
@@ -52,7 +52,7 @@ internal fun ItemActionSheet(
         onMoveToTop = null,
         onMoveToBottom = null,
         onSetPlayed = { played -> actions.setPlayed(item.id, played) },
-        played = LocalPlayStates.current[item.id]?.isPlayed == true,
+        played = playStateOf(item.id).isPlayed,
         onDismiss = onDismiss,
         extras = sheetExtrasFor(
             item,

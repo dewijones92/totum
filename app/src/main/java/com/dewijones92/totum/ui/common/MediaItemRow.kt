@@ -99,7 +99,7 @@ fun MediaItemRow(
     onDownload: (() -> Unit)? = LocalItemActions.current.bind { download(item, audioOnly = false) },
     onDeleteDownload: (() -> Unit)? = LocalItemActions.current.bind { deleteDownload(item.id) },
     /** Defaults to the app-wide offline state, so no screen has to plumb it. */
-    downloadState: DownloadState = LocalDownloadStates.current[item.id] ?: DownloadState.NotDownloaded,
+    downloadState: DownloadState = downloadStateOf(item.id),
     // Everything an item can do defaults to the app-wide capability. A screen has to work
     // to REMOVE an action, never to remember one. Only genuinely contextual actions
     // (remove-from-playlist, move-within-queue) stay null, because they only exist somewhere.
@@ -126,7 +126,7 @@ fun MediaItemRow(
     /** True when the mode is audio, so the action reads "Watch with video" instead. */
     audioMode: Boolean = LocalItemActions.current?.audioMode == true,
     /** Defaults to the app-wide play state, so no screen has to plumb it. */
-    playState: PlayState = LocalPlayStates.current[item.id] ?: PlayState.Unplayed,
+    playState: PlayState = playStateOf(item.id),
     /** Marks the item played or unplayed by hand — AntennaPod's most-used action. */
     onSetPlayed: ((Boolean) -> Unit)? = LocalSetPlayed.current?.let { set -> { played -> set(item.id, played) } },
     /** Queue-only: jump this entry to the front / back of the up-next order. */

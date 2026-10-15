@@ -5,9 +5,11 @@ import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.innertube.music.RadioBatch
 import com.dewijones92.totum.innertube.music.RadioSeed
+import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicCatalogue.Companion.TOKEN
 import com.dewijones92.totum.playback.fake.FakePlaybackController
@@ -196,6 +198,48 @@ class MusicRadioTest {
         advanceUntilIdle()
 
         assertFalse(started)
+        assertTrue(rig.queue.state.value.entries.isEmpty())
+        rig.work.cancel()
+    }
+
+    private fun perSeed(byVideo: Map<String, MusicResult<RadioBatch>>) =
+        object : YouTubeMusicCatalogue by FakeYouTubeMusicCatalogue() {
+            val asked = mutableListOf<Pair<RadioSeed, String?>>()
+            override suspend fun radio(seed: RadioSeed, continuation: String?): MusicResult<RadioBatch> {
+                asked += seed to continuation
+                return byVideo[seed.videoId] ?: MusicResult.Failure("no radio")
+            }
+        }
+
+    @Test
+    fun `a mix plays the seeds' radios in turns as one radio, a failed seed left out, topped up`() = runTest {
+        val catalogue = perSeed(
+            mapOf(
+                "x" to MusicResult.Success(RadioBatch(listOf(song("x"), song("x1"), song("x2")), "${TOKEN}1")),
+                "y" to MusicResult.Success(RadioBatch(listOf(song("y"), song("x1"), song("y1")), null)),
+            ),
+        )
+        val rig = Rig(this, FakeYouTubeMusicCatalogue())
+        val radio = MusicRadio(catalogue, rig.queue, rig.work)
+
+        val started = radio.startMix(listOf("x" to "Ex", "y" to "Why", "z" to "Zed"))
+        advanceUntilIdle()
+
+        assertTrue(started)
+        val entries = rig.queue.state.value.entries
+        assertEquals(listOf("x", "y", "x1", "x2", "y1"), entries.map { it.item.item.id.value })
+        assertEquals("radio:mix:x+y+z", entries.first().group?.id)
+        assertEquals("Radio · Ex, Why + 1 more", entries.first().group?.title)
+        assertTrue(radio.describe().contains("continuation=yes"))
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `a mix where no seed gives a radio queues nothing`() = runTest {
+        val rig = Rig(this, FakeYouTubeMusicCatalogue())
+        val radio = MusicRadio(perSeed(emptyMap()), rig.queue, rig.work)
+
+        assertEquals(false, radio.startMix(listOf("x" to "Ex", "y" to "Why")))
         assertTrue(rig.queue.state.value.entries.isEmpty())
         rig.work.cancel()
     }

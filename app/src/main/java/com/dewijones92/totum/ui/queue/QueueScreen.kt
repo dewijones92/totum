@@ -26,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,7 +50,6 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.unavailableOfflineNow
-import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.GroupDestination
 import com.dewijones92.totum.queue.GroupDownload
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -68,6 +68,7 @@ import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
+import com.dewijones92.totum.ui.common.LocalDownloadStates
 import com.dewijones92.totum.ui.common.LocalLongPressHeldElsewhere
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.NoFilterMatches
@@ -76,10 +77,12 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.filter
+import com.dewijones92.totum.ui.common.rememberField
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.ReorderableLazyListState
@@ -96,8 +99,9 @@ import sh.calvin.reorderable.ReorderableLazyListState
 fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val queue = container.playbackQueue
     val snapshot by queue.state.collectAsStateWithLifecycle()
-    val downloads by container.downloadManager.observeDownloads().collectAsStateWithLifecycle(emptyMap())
-    val playing by container.playbackController.state.collectAsStateWithLifecycle()
+    val downloads = LocalDownloadStates.current.value
+    val isPlaying by container.playbackController.rememberField { it?.isPlaying == true }
+    val progress = container.playbackController.rememberField { it?.progress }
     val entries = snapshot.entries
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -146,8 +150,8 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 )
                 val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
-                    listFilter, entries, downloads, container, snapshot.currentIndex, playing, listState, reorder,
-                    actions,
+                    listFilter, entries, downloads, container, snapshot.currentIndex, isPlaying, progress, listState,
+                    reorder, actions,
                 )
             }
         }
@@ -301,7 +305,7 @@ private data class GroupCollapse(
 /** Where the cursor is and how far through that item playback has got. */
 private data class NowPlaying(
     val index: Int,
-    val progress: Float?,
+    val progress: State<Float?>,
     val isPlaying: Boolean,
     val startingId: MediaItemId? = null,
 )
@@ -402,7 +406,8 @@ private fun FilterableQueue(
     downloads: Map<MediaItemId, DownloadState>,
     container: AppContainer,
     currentIndex: Int,
-    playing: PlaybackState?,
+    isPlaying: Boolean,
+    progress: State<Float?>,
     listState: LazyListState,
     reorder: ReorderableLazyListState,
     actions: QueueActions,
@@ -411,7 +416,7 @@ private fun FilterableQueue(
     val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
     val availability = QueueAvailability(downloads, container.isOffline())
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
-    val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true, starting?.id)
+    val nowPlaying = NowPlaying(currentIndex, progress, isPlaying, starting?.id)
     FilterField(listFilter, matches.size, entries.size, hosted = true)
     SelectableMediaList(
         "queue",
@@ -576,7 +581,8 @@ private fun QueueHeader(
  * rather than a list that happens to have one row highlighted.
  */
 @Composable
-private fun NowPlayingLabel(progress: Float?, isPlaying: Boolean) {
+private fun NowPlayingLabel(progressState: State<Float?>, isPlaying: Boolean) {
+    val progress = progressState.value
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 2.dp),

@@ -1,18 +1,19 @@
 package com.dewijones92.totum.ui.common
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+
+val LocalAnimationsHidden = compositionLocalOf { false }
 
 /**
  * Three bars that dance while something plays, and rest when it is paused.
@@ -34,23 +35,17 @@ fun PlayingEqualiser(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "equaliser")
-
-    // Each bar gets its own duration so they drift out of phase and never pulse in unison,
-    // which would read as one thick bar blinking.
-    val heights = BAR_DURATIONS_MS.mapIndexed { index, duration ->
-        transition.animateFloat(
-            initialValue = if (index % 2 == 0) MIN_HEIGHT else MAX_HEIGHT,
-            targetValue = if (index % 2 == 0) MAX_HEIGHT else MIN_HEIGHT,
-            animationSpec = infiniteRepeatable(tween(duration), RepeatMode.Reverse),
-            label = "bar$index",
-        )
+    val dancing = playing && !LocalAnimationsHidden.current
+    val step by produceState(0L, dancing) {
+        while (dancing) {
+            delay(STEP_MS)
+            value += STEP_MS
+        }
     }
-
     Canvas(modifier = modifier) {
         val barWidth = size.width / (BAR_COUNT * 2 - 1)
-        heights.forEachIndexed { index, height ->
-            val fraction = if (playing) height.value else RESTING_HEIGHT
+        BAR_DURATIONS_MS.forEachIndexed { index, duration ->
+            val fraction = if (dancing) barHeightAt(step, duration, index) else RESTING_HEIGHT
             val barHeight = size.height * fraction
             drawRoundRect(
                 color = color,
@@ -62,6 +57,13 @@ fun PlayingEqualiser(
     }
 }
 
+internal fun barHeightAt(elapsedMs: Long, periodMs: Int, index: Int): Float {
+    val phase = ((elapsedMs % (periodMs * 2)).toFloat() / periodMs).let { if (it > 1f) 2f - it else it }
+    val rising = if (index % 2 == 0) phase else 1f - phase
+    return MIN_HEIGHT + (MAX_HEIGHT - MIN_HEIGHT) * rising
+}
+
+private const val STEP_MS = 125L
 private const val BAR_COUNT = 3
 private val BAR_DURATIONS_MS = listOf(420, 620, 500)
 private const val MIN_HEIGHT = 0.25f

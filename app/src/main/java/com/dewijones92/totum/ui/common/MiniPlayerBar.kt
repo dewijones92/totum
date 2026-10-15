@@ -53,6 +53,7 @@ fun MiniPlayerBar(
     onSkipNext: (() -> Unit)? = null,
     starting: Starting? = null,
 ) {
+    val live = LocalLivePosition.current
     val buffering = stringResource(R.string.buffering)
     Surface(
         modifier = modifier
@@ -88,7 +89,7 @@ fun MiniPlayerBar(
             // Hairline rather than the default indicator, which is thick enough to read as a
             // control you could drag. This is a status line, so it should whisper.
             LinearProgressIndicator(
-                progress = { state.progress ?: 0f },
+                progress = { state.progressAt(live?.value) ?: 0f },
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 8.dp)

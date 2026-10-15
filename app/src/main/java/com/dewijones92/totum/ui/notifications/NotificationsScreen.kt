@@ -16,14 +16,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
-import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
-import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.playStateOf
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowFacts
@@ -76,7 +75,7 @@ fun NotificationsScreen(
                                     // two backgrounds composite, and a played unread row wore both.
                                     tint = rowTint(
                                         pillar = MediaKind.VIDEO,
-                                        playState = LocalPlayStates.current[upload.item.id] ?: PlayState.Unplayed,
+                                        playState = playStateOf(upload.item.id),
                                         unread = upload.unread,
                                     ),
                                 )

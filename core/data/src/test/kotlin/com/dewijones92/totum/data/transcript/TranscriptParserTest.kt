@@ -54,7 +54,7 @@ class TranscriptParserTest {
             going to the zoo
         """.trimIndent()
 
-        val cues = TranscriptParser.parse(vtt, TranscriptFormat.VTT)
+        val cues = TranscriptParser.parse(vtt, TranscriptFormat.VTT, rolling = true)
 
         assertEquals(listOf("so today we are going to the zoo"), cues.map { it.text })
         assertEquals(0L, cues.single().startMs)
@@ -72,6 +72,45 @@ class TranscriptParserTest {
         val srt = "1\n00:00:01,000 --> 00:00:02,000\nfirst\n2\n00:00:03,000 --> 00:00:04,000\nsecond\n"
 
         assertEquals(listOf("first", "second"), TranscriptParser.parse(srt, TranscriptFormat.SRT).map { it.text })
+    }
+
+    @Test
+    fun `human captions and podcast transcripts keep every line as written`() {
+        val vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHi\n\n00:00:03.000 --> 00:00:04.000\nHi, how are you?\n\n" +
+            "00:00:05.000 --> 00:00:06.000\nSo\n\n00:00:06.500 --> 00:00:07.000\nSomething else entirely\n"
+
+        assertEquals(
+            listOf("Hi", "Hi, how are you?", "So", "Something else entirely"),
+            TranscriptParser.parse(vtt, TranscriptFormat.VTT).map { it.text },
+        )
+    }
+
+    @Test
+    fun `youtube's auto captions start on time though their first body line is a lone space`() {
+        val vtt = "WEBVTT\nKind: captions\n\n00:00:00.030 --> 00:00:02.270 align:start position:0%\n \n" +
+            "hello<00:00:00.510><c> there</c>\n\n"
+
+        assertEquals(
+            listOf(Cue(30, 2_270, "hello there")),
+            TranscriptParser.parse(vtt, TranscriptFormat.VTT, rolling = true)
+        )
+    }
+
+    @Test
+    fun `entities are decoded`() {
+        val vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n&gt;&gt; it&#39;s &quot;fine&quot; &amp; &lt;ok&gt;\n"
+
+        assertEquals(">> it's \"fine\" & <ok>", TranscriptParser.parse(vtt, TranscriptFormat.VTT).single().text)
+    }
+
+    @Test
+    fun `a malformed json transcript gives no lines rather than crashing, and lines are put in time order`() {
+        assertEquals(
+            emptyList<Cue>(),
+            TranscriptParser.parse("""{"segments":[{"startTime":{},"body":"x"}]}""", TranscriptFormat.JSON)
+        )
+        val json = """{"segments":[{"startTime":5,"body":"b"},{"startTime":1,"body":"a"}]}"""
+        assertEquals(listOf("a", "b"), TranscriptParser.parse(json, TranscriptFormat.JSON).map { it.text })
     }
 
     @Test

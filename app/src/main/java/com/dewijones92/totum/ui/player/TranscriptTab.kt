@@ -41,11 +41,13 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.transcript.Cue
+import com.dewijones92.totum.data.transcript.TranscriptAvailability
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.transcript.TranscriptResult
 import com.dewijones92.totum.data.transcript.indexAt
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.ui.common.live
 import java.util.Locale
 
 val LocalTranscripts = staticCompositionLocalOf<TranscriptLoader?> { null }
@@ -58,14 +60,17 @@ private val language: String get() = Locale.getDefault().language
 internal fun rememberHasTranscript(state: PlaybackState): Boolean {
     val loader = LocalTranscripts.current ?: return false
     val has by produceState(false, state.itemId, state.subtitles.size, state.kind) {
-        value = when (state.kind) {
-            MediaKind.VIDEO -> loader.videoHasOne(state.subtitles, language)
+        value = false
+        val answer = when (state.kind) {
+            MediaKind.VIDEO -> loader.forVideoAvailability(state.subtitles, language)
             MediaKind.PODCAST -> state.showKey?.value?.let(HttpUrl::parse)
-                ?.let { loader.episodeHasOne(state.itemId.value, it) } == true
+                ?.let { loader.episodeAvailability(state.itemId.value, it) }
+                ?: TranscriptAvailability(false, "the episode names no feed (show ${state.showKey?.value})")
         }
+        value = answer.available
         Diag.log(
             "transcript",
-            "${state.itemId.value}: transcript ${if (value) "available" else "none"} (${state.kind})"
+            "${state.itemId.value} (${state.kind}): tab ${if (answer.available) "shown" else "hidden"}: ${answer.why}"
         )
     }
     return has
@@ -75,8 +80,9 @@ internal fun rememberHasTranscript(state: PlaybackState): Boolean {
 internal fun TranscriptSection(state: PlaybackState, onSeekTo: (Long) -> Unit) {
     val loader = LocalTranscripts.current ?: return
     val result by produceState<TranscriptResult?>(null, state.itemId) {
+        value = null
         value = when (state.kind) {
-            MediaKind.VIDEO -> loader.forVideo(state.subtitles, language)
+            MediaKind.VIDEO -> loader.forVideo(state.itemId.value, state.subtitles, language)
             MediaKind.PODCAST -> state.showKey?.value?.let(HttpUrl::parse)
                 ?.let { loader.forEpisode(state.itemId.value, it) }
                 ?: TranscriptResult.None("the episode names no feed")
@@ -87,7 +93,7 @@ internal fun TranscriptSection(state: PlaybackState, onSeekTo: (Long) -> Unit) {
         null -> Text(stringResource(R.string.transcript_loading))
         is TranscriptResult.None -> Text(stringResource(R.string.transcript_none, shown.why))
         is TranscriptResult.Failed -> Text(stringResource(R.string.transcript_failed, shown.why))
-        is TranscriptResult.Loaded -> TranscriptLines(shown, state.positionMs, onSeekTo)
+        is TranscriptResult.Loaded -> TranscriptLines(shown, state.live().positionMs, onSeekTo)
     }
 }
 
@@ -95,7 +101,7 @@ internal fun TranscriptSection(state: PlaybackState, onSeekTo: (Long) -> Unit) {
 private fun TranscriptLines(transcript: TranscriptResult.Loaded, positionMs: Long, onSeekTo: (Long) -> Unit) {
     val cues = transcript.cues
     var query by remember { mutableStateOf("") }
-    var match by remember { mutableIntStateOf(0) }
+    var match by remember(cues) { mutableIntStateOf(0) }
     var following by remember { mutableStateOf(true) }
     val list = rememberLazyListState()
     val current = cues.indexAt(positionMs)

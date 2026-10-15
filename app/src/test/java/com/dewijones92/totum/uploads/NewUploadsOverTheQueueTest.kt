@@ -68,7 +68,7 @@ class NewUploadsOverTheQueueTest {
             val uploads = NewUploads(
                 latest = { listOf(video("p1").item, video("new", day = 9).item) },
                 queue = QueueForUploads(queue),
-                inboxSources = { emptyList() },
+                inboxSources = { InboxSources(emptyList(), complete = true) },
                 store = object : UploadsStore {
                     override suspend fun load() = saved
                     override suspend fun save(state: UploadsState) {

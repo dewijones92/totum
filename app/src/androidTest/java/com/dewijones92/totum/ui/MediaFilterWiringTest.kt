@@ -55,7 +55,7 @@ class MediaFilterWiringTest {
         composeTestRule.setContent {
             var filter by remember { mutableStateOf(MediaFilter.ALL) }
             TotumTheme {
-                CompositionLocalProvider(LocalPlayStates provides playStates) {
+                CompositionLocalProvider(LocalPlayStates provides remember { mutableStateOf(playStates) }) {
                     VideosContent(
                         // signedIn, or VideosContent renders its empty state instead of the feed — which is
                         // what the first run of this test actually hit.
@@ -125,7 +125,9 @@ class MediaFilterWiringTest {
     fun aFilterThatHidesEverythingSaysSo() {
         composeTestRule.setContent {
             TotumTheme {
-                CompositionLocalProvider(LocalPlayStates provides mapOf(finished.id to PlayState.Played)) {
+                CompositionLocalProvider(
+                    LocalPlayStates provides remember { mutableStateOf(mapOf(finished.id to PlayState.Played)) }
+                ) {
                     VideosContent(
                         state = VideosViewModel.UiState(videos = listOf(finished), signedIn = true),
                         newUploadsCount = 0,

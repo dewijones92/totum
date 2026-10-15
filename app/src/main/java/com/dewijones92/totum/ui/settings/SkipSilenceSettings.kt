@@ -28,7 +28,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.playback.PreviewResult
@@ -36,6 +35,7 @@ import com.dewijones92.totum.playback.PreviewState
 import com.dewijones92.totum.playback.PreviewVariant
 import com.dewijones92.totum.playback.SilenceMode
 import com.dewijones92.totum.playback.SilencePreview
+import com.dewijones92.totum.ui.common.rememberField
 import java.util.Locale
 
 @Composable
@@ -54,8 +54,8 @@ internal fun SkipSilenceSection(container: AppContainer, mode: SilenceMode, onMo
     SilenceMode.entries.forEach { option ->
         ModeRow(option, selected = option == mode, onSelect = { onMode(option) })
     }
-    val playing by container.playbackController.state.collectAsStateWithLifecycle()
-    playing?.title?.let { title ->
+    val playingTitle by container.playbackController.rememberField { it?.title }
+    playingTitle?.let { title ->
         Text(
             text = stringResource(R.string.silence_applies_now, title),
             style = MaterialTheme.typography.bodySmall,

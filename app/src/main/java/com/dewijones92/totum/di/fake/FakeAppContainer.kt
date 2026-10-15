@@ -101,6 +101,7 @@ import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.uploads.InboxSources
 import com.dewijones92.totum.uploads.NewUploads
 import com.dewijones92.totum.uploads.QueueForUploads
 import com.dewijones92.totum.uploads.UploadsState
@@ -218,7 +219,7 @@ class FakeAppContainer(
         NewUploads(
             latest = { null },
             queue = QueueForUploads(playbackQueue),
-            inboxSources = { emptyList() },
+            inboxSources = { InboxSources(emptyList(), complete = true) },
             store = object : UploadsStore {
                 private var state = UploadsState()
                 override suspend fun load() = state

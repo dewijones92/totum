@@ -1,7 +1,6 @@
 package com.dewijones92.totum.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -35,6 +34,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
+import com.dewijones92.totum.ui.common.LocalAnimationsHidden
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
@@ -45,6 +45,7 @@ import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.QueueSkip
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.ShellBanners
+import com.dewijones92.totum.ui.common.SteadyPlayback
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
 import com.dewijones92.totum.ui.music.MusicScreen
@@ -53,11 +54,9 @@ import com.dewijones92.totum.ui.player.FullPlayerOverlay
 import com.dewijones92.totum.ui.player.LocalPlayerLinks
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
-import com.dewijones92.totum.ui.player.PictureInPictureEffect
 import com.dewijones92.totum.ui.player.VideoBounds
 import com.dewijones92.totum.ui.player.WatchViewModel
 import com.dewijones92.totum.ui.player.playerLinksFor
-import com.dewijones92.totum.ui.player.rememberIsInPictureInPicture
 import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
 import com.dewijones92.totum.ui.queue.GroupDownloadAsk
@@ -95,65 +94,63 @@ fun AppShell(
     // "Go to channel" / "Go to podcast" work from ANY row because the shell hosts the destination once.
     var shellSource by remember { mutableStateOf<MediaSource?>(null) }
     val tabs = rememberTabNavigation()
-    val playbackState by container.playbackController.state.collectAsStateWithLifecycle()
     val controller = container.playbackController
+    val shell by rememberShellPlayback(controller)
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
 
     ShellPrompts(container, askForNotifications)
     // The stage reports where the picture is, so the system animates from it rather
     // than cross-fading the whole app into the floating window.
     val videoBounds = remember { VideoBounds() }
-    val inPip = floatingWindowState(playbackState, controller, videoBounds)
-    WatchBindings(playbackState, watchViewModel)
+    val inPip = floatingWindowState(shell, controller, videoBounds)
+    WatchBindings(shell, watchViewModel)
 
     // A floating window is centimetres across: the nav bar, mini player and scrolling
     // description would leave no room for the picture, so it renders alone.
     if (inPip) {
-        FloatingVideo(playbackState, controller.player, modifier)
+        FloatingVideo(shell?.hasVideo == true, controller.player, modifier)
         return
     }
 
-    OpenVideoOnLandscape(playbackState, enabled = shortsReel == null) { showFullPlayer = true }
-    AnswerOpenPlayerRequests(openPlayerRequest, controller) { showFullPlayer = true }
+    val openPlayer = remember { { showFullPlayer = true } }
+    OpenVideoOnLandscape(shell?.hasVideo == true, shell?.itemId?.value, shortsReel == null, openPlayer)
+    AnswerOpenPlayerRequests(openPlayerRequest, controller, openPlayer)
     LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
 
     CompositionLocalProvider(
         LocalVideoBounds provides videoBounds,
         LocalQueueSkip provides rememberQueueSkip(container),
         // Peeking opens the player, and the shell is what owns "open".
-        LocalExpandPlayer provides { showFullPlayer = true },
-        LocalOpenSearch provides tabs.searchOpener(over = selected),
-        LocalOpenMusicPage provides tabs.pageOpener { showFullPlayer = false },
+        LocalExpandPlayer provides openPlayer,
+        LocalOpenSearch provides remember(tabs, selected) { tabs.searchOpener(over = selected) },
+        LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener { showFullPlayer = false } },
     ) {
-        ProvidePlayStates(container, onOpenSource = { source ->
-            Diag.log("nav", "shell page over fullPlayer=$showFullPlayer shorts=${shortsReel != null}, closing both")
-            shellSource = source
-            showFullPlayer = false
-            shortsReel = null
-        }) {
+        val openSource = remember {
+            {
+                    source: MediaSource ->
+                Diag.log("nav", "shell page over fullPlayer=$showFullPlayer shorts=${shortsReel != null}, closing both")
+                shellSource = source
+                showFullPlayer = false
+                shortsReel = null
+            }
+        }
+        ProvidePlayStates(container, onOpenSource = openSource) {
             Box(modifier = modifier.fillMaxSize()) {
-                Scaffold(
-                    topBar = { ShellBanners(container) },
-                    bottomBar = {
-                        BottomBar(
-                            container,
-                            selected,
-                            controller::togglePlayPause,
-                            onExpand = { showFullPlayer = true },
-                            onSelect = tabs.choosing { selected = it },
-                            onSkipNext = LocalQueueSkip.current?.next ?: {},
-                        )
-                    },
-                ) { innerPadding ->
-                    TopLevelContent(container, selected, tabs, { shortsReel = it }, Modifier.padding(innerPadding))
-                }
+                ShellScaffold(
+                    container,
+                    selected,
+                    tabs,
+                    showFullPlayer,
+                    openPlayer,
+                    { selected = it }
+                ) { shortsReel = it }
 
                 // Same as the Videos tab's overlays: back should close the channel, not quit.
                 ShellOverlays(container, shellSource, onCloseSource = { shellSource = null })
                 // Full player overlays the whole app (above the mini player + nav) when
                 // expanded; the mini player keeps the audio/video running underneath.
-                playbackState?.takeIf { showFullPlayer }?.let { state ->
-                    FullPlayerHost(state, controller, container, watchViewModel) { showFullPlayer = false }
+                if (shell != null && showFullPlayer) {
+                    FullPlayerHost(controller, container, watchViewModel) { showFullPlayer = false }
                 }
 
                 // The Shorts reel is a full-screen overlay (above the nav + mini player),
@@ -162,25 +159,39 @@ fun AppShell(
                 // Last in the Box so it draws over everything, including the full player and
                 // any overlay: "is the app doing something" is a question worth answering
                 // from whatever screen the user is on.
-                BusyBar(Modifier.safeDrawingPadding())
+                BusyBar(still = showFullPlayer, modifier = Modifier.safeDrawingPadding())
             }
         }
     }
 }
 
-/**
- * Binds the watch view model to the current video — comments, related, the like button.
- *
- * Genuinely a UI concern, unlike advancing, which is app-scoped so it survives the screen
- * going off. None of this matters with the screen off, so it belongs here.
- */
+@Suppress("LongParameterList")
 @Composable
-private fun WatchBindings(
-    state: PlaybackState?,
-    watchViewModel: WatchViewModel,
+private fun ShellScaffold(
+    container: AppContainer,
+    selected: TopLevelDestination,
+    tabs: TabNavigation,
+    coveredByPlayer: Boolean,
+    onExpand: () -> Unit,
+    onSelect: (TopLevelDestination) -> Unit,
+    onOpenShorts: (ReelStart) -> Unit,
 ) {
-    LaunchedEffect(state?.itemId, state?.hasVideo, state?.kind) {
-        state?.takeIf { it.kind == MediaKind.VIDEO }?.let { watchViewModel.bind(it.itemId.value, it.hasVideo) }
+    CompositionLocalProvider(LocalAnimationsHidden provides coveredByPlayer) {
+        Scaffold(
+            topBar = { ShellBanners(container) },
+            bottomBar = {
+                BottomBar(
+                    container,
+                    selected,
+                    container.playbackController::togglePlayPause,
+                    onExpand = onExpand,
+                    onSelect = tabs.choosing(onSelect),
+                    onSkipNext = LocalQueueSkip.current?.next ?: {},
+                )
+            },
+        ) { innerPadding ->
+            TopLevelContent(container, selected, tabs, onOpenShorts, Modifier.padding(innerPadding))
+        }
     }
 }
 
@@ -194,8 +205,23 @@ private fun BottomBar(
     onSelect: (TopLevelDestination) -> Unit,
     onSkipNext: () -> Unit,
 ) {
-    val state by container.playbackController.state.collectAsStateWithLifecycle()
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
+    SteadyPlayback(
+        container.playbackController
+    ) { state -> DockFor(state, starting, selected, onTogglePlayPause, onExpand, onSelect, onSkipNext) }
+}
+
+@Suppress("LongParameterList")
+@Composable
+private fun DockFor(
+    state: PlaybackState?,
+    starting: com.dewijones92.totum.queue.Starting?,
+    selected: TopLevelDestination,
+    onTogglePlayPause: () -> Unit,
+    onExpand: () -> Unit,
+    onSelect: (TopLevelDestination) -> Unit,
+    onSkipNext: () -> Unit,
+) {
     Dock(
         state = state,
         starting = starting,
@@ -215,6 +241,18 @@ private fun BottomBar(
 /** Hosts the full-player overlay, wiring it to the one playback controller. */
 @Composable
 private fun FullPlayerHost(
+    controller: PlaybackController,
+    container: AppContainer,
+    watchViewModel: WatchViewModel,
+    onDismiss: () -> Unit,
+) {
+    SteadyPlayback(controller) { current ->
+        current?.let { FullPlayerFor(it, controller, container, watchViewModel, onDismiss) }
+    }
+}
+
+@Composable
+private fun FullPlayerFor(
     state: PlaybackState,
     controller: PlaybackController,
     container: AppContainer,
@@ -380,46 +418,6 @@ private fun Destination(
         TopLevelDestination.Queue -> QueueScreen(container)
         TopLevelDestination.Music -> MusicScreen(container)
         TopLevelDestination.Library -> LibraryScreen(container)
-    }
-}
-
-/**
- * Publishes picture-in-picture parameters for whatever is playing and reports whether the
- * app is currently floating. Always composed, so it tracks playback rather than only what
- * the full player happens to be showing.
- */
-@Composable
-private fun floatingWindowState(
-    state: PlaybackState?,
-    controller: PlaybackController,
-    bounds: VideoBounds,
-): Boolean {
-    PictureInPictureEffect(
-        hasVideo = state?.hasVideo == true,
-        isPlaying = state?.isPlaying == true,
-        aspectRatio = state?.videoAspectRatio,
-        bounds = bounds,
-        onTogglePlayPause = controller::togglePlayPause,
-    )
-    return rememberIsInPictureInPicture()
-}
-
-/**
- * The picture, alone, for the floating window — no chrome, no controls. PiP supplies its
- * own play/pause action in the window frame, so drawing our own would only cover video
- * that has very little room to begin with.
- */
-@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-@Composable
-private fun FloatingVideo(state: PlaybackState?, player: androidx.media3.common.Player?, modifier: Modifier) {
-    Box(modifier = modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
-        if (player != null && state?.hasVideo == true) {
-            androidx.media3.ui.compose.PlayerSurface(
-                player = player,
-                surfaceType = androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW,
-                modifier = Modifier.matchParentSize(),
-            )
-        }
     }
 }
 

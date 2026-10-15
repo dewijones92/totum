@@ -43,10 +43,8 @@ import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
-import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.domain.SourceGroup
-import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.shortsReelFrom
 import com.dewijones92.totum.shuffle.ShuffleTarget
@@ -57,7 +55,6 @@ import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
-import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
@@ -72,6 +69,7 @@ import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.filteredByProgress
 import com.dewijones92.totum.ui.common.rememberFeedGate
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
@@ -392,7 +390,6 @@ private fun ChannelsAndVideos(
     onShowFeed: () -> Unit = {},
     groupAction: @Composable (SourceGroup, Boolean) -> Unit = { _, _ -> },
 ) {
-    val playStates = LocalPlayStates.current
     val listState = rememberLazyListState()
     // The item count belongs in the trail as much as the offset: a restored scroll index
     // cannot survive being applied to an empty list, so "scroll=40 videos=0" and
@@ -401,7 +398,7 @@ private fun ChannelsAndVideos(
     TrackPlace("videos") { videosPlace(state, listState, listFilter) }
     // The SHOWN count, not state.videos.size: with a filter on, a page of arriving videos
     // can add nothing visible, and paging on the raw count never notices.
-    val unwatchedFiltered = state.videos.filteredBy(filter) { playStates[it] ?: PlayState.Unplayed }
+    val unwatchedFiltered = state.videos.filteredByProgress(filter)
     val shown = listFilter.filter(unwatchedFiltered, { it.searchableText }, pausesPaging = state.canLoadMore)
     LoadMoreUnlessFiltered(
         listFilter,

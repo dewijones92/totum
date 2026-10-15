@@ -98,9 +98,9 @@ private suspend fun adoptShuffleGroup(c: AppContainer, groupId: String): Watched
     return WatchedGroup(groupId, pin, (queued + played + started).toSet())
 }
 
-private suspend fun inboxSourcesOf(c: AppContainer): List<MediaSource> {
+private suspend fun inboxSourcesOf(c: AppContainer): InboxSources {
     val settings = c.appPreferences.settings.value
-    if (!settings.inboxAll && settings.inboxSources.isEmpty()) return emptyList()
+    if (!settings.inboxAll && settings.inboxSources.isEmpty()) return InboxSources(emptyList(), complete = true)
     val loaded = withTimeoutOrNull(SUBSCRIPTIONS_WAIT_MS) { c.accountSubscriptions.loaded.first { it } } != null
     if (!loaded) {
         Diag.warn(
@@ -109,7 +109,7 @@ private suspend fun inboxSourcesOf(c: AppContainer): List<MediaSource> {
         )
     }
     val subscribed = subscribedSources(c.podcastRepository, c.accountSubscriptions.channels).first()
-    if (settings.inboxAll) return subscribed
+    if (settings.inboxAll) return InboxSources(subscribed, loaded)
     val chosen = subscribed.filter { inboxKeyOf(it) in settings.inboxSources || it.id.value in settings.inboxSources }
     val matched = chosen.flatMap { listOf(inboxKeyOf(it), it.id.value) }.toSet()
     val missing = settings.inboxSources - matched
@@ -117,7 +117,7 @@ private suspend fun inboxSourcesOf(c: AppContainer): List<MediaSource> {
         val why = if (loaded) "are not among your subscriptions" else "could not be matched: subscriptions not loaded"
         Diag.log(TAG, "inbox: ${missing.size} chosen source(s) $why, not checked: $missing")
     }
-    return chosen
+    return InboxSources(chosen, loaded)
 }
 
 fun inboxKeyOf(source: MediaSource): String =

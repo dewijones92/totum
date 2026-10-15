@@ -76,3 +76,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 58 | [A silent tail ends the item, and end cards are skipped by default](0058-a-silent-tail-ends-the-item.md) | Accepted |
 | 59 | [New uploads flow into their shuffled group, or into an inbox](0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md) | Accepted |
 | 60 | [A transcript tab, for videos and podcasts](0060-a-transcript-tab.md) | Accepted |
+| 61 | [The UI does no work per playback tick](0061-the-ui-does-no-work-per-playback-tick.md) | Accepted |

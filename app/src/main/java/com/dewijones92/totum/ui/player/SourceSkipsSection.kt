@@ -22,13 +22,15 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.LocalAppPreferences
+import com.dewijones92.totum.ui.common.live
 
 internal const val INTRO_ENDS_TAG = "introEndsHere"
 internal const val OUTRO_STARTS_TAG = "outroStartsHere"
 private const val SHORTEST_INTRO_MS = 1_000L
 
 @Composable
-internal fun SourceSkipsSection(state: PlaybackState) {
+internal fun SourceSkipsSection(steady: PlaybackState) {
+    val state = steady.live()
     val prefs = LocalAppPreferences.current ?: return
     val source = state.showKey ?: return
     if (state.contentKind == MediaContentKind.MUSIC || state.contentKind == MediaContentKind.LIVE) return

@@ -385,12 +385,14 @@ class MultiSelectTest {
             override val audioMode: Boolean = false
             override fun switchMode(item: MediaItem) = Unit
         }
+        val downloaded = androidx.compose.runtime.mutableStateOf(
+            mapOf(MediaItemId("a") to com.dewijones92.totum.domain.DownloadState.Downloaded("/x/a.mp3")),
+        )
         composeTestRule.setContent {
             TotumTheme {
                 androidx.compose.runtime.CompositionLocalProvider(
                     com.dewijones92.totum.ui.common.LocalItemActions provides recorder,
-                    com.dewijones92.totum.ui.common.LocalDownloadStates provides
-                        mapOf(MediaItemId("a") to com.dewijones92.totum.domain.DownloadState.Downloaded("/x/a.mp3")),
+                    com.dewijones92.totum.ui.common.LocalDownloadStates provides downloaded,
                 ) {
                     val selection = rememberSelection("test")
                     SelectableList(selection, items, items, { it.id.value }, mediaBulkActions()) {

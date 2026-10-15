@@ -36,11 +36,11 @@ internal fun rememberFullscreenMode(state: PlaybackState): MutableState<Fullscre
 }
 
 @Composable
-internal fun OpenVideoOnLandscape(state: PlaybackState?, enabled: Boolean, onOpen: () -> Unit) {
+internal fun OpenVideoOnLandscape(hasVideo: Boolean, itemId: String?, enabled: Boolean, onOpen: () -> Unit) {
     val orientation = LocalConfiguration.current.orientation
-    LaunchedEffect(orientation, state?.hasVideo, enabled) {
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE && state?.hasVideo == true && enabled) {
-            Diag.log("fullscreen", "landscape video opens the player from the shell: item=${state.itemId.value}")
+    LaunchedEffect(orientation, hasVideo, enabled) {
+        if (orientation == Configuration.ORIENTATION_LANDSCAPE && hasVideo && enabled) {
+            Diag.log("fullscreen", "landscape video opens the player from the shell: item=$itemId")
             onOpen()
         }
     }

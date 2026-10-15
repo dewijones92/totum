@@ -93,7 +93,14 @@ class MusicRadio(
         return true
     }
 
-    suspend fun startMix(seeds: List<Pair<String, String>>): Boolean {
+    suspend fun startMix(chosen: List<Pair<String, String>>): Boolean {
+        val seeds = chosen.distinctBy { it.first }.take(MIX_SEEDS)
+        if (seeds.size < chosen.size) {
+            Diag.log(
+                "radio",
+                "mix: ${chosen.size} chosen, the first ${seeds.size} distinct used"
+            )
+        }
         val title = mixTitle(seeds.map { it.second })
         val radioSeeds = seeds.map { RadioSeed.forSong(it.first) }
         Diag.log("radio", "starting a mix of ${seeds.size} song(s): ${seeds.joinToString { it.first }}")
@@ -113,7 +120,10 @@ class MusicRadio(
             return false
         }
         val first = radioSeeds.first()
-        val group = QueueGroup(id = "${RADIO_GROUP_PREFIX}mix:${first.playlistId}", title = "Radio · $title")
+        val group = QueueGroup(
+            id = "${RADIO_GROUP_PREFIX}mix:${seeds.joinToString("+") { it.first }}",
+            title = "Radio · $title"
+        )
         val continuation = (results.first() as? MusicResult.Success)?.value?.continuation
         fetching?.cancel()
         station = Station(first, group, continuation, mixed.mapTo(mutableSetOf()) { it.videoId })
@@ -122,7 +132,7 @@ class MusicRadio(
             "radio",
             "mix \"${group.title}\": ${mixed.size} songs from ${batches.count { it.isNotEmpty() }} of ${seeds.size} " +
                 "radios (${batches.joinToString { it.size.toString() }}), tops up from the first, " +
-                "continuation=${continuation != null}",
+                "continuation=${continuation != null}; not added to Recently, where a pin replays one song's radio",
         )
         queue.playAll(mixed.map { it.toPlayable(MusicSources.radio(first.playlistId)) }, group)
         return true
@@ -272,5 +282,6 @@ class MusicRadio(
 }
 
 const val RADIO_GROUP_PREFIX: String = "radio:"
+private const val MIX_SEEDS = 10
 
 private enum class Saved { VIDEO, PLAYLIST, PARAMS, GROUP_ID, GROUP_TITLE, CONTINUATION, OFFERED }

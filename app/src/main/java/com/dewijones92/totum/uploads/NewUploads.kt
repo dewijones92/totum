@@ -33,6 +33,8 @@ interface UploadsStore {
     suspend fun save(state: UploadsState)
 }
 
+data class InboxSources(val sources: List<MediaSource>, val complete: Boolean)
+
 interface UploadsQueue {
     suspend fun ready() {}
     fun groupIds(): Set<String>
@@ -51,7 +53,7 @@ data class UploadsReport(
 class NewUploads(
     private val latest: suspend (MediaSource) -> List<MediaItem>?,
     private val queue: UploadsQueue,
-    private val inboxSources: suspend () -> List<MediaSource>,
+    private val inboxSources: suspend () -> InboxSources,
     private val store: UploadsStore,
     private val adopt: suspend (groupId: String) -> WatchedGroup? = { null },
 ) {
@@ -70,7 +72,10 @@ class NewUploads(
 
     suspend fun check(why: String, onlyGroup: String? = null): UploadsReport {
         queue.ready()
-        val eligible = inboxSources()
+        val eligible = if (onlyGroup == null) inboxSources() else InboxSources(emptyList(), complete = false)
+        if (!eligible.complete && onlyGroup == null) {
+            Diag.log(TAG, "inbox: the source list is incomplete this time; what it remembers is kept")
+        }
         val plan = lock.withLock { plan(onlyGroup, eligible) }
         val sources = (plan.groups.flatMap { g -> g.shuffle.sources.mapNotNull { it.toSource() } } + plan.inbox)
             .distinctBy { it.id }
@@ -87,7 +92,7 @@ class NewUploads(
         val failed: List<String>,
     )
 
-    private suspend fun plan(onlyGroup: String?, eligible: List<MediaSource>): Plan {
+    private suspend fun plan(onlyGroup: String?, eligible: InboxSources): Plan {
         val state = store.load()
         val inQueue = queue.groupIds()
         state.groups.values.filter { it.groupId !in inQueue }.forEach {
@@ -114,7 +119,7 @@ class NewUploads(
         val inbox = if (onlyGroup != null) {
             emptyList()
         } else {
-            eligible.filter { source ->
+            eligible.sources.filter { source ->
                 (source.id.value !in covered).also { free ->
                     if (!free) {
                         Diag.log(
@@ -125,7 +130,9 @@ class NewUploads(
                 }
             }
         }
-        return Plan(groups, inbox, unwatched, eligible.mapTo(mutableSetOf()) { it.id.value }, unreadable)
+        val known = eligible.sources.mapTo(mutableSetOf()) { it.id.value }
+        val keep = if (eligible.complete) known else known + state.inboxSeen.keys
+        return Plan(groups, inbox, unwatched, keep, unreadable)
     }
 
     private suspend fun fetchAll(sources: List<MediaSource>): Map<String, List<MediaItem>?> = coroutineScope {

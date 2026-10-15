@@ -44,10 +44,20 @@ internal fun ProvideItemActions(
     }
     CompositionLocalProvider(
         LocalItemActions provides actions,
-        LocalReadyAhead provides { item -> container.readyAhead.ready(item.toPlayableOrNull(), "menu opened") },
+        LocalReadyAhead provides remember(container) {
+            {
+                    item: MediaItem ->
+                container.readyAhead.ready(item.toPlayableOrNull(), "menu opened")
+            }
+        },
         LocalOpenSource provides openSource,
-        LocalStartRadio provides { item -> startRadio(container, item) },
-        LocalStartRadioMix provides { items -> startRadioMix(container, items) },
+        LocalStartRadio provides remember(container) { { item: MediaItem -> startRadio(container, item) } },
+        LocalStartRadioMix provides remember(container) {
+            {
+                    items: List<MediaItem> ->
+                startRadioMix(container, items)
+            }
+        },
         LocalPins provides rememberPinActions(container),
         LocalRecent provides container.recentActions,
         LocalFavourites provides remember(container) {

@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.compose.PlayerSurface
-import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
+import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
@@ -122,10 +122,10 @@ internal fun VideoStageWithControls(
     ) {
         // Inline, the stage is already the video's shape, so the surface fills it.
         // Fullscreen the stage fills the (wider) screen, so the surface is constrained to
-        // the video's aspect and letterboxed — else the TextureView stretches the picture.
+        // the video's aspect and letterboxed — else the surface stretches the picture.
         PlayerSurface(
             player = player,
-            surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+            surfaceType = SURFACE_TYPE_SURFACE_VIEW,
             modifier = if (fullscreen) {
                 Modifier.aspectRatio(aspect ?: DEFAULT_VIDEO_ASPECT_RATIO, matchHeightConstraintsFirst = true)
             } else {

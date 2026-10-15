@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.map
  * Drawn as an overlay rather than as a row, so nothing on screen moves when it appears.
  */
 @Composable
-fun BusyBar(modifier: Modifier = Modifier) {
+fun BusyBar(still: Boolean, modifier: Modifier = Modifier) {
     val busy by produceState(initialValue = false) {
         Busy.work.map { it.isNotEmpty() }.distinctUntilChanged().collect { working ->
             if (working) {
@@ -47,7 +47,11 @@ fun BusyBar(modifier: Modifier = Modifier) {
 
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         AnimatedVisibility(visible = busy, enter = fadeIn(), exit = fadeOut()) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (still) {
+                LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth())
+            } else {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
         }
     }
 }

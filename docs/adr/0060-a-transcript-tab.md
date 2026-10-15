@@ -36,4 +36,10 @@ the feed's `podcast:transcript`.
   exists, on any network.
 - Logs (`transcript`): availability per item, what was loaded from where and how many lines, failures, a tapped line,
   scrolling away.
-- Tests: `TranscriptParserTest`, `TranscriptLoaderTest`, `RssParserTest`, `PlayerTabsForTest`.
+- Rolling-caption collapsing applies to auto-generated YouTube tracks only; human captions and podcast transcripts keep
+  every line as written. A podcast's VTT is preferred over SRT over JSON. Parsing runs off the main thread; the feed
+  cache keeps only each episode's transcript links (20 feeds), and the last 10 loaded transcripts are reused. Each
+  availability decision is logged with its reason, item and feed.
+- Tests: `TranscriptParserTest`, `TranscriptLoaderTest`, `RssParserTest`, `PlayerTabsForTest`. Verified on totum-api35
+  for a captioned video (60 lines, a tapped line seeks and is highlighted). Not yet seen on a device: a podcast
+  transcript.

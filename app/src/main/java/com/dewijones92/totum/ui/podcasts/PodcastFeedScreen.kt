@@ -37,8 +37,6 @@ import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
-import com.dewijones92.totum.domain.PlayState
-import com.dewijones92.totum.domain.filteredBy
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.shuffle.ShuffleTarget
@@ -46,7 +44,6 @@ import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.InboxToggle
 import com.dewijones92.totum.ui.common.ListFilter
-import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PinToggle
@@ -55,6 +52,7 @@ import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
+import com.dewijones92.totum.ui.common.filteredByProgress
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
@@ -129,12 +127,11 @@ fun PodcastFeedScreen(
     // The same filter and the same chips as the video feeds: "hide what I have finished" is
     // one idea, so a podcast must not grow its own version of it.
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
-    val playStates = LocalPlayStates.current
     val page = rememberFeedPage(container, source, state)
     val listFilter = rememberListFilter("podcast page ${page.source.title}", key = source.id.value)
     var subscribing by remember(source.id) { mutableStateOf<Subscribing>(Subscribing.Idle) }
     SubscribeOutcome(subscribing) { subscribing = Subscribing.Idle }
-    val episodes = page.episodes.filteredBy(settings.mediaFilter) { playStates[it] ?: PlayState.Unplayed }
+    val episodes = page.episodes.filteredByProgress(settings.mediaFilter)
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {

@@ -275,9 +275,10 @@ fun mediaBulkActions(
     downloadAudioOnly: Boolean = false
 ): (List<MediaItem>) -> List<BulkAction> {
     val actions = LocalItemActions.current
-    val downloads = LocalDownloadStates.current
+    val downloadStates = LocalDownloadStates.current
     val mix = LocalStartRadioMix.current
     return { chosen ->
+        val downloads = downloadStates.value
         actions?.let { a ->
             val onDisk = chosen.filter { downloads[it.id] is DownloadState.Downloaded }
             val missing = chosen.filter { item ->

@@ -49,6 +49,7 @@ class NewUploadsTest {
     private val added = mutableListOf<Triple<String, List<String>, GroupSpot>>()
     private val groupsInQueue = mutableSetOf("shuffle:peep")
     private var inbox = listOf<MediaSource>()
+    private var inboxComplete = true
     private var saved = UploadsState()
 
     private var adoptable: WatchedGroup? = null
@@ -62,7 +63,7 @@ class NewUploadsTest {
                 return items.size
             }
         },
-        inboxSources = { inbox },
+        inboxSources = { InboxSources(inbox, complete = inboxComplete) },
         store = object : UploadsStore {
             override suspend fun load() = saved
             override suspend fun save(state: UploadsState) {
@@ -224,7 +225,7 @@ class NewUploadsTest {
                     return items.size
                 }
             },
-            inboxSources = { emptyList() },
+            inboxSources = { InboxSources(emptyList(), complete = true) },
             store = object : UploadsStore {
                 override suspend fun load() = saved
                 override suspend fun save(state: UploadsState) {
@@ -240,5 +241,22 @@ class NewUploadsTest {
 
         assertTrue(added.isEmpty())
         assertTrue("shuffle:peep" !in saved.groups)
+    }
+
+    @Test
+    fun `a check that could not list every source keeps the inbox's memory, so later uploads still arrive`() = runTest {
+        inbox = listOf(peep)
+        latest[peep.id] = listOf(video("u0", 1))
+        uploads.check("first look")
+        inbox = emptyList()
+        inboxComplete = false
+        uploads.check("subscriptions did not load")
+        inbox = listOf(peep)
+        inboxComplete = true
+        latest[peep.id] = listOf(video("u0", 1), video("u1", 5))
+
+        uploads.check("subscriptions back")
+
+        assertEquals(listOf(Triple(NewUploads.INBOX.id, listOf("u1"), GroupSpot.END)), added)
     }
 }

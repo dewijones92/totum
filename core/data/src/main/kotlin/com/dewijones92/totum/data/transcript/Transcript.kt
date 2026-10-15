@@ -4,9 +4,9 @@ import com.dewijones92.totum.common.SubtitleTrack
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 public data class Cue(val startMs: Long, val endMs: Long, val text: String)
 
@@ -17,9 +17,9 @@ public object TranscriptParser {
     private val timing = Regex("""((?:\d+:)?\d{1,2}:\d{2}[.,]\d{3})\s*-->\s*((?:\d+:)?\d{1,2}:\d{2}[.,]\d{3})""")
     private val tags = Regex("""<[^>]+>""")
 
-    public fun parse(body: String, format: TranscriptFormat): List<Cue> = when (format) {
-        TranscriptFormat.VTT, TranscriptFormat.SRT -> collapseRolling(timed(body))
-        TranscriptFormat.JSON -> json(body)
+    public fun parse(body: String, format: TranscriptFormat, rolling: Boolean = false): List<Cue> = when (format) {
+        TranscriptFormat.VTT, TranscriptFormat.SRT -> timed(body).let { if (rolling) collapseRolling(it) else it }
+        TranscriptFormat.JSON -> json(body).sortedBy { it.startMs }
     }
 
     public fun formatOf(mimeType: String?, url: String): TranscriptFormat? {
@@ -46,7 +46,7 @@ public object TranscriptParser {
             val text = StringBuilder()
             i++
             while (continuesCue(lines, i)) {
-                val clean = lines[i].replace(tags, "").replace("&amp;", "&").replace("&nbsp;", " ").trim()
+                val clean = decode(lines[i].replace(tags, "")).trim()
                 if (clean.isNotEmpty()) text.append(if (text.isEmpty()) clean else " $clean")
                 i++
             }
@@ -56,7 +56,11 @@ public object TranscriptParser {
     }
 
     private fun continuesCue(lines: List<String>, i: Int): Boolean =
-        i < lines.size && lines[i].isNotBlank() && timing.find(lines[i]) == null && !isCueNumber(lines, i)
+        i < lines.size && lines[i].isNotEmpty() && timing.find(lines[i]) == null && !isCueNumber(lines, i)
+
+    private fun decode(text: String): String = ENTITIES.entries.fold(
+        text
+    ) { acc, (entity, char) -> acc.replace(entity, char) }
 
     private fun isCueNumber(lines: List<String>, i: Int): Boolean =
         lines[i].trim().all { it.isDigit() } && lines.getOrNull(i + 1)?.let { timing.find(it) } != null
@@ -68,7 +72,7 @@ public object TranscriptParser {
             when {
                 last != null && cue.text == last.text ->
                     out[out.size - 1] = last.copy(endMs = maxOf(last.endMs, cue.endMs))
-                last != null && cue.text.startsWith(last.text) && cue.startMs - last.startMs < ROLLING_MS ->
+                last != null && cue.text.startsWith("${last.text} ") && cue.startMs - last.startMs < ROLLING_MS ->
                     out[out.size - 1] = cue.copy(startMs = last.startMs)
                 last != null && ' ' in cue.text && last.text.endsWith(cue.text) -> Unit
                 else -> {
@@ -92,9 +96,9 @@ public object TranscriptParser {
         val segments = root["segments"] as? JsonArray ?: return emptyList()
         return segments.mapNotNull { element ->
             val o = element as? JsonObject ?: return@mapNotNull null
-            val start = o["startTime"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
-            val end = o["endTime"]?.jsonPrimitive?.doubleOrNull ?: start
-            val text = o["body"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val start = (o["startTime"] as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null
+            val end = (o["endTime"] as? JsonPrimitive)?.doubleOrNull ?: start
+            val text = (o["body"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
             text.takeIf { it.isNotEmpty() }?.let { Cue((start * MS).toLong(), (end * MS).toLong(), it) }
         }
     }
@@ -108,6 +112,14 @@ public object TranscriptParser {
     }
 
     private const val MS = 1_000.0
+    private val ENTITIES = linkedMapOf(
+        "&lt;" to "<",
+        "&gt;" to ">",
+        "&quot;" to "\"",
+        "&#39;" to "'",
+        "&nbsp;" to " ",
+        "&amp;" to "&",
+    )
     private const val ROLLING_MS = 3_000L
     private const val HMS_PARTS = 3
     private const val SECONDS_PER_HOUR = 3_600

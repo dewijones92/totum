@@ -26,8 +26,8 @@ internal fun ProvidePlayStates(
     val store = container.playbackProgressStore
     // The account's watched positions count too, merged by the same rule resume uses — so a video
     // half-watched on the website shows half-watched in every list here (report 0.1.477, 22 Aug).
-    val states by remember(container) { container.rowPlayStates }.collectAsStateWithLifecycle(emptyMap())
-    val downloads by remember(container) { container.downloadManager.observeDownloads() }
+    val states = remember(container) { container.rowPlayStates }.collectAsStateWithLifecycle(emptyMap())
+    val downloads = remember(container) { container.downloadManager.observeDownloads() }
         .collectAsStateWithLifecycle(emptyMap())
     val artwork by remember(container) { container.sourceArtwork }.collectAsStateWithLifecycle(emptyMap())
     val scope = rememberCoroutineScope()

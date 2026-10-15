@@ -34,6 +34,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.BufferGauge
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.ui.common.live
 import kotlinx.coroutines.delay
 
 /**
@@ -48,9 +49,10 @@ internal fun SeekBar(
     modifier: Modifier = Modifier,
     bufferAhead: BufferAhead? = rememberBufferAhead(state),
 ) {
-    val duration = state.durationMs
-    var dragValue by remember(state.positionMs) { mutableStateOf<Float?>(null) }
-    val position = dragValue?.toLong() ?: state.positionMs
+    val live = state.live()
+    val duration = live.durationMs
+    var dragValue by remember(live.positionMs) { mutableStateOf<Float?>(null) }
+    val position = dragValue?.toLong() ?: live.positionMs
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (duration != null) {
@@ -76,7 +78,7 @@ internal fun SeekBar(
             }
         } else {
             Text(
-                text = formatTime(state.positionMs),
+                text = formatTime(live.positionMs),
                 style = MaterialTheme.typography.labelMedium,
             )
         }
@@ -236,7 +238,8 @@ private fun BufferAheadLabel(ahead: BufferAhead?, modifier: Modifier) {
 }
 
 @Composable
-internal fun rememberBufferAhead(state: PlaybackState): BufferAhead? {
+internal fun rememberBufferAhead(steady: PlaybackState): BufferAhead? {
+    val state = steady.live()
     val gauge = remember { BufferGauge() }
     var wokenAt by remember { mutableLongStateOf(0L) }
     val now = maxOf(SystemClock.elapsedRealtime(), wokenAt)

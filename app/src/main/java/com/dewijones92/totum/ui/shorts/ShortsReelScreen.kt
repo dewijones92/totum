@@ -41,17 +41,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.compose.PlayerSurface
-import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
+import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.ItemActionSheet
+import com.dewijones92.totum.ui.common.rememberField
 
 /**
  * A full-screen vertical Shorts reel: swipe up/down between shorts, each playing
@@ -93,7 +95,7 @@ fun ShortsReelScreen(
     LaunchedEffect(audioMode) {
         if (audioMode) Toast.makeText(context, kept, Toast.LENGTH_SHORT).show()
     }
-    val state by playback.state.collectAsStateWithLifecycle()
+    val state by playback.rememberField { it?.let(::ReelPlayback) }
     val openOn = reel.index.coerceIn(0, (shorts.size - 1).coerceAtLeast(0))
     val pager = rememberPagerState(initialPage = openOn) { shorts.size }
 
@@ -132,7 +134,7 @@ fun ShortsReelScreen(
 @Composable
 private fun ReelQueueBinding(
     shorts: List<MediaItem>,
-    state: PlaybackState?,
+    state: ReelPlayback?,
     pager: PagerState,
     queue: PlaybackQueue,
     runTitle: String,
@@ -182,7 +184,7 @@ private fun ShortPage(
     short: MediaItem,
     player: Player?,
     isCurrent: Boolean,
-    state: PlaybackState?,
+    state: ReelPlayback?,
     onTogglePlayPause: () -> Unit,
 ) {
     var showSheet by remember { mutableStateOf(false) }
@@ -204,7 +206,7 @@ private fun ShortPage(
         if (isCurrent && player != null && state?.hasVideo == true) {
             PlayerSurface(
                 player = player,
-                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+                surfaceType = SURFACE_TYPE_SURFACE_VIEW,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -279,4 +281,8 @@ private fun ShortsEmpty(onBack: () -> Unit, modifier: Modifier = Modifier) {
             Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close), tint = Color.White)
         }
     }
+}
+
+private data class ReelPlayback(val itemId: MediaItemId, val hasVideo: Boolean, val isBuffering: Boolean) {
+    constructor(state: PlaybackState) : this(state.itemId, state.hasVideo, state.isBuffering)
 }

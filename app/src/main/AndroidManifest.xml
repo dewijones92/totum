@@ -34,6 +34,7 @@
         android:supportsRtl="true"
         android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.Totum">
+        <profileable android:shell="true" />
         <service
             android:name=".downloads.DownloadKeepAliveService"
             android:exported="false"

@@ -73,6 +73,7 @@ public class Media3PlaybackController(
 ) : PlaybackController {
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
+    private val playingNow = PlayingSignal()
 
     // extraBufferCapacity so an emit from the player's main-thread callback never suspends.
     private val _streamFailures = MutableSharedFlow<StreamFailure>(extraBufferCapacity = 1)
@@ -161,6 +162,7 @@ public class Media3PlaybackController(
                         }
 
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            playingNow.changed(isPlaying)
                             if (!isPlaying) return
                             val id = connected.currentMediaItem?.mediaId ?: return
                             startLatency.playing(id)?.let { Diag.log("latency", it) }
@@ -720,6 +722,7 @@ public class Media3PlaybackController(
     private fun startPositionTicker(controller: MediaController) {
         scope.launch {
             while (isActive) {
+                playingNow.await { controller.isPlaying }
                 if (controller.isPlaying) {
                     endWatch.tick(
                         SystemClock.elapsedRealtime(),
