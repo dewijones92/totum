@@ -127,3 +127,7 @@ with Totum’s layout removed; colour-picture validation on this emulator remain
 
 Under the controls: Up next · Related · Comments · Details, with Related shown in Listen mode and for songs too. An
 Explore mode follows related videos and leaves the queue waiting; see [ADR 56](../adr/0056-player-tabs-and-explore-mode.md).
+
+The Details tab also sets a show's or channel's **intro and outro** (Intro ends here / Outro starts here / Clear),
+skipped on everything from it; Explore follows a podcast into its show's next episode and can be capped. See
+[ADR 57](../adr/0057-rewind-on-resume-and-per-show-intro-outro.md) and [ADR 56](../adr/0056-player-tabs-and-explore-mode.md).

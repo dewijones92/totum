@@ -192,6 +192,7 @@ import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
+import com.dewijones92.totum.settings.setting
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stats.StatsLog
@@ -612,9 +613,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             onPlay = { item, kind ->
                 applicationScope.launch { recordPlay(playHistoryStore, downloadManager, item, kind) }
             },
-            silenceMode = appPreferences.settings
-                .map { it.silenceMode }
-                .stateIn(applicationScope, SharingStarted.Eagerly, appPreferences.settings.value.silenceMode),
+            silenceMode = appPreferences.setting(applicationScope) { it.silenceMode },
+            rewindOnResume = appPreferences.setting(applicationScope) { it.rewindOnResume },
+            sourceSkips = appPreferences.setting(applicationScope) { it.sourceSkips },
         )
     }
 

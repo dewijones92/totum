@@ -76,6 +76,9 @@ class RandomStarts(
         return start
     }
 
+    override suspend fun lastSavedAtEpochMs(itemId: MediaItemId): Long? =
+        if (pending.containsKey(itemId)) null else inner.lastSavedAtEpochMs(itemId)
+
     override suspend fun save(itemId: MediaItemId, positionMs: Long, durationMs: Long?, chosen: Chosen) {
         pending.remove(itemId)?.let {
             Diag.log("shuffle", "${itemId.value} has played from its shuffle start; it resumes as usual from now on")

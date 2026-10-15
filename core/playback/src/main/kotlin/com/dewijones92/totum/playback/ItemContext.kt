@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.showKey
 import java.time.Instant
 
 internal data class ItemContext(
@@ -33,6 +34,7 @@ internal data class ItemContext(
     val publishedText: String?,
     val publishedAt: Instant?,
     val sourceId: SourceId?,
+    val showKey: SourceId? = null,
 ) {
     companion object {
         val NONE = ItemContext(
@@ -60,6 +62,7 @@ internal data class ItemContext(
                 publishedText = item.publishedText,
                 publishedAt = item.publishedAt,
                 sourceId = item.sourceId,
+                showKey = item.showKey(),
             )
     }
 }

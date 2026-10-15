@@ -1,6 +1,8 @@
 package com.dewijones92.totum.backup
 
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
+import com.dewijones92.totum.domain.decodeSourceSkips
+import com.dewijones92.totum.domain.encodeSourceSkips
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.PlaybackMode
 
@@ -27,6 +29,9 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                 KEY_FEED_HIDDEN to feedHiddenUntilAsked.toString(),
                 KEY_GAPLESS to gaplessQueue.toString(),
                 KEY_EXPLORE to exploreByDefault.toString(),
+                KEY_EXPLORE_CAP to exploreCap.toString(),
+                KEY_REWIND to rewindOnResume.toString(),
+                KEY_SOURCE_SKIPS to encodeSourceSkips(sourceSkips),
             )
         }
 
@@ -45,6 +50,11 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
             values[KEY_FEED_HIDDEN]?.toBooleanStrictOrNull()?.let(::setFeedHiddenUntilAsked)
             values[KEY_GAPLESS]?.toBooleanStrictOrNull()?.let(::setGaplessQueue)
             values[KEY_EXPLORE]?.toBooleanStrictOrNull()?.let(::setExploreByDefault)
+            values[KEY_EXPLORE_CAP]?.toIntOrNull()?.let(::setExploreCap)
+            values[KEY_REWIND]?.toBooleanStrictOrNull()?.let(::setRewindOnResume)
+            values[KEY_SOURCE_SKIPS]?.let(
+                ::decodeSourceSkips
+            )?.forEach { (source, skips) -> setSourceSkips(source, skips) }
         }
     }
 
@@ -58,3 +68,6 @@ private const val KEY_CELLULAR_MAX = "cellularMaxHeight"
 private const val KEY_FEED_HIDDEN = "feedHiddenUntilAsked"
 private const val KEY_GAPLESS = "gaplessQueue"
 private const val KEY_EXPLORE = "exploreByDefault"
+private const val KEY_EXPLORE_CAP = "exploreCap"
+private const val KEY_REWIND = "rewindOnResume"
+private const val KEY_SOURCE_SKIPS = "sourceSkips"

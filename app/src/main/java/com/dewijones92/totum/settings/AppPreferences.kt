@@ -8,10 +8,18 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.domain.MediaFilter
+import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.SourceSkips
+import com.dewijones92.totum.domain.decodeSourceSkips
+import com.dewijones92.totum.domain.encodeSourceSkips
 import com.dewijones92.totum.playback.SilenceMode
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 /**
@@ -81,6 +89,9 @@ interface AppPreferences {
     fun setFeedHiddenUntilAsked(hidden: Boolean)
     fun setGaplessQueue(enabled: Boolean)
     fun setExploreByDefault(enabled: Boolean)
+    fun setExploreCap(cap: Int)
+    fun setRewindOnResume(enabled: Boolean)
+    fun setSourceSkips(source: SourceId, skips: SourceSkips)
     fun setRepeatMode(mode: RepeatMode)
 
     data class Settings(
@@ -143,6 +154,9 @@ interface AppPreferences {
         val feedHiddenUntilAsked: Boolean = true,
         val gaplessQueue: Boolean = true,
         val exploreByDefault: Boolean = false,
+        val exploreCap: Int = 0,
+        val rewindOnResume: Boolean = true,
+        val sourceSkips: Map<SourceId, SourceSkips> = emptyMap(),
         val repeatMode: RepeatMode = RepeatMode.OFF,
     )
 
@@ -193,6 +207,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             feedHiddenUntilAsked = prefs.getBoolean(KEY_FEED_HIDDEN, true),
             gaplessQueue = prefs.getBoolean(KEY_GAPLESS, true),
             exploreByDefault = prefs.getBoolean(KEY_EXPLORE, false),
+            exploreCap = prefs.getInt(KEY_EXPLORE_CAP, 0),
+            rewindOnResume = prefs.getBoolean(KEY_REWIND, true),
+            sourceSkips = decodeSourceSkips(prefs.getString(KEY_SOURCE_SKIPS, null)),
             repeatMode = prefs.getString(KEY_REPEAT, null)
                 ?.let { saved -> RepeatMode.entries.firstOrNull { it.name == saved } } ?: RepeatMode.OFF,
         ),
@@ -277,6 +294,21 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             { putBoolean(KEY_EXPLORE, enabled) }
         ) { it.copy(exploreByDefault = enabled) }
 
+    override fun setExploreCap(cap: Int): Unit =
+        change("exploreCap", cap, { putInt(KEY_EXPLORE_CAP, cap) }) { it.copy(exploreCap = cap) }
+
+    override fun setRewindOnResume(enabled: Boolean): Unit =
+        change("rewindOnResume", enabled, { putBoolean(KEY_REWIND, enabled) }) { it.copy(rewindOnResume = enabled) }
+
+    override fun setSourceSkips(source: SourceId, skips: SourceSkips) {
+        val all = (_settings.value.sourceSkips + (source to skips)).filterValues { !it.isEmpty }
+        change(
+            "sourceSkips",
+            "${source.value} intro=${skips.introEndMs}ms outro=${skips.outroLengthMs}ms (${all.size} source(s) set)",
+            { putString(KEY_SOURCE_SKIPS, encodeSourceSkips(all)) },
+        ) { it.copy(sourceSkips = all) }
+    }
+
     override fun setRepeatMode(mode: RepeatMode): Unit =
         change("repeatMode", mode, { putString(KEY_REPEAT, mode.name) }) { it.copy(repeatMode = mode) }
 
@@ -313,6 +345,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_FEED_HIDDEN = "feed_hidden_until_asked"
         const val KEY_GAPLESS = "gapless_queue"
         const val KEY_EXPLORE = "explore_by_default"
+        const val KEY_EXPLORE_CAP = "explore_cap"
+        const val KEY_REWIND = "rewind_on_resume"
+        const val KEY_SOURCE_SKIPS = "source_skips"
         const val KEY_REPEAT = "repeat_mode"
     }
 }
@@ -346,5 +381,13 @@ class InMemoryAppPreferences : AppPreferences {
 
     override fun setGaplessQueue(enabled: Boolean) = _settings.update { it.copy(gaplessQueue = enabled) }
     override fun setExploreByDefault(enabled: Boolean) = _settings.update { it.copy(exploreByDefault = enabled) }
+    override fun setExploreCap(cap: Int) = _settings.update { it.copy(exploreCap = cap) }
+    override fun setRewindOnResume(enabled: Boolean) = _settings.update { it.copy(rewindOnResume = enabled) }
+    override fun setSourceSkips(source: SourceId, skips: SourceSkips) = _settings.update {
+        it.copy(sourceSkips = (it.sourceSkips + (source to skips)).filterValues { s -> !s.isEmpty })
+    }
     override fun setRepeatMode(mode: RepeatMode) = _settings.update { it.copy(repeatMode = mode) }
 }
+
+fun <T> AppPreferences.setting(scope: CoroutineScope, pick: (AppPreferences.Settings) -> T): StateFlow<T> =
+    settings.map(pick).stateIn(scope, SharingStarted.Eagerly, pick(settings.value))

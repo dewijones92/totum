@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
+import com.dewijones92.totum.domain.SourceId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
@@ -239,6 +240,7 @@ public data class PlaybackState(
     val subtitles: List<SubtitleTrack> = emptyList(),
     /** Language code of the caption track showing, or null for off. */
     val subtitleLanguage: String? = null,
+    val showKey: SourceId? = null,
 ) {
     init {
         require(positionMs >= 0) { "positionMs must not be negative" }

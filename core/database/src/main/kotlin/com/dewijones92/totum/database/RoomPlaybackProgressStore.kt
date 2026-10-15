@@ -32,6 +32,8 @@ public class RoomPlaybackProgressStore(
     override suspend fun playState(itemId: MediaItemId): PlayState =
         dao.get(itemId.value)?.playState() ?: PlayState.Unplayed
 
+    override suspend fun lastSavedAtEpochMs(itemId: MediaItemId): Long? = dao.get(itemId.value)?.updatedAtEpochMs
+
     /**
      * Saving is a read-modify-write — it compares against what is held to spot a rewind, and reads
      * the row to keep its completion — so two overlapping saves could otherwise decide on stale
@@ -137,9 +139,6 @@ public class RoomPlaybackProgressStore(
     private fun tailFor(durationMs: Long): Long =
         minOf(NEAR_END_MS, (durationMs * TAIL_FRACTION_PERCENT) / PERCENT)
 
-    private fun PlaybackProgressEntity.playState(): PlayState =
-        if (completedAtEpochMs != null) PlayState.Played else PlayState.InProgress(positionMs, durationMs)
-
     private companion object {
         const val MIN_SAVE_MS = 5_000L
         const val NEAR_END_MS = 15_000L
@@ -147,3 +146,6 @@ public class RoomPlaybackProgressStore(
         const val PERCENT = 100L
     }
 }
+
+private fun PlaybackProgressEntity.playState(): PlayState =
+    if (completedAtEpochMs != null) PlayState.Played else PlayState.InProgress(positionMs, durationMs)

@@ -25,10 +25,13 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.domain.Listening
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
+import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.domain.skipTargetFor
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -63,6 +66,9 @@ public class Media3PlaybackController(
     private val boostStore: VolumeBoostStore = NoOpVolumeBoostStore,
     private val onPlay: (MediaItem, MediaKind) -> Unit = { _, _ -> },
     private val silenceMode: StateFlow<SilenceMode> = MutableStateFlow(SilenceMode.DEFAULT),
+    private val rewindOnResume: StateFlow<Boolean> = MutableStateFlow(true),
+    private val sourceSkips: StateFlow<Map<SourceId, SourceSkips>> = MutableStateFlow(emptyMap()),
+    private val wallClock: () -> Long = System::currentTimeMillis,
 ) : PlaybackController {
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
@@ -101,6 +107,7 @@ public class Media3PlaybackController(
     private var skipSilence = false
     private var tuning = ItemTuning(speed = 1f, skipSilence = false, keepsChanges = true)
     private val endWatch = ItemEndWatch()
+    private val resumeRewind = ResumeRewind(SystemClock::elapsedRealtime)
     private val startLatency = StartLatency()
     private var volumeBoost = VolumeBoost.OFF
     private var ticksSinceSave = 0
@@ -121,6 +128,11 @@ public class Media3PlaybackController(
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
+                connected.addListener(
+                    ResumeRewindListener({ controller }, resumeRewind) {
+                        ResumeFacts(talk = tuning.keepsChanges, live = false, enabled = rewindOnResume.value)
+                    },
+                )
                 connected.addListener(
                     object : Player.Listener {
                         /*
@@ -270,9 +282,8 @@ public class Media3PlaybackController(
         scope.launch {
             // An explicit position wins: a re-resolved stream knows exactly where the dead
             // one stopped, which is finer-grained than the periodically-saved progress.
-            val resumeMs = startPositionMs.takeIf { it > 0 }
-                ?: progressStore.resumePositionMs(item.id) ?: 0L
             val tuned = tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))
+            val resumeMs = startPositionMs.takeIf { it > 0 } ?: savedStart(item, tuned)
             if (!tuned.keepsChanges) {
                 Diag.log(
                     "playback",
@@ -293,6 +304,7 @@ public class Media3PlaybackController(
                     return@withController
                 }
                 nextInLine.forgetOnRebuild(item.id.value)
+                resumeRewind.replacedBy(item.id.value)
                 noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
                 becameCurrent(requestedContext)
                 controller.setMediaItem(media3Item, resumeMs)
@@ -301,6 +313,17 @@ public class Media3PlaybackController(
                 if (startPaused) controller.pause() else controller.play()
             }
         }
+    }
+
+    private suspend fun savedStart(item: MediaItem, tuned: ItemTuning): Long {
+        val saved = progressStore.resumePositionMs(item.id) ?: return 0L
+        val savedAt = progressStore.lastSavedAtEpochMs(item.id) ?: return saved
+        val facts = ResumeFacts(
+            talk = tuned.keepsChanges,
+            live = item.contentKind == MediaContentKind.LIVE,
+            enabled = rewindOnResume.value,
+        )
+        return rewoundStart(item.id.value, saved, wallClock() - savedAt, facts, "resuming saved")
     }
 
     // Re-applied on EVERY item, and told to the service too: the rate the user chose
@@ -762,6 +785,8 @@ public class Media3PlaybackController(
         if (item.kind == MediaKind.VIDEO) {
             Diag.log("sponsorblock", "${item.id}: ${item.skipSegments.size} segment(s) to skip")
         }
+        val show = item.showKey?.let { sourceSkips.value[it] }
+        Diag.log("playback", "${item.id}: show ${item.showKey?.value ?: "unknown"}, intro/outro ${show ?: "not set"}")
     }
 
     /** The one place segment-skipping happens, for every pillar. */
@@ -770,13 +795,20 @@ public class Media3PlaybackController(
 
     private fun applySkipSegments(controller: MediaController) {
         val from = controller.currentPosition.milliseconds
-        val target = itemContext.skipSegments.skipTargetFor(from) ?: return
+        val duration = controller.duration.takeIf { it > 0 }
+        val own = itemContext.showKey?.let { sourceSkips.value[it] }?.segmentsFor(duration).orEmpty()
+        val target = (itemContext.skipSegments + own).skipTargetFor(from) ?: return
         skipsThisItem++
-        endWatch.segmentSkipped(from.inWholeMilliseconds, controller.duration.takeIf { it > 0 })
+        endWatch.segmentSkipped(from.inWholeMilliseconds, duration)
+        val whose = if (own.skipTargetFor(from) != null) {
+            "the intro/outro set for ${itemContext.showKey?.value}"
+        } else {
+            "SponsorBlock"
+        }
         Diag.log(
             "sponsorblock",
             "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms " +
-                "(skip $skipsThisItem of this item)",
+                "(skip $skipsThisItem of this item, $whose)",
         )
         controller.seekTo(target.inWholeMilliseconds)
     }
@@ -861,6 +893,7 @@ public class Media3PlaybackController(
             skipSilence = tuning.skipSilence,
             volumeBoost = volumeBoost,
             chapters = itemContext.chapters,
+            showKey = itemContext.showKey,
         )
     }
 

@@ -36,8 +36,11 @@ class ExploreModeTest {
     private var turnedOn = 0
     private var whileLookingUp: () -> Unit = {}
 
+    private var cap = 0
+
     private fun explore(on: Boolean = true) = ExploreMode(
         initiallyOn = on,
+        cap = { cap },
         related = { item ->
             whileLookingUp()
             related[item.id.value]?.map { id ->
@@ -63,6 +66,43 @@ class ExploreModeTest {
 
         assertTrue(explore.afterEnded(MediaItemId("a")))
         assertEquals(listOf("x"), peeked)
+    }
+
+    @Test
+    fun `at the cap the queue gets its turn, and exploring starts again after it`() = runTest {
+        cap = 2
+        val explore = explore()
+        nowPlaying = video("q1")
+        related["q1"] = listOf("r1")
+        related["r1"] = listOf("r2")
+        related["r2"] = listOf("r3")
+        related["q2"] = listOf("r4")
+
+        assertTrue(explore.afterEnded(MediaItemId("q1")))
+        assertTrue(explore.afterEnded(MediaItemId("r1")))
+        assertFalse(explore.afterEnded(MediaItemId("r2")))
+        nowPlaying = video("q2")
+        assertTrue(explore.afterEnded(MediaItemId("q2")))
+
+        assertEquals(listOf("r1", "r2", "r4"), peeked)
+    }
+
+    @Test
+    fun `a queue item tapped mid-run starts the count again`() = runTest {
+        cap = 2
+        val explore = explore()
+        nowPlaying = video("q1")
+        related["q1"] = listOf("r1")
+        related["r1"] = listOf("r2")
+        related["t"] = listOf("r3")
+        related["r3"] = listOf("r4")
+
+        explore.afterEnded(MediaItemId("q1"))
+        nowPlaying = video("t")
+        explore.afterEnded(MediaItemId("t"))
+        explore.afterEnded(MediaItemId("r3"))
+
+        assertEquals(listOf("r1", "r3", "r4"), peeked)
     }
 
     @Test

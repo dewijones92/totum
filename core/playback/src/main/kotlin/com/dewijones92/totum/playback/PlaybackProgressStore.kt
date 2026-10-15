@@ -16,6 +16,8 @@ public interface PlaybackProgressStore {
     /** Position to resume [itemId] at, or null to start from the beginning. */
     public suspend fun resumePositionMs(itemId: MediaItemId): Long?
 
+    public suspend fun lastSavedAtEpochMs(itemId: MediaItemId): Long? = null
+
     /**
      * Everything this device knows about [itemId], in one read.
      *

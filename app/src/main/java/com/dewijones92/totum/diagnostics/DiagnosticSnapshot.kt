@@ -83,38 +83,47 @@ internal class DiagnosticSnapshot(
             put("queue.items", listedAround(entries, currentIndex, LISTED_BEFORE, LISTED_AFTER) { it.item.item.title })
         }
         runCatching { putDownloadState(entries, currentIndex) }
-        runCatching {
-            val settings = live.settings()
-            put("settings.playbackMode", settings.playbackMode.name)
-            put("settings.silenceMode", settings.silenceMode.name)
-            put("settings.autoPlayNext", settings.autoPlayNext.toString())
-            put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
-            put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
-            put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())
-            put("settings.cellularMaxHeight", settings.cellularMaxHeight.toString())
-            // The half that was missing: half the settings never reached a report, so "is SABR on?"
-            // and "which categories does it skip?" were unanswerable. Home-server VALUES are
-            // never written — a token in a report is an account-takeover risk — only whether each
-            // is present, which is the question a torrent report actually asks.
-            put("settings.sabrPlayback", settings.sabrPlayback.toString())
-            put("settings.mediaFilter", settings.mediaFilter.name)
-            put("settings.feedHiddenUntilAsked", settings.feedHiddenUntilAsked.toString())
-            put("settings.gaplessQueue", settings.gaplessQueue.toString())
-            put("settings.exploreByDefault", settings.exploreByDefault.toString())
-            put("settings.skipCategories", settings.skipCategories.joinToString(",") { it.id })
-            put(
-                "settings.homeServer",
-                "configured=${settings.homeServerBase.isNotBlank()} " +
-                    "signedIn=${settings.homeServerToken.isNotBlank()} " +
-                    "prowlarr=${settings.prowlarrApiKey.isNotBlank()}",
-            )
-        }
+        runCatching { putSettings(live.settings()) }
         runCatching { putAccountState(entries) }
         runCatching { put("network.metered", live.isMetered().toString()) }
         runCatching { putAll(live.exsurge()) }
         runCatching { putAll(live.appUpdate()) }
         runCatching { putAll(live.polite()) }
         runCatching { putAll(live.backup()) }
+    }
+
+    private fun MutableMap<String, String>.putSettings(settings: AppPreferences.Settings) {
+        put("settings.playbackMode", settings.playbackMode.name)
+        put("settings.silenceMode", settings.silenceMode.name)
+        put("settings.autoPlayNext", settings.autoPlayNext.toString())
+        put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
+        put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
+        put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())
+        put("settings.cellularMaxHeight", settings.cellularMaxHeight.toString())
+        // The half that was missing: half the settings never reached a report, so "is SABR on?"
+        // and "which categories does it skip?" were unanswerable. Home-server VALUES are
+        // never written — a token in a report is an account-takeover risk — only whether each
+        // is present, which is the question a torrent report actually asks.
+        put("settings.sabrPlayback", settings.sabrPlayback.toString())
+        put("settings.mediaFilter", settings.mediaFilter.name)
+        put("settings.feedHiddenUntilAsked", settings.feedHiddenUntilAsked.toString())
+        put("settings.gaplessQueue", settings.gaplessQueue.toString())
+        put("settings.exploreByDefault", settings.exploreByDefault.toString())
+        put("settings.exploreCap", if (settings.exploreCap > 0) settings.exploreCap.toString() else "no limit")
+        put("settings.rewindOnResume", settings.rewindOnResume.toString())
+        put(
+            "settings.sourceSkips",
+            settings.sourceSkips.entries.joinToString(" | ") { (id, s) ->
+                "${id.value} intro=${s.introEndMs ?: "-"}ms outro=${s.outroLengthMs ?: "-"}ms"
+            }.ifEmpty { "none" },
+        )
+        put("settings.skipCategories", settings.skipCategories.joinToString(",") { it.id })
+        put(
+            "settings.homeServer",
+            "configured=${settings.homeServerBase.isNotBlank()} " +
+                "signedIn=${settings.homeServerToken.isNotBlank()} " +
+                "prowlarr=${settings.prowlarrApiKey.isNotBlank()}",
+        )
     }
 
     /** The account block: who is signed in, whether listening reaches them, and what has been acted on. */

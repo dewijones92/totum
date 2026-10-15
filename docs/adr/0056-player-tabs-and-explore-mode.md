@@ -38,7 +38,12 @@ Settings default.
 - While Explore is on, gapless does not arm the queue's next item, and turning it on drops one already armed.
 - Previous while exploring restarts the current item; it does not walk back through explored videos.
 - Explore acts only when auto-play next is on.
-- Podcasts have no related list; with Explore on, a podcast's end lets the queue carry on from its place.
+- A podcast's "related" is its own show (revised 2026-10-15, `nextEpisodesOf`): the unfinished episodes published
+  after it, oldest first, then the older ones, newest first. A show you do not subscribe to has none, so the queue
+  carries on from its place.
+- **A cap** (Settings → Explore at most: no limit, 3, 5, 10): after that many explored in a row the queue gets its
+  turn, and exploring starts again after it. Something else playing in between (a tapped queue item) starts the
+  count again.
 - Toggle: `ExploreToggle` in the Queue header, the mini player and an Explore line at the top of the Up next and
   Related tabs; Settings → Start in Explore mode (default off). Every switch and decision is logged under `explore`.
 
