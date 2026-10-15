@@ -46,6 +46,7 @@ internal class AutoAdvancer(
     private val replay: suspend () -> Boolean = { false },
     private val fromTheTop: suspend () -> Boolean = { false },
     private val sleepsAfter: (MediaItemId) -> Boolean = { false },
+    private val explore: suspend (MediaItemId) -> Boolean = { false },
 ) {
     fun start() {
         // Said out loud so "nothing ended" and "the advancer was not running" stop looking
@@ -85,8 +86,13 @@ internal class AutoAdvancer(
             Diag.log("advance", "not advancing past $id: auto-play next is off")
             return
         }
-        val advanced = advance()
-        Diag.log("advance", "$id ended at ${ended.atMs}ms -> queue advance=$advanced")
+        val explored = explore(ended.itemId)
+        val advanced = explored || advance()
+        Diag.log(
+            "advance",
+            "$id ended at ${ended.atMs}ms -> " +
+                if (explored) "Explore is on: a related video follows, the queue waits" else "queue advance=$advanced",
+        )
         if (advanced) return
         if (mode == RepeatMode.QUEUE) {
             val wrapped = fromTheTop()

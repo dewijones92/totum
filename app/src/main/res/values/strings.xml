@@ -157,7 +157,6 @@
     <string name="sort_longest">⏳ Longest first</string>
     <string name="sort_shortest">⚡ Shortest first</string>
 
-    <string name="related_title">Up next</string>
     <string name="related_loading">⏳ Loading related videos…</string>
     <string name="related_empty">📭 No related videos.</string>
     <string name="related_error">❌ Couldn\'t load related videos.</string>
@@ -193,7 +192,6 @@
     <string name="skip_to_next">Skip to next</string>
     <string name="skip_to_previous">Back to the previous item</string>
     <string name="queue_add">Add to queue</string>
-    <string name="queue_up_next_title">Up next</string>
     <string name="queue_remove">Remove from queue</string>
     <string name="queue_removed">🗑️ Removed from the queue</string>
     <string name="queue_undo">Undo</string>
@@ -633,6 +631,22 @@
     <string name="details_copy_link">link</string>
     <string name="hold_to_download">⏳ Hold to download</string>
     <string name="starting_play">⏳ Starting…</string>
+    <string name="settings_explore">Start in Explore mode</string>
+    <string name="settings_explore_summary">Explore plays a related video after each one, YouTube-style, and leaves your queue waiting where it was.</string>
+    <string name="explore_on">🧭 Explore on: related videos play next, your queue waits</string>
+    <string name="explore_off">📋 Explore off: back to your queue</string>
+    <string name="explore_toggle">Explore: play related videos next</string>
+    <string name="player_tab_up_next">Up next</string>
+    <string name="player_tab_related">Related</string>
+    <string name="player_tab_comments">Comments</string>
+    <string name="player_tab_details">Details</string>
+    <string name="explore_line_on">🧭 Explore is on: a related video plays next, your queue waits</string>
+    <string name="explore_line_off">📋 Your queue plays next. 🧭 Explore plays related videos instead</string>
+    <plurals name="player_up_next_count">
+        <item quantity="one">📋 1 item queued after this</item>
+        <item quantity="other">📋 %1$d items queued after this; the first 8 are here, the rest in the Queue tab</item>
+    </plurals>
+    <string name="player_up_next_empty">📭 Nothing queued after this. With Explore on, a related video plays next.</string>
     <string name="link_no_app">⚠️ No app on this phone can open that link</string>
     <string name="pin_menu_play">Play</string>
     <string name="pin_menu_shuffle">Shuffle</string>

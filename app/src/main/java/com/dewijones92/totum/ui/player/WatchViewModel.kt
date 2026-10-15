@@ -162,6 +162,7 @@ constructor(
 
     private var videoId: String? = null
     private var pageFor: String? = null
+    private var relatedFor: String? = null
 
     /**
      * Binds to the item playing. [withPage] false is a song playing as sound: it still gets its like
@@ -171,17 +172,24 @@ constructor(
         if (videoId != this.videoId) {
             this.videoId = videoId
             pageFor = null
+            relatedFor = null
             _rating.value = VideoRating.NONE
             _inWatchLater.value = false
             _postState.value = PostState.Idle
             viewModelScope.launch { _signedIn.value = account.isSignedIn() }
             viewModelScope.launch { readRating(videoId) }
         }
-        if (!withPage || pageFor == videoId) return
+        if (relatedFor != videoId) loadRelated(videoId)
+        if (withPage) loadComments()
+    }
+
+    fun loadComments() {
+        val videoId = videoId ?: return
+        if (pageFor == videoId) return
         pageFor = videoId
+        Diag.log("watch", "loading comments for $videoId")
         _comments.value = CommentsState.Loading
         _replies.value = emptyMap()
-        _related.value = RelatedState.Loading
         viewModelScope.launch {
             _comments.value = when (val result = commentsSource.forVideo(videoId)) {
                 is CommentsResult.Success -> CommentsState.Loaded(result.comments)
@@ -189,6 +197,11 @@ constructor(
                 is CommentsResult.Failure -> CommentsState.Error
             }
         }
+    }
+
+    private fun loadRelated(videoId: String) {
+        relatedFor = videoId
+        _related.value = RelatedState.Loading
         viewModelScope.launch {
             _related.value = when (val result = relatedSource.relatedTo(videoId)) {
                 // Converted here, at the boundary, so the list downstream is the domain

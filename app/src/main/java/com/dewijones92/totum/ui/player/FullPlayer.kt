@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -386,7 +387,17 @@ private fun PlayerDetails(
         TransportControls(state, onTogglePlayPause, onSeekBackward, onSeekForward)
     }
 
-    Spacer(Modifier.height(20.dp))
+    // Like / dislike / Watch Later — signed-in write actions for anything from YouTube, a song
+    // playing as sound included.
+    if (state.kind == MediaKind.VIDEO && watchActions.canAct) {
+        Spacer(Modifier.height(16.dp))
+        WatchActionButtons(watchActions)
+    }
+
+    Spacer(Modifier.height(16.dp))
+    PlayerTabs(state, PlayerTabContent(queue, related, onPlayRelated, comments, replies, watchActions, onSeekTo))
+
+    Spacer(Modifier.height(24.dp))
     SecondaryControls(
         state = state,
         controlsOverlaid = controlsOverlaid,
@@ -398,31 +409,6 @@ private fun PlayerDetails(
         onCancelSleep = onCancelSleep,
         onSetSpeed = onSetSpeed,
     )
-
-    // Like / dislike / Watch Later — signed-in write actions for anything from YouTube, a song
-    // playing as sound included.
-    if (state.kind == MediaKind.VIDEO && watchActions.canAct) {
-        Spacer(Modifier.height(16.dp))
-        WatchActionButtons(watchActions)
-    }
-
-    LyricsSection()
-    NotesChaptersAndSponsors(state, onSeekTo)
-
-    // The user's up-next queue — both pillars, above the video-only related list.
-    if (queue.upNext.isNotEmpty()) {
-        Spacer(Modifier.height(32.dp))
-        UpNextSection(queue)
-    }
-
-    // Related / up-next and comments live under the video, YouTube-style; audio
-    // items have neither.
-    if (state.hasVideo) {
-        Spacer(Modifier.height(32.dp))
-        RelatedSection(related, onPlayRelated)
-        Spacer(Modifier.height(32.dp))
-        CommentsSection(comments, watchActions, replies)
-    }
 }
 
 /**
@@ -435,17 +421,17 @@ const val PLAYER_METADATA_TAG: String = "player-views-and-date"
 
 /** The up-next queue: a titled list, tap an entry to jump to it, X to remove it. */
 @Composable
-private fun UpNextSection(queue: QueueControls) {
+internal fun UpNextSection(queue: QueueControls) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(R.string.queue_up_next_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 4.dp).weight(1f),
+                text = pluralStringResource(R.plurals.player_up_next_count, queue.upNext.size, queue.upNext.size),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
             )
             SwitchListeningButton("full player")
         }
-        queue.upNext.forEachIndexed { index, queued ->
+        queue.upNext.take(UP_NEXT_SHOWN).forEachIndexed { index, queued ->
             val item = queued.item.item
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -486,7 +472,7 @@ private val UP_NEXT_THUMB_HEIGHT = 45.dp
  * list, and the SponsorBlock time ranges — all unified across both pillars.
  */
 @Composable
-private fun NotesChaptersAndSponsors(state: PlaybackState, onSeekTo: (Long) -> Unit) {
+internal fun NotesChaptersAndSponsors(state: PlaybackState, onSeekTo: (Long) -> Unit) {
     val description = state.description
     if (!description.isNullOrBlank()) {
         Spacer(Modifier.height(24.dp))
@@ -538,6 +524,7 @@ data class CommentReplies(
     val threads: Map<String, RepliesState>,
     val onToggle: (Comment) -> Unit,
     val onLoadMore: (String) -> Unit,
+    val onWanted: () -> Unit = {},
 ) {
     companion object {
         /** Replies disabled (previews / no interactions). */
@@ -746,3 +733,5 @@ private const val DESCRIPTION_COLLAPSED_LINES = 4
 internal const val CONTROL_SURFACE_ALPHA = 0.4f
 
 const val FULL_PLAYER_TAG: String = "full-player"
+
+private const val UP_NEXT_SHOWN = 8

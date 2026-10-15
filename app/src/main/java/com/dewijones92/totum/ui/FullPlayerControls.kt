@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui
 
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -16,12 +17,27 @@ import com.dewijones92.totum.video.VideoPlaybackLauncher
  * The player's up-next list shows what follows the cursor, so its indices are offset from
  * the queue's own — done here once rather than inline at the call site.
  */
-internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>, currentIndex: Int) =
-    QueueControls(
+internal fun upNextAfter(entries: List<QueueEntry>, currentIndex: Int, resumeAfter: MediaItemId?): List<QueueEntry> {
+    val base = if (currentIndex >= 0) currentIndex else entries.indexOfFirst { it.item.item.id == resumeAfter }
+    return entries.drop(base + 1)
+}
+
+internal fun upNextControls(
+    queue: PlaybackQueue,
+    entries: List<QueueEntry>,
+    currentIndex: Int,
+    resumeAfter: MediaItemId?,
+): QueueControls {
+    val upNext = upNextAfter(entries, currentIndex, resumeAfter)
+    val indexNow = { entry: QueueEntry ->
+        queue.state.value.entries.indexOfFirst { it.item.item.id == entry.item.item.id }.takeIf { it >= 0 }
+    }
+    return QueueControls(
         upNext = upNext,
-        onPlay = { i -> queue.jumpTo(currentIndex + 1 + i) },
-        onRemove = { i -> queue.removeAt(currentIndex + 1 + i) },
+        onPlay = { i -> upNext.getOrNull(i)?.let(indexNow)?.let(queue::jumpTo) },
+        onRemove = { i -> upNext.getOrNull(i)?.let { queue.remove(it) } },
     )
+}
 
 internal fun qualityControl(
     quality: VideoPlaybackLauncher.QualityState,

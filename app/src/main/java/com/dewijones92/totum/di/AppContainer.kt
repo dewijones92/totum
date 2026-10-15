@@ -97,6 +97,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
+import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
@@ -161,6 +162,8 @@ import com.dewijones92.totum.pins.withPins
 import com.dewijones92.totum.pins.withRecent
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
+import com.dewijones92.totum.playback.ExploreMode
+import com.dewijones92.totum.playback.ExploreResumeStore
 import com.dewijones92.totum.playback.Media3PlaybackController
 import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
@@ -454,6 +457,7 @@ interface AppContainer {
     val shuffleAll: ShuffleAll
 
     val recentActions: RecentActions
+    val exploreMode: ExploreMode
     val statsLog: StatsLog
     val groupDownloads: GroupDownloads
     val randomStarts: RandomStarts
@@ -869,7 +873,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private fun startAutoAdvance() {
         AutoAdvancer(
             events = playbackController.events,
-            advance = { playbackQueue.playNextInQueue() },
+            advance = { exploreMode.resumeQueue() ?: playbackQueue.playNextInQueue() },
             whenQueueEmpty = ::playRelatedNext,
             isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
@@ -877,6 +881,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             replay = { playbackQueue.replayCurrent(positionMs = 0) },
             fromTheTop = { playbackQueue.playFromTheTop() },
             sleepsAfter = sleepTimer::firesAfter,
+            explore = exploreMode::afterEnded,
         ).start()
     }
 
@@ -1381,6 +1386,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
+    override val exploreMode: ExploreMode by lazy { exploreModeFor(this, ExploreResumeStore(context)) }
     override val statsLog: StatsLog by lazy { StatsLog(File(context.filesDir, "stats"), applicationScope) }
 
     override val albumYears by lazy {
@@ -1526,7 +1532,7 @@ private fun followSkipRequests(c: DefaultAppContainer) = c.applicationScope.laun
     c.randomStarts.follow(c.playbackQueue)
     c.playbackController.skipRequests.collect { direction ->
         when (direction) {
-            SkipDirection.NEXT -> c.playbackQueue.playNextInQueue()
+            SkipDirection.NEXT -> c.exploreMode.next() ?: c.playbackQueue.playNextInQueue()
             SkipDirection.PREVIOUS -> c.playbackQueue.playPreviousInQueue()
         }
     }
@@ -1617,3 +1623,24 @@ private fun sendDiagnostics(
     // A test run is still suppressed either way; the flood came through this exact path.
     uploader.sendDiagnosticsNow()
 }
+
+private fun exploreModeFor(c: AppContainer, resume: ExploreResumeStore) = ExploreMode(
+    initiallyOn = c.appPreferences.settings.value.exploreByDefault,
+    related = { item ->
+        item.id.value.takeIf(::isYouTubeVideoId)?.let { id ->
+            (
+                c.youTubeRelated.relatedTo(
+                    id
+                ) as? RelatedResult.Success
+                )?.videos?.map { it.toMediaItem(SourceId("ytrelated")) }
+        }
+    },
+    peek = { c.playbackQueue.peek(it) },
+    nowPlaying = { c.playbackQueue.nowPlaying.value },
+    queueCurrent = { c.playbackQueue.state.value.current?.item?.item?.id },
+    queueEntries = { c.playbackQueue.state.value.entries.map { it.item.item.id } },
+    playQueueAt = { c.playbackQueue.playAt(it, rollBackOnRefusal = true) },
+    onTurnedOn = { c.playbackController.disarmNext("Explore turned on: a related video follows instead") },
+    resumeAtStart = resume.read()?.let(::MediaItemId),
+    saveResume = { resume.write(it?.value) },
+)

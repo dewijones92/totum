@@ -61,6 +61,7 @@ import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
+import com.dewijones92.totum.ui.common.ExploreToggle
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
@@ -551,6 +552,7 @@ private fun QueueHeader(
             onJump?.let { JumpToPlayingButton(it) }
             if (groups.first.isNotEmpty()) CollapseAllButton(groups.first.all { it in groups.second }, onCollapseAll)
             SwitchListeningButton("queue header")
+            ExploreToggle("queue header")
             onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
             if (count > 0) {
                 TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }

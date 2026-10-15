@@ -85,6 +85,7 @@ import com.dewijones92.totum.pins.InMemoryPinStore
 import com.dewijones92.totum.pins.PinPlayer
 import com.dewijones92.totum.pins.PinStore
 import com.dewijones92.totum.pins.RecentActions
+import com.dewijones92.totum.playback.ExploreMode
 import com.dewijones92.totum.playback.NoOpPlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
@@ -207,6 +208,15 @@ class FakeAppContainer(
     override val pinStore: PinStore = InMemoryPinStore()
 
     override val recentActions: RecentActions = RecentActions()
+    override val exploreMode: ExploreMode = ExploreMode(
+        initiallyOn = false,
+        related = { null },
+        peek = { false },
+        nowPlaying = { null },
+        queueCurrent = { null },
+        queueEntries = { emptyList() },
+        playQueueAt = { false },
+    )
     override val statsLog: StatsLog = StatsLog(null, applicationScope)
     override val groupDownloads: GroupDownloads = GroupDownloads(null, applicationScope)
     override val albumYears: AlbumYears by lazy { AlbumYears(musicCatalogue, applicationScope, null) }

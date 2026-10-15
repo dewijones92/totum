@@ -70,8 +70,9 @@ fun MiniPlayerBar(
                 // rather than taking a slot of its own.
                 ArtworkWithPillarBadge(state)
                 NowPlayingText(state, starting, modifier = Modifier.weight(1f))
-                SwitchListeningButton("mini player")
-                if (onSkipNext != null) SkipPreviousButton()
+                SwitchListeningButton("mini player", Modifier.size(COMPACT_BUTTON))
+                ExploreToggle("mini player", Modifier.size(COMPACT_BUTTON))
+                if (onSkipNext != null) SkipPreviousButton(Modifier.size(COMPACT_BUTTON))
                 // The bar is where you spend most of the time, and it was the one
                 // surface that showed nothing while stalled — so a stall here was
                 // indistinguishable from the app simply having stopped.
@@ -79,7 +80,7 @@ fun MiniPlayerBar(
                 // Skip-next belongs here now the queue is the spine: reaching the next item
                 // otherwise means opening the full player to press one button.
                 onSkipNext?.let { skip ->
-                    IconButton(onClick = skip) {
+                    IconButton(onClick = skip, modifier = Modifier.size(COMPACT_BUTTON)) {
                         Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.skip_to_next))
                     }
                 }
@@ -218,6 +219,7 @@ internal fun StartingBar(starting: Starting) {
 }
 
 const val STARTING_TAG = "mini-player-starting"
+private val COMPACT_BUTTON = 40.dp
 private val ARTWORK = 48.dp
 private val PILLAR_BADGE = 18.dp
 private val BADGE_INSET = 3.dp

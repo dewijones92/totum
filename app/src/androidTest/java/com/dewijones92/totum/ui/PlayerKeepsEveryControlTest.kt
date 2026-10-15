@@ -1,11 +1,14 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -25,7 +28,9 @@ import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.player.CommentReplies
 import com.dewijones92.totum.ui.player.FullPlayerOverlay
+import com.dewijones92.totum.ui.player.PLAYER_TAB_TAG
 import com.dewijones92.totum.ui.player.PlaybackToggles
+import com.dewijones92.totum.ui.player.PlayerTab
 import com.dewijones92.totum.ui.player.QualityControl
 import com.dewijones92.totum.ui.player.QueueControls
 import com.dewijones92.totum.ui.player.WatchActions
@@ -159,6 +164,10 @@ class PlayerKeepsEveryControlTest {
         )
     }
 
+    private fun openTab(tab: PlayerTab) {
+        composeTestRule.onNodeWithTag(PLAYER_TAB_TAG + tab.name).performSemanticsAction(SemanticsActions.OnClick)
+    }
+
     private fun Array<out String>.anyOnScreen(): Boolean = any { label ->
         val matcher = hasText(label, substring = true, ignoreCase = true)
             .or(hasContentDescription(label, substring = true, ignoreCase = true))
@@ -189,9 +198,10 @@ class PlayerKeepsEveryControlTest {
         assertReachable("like", "Like")
         assertReachable("dislike", "Dislike")
         assertReachable("watch later", "Watch later", "Save")
+        assertReachable("the up-next queue", "Up next", "Ceuta")
+        openTab(PlayerTab.DETAILS)
         assertReachable("the description", "Aaron Bastani")
         assertReachable("chapters", "The wealth gap", "Chapters")
-        assertReachable("the up-next queue", "Up next", "Ceuta")
         assertActionable("the sleep timer", R.string.sleep_timer)
         assertActionable("skip silence", R.string.skip_silence)
         assertActionable("auto-play next", R.string.auto_play_next)
@@ -235,8 +245,9 @@ class PlayerKeepsEveryControlTest {
         assertActionable("speed", R.string.playback_speed)
         assertActionable("the sleep timer", R.string.sleep_timer)
         assertActionable("skip silence", R.string.skip_silence)
-        assertReachable("the description", "Aaron Bastani")
         assertReachable("the up-next queue", "Up next", "Ceuta")
+        openTab(PlayerTab.DETAILS)
+        assertReachable("the description", "Aaron Bastani")
     }
 
     /**

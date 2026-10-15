@@ -35,7 +35,7 @@ concurrency:
 jobs:
   unit:
     name: Exsurge unit tests + coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -63,7 +63,7 @@ jobs:
 
   instrumented:
     name: Exsurge instrumented tests (emulator)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 

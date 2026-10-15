@@ -22,7 +22,7 @@ concurrency:
 jobs:
   audio-quality:
     name: Silence cutter + volume boost on real speech
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 

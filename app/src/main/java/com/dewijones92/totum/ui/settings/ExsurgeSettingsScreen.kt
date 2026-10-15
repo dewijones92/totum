@@ -91,7 +91,6 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
             )
             val context = LocalContext.current
             ExsurgeStatusCard(view, onAction = { action -> onStatusAction(context, exsurge, action) })
-            StatsCard(view)
             QuestCard(Icons.Outlined.PowerSettingsNew, stringResource(R.string.exsurge_name)) {
                 SwitchRow(
                     label = stringResource(R.string.exsurge_settings_enabled),
@@ -101,6 +100,7 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
                     inset = 0.dp,
                 )
             }
+            StatsCard(view)
             QuestCard(Icons.Outlined.Schedule, stringResource(R.string.exsurge_settings_hours)) {
                 HoursSection(settings, update)
             }

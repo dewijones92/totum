@@ -21,4 +21,10 @@ internal fun FeedAndQueueSettings(settings: AppPreferences.Settings, prefs: AppP
         checked = settings.gaplessQueue,
         onCheckedChange = prefs::setGaplessQueue,
     )
+    SwitchRow(
+        label = stringResource(R.string.settings_explore),
+        summary = stringResource(R.string.settings_explore_summary),
+        checked = settings.exploreByDefault,
+        onCheckedChange = prefs::setExploreByDefault,
+    )
 }

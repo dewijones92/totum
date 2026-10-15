@@ -130,6 +130,10 @@ class GaplessArmerTest {
         assertEquals("the sleep timer stops after this item", gaplessNotNow(on, true))
         assertEquals("repeat one is on", gaplessNotNow(on.copy(repeatMode = RepeatMode.ONE), false))
         assertNull(gaplessNotNow(on.copy(repeatMode = RepeatMode.QUEUE), false))
+        assertEquals(
+            "Explore is on: a related video follows, not the queue's next",
+            gaplessNotNow(on, false, exploring = true),
+        )
     }
 
     private fun playing(

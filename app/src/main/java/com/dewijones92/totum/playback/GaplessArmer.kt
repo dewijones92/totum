@@ -80,8 +80,13 @@ internal class GaplessArmer(
     }
 }
 
-internal fun gaplessNotNow(settings: AppPreferences.Settings, sleepsAfterPlaying: Boolean): String? = when {
+internal fun gaplessNotNow(
+    settings: AppPreferences.Settings,
+    sleepsAfterPlaying: Boolean,
+    exploring: Boolean = false,
+): String? = when {
     !settings.gaplessQueue -> "gapless queue is off in Settings"
+    exploring -> "Explore is on: a related video follows, not the queue's next"
     !settings.autoPlayNext -> "auto-play next is off"
     settings.repeatMode == RepeatMode.ONE -> "repeat one is on"
     sleepsAfterPlaying -> "the sleep timer stops after this item"
@@ -98,6 +103,7 @@ internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
             container.appPreferences.settings.value,
             sleepsAfterPlaying = container.sleepTimer.stopsAfterItem
                 .let { it != null && it == controller.state.value?.itemId },
+            exploring = container.exploreMode.on.value,
         )
         override fun metered() = metered()
         override suspend fun arm(allowStream: Boolean) = queue.armNext(allowStream)

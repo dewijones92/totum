@@ -35,6 +35,8 @@ class AutoAdvancerTest {
     private var replayed = 0
     private var wrapped = 0
     private var sleepAfter: String? = null
+    private var exploring = false
+    private var explored = 0
 
     private fun TestScope.advancer() = AutoAdvancer(
         events = events,
@@ -55,7 +57,34 @@ class AutoAdvancerTest {
             true
         },
         sleepsAfter = { it.value == sleepAfter },
+        explore = {
+            if (exploring) explored++
+            exploring
+        },
     ).also { it.start() }
+
+    @Test
+    fun `with Explore on, a related video follows and the queue is not advanced`() = runTest {
+        exploring = true
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(1, explored)
+        assertEquals(0, advanced)
+    }
+
+    @Test
+    fun `with Explore off the queue advances as before`() = runTest {
+        advancer()
+        runCurrent()
+
+        end("a")
+
+        assertEquals(0, explored)
+        assertEquals(1, advanced)
+    }
 
     @Test
     fun `a sleep timer stopping after the item holds the queue there, even over repeat one`() = runTest {

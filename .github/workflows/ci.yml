@@ -21,7 +21,7 @@ concurrency:
 jobs:
   verify-sponsorblock:
     name: SponsorBlock removal (offline)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Install ffmpeg + yt-dlp
@@ -33,7 +33,7 @@ jobs:
 
   verify-mock-youtube:
     name: Mock YouTube replay (offline)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -56,7 +56,7 @@ jobs:
   # goes red and is seen; it does not stop a build shipping.
   instrumented:
     name: Instrumented tests (emulator)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -145,7 +145,7 @@ jobs:
 
   build:
     name: Quality gates + build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # rolling 'latest' release
     steps:

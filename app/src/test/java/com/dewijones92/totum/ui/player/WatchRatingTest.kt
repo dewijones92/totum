@@ -86,18 +86,19 @@ class WatchRatingTest {
     }
 
     @Test
-    fun `a song playing as sound gets its like state without fetching a watch page`() = runTest(dispatcher) {
+    fun `a song playing as sound gets its like state and its related list, and comments wait`() = runTest(dispatcher) {
         val (vm, work) = model()
 
         vm.bind("liked1", withPage = false)
         advanceUntilIdle()
 
         assertEquals(VideoRating.LIKE, vm.rating.value)
-        assertEquals(emptyList<String>(), related.requests)
+        assertEquals("Related shows in Listen mode too", listOf("liked1"), related.requests)
+        assertEquals(WatchViewModel.CommentsState.Loading, vm.comments.value)
 
         vm.bind("liked1")
         advanceUntilIdle()
-        assertEquals("the picture arriving later must still load its page", listOf("liked1"), related.requests)
+        assertEquals("the picture arriving later does not fetch related again", listOf("liked1"), related.requests)
         work.cancel()
     }
 

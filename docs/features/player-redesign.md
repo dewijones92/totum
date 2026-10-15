@@ -3,7 +3,7 @@ title: The player screen — tinted by what is playing
 kind: feature
 status: shipped
 area: player
-updated: 2026-10-05
+updated: 2026-10-15
 ---
 
 # The player screen
@@ -122,3 +122,8 @@ shell. It loops the standard local clip (`androidTest/assets/clip.mp4`), waits f
 callback, and captures the changed screen in both orientations. The clip is deliberately black.
 A separate [colour-pixel probe](../../dev/diagnostics/2026-10-05-video-pixels/README.md) also failed
 with Totum’s layout removed; colour-picture validation on this emulator remains unconfirmed.
+
+## Tabs and Explore (2026-10-15)
+
+Under the controls: Up next · Related · Comments · Details, with Related shown in Listen mode and for songs too. An
+Explore mode follows related videos and leaves the queue waiting; see [ADR 56](../adr/0056-player-tabs-and-explore-mode.md).

@@ -96,6 +96,7 @@ internal class DiagnosticSnapshot(
             put("settings.mediaFilter", settings.mediaFilter.name)
             put("settings.feedHiddenUntilAsked", settings.feedHiddenUntilAsked.toString())
             put("settings.gaplessQueue", settings.gaplessQueue.toString())
+            put("settings.exploreByDefault", settings.exploreByDefault.toString())
             put("settings.skipCategories", settings.skipCategories.joinToString(",") { it.id })
             put(
                 "settings.homeServer",
