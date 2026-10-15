@@ -100,6 +100,10 @@ import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.uploads.NewUploads
+import com.dewijones92.totum.uploads.QueueForUploads
+import com.dewijones92.totum.uploads.UploadsState
+import com.dewijones92.totum.uploads.UploadsStore
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -202,6 +206,21 @@ class FakeAppContainer(
             recentActions,
             statsLog,
             randomStarts,
+        )
+    }
+
+    override val newUploads: NewUploads by lazy {
+        NewUploads(
+            latest = { null },
+            queue = QueueForUploads(playbackQueue),
+            inboxSources = { emptyList() },
+            store = object : UploadsStore {
+                private var state = UploadsState()
+                override suspend fun load() = state
+                override suspend fun save(state: UploadsState) {
+                    this.state = state
+                }
+            },
         )
     }
 

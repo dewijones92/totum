@@ -1,6 +1,7 @@
 package com.dewijones92.totum.backup
 
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
+import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.decodeSourceSkips
 import com.dewijones92.totum.domain.encodeSourceSkips
 import com.dewijones92.totum.settings.AppPreferences
@@ -31,6 +32,9 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                 KEY_EXPLORE to exploreByDefault.toString(),
                 KEY_EXPLORE_CAP to exploreCap.toString(),
                 KEY_REWIND to rewindOnResume.toString(),
+                KEY_SILENT_TAIL to silentTailEnds.toString(),
+                KEY_INBOX_ALL to inboxAll.toString(),
+                KEY_INBOX_SOURCES to inboxSources.sorted().joinToString("\n"),
                 KEY_SOURCE_SKIPS to encodeSourceSkips(sourceSkips),
             )
         }
@@ -52,6 +56,14 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
             values[KEY_EXPLORE]?.toBooleanStrictOrNull()?.let(::setExploreByDefault)
             values[KEY_EXPLORE_CAP]?.toIntOrNull()?.let(::setExploreCap)
             values[KEY_REWIND]?.toBooleanStrictOrNull()?.let(::setRewindOnResume)
+            values[KEY_SILENT_TAIL]?.toBooleanStrictOrNull()?.let(::setSilentTailEnds)
+            values[KEY_INBOX_ALL]?.toBooleanStrictOrNull()?.let(::setInboxAll)
+            values[KEY_INBOX_SOURCES]?.lines()?.filter { it.isNotBlank() }?.forEach {
+                setInboxSource(
+                    SourceId(it),
+                    true
+                )
+            }
             values[KEY_SOURCE_SKIPS]?.let(
                 ::decodeSourceSkips
             )?.forEach { (source, skips) -> setSourceSkips(source, skips) }
@@ -70,4 +82,7 @@ private const val KEY_GAPLESS = "gaplessQueue"
 private const val KEY_EXPLORE = "exploreByDefault"
 private const val KEY_EXPLORE_CAP = "exploreCap"
 private const val KEY_REWIND = "rewindOnResume"
+private const val KEY_SILENT_TAIL = "silentTailEnds"
+private const val KEY_INBOX_ALL = "inboxAll"
+private const val KEY_INBOX_SOURCES = "inboxSources"
 private const val KEY_SOURCE_SKIPS = "sourceSkips"

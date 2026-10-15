@@ -44,6 +44,7 @@ import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.InboxToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaFilterChips
@@ -146,6 +147,7 @@ fun PodcastFeedScreen(
                 actions = {
                     FilterToggle(listFilter, episodes.size)
                     PinToggle(Pin.of(page.source))
+                    InboxToggle(source.id)
                     ShuffleAllAction(
                         container.shuffleAll,
                         container.applicationScope,

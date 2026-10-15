@@ -55,6 +55,7 @@ internal data class GroupHeaderActions(
     val onShuffle: () -> Unit,
     val onShuffleAndPlay: () -> Unit,
     val onSetDownload: (Boolean) -> Unit = {},
+    val onPullNew: (() -> Unit)? = null,
 )
 
 @Composable
@@ -161,6 +162,7 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
             MenuItem(R.string.queue_move_to_top, close) { actions.onMove(GroupDestination.TOP) }
             MenuItem(R.string.queue_move_to_bottom, close) { actions.onMove(GroupDestination.BOTTOM) }
             if (model.count > 1) MenuItem(R.string.queue_group_shuffle, close, actions.onShuffle)
+            actions.onPullNew?.let { MenuItem(R.string.queue_group_pull_new, close, it) }
             if (model.downloading) {
                 MenuItem(R.string.queue_group_stop_download, close) { actions.onSetDownload(false) }
             } else {

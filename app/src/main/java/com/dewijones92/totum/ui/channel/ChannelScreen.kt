@@ -44,6 +44,7 @@ import com.dewijones92.totum.shuffle.ShuffleTarget
 import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.InboxToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
@@ -95,6 +96,7 @@ fun ChannelScreen(
     ChannelContent(
         state = state,
         headerAction = {
+            InboxToggle(source.id)
             ShuffleAllAction(
                 container.shuffleAll,
                 container.applicationScope,

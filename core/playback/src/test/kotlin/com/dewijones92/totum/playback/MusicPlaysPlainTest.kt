@@ -21,9 +21,21 @@ class MusicPlaysPlainTest {
         listOf(MediaContentKind.STANDARD, MediaContentKind.SHORT, MediaContentKind.LIVE).forEach { kind ->
             assertEquals(
                 kind.name,
-                ItemTuning(speed = 1.75f, skipSilence = true, keepsChanges = true),
+                ItemTuning(
+                    speed = 1.75f,
+                    skipSilence = true,
+                    keepsChanges = true,
+                    silentTailEnds = kind != MediaContentKind.LIVE
+                ),
                 tuningFor(kind, choices)
             )
         }
+    }
+
+    @Test
+    fun `a silent tail ends talk, never music or a live stream`() {
+        assertEquals(true, tuningFor(MediaContentKind.STANDARD, choices).silentTailEnds)
+        assertEquals(false, tuningFor(MediaContentKind.MUSIC, choices).silentTailEnds)
+        assertEquals(false, tuningFor(MediaContentKind.LIVE, choices).silentTailEnds)
     }
 }

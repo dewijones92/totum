@@ -17,6 +17,7 @@ class ExploreMode(
     private val nowPlaying: () -> PlayableItem?,
     private val onTurnedOn: () -> Unit = {},
     private val cap: () -> Int = { 0 },
+    private val queued: () -> Set<MediaItemId> = { emptySet() },
 ) {
     private val state = MutableStateFlow(initiallyOn)
     val on: StateFlow<Boolean> = state.asStateFlow()
@@ -54,12 +55,14 @@ class ExploreMode(
         val candidates = related(ended) ?: return false.also {
             Diag.log("explore", "nothing related to ${ended.id.value}; the queue carries on from its place")
         }
-        val fresh = candidates.filter { it.id !in played && it.explorable }
+        val inQueue = queued()
+        val fresh = candidates.filter { it.id !in played && it.id !in inQueue && it.explorable }
         val next = fresh.firstNotNullOfOrNull { it.toPlayableOrNull() } ?: return false.also {
             Diag.log(
                 "explore",
                 "none of ${candidates.size} related to ${ended.id.value} can follow " +
-                    "(${candidates.size - fresh.size} played in this run, live, Shorts or members-only; " +
+                    "(${candidates.size - fresh.size} played in this run, already queued, " +
+                    "live, Shorts or members-only; " +
                     "${fresh.size} without a playable link); the queue carries on from its place",
             )
         }

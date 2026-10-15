@@ -36,6 +36,12 @@ internal fun FeedAndQueueSettings(settings: AppPreferences.Settings, prefs: AppP
         onCheckedChange = prefs::setRewindOnResume,
     )
     SwitchRow(
+        label = stringResource(R.string.settings_silent_tail),
+        summary = stringResource(R.string.settings_silent_tail_summary),
+        checked = settings.silentTailEnds,
+        onCheckedChange = prefs::setSilentTailEnds,
+    )
+    SwitchRow(
         label = stringResource(R.string.settings_gapless),
         summary = stringResource(R.string.settings_gapless_summary),
         checked = settings.gaplessQueue,

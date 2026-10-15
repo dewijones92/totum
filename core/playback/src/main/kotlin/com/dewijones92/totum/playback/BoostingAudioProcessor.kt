@@ -38,6 +38,9 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     private var samplesPerReport = 0L
     private var samplesBeforeFirstReport = 0L
     private var rebuildOnFlush = false
+    private var tail: SilentRun? = null
+
+    val silentForMs: Long get() = tail?.silentForMs ?: 0
 
     /** Set from the session command; takes effect on the next buffer, glided rather than switched. */
     var level: VolumeBoost = VolumeBoost.OFF
@@ -55,6 +58,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     private fun rebuild(inputAudioFormat: AudioProcessor.AudioFormat) {
         samplesPerReport = inputAudioFormat.sampleRate.toLong() * SECONDS_PER_REPORT
         samplesBeforeFirstReport = inputAudioFormat.sampleRate.toLong() * SECONDS_BEFORE_FIRST_REPORT
+        tail = SilentRun(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1))
         reportedGainDb = Float.NaN
         // Rebuilt per configuration because the smoothing coefficients depend on the sample rate —
         // a boost tuned at 44.1kHz would attack twice as slowly at 22.05.
@@ -86,6 +90,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         // device and invisible in a type checker.
         val shorts = inputBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
         shorts.get(samples, 0, count)
+        tail?.add(samples, count)
         // The input has been consumed; the sink checks this rather than taking it on trust.
         inputBuffer.position(inputBuffer.limit())
         write(active.process(samples, count), active.outputSamples)
@@ -104,6 +109,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         } else {
             boost?.flushDelay()
         }
+        tail?.reset()
     }
 
     private fun write(output: ShortArray, count: Int) {

@@ -76,6 +76,7 @@ public class SponsorBlockSegmentSource(
             SkipCategory.SPONSOR,
             SkipCategory.SELF_PROMO,
             SkipCategory.INTERACTION,
+            SkipCategory.OUTRO,
         )
     }
 }

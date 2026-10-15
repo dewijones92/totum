@@ -645,6 +645,25 @@
     <string name="source_skips_intro_here">Intro ends here</string>
     <string name="source_skips_outro_here">Outro starts here</string>
     <string name="source_skips_clear">Clear</string>
+    <string name="settings_silent_tail">End on a silent tail</string>
+    <string name="settings_silent_tail_summary">When a video or episode goes quiet for 5 s in its last minute (credits, a blank end screen), move on to the next item. Never for music.</string>
+    <string name="queue_group_pull_new">🔄 Pull new uploads</string>
+    <string name="queue_pull_nothing">📭 Nothing new since the last look</string>
+    <string name="queue_pull_failed">⚠️ Could not check %1$s</string>
+    <plurals name="queue_pulled_new">
+        <item quantity="one">✅ %d new upload added next in the group</item>
+        <item quantity="other">✅ %d new uploads added next in the group</item>
+    </plurals>
+    <string name="inbox_start">Add new uploads to my queue</string>
+    <string name="inbox_stop">Stop adding new uploads to my queue</string>
+    <string name="inbox_on_for_all">New uploads from every subscription go to your queue (Settings)</string>
+    <string name="settings_inbox_section">📥 New uploads</string>
+    <string name="settings_inbox_all">Every subscription</string>
+    <string name="settings_inbox_all_summary">New uploads from all your channels and podcasts go to a "📥 New" group at the end of the queue. Checked every 2 hours on Wi-Fi.</string>
+    <string name="settings_inbox_sources">Choose sources</string>
+    <string name="settings_inbox_podcast">🎙️ Podcast</string>
+    <string name="settings_inbox_channel">📺 Channel</string>
+    <string name="settings_inbox_none">📭 No subscriptions yet</string>
     <string name="settings_rewind">Rewind a little after a pause</string>
     <string name="settings_rewind_summary">Talk picks up a few seconds back when you resume: 2 s after a short pause, up to 20 s after an hour or more. Never for music.</string>
     <string name="explore_on">🧭 Explore on: related videos play next, your queue waits</string>

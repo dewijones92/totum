@@ -15,6 +15,7 @@ import com.dewijones92.totum.playback.startGapless
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.stats.ListenRecorder
 import com.dewijones92.totum.stats.recordFinishedDownloads
+import com.dewijones92.totum.uploads.NewUploadsWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -46,6 +47,19 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         startGapless(container, NetworkStatus(this)::isMetered)
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
+        NewUploadsWorker.schedule(this)
+        val metered = NetworkStatus(this)::isMetered
+        container.applicationScope.launch {
+            delay(UPLOADS_CHECK_DELAY_MS)
+            if (!warmEngineAfterLaunch) {
+                Diag.log("uploads", "not checking for new uploads on opening: running under instrumentation")
+            } else if (metered()) {
+                Diag.log("uploads", "app opened on a metered network: not checking for new uploads")
+            } else {
+                runCatching { container.newUploads.check("app opened") }
+                    .onFailure { Diag.warn("uploads", "check on opening failed", it) }
+            }
+        }
         container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")
         FlatPhoneNudge(this, container.exsurge, container.applicationScope, container.statsLog).start()
         ListenRecorder(
@@ -78,6 +92,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         @Volatile
         internal var warmEngineAfterLaunch: Boolean = true
         private const val ENGINE_WARM_DELAY_MS = 10_000L
+        private const val UPLOADS_CHECK_DELAY_MS = 20_000L
         private val UPDATE_CHECK_INTERVAL = 30.minutes
     }
 

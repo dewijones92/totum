@@ -20,6 +20,7 @@ internal fun exploreModeFor(c: AppContainer) = ExploreMode(
     nowPlaying = { c.playbackQueue.nowPlaying.value },
     onTurnedOn = { c.playbackController.disarmNext("Explore turned on: a related video follows instead") },
     cap = { c.appPreferences.settings.value.exploreCap },
+    queued = { c.playbackQueue.state.value.entries.mapTo(mutableSetOf()) { it.item.item.id } },
 )
 
 internal fun nextEpisodesOf(

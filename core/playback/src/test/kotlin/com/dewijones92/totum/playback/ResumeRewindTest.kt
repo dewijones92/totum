@@ -11,10 +11,19 @@ class ResumeRewindTest {
     private val rewind = ResumeRewind { clock }
     private val talk = ResumeFacts(talk = true, live = false, enabled = true)
 
-    private fun pauseFor(ms: Long, item: String = "a", at: Long = 600_000) {
-        rewind.onPaused(item, at)
-        clock += ms
-    }
+    private fun moment(
+        item: String = "a",
+        at: Long = 600_000,
+        playWhenReady: Boolean = true,
+        ended: Boolean = false,
+        focusLost: Boolean = false,
+    ) = PlayerMoment(item, at, playWhenReady, ended, focusLost)
+
+    private fun pause(item: String = "a", at: Long = 600_000, endOfItem: Boolean = false) =
+        rewind.onChange(moment(item, at, playWhenReady = false), endOfItem, talk)
+
+    private fun resume(item: String = "a", at: Long = 600_000, facts: ResumeFacts = talk) =
+        rewind.onChange(moment(item, at), endOfItem = false, facts)
 
     @Test
     fun `the rewind grows with the pause, from 2 s to 20 s after an hour`() {
@@ -26,55 +35,90 @@ class ResumeRewindTest {
     }
 
     @Test
-    fun `talk resumed after an hour starts 20 s earlier`() {
-        pauseFor(3_600_000)
-        assertEquals(580_000L, rewind.onResumed("a", 600_000, talk))
+    fun `talk resumed after an hour starts 20 s earlier, a quick pause does not move`() {
+        pause()
+        clock += 3_600_000
+        assertEquals(580_000L, resume())
+        pause()
+        clock += 1_000
+        assertNull(resume())
     }
 
     @Test
-    fun `a quick pause is not rewound`() {
-        pauseFor(1_000)
-        assertNull(rewind.onResumed("a", 600_000, talk))
+    fun `music, a live stream, a seek while paused, another item or the setting off are left alone`() {
+        listOf(talk.copy(talk = false), talk.copy(live = true), talk.copy(enabled = false)).forEach { facts ->
+            pause()
+            clock += 600_000
+            assertNull(resume(facts = facts))
+        }
+        pause()
+        clock += 600_000
+        assertNull(resume(at = 900_000))
+        pause(item = "a")
+        clock += 600_000
+        assertNull(resume(item = "b"))
     }
 
     @Test
-    fun `music, a live stream, a seek while paused or the setting off are left alone`() {
-        pauseFor(600_000)
-        assertNull(rewind.onResumed("a", 600_000, talk.copy(talk = false)))
-        pauseFor(600_000)
-        assertNull(rewind.onResumed("a", 600_000, talk.copy(live = true)))
-        pauseFor(600_000)
-        assertNull(rewind.onResumed("a", 900_000, talk))
-        pauseFor(600_000)
-        assertNull(rewind.onResumed("a", 600_000, talk.copy(enabled = false)))
+    fun `a phone call (audio focus lost while still meaning to play) rewinds when it gives the sound back`() {
+        rewind.onChange(moment(focusLost = true), endOfItem = false, talk)
+        clock += 600_000
+        val back = rewind.onChange(moment(focusLost = false), endOfItem = false, talk)
+        assertTrue(back != null && back < 600_000)
     }
 
     @Test
-    fun `a different item playing on resume is not rewound`() {
-        pauseFor(600_000, item = "a")
-        assertNull(rewind.onResumed("b", 600_000, talk))
+    fun `the player stopping at an item's end is not a pause, and nothing is rewound once it has ended`() {
+        pause(endOfItem = true)
+        clock += 600_000
+        assertNull(resume())
+        pause()
+        clock += 600_000
+        assertNull(rewind.onChange(moment(ended = true), endOfItem = false, talk))
+        assertNull(resume())
+    }
+
+    @Test
+    fun `a forgotten pause (a fresh start chose its own place) is not rewound twice`() {
+        pause()
+        clock += 3_600_000
+        rewind.forget()
+        assertNull(resume(at = 580_000))
     }
 
     @Test
     fun `the same item re-fetched while paused keeps its pause, another item drops it`() {
-        pauseFor(3_600_000)
+        pause()
+        clock += 3_600_000
         rewind.replacedBy("a")
-        assertEquals(580_000L, rewind.onResumed("a", 600_000, talk))
-        pauseFor(3_600_000)
+        assertEquals(580_000L, resume())
+        pause()
+        clock += 3_600_000
         rewind.replacedBy("b")
-        assertNull(rewind.onResumed("a", 600_000, talk))
+        assertNull(resume())
     }
 
     @Test
     fun `never before the start`() {
-        pauseFor(3_600_000, at = 5_000)
-        assertEquals(0L, rewind.onResumed("a", 5_000, talk))
+        pause(at = 5_000)
+        clock += 3_600_000
+        assertEquals(0L, resume(at = 5_000))
     }
 
     @Test
-    fun `a saved position from yesterday starts 20 s earlier, music does not`() {
-        assertEquals(580_000L, rewoundStart("a", 600_000, 86_400_000, talk, "resuming saved"))
-        assertEquals(600_000L, rewoundStart("a", 600_000, 86_400_000, talk.copy(talk = false), "resuming saved"))
-        assertEquals(0L, rewoundStart("a", 0, 86_400_000, talk, "resuming saved"))
+    fun `a saved position from yesterday starts 20 s earlier, music, nothing saved and a shuffle start do not`() {
+        val day = 86_400_000L
+        assertEquals(580_000L, startFor(SavedPlace(600_000, 0), day, talk, null).positionMs)
+        assertEquals(600_000L, startFor(SavedPlace(600_000, 0), day, talk.copy(talk = false), null).positionMs)
+        assertEquals(0L, startFor(SavedPlace(null, null), day, talk, null).positionMs)
+        assertEquals(600_000L, startFor(SavedPlace(600_000, null), day, talk, null).positionMs)
+    }
+
+    @Test
+    fun `a start inside the show's intro begins where the intro ends instead`() {
+        val fromTop = startFor(SavedPlace(null, null), 0, talk, introEndMs = 83_000)
+        assertEquals(83_000L, fromTop.positionMs)
+        assertTrue(fromTop.why.contains("intro"))
+        assertEquals(600_000L, startFor(SavedPlace(600_000, 0), 1_000, talk, introEndMs = 83_000).positionMs)
     }
 }

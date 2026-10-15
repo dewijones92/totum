@@ -162,13 +162,10 @@ import com.dewijones92.totum.pins.withRecent
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.ExploreMode
-import com.dewijones92.totum.playback.Media3PlaybackController
 import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
-import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
-import com.dewijones92.totum.playback.SharedPrefsVolumeBoostStore
 import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
@@ -192,11 +189,12 @@ import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
-import com.dewijones92.totum.settings.setting
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.uploads.NewUploads
+import com.dewijones92.totum.uploads.newUploadsOf
 import com.dewijones92.totum.video.AccountChannel
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
@@ -457,6 +455,8 @@ interface AppContainer {
 
     val shuffleAll: ShuffleAll
 
+    val newUploads: NewUploads
+
     val recentActions: RecentActions
     val exploreMode: ExploreMode
     val statsLog: StatsLog
@@ -521,6 +521,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
+
+    override val newUploads: NewUploads by lazy {
+        newUploadsOf(this, textFetcher, shufflePages, File(context.filesDir, "new_uploads.json"))
+    }
+
+    internal val shufflePages by lazy { AppSourcePages(youTubeChannel, channelRepository, podcastRepository) }
 
     override val appUpdate: AppUpdateCheck by lazy {
         AppUpdateCheck(BuildConfig.VERSION_NAME, GitHubLatestRelease(OkHttpTextFetcher(transferClient)))
@@ -600,24 +606,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         }
     }
 
-    override val playbackController: PlaybackController by lazy {
-        Media3PlaybackController(
-            context,
-            applicationScope,
-            randomStarts,
-            SharedPrefsPlaybackSpeedStore(context),
-            SharedPrefsVolumeBoostStore(context),
-            // Podcasts play straight through the controller (their enclosure URL is
-            // stable), so record their history here; videos are recorded at the
-            // launcher, which knows the stable watch URL.
-            onPlay = { item, kind ->
-                applicationScope.launch { recordPlay(playHistoryStore, downloadManager, item, kind) }
-            },
-            silenceMode = appPreferences.setting(applicationScope) { it.silenceMode },
-            rewindOnResume = appPreferences.setting(applicationScope) { it.rewindOnResume },
-            sourceSkips = appPreferences.setting(applicationScope) { it.sourceSkips },
-        )
-    }
+    override val playbackController: PlaybackController by lazy { playbackControllerOf(this, context) }
 
     private val textFetcher by lazy { OkHttpTextFetcher(httpClient) }
 
@@ -1461,7 +1450,7 @@ private fun deviceLanguages(): List<String> {
     return (0 until locales.size()).mapNotNull { locales[it]?.language?.ifBlank { null } }.distinct()
 }
 
-private suspend fun recordPlay(
+internal suspend fun recordPlay(
     history: PlayHistoryStore,
     downloads: DownloadManager,
     item: MediaItem,
@@ -1476,11 +1465,12 @@ private suspend fun recordPlay(
 }
 
 private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
-    WholeSource(AppSourcePages(c.youTubeChannel, c.channelRepository, c.podcastRepository)),
+    WholeSource(c.shufflePages),
     c.playbackQueue,
     c.recentActions,
     c.statsLog,
     c.randomStarts,
+    c.newUploads,
 )
 
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */

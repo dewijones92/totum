@@ -12,6 +12,9 @@ class PreferenceBackupTest {
     fun `the rewind switch, the explore cap and each show's intro and outro reach a backup and come back`() {
         val phone = InMemoryAppPreferences().apply {
             setRewindOnResume(false)
+            setSilentTailEnds(false)
+            setInboxAll(true)
+            setInboxSource(SourceId("https://example.com/feed.xml"), true)
             setExploreCap(5)
             setSourceSkips(SourceId("show"), SourceSkips(introEndMs = 83_000, outroLengthMs = 45_000))
             setSourceSkips(SourceId("UCchannel"), SourceSkips(introEndMs = 12_000))
@@ -21,6 +24,9 @@ class PreferenceBackupTest {
         other.asBackupSettings().restore(phone.asBackupSettings().export())
 
         assertEquals(false, other.settings.value.rewindOnResume)
+        assertEquals(false, other.settings.value.silentTailEnds)
+        assertEquals(true, other.settings.value.inboxAll)
+        assertEquals(setOf("https://example.com/feed.xml"), other.settings.value.inboxSources)
         assertEquals(5, other.settings.value.exploreCap)
         assertEquals(phone.settings.value.sourceSkips, other.settings.value.sourceSkips)
     }

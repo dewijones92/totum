@@ -37,10 +37,12 @@ class ExploreModeTest {
     private var whileLookingUp: () -> Unit = {}
 
     private var cap = 0
+    private val queued = mutableSetOf<MediaItemId>()
 
     private fun explore(on: Boolean = true) = ExploreMode(
         initiallyOn = on,
         cap = { cap },
+        queued = { queued },
         related = { item ->
             whileLookingUp()
             related[item.id.value]?.map { id ->
@@ -66,6 +68,18 @@ class ExploreModeTest {
 
         assertTrue(explore.afterEnded(MediaItemId("a")))
         assertEquals(listOf("x"), peeked)
+    }
+
+    @Test
+    fun `something already in the queue is left for the queue to reach`() = runTest {
+        val explore = explore()
+        nowPlaying = video("ep5")
+        related["ep5"] = listOf("ep6", "ep7")
+        queued += MediaItemId("ep6")
+
+        assertTrue(explore.afterEnded(MediaItemId("ep5")))
+
+        assertEquals(listOf("ep7"), peeked)
     }
 
     @Test

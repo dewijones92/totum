@@ -32,6 +32,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
+import com.dewijones92.totum.domain.showKey
 import com.dewijones92.totum.domain.skipTargetFor
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -68,6 +69,7 @@ public class Media3PlaybackController(
     private val silenceMode: StateFlow<SilenceMode> = MutableStateFlow(SilenceMode.DEFAULT),
     private val rewindOnResume: StateFlow<Boolean> = MutableStateFlow(true),
     private val sourceSkips: StateFlow<Map<SourceId, SourceSkips>> = MutableStateFlow(emptyMap()),
+    private val silentTailEnds: StateFlow<Boolean> = MutableStateFlow(true),
     private val wallClock: () -> Long = System::currentTimeMillis,
 ) : PlaybackController {
 
@@ -283,7 +285,11 @@ public class Media3PlaybackController(
             // An explicit position wins: a re-resolved stream knows exactly where the dead
             // one stopped, which is finer-grained than the periodically-saved progress.
             val tuned = tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))
-            val resumeMs = startPositionMs.takeIf { it > 0 } ?: savedStart(item, tuned)
+            val start = if (startPositionMs > 0) {
+                StartChoice(startPositionMs, "an explicit start (a re-fetch keeps its place), not rewound")
+            } else {
+                startChoiceFor(item, tuned)
+            }
             if (!tuned.keepsChanges) {
                 Diag.log(
                     "playback",
@@ -304,10 +310,11 @@ public class Media3PlaybackController(
                     return@withController
                 }
                 nextInLine.forgetOnRebuild(item.id.value)
-                resumeRewind.replacedBy(item.id.value)
+                if (startPositionMs > 0) resumeRewind.replacedBy(item.id.value) else resumeRewind.forget()
+                Diag.log("playback", "${item.id.value} starts at ${start.positionMs}ms: ${start.why}")
                 noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
                 becameCurrent(requestedContext)
-                controller.setMediaItem(media3Item, resumeMs)
+                controller.setMediaItem(media3Item, start.positionMs)
                 applyChoices(controller, tuned, boost, audioOnly)
                 controller.prepare()
                 if (startPaused) controller.pause() else controller.play()
@@ -315,15 +322,16 @@ public class Media3PlaybackController(
         }
     }
 
-    private suspend fun savedStart(item: MediaItem, tuned: ItemTuning): Long {
-        val saved = progressStore.resumePositionMs(item.id) ?: return 0L
-        val savedAt = progressStore.lastSavedAtEpochMs(item.id) ?: return saved
+    private suspend fun startChoiceFor(item: MediaItem, tuned: ItemTuning): StartChoice {
+        val saved = progressStore.resumePositionMs(item.id)
+        val place = SavedPlace(saved, saved?.let { progressStore.lastSavedAtEpochMs(item.id) })
         val facts = ResumeFacts(
             talk = tuned.keepsChanges,
             live = item.contentKind == MediaContentKind.LIVE,
             enabled = rewindOnResume.value,
         )
-        return rewoundStart(item.id.value, saved, wallClock() - savedAt, facts, "resuming saved")
+        val intro = item.showKey()?.let { sourceSkips.value[it] }?.introStartFor(item.duration?.inWholeMilliseconds)
+        return startFor(place, wallClock(), facts, intro)
     }
 
     // Re-applied on EVERY item, and told to the service too: the rate the user chose
@@ -337,6 +345,11 @@ public class Media3PlaybackController(
         tuning = tuned
         applyUserSpeed(controller, tuned.speed)
         sendSkipSilence(controller, tuned.skipSilence)
+        val tailEnds = silentTailEnds.value && tuned.silentTailEnds
+        controller.sendCustomCommand(
+            SessionCommand(ACTION_SILENT_TAIL, Bundle.EMPTY),
+            bundleOf(EXTRA_SKIP_SILENCE_ENABLED to tailEnds),
+        )
         applySilenceMode(controller, silenceMode.value)
         applySubtitleLanguage(controller, audioOnly)
         if (boost != volumeBoost) setVolumeBoost(boost)
@@ -502,7 +515,10 @@ public class Media3PlaybackController(
         }
         val behind = itemContext.id
         scope.launch {
-            val startMs = progressStore.resumePositionMs(item.id) ?: 0L
+            val start =
+                startChoiceFor(item, tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence)))
+            Diag.log("gapless", "${item.id.value} would start at ${start.positionMs}ms if armed: ${start.why}")
+            val startMs = start.positionMs
             val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, startMs, audioOnly)
             withController { controller ->
                 val playing = controller.currentMediaItem?.mediaId
@@ -894,6 +910,7 @@ public class Media3PlaybackController(
             volumeBoost = volumeBoost,
             chapters = itemContext.chapters,
             showKey = itemContext.showKey,
+            contentKind = itemContext.contentKind,
         )
     }
 

@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.domain.Chapter
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
@@ -35,6 +36,7 @@ internal data class ItemContext(
     val publishedAt: Instant?,
     val sourceId: SourceId?,
     val showKey: SourceId? = null,
+    val contentKind: MediaContentKind = MediaContentKind.STANDARD,
 ) {
     companion object {
         val NONE = ItemContext(
@@ -63,6 +65,7 @@ internal data class ItemContext(
                 publishedAt = item.publishedAt,
                 sourceId = item.sourceId,
                 showKey = item.showKey(),
+                contentKind = item.contentKind,
             )
     }
 }

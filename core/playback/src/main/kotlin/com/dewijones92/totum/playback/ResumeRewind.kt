@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import androidx.media3.common.Player
 import com.dewijones92.totum.common.Diag
+import kotlin.math.abs
 
 internal fun rewindAfterPauseMs(pausedMs: Long): Long = when {
     pausedMs < QUICK_PAUSE_MS -> 0
@@ -11,47 +12,77 @@ internal fun rewindAfterPauseMs(pausedMs: Long): Long = when {
 
 internal data class ResumeFacts(val talk: Boolean, val live: Boolean, val enabled: Boolean)
 
-internal fun rewoundStart(itemId: String, positionMs: Long, pausedMs: Long, facts: ResumeFacts, how: String): Long {
-    val why = when {
+internal data class StartChoice(val positionMs: Long, val why: String)
+
+internal fun rewoundStart(positionMs: Long, pausedMs: Long, facts: ResumeFacts): StartChoice {
+    val notRewound = when {
         !facts.enabled -> "rewind on resume is off in Settings"
         !facts.talk -> "music plays on from where it paused"
         facts.live -> "a live stream has nothing to rewind into"
         positionMs <= 0 -> "it is at the start"
+        pausedMs < QUICK_PAUSE_MS -> "a quick pause"
         else -> null
     }
-    val rewind = rewindAfterPauseMs(pausedMs)
-    if (why != null || rewind == 0L) {
-        if (pausedMs >= QUICK_PAUSE_MS) {
-            Diag.log("playback", "$how $itemId after ${pausedMs}ms: no rewind (${why ?: "a quick pause"})")
-        }
-        return positionMs
-    }
-    val target = (positionMs - rewind).coerceAtLeast(0)
-    Diag.log(
-        "playback",
-        "$how $itemId after ${pausedMs}ms: rewound ${positionMs - target}ms, $positionMs -> ${target}ms"
-    )
-    return target
+    if (notRewound != null) return StartChoice(positionMs, "paused ${pausedMs}ms, no rewind: $notRewound")
+    val target = (positionMs - rewindAfterPauseMs(pausedMs)).coerceAtLeast(0)
+    return StartChoice(target, "paused ${pausedMs}ms, rewound ${positionMs - target}ms from ${positionMs}ms")
 }
+
+internal data class SavedPlace(val positionMs: Long?, val savedAtEpochMs: Long?)
+
+internal fun startFor(saved: SavedPlace, nowEpochMs: Long, facts: ResumeFacts, introEndMs: Long?): StartChoice {
+    val resumed = when {
+        saved.positionMs == null -> StartChoice(0, "nothing saved, from the start")
+        saved.savedAtEpochMs == null -> StartChoice(
+            saved.positionMs,
+            "saved with no time (a shuffle start), not rewound"
+        )
+        else -> rewoundStart(saved.positionMs, nowEpochMs - saved.savedAtEpochMs, facts)
+    }
+    if (introEndMs == null || resumed.positionMs >= introEndMs) return resumed
+    return StartChoice(introEndMs, "${resumed.why}; then past the show's intro to ${introEndMs}ms")
+}
+
+internal data class PlayerMoment(
+    val itemId: String,
+    val positionMs: Long,
+    val playWhenReady: Boolean,
+    val ended: Boolean,
+    val focusLost: Boolean,
+)
 
 internal class ResumeRewind(private val now: () -> Long) {
     private var paused: Triple<String, Long, Long>? = null
 
-    fun onPaused(itemId: String, positionMs: Long) {
-        paused = Triple(itemId, positionMs, now())
+    fun forget() {
+        paused = null
     }
 
     fun replacedBy(itemId: String) {
         if (paused?.first != itemId) paused = null
     }
 
-    fun onResumed(itemId: String, positionMs: Long, facts: ResumeFacts): Long? {
+    fun onChange(moment: PlayerMoment, endOfItem: Boolean, facts: ResumeFacts): Long? {
+        val stopped = !moment.playWhenReady || moment.focusLost
+        return when {
+            moment.ended -> null.also { forget() }
+            stopped && !endOfItem -> null.also { notePause(moment) }
+            stopped -> null
+            else -> onResumed(moment.itemId, moment.positionMs, facts)
+        }
+    }
+
+    private fun notePause(moment: PlayerMoment) {
+        if (paused == null) paused = Triple(moment.itemId, moment.positionMs, now())
+    }
+
+    private fun onResumed(itemId: String, positionMs: Long, facts: ResumeFacts): Long? {
         val (pausedItem, pausedAt, since) = paused ?: return null
         paused = null
         val pausedMs = now() - since
         val moved = when {
             pausedItem != itemId -> "a different item is playing now"
-            kotlin.math.abs(positionMs - pausedAt) > MOVED_MS -> "it was moved while paused"
+            abs(positionMs - pausedAt) > MOVED_MS -> "it was moved while paused"
             else -> null
         }
         if (moved != null) {
@@ -63,7 +94,9 @@ internal class ResumeRewind(private val now: () -> Long) {
             }
             return null
         }
-        return rewoundStart(itemId, positionMs, pausedMs, facts, "resumed").takeIf { it != positionMs }
+        val choice = rewoundStart(positionMs, pausedMs, facts)
+        if (pausedMs >= QUICK_PAUSE_MS) Diag.log("playback", "resumed $itemId: ${choice.why}")
+        return choice.positionMs.takeIf { it != positionMs }
     }
 }
 
@@ -73,19 +106,26 @@ internal class ResumeRewindListener(
     private val facts: () -> ResumeFacts,
 ) : Player.Listener {
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        changed(endOfItem = reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)
+    }
+
+    override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+        changed(endOfItem = false)
+    }
+
+    private fun changed(endOfItem: Boolean) {
         val player = player() ?: return
         val id = player.currentMediaItem?.mediaId ?: return
-        if (!playWhenReady) {
-            if (reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
-                rewind.onPaused(
-                    id,
-                    player.currentPosition
-                )
-            }
-            return
-        }
-        val live = player.isCurrentMediaItemLive
-        rewind.onResumed(id, player.currentPosition, facts().copy(live = live))?.let(player::seekTo)
+        val moment = PlayerMoment(
+            itemId = id,
+            positionMs = player.currentPosition,
+            playWhenReady = player.playWhenReady,
+            ended = player.playbackState == Player.STATE_ENDED,
+            focusLost = player.playbackSuppressionReason ==
+                Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS,
+        )
+        val target = rewind.onChange(moment, endOfItem, facts().copy(live = player.isCurrentMediaItemLive))
+        target?.let(player::seekTo)
     }
 }
 

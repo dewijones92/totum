@@ -240,14 +240,14 @@ class PlaybackQueue(
     suspend fun playFromTheTop(): Boolean = _state.value.entries.indices.any { playAt(it, rollBackOnRefusal = true) }
         .also { Diag.log("queue", "start again from the top -> played=$it") }
 
-    fun appendToGroup(group: QueueGroup, items: List<PlayableItem>): Int {
+    fun addToGroup(group: QueueGroup, items: List<PlayableItem>, spot: GroupSpot = GroupSpot.END): Int {
         val queued = _state.value.entries.mapTo(mutableSetOf()) { it.item.item.id }
         val fresh = items.distinctBy { it.item.id }.filterNot { it.item.id in queued }
         if (fresh.isEmpty()) {
-            Diag.log("queue", "append to \"${group.title}\": all ${items.size} already queued, nothing added")
+            Diag.log("queue", "add to \"${group.title}\" ($spot): all ${items.size} already queued, nothing added")
             return 0
         }
-        mutate("append x${fresh.size} to \"${group.title}\"") { it.appendedTo(group, fresh) }
+        mutate("add x${fresh.size} to \"${group.title}\" ($spot)") { it.addedTo(group, fresh, spot) }
         return fresh.size
     }
 
@@ -1130,16 +1130,6 @@ private fun QueueSnapshot.shuffledAfterCurrent(random: Random): QueueSnapshot {
         return this
     }
     return copy(entries = entries.take(after) + entries.drop(after).shuffled(random))
-}
-
-private fun QueueSnapshot.appendedTo(group: QueueGroup, fresh: List<PlayableItem>): QueueSnapshot {
-    val last = entries.indexOfLast { it.group?.id == group.id }
-    val at = if (last < 0) entries.size else last + 1
-    val run = fresh.map { QueueEntry(it, group) }
-    return copy(
-        entries = entries.take(at) + run + entries.drop(at),
-        currentIndex = if (currentIndex >= at) currentIndex + run.size else currentIndex,
-    )
 }
 
 /** Inserts [run] immediately after the current entry, leaving the cursor put. */

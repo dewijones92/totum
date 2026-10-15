@@ -40,6 +40,8 @@ alone until they need more.
 | Playlists (account) | video | shipped | — |
 | Channel page (subscribe + uploads) | channel | shipped | — |
 | Chapters (yt-dlp + Podcasting 2.0 `psc`/remote) + seek-bar markers | playback | shipped | — |
+| New uploads into shuffled groups and a 📥 New inbox (every 2 h on Wi-Fi, or ⋮ → Pull new uploads) | queue | shipped | [adr 59](../adr/0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md) |
+| Silent tail ends the item; SponsorBlock end cards skipped by default | playback | shipped | [adr 58](../adr/0058-a-silent-tail-ends-the-item.md) |
 | Rewind on resume (2–20 s by pause length, never music) and each show's intro/outro skipped | playback | shipped | [adr 57](../adr/0057-rewind-on-resume-and-per-show-intro-outro.md) |
 | Playback queue (unified up-next; play a row in place of the current one; mode switches retain item and position) | playback | shipped; mode repairs in 0.1.603 | [playback-queue.md](playback-queue.md) |
 | Streaming reliability (chunked fetch, hardware-aware codec, expired-URL recovery, SABR's four false endings) | playback | shipped | [streaming-reliability.md](streaming-reliability.md) |

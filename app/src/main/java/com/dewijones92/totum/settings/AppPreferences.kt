@@ -91,6 +91,9 @@ interface AppPreferences {
     fun setExploreByDefault(enabled: Boolean)
     fun setExploreCap(cap: Int)
     fun setRewindOnResume(enabled: Boolean)
+    fun setSilentTailEnds(enabled: Boolean)
+    fun setInboxAll(enabled: Boolean)
+    fun setInboxSource(source: SourceId, enabled: Boolean)
     fun setSourceSkips(source: SourceId, skips: SourceSkips)
     fun setRepeatMode(mode: RepeatMode)
 
@@ -156,6 +159,9 @@ interface AppPreferences {
         val exploreByDefault: Boolean = false,
         val exploreCap: Int = 0,
         val rewindOnResume: Boolean = true,
+        val silentTailEnds: Boolean = true,
+        val inboxAll: Boolean = false,
+        val inboxSources: Set<String> = emptySet(),
         val sourceSkips: Map<SourceId, SourceSkips> = emptyMap(),
         val repeatMode: RepeatMode = RepeatMode.OFF,
     )
@@ -209,11 +215,28 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             exploreByDefault = prefs.getBoolean(KEY_EXPLORE, false),
             exploreCap = prefs.getInt(KEY_EXPLORE_CAP, 0),
             rewindOnResume = prefs.getBoolean(KEY_REWIND, true),
+            silentTailEnds = prefs.getBoolean(KEY_SILENT_TAIL, true),
+            inboxAll = prefs.getBoolean(KEY_INBOX_ALL, false),
+            inboxSources = prefs.getStringSet(KEY_INBOX_SOURCES, null).orEmpty().toSet(),
             sourceSkips = decodeSourceSkips(prefs.getString(KEY_SOURCE_SKIPS, null)),
             repeatMode = prefs.getString(KEY_REPEAT, null)
                 ?.let { saved -> RepeatMode.entries.firstOrNull { it.name == saved } } ?: RepeatMode.OFF,
         ),
     )
+    init {
+        val stored = _settings.value.skipCategories
+        withEndcardsOnce(stored, prefs.getBoolean(KEY_ENDCARDS_DEFAULT, false))?.let { added ->
+            Diag.log(
+                "settings",
+                "skipCategories: endcards/credits switched on once (now on by default); " +
+                    "was ${stored.map { it.id }.sorted()}"
+            )
+            prefs.edit { putStringSet(KEY_SKIP_CATEGORIES, added.mapTo(mutableSetOf()) { it.id }) }
+            _settings.update { it.copy(skipCategories = added) }
+        }
+        prefs.edit { putBoolean(KEY_ENDCARDS_DEFAULT, true) }
+    }
+
     override val settings: StateFlow<AppPreferences.Settings> = _settings.asStateFlow()
 
     override fun setWifiMaxHeight(height: Int): Unit =
@@ -300,11 +323,29 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
     override fun setRewindOnResume(enabled: Boolean): Unit =
         change("rewindOnResume", enabled, { putBoolean(KEY_REWIND, enabled) }) { it.copy(rewindOnResume = enabled) }
 
+    override fun setSilentTailEnds(enabled: Boolean): Unit =
+        change(
+            "silentTailEnds",
+            enabled,
+            { putBoolean(KEY_SILENT_TAIL, enabled) }
+        ) { it.copy(silentTailEnds = enabled) }
+
+    override fun setInboxAll(enabled: Boolean): Unit =
+        change("inboxAll", enabled, { putBoolean(KEY_INBOX_ALL, enabled) }) { it.copy(inboxAll = enabled) }
+
+    override fun setInboxSource(source: SourceId, enabled: Boolean) {
+        val now = _settings.value.inboxSources.let { if (enabled) it + source.value else it - source.value }
+        change("inboxSources", "${source.value} -> $enabled (${now.size} source(s))", {
+            putStringSet(KEY_INBOX_SOURCES, now)
+        }) { it.copy(inboxSources = now) }
+    }
+
     override fun setSourceSkips(source: SourceId, skips: SourceSkips) {
         val all = (_settings.value.sourceSkips + (source to skips)).filterValues { !it.isEmpty }
         change(
             "sourceSkips",
-            "${source.value} intro=${skips.introEndMs}ms outro=${skips.outroLengthMs}ms (${all.size} source(s) set)",
+            "${source.value} intro=${skips.introEndMs?.let { "${it}ms" } ?: "not set"} " +
+                "outro=${skips.outroLengthMs?.let { "${it}ms" } ?: "not set"} (${all.size} source(s) set)",
             { putString(KEY_SOURCE_SKIPS, encodeSourceSkips(all)) },
         ) { it.copy(sourceSkips = all) }
     }
@@ -341,12 +382,16 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_PLAYBACK_MODE = "playback_mode"
         const val KEY_MEDIA_FILTER = "media_filter"
         const val KEY_SKIP_CATEGORIES = "skip_categories"
+        const val KEY_ENDCARDS_DEFAULT = "endcards_default_applied"
         const val KEY_SILENCE_MODE = "silence_mode"
         const val KEY_FEED_HIDDEN = "feed_hidden_until_asked"
         const val KEY_GAPLESS = "gapless_queue"
         const val KEY_EXPLORE = "explore_by_default"
         const val KEY_EXPLORE_CAP = "explore_cap"
         const val KEY_REWIND = "rewind_on_resume"
+        const val KEY_SILENT_TAIL = "silent_tail_ends"
+        const val KEY_INBOX_ALL = "inbox_all"
+        const val KEY_INBOX_SOURCES = "inbox_sources"
         const val KEY_SOURCE_SKIPS = "source_skips"
         const val KEY_REPEAT = "repeat_mode"
     }
@@ -383,6 +428,11 @@ class InMemoryAppPreferences : AppPreferences {
     override fun setExploreByDefault(enabled: Boolean) = _settings.update { it.copy(exploreByDefault = enabled) }
     override fun setExploreCap(cap: Int) = _settings.update { it.copy(exploreCap = cap) }
     override fun setRewindOnResume(enabled: Boolean) = _settings.update { it.copy(rewindOnResume = enabled) }
+    override fun setSilentTailEnds(enabled: Boolean) = _settings.update { it.copy(silentTailEnds = enabled) }
+    override fun setInboxAll(enabled: Boolean) = _settings.update { it.copy(inboxAll = enabled) }
+    override fun setInboxSource(source: SourceId, enabled: Boolean) = _settings.update {
+        it.copy(inboxSources = if (enabled) it.inboxSources + source.value else it.inboxSources - source.value)
+    }
     override fun setSourceSkips(source: SourceId, skips: SourceSkips) = _settings.update {
         it.copy(sourceSkips = (it.sourceSkips + (source to skips)).filterValues { s -> !s.isEmpty })
     }

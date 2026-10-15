@@ -33,7 +33,7 @@ Settings default.
   and every way of moving on with no cursor (gapless arming and crossover, auto-advance, Next, stall and recovery
   moves) carries on from the item after it; Up next lists what follows it. Choosing a queue item yourself clears it,
   and it is kept across restarts (`QueuePlaceStore`). So switching Explore off, or Explore declining (no related list,
-  a podcast, a failed lookup), carries on from the place rather than the top. This also changes a plain peek (a
+  a failed lookup, the cap), carries on from the place rather than the top. This also changes a plain peek (a
   one-off Watch/Listen from a sheet): the queue now resumes after the item you were on, as the peek's own doc promised.
 - While Explore is on, gapless does not arm the queue's next item, and turning it on drops one already armed.
 - Previous while exploring restarts the current item; it does not walk back through explored videos.
@@ -41,6 +41,8 @@ Settings default.
 - A podcast's "related" is its own show (revised 2026-10-15, `nextEpisodesOf`): the unfinished episodes published
   after it, oldest first, then the older ones, newest first. A show you do not subscribe to has none, so the queue
   carries on from its place.
+- Explore never plays something already in the queue (revised 2026-10-15): the queue reaches it in its own order, so
+  the place cannot skip or replay it.
 - **A cap** (Settings → Explore at most: no limit, 3, 5, 10): after that many explored in a row the queue gets its
   turn, and exploring starts again after it. Something else playing in between (a tapped queue item) starts the
   count again.

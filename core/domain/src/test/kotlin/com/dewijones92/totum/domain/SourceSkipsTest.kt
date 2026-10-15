@@ -62,8 +62,16 @@ class SourceSkipsTest {
 
     @Test
     fun `with no channel link a video is keyed by its channel name, and with neither it has no key`() {
-        assertEquals(SourceId("name:chan"), video("ytrelated", null, author = " Chan ").showKey())
+        assertEquals(SourceId("name:video:chan"), video("ytrelated", null, author = " Chan ").showKey())
         assertNull(video("ytrelated", null, author = null).showKey())
+    }
+
+    @Test
+    fun `an intro start needs to be inside the item`() {
+        assertEquals(83_000L, SourceSkips(introEndMs = 83_000).introStartFor(1_800_000))
+        assertEquals(83_000L, SourceSkips(introEndMs = 83_000).introStartFor(null))
+        assertNull(SourceSkips(introEndMs = 83_000).introStartFor(60_000))
+        assertNull(SourceSkips(introEndMs = 0).introStartFor(60_000))
     }
 
     @Test

@@ -111,6 +111,11 @@ internal class DiagnosticSnapshot(
         put("settings.exploreByDefault", settings.exploreByDefault.toString())
         put("settings.exploreCap", if (settings.exploreCap > 0) settings.exploreCap.toString() else "no limit")
         put("settings.rewindOnResume", settings.rewindOnResume.toString())
+        put("settings.silentTailEnds", settings.silentTailEnds.toString())
+        put(
+            "settings.inbox",
+            if (settings.inboxAll) "every subscription" else "${settings.inboxSources.size} source(s)"
+        )
         put(
             "settings.sourceSkips",
             settings.sourceSkips.entries.joinToString(" | ") { (id, s) ->

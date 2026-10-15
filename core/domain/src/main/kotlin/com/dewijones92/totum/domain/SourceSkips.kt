@@ -6,8 +6,11 @@ public data class SourceSkips(val introEndMs: Long? = null, val outroLengthMs: L
 
     public val isEmpty: Boolean get() = introEndMs == null && outroLengthMs == null
 
+    public fun introStartFor(durationMs: Long?): Long? =
+        introEndMs?.takeIf { it > 0 && (durationMs == null || it < durationMs) }
+
     public fun segmentsFor(durationMs: Long?): List<SkipSegment> {
-        val intro = introEndMs?.takeIf { it > 0 && (durationMs == null || it < durationMs) }
+        val intro = introStartFor(durationMs)
         val outroStart = durationMs?.let { duration ->
             outroLengthMs?.let { duration - it }?.takeIf { it > (intro ?: 0) && it < duration }
         }
@@ -38,6 +41,6 @@ public fun MediaItem.showKey(): SourceId? = when (pillar) {
         } ?: channel.id
     }
     MediaKind.PODCAST -> statedFeed()?.id
-} ?: author?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let { SourceId("name:$it") }
+} ?: author?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let { SourceId("name:${pillar.name.lowercase()}:$it") }
 
 private const val ENCODED_FIELDS = 3

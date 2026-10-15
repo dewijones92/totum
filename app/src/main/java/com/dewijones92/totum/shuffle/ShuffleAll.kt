@@ -25,6 +25,7 @@ import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.toMediaItemPage
+import com.dewijones92.totum.uploads.NewUploads
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -102,6 +103,7 @@ class ShuffleAll(
     private val recent: RecentActions? = null,
     private val stats: StatsLog? = null,
     private val randomStarts: RandomStarts? = null,
+    private val uploads: NewUploads? = null,
 ) {
     private val mutableLoading = MutableStateFlow<Map<String, Int>>(emptyMap())
     val loading: StateFlow<Map<String, Int>> = mutableLoading.asStateFlow()
@@ -132,18 +134,18 @@ class ShuffleAll(
             if (playable.isEmpty()) return ShuffleOutcome.Nothing
             val shuffled = playable.shuffled()
             randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"", startAtRandom)
-            queue.playAll(shuffled, QueueGroup(id = "shuffle:$key", title = title))
+            val group = QueueGroup(id = "shuffle:$key", title = title)
+            queue.playAll(shuffled, group)
             stats?.use(UseKind.SHUFFLE, "shuffle all")
-            recent?.record(
-                Pin.ShuffleAllOf(
-                    target = key,
-                    title = title,
-                    artUrl = sources.firstNotNullOfOrNull { it.artworkUrl }?.value,
-                    sources = sources.map(PinnedSource::of),
-                    includeShorts = includeShorts,
-                ),
-                from = "shuffle all",
+            val pin = Pin.ShuffleAllOf(
+                target = key,
+                title = title,
+                artUrl = sources.firstNotNullOfOrNull { it.artworkUrl }?.value,
+                sources = sources.map(PinnedSource::of),
+                includeShorts = includeShorts,
             )
+            recent?.record(pin, from = "shuffle all")
+            uploads?.remember(group.id, pin, gathered.items)
             return ShuffleOutcome.Shuffled(playable.size, gathered.unfinished)
         } finally {
             mutableLoading.update { it - key }

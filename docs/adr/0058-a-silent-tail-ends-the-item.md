@@ -1,0 +1,41 @@
+---
+title: A silent tail ends the item, and end cards are skipped by default
+kind: adr
+status: accepted
+updated: 2026-10-15
+---
+
+# 58. A silent tail ends the item, and end cards are skipped by default
+
+- Status: Accepted
+- Date: 2026-10-15
+
+## Context
+
+Dewi, 2026-10-15: *"sometimes at the end of videos there are like dead time … silence where it's just … showing
+credits … should we just skip to the next item"*. Asked, he said the dead time is actually silent (not music over
+credits), that it should move on to the next item, on by default for videos and podcasts and never for music, and
+that SponsorBlock's Endcards/Credits category should be on by default too.
+
+## Decision
+
+- **Silent tail** (`core/playback/…/SilentTail.kt`): the volume booster, which already reads every 16-bit sample,
+  feeds a `SilentRun` meter (10 ms blocks, silent below RMS 60 of 32767, about -55 dBFS; any louder block starts
+  the count again). In the playback service, `SilentTailWatch` checks every 500 ms: in an item's last minute, or
+  its last tenth if that is shorter (`tailWindowMs`), five seconds of silence (`SILENT_FOR_MS`) seeks to the end,
+  so the item ends exactly as if it had finished (Ended, or a gapless crossover).
+- The app tells the service per item, as it does skip-silence (`ACTION_SILENT_TAIL`): on when Settings → End on a
+  silent tail is on (default) and the item is talk (`ItemTuning.silentTailEnds`: not music, not live).
+- The meter sits after the silence cutter: with skip-silence on, a silent tail is already cut to almost nothing,
+  so the watch rarely needs to act.
+- **End cards**: `SkipCategory.OUTRO` joins `DEFAULT_CATEGORIES`, and a phone that had already chosen its categories
+  gets it added once (`withEndcardsOnce`, remembered by `endcards_default_applied`), so switching it off again sticks.
+
+## Consequences
+
+- A video whose ending is quiet but meaningful (a whispered last line, a long pause before a punchline) can lose
+  up to its last minute. The threshold is five seconds of near-silence to make that rare.
+- Credits with music over them are not caught here; SponsorBlock's end cards and the per-show outro (ADR 57) are.
+- Logs: `<id> is in its last Nms: listening for a silent tail`, `<id> went silent for Nms at …: ending it`, and the
+  per-item switch; reports carry `settings.silentTailEnds`.
+- Tests: `SilentTailTest`, `MusicPlaysPlainTest`, `OneTimeDefaultsTest`, `PreferenceBackupTest`.

@@ -6,10 +6,16 @@ import com.dewijones92.totum.domain.MediaContentKind
 internal data class PlaybackChoices(val speed: Float, val skipSilence: Boolean)
 
 /** How one item plays. [keepsChanges] false means a change made while it plays is for it alone. */
-internal data class ItemTuning(val speed: Float, val skipSilence: Boolean, val keepsChanges: Boolean)
+internal data class ItemTuning(
+    val speed: Float,
+    val skipSilence: Boolean,
+    val keepsChanges: Boolean,
+    val silentTailEnds: Boolean = keepsChanges,
+)
 
 internal fun tuningFor(kind: MediaContentKind, choices: PlaybackChoices): ItemTuning = when (kind) {
     MediaContentKind.MUSIC -> ItemTuning(speed = 1f, skipSilence = false, keepsChanges = false)
-    MediaContentKind.STANDARD, MediaContentKind.LIVE, MediaContentKind.SHORT ->
+    MediaContentKind.LIVE -> ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true, silentTailEnds = false)
+    MediaContentKind.STANDARD, MediaContentKind.SHORT ->
         ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true)
 }

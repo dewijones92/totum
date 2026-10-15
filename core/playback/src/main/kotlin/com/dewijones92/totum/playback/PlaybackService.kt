@@ -62,6 +62,9 @@ public class PlaybackService : MediaSessionService() {
 
     private var player: ExoPlayer? = null
 
+    @UnstableApi
+    private val silentTail = SilentTailWatch({ player }, { booster.silentForMs })
+
     // Cast: present only when Google Play Services + a receiver are available.
     // The session swaps between the local player and this one as a Cast session
     // comes and goes; null (or no devices) means everything plays locally as before.
@@ -96,6 +99,7 @@ public class PlaybackService : MediaSessionService() {
         player.addAnalyticsListener(PlaybackAnalytics { player.videoDecoderCounters })
         player.addAnalyticsListener(SubtitleTrail())
         player.addListener(UnaskedRewindGuard { player })
+        silentTail.start()
         currentPlayer = player
         player.addListener(
             object : Player.Listener {
@@ -187,6 +191,7 @@ public class PlaybackService : MediaSessionService() {
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_SILENT_TAIL, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_VOLUME_BOOST, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SILENCE_MODE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY))
@@ -246,6 +251,10 @@ public class PlaybackService : MediaSessionService() {
             }
             if (customCommand.customAction == ACTION_SILENCE_MODE) {
                 silenceCutter.mode = SilenceMode.fromStoredName(args.getString(EXTRA_SILENCE_MODE))
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            if (customCommand.customAction == ACTION_SILENT_TAIL) {
+                silentTail.enabled = args.getBoolean(EXTRA_SKIP_SILENCE_ENABLED)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_SKIP_SILENCE) {
@@ -361,6 +370,7 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     override fun onDestroy() {
         releaseCheck.removeCallbacksAndMessages(null)
+        silentTail.stop()
         mediaSession?.release()
         player?.release()
         castPlayer?.setSessionAvailabilityListener(null)
@@ -392,6 +402,7 @@ public class PlaybackService : MediaSessionService() {
 
 /** Custom session command to toggle silence-skipping; the bool rides in [EXTRA_SKIP_SILENCE_ENABLED]. */
 internal const val ACTION_SKIP_SILENCE: String = "com.dewijones92.totum.SKIP_SILENCE"
+internal const val ACTION_SILENT_TAIL: String = "com.dewijones92.totum.SILENT_TAIL"
 
 /**
  * Nominates the item to preload next, with its URL.

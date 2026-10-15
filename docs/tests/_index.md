@@ -864,6 +864,16 @@ fails intermittently — need the XML kept somewhere. The cheapest durable optio
 already runs the crashlog server with a SQLite index behind Google auth; that pattern would make
 "is `SearchSectionStatesTest` flaky?" answerable, which it currently is not.
 
+- **New uploads and the silent tail (2026-10-15):** `NewUploadsTest` (a group gets new uploads next, once; Shorts
+  follow the shuffle; a group that left is forgotten; an older group is adopted; the inbox's first look adds nothing;
+  a covered source feeds its group, not the inbox; a manual pull checks one group), `AddedToGroupTest` (next while the
+  group plays, head otherwise, end), `SilentTailTest` (the meter and the tail window), `OneTimeDefaultsTest`. The
+  worker, the RSS fetch and the UI are wiring around those and were checked by hand on totum-api35.
+- **Rewind on resume and per-show skips (2026-10-15):** `ResumeRewindTest` (the start rule and every pause path,
+  pure, no Media3), `SourceSkipsTest` (segments, the show key, the stored map), `PreferenceBackupTest` (the new
+  settings in a backup), `NextEpisodesTest` (a podcast's Explore order). The Media3 listener and the controller's
+  ordering are glue around those rules and are not unit-tested; the Details section was checked by hand on
+  totum-api35.
 - **Explore and the queue's place (2026-10-15):** `ExploreModeTest` (unit, fakes) and `AnExcursionKeepsTheQueuesPlaceTest`
   (the real `PlaybackQueue`, offline with copies on disk); the device round trip (Explore on → related → off → Next)
   was run by hand on totum-api35, not in CI.

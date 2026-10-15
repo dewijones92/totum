@@ -142,3 +142,9 @@ A peek (a one-off Watch/Listen, or Explore's related videos) records the queue i
 gapless, auto-advance, Next and recovery all carry on from the item after it, Up next lists what follows it, and it
 survives a restart. Choosing a queue item clears it. Gapless also stays off while Explore is on ("Explore is on: a
 related video follows, not the queue's next"). See ADR 56.
+
+## New uploads (2026-10-15)
+
+A shuffle-all group keeps receiving its sources' new uploads, next in the group, and sources switched into the inbox
+(their page's 📥 button, Settings → 📥 New uploads, or every subscription) feed a "📥 New" group at the end. Checked
+every 2 hours on Wi-Fi, on opening, or by ⋮ → 🔄 Pull new uploads. See [ADR 59](../adr/0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md).

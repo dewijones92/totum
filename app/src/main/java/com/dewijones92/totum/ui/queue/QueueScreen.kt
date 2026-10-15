@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.queue
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -191,6 +193,7 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onShuffle = { onShuffleGroup(id) },
     onShuffleAndPlay = { onShuffleAndPlayGroup(id) },
     onSetDownload = { onSetGroupDownload(id, it) },
+    onPullNew = if (id.startsWith("shuffle:")) { { onPullNew(id) } } else null,
 )
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -205,6 +208,7 @@ private fun rememberQueueActions(
     ask: ShuffleAsk,
 ): QueueActions {
     val dragSession = rememberQueueDragSession()
+    val context = LocalContext.current
     val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     return QueueActions(
@@ -234,6 +238,7 @@ private fun rememberQueueActions(
                 container.statsLog.use(UseKind.SHUFFLE, "shuffle and play a group")
             }
         },
+        onPullNew = { id -> scope.launch { snackbar.showSnackbar(pulled(context, container, id)) } },
         dragSession = dragSession,
         onMove = queue::move,
         // A manual retry: the queue fetches audio by itself, but a failed
@@ -264,6 +269,7 @@ private data class QueueActions(
     val onShuffleAndPlayGroup: (String) -> Unit,
     val groupDownloading: (String) -> Boolean,
     val onSetGroupDownload: (String, Boolean) -> Unit,
+    val onPullNew: (String) -> Unit,
     val dragSession: QueueDragSession,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,
@@ -608,3 +614,13 @@ private val PROGRESS_HEIGHT = 2.dp
 private const val DRAG_ELEVATION = 12f
 private const val QUEUE_TOP_KEY = "queue-top"
 private const val DRAG_SCALE = 1.02f
+
+private suspend fun pulled(context: Context, container: AppContainer, groupId: String): String {
+    val resources = context.resources
+    val report = container.newUploads.check("the group's menu", onlyGroup = groupId)
+    return when {
+        report.added > 0 -> resources.getQuantityString(R.plurals.queue_pulled_new, report.added, report.added)
+        report.failed.isNotEmpty() -> resources.getString(R.string.queue_pull_failed, report.failed.joinToString())
+        else -> resources.getString(R.string.queue_pull_nothing)
+    }
+}

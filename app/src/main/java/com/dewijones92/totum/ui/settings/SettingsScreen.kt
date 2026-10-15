@@ -100,6 +100,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
             BackHeader(stringResource(R.string.settings), onBack)
             QualitySection(settings, prefs)
             FeedAndQueueSettings(settings, prefs)
+            NewUploadsSettings(container, settings)
             SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
             DownloadSettings(settings, prefs)
             NavRow(label = stringResource(R.string.exsurge_settings_row), onClick = { showExsurge = true })

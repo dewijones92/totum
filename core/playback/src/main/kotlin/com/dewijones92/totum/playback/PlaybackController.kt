@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.domain.Chapter
 import com.dewijones92.totum.domain.Listening
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -241,6 +242,7 @@ public data class PlaybackState(
     /** Language code of the caption track showing, or null for off. */
     val subtitleLanguage: String? = null,
     val showKey: SourceId? = null,
+    val contentKind: MediaContentKind = MediaContentKind.STANDARD,
 ) {
     init {
         require(positionMs >= 0) { "positionMs must not be negative" }
