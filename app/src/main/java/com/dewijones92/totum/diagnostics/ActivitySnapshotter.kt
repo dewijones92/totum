@@ -86,6 +86,7 @@ internal class ActivitySnapshotter(
 
     /** Null when there is nothing worth recording, which keeps an idle app quiet. */
     private suspend fun describe(): String? {
+        val redraws = Recompositions.takeReport(busyAt = BUSY_RECOMPOSITIONS)
         val playing = playback.state.value
         val states = downloads.observeDownloads().first()
         val active = states.values.filterIsInstance<DownloadState.Downloading>()
@@ -108,7 +109,7 @@ internal class ActivitySnapshotter(
             // rate it is being fed at is what turns "buffering" into a cause.
             PlaybackVitals.kbps()?.let { append("; ~${it}kbps") }
             append("; downloading=${active.size}")
-            Recompositions.takeReport()?.let { append("; screen redraws since last snapshot: $it") }
+            redraws?.let { append("; busy recompositions in the last ${intervalMs / MILLIS_PER_SEC}s: $it") }
             active.take(MAX_LISTED_DOWNLOADS).forEach { append(" [${it.percent()}]") }
             if (failed > 0) append("; failed=$failed")
         }
@@ -122,6 +123,7 @@ internal class ActivitySnapshotter(
 
     private companion object {
         const val SNAPSHOT_INTERVAL_MS = 30_000L
+        const val BUSY_RECOMPOSITIONS = 20L
         const val MAX_LISTED_DOWNLOADS = 3
         const val PERCENT = 100
         const val BYTES_PER_MB = 1024 * 1024

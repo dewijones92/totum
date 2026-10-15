@@ -278,7 +278,11 @@ class FakeAppContainer(
 
     /** Previews and tests always look "allowed", so the queue shows its normal state. */
     /** Previews and tests are "online" unless a case says otherwise. */
-    override fun isOffline(): Boolean = false
+    val offlineNow = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    override fun isOffline(): Boolean = offlineNow.value
+
+    override val offlineChanges: kotlinx.coroutines.flow.Flow<Boolean> = offlineNow
 
     override fun autoDownloadAllowedNow(): Boolean = true
     override fun refreshExtractorEngine() = Unit

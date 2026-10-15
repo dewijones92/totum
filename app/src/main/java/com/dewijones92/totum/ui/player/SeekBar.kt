@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +58,7 @@ internal fun SeekBar(
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (duration != null) {
+            DisposableEffect(Unit) { onDispose { dragValue = null } }
             Slider(
                 value = position.coerceIn(0, duration).toFloat(),
                 onValueChange = { dragValue = it },

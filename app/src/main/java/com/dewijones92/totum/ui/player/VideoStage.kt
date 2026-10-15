@@ -196,10 +196,10 @@ private fun VideoControlsOverlay(
                 onSeekForward,
                 modifier = Modifier.align(Alignment.Center),
             )
-            SeekBar(
+            OverlaySeekBar(
                 state = state,
                 onSeekTo = onSeekTo,
-                bufferAhead = bufferAhead.value,
+                bufferAhead = bufferAhead,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(start = 12.dp, end = 48.dp, bottom = 8.dp),
@@ -222,3 +222,13 @@ private val CUES_BOTTOM_WITH_CONTROLS = 56.dp
 private const val CONTROLS_AUTOHIDE_MS = 3_000L
 private const val SCRIM_ALPHA = 0.35f
 private val PORTRAIT_STAGE_HEIGHT = 460.dp
+
+@Composable
+private fun OverlaySeekBar(
+    state: PlaybackState,
+    onSeekTo: (Long) -> Unit,
+    bufferAhead: State<BufferAhead?>,
+    modifier: Modifier,
+) {
+    SeekBar(state = state, onSeekTo = onSeekTo, bufferAhead = bufferAhead.value, modifier = modifier)
+}

@@ -285,6 +285,8 @@ interface AppContainer {
     /** Whether there is no usable network — what makes a non-downloaded queue row unplayable. */
     fun isOffline(): Boolean
 
+    val offlineChanges: Flow<Boolean>
+
     /** Recent search queries, offered again in the search screen's idle state. */
     val searchHistoryStore: SearchHistoryStore
     val skipSegmentSource: SkipSegmentSource
@@ -1235,6 +1237,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override fun isOffline(): Boolean = !networkStatus.isOnline()
+
+    override val offlineChanges: Flow<Boolean> get() = networkStatus.onlineChanges().map { !it }
 
     override val videoPlaybackLauncher: VideoPlaybackLauncher by lazy {
         VideoPlaybackLauncher(

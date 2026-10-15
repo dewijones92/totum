@@ -41,7 +41,9 @@ and none with Library underneath. The 500 ms was the playback controller's posit
   `State<Map>` in a static local; a row reads its own entry through `playStateOf` / `downloadStateOf`
   (`derivedStateOf`), and a feed filters through `filteredByProgress`, so another item's progress redraws nothing. The
   Queue's rows read their own entry the same way, its offline summary reads the map in its own scope, and the summary's
-  per-item lookup is a map rather than a scan of the queue for every item.
+  per-item lookup is a map rather than a scan of the queue for every item. Because a download change no longer redraws
+  the whole Queue, its "unavailable offline" wording follows the network through `AppContainer.offlineChanges` (a
+  `ConnectivityManager` default-network callback) instead of a read that only refreshed on a redraw.
 - **Video draws into a `SurfaceView`** (`SURFACE_TYPE_SURFACE_VIEW`) in the player, the floating window and the Shorts
   reel, so the compositor shows frames without the app redrawing.
 - **Nothing animates unseen.** The equaliser steps at 8 fps only while playing and not covered by the full player or
@@ -51,9 +53,10 @@ and none with Library underneath. The 500 ms was the playback controller's posit
 - **Idle means idle.** The controller's position ticker suspends while nothing plays (`PlayingSignal`) and wakes on
   `onIsPlayingChanged`; both edges are logged ("position ticker idle until something plays" / "running again").
 - Release builds are `profileable` from the shell, so a phone can be traced without a debug build.
-- **Redraws are counted.** `CountRecompositions` in the shell, Queue, full player, video stage and dock; the 30 s
-  activity snapshot says "screen redraws since last snapshot: …", so a report from the phone shows whether a screen is
-  redrawing per tick again.
+- **Recompositions are counted.** `CountRecompositions` in the shell, Queue, full player, video stage and dock. Every
+  30 s snapshot drains the counts, and when any screen recomposed 20 times or more in that window (a per-tick screen
+  does 60) the line adds "busy recompositions in the last 30s: …", so a report from the phone shows a screen
+  recomposing per tick again without breaking the snapshot's collapsing of repeated lines.
 
 ## Consequences
 
@@ -61,12 +64,17 @@ and none with Library underneath. The 500 ms was the playback controller's posit
   50 ms 30 → 0, worst 333 → 12.5 ms, main thread busy 9.3 s → 0.4 s; fling through an 1,800-item queue, frames over
   50 ms 35 → 0, worst 413 → 47 ms, main thread 10.2 s → 4.5 s. Not yet re-traced on the 4a.
 - A screen that collects the whole `PlaybackState` again brings the stutter back; read a derived field or go through
-  `SteadyPlayback`. `PlaybackTicksRedrawNoScreenTest` drives five ticks through the shell with the Queue under the full player and
-  expects no screen to redraw; `RowReadsOnlyItsOwnStateTest` guards the per-row reads, `PlayingSignalTest` the idle
+  `SteadyPlayback`. `PlaybackTicksRedrawNoScreenTest` drives five ticks through the shell with three queued rows under the full player
+  and a stub player, so the video stage composes, and expects no screen to recompose (red with the Queue reading the
+  whole state, queue 1 → 6, and with the stage reading the position, stage 1 → 6);
+  `QueueOfflineWordingFollowsTheNetworkTest` guards the offline wording; `RowReadsOnlyItsOwnStateTest` guards the per-row reads, `PlayingSignalTest` the idle
   ticker and `PlayingEqualiserTest` the equaliser's paused clock.
 - A `SurfaceView` sits behind the window: anything opaque drawn over the video area hides the picture, and it ignores
   an ancestor's alpha, so while the stage is dragged down to dismiss the picture may stay opaque as the page fades.
   Screenshots on the emulator show the video black with either surface type, so check on a device: drag to dismiss,
   fullscreen on and off, into the floating window, and paging through Shorts.
-- Also fixed on the way: a seek-bar drag was reset by every position tick, so a release just after one lost the seek
-  (`SeekSurvivesATickTest`).
+- Also fixed on the way: a seek-bar drag was reset by every position tick, so a release just after one lost the seek;
+  the drag now lasts until it ends, the item changes, or the slider leaves (the same item reloading drops its duration
+  for a moment), so a cut-off drag cannot freeze the bar (`SeekSurvivesATickTest`, both cases).
+- `rememberField`'s lambda must be a pure read of the state: it is applied to each emission, so one that read anything
+  else would only refresh when playback state next changed.

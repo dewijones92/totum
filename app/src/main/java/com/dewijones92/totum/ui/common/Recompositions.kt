@@ -17,12 +17,13 @@ object Recompositions {
 
     fun of(screen: String): Long = total[screen]?.get() ?: 0
 
-    fun takeReport(): String? {
+    fun takeReport(busyAt: Long): String? {
         val counts = sinceReport.entries
             .map { (screen, count) -> screen to count.getAndSet(0) }
             .filter { it.second > 0 }
             .sortedBy { it.first }
-        return counts.takeIf { it.isNotEmpty() }?.joinToString(" ") { (screen, n) -> "$screen=$n" }
+        if (counts.none { it.second >= busyAt }) return null
+        return counts.joinToString(" ") { (screen, n) -> "$screen=$n" }
     }
 }
 

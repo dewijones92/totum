@@ -7,6 +7,11 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.core.content.getSystemService
 import com.dewijones92.totum.common.Diag
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -42,6 +47,31 @@ class NetworkStatus(private val context: Context) {
      * portal or a still-associating Wi-Fi is technically "connected" but cannot carry a
      * byte, and resuming into that just fails again and spends a retry.
      */
+    fun onlineChanges(): Flow<Boolean> = callbackFlow {
+        val cm = context.getSystemService<ConnectivityManager>()
+        if (cm == null) {
+            send(false)
+            awaitClose()
+            return@callbackFlow
+        }
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                trySend(isOnline())
+            }
+
+            override fun onLost(network: Network) {
+                trySend(isOnline())
+            }
+
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                trySend(isOnline())
+            }
+        }
+        send(isOnline())
+        cm.registerDefaultNetworkCallback(callback)
+        awaitClose { runCatching { cm.unregisterNetworkCallback(callback) } }
+    }.distinctUntilChanged().onEach { Diag.log("network", "online=$it, as the queue sees it") }
+
     suspend fun awaitOnline() {
         if (isOnline()) return
         val cm = context.getSystemService<ConnectivityManager>() ?: return

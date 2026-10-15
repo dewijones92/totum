@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.update
 // The count is PlaybackController's own surface plus a few test hooks; the real
 // implementation carries the same suppression for the same reason.
 @Suppress("TooManyFunctions")
-public class FakePlaybackController : PlaybackController {
+public class FakePlaybackController(override val player: Player? = null) : PlaybackController {
 
     private val switches = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val switchRequests: Flow<String> = switches
@@ -104,9 +104,6 @@ public class FakePlaybackController : PlaybackController {
         _state.update { it?.copy(isPlaying = false, isBuffering = false) }
         _streamFailures.emit(failure)
     }
-
-    /** No real player in the fake, so previews/tests show the audio layout. */
-    override val player: Player? = null
 
     /** Segments handed to the most recent [play] call, for assertions. */
     public var lastSkipSegments: List<SkipSegment> = emptyList()

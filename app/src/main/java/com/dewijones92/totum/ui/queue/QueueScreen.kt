@@ -318,8 +318,8 @@ private data class NowPlaying(
  * The two travel together everywhere — a download state means something different with no network
  * behind it — so they are one parameter rather than two that could be passed inconsistently.
  *
- * [offline] is read once per list composition rather than observed: it changes a row's WORDING, not
- * its behaviour, and the queue recomposes whenever a download state does.
+ * [offline] follows the network as it changes (`AppContainer.offlineChanges`): rows read their download
+ * state on their own, so nothing else would make them notice the network going.
  */
 private data class QueueAvailability(val offline: Boolean)
 
@@ -410,7 +410,8 @@ private fun FilterableQueue(
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
-    val availability = QueueAvailability(container.isOffline())
+    val offline by remember(container) { container.offlineChanges }.collectAsStateWithLifecycle(container.isOffline())
+    val availability = QueueAvailability(offline)
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
     val nowPlaying = NowPlaying(currentIndex, progress, isPlaying, starting?.id)
     FilterField(listFilter, matches.size, entries.size, hosted = true)
