@@ -15,6 +15,7 @@ alone until they need more.
 | Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |
 | Shuffle all (channel, podcast, group) | queue/channel | shipped — every page, Shorts asked, one queue group; 🔀 on every group chip (2026-10-14) | [shuffle-all.md](shuffle-all.md) |
+| Google Drive backup | backup | built 2026-10-15 — a Drive folder or file via the picker, latest + 7 dailies, on every change, merge on restore, launch prompt | [drive-backup.md](drive-backup.md) |
 | A polite YouTube client | network/playback | built 2026-10-15 — one gate (4 in flight, 2/s), 429 and bot back-off, banner, `polite.*` in reports | [polite-youtube-client.md](polite-youtube-client.md) |
 | Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |

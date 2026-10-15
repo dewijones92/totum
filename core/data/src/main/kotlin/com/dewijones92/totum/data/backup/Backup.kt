@@ -35,6 +35,7 @@ public data class Backup(
     val queue: List<BackupItem> = emptyList(),
     val progress: List<BackupProgress> = emptyList(),
     val settings: Map<String, String> = emptyMap(),
+    val groups: List<BackupGroup> = emptyList(),
 ) {
     public companion object {
         /**
@@ -116,4 +117,10 @@ public data class BackupProgress(
     val positionMs: Long,
     val durationMs: Long? = null,
     val completedAtEpochMs: Long? = null,
+)
+
+@Serializable
+public data class BackupGroup(
+    val name: String,
+    val sources: List<BackupSubscription> = emptyList(),
 )

@@ -3,6 +3,8 @@ package com.dewijones92.totum.backup
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.BackupCodec
 import com.dewijones92.totum.data.backup.BackupReadResult
+import com.dewijones92.totum.data.group.FakeSourceGroupStore
+import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.playlist.fake.InMemoryLocalPlaylistStore
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -56,6 +58,8 @@ class BackupServiceTest {
         val queue = InMemoryQueueStore()
         val progress = InMemoryPlaybackProgressStore()
         var settings = mapOf("playbackMode" to "AUDIO")
+        val groups = FakeSourceGroupStore()
+        val history = InMemoryPlayHistoryStore()
 
         fun service() = BackupService(
             subscriptions = subscriptions,
@@ -70,7 +74,41 @@ class BackupServiceTest {
             },
             appVersion = "test",
             now = { 1_700_000_000_000 },
+            extras = BackupService.Extras(groups = groups, history = history),
         )
+    }
+
+    @Test
+    fun `groups and history travel in a backup and merge without duplicates`() = runTest {
+        val from = Fixture()
+        val news = from.groups.create("News")
+        from.groups.toggleMember(news, feed("https://a.example/rss").source)
+        from.groups.toggleMember(news, feed("https://b.example/rss").source)
+        from.history.record(playable("old"))
+        from.history.record(playable("new"))
+        val backup = from.service().create(includeQueue = false)
+
+        val to = Fixture()
+        val existing = to.groups.create("News")
+        to.groups.toggleMember(existing, feed("https://a.example/rss").source)
+        to.history.record(playable("new"))
+        val summary = to.service().restore(backup)
+
+        assertEquals(1, summary.groupMembers)
+        assertEquals(1, summary.history)
+        assertEquals(
+            listOf("https://a.example/rss", "https://b.example/rss"),
+            to.groups.observeGroups().first().single().sources.map { it.id.value }
+        )
+        assertEquals(setOf("old", "new"), to.history.observe().first().map { it.item.id.value }.toSet())
+    }
+
+    @Test
+    fun `a Drive backup leaves the queue out`() = runTest {
+        val from = Fixture()
+        from.queue.save(QueueSnapshot(listOf(QueueEntry(playable("q")))))
+        assertEquals(emptyList<Any>(), from.service().create(includeQueue = false).queue)
+        assertEquals(1, from.service().create().queue.size)
     }
 
     @Test

@@ -41,6 +41,7 @@ internal class DiagnosticSnapshot(
         val exsurge: () -> Map<String, String> = { emptyMap() },
         val appUpdate: () -> Map<String, String> = { emptyMap() },
         val polite: () -> Map<String, String> = { emptyMap() },
+        val backup: () -> Map<String, String> = { emptyMap() },
         val groupDownloads: () -> GroupDownloads? = { null },
     )
 
@@ -108,6 +109,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.exsurge()) }
         runCatching { putAll(live.appUpdate()) }
         runCatching { putAll(live.polite()) }
+        runCatching { putAll(live.backup()) }
     }
 
     /** The account block: who is signed in, whether listening reaches them, and what has been acted on. */

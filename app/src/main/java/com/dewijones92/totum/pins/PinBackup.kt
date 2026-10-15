@@ -18,4 +18,19 @@ internal fun BackupService.BackupSettings.withPins(pins: PinStore): BackupServic
     }
 }
 
+internal fun BackupService.BackupSettings.withRecent(recent: RecentActions): BackupService.BackupSettings {
+    val settings = this
+    return object : BackupService.BackupSettings {
+        override fun export(): Map<String, String> =
+            settings.export() + (RECENT_KEY to PinCodec.encode(recent.recent.value))
+
+        override fun restore(values: Map<String, String>) {
+            settings.restore(values)
+            val saved = values[RECENT_KEY]?.let { runCatching { PinCodec.decode(it) }.getOrNull() } ?: return
+            recent.mergeMissing(saved)
+        }
+    }
+}
+
 private const val KEY = "pins.v1"
+private const val RECENT_KEY = "recent.v1"

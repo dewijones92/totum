@@ -3,10 +3,13 @@ package com.dewijones92.totum.backup
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.Backup
+import com.dewijones92.totum.data.backup.BackupGroup
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.BackupPlaylist
 import com.dewijones92.totum.data.backup.BackupProgress
 import com.dewijones92.totum.data.backup.BackupSubscription
+import com.dewijones92.totum.data.group.SourceGroupStore
+import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -26,6 +29,7 @@ import com.dewijones92.totum.domain.persisted
 import com.dewijones92.totum.domain.playHandleFrom
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
@@ -49,24 +53,41 @@ class BackupService(
     private val settings: BackupSettings,
     private val appVersion: String,
     private val now: () -> Long = System::currentTimeMillis,
+    private val extras: Extras = Extras(),
 ) {
+    data class Extras(
+        val groups: SourceGroupStore? = null,
+        val history: PlayHistoryStore? = null,
+    )
+
     /** Reads and writes the settings a backup carries, without knowing what they mean. */
     interface BackupSettings {
         fun export(): Map<String, String>
         fun restore(values: Map<String, String>)
     }
 
-    suspend fun create(): Backup = Backup(
+    fun changes(): List<Pair<String, Flow<*>>> = listOfNotNull(
+        "subscriptions" to subscriptions.observeSubscriptions(),
+        "playlists" to playlists.observePlaylists(),
+        "progress" to progress.observeStates(),
+        extras.groups?.let { "groups" to it.observeGroups() },
+        extras.history?.let { "history" to it.observe() },
+    )
+
+    suspend fun create(includeQueue: Boolean = true): Backup = Backup(
         createdAtEpochMs = now(),
         appVersion = appVersion,
         subscriptions = subscriptions.observeSubscriptions().first().map { it.toBackup() },
         playlists = playlists.observePlaylists().first().map { playlist ->
             BackupPlaylist(playlist.name, playlists.observeItems(playlist.id).first().map { it.toBackup() })
         },
-        history = emptyList(),
-        queue = queueStore.load().entries.map { it.item.toBackup() },
+        history = extras.history?.observe()?.first().orEmpty().map { it.toBackup() },
+        queue = if (includeQueue) queueStore.load().entries.map { it.item.toBackup() } else emptyList(),
         progress = progress.observeStates().first().mapNotNull { (id, state) -> state.toBackup(id) },
         settings = settings.export(),
+        groups = extras.groups?.observeGroups()?.first().orEmpty().map { group ->
+            BackupGroup(group.name, group.sources.map { it.toBackup(subscribedAtEpochMs = null) })
+        },
     ).also { Diag.log("backup", "created: ${it.summary()}") }
 
     /**
@@ -125,7 +146,32 @@ class BackupService(
             playlists = restoredPlaylists,
             progressEntries = backup.progress.size,
             queueEntries = backup.queue.size,
+            groupMembers = restoreGroups(backup.groups),
+            history = restoreHistory(backup.history),
         ).also { Diag.log("backup", "restored: $it") }
+    }
+
+    private suspend fun restoreGroups(groups: List<BackupGroup>): Int {
+        val store = extras.groups ?: return 0
+        var added = 0
+        groups.forEach { group ->
+            val existing = store.observeGroups().first().firstOrNull { it.name == group.name }
+            val id = existing?.id ?: store.create(group.name)
+            val members = existing?.sources.orEmpty().mapTo(mutableSetOf()) { it.id }
+            group.sources.mapNotNull { it.toSource() }.filterNot { it.id in members }.forEach { source ->
+                store.toggleMember(id, source)
+                added++
+            }
+        }
+        return added
+    }
+
+    private suspend fun restoreHistory(items: List<BackupItem>): Int {
+        val store = extras.history ?: return 0
+        val known = store.observe().first().mapTo(mutableSetOf()) { it.item.id }
+        val missing = items.mapNotNull { it.toPlayable() }.filterNot { it.item.id in known }
+        missing.asReversed().forEach { store.record(it) }
+        return missing.size
     }
 
     data class RestoreSummary(
@@ -133,25 +179,30 @@ class BackupService(
         val playlists: Int,
         val progressEntries: Int,
         val queueEntries: Int,
+        val groupMembers: Int = 0,
+        val history: Int = 0,
     )
 }
 
 private fun Backup.summary() =
-    "${subscriptions.size} subs, ${playlists.size} playlists, ${queue.size} queued, ${progress.size} progress"
+    "${subscriptions.size} subs, ${playlists.size} playlists, ${queue.size} queued, ${progress.size} progress, " +
+        "${groups.size} groups, ${history.size} history"
 
-private fun Subscription.toBackup() = BackupSubscription(
-    id = source.id.value,
-    title = source.title,
-    url = when (val s = source) {
-        is MediaSource.PodcastFeed -> s.feedUrl.value
-        is MediaSource.VideoChannel -> s.channelUrl.value
+private fun Subscription.toBackup() = source.toBackup(subscribedAt.toEpochMilli())
+
+private fun MediaSource.toBackup(subscribedAtEpochMs: Long?) = BackupSubscription(
+    id = id.value,
+    title = title,
+    url = when (this) {
+        is MediaSource.PodcastFeed -> feedUrl.value
+        is MediaSource.VideoChannel -> channelUrl.value
     },
-    kind = when (source) {
+    kind = when (this) {
         is MediaSource.PodcastFeed -> "podcast"
         is MediaSource.VideoChannel -> "channel"
     },
-    subscribedAtEpochMs = subscribedAt.toEpochMilli(),
-    publisher = (source as? MediaSource.PodcastFeed)?.publisher,
+    subscribedAtEpochMs = subscribedAtEpochMs,
+    publisher = (this as? MediaSource.PodcastFeed)?.publisher,
 )
 
 private fun PlayState.toBackup(id: MediaItemId): BackupProgress? = when (this) {

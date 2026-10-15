@@ -7,6 +7,9 @@ import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.account.SharedPrefsTokenStore
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.backup.asBackupSettings
+import com.dewijones92.totum.backup.drive.DriveBackup
+import com.dewijones92.totum.backup.drive.driveBackupFor
+import com.dewijones92.totum.backup.drive.startDriveBackups
 import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.common.Diag
@@ -154,6 +157,7 @@ import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.pins.SharedPrefsPinStore
 import com.dewijones92.totum.pins.SharedPrefsRecentActions
 import com.dewijones92.totum.pins.withPins
+import com.dewijones92.totum.pins.withRecent
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.Media3PlaybackController
@@ -283,6 +287,8 @@ interface AppContainer {
 
     /** Full backup / restore of everything that is not re-downloadable. */
     val backupService: BackupService
+
+    val driveBackup: DriveBackup
 
     /** Free space where downloads live; null when it cannot be read. */
     fun freeDownloadSpaceBytes(): Long?
@@ -672,14 +678,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private val downloadDir = File(context.filesDir, "downloads")
 
+    override val driveBackup: DriveBackup by lazy { driveBackupFor(context, backupService) }
+
     override val backupService: BackupService by lazy {
         BackupService(
             subscriptions = RoomSubscriptionStore(database.podcastDao(), RoomSubscriptionStore.SourceType.PODCAST),
             playlists = localPlaylistStore,
             queueStore = queueStore,
             progress = playbackProgressStore,
-            settings = appPreferences.asBackupSettings().withPins(pinStore),
+            settings = appPreferences.asBackupSettings().withPins(pinStore).withRecent(recentActions),
             appVersion = BuildConfig.VERSION_NAME,
+            extras = BackupService.Extras(groups = sourceGroupStore, history = playHistoryStore),
         )
     }
 
@@ -946,7 +955,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         // `transferClient`, not `httpClient`: the latter carries BusyInterceptor and drives the
         // global BusyBar, so the launch after any crash flashed a loading bar for a background
         // upload nobody asked for. `transferClient` exists for exactly this.
-        DiagnosticsUploader(context, transferClient, applicationScope).uploadPending()
+        diagnosticsUploader.uploadPending()
         // Kept current so [diagnosticState] can answer "was it downloaded?" without blocking.
         downloadManager.observeDownloads()
             .onEach { latestDownloadStates = it }
@@ -981,6 +990,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
                 appUpdate = appUpdate::diagnostics,
                 polite = polite::diagnostics,
+                backup = { driveBackup.diagnostics() },
                 groupDownloads = { groupDownloads },
             ),
         )
@@ -988,17 +998,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private fun diagnosticState(): Map<String, String> = diagnosticSnapshot.capture()
 
-    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) {
-        crashReporter.reportDiagnostics(note, screenshots)
-        // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
-        // suppression does not apply — an emulator is where this app gets debugged, and a button
-        // that silently did nothing while the UI said so would be worse than the noise it avoided.
-        // A test run is still suppressed either way; the flood came through this exact path.
-        DiagnosticsUploader(context, transferClient, applicationScope).sendDiagnosticsNow()
-    }
+    private val diagnosticsUploader by lazy { DiagnosticsUploader(context, transferClient, applicationScope) }
+
+    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
+        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
 
     override fun startQueueAutoDownload() {
         followSkipRequests(this)
+        startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,
             videoPlaybackLauncher,
@@ -1081,9 +1088,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * declares the port and `:lib:ytdlp` owns the JavaScript runtime, and the two stay
      * independent of each other so both remain separately publishable.
      */
-    private val signatureSolver: SignatureSolver by lazy {
-        SignatureSolver { challenges, playerUrl -> ytDlpEngine.solveSignatures(challenges, playerUrl) }
-    }
+    private val signatureSolver: SignatureSolver by lazy { SignatureSolver(ytDlpEngine::solveSignatures) }
 
     private val nSolver: NSolver by lazy {
         MemoisedNSolver(NSolver { challenges, playerUrl -> ytDlpEngine.solveN(challenges, playerUrl) })
@@ -1592,3 +1597,27 @@ private fun signedInVideo(resolver: VideoResolver): suspend (PlayableItem) -> Vi
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 private val ENGINE_THREADS = kotlinx.coroutines.Dispatchers.IO.limitedParallelism(16)
+
+private fun startDriveBackups(c: DefaultAppContainer) = startDriveBackups(
+    c.applicationScope,
+    c.driveBackup,
+    c.backupService.changes() + listOf(
+        "pins" to c.pinStore.pins,
+        "recent" to c.recentActions.recent,
+        "settings" to c.appPreferences.settings,
+    ),
+)
+
+private fun sendDiagnostics(
+    reporter: CrashReporter,
+    uploader: DiagnosticsUploader,
+    note: String,
+    screenshots: List<EncodedScreenshot>,
+) {
+    reporter.reportDiagnostics(note, screenshots)
+    // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
+    // suppression does not apply — an emulator is where this app gets debugged, and a button
+    // that silently did nothing while the UI said so would be worse than the noise it avoided.
+    // A test run is still suppressed either way; the flood came through this exact path.
+    uploader.sendDiagnosticsNow()
+}

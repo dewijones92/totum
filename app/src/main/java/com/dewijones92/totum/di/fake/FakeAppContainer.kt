@@ -267,6 +267,18 @@ class FakeAppContainer(
     override fun refreshSubscriptions() = Unit
 
     override fun freeDownloadSpaceBytes(): Long? = null
+    override val driveBackup: com.dewijones92.totum.backup.drive.DriveBackup by lazy {
+        val folder = com.dewijones92.totum.backup.drive.LocalBackupFolder(
+            java.io.File(System.getProperty("java.io.tmpdir"), "totum-fake-drive"),
+        )
+        com.dewijones92.totum.backup.drive.DriveBackup(
+            backupService,
+            com.dewijones92.totum.backup.drive.InMemoryBackupLocationStore(),
+            open = { folder },
+            phoneCopies = folder,
+        )
+    }
+
     override val backupService: BackupService = BackupService(
         subscriptions = InMemorySubscriptionStore(),
         playlists = InMemoryLocalPlaylistStore(),

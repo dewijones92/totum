@@ -23,6 +23,16 @@ open class RecentActions(initial: List<Pin> = emptyList(), private val keep: Int
         saved(state.value)
     }
 
+    fun mergeMissing(pins: List<Pin>): Int {
+        val known = state.value.mapTo(mutableSetOf()) { it.key }
+        val missing = pins.filterNot { it.key in known }
+        if (missing.isEmpty()) return 0
+        state.update { current -> (current + missing).take(keep) }
+        Diag.log(TAG, "restored ${missing.size} recent action(s); ${state.value.size} recent")
+        saved(state.value)
+        return missing.size
+    }
+
     fun find(key: String): Pin? = canonicalPinKey(key).let { wanted -> state.value.firstOrNull { it.key == wanted } }
 
     protected open fun saved(recent: List<Pin>) = Unit

@@ -62,6 +62,7 @@ import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
 import com.dewijones92.totum.ui.queue.GroupDownloadAsk
 import com.dewijones92.totum.ui.queue.QueueScreen
+import com.dewijones92.totum.ui.settings.DriveBackupPrompt
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -435,4 +436,5 @@ private fun ShellPrompts(container: AppContainer, askForNotifications: @Composab
     // that opens over a playing video and pauses it.
     askForNotifications()
     GroupDownloadAsk(container)
+    DriveBackupPrompt(container)
 }
