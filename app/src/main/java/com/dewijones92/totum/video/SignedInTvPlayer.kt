@@ -1,6 +1,7 @@
 package com.dewijones92.totum.video
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
@@ -10,6 +11,8 @@ import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.SignatureSolver
+import com.dewijones92.totum.innertube.player.WatchNextDetails
+import com.dewijones92.totum.innertube.player.WatchNextParser
 import com.dewijones92.totum.innertube.player.withSolvedChallenges
 
 /**
@@ -34,9 +37,23 @@ class SignedInTvPlayer(
                 as? AccessTokenResult.Available
             )?.token ?: return null
         val stamp = runCatching { signatureTimestamps.current() }.getOrNull() ?: return null
-        return withPlayableStreams(videoId, "downgraded TV") {
+        return withPlayableStreams(videoId, "downgraded TV", describe = { describedByTheWatchPage(videoId, token) }) {
             innerTubeClient.playerDowngradedTv(videoId, stamp, token)
         }
+    }
+
+    private suspend fun describedByTheWatchPage(videoId: String, token: AccessToken): WatchNextDetails? {
+        val response = runCatching { innerTubeClient.nextAsAccount(videoId, token) }.getOrNull()
+        val details = (response as? InnerTubeResponse.Success)?.body?.let { WatchNextParser.details(it, videoId) }
+        Diag.log(
+            "resolve",
+            if (details != null) {
+                "$videoId described by the account's watch page: \"${details.title}\" by ${details.author}"
+            } else {
+                "$videoId: the account's watch page gave no title ($response); it shows as its id"
+            },
+        )
+        return details
     }
 
     /**
@@ -55,10 +72,12 @@ class SignedInTvPlayer(
     private suspend fun withPlayableStreams(
         videoId: String,
         client: String,
+        describe: suspend () -> WatchNextDetails?,
         request: suspend () -> InnerTubeResponse,
     ): PlayerResult.Success? {
         val response = runCatching { request() }.getOrNull()
-        val parsed = (response as? InnerTubeResponse.Success)?.body?.let(PlayerResponseParser::parse)
+        val body = (response as? InnerTubeResponse.Success)?.body
+        val parsed = body?.let(PlayerResponseParser::parse)
         if (parsed !is PlayerResult.Success) {
             // WHAT it said, not just that it failed. Concluding "refused" from a null was the
             // mistake that made age restriction look impossible for two rounds.
@@ -85,6 +104,9 @@ class SignedInTvPlayer(
             return null
         }
         Diag.log("resolve", "$videoId as $client -> ${playable.directlyPlayable.size} fetchable format(s)")
-        return parsed.copy(streaming = playable)
+        val details = parsed.details ?: describe()?.let { described ->
+            (PlayerResponseParser.parse(body, described) as? PlayerResult.Success)?.details
+        }
+        return parsed.copy(streaming = playable, details = details)
     }
 }

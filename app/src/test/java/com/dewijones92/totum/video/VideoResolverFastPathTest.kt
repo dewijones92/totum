@@ -113,6 +113,40 @@ class VideoResolverFastPathTest {
         assertEquals(1, calls.get())
     }
 
+    @Test
+    fun `signed in, the account answers first and yt-dlp is not asked`() = runTest {
+        val calls = AtomicInteger()
+        val resolver = VideoResolver(
+            engine = CountingEngine(calls),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = object : PlayerStreams {
+                override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+                override suspend fun signedInFor(videoId: String) = playerResponse("https://x.test/account")
+            },
+        )
+
+        val resolved = resolver.resolve(url, source, asked = "play")
+
+        assertEquals("https://x.test/account", resolved?.item?.mediaUrl?.value)
+        assertEquals(0, calls.get())
+    }
+
+    @Test
+    fun `signed in but refused, yt-dlp still resolves it`() = runTest {
+        val calls = AtomicInteger()
+        val resolver = VideoResolver(
+            engine = CountingEngine(calls),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = object : PlayerStreams {
+                override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+                override suspend fun signedInFor(videoId: String): PlayerResult.Success? = null
+            },
+        )
+
+        assertEquals("From extraction", resolver.resolve(url, source, asked = "play")?.item?.title)
+        assertEquals(1, calls.get())
+    }
+
     /**
      * The reason the machinery stayed. yt-dlp cannot reach an age-restricted video at all, and
      * this is the path that plays one — verified on a device 2026-08-01.

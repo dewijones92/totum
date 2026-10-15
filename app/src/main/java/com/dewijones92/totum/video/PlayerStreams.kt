@@ -49,6 +49,9 @@ fun interface PlayerStreams {
      * 2026-09-06 — docs/todos/sabr-stops-at-one-megabyte.md).
      */
     suspend fun playerForSabr(videoId: String): PlayerResult.Success? = playerFor(videoId)
+
+    /** The signed-in account's answer alone, tried before yt-dlp (ADR 50); null when signed out or refused. */
+    suspend fun signedInFor(videoId: String): PlayerResult.Success? = null
 }
 
 /** [PlayerStreams] over our own InnerTube client. */
@@ -100,7 +103,23 @@ class InnerTubePlayerStreams(
      * Defaulted false so nothing changes for a signed-out app, previews, or existing tests.
      */
     private val preferAccount: () -> Boolean = { false },
+    private val now: () -> Long = System::currentTimeMillis,
 ) : PlayerStreams {
+
+    private val accountMisses = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    override suspend fun signedInFor(videoId: String): PlayerResult.Success? {
+        val answer = signedInFirst(videoId)
+        if (answer == null) accountMisses[videoId] = now() else accountMisses.remove(videoId)
+        return answer
+    }
+
+    private fun askedTheAccountMomentsAgo(videoId: String): Boolean {
+        val at = accountMisses[videoId] ?: return false
+        if (now() - at > ACCOUNT_MISS_MEMORY_MS) return false.also { accountMisses.remove(videoId) }
+        Diag.log("resolve", "$videoId: the account gave nothing ${now() - at}ms ago; not asking it again")
+        return true
+    }
 
     /** What the signed-in retry needs: a token, and the timestamp streams are signed against. */
     fun interface AccountPlayer {
@@ -161,8 +180,9 @@ class InnerTubePlayerStreams(
         (anonymous as? PlayerResult.Success)?.let { return it }
         // Only now, because the signed-in call costs a token refresh and a second round trip, and
         // the overwhelming majority of videos never need it.
-        val signedIn = account?.playerFor(videoId) as? PlayerResult.Success ?: return null
-        Diag.log("resolve", "$videoId needed the signed-in account — age-restricted, most likely")
+        val signedIn = account?.takeUnless { askedTheAccountMomentsAgo(videoId) }
+            ?.playerFor(videoId) as? PlayerResult.Success ?: return null
+        Diag.log("resolve", "$videoId needed the signed-in account (refused anonymously: ${anonymous.reasonForLog()})")
         return signedIn.describedByTheRefusal(videoId, anonymous)
     }
 
@@ -190,11 +210,9 @@ class InnerTubePlayerStreams(
      * between the check and the call.
      */
     private suspend fun signedInFirst(videoId: String): PlayerResult.Success? {
-        if (!preferAccount() || account == null) return null
-        // The REASON, not just "gave nothing". This is the path that is currently broken -- TVHTML5
-        // answers `UNPLAYABLE: The page needs to be reloaded.` for every request we can construct
-        // (docs/todos/tv-client-player-is-refused.md) -- and a line that cannot distinguish that from
-        // an expired token or a dead network makes the fix undebuggable from a report.
+        if (!preferAccount() || account == null || askedTheAccountMomentsAgo(videoId)) return null
+        // The REASON, not just "gave nothing": a line that cannot tell a refusal from an expired token
+        // or a dead network makes this path undebuggable from a report.
         val outcome = account.playerFor(videoId)
         val signedIn = outcome as? PlayerResult.Success
         Diag.log(
@@ -331,3 +349,12 @@ private fun List<PlayableFormat>.bestSounding(
 ): PlayableFormat? = filter { it.url != null }.maxWithOrNull(
     compareBy(audioLanguagePreference(wanted)) { format: PlayableFormat -> format.audioTag }.then(tieBreak),
 )
+
+private fun PlayerResult?.reasonForLog(): String = when (this) {
+    is PlayerResult.Unplayable -> reason
+    is PlayerResult.Failure -> detail
+    is PlayerResult.Success -> "answered, but nothing playable"
+    null -> "no answer"
+}
+
+private const val ACCOUNT_MISS_MEMORY_MS = 120_000L

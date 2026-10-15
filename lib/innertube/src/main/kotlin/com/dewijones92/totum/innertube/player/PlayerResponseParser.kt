@@ -31,7 +31,7 @@ public object PlayerResponseParser {
 
     private const val PADDING = 4
 
-    public fun parse(body: String): PlayerResult {
+    public fun parse(body: String, describedBy: WatchNextDetails? = null): PlayerResult {
         val root = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull()
             ?: return PlayerResult.Failure("Unparseable player response")
 
@@ -46,7 +46,7 @@ public object PlayerResponseParser {
             // unusable.
             else -> return PlayerResult.Unplayable(
                 listOfNotNull(state, status.stringAt("reason")).joinToString(": "),
-                details = (root["videoDetails"] as? JsonObject)?.toDetails(),
+                details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),
             )
         }
 
@@ -62,19 +62,19 @@ public object PlayerResponseParser {
                 serverAbrStreamingUrl = streaming.stringAt("serverAbrStreamingUrl")?.let(HttpUrl::parse),
                 ustreamerConfig = root.ustreamerConfig(),
             ),
-            details = (root["videoDetails"] as? JsonObject)?.toDetails(),
+            details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),
             subtitles = root.captionTracks(),
         )
     }
 
-    private fun JsonObject.toDetails(): PlayerDetails? {
+    private fun JsonObject.toDetails(describedBy: WatchNextDetails?): PlayerDetails? {
         val videoId = stringAt("videoId") ?: return null
-        val title = stringAt("title") ?: return null
+        val title = stringAt("title") ?: describedBy?.title ?: return null
         return PlayerDetails(
             videoId = videoId,
             title = title,
-            author = stringAt("author"),
-            channelId = stringAt("channelId"),
+            author = stringAt("author") ?: describedBy?.author,
+            channelId = stringAt("channelId") ?: describedBy?.channelId,
             // A string in the response, and absent for a live stream.
             lengthSeconds = stringAt("lengthSeconds")?.toLongOrNull()?.takeIf { it > 0 },
             thumbnailUrl = bestThumbnailUrl(),

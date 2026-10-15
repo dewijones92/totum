@@ -39,7 +39,11 @@ class SignedInTvPlayerTest {
                 iframeApiUrl = server.url("/iframe_api").toString(),
                 playerScriptUrl = { server.url("/tv.js").toString() },
             ),
-            innerTubeClient = InnerTubeClient(http, playerUrl = server.url("/player").toString()),
+            innerTubeClient = InnerTubeClient(
+                http,
+                playerUrl = server.url("/player").toString(),
+                nextUrl = server.url("/next").toString(),
+            ),
             nSolver = NSolver { challenges, _ -> challenges.associateWith { "solved" } },
             signatureSolver = SignatureSolver { challenges, _ -> challenges.associateWith { "SIGNED+$it" } },
         )
@@ -50,6 +54,18 @@ class SignedInTvPlayerTest {
     private fun timestampSource() {
         enqueue("""var x = "player\/abcdef12\/";""")
         enqueue("""signatureTimestamp:20738""")
+    }
+
+    @Test
+    fun `a TV answer with no title is described by the account's watch page`() = runBlocking {
+        timestampSource()
+        enqueue(untitledPlainFormat())
+        enqueue(watchPage())
+        val result = player().playerFor("vid") as? PlayerResult.Success
+        assertEquals("Where Does The Illuminati Conspiracy Come From?", result?.details?.title)
+        assertEquals("Dan Snow's History Hit", result?.details?.author)
+        assertEquals("UC4wKw34XH0pzeeBZ8xT29Eg", result?.details?.channelId)
+        assertEquals(2712L, result?.details?.lengthSeconds)
     }
 
     @Test
@@ -78,7 +94,10 @@ class SignedInTvPlayerTest {
         enqueue(onePlainFormat())
         val result = player().playerFor("vid")
         assertTrue(result.toString(), result is PlayerResult.Success)
-        assertEquals(3, server.requestCount)
+        assertEquals(
+            listOf("/iframe_api", "/tv.js", "/player", "/next"),
+            List(4) { server.takeRequest().url.encodedPath }
+        )
     }
 
     private fun onlyCiphered() =
@@ -95,6 +114,25 @@ class SignedInTvPlayerTest {
          "streamingData":{"adaptiveFormats":[
            {"itag":251,"mimeType":"audio/webm; codecs=\"opus\"","bitrate":1000,
             "signatureCipher":"sp=sig&url=https%3A%2F%2Fx.test%2Fvideoplayback%3Fitag%3D251%26n%3DRAW"}]}}
+        """.trimIndent()
+
+    private fun untitledPlainFormat() =
+        """
+        {"playabilityStatus":{"status":"OK"},
+         "videoDetails":{"videoId":"vid","lengthSeconds":"2712","channelId":"UC4wKw34XH0pzeeBZ8xT29Eg"},
+         "streamingData":{"formats":[
+           {"itag":18,"mimeType":"video/mp4; codecs=\"avc1, mp4a\"","height":360,"bitrate":1000,
+            "url":"https://x.test/videoplayback?itag=18&n=RAW&sig=keep"}]}}
+        """.trimIndent()
+
+    private fun watchPage() =
+        """
+        {"contents":{"singleColumnWatchNextResults":{"results":{"results":{"contents":[{"itemSectionRenderer":
+          {"contents":[{"videoMetadataRenderer":{"videoId":"vid",
+            "title":{"runs":[{"text":"Where Does The Illuminati Conspiracy Come From?"}]},
+            "owner":{"videoOwnerRenderer":{"title":{"simpleText":"Dan Snow's History Hit"},
+              "navigationEndpoint":{"browseEndpoint":{"browseId":"UC4wKw34XH0pzeeBZ8xT29Eg"}}}},
+            "publishedTimeText":{"simpleText":"Published on Oct 14, 2026"}}}]}}]}}}}}
         """.trimIndent()
 
     private fun onePlainFormat() =

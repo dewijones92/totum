@@ -220,7 +220,30 @@ class VideoResolver(
         // Slower AND broken, against an extraction path that works. The machinery it added is
         // kept and still earns its place — [fromDirectStreams] is what finally made
         // age-restricted videos play, via the recovery path below.
-        return byExtraction(watchUrl, sourceId, asked, startedAt)
+        return bySignedInFirst(watchUrl, sourceId, asked, startedAt)
+            ?: byExtraction(watchUrl, sourceId, asked, startedAt)
+    }
+
+    private suspend fun bySignedInFirst(
+        watchUrl: HttpUrl,
+        sourceId: SourceId,
+        asked: String,
+        startedAt: Long,
+    ): Resolved? {
+        val id = watchUrl.youTubeVideoId() ?: return null
+        val fast = playerStreams ?: return null
+        val response = runCatching { fast.signedInFor(id) }.getOrElse { failure ->
+            Diag.warn("resolve", "$id: the signed-in ask threw; trying yt-dlp", failure)
+            null
+        } ?: return null
+        val resolved = fromDirectStreams(PlayerRequest(id, sourceId, watchUrl, asked, startedAt), response) ?: run {
+            Vitals.add("resolve.signedInUnusable")
+            Diag.log("resolve", "$id: the account answered but nothing was playable; trying yt-dlp")
+            return null
+        }
+        Vitals.add("resolve.signedInFirst")
+        Diag.log("resolve", "$id served by the signed-in account first ($asked) — yt-dlp not asked")
+        return resolved
     }
 
     /** The long way round: yt-dlp, ~2-4s on a phone, and what everything falls back to. */
