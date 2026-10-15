@@ -29,7 +29,7 @@ class SignedInTvPlayer(
     private val signatureSolver: SignatureSolver,
 ) : InnerTubePlayerStreams.AccountPlayer {
 
-    override suspend fun playerFor(videoId: String): PlayerResult? {
+    override suspend fun playerFor(videoId: String, describe: Boolean): PlayerResult? {
         // Signed out is the ordinary case, not an error: the anonymous failure already said
         // why the video would not play, and that message is the better one to keep.
         val token = (
@@ -37,7 +37,14 @@ class SignedInTvPlayer(
                 as? AccessTokenResult.Available
             )?.token ?: return null
         val stamp = runCatching { signatureTimestamps.current() }.getOrNull() ?: return null
-        return withPlayableStreams(videoId, "downgraded TV", describe = { describedByTheWatchPage(videoId, token) }) {
+        return withPlayableStreams(videoId, "downgraded TV", describe = {
+            if (describe) {
+                describedByTheWatchPage(videoId, token)
+            } else {
+                Diag.log("resolve", "$videoId: its row already has a title; the watch page is not asked")
+                null
+            }
+        }) {
             innerTubeClient.playerDowngradedTv(videoId, stamp, token)
         }
     }
@@ -50,7 +57,9 @@ class SignedInTvPlayer(
             if (details != null) {
                 "$videoId described by the account's watch page: \"${details.title}\" by ${details.author}"
             } else {
-                "$videoId: the account's watch page gave no title ($response); it shows as its id"
+                "$videoId: the account's watch page gave no title (${response.toString().take(
+                    LOGGED_RESPONSE_CHARS
+                )}); it shows as its id"
             },
         )
         return details
@@ -110,3 +119,5 @@ class SignedInTvPlayer(
         return parsed.copy(streaming = playable, details = details)
     }
 }
+
+private const val LOGGED_RESPONSE_CHARS = 300

@@ -35,7 +35,7 @@ class ReadyAheadTest {
 
     private fun TestScope.readyAhead(slowMs: Long = 0) = ReadyAhead(
         metered = { metered },
-        prefetch = { url, _ ->
+        prefetch = { url, _, _ ->
             asked += url.value.substringAfter("v=")
             delay(slowMs)
             null

@@ -98,6 +98,7 @@ import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
@@ -192,6 +193,7 @@ import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.video.AccountChannel
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
@@ -712,12 +714,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     ),
                     secondary = PlayerBackedDownloadStrategy(
                         // The SAME resolution playback uses, so anything watchable is fetchable.
-                        resolveAudioUrl = { item ->
-                            (item.handle as? PlayHandle.Video)?.let { handle ->
-                                videoResolver.resolve(handle.watchUrl, item.item.sourceId, asked = "download")
-                                    ?.audioOnlyUrl
-                            }
-                        },
+                        resolveAudioUrl = { item -> videoResolver.resolve(item, "download")?.audioOnlyUrl },
                         // NOT resumable: this route re-resolves the URL on every attempt and can be
                         // handed a different audio format each time, so continuing a part-fetched
                         // file would splice two formats into one that never plays.
@@ -773,6 +770,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 // YouTube's SABR-only experiment. A useless success is not a failure to a gate written
                 // for failures.
                 preferAccount = { accountSubscriptions.signedIn.value },
+                botBackOff = polite.botBackOff,
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
             resumePositionMs = { id -> randomStarts.peek(id) ?: playbackProgressStore.resumePositionMs(id) },
@@ -1049,7 +1047,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val sourceLocator: SourceLocator by lazy {
-        DefaultSourceLocator(podcastRepository, ytDlpEngine)
+        DefaultSourceLocator(podcastRepository, ytDlpEngine, AccountChannel(youTubeAccount, innerTubeClient))
     }
 
     override val groupFeed: GroupFeed by lazy {
@@ -1181,7 +1179,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         when (val handle = item.handle) {
             // A video's stream URL does not exist until it resolves, so the bytes are nominated
             // HERE, on the far side of the resolution, rather than in preloadBytesOf with the rest.
-            is PlayHandle.Video -> videoResolver.prefetch(handle.watchUrl, item.item.sourceId)
+            is PlayHandle.Video -> videoResolver.prefetch(handle.watchUrl, item.item.sourceId, item.item.titleIsKnown)
                 ?.let { resolved ->
                     // ASKED, not guessed. This used to pick a stream by its own rule and disagreed
                     // with the launcher's on every video with a quality ladder, so the bytes were
@@ -1590,9 +1588,7 @@ private fun politeEngine(context: Context, updateDir: File, polite: Politeness):
     )
 
 private fun signedInVideo(resolver: VideoResolver): suspend (PlayableItem) -> VideoQuality? = { item ->
-    (item.handle as? PlayHandle.Video)?.let { handle ->
-        resolver.resolve(handle.watchUrl, item.item.sourceId, asked = "download")?.qualities?.firstOrNull()
-    }
+    resolver.resolve(item, "download")?.qualities?.firstOrNull()
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

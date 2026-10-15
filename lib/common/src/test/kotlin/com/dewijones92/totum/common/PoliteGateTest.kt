@@ -98,6 +98,28 @@ class PoliteGateTest {
     }
 
     @Test
+    fun `a call kept waiting for a slot says at once which calls hold them`() = runTest {
+        val lines = mutableListOf<String>()
+        val before = Diag.sink
+        Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "polite") lines += message }
+        try {
+            val gate =
+                PoliteGate(maxInFlight = 1, perSecond = 1000.0, burst = 1000, now = { testScheduler.currentTime })
+            val holder = launch { gate.passing("player SLOWHOLDER") { kotlinx.coroutines.delay(10_000) } }
+            advanceTimeBy(10)
+            val waiter = launch { gate.passing("next WAITER") {} }
+            advanceTimeBy(3_000)
+
+            val slow = lines.singleOrNull { "next WAITER" in it && "player SLOWHOLDER" in it }
+            assertTrue("no slow-slot line naming the holder in $lines", slow != null)
+            holder.cancel()
+            waiter.join()
+        } finally {
+            Diag.sink = before
+        }
+    }
+
+    @Test
     fun `a call cancelled while it waits gives its slot back`() = runTest {
         val gate = PoliteGate(maxInFlight = 1, perSecond = 0.001, burst = 1, now = { testScheduler.currentTime })
         gate.passing("drains the bucket") {}

@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.titleIsKnown
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +17,7 @@ import kotlin.time.TimeSource
 
 class ReadyAhead(
     private val metered: () -> Boolean,
-    private val prefetch: suspend (HttpUrl, SourceId) -> VideoResolver.Resolved?,
+    private val prefetch: suspend (HttpUrl, SourceId, Boolean) -> VideoResolver.Resolved?,
     private val scope: CoroutineScope,
     private val maxWaiting: Int = MAX_WAITING,
     private val throttled: () -> Boolean = { false },
@@ -86,7 +87,7 @@ class ReadyAhead(
         }
         val started = TimeSource.Monotonic.markNow()
         Diag.log("resolve", "looking up $id ahead ($why)")
-        val resolved = prefetch(url, item.item.sourceId)
+        val resolved = prefetch(url, item.item.sourceId, item.item.titleIsKnown)
         val ms = started.elapsedNow().inWholeMilliseconds
         Diag.log(
             "resolve",

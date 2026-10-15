@@ -11,8 +11,11 @@ import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.Chapter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaMetadata
@@ -111,7 +114,7 @@ class VideoResolver(
      * The extraction currently running, if any, and what it is for. Concurrent callers for
      * the same video await this rather than starting a second one.
      */
-    private var inFlight: Pair<HttpUrl, CompletableDeferred<Resolved?>>? = null
+    private val inFlight = mutableMapOf<HttpUrl, CompletableDeferred<Resolved?>>()
     private val inFlightMutex = Mutex()
 
     /** One resolve's inputs, together because they travel together through both player paths. */
@@ -152,7 +155,12 @@ class VideoResolver(
      * with nothing playable in it — a difference between a YouTube change and a codec
      * problem.
      */
-    suspend fun resolve(watchUrl: HttpUrl, sourceId: SourceId, asked: String = "play"): Resolved? {
+    suspend fun resolve(
+        watchUrl: HttpUrl,
+        sourceId: SourceId,
+        asked: String = "play",
+        titleKnown: Boolean = false,
+    ): Resolved? {
         // Share one extraction between concurrent askers.
         //
         // The cache only helps a caller arriving AFTER the first has finished. A real report
@@ -165,7 +173,7 @@ class VideoResolver(
         // rather than handing it to a scope this class owns, which would take the work off
         // whatever dispatcher the caller (or a test) is driving.
         val joined = inFlightMutex.withLock {
-            inFlight?.takeIf { it.first == watchUrl && it.second.isActive }?.second
+            inFlight[watchUrl]?.takeIf { it.isActive }
         }
         if (joined != null) {
             Diag.log(
@@ -177,18 +185,28 @@ class VideoResolver(
         }
 
         val mine = CompletableDeferred<Resolved?>()
-        inFlightMutex.withLock { inFlight = watchUrl to mine }
+        inFlightMutex.withLock { inFlight[watchUrl] = mine }
         return try {
-            extractAndCache(watchUrl, sourceId, asked).also(mine::complete)
+            extractAndCache(watchUrl, sourceId, asked, titleKnown).also(mine::complete)
         } finally {
             // Always settled, never left hanging: whoever joined must not wait forever
             // because the caller that started the work threw or was cancelled.
             mine.complete(null)
-            inFlightMutex.withLock { if (inFlight?.second === mine) inFlight = null }
+            inFlightMutex.withLock { if (inFlight[watchUrl] === mine) inFlight.remove(watchUrl) }
         }
     }
 
-    private suspend fun extractAndCache(watchUrl: HttpUrl, sourceId: SourceId, asked: String): Resolved? {
+    suspend fun resolve(item: PlayableItem, asked: String): Resolved? {
+        val handle = item.handle as? PlayHandle.Video ?: return null
+        return resolve(handle.watchUrl, item.item.sourceId, asked, item.item.titleIsKnown)
+    }
+
+    private suspend fun extractAndCache(
+        watchUrl: HttpUrl,
+        sourceId: SourceId,
+        asked: String,
+        titleKnown: Boolean,
+    ): Resolved? {
         fresh(watchUrl)?.let { hit ->
             // Kept, not consumed. It used to be cleared on first use, which was right when an
             // extraction cost ~1.7s and the cache existed only to hand a prefetched result to
@@ -221,23 +239,20 @@ class VideoResolver(
         // Slower AND broken, against an extraction path that works. The machinery it added is
         // kept and still earns its place — [fromDirectStreams] is what finally made
         // age-restricted videos play, via the recovery path below.
-        return bySignedInFirst(watchUrl, sourceId, asked, startedAt)
+        val request = PlayerRequest(watchUrl.youTubeVideoId().orEmpty(), sourceId, watchUrl, asked, startedAt)
+        return bySignedInFirst(request, titleKnown)
             ?: byExtraction(watchUrl, sourceId, asked, startedAt)
     }
 
-    private suspend fun bySignedInFirst(
-        watchUrl: HttpUrl,
-        sourceId: SourceId,
-        asked: String,
-        startedAt: Long,
-    ): Resolved? {
-        val id = watchUrl.youTubeVideoId() ?: return null
+    private suspend fun bySignedInFirst(request: PlayerRequest, titleKnown: Boolean): Resolved? {
+        val id = request.id.takeIf { it.isNotEmpty() } ?: return null
+        val asked = request.asked
         val fast = playerStreams ?: return null
-        val response = runCatching { fast.signedInFor(id) }.getOrElse { failure ->
+        val response = runCatching { fast.signedInFor(id, describe = !titleKnown) }.getOrElse { failure ->
             Diag.warn("resolve", "$id: the signed-in ask threw; trying yt-dlp", failure)
             null
         } ?: return null
-        val resolved = fromDirectStreams(PlayerRequest(id, sourceId, watchUrl, asked, startedAt), response) ?: run {
+        val resolved = fromDirectStreams(request, response) ?: run {
             Vitals.add("resolve.signedInUnusable")
             Diag.log("resolve", "$id: the account answered but nothing was playable; trying yt-dlp")
             return null
@@ -274,6 +289,8 @@ class VideoResolver(
                 // yt-dlp's own words, used only to LABEL the failure — never to decide whether
                 // to retry, which happens regardless so a reworded message cannot break it.
                 extractionSaidAgeRestricted = extraction.toString().contains("confirm your age", true),
+                extractionSaidBotCheck = extraction.toString().contains("not a bot", true) ||
+                    extraction.toString().contains("bot check", true),
             )
         }
         val wanted = wantedAudio(chosen = null)
@@ -482,6 +499,7 @@ class VideoResolver(
         asked: String,
         startedAt: Long,
         extractionSaidAgeRestricted: Boolean,
+        extractionSaidBotCheck: Boolean = false,
     ): Resolved? {
         val id = watchUrl.youTubeVideoId() ?: return null
         val fast = playerStreams ?: return null
@@ -493,7 +511,9 @@ class VideoResolver(
             // were refused, so age restriction is a wall rather than a missing credential.
             // Saying "unavailable" for something YouTube plays perfectly well in a browser
             // invites another day of chasing it.
-            val why = if (extractionSaidAgeRestricted) {
+            val why = if (extractionSaidBotCheck) {
+                "refused by YouTube's bot check, and the signed-in route gave nothing (signed out?)"
+            } else if (extractionSaidAgeRestricted) {
                 "age-restricted — YouTube refuses it to this app even signed in"
             } else {
                 "genuinely unavailable (private, removed, geo-blocked or members-only)"
@@ -834,10 +854,12 @@ class VideoResolver(
      * deliberately swallowed: a prefetch that does not work must cost nothing, and the real
      * resolve will run and report properly when the item is actually needed.
      */
-    suspend fun prefetch(watchUrl: HttpUrl, sourceId: SourceId): Resolved? {
+    suspend fun prefetch(watchUrl: HttpUrl, sourceId: SourceId, titleKnown: Boolean = false): Resolved? {
         fresh(watchUrl)?.let { return it }
         Diag.log("resolve", "prefetching ${watchUrl.value.takeLast(ID_CHARS)}")
-        val resolved = runCatching { resolve(watchUrl, sourceId, asked = "prefetch") }.getOrNull() ?: run {
+        val resolved = runCatching {
+            resolve(watchUrl, sourceId, asked = "prefetch", titleKnown = titleKnown)
+        }.getOrNull() ?: run {
             Diag.log("resolve", "prefetch produced nothing; the real resolve will try again")
             return null
         }

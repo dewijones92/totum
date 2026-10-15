@@ -203,4 +203,14 @@ class WithStreamFromTest {
         assertEquals(stream.mediaUrl, played.mediaUrl)
         assertEquals("Novara Media ", played.author)
     }
+
+    @Test
+    fun `a resolution that only knows the id as a title keeps the listing's real title`() {
+        val untitled = listing.copy(
+            title = "abc123",
+            mediaUrl = HttpUrl.of("https://rr1---sn.googlevideo.com/videoplayback")
+        )
+
+        assertEquals("What Happened In Ceuta", listing.withStreamFrom(untitled).title)
+    }
 }

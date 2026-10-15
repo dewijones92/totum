@@ -4,7 +4,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -27,6 +30,9 @@ public class PoliteGate(
     private var waitsSinceLog = 0
     private var waitedSinceLogMs = 0L
     private var loggedAt = 0L
+    private var slowSlotsSinceLog = 0
+    private var slowSlotLoggedAt = Long.MIN_VALUE / 2
+    private val holders = Holders()
     private val slowing = MutableStateFlow<SlowDown?>(null)
     public val slowDown: StateFlow<SlowDown?> = slowing.asStateFlow()
 
@@ -35,28 +41,58 @@ public class PoliteGate(
 
     public fun <T> pass(what: String, block: () -> T): T {
         val queuedAt = now()
-        permits.acquire()
+        if (!permits.tryAcquire(SLOW_SLOT_MS, TimeUnit.MILLISECONDS)) {
+            noteSlowSlot(what, now() - queuedAt)
+            permits.acquire()
+        }
+        val held = holders.hold(what, now())
         try {
             val slotMs = now() - queuedAt
             val waitedMs = waitOut(what) { sleep(it) }
             noteWait(what, slotMs, waitedMs)
             return block()
         } finally {
+            holders.release(held)
             permits.release()
         }
     }
 
     public suspend fun <T> passing(what: String, block: suspend () -> T): T {
         val queuedAt = now()
-        while (!permits.tryAcquire()) pause(SLOT_POLL_MS)
+        var noted = false
+        while (!permits.tryAcquire()) {
+            pause(SLOT_POLL_MS)
+            if (!noted && now() - queuedAt >= SLOW_SLOT_MS) {
+                noted = true
+                noteSlowSlot(what, now() - queuedAt)
+            }
+        }
+        val held = holders.hold(what, now())
         try {
             val slotMs = now() - queuedAt
             val waitedMs = waitOutSuspending(what)
             noteWait(what, slotMs, waitedMs)
             return block()
         } finally {
+            holders.release(held)
             permits.release()
         }
+    }
+
+    private fun noteSlowSlot(what: String, waitedMs: Long) {
+        val at = now()
+        val line = synchronized(bucket) {
+            slowSlotsSinceLog++
+            if (at - slowSlotLoggedAt < SLOW_SLOT_LOG_EVERY_MS) return
+            val unlogged = slowSlotsSinceLog - 1
+            slowSlotsSinceLog = 0
+            slowSlotLoggedAt = at
+            "$what has waited ${waitedMs}ms for a slot; all $maxInFlight are held by " +
+                "${holders.describe(at)}; $queued queued" +
+                if (unlogged > 0) " ($unlogged more slow wait(s) since the last line)" else ""
+        }
+        Vitals.add("polite.slowSlots")
+        Diag.warn("polite", line)
     }
 
     public fun tooManyRequests(what: String, retryAfterMs: Long?) {
@@ -160,5 +196,24 @@ public class PoliteGate(
         private const val MILLIS_PER_SECOND = 1000.0
         private const val SUMMARY_EVERY_MS = 60_000L
         private const val SLOT_POLL_MS = 25L
+        private const val SLOW_SLOT_MS = 2_000L
+        private const val SLOW_SLOT_LOG_EVERY_MS = 5_000L
     }
+}
+
+private class Holders {
+    private val next = AtomicLong()
+    private val held = ConcurrentHashMap<Long, Pair<String, Long>>()
+
+    fun hold(what: String, at: Long): Long = next.incrementAndGet().also { held[it] = what to at }
+
+    fun release(token: Long) {
+        held.remove(token)
+    }
+
+    fun describe(at: Long): String =
+        held.values.sortedBy { it.second }.joinToString(
+            prefix = "[",
+            postfix = "]"
+        ) { (what, since) -> "$what for ${at - since}ms" }
 }

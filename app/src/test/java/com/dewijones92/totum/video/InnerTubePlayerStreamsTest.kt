@@ -5,6 +5,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.StreamingData
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -216,4 +217,20 @@ class InnerTubePlayerStreamsTest {
             format.copy(url = format.url?.value?.replace(Regex("n=[^&]*"), "n=$value")?.let(HttpUrl::of))
         },
     )
+
+    @Test
+    fun `after a bot check the anonymous player is not asked again until the back-off ends`() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder().code(200).body(
+                """{"playabilityStatus":{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm you’re not a bot"}}""",
+            ).build(),
+        )
+        var clock = 0L
+        val backOff = com.dewijones92.totum.common.BotBackOff { clock }
+        val streams = InnerTubePlayerStreams(client(), solveN = { it }, botBackOff = backOff)
+        streams.playerFor("dQw4w9WgXcQ")
+        streams.playerFor("dQw4w9WgXcQ")
+        org.junit.Assert.assertEquals(1, server.requestCount)
+        org.junit.Assert.assertTrue(backOff.until.value != null)
+    }
 }

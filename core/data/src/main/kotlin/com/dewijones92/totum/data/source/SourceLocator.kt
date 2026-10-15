@@ -38,9 +38,14 @@ public interface SourceLocator {
  * uploader's own page. So the pillar is decided by what the item *is*, not by
  * pattern-matching its media URL in a second place.
  */
+public fun interface AccountChannelLookup {
+    public suspend fun channelOf(watchUrl: HttpUrl): MediaSource.VideoChannel?
+}
+
 public class DefaultSourceLocator(
     private val podcasts: PodcastRepository,
     private val engine: YtDlpEngine,
+    private val accountChannel: AccountChannelLookup = AccountChannelLookup { null },
 ) : SourceLocator {
 
     override fun canLocate(item: MediaItem): Boolean = when (item.pillar) {
@@ -54,6 +59,7 @@ public class DefaultSourceLocator(
         val source = subscribedFeed(item) ?: when (item.pillar) {
             MediaKind.PODCAST -> item.statedFeed().also { route = "feed named by the episode" }
             MediaKind.VIDEO -> statedSource(item)?.also { route = "channel named by the listing" }
+                ?: item.mediaUrl?.let { accountChannel.channelOf(it) }?.also { route = "the account's watch page" }
                 ?: uploaderChannel(item).also { route = "yt-dlp extraction of the video" }
         }
         Diag.log(

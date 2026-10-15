@@ -153,4 +153,30 @@ class SourceLocatorTest {
     fun `an unresolvable item locates nothing`() = runTest {
         assertNull(locator.locate(video("ytfeed:SUBSCRIPTIONS")))
     }
+
+    @Test
+    fun `signed in, the account names the channel and yt-dlp is never asked`() = runTest {
+        val channel = MediaSource.VideoChannel(
+            id = SourceId("https://www.youtube.com/channel/UCpeepshowpeepshowpeepsh"),
+            title = "Peep Show",
+            channelUrl = HttpUrl.of("https://www.youtube.com/channel/UCpeepshowpeepshowpeepsh"),
+        )
+        engine.registerMedia(watchUrl, metadata("https://www.youtube.com/@wrong"))
+        val signedIn = DefaultSourceLocator(podcasts, engine, accountChannel = { url ->
+            channel.takeIf { url == watchUrl }
+        })
+
+        assertEquals(channel, signedIn.locate(video("search:ad-hoc-video")))
+        assertEquals("the engine must not be touched", 0, engine.extractCalls)
+    }
+
+    @Test
+    fun `when the account cannot say, yt-dlp still finds the channel`() = runTest {
+        engine.registerMedia(watchUrl, metadata("https://www.youtube.com/@somechannel"))
+        val signedOut = DefaultSourceLocator(podcasts, engine, accountChannel = { null })
+
+        val located = signedOut.locate(video("search:ad-hoc-video")) as? MediaSource.VideoChannel
+
+        assertEquals("https://www.youtube.com/@somechannel", located?.channelUrl?.value)
+    }
 }

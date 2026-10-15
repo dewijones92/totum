@@ -28,6 +28,18 @@ transport means no feature has to remember to. A `BotBackOff` for anonymous yt-d
 in diagnostics, look-ahead paused while throttled, and the visitor id kept per install. Details in
 [polite-youtube-client.md](../features/polite-youtube-client.md); the rule is in CLAUDE.md.
 
+## Update, 2026-10-15: evidence, and fewer calls per play
+
+Report 0.1.625 (Pixel 4a) showed 102 calls waiting 755 s in one minute and a play taking 22 s, with nothing
+saying what held the gate. Now:
+- a call kept 2 s for a slot logs at once which calls hold all four, and for how long (`polite.slowSlots`,
+  at most one line per 5 s, the rest counted);
+- `VideoResolver` keeps every lookup in flight by URL, so tapping A, B, A again joins A's lookup instead of
+  starting another (it held only one);
+- the signed-in player asks the watch page for a title only when the caller's row has none
+  (`MediaItem.titleIsKnown`): for music it never has one, and it cost a call and a 150 KB log line per play;
+- a resolved item whose only title is its id keeps the row's title (`withStreamFrom`).
+
 ## Consequences
 
 - A full subscriptions refresh now takes minutes, not seconds. The Videos feed fills in as it goes.

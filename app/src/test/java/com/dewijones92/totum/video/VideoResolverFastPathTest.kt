@@ -121,7 +121,10 @@ class VideoResolverFastPathTest {
             skipSegments = SkipSegmentSource { emptyList() },
             playerStreams = object : PlayerStreams {
                 override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
-                override suspend fun signedInFor(videoId: String) = playerResponse("https://x.test/account")
+                override suspend fun signedInFor(
+                    videoId: String,
+                    describe: Boolean
+                ) = playerResponse("https://x.test/account")
             },
         )
 
@@ -132,6 +135,29 @@ class VideoResolverFastPathTest {
     }
 
     @Test
+    fun `a caller that knows the title spares the account its watch-page lookup`() = runTest {
+        val described = mutableListOf<Boolean>()
+        val streams = object : PlayerStreams {
+            override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+            override suspend fun signedInFor(videoId: String, describe: Boolean) =
+                playerResponse("https://x.test/account").also { described += describe }
+        }
+        val resolver = VideoResolver(
+            CountingEngine(AtomicInteger()),
+            SkipSegmentSource {
+                emptyList()
+            },
+            playerStreams = streams
+        )
+        val other = HttpUrl.of("https://www.youtube.com/watch?v=ZZZZZZZZZZZ")
+
+        resolver.resolve(url, source, asked = "play", titleKnown = true)
+        resolver.resolve(other, source, asked = "play", titleKnown = false)
+
+        assertEquals(listOf(false, true), described)
+    }
+
+    @Test
     fun `signed in but refused, yt-dlp still resolves it`() = runTest {
         val calls = AtomicInteger()
         val resolver = VideoResolver(
@@ -139,7 +165,7 @@ class VideoResolverFastPathTest {
             skipSegments = SkipSegmentSource { emptyList() },
             playerStreams = object : PlayerStreams {
                 override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
-                override suspend fun signedInFor(videoId: String): PlayerResult.Success? = null
+                override suspend fun signedInFor(videoId: String, describe: Boolean): PlayerResult.Success? = null
             },
         )
 

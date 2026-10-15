@@ -81,6 +81,8 @@ public fun placeholderTitleFor(id: MediaItemId): String = "YouTube video ${id.va
 
 public val MediaItem.hasPlaceholderTitle: Boolean get() = title == placeholderTitleFor(id)
 
+public val MediaItem.titleIsKnown: Boolean get() = title.isNotBlank() && title != id.value && !hasPlaceholderTitle
+
 /**
  * This item with every fact it lacks taken from [resolved] — how a queue row learns what it is
  * playing. Only silence is filled: a fact the row already had stands, and a placeholder title counts

@@ -50,7 +50,7 @@ fun interface PlayerStreams {
      */
     suspend fun playerForSabr(videoId: String): PlayerResult.Success? = playerFor(videoId)
 
-    suspend fun signedInFor(videoId: String): PlayerResult.Success? = null
+    suspend fun signedInFor(videoId: String, describe: Boolean): PlayerResult.Success? = null
 }
 
 /** [PlayerStreams] over our own InnerTube client. */
@@ -103,13 +103,14 @@ class InnerTubePlayerStreams(
      */
     private val preferAccount: () -> Boolean = { false },
     private val now: () -> Long = System::currentTimeMillis,
+    private val botBackOff: com.dewijones92.totum.common.BotBackOff? = null,
 ) : PlayerStreams {
 
     private val accountMisses = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    override suspend fun signedInFor(videoId: String): PlayerResult.Success? {
+    override suspend fun signedInFor(videoId: String, describe: Boolean): PlayerResult.Success? {
         val asked = preferAccount() && account != null && !askedTheAccountMomentsAgo(videoId, log = false)
-        val answer = signedInFirst(videoId)
+        val answer = signedInFirst(videoId, describe)
         accountMisses.entries.removeIf { now() - it.value > ACCOUNT_MISS_MEMORY_MS }
         if (answer == null && asked) accountMisses[videoId] = now() else accountMisses.remove(videoId)
         return answer
@@ -124,7 +125,7 @@ class InnerTubePlayerStreams(
 
     /** What the signed-in retry needs: a token, and the timestamp streams are signed against. */
     fun interface AccountPlayer {
-        suspend fun playerFor(videoId: String): PlayerResult?
+        suspend fun playerFor(videoId: String, describe: Boolean): PlayerResult?
     }
 
     override suspend fun playerForSabr(videoId: String): PlayerResult.Success? {
@@ -176,13 +177,13 @@ class InnerTubePlayerStreams(
     }
 
     override suspend fun playerFor(videoId: String): PlayerResult.Success? {
-        signedInFirst(videoId)?.let { return it }
+        signedInFirst(videoId, describe = true)?.let { return it }
         val anonymous = anonymousPlayer(videoId)
         (anonymous as? PlayerResult.Success)?.let { return it }
         // Only now, because the signed-in call costs a token refresh and a second round trip, and
         // the overwhelming majority of videos never need it.
         val signedIn = account?.takeUnless { askedTheAccountMomentsAgo(videoId) }
-            ?.playerFor(videoId) as? PlayerResult.Success ?: return null
+            ?.playerFor(videoId, describe = false) as? PlayerResult.Success ?: return null
         Diag.log("resolve", "$videoId needed the signed-in account (refused anonymously: ${anonymous.reasonForLog()})")
         return signedIn.describedByTheRefusal(videoId, anonymous)
     }
@@ -210,11 +211,11 @@ class InnerTubePlayerStreams(
      * Falls through to anonymous rather than failing if it gives nothing, because a token can expire
      * between the check and the call.
      */
-    private suspend fun signedInFirst(videoId: String): PlayerResult.Success? {
+    private suspend fun signedInFirst(videoId: String, describe: Boolean): PlayerResult.Success? {
         if (!preferAccount() || account == null || askedTheAccountMomentsAgo(videoId)) return null
         // The REASON, not just "gave nothing": a line that cannot tell a refusal from an expired token
         // or a dead network makes this path undebuggable from a report.
-        val outcome = account.playerFor(videoId)
+        val outcome = account.playerFor(videoId, describe)
         val signedIn = outcome as? PlayerResult.Success
         Diag.log(
             "resolve",
@@ -252,6 +253,9 @@ class InnerTubePlayerStreams(
 
     /** The parsed anonymous response, refusals included — see [playerFor] for why they matter. */
     private suspend fun anonymousPlayer(videoId: String): PlayerResult? {
+        if (botBackOff?.allows("second opinion for $videoId") == false) {
+            return PlayerResult.Unplayable("anonymous YouTube is backing off after a bot check")
+        }
         val response = runCatching { innerTube.player(videoId) }.getOrElse { failure ->
             Diag.warn("resolve", "second opinion for $videoId could not be fetched", failure)
             return null
@@ -264,6 +268,13 @@ class InnerTubePlayerStreams(
             is PlayerResult.Success -> parsed.playable()
             is PlayerResult.Unplayable -> {
                 Diag.log("resolve", "second opinion for $videoId refused: ${parsed.reason}")
+                if (parsed.reason.contains(
+                        "not a bot",
+                        ignoreCase = true
+                    )
+                ) {
+                    botBackOff?.refused("second opinion for $videoId")
+                }
                 parsed
             }
             is PlayerResult.Failure -> {

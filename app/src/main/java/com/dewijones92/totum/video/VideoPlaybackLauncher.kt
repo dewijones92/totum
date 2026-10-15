@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.withStreamFrom
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import com.dewijones92.totum.playback.PlaybackController
@@ -180,7 +181,7 @@ class VideoPlaybackLauncher(
     ): Boolean = play(Attempt(listing, watchUrl, startPositionMs, request, audioOnly, forceVideo)) {
         // `asked` names WHO wanted this, because a report showed one video extracted four
         // times in thirty seconds and the log could not say by whom.
-        resolver.resolve(watchUrl, listing.sourceId, asked = "play")
+        resolver.resolve(watchUrl, listing.sourceId, asked = "play", titleKnown = listing.titleIsKnown)
     }
 
     /**
@@ -197,7 +198,8 @@ class VideoPlaybackLauncher(
         }
 
     suspend fun arm(listing: MediaItem, watchUrl: HttpUrl, audioOnly: Boolean): Boolean {
-        val extracted = resolver.resolve(watchUrl, listing.sourceId, asked = "arm") ?: run {
+        val titleKnown = listing.titleIsKnown
+        val extracted = resolver.resolve(watchUrl, listing.sourceId, asked = "arm", titleKnown = titleKnown) ?: run {
             Diag.log("gapless", "not arming ${listing.id.value}: it did not resolve")
             return false
         }

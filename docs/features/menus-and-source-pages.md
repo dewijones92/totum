@@ -3,7 +3,7 @@ title: Menus go where they say, and every source has its picture
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-25
+updated: 2026-10-15
 ---
 
 # Menus go where they say, and every source has its picture
@@ -77,3 +77,16 @@ Left as they are, on purpose: the Videos, Search and Podcasts tabs keep their ow
 `GoToSourceGoesThereTest`, `BackFromPodcastPageTest`, `QueueRemoveTest.theQueueMenuDoesNotOfferToAdd…`
 (instrumented); `RssParserTest`, `DefaultPodcastRepositoryTest`, `SourceLocatorTest` (JVM). Every one
 was run against the code with its fix undone and failed at the named assertion.
+
+## Go to channel while YouTube bot-checks (2026-10-15)
+
+A video whose listing names no channel (a search result) used to be located by a yt-dlp extraction, which a bot
+check refuses, so "go to channel" did nothing (report 0.1.626, "peep show channel not loading"). Signed in, the
+account's watch page names the channel first (`AccountChannel`, `AccountChannelLookup` in `SourceLocator`); yt-dlp
+is the fallback. Test: `SourceLocatorTest`.
+
+## Links and copy (2026-10-15)
+
+Web addresses in descriptions and show notes are links (`LinkSpan.kt`, beside the timestamp seeks); the sign-in
+page's google.com/device is a link and its code has a copy button (long press copies too); Details' link and id
+have copy buttons; the version line copies on long press. Test: `LinkSpansTest`.

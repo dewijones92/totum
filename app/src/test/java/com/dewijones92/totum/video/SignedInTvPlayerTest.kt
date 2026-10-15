@@ -61,7 +61,7 @@ class SignedInTvPlayerTest {
         timestampSource()
         enqueue(untitledPlainFormat())
         enqueue(watchPage())
-        val result = player().playerFor("vid") as? PlayerResult.Success
+        val result = player().playerFor("vid", describe = true) as? PlayerResult.Success
         assertEquals("Where Does The Illuminati Conspiracy Come From?", result?.details?.title)
         assertEquals("Dan Snow's History Hit", result?.details?.author)
         assertEquals("UC4wKw34XH0pzeeBZ8xT29Eg", result?.details?.channelId)
@@ -69,10 +69,20 @@ class SignedInTvPlayerTest {
     }
 
     @Test
+    fun `a row that already has its title spares the watch page`() = runBlocking {
+        timestampSource()
+        enqueue(untitledPlainFormat())
+        val result = player().playerFor("vid", describe = false)
+        assertTrue(result.toString(), result is PlayerResult.Success)
+        assertEquals(listOf("/iframe_api", "/tv.js", "/player"), List(3) { server.takeRequest().url.encodedPath })
+        assertEquals(3, server.requestCount)
+    }
+
+    @Test
     fun `a ciphered format is signed and solved into a playable link`() = runBlocking {
         timestampSource()
         enqueue(onlyCiphered())
-        val result = player().playerFor("vid") as? PlayerResult.Success
+        val result = player().playerFor("vid", describe = true) as? PlayerResult.Success
         val url = result?.streaming?.directlyPlayable?.singleOrNull()?.url?.value
         assertEquals("https://x.test/videoplayback?itag=251&n=solved&sig=SIGNED%2BABC", url)
     }
@@ -83,7 +93,7 @@ class SignedInTvPlayerTest {
             timestampSource()
             enqueue(onlyUnsolvableCiphered())
             enqueue(onePlainFormat())
-            val result = player().playerFor("vid")
+            val result = player().playerFor("vid", describe = true)
             assertNull(result)
             assertEquals(3, server.requestCount)
         }
@@ -92,7 +102,7 @@ class SignedInTvPlayerTest {
     fun `a downgraded answer with plain links is taken`() = runBlocking {
         timestampSource()
         enqueue(onePlainFormat())
-        val result = player().playerFor("vid")
+        val result = player().playerFor("vid", describe = true)
         assertTrue(result.toString(), result is PlayerResult.Success)
         assertEquals(
             listOf("/iframe_api", "/tv.js", "/player", "/next"),

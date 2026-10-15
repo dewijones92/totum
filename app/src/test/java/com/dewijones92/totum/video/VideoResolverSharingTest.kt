@@ -146,4 +146,20 @@ class VideoResolverSharingTest {
 
         assertEquals(1, calls.get())
     }
+
+    @Test
+    fun `tapping A then B then A again while both resolve still extracts A only once`() = runTest {
+        val calls = AtomicInteger()
+        val resolver = resolver(calls)
+        val other = HttpUrl.of("https://www.youtube.com/watch?v=xyz")
+
+        val a = async { resolver.resolve(url, source) }
+        val b = async { resolver.resolve(other, source) }
+        delay(100)
+        val aAgain = async { resolver.resolve(url, source) }
+
+        assertSame(a.await(), aAgain.await())
+        b.await()
+        assertEquals("one extraction each, however the taps interleave", 2, calls.get())
+    }
 }
