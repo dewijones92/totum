@@ -1,7 +1,7 @@
 ---
 title: The Exsurge banner and the alarm board alert silently, so they show on every lock screen, and the board is always pinned
 kind: adr
-status: accepted
+status: superseded in part by 0054 (importance is now high; still silent)
 updated: 2026-10-08
 ---
 

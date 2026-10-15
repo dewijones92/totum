@@ -615,6 +615,9 @@
         <item quantity="other">✂️ %d pauses cut</item>
     </plurals>
     <string name="out_of_date_title">Totum is out of date</string>
+    <string name="queue_jump_to_playing">Jump to what\'s playing</string>
+    <string name="queue_collapse_all">Collapse all groups</string>
+    <string name="queue_expand_all">Expand all groups</string>
     <string name="drive_backup_section">Backup</string>
     <string name="drive_backup_title">☁️ Google Drive backup</string>
     <string name="drive_backup_not_set_up">📭 Not set up: your library lives only on this phone</string>

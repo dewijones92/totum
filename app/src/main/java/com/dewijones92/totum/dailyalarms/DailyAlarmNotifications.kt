@@ -7,7 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
+import androidx.core.content.edit
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.LiveUpdate
 import com.dewijones92.totum.reminders.kit.PinnedChannel
 import java.time.LocalDate
@@ -32,7 +34,7 @@ class DailyAlarmNotifications(private val context: Context) {
             context,
             BOARD_CHANNEL,
             context.getString(R.string.dailyalarm_channel_set),
-            retired = RETIRED_BOARD_CHANNEL
+            retired = RETIRED_BOARD_CHANNELS
         )
         manager.createNotificationChannel(
             NotificationChannel(
@@ -80,17 +82,31 @@ class DailyAlarmNotifications(private val context: Context) {
 
     fun hideQuestion(alarmId: String) = manager.cancel(questionId(alarmId))
 
+    private fun heraldOnce(board: AlarmBoard): Boolean {
+        val row = board.heralds(java.time.Instant.now()) ?: return false
+        val key = "${row.alarmId}@${row.at}"
+        val prefs = context.getSharedPreferences(HERALD_PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(HERALD_KEY, null) == key) return false
+        prefs.edit { putString(HERALD_KEY, key) }
+        Diag.log(
+            DailyAlarmController.TAG,
+            "dewidebug dailyalarm board pops down: ${row.label} at ${row.time}, within $HERALD"
+        )
+        return true
+    }
+
     fun board(board: AlarmBoard): Notification {
         ensureChannels()
         val next = board.nextToRing
         val lines = board.rows.map { context.boardLine(it, board.today) }
+        val herald = heraldOnce(board)
         val builder = Notification.Builder(context, BOARD_CHANNEL)
             .setSmallIcon(icon())
             .setContentTitle(context.boardTitle(board.heading))
             .setContentText(lines.firstOrNull())
             .setStyle(Notification.BigTextStyle().bigText(lines.joinToString("\n")))
             .setOngoing(true)
-            .setOnlyAlertOnce(true)
+            .setOnlyAlertOnce(!herald)
             .setCategory(Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setContentIntent(context.openAlarmSettings())
@@ -178,8 +194,10 @@ class DailyAlarmNotifications(private val context: Context) {
 
     companion object {
         const val QUESTION = "dailyalarm_question"
-        const val RETIRED_BOARD_CHANNEL = "dailyalarm_set"
-        const val BOARD_CHANNEL = "dailyalarm_board"
+        val RETIRED_BOARD_CHANNELS = listOf("dailyalarm_set", "dailyalarm_board")
+        const val BOARD_CHANNEL = "dailyalarm_board_v2"
+        private const val HERALD_PREFS = "totum_alarm_herald"
+        private const val HERALD_KEY = "last"
         const val RING = "dailyalarm_ring"
         const val RING_ID = 7399
         const val BOARD_ID = 7398

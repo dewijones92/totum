@@ -148,8 +148,8 @@ class ExsurgeAndroidPortsTest {
             assertEquals(listOf("Summon now", "Restart clock"), posted.actions.map { it.title.toString() })
             val channel = manager.getNotificationChannel(posted.channelId)
             assertEquals(
-                "alerting, so a Pixel shows it on the lock screen",
-                NotificationManager.IMPORTANCE_DEFAULT,
+                "high, so it sits at the top of the shade and the lock screen and can pop down (ADR 54)",
+                NotificationManager.IMPORTANCE_HIGH,
                 channel.importance
             )
             assertTrue(

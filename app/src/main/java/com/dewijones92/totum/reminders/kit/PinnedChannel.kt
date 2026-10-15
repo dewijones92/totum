@@ -7,11 +7,11 @@ import android.content.Context
 
 object PinnedChannel {
 
-    fun ensure(context: Context, id: String, name: String, retired: String) {
+    fun ensure(context: Context, id: String, name: String, retired: List<String>) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        if (manager.getNotificationChannel(retired) != null) manager.deleteNotificationChannel(retired)
+        retired.filter { manager.getNotificationChannel(it) != null }.forEach(manager::deleteNotificationChannel)
         manager.createNotificationChannel(
-            NotificationChannel(id, name, NotificationManager.IMPORTANCE_DEFAULT).apply {
+            NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH).apply {
                 setShowBadge(false)
                 setSound(null, null)
                 enableVibration(false)

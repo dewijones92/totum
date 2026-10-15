@@ -51,6 +51,9 @@ public data class AlarmBoard(
     public val nextToRing: BoardRow?
         get() = (heading as? BoardHeading.Next)?.row
 
+    public fun heralds(now: Instant): BoardRow? =
+        nextToRing?.takeIf { !now.isBefore(it.at.minus(HERALD)) && now.isBefore(it.at) }
+
     public val firstSkipped: BoardRow?
         get() = rows.firstOrNull { it.status is RowStatus.Skipped }
 }
@@ -61,8 +64,10 @@ public fun alarmBoard(alarms: List<DailyAlarm>, states: Map<String, DayState>, n
         .filter { it.enabled }
         .mapNotNull { BoardRows(it, now, today, zone).rowFor(states[it.id] ?: DayState.Idle) }
         .sortedWith(compareBy({ it.at }, { it.label }))
-    val refreshAt = today.plusDays(1).atStartOfDay(zone).toInstant()
-    return AlarmBoard(rows, today, heading(alarms, rows, today), refreshAt)
+    val heading = heading(alarms, rows, today)
+    val herald = (heading as? BoardHeading.Next)?.row?.at?.minus(HERALD)?.takeIf { it.isAfter(now) }
+    val refreshAt = listOfNotNull(today.plusDays(1).atStartOfDay(zone).toInstant(), herald).min()
+    return AlarmBoard(rows, today, heading, refreshAt)
 }
 
 public data class NextRing(val date: LocalDate, val time: LocalTime, val setForToday: Boolean)
@@ -129,3 +134,5 @@ private class BoardRows(
         const val DAYS_A_WEEK = 7
     }
 }
+
+public val HERALD: java.time.Duration = java.time.Duration.ofMinutes(10)

@@ -42,6 +42,21 @@ class AlarmBoardTest {
         alarmBoard(alarms, states, now, zone)
 
     @Test
+    fun `the board refreshes ten minutes before the next alarm, and heralds it then`() {
+        val states = mapOf("pickup" to Set(monday, LocalTime.of(17, 30)))
+        val early = board(states, at(14), listOf(pickup))
+        assertEquals(at(17, 20), early.refreshAt)
+        assertNull(early.heralds(at(14)))
+        assertEquals("pickup", board(states, at(17, 21), listOf(pickup)).heralds(at(17, 21))?.alarmId)
+    }
+
+    @Test
+    fun `within ten minutes, the refresh falls back to midnight`() {
+        val states = mapOf("pickup" to Set(monday, LocalTime.of(17, 30)))
+        assertEquals(at(0, date = monday.plusDays(1)), board(states, at(17, 25), listOf(pickup)).refreshAt)
+    }
+
+    @Test
     fun `one row per alarm, soonest first`() {
         val board = board(
             mapOf("pickup" to Set(monday, LocalTime.of(17, 30)), "gym" to Asking(monday, asks = 1)),

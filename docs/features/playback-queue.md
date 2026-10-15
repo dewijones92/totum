@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Playback queue
@@ -111,3 +111,13 @@ commit were verified.
 CI's build and offline device suites passed. The separate live-streaming suite remains red on
 a repeated long-video stall and a SABR failure also present in 601; those streaming issues remain open.
 See [current phone findings](../todos/playback-defects-0.1.601.md).
+
+## Jump to what's playing, and collapse all (2026-10-15)
+
+Dewi asked for a button to scroll the queue to the playing item, and one to collapse every group. The header has
+⌖ (jump), which also runs each time the Queue tab opens, and a collapse-all / expand-all toggle shown when the queue
+has groups. Jumping expands the playing item's group if it is collapsed, scrolls to its estimated position
+(`estimatedListIndex`: rows and group headers above it, collapsed groups counted as one header), then settles on
+the row by its key. The collapsed set now lives above the header, so the toggle and the list share it.
+Logged: `jumped to the playing item (…): estimate N, found at M`. Tests: `EstimatedListIndexTest`. Verified on
+`totum-api35` with a 12-item queue on item 10: the tab opened on "Now playing".

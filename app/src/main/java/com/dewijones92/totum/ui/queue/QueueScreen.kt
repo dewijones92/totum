@@ -105,6 +105,11 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val listFilter = rememberListFilter("queue")
     ForgetTheFilterWhenTheQueueEmpties(entries.isEmpty(), listFilter)
     val ask = rememberShuffleAsk()
+    // Survives rotation and process death: a collapsed 24-episode season staying
+    // collapsed is the entire point, and re-expanding on every return would undo it.
+    var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val groupIds = remember(entries) { entries.mapNotNullTo(linkedSetOf()) { it.group?.id } }
+    val jump = rememberJumpToPlaying(listState, snapshot, collapsedGroups) { collapsedGroups = it }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -115,6 +120,9 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 listFilter = listFilter,
                 onShuffle = shuffleUpNextOrNull(container, snapshot.upNext, ask),
                 onShuffleGroups = shuffleGroupsOrNull(container, snapshot.upNext, ask),
+                onJump = jump.takeIf { snapshot.currentIndex in entries.indices },
+                groups = groupIds to collapsedGroups,
+                onCollapseAll = { collapsedGroups = toggledAll(groupIds, collapsedGroups) },
             )
             if (entries.isEmpty()) {
                 EmptyState(
@@ -124,9 +132,6 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 )
             } else {
                 QueueOfflineSummary(container, entries, downloads)
-                // Survives rotation and process death: a collapsed 24-episode season staying
-                // collapsed is the entire point, and re-expanding on every return would undo it.
-                var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
                 val actions = rememberQueueActions(
                     container = container,
                     queue = queue,
@@ -530,10 +535,15 @@ private fun QueueHeader(
     listFilter: ListFilter,
     onShuffle: (() -> Unit)? = null,
     onShuffleGroups: (() -> Unit)? = null,
+    onJump: (() -> Unit)? = null,
+    groups: Pair<Set<String>, Set<String>> = emptySet<String>() to emptySet(),
+    onCollapseAll: () -> Unit = {},
 ) {
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             FilterToggle(listFilter, count)
+            onJump?.let { JumpToPlayingButton(it) }
+            if (groups.first.isNotEmpty()) CollapseAllButton(groups.first.all { it in groups.second }, onCollapseAll)
             SwitchListeningButton("queue header")
             onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
             if (count > 0) {

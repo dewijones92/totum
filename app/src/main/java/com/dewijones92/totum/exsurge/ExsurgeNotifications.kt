@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.drawable.Icon
 import androidx.compose.ui.graphics.toArgb
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.PinnedChannel
 import com.dewijones92.totum.theme.Tangerine40
 import java.time.Instant
@@ -27,7 +28,7 @@ class ExsurgeNotifications(private val context: Context) {
             context,
             BANNER_CHANNEL,
             context.getString(R.string.exsurge_channel_banner),
-            retired = RETIRED_BANNER_CHANNEL,
+            retired = RETIRED_BANNER_CHANNELS,
         )
         manager.createNotificationChannel(
             NotificationChannel(
@@ -45,6 +46,10 @@ class ExsurgeNotifications(private val context: Context) {
     fun banner(view: ExsurgeView): Notification {
         ensureChannels()
         val (title, text, progress) = BannerText(context).describe(view)
+        val alert = synchronized(Companion) {
+            bannerAlert(lastLine, view.banner, view.at).also { lastLine = view.banner }
+        }
+        alert?.let { Diag.log(ExsurgeController.TAG, "dewidebug exsurge banner pops down: $it") }
         val builder = Notification.Builder(context, BANNER_CHANNEL)
             .setSmallIcon(if (view.mood == Mood.WEEPING) weepingIcon else smallIcon)
             .setLargeIcon(face(view.mood))
@@ -53,7 +58,7 @@ class ExsurgeNotifications(private val context: Context) {
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setOngoing(true)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-            .setOnlyAlertOnce(true)
+            .setOnlyAlertOnce(alert == null)
             .setCategory(Notification.CATEGORY_STATUS)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setColor(TANGERINE)
@@ -135,8 +140,9 @@ class ExsurgeNotifications(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        const val BANNER_CHANNEL = "exsurge_pinned"
-        const val RETIRED_BANNER_CHANNEL = "exsurge_banner"
+        private var lastLine: BannerLine? = null
+        const val BANNER_CHANNEL = "exsurge_pinned_v2"
+        val RETIRED_BANNER_CHANNELS = listOf("exsurge_banner", "exsurge_pinned")
         const val SUMMONS_CHANNEL = "exsurge_summons"
         const val BANNER_ID = 7301
         const val SUMMONS_ID = 7302
