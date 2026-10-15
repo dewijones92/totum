@@ -45,7 +45,6 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
-import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.searchableText
@@ -61,6 +60,7 @@ import com.dewijones92.totum.queue.shuffleGroup
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
+import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.ExploreToggle
@@ -76,6 +76,7 @@ import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.SwitchListeningButton
+import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.rememberField
 import com.dewijones92.totum.ui.common.rememberListFilter
@@ -99,7 +100,8 @@ import sh.calvin.reorderable.ReorderableLazyListState
 fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val queue = container.playbackQueue
     val snapshot by queue.state.collectAsStateWithLifecycle()
-    val downloads = LocalDownloadStates.current.value
+    CountRecompositions("queue")
+    val downloads = LocalDownloadStates.current
     val isPlaying by container.playbackController.rememberField { it?.isPlaying == true }
     val progress = container.playbackController.rememberField { it?.progress }
     val entries = snapshot.entries
@@ -150,7 +152,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 )
                 val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
-                    listFilter, entries, downloads, container, snapshot.currentIndex, isPlaying, progress, listState,
+                    listFilter, entries, container, snapshot.currentIndex, isPlaying, progress, listState,
                     reorder, actions,
                 )
             }
@@ -319,12 +321,7 @@ private data class NowPlaying(
  * [offline] is read once per list composition rather than observed: it changes a row's WORDING, not
  * its behaviour, and the queue recomposes whenever a download state does.
  */
-private data class QueueAvailability(
-    val downloads: Map<MediaItemId, DownloadState>,
-    val offline: Boolean,
-) {
-    fun stateOf(id: MediaItemId): DownloadState = downloads[id] ?: DownloadState.NotDownloaded
-}
+private data class QueueAvailability(val offline: Boolean)
 
 /**
  * Emits the queue rows, inserting a header wherever the group tag changes — so a
@@ -403,7 +400,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
 private fun FilterableQueue(
     listFilter: ListFilter,
     entries: List<QueueEntry>,
-    downloads: Map<MediaItemId, DownloadState>,
     container: AppContainer,
     currentIndex: Int,
     isPlaying: Boolean,
@@ -414,7 +410,7 @@ private fun FilterableQueue(
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
-    val availability = QueueAvailability(downloads, container.isOffline())
+    val availability = QueueAvailability(container.isOffline())
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
     val nowPlaying = NowPlaying(currentIndex, progress, isPlaying, starting?.id)
     FilterField(listFilter, matches.size, entries.size, hosted = true)
@@ -485,7 +481,7 @@ private fun QueueRow(
     val media = entry.item.item
     Column {
         if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
-        val downloadState = availability.stateOf(media.id)
+        val downloadState = downloadStateOf(media.id)
         MediaItemRow(
             item = media,
             // Says why a row will be passed over, rather than leaving it to be discovered.

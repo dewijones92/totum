@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +103,7 @@ internal fun SecondaryControls(
     state: PlaybackState,
     controlsOverlaid: Boolean,
     quality: QualityControl,
-    sleepTimer: SleepTimerState,
+    sleepTimer: State<SleepTimerState>,
     toggles: PlaybackToggles,
     onStartSleep: (Duration) -> Unit,
     onStopSleepAfterItem: () -> Unit,
@@ -110,7 +111,11 @@ internal fun SecondaryControls(
     onSetSpeed: (Float) -> Unit,
 ) {
     val tiles = buildList<Pair<String, @Composable (Modifier) -> Unit>> {
-        add("sleep" to { m -> SleepTimerControl(sleepTimer, onStartSleep, onStopSleepAfterItem, onCancelSleep, m) })
+        add(
+            "sleep" to { m ->
+                SleepTimerControl(sleepTimer.value, onStartSleep, onStopSleepAfterItem, onCancelSleep, m)
+            }
+        )
         add("silence" to { m -> SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence, m) })
         // Speed is already on the video overlay when there is a video; offering it twice would
         // be two controls for one setting.

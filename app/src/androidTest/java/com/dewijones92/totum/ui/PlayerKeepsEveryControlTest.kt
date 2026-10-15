@@ -108,7 +108,11 @@ class PlayerKeepsEveryControlTest {
                     // canAct, so like / dislike / watch-later are all on screen to be checked.
                     watchActions = WatchActions.ReadOnly.copy(canAct = true),
                     quality = quality,
-                    sleepTimer = SleepTimerState.Off,
+                    sleepTimer = androidx.compose.runtime.remember {
+                        androidx.compose.runtime.mutableStateOf(
+                            SleepTimerState.Off
+                        )
+                    },
                     onDismiss = {},
                     onPlayRelated = {},
                     onStartSleep = {},

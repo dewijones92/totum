@@ -32,6 +32,7 @@ import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalAnimationsHidden
@@ -96,6 +97,7 @@ fun AppShell(
     val tabs = rememberTabNavigation()
     val controller = container.playbackController
     val shell by rememberShellPlayback(controller)
+    CountRecompositions("shell")
     val watchViewModel: WatchViewModel = viewModel(factory = WatchViewModel.factory(container))
 
     ShellPrompts(container, askForNotifications)
@@ -122,7 +124,7 @@ fun AppShell(
         LocalQueueSkip provides rememberQueueSkip(container),
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides openPlayer,
-        LocalOpenSearch provides remember(tabs, selected) { tabs.searchOpener(over = selected) },
+        LocalOpenSearch provides rememberSearchOpener(tabs, selected),
         LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener { showFullPlayer = false } },
     ) {
         val openSource = remember {
@@ -140,7 +142,7 @@ fun AppShell(
                     container,
                     selected,
                     tabs,
-                    showFullPlayer,
+                    showFullPlayer || shortsReel != null,
                     openPlayer,
                     { selected = it }
                 ) { shortsReel = it }
@@ -159,7 +161,7 @@ fun AppShell(
                 // Last in the Box so it draws over everything, including the full player and
                 // any overlay: "is the app doing something" is a question worth answering
                 // from whatever screen the user is on.
-                BusyBar(still = showFullPlayer, modifier = Modifier.safeDrawingPadding())
+                BusyBar(still = showFullPlayer || shortsReel != null, modifier = Modifier.safeDrawingPadding())
             }
         }
     }
@@ -259,10 +261,11 @@ private fun FullPlayerFor(
     watchViewModel: WatchViewModel,
     onDismiss: () -> Unit,
 ) {
+    CountRecompositions("player")
     val comments by watchViewModel.comments.collectAsStateWithLifecycle()
     val replies by watchViewModel.replies.collectAsStateWithLifecycle()
     val related by watchViewModel.related.collectAsStateWithLifecycle()
-    val sleepTimer by container.sleepTimer.state.collectAsStateWithLifecycle()
+    val sleepTimer = container.sleepTimer.state.collectAsStateWithLifecycle()
     val quality by watchViewModel.quality.collectAsStateWithLifecycle()
     val queueState by container.playbackQueue.state.collectAsStateWithLifecycle()
     val upNext = queueState.upNext

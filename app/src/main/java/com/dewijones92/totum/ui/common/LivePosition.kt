@@ -6,6 +6,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
@@ -37,7 +38,11 @@ fun SteadyPlayback(controller: PlaybackController, content: @Composable (Playbac
 }
 
 @Composable
-fun <T> PlaybackController.rememberField(field: (PlaybackState?) -> T): State<T> =
-    remember(this) { state.map(field).distinctUntilChanged() }.collectAsStateWithLifecycle(currently(field))
+fun <T> PlaybackController.rememberField(field: (PlaybackState?) -> T): State<T> {
+    val latest by rememberUpdatedState(field)
+    return remember(
+        this
+    ) { state.map { latest(it) }.distinctUntilChanged() }.collectAsStateWithLifecycle(currently(field))
+}
 
 private fun <T> PlaybackController.currently(field: (PlaybackState?) -> T): T = field(state.value)

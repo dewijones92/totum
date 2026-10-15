@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -129,7 +130,7 @@ fun FullPlayerOverlay(
     related: RelatedState,
     watchActions: WatchActions,
     quality: QualityControl,
-    sleepTimer: SleepTimerState,
+    sleepTimer: State<SleepTimerState>,
     onDismiss: () -> Unit,
     onPlayRelated: (MediaItem) -> Unit,
     onStartSleep: (Duration) -> Unit,
@@ -226,7 +227,7 @@ private fun DraggablePlayerContent(
     related: RelatedState,
     watchActions: WatchActions,
     quality: QualityControl,
-    sleepTimer: SleepTimerState,
+    sleepTimer: State<SleepTimerState>,
     queue: QueueControls,
     onEnterFullscreen: () -> Unit,
     onDismiss: () -> Unit,
@@ -362,7 +363,7 @@ private fun PlayerDetails(
     related: RelatedState,
     watchActions: WatchActions,
     quality: QualityControl,
-    sleepTimer: SleepTimerState,
+    sleepTimer: State<SleepTimerState>,
     queue: QueueControls,
     onPlayRelated: (MediaItem) -> Unit,
     onStartSleep: (Duration) -> Unit,

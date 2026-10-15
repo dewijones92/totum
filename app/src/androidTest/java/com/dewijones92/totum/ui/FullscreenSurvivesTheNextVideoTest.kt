@@ -81,7 +81,11 @@ class FullscreenSurvivesTheNextVideoTest {
                         related = WatchViewModel.RelatedState.Loaded(emptyList()),
                         watchActions = WatchActions.ReadOnly,
                         quality = QualityControl.None,
-                        sleepTimer = SleepTimerState.Off,
+                        sleepTimer = androidx.compose.runtime.remember {
+                            androidx.compose.runtime.mutableStateOf(
+                                SleepTimerState.Off
+                            )
+                        },
                         onDismiss = {},
                         onPlayRelated = {},
                         onStartSleep = {},

@@ -44,6 +44,7 @@ fun Dock(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    CountRecompositions("dock")
     Surface(
         shape = RoundedCornerShape(DOCK_CORNER),
         color = dockColor(),

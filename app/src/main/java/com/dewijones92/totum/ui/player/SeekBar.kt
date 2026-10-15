@@ -14,6 +14,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +52,7 @@ internal fun SeekBar(
 ) {
     val live = state.live()
     val duration = live.durationMs
-    var dragValue by remember(live.positionMs) { mutableStateOf<Float?>(null) }
+    var dragValue by remember(state.itemId) { mutableStateOf<Float?>(null) }
     val position = dragValue?.toLong() ?: live.positionMs
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -235,6 +236,12 @@ private fun BufferAheadLabel(ahead: BufferAhead?, modifier: Modifier) {
         },
         modifier = modifier,
     )
+}
+
+@Composable
+internal fun BufferAheadProbe(steady: PlaybackState, onChange: (BufferAhead?) -> Unit) {
+    val ahead = rememberBufferAhead(steady)
+    SideEffect { onChange(ahead) }
 }
 
 @Composable

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -37,10 +38,7 @@ fun PlayingEqualiser(
 ) {
     val dancing = playing && !LocalAnimationsHidden.current
     val step by produceState(0L, dancing) {
-        while (dancing) {
-            delay(STEP_MS)
-            value += STEP_MS
-        }
+        if (dancing) equaliserSteps { value += STEP_MS }
     }
     Canvas(modifier = modifier) {
         val barWidth = size.width / (BAR_COUNT * 2 - 1)
@@ -54,6 +52,14 @@ fun PlayingEqualiser(
                 cornerRadius = CornerRadius(barWidth / 2),
             )
         }
+    }
+}
+
+internal suspend fun equaliserSteps(onStep: () -> Unit) {
+    while (true) {
+        delay(STEP_MS)
+        withFrameMillis { }
+        onStep()
     }
 }
 

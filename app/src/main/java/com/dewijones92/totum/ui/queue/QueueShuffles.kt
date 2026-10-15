@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.queue
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -38,12 +39,12 @@ private fun asking(container: AppContainer, ask: ShuffleAsk, what: String, shuff
 internal fun QueueOfflineSummary(
     container: AppContainer,
     entries: List<QueueEntry>,
-    downloads: Map<MediaItemId, DownloadState>,
+    downloads: State<Map<MediaItemId, DownloadState>>,
 ) {
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     OfflineSummary(
-        readiness = readinessOf(entries, downloads) { GroupDownloads.fetchesAutomatically(it, groupChoices) },
+        readiness = readinessOf(entries, downloads.value) { GroupDownloads.fetchesAutomatically(it, groupChoices) },
         autoDownloadOff = !settings.autoDownloadQueue,
         waitingForWifi = settings.autoDownloadQueue && !container.autoDownloadAllowedNow(),
     )
@@ -53,10 +54,12 @@ private fun readinessOf(
     entries: List<QueueEntry>,
     downloads: Map<MediaItemId, DownloadState>,
     fetchesAutomatically: (QueueEntry) -> Boolean,
-): OfflineReadiness = OfflineReadiness.of(
-    entries.map { it.item.item.id },
-    stateOf = { downloads[it] ?: DownloadState.NotDownloaded },
-    fetchedAutomatically = { id ->
-        entries.firstOrNull { it.item.item.id == id }?.let(fetchesAutomatically) ?: true
-    },
-)
+): OfflineReadiness {
+    val firstEntry = LinkedHashMap<MediaItemId, QueueEntry>()
+    entries.forEach { firstEntry.putIfAbsent(it.item.item.id, it) }
+    return OfflineReadiness.of(
+        entries.map { it.item.item.id },
+        stateOf = { downloads[it] ?: DownloadState.NotDownloaded },
+        fetchedAutomatically = { id -> firstEntry[id]?.let(fetchesAutomatically) ?: true },
+    )
+}

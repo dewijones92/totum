@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackVitals
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.ui.common.Recompositions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -107,6 +108,7 @@ internal class ActivitySnapshotter(
             // rate it is being fed at is what turns "buffering" into a cause.
             PlaybackVitals.kbps()?.let { append("; ~${it}kbps") }
             append("; downloading=${active.size}")
+            Recompositions.takeReport()?.let { append("; screen redraws since last snapshot: $it") }
             active.take(MAX_LISTED_DOWNLOADS).forEach { append(" [${it.percent()}]") }
             if (failed > 0) append("; failed=$failed")
         }

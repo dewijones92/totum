@@ -24,6 +24,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,7 @@ import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.ui.common.CountRecompositions
 import kotlinx.coroutines.delay
 
 /**
@@ -92,8 +94,10 @@ internal fun VideoStageWithControls(
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
 ) {
+    CountRecompositions("stage")
     var controlsVisible by remember { mutableStateOf(true) }
-    val bufferAhead = rememberBufferAhead(state)
+    val bufferAhead = remember { mutableStateOf<BufferAhead?>(null) }
+    BufferAheadProbe(state) { bufferAhead.value = it }
     // Auto-hide while playing; any toggle restarts the timer via the key change.
     LaunchedEffect(controlsVisible, state.isPlaying) {
         if (controlsVisible && state.isPlaying) {
@@ -168,7 +172,7 @@ private fun VideoControlsOverlay(
     onSeekTo: (Long) -> Unit,
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
-    bufferAhead: BufferAhead?,
+    bufferAhead: State<BufferAhead?>,
 ) {
     // White content over a dark scrim so controls read against any frame.
     CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -195,7 +199,7 @@ private fun VideoControlsOverlay(
             SeekBar(
                 state = state,
                 onSeekTo = onSeekTo,
-                bufferAhead = bufferAhead,
+                bufferAhead = bufferAhead.value,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(start = 12.dp, end = 48.dp, bottom = 8.dp),

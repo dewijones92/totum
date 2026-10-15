@@ -31,7 +31,7 @@ case $scenario in
     ;;
   *) echo "scenario must be player or scroll" >&2; exit 2 ;;
 esac
-adb pull "$trace" "$out/" >/dev/null
+adb pull "$trace" "$out/" >/dev/null 2>&1
 query=$(mktemp)
 cat > "$query" <<'SQL'
 WITH a AS (
