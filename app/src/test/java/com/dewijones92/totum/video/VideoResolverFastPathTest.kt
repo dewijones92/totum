@@ -15,7 +15,6 @@ import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -176,7 +175,7 @@ class VideoResolverFastPathTest {
         val forASharedLink = resolver.resolve(url, source, asked = "describe", titleKnown = false)
 
         assertEquals(listOf(false, true), described)
-        assertTrue(forASharedLink?.item?.title != VIDEO_ID)
+        assertEquals("From the player", forASharedLink?.item?.title)
     }
 
     @Test

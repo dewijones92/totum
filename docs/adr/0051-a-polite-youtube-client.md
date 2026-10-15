@@ -45,6 +45,9 @@ saying what held the gate. Now:
 A play (a tap, play now, an automatic advance) resolves inside `PoliteGate.interactive()`, a thread-local
 coroutine element, so it reaches the OkHttp interceptor as well. While an interactive call waits for a slot,
 background calls (look-aheads, prefetches, sync, pages) do not take a free one. Still at most four in flight.
+Waiters are served in arrival order within each class (a `WaitLine` of tickets). The limit: a play that joins
+a lookup already running in the background (a look-ahead) waits at that lookup's priority, because the calls
+are made by the look-ahead's coroutine.
 A superseded lookup is not cancelled: others can be joined to it, so cancelling would hand them a failure.
 
 ## Consequences

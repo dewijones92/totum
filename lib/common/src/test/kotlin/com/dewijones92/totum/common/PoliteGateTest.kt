@@ -139,20 +139,20 @@ class PoliteGateTest {
     @Test
     fun `blocking callers get their slots in the order they arrived`() {
         val gate = PoliteGate(maxInFlight = 1, perSecond = 10_000.0, burst = 10_000)
-        val pool = Executors.newFixedThreadPool(9)
+        val pool = Executors.newFixedThreadPool(5)
         val release = CountDownLatch(1)
         val order = java.util.Collections.synchronizedList(mutableListOf<Int>())
         pool.submit { gate.pass("holder") { release.await() } }
         Thread.sleep(50)
-        val waiters = (1..8).map { n ->
-            pool.submit {
-                gate.pass("call $n") { order += n }
-            }.also { Thread.sleep(40) }
-        }
+        val early = pool.submit { gate.pass("early") { order += 1 } }
+        Thread.sleep(1_500)
+        val late = pool.submit { gate.pass("late") { order += 2 } }
+        Thread.sleep(1_500)
         release.countDown()
+        val waiters = listOf(early, late)
         waiters.forEach { it.get(10, TimeUnit.SECONDS) }
         pool.shutdown()
-        assertEquals((1..8).toList(), order)
+        assertEquals("a wait past 2 s used to send the early caller behind the late one", listOf(1, 2), order)
     }
 
     @Test

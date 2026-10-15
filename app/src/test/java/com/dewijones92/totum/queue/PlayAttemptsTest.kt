@@ -37,4 +37,24 @@ class PlayAttemptsTest {
 
         assertEquals("title b", attempts.starting.value?.title)
     }
+
+    @Test
+    fun `another item becoming current clears a start still waiting`() {
+        val attempts = PlayAttempts { 0 }
+        attempts.begin(item("a"))
+
+        attempts.supersededBy(MediaItemId("b"))
+
+        assertNull(attempts.starting.value)
+    }
+
+    @Test
+    fun `the item that was starting becoming current does not clear it early`() {
+        val attempts = PlayAttempts { 0 }
+        attempts.begin(item("a"))
+
+        attempts.supersededBy(MediaItemId("a"))
+
+        assertEquals("title a", attempts.starting.value?.title)
+    }
 }

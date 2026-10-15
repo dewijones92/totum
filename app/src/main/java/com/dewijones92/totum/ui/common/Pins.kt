@@ -130,7 +130,8 @@ private class ContainerPinActions(
                         "✅ ${pin.title}: ${outcome.what}",
                         Toast.LENGTH_SHORT
                     ).show()
-                    is PinOutcome.Failed -> say(R.string.pin_could_not_play, pin.title)
+                    is PinOutcome.Failed ->
+                        Toast.makeText(context, "❌ ${pin.title}: ${outcome.why}", Toast.LENGTH_LONG).show()
                     is PinOutcome.Open, is PinOutcome.OpenSource -> Unit
                 }
                 onOutcome(outcome)

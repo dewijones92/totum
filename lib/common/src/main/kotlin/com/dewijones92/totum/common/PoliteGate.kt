@@ -51,6 +51,7 @@ public class PoliteGate(
             val started = System.nanoTime()
             var noted = false
             while (!waiting.take(ticket, permits)) {
+                if (Thread.interrupted()) throw InterruptedException("$what was interrupted waiting for the gate")
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(SLOT_POLL_MS))
                 val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
                 if (!noted && waitedMs >= SLOW_SLOT_MS) {
@@ -108,7 +109,7 @@ public class PoliteGate(
             val unlogged = slowSlotsSinceLog - 1
             slowSlotsSinceLog = 0
             slowSlotLoggedAt = at
-            "$what has waited ${waitedMs}ms for a slot; all $maxInFlight are held by " +
+            "$what has waited ${waitedMs}ms for a slot; $inFlight of $maxInFlight in flight " +
                 "${holders.describe(at)}; $queued queued" +
                 if (unlogged > 0) " ($unlogged more slow wait(s) since the last line)" else ""
         }
@@ -252,7 +253,11 @@ private class WaitLine {
         val ticket = Ticket(interactive, next.incrementAndGet())
         line.add(ticket)
         if (interactive && permits.availablePermits() == 0) {
-            Diag.log("polite", "$what is a tap: it goes ahead of ${line.count { !it.interactive }} background call(s)")
+            Diag.log(
+                "polite",
+                "$what is a play someone is waiting for: it goes ahead of " +
+                    "${line.count { !it.interactive }} background call(s)"
+            )
         }
         return ticket
     }

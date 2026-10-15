@@ -55,6 +55,13 @@ fun Dock(
             .fillMaxWidth(),
     ) {
         Column {
+            if (state == null && starting != null) {
+                StartingBar(starting)
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = DOCK_BORDER_ALPHA),
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
             state?.let {
                 MiniPlayerBar(
                     state = it,

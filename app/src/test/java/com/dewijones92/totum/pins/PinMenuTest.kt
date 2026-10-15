@@ -59,4 +59,12 @@ class PinMenuTest {
         val song = pinMenuFor(Pin.of(trainVideo), inRecent = true)
         assertEquals(listOf(PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME, PinAction.REMOVE_FROM_RECENT), song)
     }
+
+    @Test
+    fun `an artist with no id and no radio cannot be pinned, because the pin could never play`() {
+        assertEquals(
+            listOf(PinAction.GO_TO_ARTIST),
+            pinMenuFor(artist.copy(browseId = null, radioPlaylistId = null), inRecent = false),
+        )
+    }
 }

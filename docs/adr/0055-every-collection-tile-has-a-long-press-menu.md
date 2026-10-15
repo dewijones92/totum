@@ -18,7 +18,7 @@ long press (a tap still plays).
 
 ## Decision
 
-- One pure function, `pinMenuFor(pin, inRecent)` (`app/…/pins/PinMenu.kt`), says which actions a tile has:
+- One pure function, `pinMenuFor(pin, inRecent)` (`app/…/pins/PinAction.kt`), says which actions a tile has:
   - an album: play, shuffle, play next, add to queue, start radio, go to album, go to artist, save;
   - a playlist: play, shuffle, play next, add to queue, go to playlist;
   - an artist: shuffle all songs, artist radio, go to artist, follow (the id-only ones are hidden when only a name

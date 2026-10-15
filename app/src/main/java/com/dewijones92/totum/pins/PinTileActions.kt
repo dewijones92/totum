@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.ArtistSongs
@@ -76,19 +77,22 @@ class PinTileActions(
 
     private suspend fun shuffled(pin: Pin): PinOutcome? = when (pin) {
         is Pin.Album -> played(pin.copy(shuffled = true))
-        is Pin.Playlist -> runOf(pin)?.let { run ->
-            when (run) {
-                is PinRun.Failed -> PinOutcome.Failed(run.why)
-                is PinRun.Tracks -> PinOutcome.Done("shuffled").also { queue.playAll(run.items.shuffled(), run.group) }
-            }
-        }
+        is Pin.Playlist -> runOf(pin)?.let(::playShuffled)
         else -> null
+    }
+
+    private fun playShuffled(run: PinRun): PinOutcome = when {
+        run is PinRun.Failed -> PinOutcome.Failed(run.why)
+        run !is PinRun.Tracks || run.items.isEmpty() -> PinOutcome.Failed("nothing in it to shuffle")
+        else -> PinOutcome.Done("shuffled").also { queue.playAll(run.items.shuffled(), run.group) }
     }
 
     private suspend fun queued(pin: Pin, next: Boolean): PinOutcome? = when (val run = runOf(pin)) {
         null -> null
         is PinRun.Failed -> PinOutcome.Failed(run.why)
-        is PinRun.Tracks -> {
+        is PinRun.Tracks -> if (run.items.isEmpty()) {
+            PinOutcome.Failed("nothing in it to queue")
+        } else {
             if (next) queue.playNextAll(run.items) else queue.enqueueAll(run.items, run.group)
             PinOutcome.Done(if (next) "${run.items.size} to play next" else "${run.items.size} added to the queue")
         }
@@ -110,10 +114,11 @@ class PinTileActions(
     private suspend fun saveAlbum(pin: Pin): PinOutcome? {
         val album = pin as? Pin.Album ?: return null
         val shelf = favourites ?: return PinOutcome.Failed("favourites are not available here")
+        shelf.loadOnce()
         val playlistId = (catalogue.album(album.browseId) as? MusicResult.Success)?.value?.playlistId
         val saving = !shelf.isSaved(album.browseId)
         val outcome = shelf.setAlbumSaved(album.browseId, playlistId, album.title, saving)
-        return PinOutcome.Done("${if (saving) "save" else "unsave"}: ${outcome.phrase}")
+        return favouriteOutcome(if (saving) "saved" else "unsaved", outcome)
     }
 
     private suspend fun followArtist(pin: Pin): PinOutcome? {
@@ -122,7 +127,7 @@ class PinTileActions(
         val shelf = favourites ?: return PinOutcome.Failed("favourites are not available here")
         val following = shelf.followed(id).first() != true
         val outcome = shelf.setArtistFollowed(id, artist.name, following)
-        return PinOutcome.Done("${if (following) "follow" else "unfollow"}: ${outcome.phrase}")
+        return favouriteOutcome(if (following) "followed" else "unfollowed", outcome)
     }
 
     private suspend fun shuffleSongs(pin: Pin): PinOutcome? {
@@ -136,13 +141,12 @@ class PinTileActions(
     }
 }
 
-private const val RADIO_PREFIX = "Radio · "
-
 private fun albumPage(pin: Pin): PinOutcome? =
     (pin as? Pin.Album)?.let { PinOutcome.Open(MusicPage.Album(it.browseId, title = it.title)) }
 
-private fun playlistPage(pin: Pin): PinOutcome? =
-    (pin as? Pin.Playlist)?.let { PinOutcome.Open(MusicPage.Album(null, playlistId = it.browseId, title = it.title)) }
+private fun playlistPage(pin: Pin): PinOutcome? = (pin as? Pin.Playlist)?.let {
+    PinOutcome.Open(MusicPage.Playlist(Playlist(it.browseId, it.title, null, it.artUrl?.let(HttpUrl::parse))))
+}
 
 private suspend fun artistPage(catalogue: YouTubeMusicCatalogue, pin: Pin): PinOutcome? = when (pin) {
     is Pin.Artist -> PinOutcome.Open(MusicPage.Artist(pin.browseId, pin.name))
@@ -169,7 +173,7 @@ private suspend fun playSeed(queue: PlaybackQueue, pin: Pin): PinOutcome? {
     val song = MediaItem(
         id = MediaItemId(id),
         sourceId = SourceId("radio-seed:${station.playlistId}"),
-        title = station.title.removePrefix(RADIO_PREFIX),
+        title = station.title,
         publishedAt = null,
         duration = null,
         mediaUrl = watch,
@@ -180,4 +184,9 @@ private suspend fun playSeed(queue: PlaybackQueue, pin: Pin): PinOutcome? {
     } else {
         PinOutcome.Failed("the song would not play")
     }
+}
+
+private fun favouriteOutcome(what: String, outcome: MusicFavourites.Outcome): PinOutcome = when (outcome) {
+    MusicFavourites.Outcome.DONE, MusicFavourites.Outcome.NOT_CONFIRMED -> PinOutcome.Done("$what (${outcome.phrase})")
+    else -> PinOutcome.Failed(outcome.phrase)
 }

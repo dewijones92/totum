@@ -85,6 +85,16 @@ class SignedInTvPlayerTest {
     }
 
     @Test
+    fun `a watch page that names nothing still keeps the player response's own facts`() = runBlocking {
+        timestampSource()
+        enqueue(untitledPlainFormat())
+        enqueue("""{"contents":{}}""")
+        val result = player().playerFor("vid", describe = true) as? PlayerResult.Success
+        assertEquals(2712L, result?.details?.lengthSeconds)
+        assertEquals("UC4wKw34XH0pzeeBZ8xT29Eg", result?.details?.channelId)
+    }
+
+    @Test
     fun `a ciphered format is signed and solved into a playable link`() = runBlocking {
         timestampSource()
         enqueue(onlyCiphered())

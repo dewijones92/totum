@@ -59,9 +59,10 @@ fun pinMenuFor(pin: Pin, inRecent: Boolean): List<PinAction> {
         )
         is Pin.ArtistSongs -> listOf(PinAction.SHUFFLE_AGAIN, PinAction.GO_TO_ARTIST)
     }
+    val replayable = pin !is Pin.Artist || pin.browseId != null || pin.radioPlaylistId != null
     val common = listOfNotNull(
-        PinAction.TOGGLE_PIN,
-        PinAction.ADD_TO_HOME,
+        PinAction.TOGGLE_PIN.takeIf { replayable },
+        PinAction.ADD_TO_HOME.takeIf { replayable },
         PinAction.REMOVE_FROM_RECENT.takeIf { inRecent },
     )
     return own + common

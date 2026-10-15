@@ -604,12 +604,12 @@ class PlaybackQueue(
         val cursorBefore = _state.value.currentIndex
         val playingBefore = _nowPlaying.value
         mutate("play-at-$index") { it.copy(currentIndex = index) }
-        val attempt = refusals.begin(entry.item.item)
+        val attempt = if (quiet) null else refusals.begin(entry.item.item)
         var played = false
         try {
             played = play(entry.item)
         } finally {
-            refusals.end(attempt, played)
+            attempt?.let { refusals.end(it, played) }
         }
         if (played) return true
         if (!quiet) refusals.announce(entry.item.item.title)
@@ -768,6 +768,7 @@ class PlaybackQueue(
 
     private fun becameCurrent(queued: PlayableItem, fresh: Boolean) {
         plays++
+        refusals.supersededBy(queued.item.id)
         _nowPlaying.value = queued
         if (fresh) {
             rescueIntent.freshPlay(queued.item.id)

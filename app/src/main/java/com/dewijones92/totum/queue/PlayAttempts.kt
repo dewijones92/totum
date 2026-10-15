@@ -40,6 +40,17 @@ internal class PlayAttempts(private val now: () -> Long = System::currentTimeMil
         }
     }
 
+    fun supersededBy(id: MediaItemId) {
+        val waiting = startingNow.value ?: return
+        if (waiting.id == id) return
+        if (startingNow.compareAndSet(waiting, null)) {
+            Diag.log(
+                "queue",
+                "\"${waiting.title.take(TITLE_CHARS)}\" no longer shown as starting: ${id.value} took over"
+            )
+        }
+    }
+
     fun note(reason: Refusal?) {
         last = reason
     }

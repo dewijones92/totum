@@ -198,6 +198,25 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
     }
 }
 
+@Composable
+internal fun StartingBar(starting: Starting) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(starting.title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = stringResource(R.string.starting_play),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag(STARTING_TAG),
+            )
+        }
+        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+    }
+}
+
 const val STARTING_TAG = "mini-player-starting"
 private val ARTWORK = 48.dp
 private val PILLAR_BADGE = 18.dp

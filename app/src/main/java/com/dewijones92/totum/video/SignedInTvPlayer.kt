@@ -113,7 +113,8 @@ class SignedInTvPlayer(
             return null
         }
         Diag.log("resolve", "$videoId as $client -> ${playable.directlyPlayable.size} fetchable format(s)")
-        val details = parsed.details ?: describe()?.let { described ->
+        val details = parsed.details ?: run {
+            val described = describe() ?: WatchNextDetails(title = videoId, author = null, channelId = null)
             (PlayerResponseParser.parse(body, described) as? PlayerResult.Success)?.details
         }
         return parsed.copy(streaming = playable, details = details)

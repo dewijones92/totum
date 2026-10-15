@@ -134,4 +134,4 @@ Test: `ARefusedTapSaysSoTest`.
 From the tap until the play lands or fails, the queue publishes what is starting (`PlaybackQueue.starting`,
 `PlayAttempts`): the mini player shows the tapped title with "⏳ Starting…" and a spinner, and its queue row says
 the same. The log says how long it took (`"X" started 2140ms after the tap`). Report 0.1.625 showed a song tapped
-about 40 times while it resolved, because nothing on screen changed. Test: `ATapShowsItIsStartingTest`.
+about 40 times while it resolved, because nothing on screen changed. Only a tap shows it (automatic plays are quiet), and any other item becoming current clears it; with nothing played yet, the dock shows a starting bar instead. Tests: `PlayAttemptsTest`, `ARefusedTapSaysSoTest`, `DockStartingTest` (device).
