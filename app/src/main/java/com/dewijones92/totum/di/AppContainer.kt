@@ -167,6 +167,10 @@ import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.startStreamRecovery
+import com.dewijones92.totum.polite.PoliteInterceptor
+import com.dewijones92.totum.polite.PoliteYtDlpEngine
+import com.dewijones92.totum.polite.Politeness
+import com.dewijones92.totum.polite.PrefsVisitorIdStore
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -434,6 +438,8 @@ interface AppContainer {
 
     val appUpdate: AppUpdateCheck
 
+    val polite: Politeness
+
     val shuffleAll: ShuffleAll
 
     val recentActions: RecentActions
@@ -456,7 +462,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * whole of it would say nothing — the bar exists to tell working from idle. Downloads
      * have their own progress row and notification instead.
      */
+    override val polite: Politeness = Politeness()
+
     private val transferClient: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(PoliteInterceptor(polite.gate, polite.meter))
         .connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
@@ -487,12 +496,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     // (downloads into it), so a downloaded yt-dlp takes effect next start.
     private val ytDlpUpdateDir = File(context.filesDir, "ytdlp-update")
 
-    override val ytDlpEngine: YtDlpEngine by lazy {
-        // Wrapped so extraction reports itself to the global loading bar. This is the slowest
-        // thing the app does — an embedded Python interpreter plus a JS runtime, ~8s of
-        // startup on first use — so it is the work most worth telling the user about.
-        BusyYtDlpEngine(InteractiveFirstEngine(ChaquopyYtDlpEngine(context, updateCacheDir = ytDlpUpdateDir)))
-    }
+    override val ytDlpEngine: YtDlpEngine by lazy { politeEngine(context, ytDlpUpdateDir, polite) }
 
     private val ytDlpUpdater by lazy { YtDlpUpdater(httpClient, ytDlpUpdateDir) }
 
@@ -970,6 +974,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 isMetered = networkStatus::isMetered,
                 exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
                 appUpdate = appUpdate::diagnostics,
+                polite = polite::diagnostics,
                 groupDownloads = { groupDownloads },
             ),
         )
@@ -999,7 +1004,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val readyAhead: ReadyAhead by lazy {
-        ReadyAhead(networkStatus::isMetered, videoResolver::prefetch, applicationScope).also { it.start() }
+        ReadyAhead(networkStatus::isMetered, videoResolver::prefetch, applicationScope, throttled = { polite.quiet })
+            .also { it.start() }
     }
 
     override val playbackQueue: PlaybackQueue by lazy {
@@ -1079,7 +1085,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private val signatureTimestamps by lazy { HttpSignatureTimestampSource(httpClient) }
     private val embedHostFlags by lazy { HttpEmbedHostFlagsSource(httpClient) }
-    private val visitorIds by lazy { HttpVisitorIdSource(httpClient) }
+    private val visitorIds by lazy { HttpVisitorIdSource(httpClient, store = PrefsVisitorIdStore(context)) }
 
     /**
      * The embedded player's answer, or null when one of its three inputs cannot be had. Each absence is
@@ -1557,3 +1563,15 @@ private fun solvingChallenges(
         streaming.withSolvedN({ _, _ -> emptyMap() }, "")
     }
 }
+
+// Wrapped so extraction reports itself to the global loading bar. This is the slowest
+// thing the app does — an embedded Python interpreter plus a JS runtime, ~8s of
+// startup on first use — so it is the work most worth telling the user about.
+private fun politeEngine(context: Context, updateDir: File, polite: Politeness): YtDlpEngine =
+    BusyYtDlpEngine(
+        PoliteYtDlpEngine(
+            InteractiveFirstEngine(ChaquopyYtDlpEngine(context, updateCacheDir = updateDir)),
+            polite.gate,
+            polite.botBackOff,
+        ),
+    )

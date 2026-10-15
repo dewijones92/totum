@@ -24,6 +24,7 @@ class ReadyAheadTest {
 
     private val asked = mutableListOf<String>()
     private var metered = false
+    private var throttled = false
 
     private fun video(id: String) = HttpUrl.of("https://www.youtube.com/watch?v=$id").let { url ->
         PlayableItem(
@@ -40,6 +41,7 @@ class ReadyAheadTest {
             null
         },
         scope = CoroutineScope(StandardTestDispatcher(testScheduler)).also { worker = it },
+        throttled = { throttled },
     ).also { it.start() }
 
     private var worker: CoroutineScope? = null
@@ -91,6 +93,14 @@ class ReadyAheadTest {
     @Test
     fun `nothing is spent on a metered network`() = runTest {
         metered = true
+        readyAhead().ready(video("a"), "menu opened")
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `nothing is looked up ahead while YouTube asks us to slow down`() = runTest {
+        throttled = true
         readyAhead().ready(video("a"), "menu opened")
         advanceUntilIdle()
         assertEquals(emptyList<String>(), asked)

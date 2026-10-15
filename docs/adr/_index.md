@@ -66,3 +66,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 48 | [The video page goes black when left alone](0048-the-video-page-goes-black-when-left-alone.md) | Accepted |
 | 49 | [Signed-in TV links are served when the request is SmartTube's](0049-signed-in-tv-links-are-served.md) | Accepted |
 | 50 | [Signed in, the account answers first and yt-dlp is the backup](0050-signed-in-first-yt-dlp-as-backup.md) | Accepted |
+| 51 | [A polite YouTube client](0051-a-polite-youtube-client.md) | Accepted |

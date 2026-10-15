@@ -40,6 +40,7 @@ internal class DiagnosticSnapshot(
         val isMetered: () -> Boolean,
         val exsurge: () -> Map<String, String> = { emptyMap() },
         val appUpdate: () -> Map<String, String> = { emptyMap() },
+        val polite: () -> Map<String, String> = { emptyMap() },
         val groupDownloads: () -> GroupDownloads? = { null },
     )
 
@@ -106,6 +107,7 @@ internal class DiagnosticSnapshot(
         runCatching { put("network.metered", live.isMetered().toString()) }
         runCatching { putAll(live.exsurge()) }
         runCatching { putAll(live.appUpdate()) }
+        runCatching { putAll(live.polite()) }
     }
 
     /** The account block: who is signed in, whether listening reaches them, and what has been acted on. */

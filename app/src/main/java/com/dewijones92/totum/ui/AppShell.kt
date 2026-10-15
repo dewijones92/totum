@@ -41,10 +41,10 @@ import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.LocalQueueSkip
 import com.dewijones92.totum.ui.common.MusicPage
-import com.dewijones92.totum.ui.common.OutOfDateBanner
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.QueueSkip
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
+import com.dewijones92.totum.ui.common.ShellBanners
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
 import com.dewijones92.totum.ui.music.MusicScreen
@@ -132,7 +132,7 @@ fun AppShell(
         }) {
             Box(modifier = modifier.fillMaxSize()) {
                 Scaffold(
-                    topBar = { OutOfDateBanner(container.appUpdate) },
+                    topBar = { ShellBanners(container) },
                     bottomBar = {
                         BottomBar(
                             playbackState,

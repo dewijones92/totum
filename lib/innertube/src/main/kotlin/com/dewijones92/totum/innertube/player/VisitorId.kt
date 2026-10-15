@@ -25,18 +25,29 @@ public fun interface VisitorIdSource {
  * embedded player wants a visitor id in its context, and SmartTube fetches exactly this before its first
  * player call (captured 2026-09-06). One per process: a visitor is a session, not a per-video fact.
  */
+/** Keeps one visitor id for the install, so YouTube sees the same visitor across restarts. */
+public interface VisitorIdStore {
+    public fun load(): String?
+    public fun save(id: String)
+}
+
 public class HttpVisitorIdSource(
     private val client: OkHttpClient,
     private val url: String = VISITOR_ID_URL,
+    private val store: VisitorIdStore? = null,
 ) : VisitorIdSource {
 
     private val lock = Mutex()
     private var cached: String? = null
 
     override suspend fun current(): String? = lock.withLock {
-        cached ?: fetch()?.also {
+        cached ?: store?.load()?.also {
             cached = it
-            Diag.log("sabr", "visitor id acquired for the embedded player (${it.length} chars)")
+            Diag.log("sabr", "visitor id reused from this install (${it.length} chars)")
+        } ?: fetch()?.also {
+            cached = it
+            store?.save(it)
+            Diag.log("sabr", "visitor id acquired for the embedded player (${it.length} chars), kept for this install")
         }
     }
 

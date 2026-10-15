@@ -281,6 +281,12 @@ def _extract_with(url, po_token, clients, logger):
                 _return_network(ydl)
 
 
+def _is_bot_check(error):
+    """YouTube's IP-level refusal: every other client gets the same answer, so retrying them only adds refusals."""
+    text = str(error).lower()
+    return "not a bot" in text
+
+
 def extract(url, po_token=None):
     logger = _CollectingLogger()
     _enable_solver_player_cache()
@@ -294,6 +300,9 @@ def extract(url, po_token=None):
                 raise _NothingPlayable(
                     f"its https formats were withheld (SABR-only), leaving nothing above {_best_height(info)}p")
         except (yt_dlp.utils.DownloadError, _NothingPlayable) as first:
+            if _is_bot_check(first):
+                route = f"clients web_embedded refused by a bot check ({str(first)[:80]}); NOT retried with every client"
+                raise
             route = f"clients web_embedded failed ({str(first)[:80]}), retried with every client"
             info = _extract_with(url, po_token, None, logger)
         steps = (route + "; " + _solver_cache_state() + f" {logger.cache_before} -> {logger.cache_after}; "

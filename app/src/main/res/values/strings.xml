@@ -615,6 +615,10 @@
         <item quantity="other">✂️ %d pauses cut</item>
     </plurals>
     <string name="out_of_date_title">Totum is out of date</string>
+    <string name="polite_slow_down_title">🐢 YouTube says slow down</string>
+    <string name="polite_slow_down_detail">Every YouTube call waits until %1$s (%2$s)</string>
+    <string name="polite_bot_title">🤖 YouTube bot check</string>
+    <string name="polite_bot_detail">Playing as your account; anonymous YouTube waits until %1$s</string>
     <string name="out_of_date_detail">🆕 You\'re on v%1$s. v%2$s is out.</string>
     <string name="out_of_date_update">Update</string>
     <string name="dailyalarm_set_today">Set for today</string>

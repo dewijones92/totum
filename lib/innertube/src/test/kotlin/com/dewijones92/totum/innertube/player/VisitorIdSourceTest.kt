@@ -42,4 +42,24 @@ class VisitorIdSourceTest {
         assertTrue(request.body!!.utf8().contains(""""clientName":"WEB""""))
         assertEquals(1, server.requestCount)
     }
+
+    private class Remembered(var id: String? = null) : VisitorIdStore {
+        override fun load() = id
+        override fun save(id: String) { this.id = id }
+    }
+
+    @Test
+    fun `the install's visitor id is reused across restarts without asking`() = runBlocking {
+        val store = Remembered("Kept")
+        assertEquals("Kept", HttpVisitorIdSource(OkHttpClient(), server.url("/visitor_id").toString(), store).current())
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `a first visitor id is kept for the install`() = runBlocking {
+        server.enqueue(MockResponse.Builder().code(200).body(answer).build())
+        val store = Remembered()
+        HttpVisitorIdSource(OkHttpClient(), server.url("/visitor_id").toString(), store).current()
+        assertEquals("CgtxSlZuQXR3U2ZpbyiVhvbUBjIKCgJHQhIEGgAgQQ%3D%3D", store.id)
+    }
 }

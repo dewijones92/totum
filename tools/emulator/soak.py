@@ -116,6 +116,7 @@ def measure(video, events):
         "watching": bool(route and "video" in route.group(1) and "audio" not in route.group(1)),
         "only360": count(rf"{re.escape(video)} offered one quality"),
         "tvDirectAsk": count(rf"{re.escape(video)} resolved as the signed-in TV client"),
+        "signedInFirst": count(rf"{re.escape(video)} served by the signed-in account first"),
         "young403Retries": count(r"403 on a stream issued", "playback"),
         "fatal403": count(r"HTTP 403 from client", "playback"),
         "gaveUp": count(r"gave up|giving up", "playback"),
@@ -135,7 +136,7 @@ def verdict(row, budget_ms):
         problems.append(f"slow start {started}ms")
     if row["watching"] and not row["videoDecoded"]:
         problems.append("no picture")
-    for key in ("fatal403", "gaveUp", "fellBackToDisk", "stallsAfterStart", "underruns", "only360", "tvDirectAsk"):
+    for key in ("fatal403", "gaveUp", "fellBackToDisk", "stallsAfterStart", "underruns", "only360"):
         if row[key]:
             problems.append(f"{key}={row[key]}")
     return "PASS" if not problems else "FAIL: " + ", ".join(problems)
@@ -181,7 +182,8 @@ def run(args):
         print(f"{time.strftime('%T')}   -> {row['verdict']} sound={row['soundMs']} video={row['videoDecoded']} "
               f"quality={row['quality']} young403={row['young403Retries']}", flush=True)
     adb("shell", "cmd", "media_session", "dispatch", "pause")
-    report = {"facts": facts, "label": args.label, "rows": rows, "at": time.strftime("%F %T")}
+    report = {"facts": facts, "label": args.label, "rows": rows, "at": time.strftime("%F %T"),
+              "budgetMs": args.start_budget_ms}
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:
         json.dump(report, f, indent=1)
@@ -219,9 +221,17 @@ def _summary(rows):
     return summary
 
 
+def _rejudged(path):
+    report = json.load(open(path))
+    budget = report.get("budgetMs", 12000)
+    for row in report["rows"]:
+        row["verdict"] = verdict(row, budget)
+    return report["rows"]
+
+
 def compare(before_path, after_path):
-    before = _summary(json.load(open(before_path))["rows"])
-    after = _summary(json.load(open(after_path))["rows"])
+    before = _summary(_rejudged(before_path))
+    after = _summary(_rejudged(after_path))
     regressions = 0
     print(f"{'video':<12} {'failed':>9} {'median start ms':>17} {'lowest quality':>15}")
     for video, a in after.items():

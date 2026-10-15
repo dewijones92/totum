@@ -19,6 +19,7 @@ class ReadyAhead(
     private val prefetch: suspend (HttpUrl, SourceId) -> VideoResolver.Resolved?,
     private val scope: CoroutineScope,
     private val maxWaiting: Int = MAX_WAITING,
+    private val throttled: () -> Boolean = { false },
 ) {
     private val waiting = ArrayDeque<Pair<PlayableItem, String>>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -39,6 +40,10 @@ class ReadyAhead(
         val id = item.item.id.value
         if (metered()) {
             Diag.log("resolve", "not looking up $id ahead ($why): the network is metered")
+            return
+        }
+        if (throttled()) {
+            Diag.log("resolve", "not looking up $id ahead ($why): YouTube asked us to slow down")
             return
         }
         synchronized(waiting) {

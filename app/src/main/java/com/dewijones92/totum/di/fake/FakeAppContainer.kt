@@ -113,6 +113,7 @@ import kotlinx.coroutines.flow.Flow
 /** In-memory [AppContainer] for previews and UI tests. */
 class FakeAppContainer(
     override val appUpdate: AppUpdateCheck = AppUpdateCheck("0.1.0-dev", { ReleaseLookup.Unavailable("fake") }),
+    override val polite: com.dewijones92.totum.polite.Politeness = com.dewijones92.totum.polite.Politeness(),
     override val podcastRepository: PodcastRepository = FakePodcastRepository(),
     override val channelRepository: ChannelRepository = FakeChannelRepository(),
     override val ytDlpEngine: YtDlpEngine = FakeYtDlpEngine(),
