@@ -266,7 +266,7 @@ class PlaybackQueue(
      * position and plays it, so pressing something never discards what was lined up.
      * An item already queued is moved rather than duplicated.
      */
-    suspend fun playNow(item: PlayableItem, group: QueueGroup? = null): Boolean {
+    suspend fun playNow(item: PlayableItem, group: QueueGroup? = null, quiet: Boolean = false): Boolean {
         // A repeat of the SAME item within a blink is never a real second request. A report
         // from Dewi's phone showed play-now firing seventeen times in twelve seconds, about
         // every 170ms, alternating between two videos — and since each one resolves, and a
@@ -293,11 +293,12 @@ class PlaybackQueue(
             val withoutIt = snapshot.removing { it.item.item.id == item.item.id }
             withoutIt.inserted(listOf(QueueEntry(item, kept))).also { index = it.currentIndex + 1 }
         }
-        return playAt(index)
+        return playAt(index, quiet = quiet)
     }
 
-    private val refusals = RefusedTaps()
+    private val refusals = PlayAttempts(clock)
     val refusedTaps: SharedFlow<RefusedTap> get() = refusals.taps
+    val starting: StateFlow<Starting?> get() = refusals.starting
 
     private var lastPlayNowId: MediaItemId? = null
     private var lastPlayNowAt = 0L
@@ -603,8 +604,14 @@ class PlaybackQueue(
         val cursorBefore = _state.value.currentIndex
         val playingBefore = _nowPlaying.value
         mutate("play-at-$index") { it.copy(currentIndex = index) }
-        refusals.clear()
-        if (play(entry.item)) return true
+        val attempt = refusals.begin(entry.item.item)
+        var played = false
+        try {
+            played = play(entry.item)
+        } finally {
+            refusals.end(attempt, played)
+        }
+        if (played) return true
         if (!quiet) refusals.announce(entry.item.item.title)
         // ONLY for the automatic advance, which is why the caller has to ask. An explicit tap must
         // leave the item it chose as current even when it will not play, because that is what the

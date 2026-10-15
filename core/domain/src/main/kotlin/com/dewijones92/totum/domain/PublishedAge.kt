@@ -81,7 +81,8 @@ public fun placeholderTitleFor(id: MediaItemId): String = "YouTube video ${id.va
 
 public val MediaItem.hasPlaceholderTitle: Boolean get() = title == placeholderTitleFor(id)
 
-public val MediaItem.titleIsKnown: Boolean get() = title.isNotBlank() && title != id.value && !hasPlaceholderTitle
+public val MediaItem.titleIsKnown: Boolean
+    get() = title.isNotBlank() && !(title == id.value && isYouTubeVideoId(title)) && !hasPlaceholderTitle
 
 /**
  * This item with every fact it lacks taken from [resolved] — how a queue row learns what it is
@@ -90,7 +91,7 @@ public val MediaItem.titleIsKnown: Boolean get() = title.isNotBlank() && title !
  */
 public fun MediaItem.fillingSilenceFrom(resolved: MediaItem): MediaItem {
     val filled = copy(
-        title = if (hasPlaceholderTitle && resolved.title.isNotBlank()) resolved.title else title,
+        title = if (!titleIsKnown && resolved.titleIsKnown) resolved.title else title,
         publishedAt = publishedAt ?: resolved.publishedAt,
         publishedText = publishedText ?: resolved.publishedText,
         duration = duration ?: resolved.duration,

@@ -1,7 +1,7 @@
 package com.dewijones92.totum.ui.music
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,17 +18,25 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicReleaseKind
+import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.LocalPins
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.PinMenu
 
 @Composable
 fun AlbumRow(album: MusicAlbumRef, onOpen: () -> Unit, modifier: Modifier = Modifier) {
@@ -43,6 +51,7 @@ fun AlbumRow(album: MusicAlbumRef, onOpen: () -> Unit, modifier: Modifier = Modi
         shape = RoundedCornerShape(8.dp),
         onOpen = onOpen,
         modifier = modifier,
+        pin = Pin.Album(album.browseId, album.title, album.thumbnailUrl?.value),
     )
 }
 
@@ -52,7 +61,8 @@ fun ArtistRow(
     subtitle: String?,
     artworkUrl: HttpUrl?,
     onOpen: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    browseId: String? = null,
 ) {
     CollectionRow(
         title = name,
@@ -61,6 +71,7 @@ fun ArtistRow(
         shape = CircleShape,
         onOpen = onOpen,
         modifier = modifier,
+        pin = Pin.Artist(browseId, name, artworkUrl?.value, radioPlaylistId = null),
     )
 }
 
@@ -72,6 +83,7 @@ fun PlaylistRow(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
     cover: (@Composable () -> Unit)? = null,
+    browseId: String? = null,
 ) {
     CollectionRow(
         title = title,
@@ -81,6 +93,7 @@ fun PlaylistRow(
         onOpen = onOpen,
         modifier = modifier,
         cover = cover,
+        pin = browseId?.let { Pin.Playlist(it, title, artworkUrl?.value, music = true) },
     )
 }
 
@@ -113,12 +126,26 @@ internal fun CollectionRow(
     modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
     cover: (@Composable () -> Unit)? = null,
+    pin: Pin? = null,
 ) {
+    val pins = LocalPins.current
+    var menu by remember { mutableStateOf(false) }
+    if (menu && pin != null && pins != null) PinMenu(pin, pins, inRecent = false) { menu = false }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen)
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = if (pin != null && pins != null) {
+                    {
+                        Diag.log("music", "long-pressed ${pin.key} \"$title\"")
+                        menu = true
+                    }
+                } else {
+                    null
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         if (cover != null) {

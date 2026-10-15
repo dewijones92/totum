@@ -23,6 +23,14 @@ open class RecentActions(initial: List<Pin> = emptyList(), private val keep: Int
         saved(state.value)
     }
 
+    fun forget(key: String, from: String) {
+        val wanted = canonicalPinKey(key)
+        if (state.value.none { it.key == wanted }) return Diag.log(TAG, "forget $wanted from $from: not in Recently")
+        state.update { current -> current.filterNot { it.key == wanted } }
+        Diag.log(TAG, "forgot $wanted from $from; ${state.value.size} recent")
+        saved(state.value)
+    }
+
     fun mergeMissing(pins: List<Pin>): Int {
         val known = state.value.mapTo(mutableSetOf()) { it.key }
         val missing = pins.filterNot { it.key in known }

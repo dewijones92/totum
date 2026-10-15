@@ -36,7 +36,7 @@ internal fun LazyListScope.musicCollectionSections(results: Results.Loaded, onMo
         results.artists.map { it.items.take(results.shown(MusicShelf.ARTISTS)) },
     ) { hit ->
         val open = LocalOpenMusicPage.current
-        ArtistRow(hit.ref.name, hit.ref.subtitle, hit.ref.thumbnailUrl, onOpen = {
+        ArtistRow(hit.ref.name, hit.ref.subtitle, hit.ref.thumbnailUrl, browseId = hit.ref.browseId, onOpen = {
             Diag.log("music", "search -> artist ${hit.ref.browseId} \"${hit.ref.name}\"")
             open?.invoke(MusicPage.Artist(hit.ref.browseId, hit.ref.name))
         })

@@ -104,6 +104,8 @@ def measure(video, events):
             started_at = i
             break
     after = events[started_at + 1:] if started_at is not None else []
+    ended = next((i for i, (_, t, m) in enumerate(after) if t == "playback" and m.startswith(f"ended at ") and video in m), None)
+    after = after[:ended] if ended is not None else after
     return {
         "video": video,
         "pictureMs": int(picture.group(1)) if picture else None,

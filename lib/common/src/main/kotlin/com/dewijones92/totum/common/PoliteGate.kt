@@ -1,13 +1,17 @@
 package com.dewijones92.totum.common
 
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.LockSupport
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -22,7 +26,7 @@ public class PoliteGate(
     private val jitter: () -> Double = Math::random,
     private val pause: suspend (Long) -> Unit = { delay(it) },
 ) {
-    private val permits = Semaphore(maxInFlight, true)
+    private val permits = Semaphore(maxInFlight)
     private val bucket = Any()
     private var tokens = burst.toDouble()
     private var refilledAt = now()
@@ -33,17 +37,29 @@ public class PoliteGate(
     private var slowSlotsSinceLog = 0
     private var slowSlotLoggedAt = Long.MIN_VALUE / 2
     private val holders = Holders()
+    private val waiting = WaitLine()
     private val slowing = MutableStateFlow<SlowDown?>(null)
     public val slowDown: StateFlow<SlowDown?> = slowing.asStateFlow()
 
     public val inFlight: Int get() = maxInFlight - permits.availablePermits()
-    public val queued: Int get() = permits.queueLength
+    public val queued: Int get() = waiting.size
 
     public fun <T> pass(what: String, block: () -> T): T {
         val queuedAt = now()
-        if (!permits.tryAcquire(SLOW_SLOT_MS, TimeUnit.MILLISECONDS)) {
-            noteSlowSlot(what, now() - queuedAt)
-            permits.acquire()
+        val ticket = waiting.join(INTERACTIVE.get() == true, what, permits)
+        try {
+            val started = System.nanoTime()
+            var noted = false
+            while (!waiting.take(ticket, permits)) {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(SLOT_POLL_MS))
+                val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+                if (!noted && waitedMs >= SLOW_SLOT_MS) {
+                    noted = true
+                    noteSlowSlot(what, waitedMs)
+                }
+            }
+        } finally {
+            waiting.leave(ticket)
         }
         val held = holders.hold(what, now())
         try {
@@ -59,13 +75,18 @@ public class PoliteGate(
 
     public suspend fun <T> passing(what: String, block: suspend () -> T): T {
         val queuedAt = now()
-        var noted = false
-        while (!permits.tryAcquire()) {
-            pause(SLOT_POLL_MS)
-            if (!noted && now() - queuedAt >= SLOW_SLOT_MS) {
-                noted = true
-                noteSlowSlot(what, now() - queuedAt)
+        val ticket = waiting.join(INTERACTIVE.get() == true, what, permits)
+        try {
+            var noted = false
+            while (!waiting.take(ticket, permits)) {
+                pause(SLOT_POLL_MS)
+                if (!noted && now() - queuedAt >= SLOW_SLOT_MS) {
+                    noted = true
+                    noteSlowSlot(what, now() - queuedAt)
+                }
             }
+        } finally {
+            waiting.leave(ticket)
         }
         val held = holders.hold(what, now())
         try {
@@ -186,6 +207,10 @@ public class PoliteGate(
     }
 
     public companion object {
+        private val INTERACTIVE = ThreadLocal<Boolean>()
+
+        public fun interactive(): CoroutineContext.Element = INTERACTIVE.asContextElement(true)
+
         public const val DEFAULT_IN_FLIGHT: Int = 4
         public const val DEFAULT_PER_SECOND: Double = 2.0
         public const val DEFAULT_BURST: Int = 10
@@ -216,4 +241,30 @@ private class Holders {
             prefix = "[",
             postfix = "]"
         ) { (what, since) -> "$what for ${at - since}ms" }
+}
+
+private class WaitLine {
+    private val next = AtomicLong()
+    private val line = ConcurrentSkipListSet<Ticket>()
+    val size: Int get() = line.size
+
+    fun join(interactive: Boolean, what: String, permits: Semaphore): Ticket {
+        val ticket = Ticket(interactive, next.incrementAndGet())
+        line.add(ticket)
+        if (interactive && permits.availablePermits() == 0) {
+            Diag.log("polite", "$what is a tap: it goes ahead of ${line.count { !it.interactive }} background call(s)")
+        }
+        return ticket
+    }
+
+    fun take(ticket: Ticket, permits: Semaphore): Boolean = line.firstOrNull() == ticket && permits.tryAcquire()
+
+    fun leave(ticket: Ticket) {
+        line.remove(ticket)
+    }
+
+    data class Ticket(val interactive: Boolean, val seq: Long) : Comparable<Ticket> {
+        override fun compareTo(other: Ticket): Int =
+            compareValuesBy(this, other, { if (it.interactive) 0 else 1 }, { it.seq })
+    }
 }

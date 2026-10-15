@@ -233,4 +233,22 @@ class InnerTubePlayerStreamsTest {
         org.junit.Assert.assertEquals(1, server.requestCount)
         org.junit.Assert.assertTrue(backOff.until.value != null)
     }
+
+    @Test
+    fun `an anonymous answer after the back-off ends resets it, so yt-dlp is not left paused`() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder().code(200).body(
+                """{"playabilityStatus":{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm you’re not a bot"}}""",
+            ).build(),
+        )
+        respondWithFormat("abc")
+        var clock = 0L
+        val backOff = com.dewijones92.totum.common.BotBackOff { clock }
+        val streams = InnerTubePlayerStreams(client(), solveN = { it }, botBackOff = backOff)
+        streams.playerFor("dQw4w9WgXcQ")
+        clock = 5 * 60_000L
+        streams.playerFor("dQw4w9WgXcQ")
+
+        org.junit.Assert.assertNull("the success must lift the back-off", backOff.until.value)
+    }
 }

@@ -112,7 +112,7 @@ public fun MediaItem.withStreamFrom(stream: MediaItem): MediaItem = copy(
     mediaUrl = stream.mediaUrl ?: mediaUrl,
     duration = stream.duration ?: duration,
     description = stream.description ?: description,
-    title = stream.title.takeUnless { it.isBlank() || it == stream.id.value } ?: title,
+    title = stream.title.takeIf { stream.titleIsKnown } ?: title,
     author = stream.author ?: author,
     publisher = stream.publisher ?: publisher,
     thumbnailUrl = stream.thumbnailUrl ?: thumbnailUrl,

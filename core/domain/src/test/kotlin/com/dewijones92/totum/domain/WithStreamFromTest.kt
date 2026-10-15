@@ -204,13 +204,38 @@ class WithStreamFromTest {
         assertEquals("Novara Media ", played.author)
     }
 
+    private val youTube = listing.copy(id = MediaItemId(YOUTUBE_ID))
+
     @Test
     fun `a resolution that only knows the id as a title keeps the listing's real title`() {
-        val untitled = listing.copy(
-            title = "abc123",
+        val untitled = youTube.copy(
+            title = YOUTUBE_ID,
             mediaUrl = HttpUrl.of("https://rr1---sn.googlevideo.com/videoplayback")
         )
 
-        assertEquals("What Happened In Ceuta", listing.withStreamFrom(untitled).title)
+        assertEquals("What Happened In Ceuta", youTube.withStreamFrom(untitled).title)
+    }
+
+    @Test
+    fun `a row with only its id as a title learns the real one, and never learns the id`() {
+        val bare = youTube.copy(title = YOUTUBE_ID)
+        val untitled = youTube.copy(title = YOUTUBE_ID, publishedAt = null)
+        val titled = youTube.copy(title = "What Happened In Ceuta")
+
+        assertEquals(YOUTUBE_ID, bare.fillingSilenceFrom(untitled).title)
+        assertEquals("What Happened In Ceuta", bare.fillingSilenceFrom(titled).title)
+        assertEquals(
+            "What Happened In Ceuta",
+            youTube.copy(title = placeholderTitleFor(youTube.id)).fillingSilenceFrom(titled).title
+        )
+        assertEquals(
+            "a placeholder is not replaced by the id either",
+            placeholderTitleFor(youTube.id),
+            youTube.copy(title = placeholderTitleFor(youTube.id)).fillingSilenceFrom(untitled).title,
+        )
+    }
+
+    private companion object {
+        const val YOUTUBE_ID = "dQw4w9WgXcQ"
     }
 }

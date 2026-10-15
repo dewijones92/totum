@@ -35,6 +35,7 @@ import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.SELECTION_ACTIONS_TAG
@@ -417,6 +418,15 @@ class MultiSelectTest {
         val download = activity.getString(R.string.download)
         composeTestRule.onNodeWithTag(SELECTION_ACTIONS_TAG).performScrollToNode(hasText(download))
         composeTestRule.onNodeWithText(download).performClick()
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performClick()
+        composeTestRule.waitForIdle()
+        assertEquals("a tap in the dialog must not download", emptyList<String>(), asked)
+
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { down(center) }
+        composeTestRule.mainClock.advanceTimeBy(1_700)
+        composeTestRule.mainClock.autoAdvance = true
+        composeTestRule.waitForIdle()
 
         assertEquals(listOf("b"), asked)
     }

@@ -328,7 +328,7 @@ class SearchViewModel(
     private fun play(watchUrl: HttpUrl, item: MediaItem) {
         viewModelScope.launch {
             playAttempt.value = PlayAttempt(resolving = watchUrl.value)
-            val played = queue.playNow(PlayableItem(item, PlayHandle.Video(watchUrl)))
+            val played = queue.playNow(PlayableItem(item, PlayHandle.Video(watchUrl)), quiet = true)
             playAttempt.value = if (played) PlayAttempt() else PlayAttempt(failed = true)
         }
     }

@@ -292,7 +292,12 @@ private data class GroupCollapse(
 }
 
 /** Where the cursor is and how far through that item playback has got. */
-private data class NowPlaying(val index: Int, val progress: Float?, val isPlaying: Boolean)
+private data class NowPlaying(
+    val index: Int,
+    val progress: Float?,
+    val isPlaying: Boolean,
+    val startingId: MediaItemId? = null,
+)
 
 /**
  * What a queue row needs to know about whether it can actually be played.
@@ -398,7 +403,8 @@ private fun FilterableQueue(
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
     val availability = QueueAvailability(downloads, container.isOffline())
-    val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true)
+    val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
+    val nowPlaying = NowPlaying(currentIndex, playing?.progress, playing?.isPlaying == true, starting?.id)
     FilterField(listFilter, matches.size, entries.size, hosted = true)
     SelectableMediaList(
         "queue",
@@ -473,10 +479,11 @@ private fun QueueRow(
             // Says why a row will be passed over, rather than leaving it to be discovered.
             // It REPLACES the facts rather than joining them: "this will be skipped" is the
             // only thing worth reading on a row you cannot play.
-            subtitleLines = if (unavailableOfflineNow(downloadState, availability.offline)) {
-                listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
-            } else {
-                rowFacts(media, entry.item.pillar)
+            subtitleLines = when {
+                nowPlaying.startingId == media.id -> listOf(stringResource(R.string.starting_play))
+                unavailableOfflineNow(downloadState, availability.offline) ->
+                    listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
+                else -> rowFacts(media, entry.item.pillar)
             },
             // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
             // that stays put — which is what "I can't drag any more" looked like on the phone (cbf9916).

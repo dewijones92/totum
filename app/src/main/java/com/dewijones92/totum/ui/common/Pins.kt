@@ -20,10 +20,16 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.pins.PinAction
+import com.dewijones92.totum.pins.PinOutcome
 import com.dewijones92.totum.pins.PinPlayed
+import com.dewijones92.totum.pins.PinTileActions
 import com.dewijones92.totum.stats.UseKind
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 interface PinActions {
     val pinned: List<Pin>
@@ -31,6 +37,7 @@ interface PinActions {
     fun toggle(pin: Pin)
     fun addToHomeScreen(pin: Pin)
     fun play(pin: Pin)
+    fun run(pin: Pin, action: PinAction, onOutcome: (PinOutcome) -> Unit) = Unit
 }
 
 internal val LocalPins = compositionLocalOf<PinActions?> { null }
@@ -92,6 +99,42 @@ private class ContainerPinActions(
         }
         container.applicationScope.launch {
             if (!shortcuts.requestPin(pin)) say(R.string.pin_home_unsupported, pin.title)
+        }
+    }
+
+    private val tileActions by lazy {
+        PinTileActions(
+            player = container.pinPlayer,
+            queue = container.playbackQueue,
+            catalogue = container.musicCatalogue,
+            playlists = container.youTubePlaylists,
+            radio = container.musicRadio,
+            favourites = container.musicFavourites,
+            artistShuffle = container.artistShuffle(),
+            recent = container.recentActions,
+        )
+    }
+
+    override fun run(pin: Pin, action: PinAction, onOutcome: (PinOutcome) -> Unit) {
+        when (action) {
+            PinAction.TOGGLE_PIN -> return toggle(pin)
+            PinAction.ADD_TO_HOME -> return addToHomeScreen(pin)
+            else -> Unit
+        }
+        container.applicationScope.launch {
+            val outcome = tileActions.run(pin, action)
+            withContext(Dispatchers.Main) {
+                when (outcome) {
+                    is PinOutcome.Done -> Toast.makeText(
+                        context,
+                        "✅ ${pin.title}: ${outcome.what}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    is PinOutcome.Failed -> say(R.string.pin_could_not_play, pin.title)
+                    is PinOutcome.Open, is PinOutcome.OpenSource -> Unit
+                }
+                onOutcome(outcome)
+            }
         }
     }
 

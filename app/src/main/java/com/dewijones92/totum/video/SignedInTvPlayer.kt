@@ -42,7 +42,7 @@ class SignedInTvPlayer(
                 describedByTheWatchPage(videoId, token)
             } else {
                 Diag.log("resolve", "$videoId: its row already has a title; the watch page is not asked")
-                null
+                WatchNextDetails(title = videoId, author = null, channelId = null)
             }
         }) {
             innerTubeClient.playerDowngradedTv(videoId, stamp, token)

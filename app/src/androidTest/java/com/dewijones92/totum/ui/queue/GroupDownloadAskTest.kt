@@ -15,8 +15,8 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.queue.GroupDownload
-import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

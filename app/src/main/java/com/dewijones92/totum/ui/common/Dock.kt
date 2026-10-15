@@ -31,10 +31,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.queue.Starting
 
 @Composable
 fun Dock(
     state: PlaybackState?,
+    starting: Starting?,
     selected: TopLevelDestination,
     onSelect: (TopLevelDestination) -> Unit,
     onTogglePlayPause: () -> Unit,
@@ -56,6 +58,7 @@ fun Dock(
             state?.let {
                 MiniPlayerBar(
                     state = it,
+                    starting = starting,
                     onTogglePlayPause = onTogglePlayPause,
                     onExpand = onExpand,
                     onSkipNext = onSkipNext,

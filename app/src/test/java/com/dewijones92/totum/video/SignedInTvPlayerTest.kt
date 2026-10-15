@@ -72,10 +72,16 @@ class SignedInTvPlayerTest {
     fun `a row that already has its title spares the watch page`() = runBlocking {
         timestampSource()
         enqueue(untitledPlainFormat())
-        val result = player().playerFor("vid", describe = false)
-        assertTrue(result.toString(), result is PlayerResult.Success)
+        val result = player().playerFor("vid", describe = false) as? PlayerResult.Success
         assertEquals(listOf("/iframe_api", "/tv.js", "/player"), List(3) { server.takeRequest().url.encodedPath })
         assertEquals(3, server.requestCount)
+        assertEquals("the player response's own length survives", 2712L, result?.details?.lengthSeconds)
+        assertEquals("UC4wKw34XH0pzeeBZ8xT29Eg", result?.details?.channelId)
+        assertEquals(
+            "with no title, the id stands in, which every rule reads as no title",
+            "vid",
+            result?.details?.title
+        )
     }
 
     @Test

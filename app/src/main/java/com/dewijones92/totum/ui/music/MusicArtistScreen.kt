@@ -140,7 +140,7 @@ private fun LazyListScope.similarArtists(artist: MusicArtist) {
     item { MusicSectionTitle("${FactEmoji.ARTIST} " + stringResource(R.string.section_similar_artists)) }
     items(artist.similar, key = { "similar:" + it.browseId }) { similar ->
         val open = LocalOpenMusicPage.current
-        ArtistRow(similar.name, similar.subtitle, similar.thumbnailUrl, onOpen = {
+        ArtistRow(similar.name, similar.subtitle, similar.thumbnailUrl, browseId = similar.browseId, onOpen = {
             Diag.log("music", "artist ${artist.name} -> similar ${similar.browseId} \"${similar.name}\"")
             open?.invoke(MusicPage.Artist(similar.browseId, similar.name))
         })

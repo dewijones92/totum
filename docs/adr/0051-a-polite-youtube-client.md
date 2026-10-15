@@ -40,6 +40,13 @@ saying what held the gate. Now:
   (`MediaItem.titleIsKnown`): for music it never has one, and it cost a call and a 150 KB log line per play;
 - a resolved item whose only title is its id keeps the row's title (`withStreamFrom`).
 
+## Update, 2026-10-15: a tap goes first
+
+A play (a tap, play now, an automatic advance) resolves inside `PoliteGate.interactive()`, a thread-local
+coroutine element, so it reaches the OkHttp interceptor as well. While an interactive call waits for a slot,
+background calls (look-aheads, prefetches, sync, pages) do not take a free one. Still at most four in flight.
+A superseded lookup is not cancelled: others can be joined to it, so cancelling would hand them a failure.
+
 ## Consequences
 
 - A full subscriptions refresh now takes minutes, not seconds. The Videos feed fills in as it goes.

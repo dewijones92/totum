@@ -265,7 +265,7 @@ class InnerTubePlayerStreams(
             return null
         }
         return when (val parsed = PlayerResponseParser.parse(body)) {
-            is PlayerResult.Success -> parsed.playable()
+            is PlayerResult.Success -> parsed.playable().also { botBackOff?.served("second opinion for $videoId") }
             is PlayerResult.Unplayable -> {
                 Diag.log("resolve", "second opinion for $videoId refused: ${parsed.reason}")
                 if (parsed.reason.contains(

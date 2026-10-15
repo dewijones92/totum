@@ -69,6 +69,7 @@ class ARefusedTapSaysSoTest {
         advanceUntilIdle()
 
         assertEquals(listOf(RefusedTap("video stream-only", Refusal.NotOnThisDevice)), refused)
+        assertEquals("nothing is left showing as starting", null, queue.starting.value)
     }
 
     @Test
@@ -85,6 +86,19 @@ class ARefusedTapSaysSoTest {
         advanceUntilIdle()
 
         queue.playNextInQueue()
+        advanceUntilIdle()
+
+        assertEquals(emptyList<RefusedTap>(), refused)
+    }
+
+    @Test
+    fun `an automatic play like related-next stays quiet when it cannot start`() = runTest {
+        val queue = queue(offline = true)
+        val refused = mutableListOf<RefusedTap>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { queue.refusedTaps.toList(refused) }
+        advanceUntilIdle()
+
+        queue.playNow(video("related"), quiet = true)
         advanceUntilIdle()
 
         assertEquals(emptyList<RefusedTap>(), refused)

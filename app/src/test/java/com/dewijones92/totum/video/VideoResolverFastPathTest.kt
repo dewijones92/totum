@@ -15,6 +15,7 @@ import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -155,6 +156,27 @@ class VideoResolverFastPathTest {
         resolver.resolve(other, source, asked = "play", titleKnown = false)
 
         assertEquals(listOf(false, true), described)
+    }
+
+    @Test
+    fun `a lookup made without a title is not handed to a caller that needs one`() = runTest {
+        val described = mutableListOf<Boolean>()
+        val streams = object : PlayerStreams {
+            override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+            override suspend fun signedInFor(videoId: String, describe: Boolean) =
+                playerResponse("https://x.test/account").let { response ->
+                    described += describe
+                    if (describe) response else response.copy(details = response.details?.copy(title = videoId))
+                }
+        }
+        val resolver =
+            VideoResolver(CountingEngine(AtomicInteger()), SkipSegmentSource { emptyList() }, playerStreams = streams)
+
+        resolver.resolve(url, source, asked = "play", titleKnown = true)
+        val forASharedLink = resolver.resolve(url, source, asked = "describe", titleKnown = false)
+
+        assertEquals(listOf(false, true), described)
+        assertTrue(forASharedLink?.item?.title != VIDEO_ID)
     }
 
     @Test

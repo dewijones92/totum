@@ -181,7 +181,12 @@ class VideoResolver(
                 "joining the extraction already running for " +
                     "${watchUrl.value.takeLast(ID_CHARS)} ($asked)",
             )
-            return joined.await()
+            val shared = joined.await()
+            if (shared == null || titleKnown || shared.item.titleIsKnown) return shared
+            Diag.log(
+                "resolve",
+                "${watchUrl.value.takeLast(ID_CHARS)}: the shared lookup has no title; $asked needs one"
+            )
         }
 
         val mine = CompletableDeferred<Resolved?>()
@@ -207,7 +212,7 @@ class VideoResolver(
         asked: String,
         titleKnown: Boolean,
     ): Resolved? {
-        fresh(watchUrl)?.let { hit ->
+        fresh(watchUrl)?.takeIf { titleKnown || it.item.titleIsKnown }?.let { hit ->
             // Kept, not consumed. It used to be cleared on first use, which was right when an
             // extraction cost ~1.7s and the cache existed only to hand a prefetched result to
             // the next play. With a JS runtime an extraction costs 10-14s on a real phone, so
@@ -222,7 +227,7 @@ class VideoResolver(
             )
             return hit
         }
-        fromStore(watchUrl, asked)?.let { return it }
+        fromStore(watchUrl, asked)?.takeIf { titleKnown || it.item.titleIsKnown }?.let { return it }
         val startedAt = now()
         overSabr(watchUrl, sourceId, asked, startedAt)?.let { return it }
         // Signed in, the account answers first (ADR 50). Otherwise extraction, with the anonymous player

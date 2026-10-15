@@ -114,4 +114,12 @@ class RandomStartsTest {
 
         assertEquals(0L, starts.resumePositionMs(MediaItemId("a")))
     }
+
+    @Test
+    fun `a shuffle nobody was asked about, like a pinned replay, leaves every position alone`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("a", 10.minutes)), "pinned replay", atRandom = null)
+
+        assertEquals(42_000L, starts.resumePositionMs(MediaItemId("a")))
+    }
 }

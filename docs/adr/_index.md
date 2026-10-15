@@ -70,3 +70,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 52 | [Blocked videos download with picture, through the signed-in path](0052-blocked-videos-download-with-picture.md) | Accepted |
 | 53 | [Google Drive backup through the system picker, merged on restore](0053-google-drive-backup.md) | Accepted |
 | 54 | [The side-quest cards sit at the top and pop down on events](0054-side-quest-cards-sit-at-the-top-and-pop-on-events.md) | Accepted |
+| 55 | [Every collection tile has a long-press menu](0055-every-collection-tile-has-a-long-press-menu.md) | Accepted |

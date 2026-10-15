@@ -28,9 +28,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.pins.PinAction
+import com.dewijones92.totum.pins.PinOutcome
 import com.dewijones92.totum.pins.RecentActions
+import com.dewijones92.totum.pins.pinMenuFor
 
 const val RECENTLY_TAG = "recently-row"
 
@@ -52,7 +56,7 @@ internal fun LazyListScope.recentlySection() {
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(shown, key = { "recent:" + it.key }) { pin -> PinCard(pin, pins) }
+                items(shown, key = { "recent:" + it.key }) { pin -> PinCard(pin, pins, inRecent = true) }
             }
         }
     }
@@ -72,7 +76,7 @@ internal fun LazyListScope.pinnedSection() {
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(pins.pinned.asReversed(), key = { it.key }) { pin -> PinCard(pin, pins) }
+                items(pins.pinned.asReversed(), key = { it.key }) { pin -> PinCard(pin, pins, inRecent = false) }
             }
         }
     }
@@ -80,14 +84,18 @@ internal fun LazyListScope.pinnedSection() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PinCard(pin: Pin, pins: PinActions) {
+private fun PinCard(pin: Pin, pins: PinActions, inRecent: Boolean) {
     var menu by remember { mutableStateOf(false) }
     Box {
         Column(
             modifier = Modifier
                 .width(CARD_WIDTH)
-                .combinedClickable(onClick = { pins.play(pin) }, onLongClick = { menu = true })
-                .padding(vertical = 4.dp),
+                .combinedClickable(onClick = { pins.play(pin) }, onLongClick = {
+                    Diag.log("pin", "long-pressed ${pin.key} (inRecent=$inRecent)")
+                    menu = true
+                })
+                .padding(vertical = 4.dp)
+                .testTag(pinCardTag(pin.key)),
         ) {
             MediaThumbnail(
                 url = pin.artUrl?.let(HttpUrl::parse),
@@ -96,18 +104,44 @@ private fun PinCard(pin: Pin, pins: PinActions) {
             )
             Text(text = pin.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
         }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.pin_home)) }, onClick = {
-                menu = false
-                pins.addToHomeScreen(pin)
-            })
-            val label = if (pins.isPinned(pin.key)) R.string.pin_unpin else R.string.pin_pin
-            DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
-                menu = false
-                pins.toggle(pin)
-            })
+        if (menu) PinMenu(pin, pins, inRecent) { menu = false }
+    }
+}
+
+@Composable
+internal fun PinMenu(pin: Pin, pins: PinActions, inRecent: Boolean, onDismiss: () -> Unit) {
+    val song = (pin as? Pin.Item)?.playable()?.item
+    if (song != null) {
+        ItemActionSheet(song, onDismiss = onDismiss)
+        return
+    }
+    val openPage = LocalOpenMusicPage.current
+    val openSource = LocalOpenSource.current
+    val handle: (PinOutcome) -> Unit = { outcome ->
+        when (outcome) {
+            is PinOutcome.Open -> openPage?.invoke(outcome.page)
+            is PinOutcome.OpenSource -> openSource?.invoke(outcome.source)
+            is PinOutcome.Done, is PinOutcome.Failed -> Unit
+        }
+    }
+    DropdownMenu(expanded = true, onDismissRequest = onDismiss) {
+        pinMenuFor(pin, inRecent).forEach { action ->
+            DropdownMenuItem(
+                text = { Text(stringResource(pinActionLabel(action, pins.isPinned(pin.key)))) },
+                onClick = {
+                    onDismiss()
+                    pins.run(pin, action, handle)
+                },
+                modifier = Modifier.testTag(PIN_MENU_TAG + action.name),
+            )
         }
     }
 }
+
+private fun pinActionLabel(action: PinAction, pinned: Boolean): Int =
+    if (action == PinAction.TOGGLE_PIN && pinned) R.string.pin_unpin else action.label
+
+fun pinCardTag(key: String): String = "pin-card:$key"
+const val PIN_MENU_TAG = "pin-menu:"
 
 private val CARD_WIDTH = 112.dp

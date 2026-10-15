@@ -136,7 +136,7 @@ fun AppShell(
                     topBar = { ShellBanners(container) },
                     bottomBar = {
                         BottomBar(
-                            playbackState,
+                            container,
                             selected,
                             controller::togglePlayPause,
                             onExpand = { showFullPlayer = true },
@@ -187,15 +187,18 @@ private fun WatchBindings(
 /** The mini player sitting above the tabs — one bar, so neither appears without the other. */
 @Composable
 private fun BottomBar(
-    state: PlaybackState?,
+    container: AppContainer,
     selected: TopLevelDestination,
     onTogglePlayPause: () -> Unit,
     onExpand: () -> Unit,
     onSelect: (TopLevelDestination) -> Unit,
     onSkipNext: () -> Unit,
 ) {
+    val state by container.playbackController.state.collectAsStateWithLifecycle()
+    val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
     Dock(
         state = state,
+        starting = starting,
         selected = selected,
         // Logged because a real report could not answer "did this happen when I switched
         // tabs?" — nothing recorded that the user had, so the question was unanswerable.

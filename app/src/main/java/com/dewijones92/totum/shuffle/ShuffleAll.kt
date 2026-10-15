@@ -106,7 +106,7 @@ class ShuffleAll(
     private val mutableLoading = MutableStateFlow<Map<String, Int>>(emptyMap())
     val loading: StateFlow<Map<String, Int>> = mutableLoading.asStateFlow()
 
-    suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean, startAtRandom: Boolean = false): ShuffleOutcome {
+    suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean, startAtRandom: Boolean? = null): ShuffleOutcome {
         val (key, title, sources) = target
         if (key in mutableLoading.value) {
             Diag.log(TAG, "\"$title\" is already loading; ignoring a second tap")

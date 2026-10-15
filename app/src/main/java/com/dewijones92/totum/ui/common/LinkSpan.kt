@@ -8,7 +8,6 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
-import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.ui.player.Timestamps
 
 sealed interface LinkSpan {
@@ -33,7 +32,11 @@ fun linkSpans(text: String): List<LinkSpan> {
     return (web + seeks).sortedBy { it.range.first }
 }
 
-fun String.withLinks(linkColor: Color, onSeekTo: ((Long) -> Unit)? = null): AnnotatedString {
+fun String.withLinks(
+    linkColor: Color,
+    onOpen: (String) -> Unit,
+    onSeekTo: ((Long) -> Unit)? = null,
+): AnnotatedString {
     val spans = linkSpans(this).filter { it is LinkSpan.Web || onSeekTo != null }
     if (spans.isEmpty()) return AnnotatedString(this)
     val style = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
@@ -42,7 +45,7 @@ fun String.withLinks(linkColor: Color, onSeekTo: ((Long) -> Unit)? = null): Anno
         spans.forEach { span ->
             append(substring(cursor, span.range.first))
             val link = when (span) {
-                is LinkSpan.Web -> LinkAnnotation.Url(span.url, style) { Diag.log("ui", "opened the link ${span.url}") }
+                is LinkSpan.Web -> LinkAnnotation.Url(span.url, style) { onOpen(span.url) }
                 is LinkSpan.Seek -> LinkAnnotation.Clickable(span.positionMs.toString(), style) {
                     onSeekTo?.invoke(span.positionMs)
                 }

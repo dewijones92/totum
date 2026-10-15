@@ -72,9 +72,10 @@ internal fun DetailsSection(item: MediaItem) {
     if (open) {
         Column(Modifier.padding(horizontal = 24.dp).testTag(DETAILS_LIST_TAG)) {
             val linkColor = MaterialTheme.colorScheme.primary
+            val open = rememberLinkOpener()
             itemDetails(item).forEach { line ->
                 val style = MaterialTheme.typography.bodyMedium
-                val shown = line.withLinks(linkColor)
+                val shown = line.withLinks(linkColor, open)
                 when {
                     line.startsWith(ID_PREFIX) -> CopyableText(
                         line.removePrefix(ID_PREFIX),

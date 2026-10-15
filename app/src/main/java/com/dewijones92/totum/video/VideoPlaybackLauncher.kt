@@ -3,6 +3,7 @@ package com.dewijones92.totum.video
 import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -239,7 +241,11 @@ class VideoPlaybackLauncher(
         val startPositionMs = attempt.startPositionMs
         val request = attempt.request
         val audioOnly = attempt.audioOnly
-        val extracted = resolve() ?: return false
+        val extracted = withContext(PoliteGate.interactive()) { resolve() } ?: run {
+            val superseded = request != latestRequest.get()
+            if (superseded) Diag.log("playback", "${listing.id.value} did not resolve; a newer play took over")
+            return superseded
+        }
         if (request != latestRequest.get()) {
             // True rather than false: something IS playing, just not this. Returning false makes
             // an auto-advance treat the item as unplayable and skip to the NEXT one, which would

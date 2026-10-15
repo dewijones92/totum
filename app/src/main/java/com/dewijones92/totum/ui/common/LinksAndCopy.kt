@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -35,12 +36,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun LinkText(url: String, label: String, style: TextStyle, modifier: Modifier = Modifier) {
     val color = MaterialTheme.colorScheme.primary
+    val open = rememberLinkOpener()
     val text = buildAnnotatedString {
         withLink(
             LinkAnnotation.Url(
                 url,
                 TextLinkStyles(SpanStyle(color = color, textDecoration = TextDecoration.Underline)),
-            ) { Diag.log("ui", "opened the link $url") },
+            ) { open(url) },
         ) { append(label) }
     }
     Text(text, style = style, modifier = modifier.testTag(LINK_TEXT_TAG))
@@ -65,6 +67,22 @@ fun CopyableText(
         Text(shown, style = style, modifier = Modifier.weight(1f, fill = false).then(pressToCopy))
         IconButton(onClick = copy, modifier = Modifier.testTag(COPY_BUTTON_TAG)) {
             Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.copy_what, what))
+        }
+    }
+}
+
+@Composable
+fun rememberLinkOpener(): (String) -> Unit {
+    val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val noBrowser = stringResource(R.string.link_no_app)
+    return { url ->
+        try {
+            uriHandler.openUri(url)
+            Diag.log("ui", "opened the link $url")
+        } catch (e: IllegalArgumentException) {
+            Diag.warn("ui", "no app could open the link $url", e)
+            Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
         }
     }
 }

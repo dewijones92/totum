@@ -72,28 +72,15 @@ class PinPlayer(
         return start(playable, showsPicture = video)
     }
 
-    private suspend fun playAlbum(pin: Pin.Album): PinPlayed = when (val album = catalogue.album(pin.browseId)) {
-        is MusicResult.Failure -> PinPlayed.Failed("album: ${album.detail}")
-        is MusicResult.Success ->
-            album.value.tracks
-                .map { it.toPlayable(MusicSources.album(pin.browseId)) }
-                .let { tracks -> if (pin.shuffled) tracks.shuffled() else tracks }
-                .let { tracks -> playRun(tracks, QueueGroup("album:${pin.browseId}", album.value.title)) }
+    private suspend fun playAlbum(pin: Pin.Album): PinPlayed = when (val run = albumRun(catalogue, pin.browseId)) {
+        is PinRun.Failed -> PinPlayed.Failed(run.why)
+        is PinRun.Tracks -> playRun(if (pin.shuffled) run.items.shuffled() else run.items, run.group)
     }
 
-    private suspend fun playPlaylist(pin: Pin.Playlist): PinPlayed =
-        when (val listed = playlists.videosIn(pin.browseId)) {
-            is PlaylistVideosResult.Success ->
-                listed.page.items
-                    .map { video ->
-                        video.toMediaItem(SourceId("ytplaylist:${pin.browseId}"))
-                            .let { if (pin.music) it.copy(contentKind = MediaContentKind.MUSIC) else it }
-                    }
-                    .mapNotNull { it.toPlayableOrNull() }
-                    .let { playRun(it, QueueGroup("playlist:${pin.browseId}", pin.title)) }
-            PlaylistVideosResult.SignedOut -> PinPlayed.Failed("signed out of YouTube")
-            is PlaylistVideosResult.Failure -> PinPlayed.Failed("playlist: ${listed.detail}")
-        }
+    private suspend fun playPlaylist(pin: Pin.Playlist): PinPlayed = when (val run = playlistRun(playlists, pin)) {
+        is PinRun.Failed -> PinPlayed.Failed(run.why)
+        is PinRun.Tracks -> playRun(run.items, run.group)
+    }
 
     private suspend fun playArtist(pin: Pin.Artist): PinPlayed {
         val seed = pin.browseId?.let { id -> (catalogue.artist(id) as? MusicResult.Success)?.value?.radio }
@@ -128,7 +115,15 @@ class PinPlayer(
     }
 
     private suspend fun start(playable: PlayableItem, showsPicture: Boolean): PinPlayed =
-        if (queue.playNow(playable)) PinPlayed.Started(showsPicture) else PinPlayed.Failed("it would not play")
+        if (queue.playNow(
+                playable,
+                quiet = true
+            )
+        ) {
+            PinPlayed.Started(showsPicture)
+        } else {
+            PinPlayed.Failed("it would not play")
+        }
 
     private fun started(ok: Boolean, why: String): PinPlayed = if (ok) {
         PinPlayed.Started(
@@ -157,3 +152,32 @@ private suspend fun replayShuffleAll(shuffler: ShuffleAll?, pin: Pin.ShuffleAllO
         ShuffleOutcome.AlreadyLoading -> PinPlayed.Failed("already shuffling it")
     }
 }
+
+sealed interface PinRun {
+    data class Tracks(val items: List<PlayableItem>, val group: QueueGroup) : PinRun
+    data class Failed(val why: String) : PinRun
+}
+
+internal suspend fun albumRun(catalogue: YouTubeMusicCatalogue, browseId: String): PinRun =
+    when (val album = catalogue.album(browseId)) {
+        is MusicResult.Failure -> PinRun.Failed("album: ${album.detail}")
+        is MusicResult.Success -> PinRun.Tracks(
+            album.value.tracks.map { it.toPlayable(MusicSources.album(browseId)) },
+            QueueGroup("album:$browseId", album.value.title),
+        )
+    }
+
+internal suspend fun playlistRun(playlists: YouTubePlaylists, pin: Pin.Playlist): PinRun =
+    when (val listed = playlists.videosIn(pin.browseId)) {
+        is PlaylistVideosResult.Success -> PinRun.Tracks(
+            listed.page.items
+                .map { video ->
+                    video.toMediaItem(SourceId("ytplaylist:${pin.browseId}"))
+                        .let { if (pin.music) it.copy(contentKind = MediaContentKind.MUSIC) else it }
+                }
+                .mapNotNull { it.toPlayableOrNull() },
+            QueueGroup("playlist:${pin.browseId}", pin.title),
+        )
+        PlaylistVideosResult.SignedOut -> PinRun.Failed("signed out of YouTube")
+        is PlaylistVideosResult.Failure -> PinRun.Failed("playlist: ${listed.detail}")
+    }

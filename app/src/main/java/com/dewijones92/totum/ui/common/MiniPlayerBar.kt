@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.queue.Starting
 
 /**
  * Persistent now-playing bar shown above the bottom navigation whenever
@@ -49,6 +51,7 @@ fun MiniPlayerBar(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
     onSkipNext: (() -> Unit)? = null,
+    starting: Starting? = null,
 ) {
     val buffering = stringResource(R.string.buffering)
     Surface(
@@ -66,13 +69,13 @@ fun MiniPlayerBar(
                 // gives no sense of what is playing. The pillar glyph rides on the corner
                 // rather than taking a slot of its own.
                 ArtworkWithPillarBadge(state)
-                NowPlayingText(state, modifier = Modifier.weight(1f))
+                NowPlayingText(state, starting, modifier = Modifier.weight(1f))
                 SwitchListeningButton("mini player")
                 if (onSkipNext != null) SkipPreviousButton()
                 // The bar is where you spend most of the time, and it was the one
                 // surface that showed nothing while stalled — so a stall here was
                 // indistinguishable from the app simply having stopped.
-                PlayPauseOrBuffering(state, onTogglePlayPause, buffering)
+                PlayPauseOrBuffering(state, starting != null, onTogglePlayPause, buffering)
                 // Skip-next belongs here now the queue is the spine: reaching the next item
                 // otherwise means opening the full player to press one button.
                 onSkipNext?.let { skip ->
@@ -100,8 +103,13 @@ fun MiniPlayerBar(
 }
 
 @Composable
-private fun PlayPauseOrBuffering(state: PlaybackState, onTogglePlayPause: () -> Unit, buffering: String) {
-    if (state.isBuffering) {
+private fun PlayPauseOrBuffering(
+    state: PlaybackState,
+    starting: Boolean,
+    onTogglePlayPause: () -> Unit,
+    buffering: String,
+) {
+    if (state.isBuffering || starting) {
         CircularProgressIndicator(
             strokeWidth = 2.dp,
             modifier = Modifier
@@ -165,12 +173,21 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
 }
 
 @Composable
-private fun NowPlayingText(state: PlaybackState, modifier: Modifier = Modifier) {
+private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: Modifier = Modifier) {
     Column(modifier = modifier.padding(start = 12.dp)) {
         Text(
-            text = state.title,
+            text = starting?.title ?: state.title,
             style = MaterialTheme.typography.titleSmall,
         )
+        if (starting != null) {
+            Text(
+                text = stringResource(R.string.starting_play),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag(STARTING_TAG),
+            )
+            return@Column
+        }
         state.artist?.let { artist ->
             Text(
                 text = artist,
@@ -181,6 +198,7 @@ private fun NowPlayingText(state: PlaybackState, modifier: Modifier = Modifier) 
     }
 }
 
+const val STARTING_TAG = "mini-player-starting"
 private val ARTWORK = 48.dp
 private val PILLAR_BADGE = 18.dp
 private val BADGE_INSET = 3.dp

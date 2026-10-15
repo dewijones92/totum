@@ -125,7 +125,8 @@ private fun LazyListScope.playlistSection(
     if (playlists.isEmpty()) return
     item { MusicSectionTitle("${FactEmoji.SONG} " + stringResource(R.string.music_library_playlists)) }
     capped("playlists", playlists, expanded) { playlist ->
-        PlaylistRow(playlist.title, playlist.videoCountText, playlist.thumbnailUrl, onOpen = {
+        val id = playlist.browseId
+        PlaylistRow(playlist.title, playlist.videoCountText, playlist.thumbnailUrl, browseId = id, onOpen = {
             Diag.log("music", "home -> playlist ${playlist.browseId} \"${playlist.title}\"")
             onOpen(playlist)
         })

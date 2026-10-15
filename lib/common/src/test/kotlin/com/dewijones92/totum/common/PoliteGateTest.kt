@@ -120,6 +120,42 @@ class PoliteGateTest {
     }
 
     @Test
+    fun `a tap waiting for a slot goes ahead of background calls that queued first`() = runTest {
+        val gate = PoliteGate(maxInFlight = 1, perSecond = 1000.0, burst = 1000, now = { testScheduler.currentTime })
+        val order = mutableListOf<String>()
+        val holder = launch { gate.passing("holder") { kotlinx.coroutines.delay(1_000) } }
+        advanceTimeBy(10)
+        val background = launch { gate.passing("prefetch") { order += "prefetch" } }
+        advanceTimeBy(10)
+        val tap = launch(PoliteGate.interactive()) { gate.passing("play") { order += "play" } }
+        advanceTimeBy(5_000)
+
+        holder.join()
+        background.join()
+        tap.join()
+        assertEquals(listOf("play", "prefetch"), order)
+    }
+
+    @Test
+    fun `blocking callers get their slots in the order they arrived`() {
+        val gate = PoliteGate(maxInFlight = 1, perSecond = 10_000.0, burst = 10_000)
+        val pool = Executors.newFixedThreadPool(9)
+        val release = CountDownLatch(1)
+        val order = java.util.Collections.synchronizedList(mutableListOf<Int>())
+        pool.submit { gate.pass("holder") { release.await() } }
+        Thread.sleep(50)
+        val waiters = (1..8).map { n ->
+            pool.submit {
+                gate.pass("call $n") { order += n }
+            }.also { Thread.sleep(40) }
+        }
+        release.countDown()
+        waiters.forEach { it.get(10, TimeUnit.SECONDS) }
+        pool.shutdown()
+        assertEquals((1..8).toList(), order)
+    }
+
+    @Test
     fun `a call cancelled while it waits gives its slot back`() = runTest {
         val gate = PoliteGate(maxInFlight = 1, perSecond = 0.001, burst = 1, now = { testScheduler.currentTime })
         gate.passing("drains the bucket") {}

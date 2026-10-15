@@ -32,7 +32,11 @@ class RandomStarts(
 
     private val pending = ConcurrentHashMap(load())
 
-    fun assign(items: List<MediaItem>, why: String, atRandom: Boolean) {
+    fun assign(items: List<MediaItem>, why: String, atRandom: Boolean?) {
+        if (atRandom == null) {
+            Diag.log("shuffle", "starts for $why: not asked, so ${items.size} item(s) resume as usual")
+            return
+        }
         if (!atRandom) {
             items.forEach { pending[it.id] = 0L }
             Diag.log("shuffle", "starts from the top for $why: ${items.size} item(s) play from 0:00 once")

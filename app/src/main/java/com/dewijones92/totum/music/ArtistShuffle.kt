@@ -59,7 +59,7 @@ class ArtistShuffle(
     private val random: Random = Random.Default,
     private val randomStarts: RandomStarts? = null,
 ) {
-    suspend fun shuffleAll(target: ArtistSongs, onProgress: (Int) -> Unit = {}, startAtRandom: Boolean = false): Int {
+    suspend fun shuffleAll(target: ArtistSongs, onProgress: (Int) -> Unit = {}, startAtRandom: Boolean? = null): Int {
         val started = TimeSource.Monotonic.markNow()
         Diag.log(TAG, "shuffle all songs of \"${target.artist}\" from ${target.listing.browseId}")
         val walk = walkAllSongs({ after -> catalogue.songs(target.listing, after) }, onProgress)

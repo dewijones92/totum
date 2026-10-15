@@ -48,4 +48,14 @@ class RecentActionsTest {
         )
         assertEquals(listOf("radio:RD1", "radio:RD2"), appIconShortcuts(pins + radio(1), recent, 2).map { it.key })
     }
+
+    @Test
+    fun `forgetting an action takes it out of Recently and keeps the rest in order`() {
+        val recent = RecentActions()
+        (1..3).forEach { recent.record(radio(it), from = "test") }
+
+        recent.forget("radio:RD2", from = "test")
+
+        assertEquals(listOf("radio:RD3", "radio:RD1"), recent.recent.value.map { it.key })
+    }
 }

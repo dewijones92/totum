@@ -63,20 +63,23 @@ fun HoldToConfirmButton(
                 .pointerInput(holdMs) {
                     awaitEachGesture {
                         awaitFirstDown()
-                        var done = false
-                        val hold: Job = scope.launch {
+                        val fill: Job = scope.launch {
                             progress.snapTo(0f)
                             progress.animateTo(1f, tween(holdMs, easing = LinearEasing))
-                            done = true
-                            Diag.log("confirm", "\"$label\" held for ${holdMs}ms; confirmed")
-                            onConfirmed()
                         }
-                        waitForUpOrCancellation()
-                        if (!done) {
-                            hold.cancel()
+                        val releasedEarly = withTimeoutOrNull(holdMs.toLong()) {
+                            waitForUpOrCancellation()
+                            true
+                        } ?: false
+                        fill.cancel()
+                        if (releasedEarly) {
                             scope.launch { progress.snapTo(0f) }
                             showHint = true
                             Diag.log("confirm", "\"$label\" released before ${holdMs}ms; not confirmed")
+                        } else {
+                            scope.launch { progress.snapTo(1f) }
+                            Diag.log("confirm", "\"$label\" held for ${holdMs}ms; confirmed")
+                            onConfirmed()
                         }
                     }
                 }
