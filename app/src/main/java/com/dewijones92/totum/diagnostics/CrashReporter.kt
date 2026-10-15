@@ -75,14 +75,17 @@ public class CrashReporter(
     }
 
     /** Writes a report with no error at all — "something felt wrong", from Settings. */
-    public fun reportDiagnostics(note: String? = null): File? =
-        runCatching { writeReport(kind = "diagnostics", error = null, note = note) }.getOrNull()
+    public fun reportDiagnostics(note: String? = null, screenshots: List<EncodedScreenshot> = emptyList()): File? =
+        runCatching {
+            writeReport(kind = "diagnostics", error = null, note = note, screenshots = screenshots)
+        }.getOrNull()
 
     private fun writeReport(
         kind: String,
         error: Throwable?,
         thread: String? = null,
         note: String? = null,
+        screenshots: List<EncodedScreenshot> = emptyList(),
     ): File {
         val report = JSONObject().apply {
             put("kind", kind)
@@ -93,6 +96,7 @@ public class CrashReporter(
             put("buildType", BuildConfig.BUILD_TYPE)
             put("installId", InstallId.get(context))
             note?.let { put("note", it) }
+            if (screenshots.isNotEmpty()) put("screenshots", screenshots.toJson())
             thread?.let { put("thread", it) }
 
             error?.let {
@@ -235,5 +239,19 @@ public class CrashReporter(
 
         const val LOGCAT_LINES = 1500
         const val MAX_LOGCAT_CHARS = 400_000
+    }
+}
+
+private fun List<EncodedScreenshot>.toJson(): JSONArray = JSONArray().also { array ->
+    forEach { shot ->
+        array.put(
+            JSONObject()
+                .put("name", shot.name)
+                .put("mime", "image/jpeg")
+                .put("width", shot.width)
+                .put("height", shot.height)
+                .put("bytes", shot.jpegBytes)
+                .put("base64", shot.base64),
+        )
     }
 }

@@ -257,7 +257,10 @@ class FakeAppContainer(
 
     override fun installCrashReporting() = Unit
 
-    override fun sendDiagnostics(note: String) = Unit
+    override fun sendDiagnostics(
+        note: String,
+        screenshots: List<com.dewijones92.totum.diagnostics.EncodedScreenshot>,
+    ) = Unit
 
     override fun startWatchHistorySync() = Unit
 

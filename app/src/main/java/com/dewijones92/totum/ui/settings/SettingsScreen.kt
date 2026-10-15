@@ -38,6 +38,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.dailyalarms.DailyAlarmsScreen
 import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
 import com.dewijones92.totum.diagnostics.diagnosticsNote
 import com.dewijones92.totum.settings.AppPreferences
@@ -256,7 +257,7 @@ private fun DiagnosticsRow(container: AppContainer) {
     if (asking) {
         DiagnosticsNoteDialog(
             onDismiss = { asking = false },
-            onSend = { typed ->
+            onSend = { typed, screenshots ->
                 // The label says SAVED, not sent, and that is the whole point: this line runs
                 // before the upload coroutine has even started, so "Diagnostics sent" was a
                 // claim the app could not possibly have checked — and offline, or on a 5xx, it
@@ -264,7 +265,7 @@ private fun DiagnosticsRow(container: AppContainer) {
                 // report is written to disk, and every launch retries it until the sink accepts
                 // it. Dewi has to be able to believe this row; it is the one he uses to tell us
                 // something is wrong.
-                container.sendDiagnostics(diagnosticsNote(typed, fallback))
+                container.sendDiagnostics(diagnosticsNote(typed, fallback), screenshots)
                 asking = false
                 sent = true
             },
@@ -303,8 +304,9 @@ private fun DiagnosticsRow(container: AppContainer) {
  * See [diagnosticsNote].
  */
 @Composable
-private fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String) -> Unit) {
+private fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String, List<EncodedScreenshot>) -> Unit) {
     var typed by rememberSaveable { mutableStateOf("") }
+    val shots = rememberScreenshotPicker()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_diagnostics_note_title)) },
@@ -326,10 +328,11 @@ private fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String) -> Uni
                     minLines = 3,
                     maxLines = 6,
                 )
+                ScreenshotPickerRow(shots)
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSend(typed) }) {
+            TextButton(enabled = !shots.preparing, onClick = { onSend(typed, shots.ready) }) {
                 Text(stringResource(R.string.settings_diagnostics_send))
             }
         },

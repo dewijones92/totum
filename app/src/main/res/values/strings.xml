@@ -615,6 +615,16 @@
         <item quantity="other">✂️ %d pauses cut</item>
     </plurals>
     <string name="out_of_date_title">Totum is out of date</string>
+    <string name="settings_diagnostics_add_screenshots">📎 Add screenshots</string>
+    <string name="settings_diagnostics_screenshots_preparing">⏳ Preparing screenshots…</string>
+    <plurals name="settings_diagnostics_screenshots_ready">
+        <item quantity="one">📎 %d screenshot attached</item>
+        <item quantity="other">📎 %d screenshots attached</item>
+    </plurals>
+    <plurals name="settings_diagnostics_screenshots_partly">
+        <item quantity="one">⚠️ %1$d screenshot attached, %2$d could not be read</item>
+        <item quantity="other">⚠️ %1$d screenshots attached, %2$d could not be read</item>
+    </plurals>
     <string name="polite_slow_down_title">🐢 YouTube says slow down</string>
     <string name="polite_slow_down_detail">Every YouTube call waits until %1$s (%2$s)</string>
     <string name="polite_bot_title">🤖 YouTube bot check</string>

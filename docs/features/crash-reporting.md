@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-09-20
+updated: 2026-10-15
 ---
 
 # Crash reporting
@@ -70,6 +70,19 @@ run at all — see "What is NOT sent" below.
 **One security exception, which is not a privacy preference:** the YouTube OAuth tokens
 are never read into a report. A token in a transmitted log is an account-takeover risk
 rather than a disclosure of viewing habits. Trivial to include if ever wanted.
+
+## Screenshots (2026-10-15)
+
+Dewi asked to attach screenshots, several, when sending diagnostics. The note dialog has **📎 Add screenshots**,
+which opens Android's photo picker (no permission needed, up to 6 images). Each picked image is encoded straight
+away (longest side 1600 px, JPEG quality 80, or 60 if still over 450 KB), so Send still writes the report at
+once. The screenshots go into the report JSON as `screenshots`: name, mime, width, height, bytes, base64. That
+keeps a report well under the 8 MB that nginx and the server allow; a phone screenshot came out at 34–57 KB.
+The server stores the body as-is. To look at them:
+`python3 tools/crashlog-server/screenshots.py <report.json> <out-dir>`.
+
+Verified on `totum-api35` through the real picker: two images attached, uploaded (202), extracted from the
+server's copy and readable. Tests: `ScreenshotSizingTest`.
 
 ## Reading them
 

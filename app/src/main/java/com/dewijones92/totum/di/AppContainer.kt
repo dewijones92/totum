@@ -78,6 +78,7 @@ import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
+import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.DownloadState
@@ -331,7 +332,7 @@ interface AppContainer {
      * Captures the app's current state and event trail and sends it, with no crash
      * involved — for "this behaved wrongly", which is how most bugs actually present.
      */
-    fun sendDiagnostics(note: String)
+    fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
 
     /** User-curated local playlists, mixing podcasts and videos. */
     val localPlaylistStore: LocalPlaylistStore
@@ -987,8 +988,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private fun diagnosticState(): Map<String, String> = diagnosticSnapshot.capture()
 
-    override fun sendDiagnostics(note: String) {
-        crashReporter.reportDiagnostics(note)
+    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) {
+        crashReporter.reportDiagnostics(note, screenshots)
         // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
         // suppression does not apply — an emulator is where this app gets debugged, and a button
         // that silently did nothing while the UI said so would be worse than the noise it avoided.
