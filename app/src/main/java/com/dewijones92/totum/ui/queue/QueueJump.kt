@@ -39,10 +39,19 @@ internal fun estimatedListIndex(entries: List<QueueEntry>, target: Int, collapse
     return items
 }
 
+private fun LazyListState.isFullyShown(key: Any): Boolean {
+    val item = layoutInfo.visibleItemsInfo.firstOrNull { it.key == key } ?: return false
+    return item.offset >= layoutInfo.viewportStartOffset && item.offset + item.size <= layoutInfo.viewportEndOffset
+}
+
 internal fun toggledAll(groups: Set<String>, collapsed: Set<String>): Set<String> =
     if (groups.all { it in collapsed }) collapsed - groups else collapsed + groups
 
-internal suspend fun LazyListState.jumpTo(estimate: Int, key: Any, why: String) {
+internal suspend fun LazyListState.jumpTo(estimate: Int, key: Any, why: String, onlyIfHidden: Boolean = false) {
+    if (onlyIfHidden && isFullyShown(key)) {
+        Diag.log("queue", "the playing item is already on screen ($why); not scrolling")
+        return
+    }
     scrollToItem(estimate.coerceAtLeast(0))
     val exact = layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
     if (exact != null) scrollToItem(exact)
@@ -62,7 +71,7 @@ internal fun rememberJumpToPlaying(
 ): () -> Unit {
     val scope = rememberCoroutineScope()
     val latest by rememberUpdatedState(Triple(snapshot.entries, snapshot.currentIndex, collapsed))
-    fun go(why: String) {
+    fun go(why: String, onlyIfHidden: Boolean) {
         val (now, at, hidden) = latest
         val entry = now.getOrNull(at) ?: return
         val shown = entry.group?.id?.takeIf { it in hidden }?.let { hidden - it } ?: hidden
@@ -72,14 +81,14 @@ internal fun rememberJumpToPlaying(
         }
         scope.launch {
             withFrameNanos { }
-            listState.jumpTo(estimatedListIndex(now, at, shown), entry.item.item.id.value, why)
+            listState.jumpTo(estimatedListIndex(now, at, shown), entry.item.item.id.value, why, onlyIfHidden)
         }
     }
     LaunchedEffect(Unit) {
         snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
-        go("the queue opened")
+        go("the queue opened", onlyIfHidden = true)
     }
-    return remember { { go("the jump button") } }
+    return remember { { go("the jump button", onlyIfHidden = false) } }
 }
 
 @Composable
