@@ -224,6 +224,32 @@ class QueueAutoDownloaderTest {
      * and took 14% of a 387-event report (0.1.229) saying nothing new.
      */
     @Test
+    fun `a big held-back group is one summary line, not a line per item`() = runTest(dispatcher) {
+        val lines = mutableListOf<String>()
+        val previous = Diag.sink
+        Diag.sink = Diag.Sink { _, _, message, _ -> if ("not fetching" in message) lines += message }
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { true },
+            groupAllows = { false },
+        ).start()
+        val peep = QueueGroup("shuffle:peep", "Peep Show")
+
+        queue.value = QueueSnapshot((1..300).map { entry("p$it").copy(group = peep) })
+        advanceUntilIdle()
+        val more = (1..300).map { entry("p$it").copy(group = peep) } + entry("extra").copy(group = peep)
+        queue.value = QueueSnapshot(more)
+        advanceUntilIdle()
+
+        Diag.sink = previous
+        assertEquals(2, lines.size)
+        assertTrue(lines.first().contains("300 item(s)") && lines.first().contains("\"Peep Show\" 300"))
+    }
+
+    @Test
     fun `a permanent failure is explained once, however many passes it survives`() = runTest(dispatcher) {
         val lines = mutableListOf<String>()
         val previous = Diag.sink

@@ -154,4 +154,39 @@ class NewUploadsTest {
         assertEquals(listOf(Triple("shuffle:peep", listOf("fresh"), GroupSpot.NEXT)), added)
         assertTrue("shuffle:peep" in saved.groups)
     }
+
+    @Test
+    fun `a podcast feed longer than any cap never offers its back catalogue as new`() = runTest {
+        inbox = listOf(other)
+        latest[other.id] = (1..6_000L).map { video("e$it", it, source = other) }
+
+        uploads.check("first")
+        uploads.check("second")
+
+        assertTrue(added.isEmpty())
+    }
+
+    @Test
+    fun `uploads a shuffled group already delivered are not offered to the inbox once the group leaves`() = runTest {
+        inbox = listOf(peep)
+        latest[peep.id] = listOf(video("u0", 1))
+        uploads.check("inbox's first look")
+        uploads.remember("shuffle:peep", shuffle, listOf(video("u0", 1)))
+        latest[peep.id] = listOf(video("u0", 1), video("u1", 10))
+        uploads.check("while grouped")
+        assertEquals(listOf("u1"), added.single().second)
+        groupsInQueue.clear()
+        added.clear()
+
+        uploads.check("after the group left")
+
+        assertTrue(added.isEmpty())
+    }
+
+    @Test
+    fun `pulling a group nobody is watching says so`() = runTest {
+        val report = uploads.check("manual", onlyGroup = "shuffle:peep")
+
+        assertEquals(listOf("shuffle:peep"), report.unwatched)
+    }
 }

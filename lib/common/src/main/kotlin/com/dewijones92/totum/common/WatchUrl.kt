@@ -21,6 +21,8 @@ public fun HttpUrl.youTubeVideoId(): String? {
     val id = when {
         "youtu.be/" in raw -> raw.substringAfter("youtu.be/")
         "/shorts/" in raw -> raw.substringAfter("/shorts/")
+        "youtube.com/live/" in raw -> raw.substringAfter("youtube.com/live/")
+        "youtube.com/embed/" in raw -> raw.substringAfter("youtube.com/embed/")
         "/watch?" in raw -> raw.substringAfter("/watch?").split('&')
             .firstOrNull { it.startsWith("v=") }?.removePrefix("v=") ?: return null
         else -> return null

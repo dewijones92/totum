@@ -38,6 +38,8 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     private var samplesPerReport = 0L
     private var samplesBeforeFirstReport = 0L
     private var rebuildOnFlush = false
+
+    @Volatile
     private var tail: SilentRun? = null
 
     val silentForMs: Long get() = tail?.silentForMs ?: 0

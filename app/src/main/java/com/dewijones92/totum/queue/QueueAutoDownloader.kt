@@ -128,6 +128,7 @@ class QueueAutoDownloader(
         ordered.forEach { waiting.trySend(it) }
         waiting.close()
         val started = AtomicInteger()
+        heldThisPass.clear()
         // Announced only when there is something outstanding AND the picture has changed since the
         // last announcement. The queue emits on every edit and every advance, often twice for one
         // action -- three links shared in a row produced six of these -- and in the steady state,
@@ -158,7 +159,19 @@ class QueueAutoDownloader(
         if (started.get() > 0) {
             Diag.log("download", "pass done: asked for ${started.get()} of ${ordered.size} queued item(s)")
         }
+        val held = heldThisPass.entries.sortedByDescending { it.value }.joinToString { "\"${it.key}\" ${it.value}" }
+        if (held.isNotEmpty() && held != lastHeld) {
+            lastHeld = held
+            Diag.log(
+                "download",
+                "not fetching ${heldThisPass.values.sum()} item(s) in groups not downloaded automatically " +
+                    "until you say yes: $held",
+            )
+        }
     }
+
+    private val heldThisPass = ConcurrentHashMap<String, Int>()
+    private var lastHeld: String? = null
 
     /** What the last announced pass looked like, so back-to-back identical passes say it once. */
     private var lastAnnounced: Pair<Int, Int>? = null
@@ -206,7 +219,10 @@ class QueueAutoDownloader(
                 // members-only videos repeated their reason on every pass and took 14% of a
                 // 387-event report (0.1.229) saying nothing new — and the report buffer is
                 // bounded, so noise like that is evidence thrown away.
-                if (skip.isNotEmpty() && explained.add(item.id)) {
+                val heldGroup = entry.group?.takeIf { !groupAllows(it.id) }
+                if (heldGroup != null) {
+                    heldThisPass.merge(heldGroup.title, 1, Int::plus)
+                } else if (skip.isNotEmpty() && explained.add(item.id)) {
                     Diag.log("download", "not fetching \"${item.title}\": $skip")
                 }
                 return

@@ -161,7 +161,7 @@ class MainActivity : FragmentActivity() {
         if (handlePinIntent(intent, via, restored)) return
         val album = sharedAlbumPlaylistId(intent.sharedText())
         val url = intent.sharedWatchUrl()
-        if (url == null && album == null) return
+        if (url == null && album == null) return logUnplayableShare(intent.action, intent.sharedText(), via)
         val arrival = intent.arrival(restored)
         val facts = "${arrival.why}; via=$via flags=0x${Integer.toHexString(intent.flags)} restored=$restored"
         if (arrival != ShareArrival.FRESH) {

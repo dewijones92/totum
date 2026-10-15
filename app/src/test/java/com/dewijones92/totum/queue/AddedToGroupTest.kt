@@ -71,4 +71,24 @@ class AddedToGroupTest {
         assertEquals(listOf("a", "n1", "n2"), after.ids())
         assertEquals(inbox, after.entries.last().group)
     }
+
+    @Test
+    fun `a group already played through gets its new upload next, not behind the cursor`() {
+        val before = snapshot(3, "p1" to peep, "p2" to peep, "a" to null, "b" to null)
+
+        val after = before.addedTo(peep, listOf(item("new")), GroupSpot.NEXT)
+
+        assertEquals(listOf("p1", "p2", "a", "b", "new"), after.ids())
+        assertEquals(3, after.currentIndex)
+    }
+
+    @Test
+    fun `when another group split this one around what is playing, the upload goes to this group's next run`() {
+        val other = QueueGroup("shuffle:other", "Other")
+        val before = snapshot(2, "p1" to peep, "p2" to peep, "x" to other, "y" to other, "p3" to peep)
+
+        val after = before.addedTo(peep, listOf(item("new")), GroupSpot.NEXT)
+
+        assertEquals(listOf("p1", "p2", "x", "y", "new", "p3"), after.ids())
+    }
 }

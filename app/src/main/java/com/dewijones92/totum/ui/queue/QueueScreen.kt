@@ -620,6 +620,7 @@ private suspend fun pulled(context: Context, container: AppContainer, groupId: S
     val report = container.newUploads.check("the group's menu", onlyGroup = groupId)
     return when {
         report.added > 0 -> resources.getQuantityString(R.plurals.queue_pulled_new, report.added, report.added)
+        report.unwatched.isNotEmpty() -> resources.getString(R.string.queue_pull_unwatched)
         report.failed.isNotEmpty() -> resources.getString(R.string.queue_pull_failed, report.failed.joinToString())
         else -> resources.getString(R.string.queue_pull_nothing)
     }

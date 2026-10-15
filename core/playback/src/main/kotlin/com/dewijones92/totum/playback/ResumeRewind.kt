@@ -2,6 +2,9 @@ package com.dewijones92.totum.playback
 
 import androidx.media3.common.Player
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.MediaContentKind
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.SourceSkips
 import kotlin.math.abs
 
 internal fun rewindAfterPauseMs(pausedMs: Long): Long = when {
@@ -41,6 +44,30 @@ internal fun startFor(saved: SavedPlace, nowEpochMs: Long, facts: ResumeFacts, i
     }
     if (introEndMs == null || resumed.positionMs >= introEndMs) return resumed
     return StartChoice(introEndMs, "${resumed.why}; then past the show's intro to ${introEndMs}ms")
+}
+
+@Suppress("LongParameterList")
+internal suspend fun startChoiceFor(
+    item: MediaItem,
+    tuned: ItemTuning,
+    progress: PlaybackProgressStore,
+    rewindOn: Boolean,
+    skips: SourceSkips?,
+    nowEpochMs: Long,
+): StartChoice {
+    val saved = progress.resumePositionMs(item.id)
+    val place = SavedPlace(saved, saved?.let { progress.lastSavedAtEpochMs(item.id) })
+    val facts = ResumeFacts(
+        talk = tuned.keepsChanges,
+        live = item.contentKind == MediaContentKind.LIVE,
+        enabled = rewindOn
+    )
+    val length = item.duration?.inWholeMilliseconds
+    val intro = length?.let { skips?.introStartFor(it) }
+    if (skips?.introEndMs != null && length == null) {
+        Diag.log("playback", "${item.id.value}: its length is not known yet, so the intro is skipped by the ticker")
+    }
+    return startFor(place, nowEpochMs, facts, intro)
 }
 
 internal data class PlayerMoment(

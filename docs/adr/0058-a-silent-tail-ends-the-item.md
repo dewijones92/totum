@@ -38,4 +38,6 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
 - Credits with music over them are not caught here; SponsorBlock's end cards and the per-show outro (ADR 57) are.
 - Logs: `<id> is in its last Nms: listening for a silent tail`, `<id> went silent for Nms at …: ending it`, and the
   per-item switch; reports carry `settings.silentTailEnds`.
-- Tests: `SilentTailTest`, `MusicPlaysPlainTest`, `OneTimeDefaultsTest`, `PreferenceBackupTest`.
+- The watch acts once per item, and again only if the item leaves the tail and comes back (a seek back).
+- Tests: `SilentTailTest`, `MusicPlaysPlainTest`, `OneTimeDefaultsTest`, `PreferenceBackupTest`. Not yet seen on a
+  device: a real silent tail ending an item (the seek to the end is the same one an outro skip uses).

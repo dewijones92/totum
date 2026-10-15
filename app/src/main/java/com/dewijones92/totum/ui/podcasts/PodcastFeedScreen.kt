@@ -147,7 +147,7 @@ fun PodcastFeedScreen(
                 actions = {
                     FilterToggle(listFilter, episodes.size)
                     PinToggle(Pin.of(page.source))
-                    InboxToggle(source.id)
+                    InboxToggle(page.source, page.subscribed)
                     ShuffleAllAction(
                         container.shuffleAll,
                         container.applicationScope,

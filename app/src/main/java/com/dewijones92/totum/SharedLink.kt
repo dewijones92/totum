@@ -1,5 +1,7 @@
 package com.dewijones92.totum
 
+import android.content.Intent
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.canonicalWatchUrl
 import com.dewijones92.totum.common.youTubeVideoId
@@ -16,13 +18,26 @@ import com.dewijones92.totum.domain.placeholderTitleFor
  * queue dedupes on — so a share sheet's `?si=` tracking parameter would make it a DIFFERENT video
  * from the same one already queued. Whether it should play at all is [shareArrival]'s question.
  */
-internal fun sharedWatchUrl(rawText: String?): HttpUrl? {
-    val raw = rawText ?: return null
-    val match = URL_PATTERN.find(raw)?.value ?: return null
-    val url = HttpUrl.parse(match) ?: return null
-    return url.takeIf { candidate -> WATCH_MARKERS.any { it in candidate.value } }
-        ?.canonicalWatchUrl()
+internal fun sharedWatchUrl(rawText: String?): HttpUrl? =
+    linksIn(rawText).firstOrNull { it.youTubeVideoId() != null }?.canonicalWatchUrl()
+
+internal fun whyNotPlayable(rawText: String?): String {
+    val links = linksIn(rawText)
+    if (links.isEmpty()) return "no link in the shared text"
+    val shapes = links.joinToString { url -> url.value.substringAfter("://").substringBefore('?').removePrefix("www.") }
+    return "${links.size} link(s), none a YouTube video: $shapes"
 }
+
+internal fun logUnplayableShare(action: String?, text: String?, via: String) {
+    if (action != Intent.ACTION_SEND && action != Intent.ACTION_VIEW) return
+    Diag.warn(
+        "share",
+        "a ${action.substringAfterLast('.')} reached the app via $via but nothing plays: ${whyNotPlayable(text)}",
+    )
+}
+
+private fun linksIn(rawText: String?): List<HttpUrl> =
+    URL_PATTERN.findAll(rawText.orEmpty()).mapNotNull { HttpUrl.parse(it.value) }.toList()
 
 internal fun sharedAlbumPlaylistId(rawText: String?): String? {
     val url = URL_PATTERN.find(rawText ?: return null)?.value ?: return null
@@ -34,8 +49,6 @@ private val ALBUM_LIST = Regex("""[?&]list=(OLAK5uy_[A-Za-z0-9_-]+)""")
 
 /** A share is usually a sentence with a link in it, not a bare URL. */
 private val URL_PATTERN = Regex("""https?://\S+""")
-
-private val WATCH_MARKERS = listOf("youtube.com/watch", "youtu.be/", "youtube.com/shorts/")
 
 /**
  * A queue entry for a shared link that could not be resolved — so the link is not lost.

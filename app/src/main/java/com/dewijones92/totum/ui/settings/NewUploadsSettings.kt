@@ -21,7 +21,9 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.uploads.inboxKeyOf
 
 @Composable
 internal fun NewUploadsSettings(container: AppContainer, settings: AppPreferences.Settings) {
@@ -63,8 +65,12 @@ private fun InboxSourcesSheet(container: AppContainer, settings: AppPreferences.
                                 R.string.settings_inbox_channel
                             },
                         ),
-                        checked = source.id.value in settings.inboxSources,
-                        onCheckedChange = { container.appPreferences.setInboxSource(source.id, it) },
+                        checked = inboxKeyOf(source) in settings.inboxSources ||
+                            source.id.value in settings.inboxSources,
+                        onCheckedChange = { on ->
+                            container.appPreferences.setInboxSource(SourceId(inboxKeyOf(source)), on)
+                            if (!on) container.appPreferences.setInboxSource(source.id, false)
+                        },
                     )
                 }
             }

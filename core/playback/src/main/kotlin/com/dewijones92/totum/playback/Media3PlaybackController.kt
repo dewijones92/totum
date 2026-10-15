@@ -25,7 +25,6 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.domain.Listening
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -322,17 +321,15 @@ public class Media3PlaybackController(
         }
     }
 
-    private suspend fun startChoiceFor(item: MediaItem, tuned: ItemTuning): StartChoice {
-        val saved = progressStore.resumePositionMs(item.id)
-        val place = SavedPlace(saved, saved?.let { progressStore.lastSavedAtEpochMs(item.id) })
-        val facts = ResumeFacts(
-            talk = tuned.keepsChanges,
-            live = item.contentKind == MediaContentKind.LIVE,
-            enabled = rewindOnResume.value,
+    private suspend fun startChoiceFor(item: MediaItem, tuned: ItemTuning): StartChoice =
+        startChoiceFor(
+            item,
+            tuned,
+            progressStore,
+            rewindOnResume.value,
+            item.showKey()?.let { sourceSkips.value[it] },
+            wallClock(),
         )
-        val intro = item.showKey()?.let { sourceSkips.value[it] }?.introStartFor(item.duration?.inWholeMilliseconds)
-        return startFor(place, wallClock(), facts, intro)
-    }
 
     // Re-applied on EVERY item, and told to the service too: the rate the user chose
     // is a promise that has to survive the queue moving on (Dewi, 2026-08-09).

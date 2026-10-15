@@ -67,6 +67,7 @@ internal class SilentTailWatch(
 ) {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var noted: String? = null
+    private var acted: String? = null
 
     @Volatile
     var enabled: Boolean = false
@@ -95,7 +96,11 @@ internal class SilentTailWatch(
         val id = player.currentMediaItem?.mediaId ?: return
         val duration = player.duration.takeIf { it > 0 } ?: return
         val position = player.currentPosition
-        if (duration - position > tailWindowMs(duration)) return
+        if (duration - position > tailWindowMs(duration)) {
+            if (noted == id) noted = null
+            if (acted == id) acted = null
+            return
+        }
         if (noted != id) {
             noted = id
             com.dewijones92.totum.common.Diag.log(
@@ -105,7 +110,8 @@ internal class SilentTailWatch(
                     "a silent tail (silent for ${silentForMs()}ms now)",
             )
         }
-        if (!enabled || !endsOnSilentTail(position, duration, silentForMs())) return
+        if (!enabled || acted == id || !endsOnSilentTail(position, duration, silentForMs())) return
+        acted = id
         com.dewijones92.totum.common.Diag.log(
             "silence",
             "$id went silent for ${silentForMs()}ms at ${position}ms of ${duration}ms: " +

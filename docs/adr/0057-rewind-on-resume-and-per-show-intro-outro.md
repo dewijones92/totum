@@ -40,7 +40,9 @@ he sets once.
   ticker that skips SponsorBlock, so both pillars get it. An outro skip seeks to the end, so the item ends as usual.
   Set in the player's Details tab: Intro ends here / Outro starts here / Clear (not offered for music or live, and
   not at 0:00). A start that would land inside the intro begins at its end instead, so the player never fetches
-  the intro only to seek past it (and a gapless hand-over stays seamless).
+  the intro only to seek past it (and a gapless hand-over stays seamless). Only when the item's length is known: an
+  item with no length yet (a fresh RSS upload) starts at its saved place and the ticker skips the intro once the
+  player knows the real length, so a short item can never start past its own end.
 - The show is `MediaItem.showKey()`: a video's YouTube channel id (`yt:UC…`, from its stated channel, the same
   facts the follow mark uses), else its channel link; an episode's feed; else the channel or show name
   (`name:video:…`, `name:podcast:…`). Not the item's `sourceId`: that is often a placeholder for the list it came from (`ytrelated`,

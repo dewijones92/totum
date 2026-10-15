@@ -3,14 +3,20 @@ package com.dewijones92.totum.uploads
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.queue.GroupSpot
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -28,11 +34,17 @@ interface UploadsStore {
 }
 
 interface UploadsQueue {
+    suspend fun ready() {}
     fun groupIds(): Set<String>
     fun add(group: QueueGroup, items: List<PlayableItem>, spot: GroupSpot): Int
 }
 
-data class UploadsReport(val addedToGroups: Map<String, Int>, val addedToInbox: Int, val failed: List<String>) {
+data class UploadsReport(
+    val addedToGroups: Map<String, Int>,
+    val addedToInbox: Int,
+    val failed: List<String>,
+    val unwatched: List<String> = emptyList(),
+) {
     val added: Int get() = addedToGroups.values.sum() + addedToInbox
 }
 
@@ -52,15 +64,28 @@ class NewUploads(
         Diag.log(
             TAG,
             "watching \"${shuffle.title}\" ($groupId) for new uploads: " +
-                "${watched.seen.size} known, ${shuffle.sources.size} source(s)"
+                "${watched.seen.size} known, ${shuffle.sources.size} source(s)",
         )
     }
 
-    suspend fun check(why: String, onlyGroup: String? = null): UploadsReport = lock.withLock {
+    suspend fun check(why: String, onlyGroup: String? = null): UploadsReport {
+        queue.ready()
+        val plan = lock.withLock { plan(onlyGroup) }
+        val sources = (plan.groups.flatMap { g -> g.shuffle.sources.mapNotNull { it.toSource() } } + plan.inbox)
+            .distinctBy { it.id }
+        val fetched = fetchAll(sources)
+        val failed = sources.filter { fetched[it.id.value] == null }.map { it.title }
+        return lock.withLock { apply(why, plan, fetched, failed) }
+    }
+
+    private class Plan(val groups: List<WatchedGroup>, val inbox: List<MediaSource>, val unwatched: List<String>)
+
+    private suspend fun plan(onlyGroup: String?): Plan {
         val state = store.load()
         val inQueue = queue.groupIds()
-        val (kept, gone) = state.groups.entries.partition { it.key in inQueue }
-        gone.forEach { Diag.log(TAG, "\"${it.value.shuffle.title}\" left the queue; no longer watched") }
+        state.groups.values.filter { it.groupId !in inQueue }.forEach {
+            Diag.log(TAG, "\"${it.shuffle.title}\" left the queue; no longer watched")
+        }
         val adopted = inQueue.filter { it.startsWith(SHUFFLE_PREFIX) && it !in state.groups }.mapNotNull { id ->
             adopt(id).also { found ->
                 Diag.log(
@@ -73,32 +98,65 @@ class NewUploads(
                 )
             }
         }
-        val failed = mutableListOf<String>()
-        val addedToGroups = mutableMapOf<String, Int>()
-        val groups = (kept.map { it.key to it.value } + adopted.map { it.groupId to it }).associate { (id, group) ->
-            if (onlyGroup != null && id != onlyGroup) return@associate id to group
-            val (updated, added) = refreshGroup(group, failed)
-            addedToGroups[id] = added
-            id to updated
+        val watched = state.groups.values.filter { it.groupId in inQueue } + adopted
+        val groups = watched.filter { onlyGroup == null || it.groupId == onlyGroup }
+        val unwatched = listOfNotNull(onlyGroup?.takeIf { id -> watched.none { it.groupId == id } })
+        val covered = watched.flatMap { g -> g.shuffle.sources.map { it.id } }.toSet()
+        val inbox = if (onlyGroup != null) {
+            emptyList()
+        } else {
+            inboxSources().filter { source ->
+                (source.id.value !in covered).also { free ->
+                    if (!free) {
+                        Diag.log(
+                            TAG,
+                            "inbox: \"${source.title}\" has a shuffled group in the queue; its uploads go there"
+                        )
+                    }
+                }
+            }
         }
-        val covered = groups.values.flatMap { g -> g.shuffle.sources.map { it.id } }.toSet()
-        var inboxAdded = 0
+        return Plan(groups, inbox, unwatched)
+    }
+
+    private suspend fun fetchAll(sources: List<MediaSource>): Map<String, List<MediaItem>?> = coroutineScope {
+        val permits = Semaphore(IN_FLIGHT)
+        sources.map { source -> async { source.id.value to permits.withPermit { latest(source) } } }.awaitAll().toMap()
+    }
+
+    private suspend fun apply(
+        why: String,
+        plan: Plan,
+        fetched: Map<String, List<MediaItem>?>,
+        failed: List<String>,
+    ): UploadsReport {
+        val state = store.load()
         val inboxSeen = state.inboxSeen.toMutableMap()
-        if (onlyGroup == null) {
-            val sources = inboxSources().filter { it.id.value !in covered }
-            val fresh = mutableListOf<MediaItem>()
-            sources.forEach { source -> fresh += inboxNews(source, inboxSeen, failed) }
-            val playable = fresh.sortedByDescending { it.publishedAt }.mapNotNull { it.toPlayableOrNull() }
-            if (playable.isNotEmpty()) inboxAdded = queue.add(INBOX, playable, GroupSpot.END)
+        val addedToGroups = mutableMapOf<String, Int>()
+        val groups = state.groups.toMutableMap()
+        plan.groups.forEach { planned ->
+            val group = groups[planned.groupId] ?: planned
+            val (updated, added) = refreshGroup(group, fetched)
+            groups[group.groupId] = updated
+            addedToGroups[group.groupId] = added
+            group.shuffle.sources.forEach { source -> fetched[source.id]?.let { noteSeen(inboxSeen, source.id, it) } }
+        }
+        val fresh = plan.inbox.flatMap { source -> inboxNews(source, fetched[source.id.value], inboxSeen) }
+        val playable = fresh.sortedByDescending { it.publishedAt }.mapNotNull { it.toPlayableOrNull() }
+        val inboxAdded = if (playable.isEmpty()) 0 else queue.add(INBOX, playable, GroupSpot.END)
+        if (plan.inbox.isNotEmpty() || inboxAdded > 0) {
             Diag.log(
                 TAG,
-                "inbox: ${sources.size} source(s) checked, ${fresh.size} new, $inboxAdded added to \"${INBOX.title}\""
+                "inbox: ${plan.inbox.size} source(s) checked, ${fresh.size} new, " +
+                    "$inboxAdded added to \"${INBOX.title}\""
             )
         }
-        store.save(UploadsState(groups, inboxSeen))
-        UploadsReport(addedToGroups, inboxAdded, failed).also {
+        val inQueue = queue.groupIds()
+        store.save(UploadsState(groups.filterKeys { it in inQueue }, inboxSeen))
+        return UploadsReport(addedToGroups, inboxAdded, failed, plan.unwatched).also {
             val line = "check ($why): ${it.added} added (groups $addedToGroups, inbox $inboxAdded), " +
-                "${failed.size} failed $failed"
+                "${failed.size} failed $failed" +
+                if (plan.unwatched.isEmpty()) "" else ", not watched ${plan.unwatched}"
             Diag.log(TAG, line)
             Vitals.set("uploads.lastCheck", "${java.time.Instant.now()} $line")
             Vitals.set(
@@ -108,14 +166,9 @@ class NewUploads(
         }
     }
 
-    private suspend fun refreshGroup(group: WatchedGroup, failed: MutableList<String>): Pair<WatchedGroup, Int> {
+    private fun refreshGroup(group: WatchedGroup, fetched: Map<String, List<MediaItem>?>): Pair<WatchedGroup, Int> {
         val shuffle = group.shuffle
-        val items = shuffle.sources.flatMap { pinned ->
-            val source = pinned.toSource()
-            val got = source?.let { latest(it) }
-            if (got == null) failed += pinned.title
-            got.orEmpty()
-        }.filter { shuffle.includeShorts || !it.isShortLink }
+        val items = shuffle.sources.flatMap { fetched[it.id].orEmpty() }.filter { shuffle.includeShorts || !it.isShort }
         val fresh = items.filter { it.id.value !in group.seen && !it.membersOnly }.sortedByDescending { it.publishedAt }
         val playable = fresh.mapNotNull { it.toPlayableOrNull() }
         val added = if (playable.isEmpty()) {
@@ -130,25 +183,20 @@ class NewUploads(
         Diag.log(
             TAG,
             "\"${shuffle.title}\": ${items.size} latest, ${fresh.size} new " +
-                "(${fresh.joinToString { it.title.take(TITLE_CHARS) }}), " +
-                "$added added next in the group",
+                "(${fresh.joinToString { it.title.take(TITLE_CHARS) }}), $added added next in the group",
         )
         return group.copy(seen = group.seen + items.map { it.id.value }) to added
     }
 
-    private suspend fun inboxNews(
+    private fun inboxNews(
         source: MediaSource,
+        got: List<MediaItem>?,
         seen: MutableMap<String, List<String>>,
-        failed: MutableList<String>,
     ): List<MediaItem> {
-        val got = latest(source)
-        if (got == null) {
-            failed += source.title
-            return emptyList()
-        }
-        val items = got.filter { !it.isShortLink && !it.membersOnly }
+        if (got == null) return emptyList()
+        val items = got.filter { !it.isShort && !it.membersOnly }
         val before = seen[source.id.value]
-        seen[source.id.value] = (items.map { it.id.value } + before.orEmpty()).distinct().take(SEEN_PER_SOURCE)
+        noteSeen(seen, source.id.value, got)
         if (before == null) {
             Diag.log(
                 TAG,
@@ -159,13 +207,22 @@ class NewUploads(
         return items.filter { it.id.value !in before }
     }
 
+    private fun noteSeen(seen: MutableMap<String, List<String>>, sourceId: String, items: List<MediaItem>) {
+        val current = items.map { it.id.value }.distinct()
+        val inFeed = current.toSet()
+        val older = seen[sourceId].orEmpty().filter { it !in inFeed }
+        seen[sourceId] = current + older.take(OLDER_KEPT)
+    }
+
     companion object {
         val INBOX = QueueGroup("inbox:new", "📥 New")
         private const val TAG = "uploads"
         private const val SHUFFLE_PREFIX = "shuffle:"
         private const val TITLE_CHARS = 40
-        private const val SEEN_PER_SOURCE = 200
+        private const val OLDER_KEPT = 200
+        private const val IN_FLIGHT = 4
     }
 }
 
-private val MediaItem.isShortLink: Boolean get() = mediaUrl?.value?.contains("/shorts/") == true
+private val MediaItem.isShort: Boolean
+    get() = contentKind == MediaContentKind.SHORT || mediaUrl?.value?.contains("/shorts/") == true

@@ -142,4 +142,29 @@ class SharedLinkTest {
         assertNull(sharedAlbumPlaylistId("https://youtu.be/RHlqxABCDEF"))
         assertNull(sharedAlbumPlaylistId(null))
     }
+
+    @Test
+    fun `a live or premiere recording link plays`() {
+        assertEquals(
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            sharedWatchUrl("Watch live https://www.youtube.com/live/dQw4w9WgXcQ?si=Ab12")?.value,
+        )
+    }
+
+    @Test
+    fun `the video link is found even when another link comes first`() {
+        val text = "via https://example.com/blog and the video https://youtu.be/dQw4w9WgXcQ?t=42"
+
+        assertEquals("https://www.youtube.com/watch?v=dQw4w9WgXcQ", sharedWatchUrl(text)?.value)
+    }
+
+    @Test
+    fun `why a share was not played is said in words`() {
+        assertEquals("no link in the shared text", whyNotPlayable(null))
+        assertEquals("no link in the shared text", whyNotPlayable("just some words"))
+        assertEquals(
+            "1 link(s), none a YouTube video: example.com/blog",
+            whyNotPlayable("see https://example.com/blog?x=1")
+        )
+    }
 }

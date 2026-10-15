@@ -648,6 +648,7 @@
     <string name="settings_silent_tail">End on a silent tail</string>
     <string name="settings_silent_tail_summary">When a video or episode goes quiet for 5 s in its last minute (credits, a blank end screen), move on to the next item. Never for music.</string>
     <string name="queue_group_pull_new">🔄 Pull new uploads</string>
+    <string name="queue_pull_unwatched">⚠️ This group is not being watched: shuffle the channel again to start</string>
     <string name="queue_pull_nothing">📭 Nothing new since the last look</string>
     <string name="queue_pull_failed">⚠️ Could not check %1$s</string>
     <plurals name="queue_pulled_new">

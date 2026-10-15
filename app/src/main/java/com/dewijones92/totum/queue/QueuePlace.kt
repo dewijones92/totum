@@ -21,18 +21,21 @@ internal fun nextAfterThePlace(snapshot: QueueSnapshot, playingId: MediaItemId?)
 enum class GroupSpot { END, NEXT }
 
 internal fun QueueSnapshot.addedTo(group: QueueGroup, fresh: List<PlayableItem>, spot: GroupSpot): QueueSnapshot {
-    val first = entries.indexOfFirst { it.group?.id == group.id }
-    val last = entries.indexOfLast { it.group?.id == group.id }
-    val inGroupNow = place in first..last && first >= 0
-    val at = when {
-        first < 0 -> entries.size
-        spot == GroupSpot.END -> last + 1
-        inGroupNow -> place + 1
-        else -> first
+    val at = when (spot) {
+        GroupSpot.END -> entries.indexOfLast { it.group?.id == group.id }.let { if (it < 0) entries.size else it + 1 }
+        GroupSpot.NEXT -> nextSpotIn(group)
     }
     val run = fresh.map { QueueEntry(it, group) }
     return copy(
         entries = entries.take(at) + run + entries.drop(at),
         currentIndex = if (currentIndex >= at) currentIndex + run.size else currentIndex,
     )
+}
+
+private fun QueueSnapshot.nextSpotIn(group: QueueGroup): Int {
+    if (entries.none { it.group?.id == group.id }) return entries.size
+    if (place < 0) return entries.indexOfFirst { it.group?.id == group.id }
+    if (entries.getOrNull(place)?.group?.id == group.id) return place + 1
+    val ahead = entries.withIndex().firstOrNull { (i, e) -> i > place && e.group?.id == group.id }?.index
+    return ahead ?: (place + 1)
 }

@@ -21,6 +21,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -47,6 +48,10 @@ class LatestUploads(
 }
 
 class QueueForUploads(private val queue: PlaybackQueue) : UploadsQueue {
+    override suspend fun ready() {
+        queue.hydrated.first { it }
+    }
+
     override fun groupIds(): Set<String> = queue.state.value.entries.mapNotNullTo(mutableSetOf()) { it.group?.id }
     override fun add(
         group: QueueGroup,
@@ -68,7 +73,7 @@ class FileUploadsStore(private val file: File) : UploadsStore {
         runCatching {
             val temp = File(file.parentFile, "${file.name}.tmp")
             temp.writeText(json.encodeToString(UploadsState.serializer(), state))
-            temp.renameTo(file)
+            if (!temp.renameTo(file)) Diag.warn(TAG, "uploads state could not be moved into place; kept the old one")
         }.onFailure { Diag.warn(TAG, "uploads state could not be saved", it) }
         Unit
     }
@@ -77,11 +82,7 @@ class FileUploadsStore(private val file: File) : UploadsStore {
 fun newUploadsOf(c: AppContainer, fetcher: HttpTextFetcher, pages: SourcePages, file: File): NewUploads = NewUploads(
     latest = LatestUploads(fetcher, c.podcastRepository, pages)::of,
     queue = QueueForUploads(c.playbackQueue),
-    inboxSources = {
-        val settings = c.appPreferences.settings.value
-        subscribedSources(c.podcastRepository, c.accountSubscriptions.channels).first()
-            .filter { settings.inboxAll || it.id.value in settings.inboxSources }
-    },
+    inboxSources = { inboxSourcesOf(c) },
     store = FileUploadsStore(file),
     adopt = { groupId -> adoptShuffleGroup(c, groupId) },
 )
@@ -95,4 +96,32 @@ private suspend fun adoptShuffleGroup(c: AppContainer, groupId: String): Watched
     return WatchedGroup(groupId, pin, (queued + played + started).toSet())
 }
 
+private suspend fun inboxSourcesOf(c: AppContainer): List<MediaSource> {
+    val settings = c.appPreferences.settings.value
+    if (!settings.inboxAll && settings.inboxSources.isEmpty()) return emptyList()
+    val loaded = withTimeoutOrNull(SUBSCRIPTIONS_WAIT_MS) { c.accountSubscriptions.loaded.first { it } } != null
+    if (!loaded) {
+        Diag.warn(
+            TAG,
+            "inbox: YouTube subscriptions not loaded after ${SUBSCRIPTIONS_WAIT_MS}ms; podcasts only this time"
+        )
+    }
+    val subscribed = subscribedSources(c.podcastRepository, c.accountSubscriptions.channels).first()
+    if (settings.inboxAll) return subscribed
+    val chosen = subscribed.filter { inboxKeyOf(it) in settings.inboxSources || it.id.value in settings.inboxSources }
+    val matched = chosen.flatMap { listOf(inboxKeyOf(it), it.id.value) }.toSet()
+    val missing = settings.inboxSources - matched
+    if (missing.isNotEmpty()) {
+        Diag.log(
+            TAG,
+            "inbox: ${missing.size} chosen source(s) are not among your subscriptions, not checked: $missing"
+        )
+    }
+    return chosen
+}
+
+fun inboxKeyOf(source: MediaSource): String =
+    (source as? MediaSource.VideoChannel)?.youTubeChannelId?.let { "yt:$it" } ?: source.id.value
+
+private const val SUBSCRIPTIONS_WAIT_MS = 30_000L
 private const val TAG = "uploads"

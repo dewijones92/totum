@@ -10,15 +10,26 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 class NewUploadsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val container = (applicationContext as TotumApplication).container
+        if (!TotumApplication.warmEngineAfterLaunch) {
+            Diag.log("uploads", "background check skipped: running under instrumentation")
+            return Result.success()
+        }
         Diag.log("uploads", "background check (every $INTERVAL_HOURS h, Wi-Fi only)")
-        runCatching { container.newUploads.check("every $INTERVAL_HOURS h") }
-            .onFailure { Diag.warn("uploads", "background check failed", it) }
+        try {
+            container.newUploads.check("every $INTERVAL_HOURS h")
+        } catch (cancelled: CancellationException) {
+            Diag.log("uploads", "background check stopped by the system")
+            throw cancelled
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            Diag.warn("uploads", "background check failed", failure)
+        }
         return Result.success()
     }
 
