@@ -76,6 +76,10 @@ internal class DiagnosticSnapshot(
         runCatching {
             put("queue.size", entries.size.toString())
             put("queue.currentIndex", currentIndex.toString())
+            put(
+                "queue.place",
+                queue?.anchor?.let { "after an excursion: ${it.value} (index ${queue.place})" } ?: "the cursor"
+            )
             put("queue.items", listedAround(entries, currentIndex, LISTED_BEFORE, LISTED_AFTER) { it.item.item.title })
         }
         runCatching { putDownloadState(entries, currentIndex) }

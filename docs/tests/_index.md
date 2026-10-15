@@ -863,3 +863,7 @@ they were testing.
 fails intermittently — need the XML kept somewhere. The cheapest durable option is the Pi, which
 already runs the crashlog server with a SQLite index behind Google auth; that pattern would make
 "is `SearchSectionStatesTest` flaky?" answerable, which it currently is not.
+
+- **Explore and the queue's place (2026-10-15):** `ExploreModeTest` (unit, fakes) and `AnExcursionKeepsTheQueuesPlaceTest`
+  (the real `PlaybackQueue`, offline with copies on disk); the device round trip (Explore on → related → off → Next)
+  was run by hand on totum-api35, not in CI.

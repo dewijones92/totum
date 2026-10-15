@@ -34,7 +34,7 @@ fun ExploreToggle(from: String, modifier: Modifier = Modifier) {
             explore.set(enabled, from)
             Toast.makeText(context, if (enabled) saidOn else saidOff, Toast.LENGTH_SHORT).show()
         },
-        modifier = modifier.testTag(EXPLORE_TOGGLE_TAG),
+        modifier = modifier.testTag("$EXPLORE_TOGGLE_TAG:$from"),
     ) {
         Icon(
             imageVector = if (on) Icons.Filled.Explore else Icons.Outlined.Explore,

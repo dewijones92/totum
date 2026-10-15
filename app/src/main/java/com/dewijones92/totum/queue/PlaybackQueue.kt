@@ -340,9 +340,14 @@ class PlaybackQueue(
      * rather than pretending the peeked item was a member.
      */
     suspend fun peek(item: PlayableItem): Boolean {
-        mutate("peek (cursor cleared by design)") { it.copy(currentIndex = NOTHING_PLAYING) }
+        mutate("peek (the queue keeps its place)") {
+            it.copy(currentIndex = NOTHING_PLAYING, anchor = it.current?.item?.item?.id ?: it.anchor)
+        }
         return play(item)
     }
+
+    fun restorePlace(id: MediaItemId) = _state.value.takeIf { it.currentIndex < 0 && it.anchor == null }
+        ?.let { mutate("the queue's place restored after a restart: after ${id.value}") { s -> s.copy(anchor = id) } }
 
     /** Plays the entry at [index]; nothing before it is discarded. */
     fun jumpTo(index: Int) {
@@ -532,14 +537,7 @@ class PlaybackQueue(
      * definitions of the same thing is precisely the bug that made a finished video replay
      * itself: one place asked the cursor, the other asked what was playing.
      */
-    fun peekNext(): PlayableItem? {
-        val snapshot = _state.value
-        val playingId = _nowPlaying.value?.item?.id
-        return snapshot.entries
-            .drop(advanceFrom(snapshot, playingId) + 1)
-            .firstOrNull { it.item.item.id != playingId }
-            ?.item
-    }
+    fun peekNext(): PlayableItem? = nextAfterThePlace(_state.value, _nowPlaying.value?.item?.id)
 
     suspend fun armNext(allowStream: Boolean): Boolean {
         val queued = withSourceArtwork(peekNext() ?: return false).labelledForPlay(_state.value)
@@ -573,16 +571,6 @@ class PlaybackQueue(
     }
 
     /**
-     * The index advancing counts from: where the PLAYING item sits, falling back to the cursor
-     * when what is playing is not a queue member at all.
-     */
-    internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =
-        playingId
-            ?.let { id -> snapshot.entries.indexOfFirst { it.item.item.id == id } }
-            ?.takeIf { it >= 0 }
-            ?: snapshot.currentIndex
-
-    /**
      * Moves the cursor to [index] and plays it; false when out of range or unplayable.
      *
      * ROLLS BACK on refusal. The cursor moved first and nothing put it back, and since [mutate] is what
@@ -603,7 +591,7 @@ class PlaybackQueue(
         val entry = _state.value.entries.getOrNull(index) ?: return false
         val cursorBefore = _state.value.currentIndex
         val playingBefore = _nowPlaying.value
-        mutate("play-at-$index") { it.copy(currentIndex = index) }
+        mutate("play-at-$index") { it.copy(currentIndex = index, anchor = null) }
         val attempt = if (quiet) null else refusals.begin(entry.item.item)
         var played = false
         try {

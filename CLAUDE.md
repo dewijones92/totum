@@ -135,6 +135,10 @@ python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run befor
 ./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```
 
+The live YouTube instrumented phase runs **nightly and by hand** (`gh workflow run ci.yml --ref main`), not on push
+(2026-10-15): it leaves through the home broadband, which YouTube bot-blocked, so per-push runs were always red and
+added requests to the blocked IP. A push run logs "live YouTube phase skipped on push".
+
 `-Ptotum.exsurgeTests` does not ADD Exsurge's tests, it RESTRICTS every module's test task to them:
 the opt-in filter includes only the requested phases. Run it as its own command; combined with another
 module's `test` it reports "0 tests" for that module, which reads as a pass (2026-10-07).

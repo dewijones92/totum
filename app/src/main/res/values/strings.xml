@@ -640,11 +640,15 @@
     <string name="player_tab_related">Related</string>
     <string name="player_tab_comments">Comments</string>
     <string name="player_tab_details">Details</string>
+    <plurals name="player_up_next_more">
+        <item quantity="one">➕ 1 more in the Queue tab</item>
+        <item quantity="other">➕ %1$d more in the Queue tab</item>
+    </plurals>
     <string name="explore_line_on">🧭 Explore is on: a related video plays next, your queue waits</string>
     <string name="explore_line_off">📋 Your queue plays next. 🧭 Explore plays related videos instead</string>
     <plurals name="player_up_next_count">
         <item quantity="one">📋 1 item queued after this</item>
-        <item quantity="other">📋 %1$d items queued after this; the first 8 are here, the rest in the Queue tab</item>
+        <item quantity="other">📋 %1$d items queued after this</item>
     </plurals>
     <string name="player_up_next_empty">📭 Nothing queued after this. With Explore on, a related video plays next.</string>
     <string name="link_no_app">⚠️ No app on this phone can open that link</string>

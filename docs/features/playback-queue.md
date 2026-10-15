@@ -135,3 +135,10 @@ From the tap until the play lands or fails, the queue publishes what is starting
 `PlayAttempts`): the mini player shows the tapped title with "⏳ Starting…" and a spinner, and its queue row says
 the same. The log says how long it took (`"X" started 2140ms after the tap`). Report 0.1.625 showed a song tapped
 about 40 times while it resolved, because nothing on screen changed. Only a tap shows it (automatic plays are quiet), and any other item becoming current clears it; with nothing played yet, the dock shows a starting bar instead. Tests: `PlayAttemptsTest`, `ARefusedTapSaysSoTest`, `DockStartingTest` (device).
+
+## The queue keeps its place through an excursion (2026-10-15)
+
+A peek (a one-off Watch/Listen, or Explore's related videos) records the queue item it left (`QueueSnapshot.anchor`);
+gapless, auto-advance, Next and recovery all carry on from the item after it, Up next lists what follows it, and it
+survives a restart. Choosing a queue item clears it. Gapless also stays off while Explore is on ("Explore is on: a
+related video follows, not the queue's next"). See ADR 56.

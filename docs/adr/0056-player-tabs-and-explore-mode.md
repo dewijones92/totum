@@ -26,20 +26,28 @@ Settings default.
   notes, chapters and SponsorBlock. The toggles grid sits below the tab content.
 - Related loads as soon as a YouTube item (song included) is bound, picture or not; comments wait for their tab or
   the picture (`WatchViewModel.loadComments`).
-- **Explore** (`playback/ExploreMode.kt`): when on, an item that ends is followed by the first related video not yet
-  played in this run, played as a *peek* so the queue is not touched. It remembers the queue item it left
-  (`resumeAfter`, kept in `ExploreResumeStore` across restarts); switched off, the next advance or **Next** plays the
-  item after it. Next while exploring plays another related video. While Explore is on, gapless does not arm the
-  queue's next item, and turning it on drops one already armed, so the end always reaches Explore.
-- Explore never picks a live stream (it never ends, so the queue would wait for ever), a Short or a members-only
-  video. While exploring, the player's Up next lists what follows the queue's place, and its rows act on the item
-  they show (by identity, not position).
-- Podcasts have no related list; with Explore on, a podcast's end lets the queue carry on.
+- **Explore** (`playback/ExploreMode.kt`): when on, an item that ends (or Next) is followed by the first related video
+  not yet played in this run, played as a *peek* so the queue is not touched. Never a live stream (it never ends), a
+  Short or a members-only video; a related list that arrives after you chose something else does not interrupt it.
+- **The queue keeps its place** (`QueueSnapshot.anchor`, revised after review): a peek records the queue item it left,
+  and every way of moving on with no cursor (gapless arming and crossover, auto-advance, Next, stall and recovery
+  moves) carries on from the item after it; Up next lists what follows it. Choosing a queue item yourself clears it,
+  and it is kept across restarts (`QueuePlaceStore`). So switching Explore off, or Explore declining (no related list,
+  a podcast, a failed lookup), carries on from the place rather than the top. This also changes a plain peek (a
+  one-off Watch/Listen from a sheet): the queue now resumes after the item you were on, as the peek's own doc promised.
+- While Explore is on, gapless does not arm the queue's next item, and turning it on drops one already armed.
+- Previous while exploring restarts the current item; it does not walk back through explored videos.
+- Explore acts only when auto-play next is on.
+- Podcasts have no related list; with Explore on, a podcast's end lets the queue carry on from its place.
 - Toggle: `ExploreToggle` in the Queue header, the mini player and an Explore line at the top of the Up next and
   Related tabs; Settings → Start in Explore mode (default off). Every switch and decision is logged under `explore`.
 
 ## Consequences
 
 - One extra related request per YouTube item bound while the app is open (through the polite gate).
-- Tests: `ExploreModeTest`, `AutoAdvancerTest`, `GaplessArmerTest`, `WatchRatingTest`; verified on totum-api35:
-  explore → related → off → Next resumed the queue at the item after the one it left.
+- Reports carry `explore.on` and `queue.place`; every Explore decision is logged under `explore`, with the related
+  lookup's failure reason.
+- Tests: `ExploreModeTest`, `AnExcursionKeepsTheQueuesPlaceTest` (the real `PlaybackQueue`: gapless's pick, Up next,
+  Next and a restored place all carry on from the place), `AutoAdvancerTest`, `GaplessArmerTest`, `WatchRatingTest`,
+  `PlayerKeepsEveryControlTest` (device). Verified on totum-api35: explore → related → off → Next resumed the queue at
+  the item after the one it left.

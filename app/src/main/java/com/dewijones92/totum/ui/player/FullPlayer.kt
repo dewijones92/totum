@@ -460,6 +460,17 @@ internal fun UpNextSection(queue: QueueControls) {
                 }
             }
         }
+        if (queue.upNext.size > UP_NEXT_SHOWN) {
+            Text(
+                text = pluralStringResource(
+                    R.plurals.player_up_next_more,
+                    queue.upNext.size - UP_NEXT_SHOWN,
+                    queue.upNext.size - UP_NEXT_SHOWN,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

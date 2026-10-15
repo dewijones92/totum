@@ -97,7 +97,6 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
-import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
@@ -163,7 +162,6 @@ import com.dewijones92.totum.pins.withRecent
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.ExploreMode
-import com.dewijones92.totum.playback.ExploreResumeStore
 import com.dewijones92.totum.playback.Media3PlaybackController
 import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
@@ -174,6 +172,7 @@ import com.dewijones92.totum.playback.SharedPrefsVolumeBoostStore
 import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
+import com.dewijones92.totum.playback.exploreModeFor
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.polite.PoliteInterceptor
@@ -185,6 +184,7 @@ import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.RandomStarts
+import com.dewijones92.totum.queue.keepTheQueuesPlace
 import com.dewijones92.totum.queue.startSharedMetadataRepair
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
@@ -873,7 +873,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private fun startAutoAdvance() {
         AutoAdvancer(
             events = playbackController.events,
-            advance = { exploreMode.resumeQueue() ?: playbackQueue.playNextInQueue() },
+            advance = { playbackQueue.playNextInQueue() },
             whenQueueEmpty = ::playRelatedNext,
             isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
@@ -992,7 +992,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 isMetered = networkStatus::isMetered,
                 exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
                 appUpdate = appUpdate::diagnostics,
-                polite = polite::diagnostics,
+                polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
                 backup = { driveBackup.diagnostics() },
                 groupDownloads = { groupDownloads },
             ),
@@ -1007,7 +1007,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
 
     override fun startQueueAutoDownload() {
-        followSkipRequests(this)
+        followSkipRequests(this, context)
         startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,
@@ -1386,7 +1386,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
-    override val exploreMode: ExploreMode by lazy { exploreModeFor(this, ExploreResumeStore(context)) }
+    override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
     override val statsLog: StatsLog by lazy { StatsLog(File(context.filesDir, "stats"), applicationScope) }
 
     override val albumYears by lazy {
@@ -1527,9 +1527,10 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     artistShuffle = c.artistShuffle(),
 )
 
-private fun followSkipRequests(c: DefaultAppContainer) = c.applicationScope.launch {
+private fun followSkipRequests(c: DefaultAppContainer, context: Context) = c.applicationScope.launch {
     c.musicRadio
     c.randomStarts.follow(c.playbackQueue)
+    keepTheQueuesPlace(c.playbackQueue, context, c.applicationScope)
     c.playbackController.skipRequests.collect { direction ->
         when (direction) {
             SkipDirection.NEXT -> c.exploreMode.next() ?: c.playbackQueue.playNextInQueue()
@@ -1623,24 +1624,3 @@ private fun sendDiagnostics(
     // A test run is still suppressed either way; the flood came through this exact path.
     uploader.sendDiagnosticsNow()
 }
-
-private fun exploreModeFor(c: AppContainer, resume: ExploreResumeStore) = ExploreMode(
-    initiallyOn = c.appPreferences.settings.value.exploreByDefault,
-    related = { item ->
-        item.id.value.takeIf(::isYouTubeVideoId)?.let { id ->
-            (
-                c.youTubeRelated.relatedTo(
-                    id
-                ) as? RelatedResult.Success
-                )?.videos?.map { it.toMediaItem(SourceId("ytrelated")) }
-        }
-    },
-    peek = { c.playbackQueue.peek(it) },
-    nowPlaying = { c.playbackQueue.nowPlaying.value },
-    queueCurrent = { c.playbackQueue.state.value.current?.item?.item?.id },
-    queueEntries = { c.playbackQueue.state.value.entries.map { it.item.item.id } },
-    playQueueAt = { c.playbackQueue.playAt(it, rollBackOnRefusal = true) },
-    onTurnedOn = { c.playbackController.disarmNext("Explore turned on: a related video follows instead") },
-    resumeAtStart = resume.read()?.let(::MediaItemId),
-    saveResume = { resume.write(it?.value) },
-)

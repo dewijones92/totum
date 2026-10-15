@@ -191,11 +191,12 @@ constructor(
         _comments.value = CommentsState.Loading
         _replies.value = emptyMap()
         viewModelScope.launch {
-            _comments.value = when (val result = commentsSource.forVideo(videoId)) {
+            val loaded = when (val result = commentsSource.forVideo(videoId)) {
                 is CommentsResult.Success -> CommentsState.Loaded(result.comments)
                 CommentsResult.Disabled -> CommentsState.Disabled
                 is CommentsResult.Failure -> CommentsState.Error
             }
+            if (this@WatchViewModel.videoId == videoId) _comments.value = loaded
         }
     }
 
@@ -203,13 +204,14 @@ constructor(
         relatedFor = videoId
         _related.value = RelatedState.Loading
         viewModelScope.launch {
-            _related.value = when (val result = relatedSource.relatedTo(videoId)) {
+            val loaded = when (val result = relatedSource.relatedTo(videoId)) {
                 // Converted here, at the boundary, so the list downstream is the domain
                 // shape every other list uses — and therefore gets the shared row.
                 is RelatedResult.Success ->
                     RelatedState.Loaded(result.videos.map { it.toMediaItem(RELATED_SOURCE) })
                 is RelatedResult.Failure -> RelatedState.Error
             }
+            if (this@WatchViewModel.videoId == videoId) _related.value = loaded
         }
     }
 

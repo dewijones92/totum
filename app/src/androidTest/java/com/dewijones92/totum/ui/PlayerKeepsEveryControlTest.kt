@@ -198,7 +198,7 @@ class PlayerKeepsEveryControlTest {
         assertReachable("like", "Like")
         assertReachable("dislike", "Dislike")
         assertReachable("watch later", "Watch later", "Save")
-        assertReachable("the up-next queue", "Up next", "Ceuta")
+        assertReachable("the up-next queue", "Ceuta")
         openTab(PlayerTab.DETAILS)
         assertReachable("the description", "Aaron Bastani")
         assertReachable("chapters", "The wealth gap", "Chapters")
@@ -245,7 +245,7 @@ class PlayerKeepsEveryControlTest {
         assertActionable("speed", R.string.playback_speed)
         assertActionable("the sleep timer", R.string.sleep_timer)
         assertActionable("skip silence", R.string.skip_silence)
-        assertReachable("the up-next queue", "Up next", "Ceuta")
+        assertReachable("the up-next queue", "Ceuta")
         openTab(PlayerTab.DETAILS)
         assertReachable("the description", "Aaron Bastani")
     }

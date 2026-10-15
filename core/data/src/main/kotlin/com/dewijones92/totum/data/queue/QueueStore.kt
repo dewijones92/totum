@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.queue
 
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 
 /**
@@ -35,12 +36,18 @@ public data class QueueEntry(
 public data class QueueSnapshot(
     public val entries: List<QueueEntry> = emptyList(),
     public val currentIndex: Int = NOTHING_PLAYING,
+    public val anchor: MediaItemId? = null,
 ) {
     /** The entry playing now, or null when playback isn't on the queue. */
     public val current: QueueEntry? get() = entries.getOrNull(currentIndex)
 
+    public val place: Int
+        get() = currentIndex.takeIf { it >= 0 }
+            ?: anchor?.let { id -> entries.indexOfFirst { it.item.item.id == id } }
+            ?: NOTHING_PLAYING
+
     /** What follows the current entry — what "up next" means. */
-    public val upNext: List<QueueEntry> get() = entries.drop((currentIndex + 1).coerceAtLeast(0))
+    public val upNext: List<QueueEntry> get() = entries.drop((place + 1).coerceAtLeast(0))
 
     public companion object {
         public const val NOTHING_PLAYING: Int = -1

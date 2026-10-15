@@ -237,7 +237,6 @@ private fun FullPlayerHost(
     val nowPlaying by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
     val playing = nowPlaying ?: queueState.current?.item
     val currentIndex = queueState.currentIndex
-    val explored by container.exploreMode.queuePlace.collectAsStateWithLifecycle()
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
 
     CompositionLocalProvider(
@@ -275,7 +274,7 @@ private fun FullPlayerHost(
             onSetSpeed = controller::setSpeed,
             onSetSubtitleLanguage = controller::setSubtitleLanguage,
             toggles = playbackToggles(state, controller, container, settings),
-            queue = upNextControls(container.playbackQueue, queueState.entries, currentIndex, explored),
+            queue = upNextControls(container.playbackQueue, upNext),
             onMore = { showItemSheet = true }.takeIf { playing != null },
         )
     }

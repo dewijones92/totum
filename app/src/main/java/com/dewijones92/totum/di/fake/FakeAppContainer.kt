@@ -213,9 +213,6 @@ class FakeAppContainer(
         related = { null },
         peek = { false },
         nowPlaying = { null },
-        queueCurrent = { null },
-        queueEntries = { emptyList() },
-        playQueueAt = { false },
     )
     override val statsLog: StatsLog = StatsLog(null, applicationScope)
     override val groupDownloads: GroupDownloads = GroupDownloads(null, applicationScope)

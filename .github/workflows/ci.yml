@@ -13,9 +13,14 @@ on:
   # changed. This makes the recovery honest: re-run the tip from the Actions tab, or
   # `gh workflow run ci.yml --ref main`.
   workflow_dispatch:
+  # The live YouTube phase runs here, nightly, not on every push (2026-10-15): it goes out through the
+  # home broadband, which YouTube had bot-blocked, so per-push runs were red with "not a bot" and added
+  # requests to the blocked IP. Releases stay push-only.
+  schedule:
+    - cron: "30 2 * * *"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'main' }}
   cancel-in-progress: true
 
 jobs:
@@ -121,7 +126,7 @@ jobs:
             # nothing collected it: on 2026-09-20 a live test failed with "buffered 0ms" and the
             # line naming the cause died with the device. stderr to /dev/null, not into the file,
             # so a zero-line count means what it says rather than counting adb's own error.
-            sh -c 'tools/ci/live-test-via-home.sh; rc=$?; mkdir -p build/ci-logs; adb logcat -d > build/ci-logs/logcat.txt 2>/dev/null || true; echo "captured $(wc -l < build/ci-logs/logcat.txt 2>/dev/null || echo 0) logcat lines"; exit $rc'
+            sh -c 'if [ "$GITHUB_EVENT_NAME" = push ] || [ "$GITHUB_EVENT_NAME" = pull_request ]; then echo "live YouTube phase skipped on $GITHUB_EVENT_NAME: it runs nightly and by hand"; exit 0; fi; tools/ci/live-test-via-home.sh; rc=$?; mkdir -p build/ci-logs; adb logcat -d > build/ci-logs/logcat.txt 2>/dev/null || true; echo "captured $(wc -l < build/ci-logs/logcat.txt 2>/dev/null || echo 0) logcat lines"; exit $rc'
 
 
       # Always, not just on failure: a PASS that was really a skip looks identical otherwise,
