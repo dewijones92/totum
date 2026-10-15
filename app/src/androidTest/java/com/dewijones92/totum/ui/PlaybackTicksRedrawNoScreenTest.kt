@@ -53,11 +53,13 @@ class PlaybackTicksRedrawNoScreenTest {
         container.playbackQueue.playAll(listOf(queued("one"), queued("two"), queued("three")))
         composeTestRule.setContent { TotumTheme { AppShell(container) } }
         composeTestRule.waitForIdle()
-        composeTestRule.runOnIdle { controller.emitState(playing) }
+        composeTestRule.runOnIdle { controller.emitState(playing.copy(isPlaying = false)) }
         composeTestRule.waitForIdle()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         composeTestRule.onNodeWithText(context.getString(R.string.destination_queue)).performClick()
         composeTestRule.onAllNodesWithText(playing.title).onFirst().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.runOnIdle { controller.emitState(playing) }
         composeTestRule.waitForIdle()
         val before = screens.associateWith(Recompositions::of)
         assertTrue("the player never opened: $before", before.getValue("player") > 0)
