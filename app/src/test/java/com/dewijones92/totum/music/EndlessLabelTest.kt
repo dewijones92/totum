@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.withStreamFrom
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -28,11 +29,25 @@ class EndlessLabelTest {
     )
 
     @Test
-    fun `a song from a radio is played as endless radio, wherever its artist is shown`() {
+    fun `a radio song is played as endless radio, and its own artist is left alone`() {
         val song = playable("s1", "Paco de Lucía")
         val snapshot = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("radio:RDAMVMx", "Radio · Entre dos aguas"))))
 
-        assertEquals("♾️ Endless radio · Paco de Lucía", song.labelledForPlay(snapshot).item.author)
+        val played = song.labelledForPlay(snapshot).item
+        assertEquals(ENDLESS_MARK, played.playedAs)
+        assertEquals("Paco de Lucía", played.author)
+    }
+
+    @Test
+    fun `the label survives the stream route, which replaces the author with the resolved one`() {
+        val song = playable("s1", "Paco de Lucía - Topic")
+        val snapshot = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("radio:RDAMVMx", "Radio"))))
+        val resolved = song.item.copy(author = "Paco de Lucía")
+
+        val streamed = song.labelledForPlay(snapshot).item.withStreamFrom(resolved)
+
+        assertEquals(ENDLESS_MARK, streamed.playedAs)
+        assertEquals("Paco de Lucía", streamed.author)
     }
 
     @Test
@@ -40,13 +55,13 @@ class EndlessLabelTest {
         val song = playable("s1", "Paco de Lucía")
         val album = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("album:x", "Almoraima"))))
 
-        assertEquals("Paco de Lucía", song.labelledForPlay(album).item.author)
-        assertEquals("Paco de Lucía", song.labelledForPlay(QueueSnapshot()).item.author)
+        assertEquals(null, song.labelledForPlay(album).item.playedAs)
+        assertEquals(null, song.labelledForPlay(QueueSnapshot()).item.playedAs)
     }
 
     @Test
-    fun `the mark is added once, and stands alone when there is no artist`() {
-        assertEquals("♾️ Endless radio · A", endlessArtist(endlessArtist("A")))
-        assertEquals("♾️ Endless radio", endlessArtist(null))
+    fun `the stats log strips the mark from the artist line it reads back`() {
+        assertEquals("Paco de Lucía", "$ENDLESS_MARK · Paco de Lucía".withoutEndlessMark())
+        assertEquals("Paco de Lucía", "Paco de Lucía".withoutEndlessMark())
     }
 }

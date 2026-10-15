@@ -3,10 +3,12 @@ package com.dewijones92.totum.queue
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -47,10 +49,32 @@ class RandomStarts(
     fun peek(itemId: MediaItemId): Long? = pending[itemId]
 
     override suspend fun resumePositionMs(itemId: MediaItemId): Long? {
-        val start = pending.remove(itemId) ?: return inner.resumePositionMs(itemId)
+        val start = pending[itemId] ?: return inner.resumePositionMs(itemId)
         Diag.log("shuffle", "${itemId.value} starts at ${start}ms, a random point picked when it was shuffled")
-        save()
         return start
+    }
+
+    override suspend fun save(itemId: MediaItemId, positionMs: Long, durationMs: Long?, chosen: Chosen) {
+        pending.remove(itemId)?.let {
+            Diag.log("shuffle", "${itemId.value} has played from its random start; it resumes as usual from now on")
+            save()
+        }
+        inner.save(itemId, positionMs, durationMs, chosen)
+    }
+
+    fun keepOnly(queued: Set<MediaItemId>) {
+        val gone = pending.keys - queued
+        if (gone.isEmpty()) return
+        gone.forEach(pending::remove)
+        Diag.log("shuffle", "${gone.size} random start(s) dropped: their items left the queue")
+        save()
+    }
+
+    fun follow(queue: PlaybackQueue) {
+        scope.launch {
+            queue.hydrated.first { it }
+            queue.state.collect { snapshot -> keepOnly(snapshot.entries.mapTo(mutableSetOf()) { it.item.item.id }) }
+        }
     }
 
     private val writing = Mutex()

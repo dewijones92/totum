@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -88,5 +89,37 @@ class QueueSkipAndBlackoutTest {
         composeTestRule.mainClock.advanceTimeBy(10_000)
 
         composeTestRule.onNodeWithTag(IDLE_BLACKOUT_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun aTapJustAfterWakingReachesTheButtonUnderneath() {
+        composeTestRule.mainClock.autoAdvance = false
+        var clicks = 0
+        composeTestRule.setContent {
+            TotumTheme {
+                IdleBlackout(active = true) {
+                    Box(Modifier.fillMaxSize()) {
+                        androidx.compose.material3.Button(
+                            onClick = { clicks++ },
+                            modifier = Modifier.testTag("under")
+                        ) {
+                            Text("pause")
+                        }
+                    }
+                }
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(4_000)
+        composeTestRule.onNodeWithTag(IDLE_BLACKOUT_TAG).assertExists()
+
+        composeTestRule.onRoot().performTouchInput {
+            down(center)
+            up()
+        }
+        composeTestRule.mainClock.advanceTimeBy(100)
+        composeTestRule.onNodeWithTag("under").performClick()
+        composeTestRule.mainClock.advanceTimeBy(100)
+
+        assertEquals(1, clicks)
     }
 }

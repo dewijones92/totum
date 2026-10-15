@@ -1514,6 +1514,8 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
 )
 
 private fun followSkipRequests(c: DefaultAppContainer) = c.applicationScope.launch {
+    c.musicRadio
+    c.randomStarts.follow(c.playbackQueue)
     c.playbackController.skipRequests.collect { direction ->
         when (direction) {
             SkipDirection.NEXT -> c.playbackQueue.playNextInQueue()

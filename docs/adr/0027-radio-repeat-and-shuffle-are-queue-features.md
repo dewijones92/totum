@@ -46,7 +46,10 @@ restart (every update) ended it; playing anything outside it stopped it for good
 continuation it simply ran out. Now `MusicRadio` saves its station (`files/radio.txt`) and restores it after a
 restart while its songs are queued; playing something else pauses the top-ups until the radio is playing again;
 with no continuation left it carries on from its last song (`RadioSeed.forSong`). A radio group's header says
-**♾️ Endless radio**, and each radio song is played with its artist line as **♾️ Endless radio · artist**
-(`labelledForPlay`, at the queue's hand-off), so the mini player, the player, the notification and the lock
-screen all show it. Tests: `MusicRadioTest`, `EndlessLabelTest`, `GroupHeaderShufflePlayTest`.
+**♾️ Endless radio**, and each radio song is handed to the player marked `playedAs = ♾️ Endless radio` (`labelledForPlay`, at the
+queue's hand-off); only the session's artist line shows it (*♾️ Endless radio · artist*), so the mini player, the
+player, the notification and the lock screen say it while history, downloads and stats keep the real artist.
+The first version wrote the mark into the item's author, which a stream's resolved author then replaced and
+history then saved (found by the review); the station starts with the app, so a restart cannot leave a radio
+labelled endless with nothing topping it up. Tests: `MusicRadioTest`, `EndlessLabelTest`, `GroupHeaderShufflePlayTest`.
 

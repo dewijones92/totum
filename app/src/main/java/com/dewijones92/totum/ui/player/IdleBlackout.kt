@@ -66,16 +66,7 @@ private fun Blackout(alpha: Float, dark: Boolean, hole: android.graphics.Rect?, 
         Modifier
             .fillMaxSize()
             .testTag(IDLE_BLACKOUT_TAG)
-            .pointerInput(dark) {
-                if (!dark) return@pointerInput
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false).consume()
-                    do {
-                        val event = awaitPointerEvent()
-                        event.changes.forEach { it.consume() }
-                    } while (event.changes.any { it.pressed })
-                }
-            },
+            .then(if (dark) Modifier.swallowingTouches() else Modifier),
     ) {
         if (hole == null) {
             drawRect(Color.Black.copy(alpha = alpha))
@@ -88,6 +79,16 @@ private fun Blackout(alpha: Float, dark: Boolean, hole: android.graphics.Rect?, 
                 clipOp = ClipOp.Difference,
             ) { drawRect(Color.Black.copy(alpha = alpha), size = Size(size.width, size.height)) }
         }
+    }
+}
+
+private fun Modifier.swallowingTouches(): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false).consume()
+        do {
+            val event = awaitPointerEvent()
+            event.changes.forEach { it.consume() }
+        } while (event.changes.any { it.pressed })
     }
 }
 

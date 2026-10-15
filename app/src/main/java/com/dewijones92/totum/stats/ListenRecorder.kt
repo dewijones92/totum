@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.listening
+import com.dewijones92.totum.music.withoutEndlessMark
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
@@ -95,7 +96,7 @@ class ListenRecorder(
             itemId = state.itemId.value,
             title = state.title,
             author = item?.author ?: state.artist,
-            source = state.artist,
+            source = item?.author ?: state.artist?.withoutEndlessMark(),
             album = item?.album?.title,
             kind = kind,
             watched = state.hasVideo,

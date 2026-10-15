@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.NoOpPlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -48,14 +49,37 @@ class RandomStartsTest {
     }
 
     @Test
-    fun `a shuffled item starts at its random point once, then resumes as usual`() = runTest {
+    fun `reading a random start does not use it up, so arming the next item cannot lose it`() = runTest {
         val starts = RandomStarts(saved, null, backgroundScope, Random(3))
         starts.assign(listOf(item("a", 10.minutes), item("b", null)), "test")
 
-        val first = starts.resumePositionMs(MediaItemId("a"))
-        assertTrue(first != null && first != 42_000L)
-        assertEquals(42_000L, starts.resumePositionMs(MediaItemId("a")))
+        val armed = starts.resumePositionMs(MediaItemId("a"))
+        val played = starts.resumePositionMs(MediaItemId("a"))
+
+        assertTrue(armed != null && armed != 42_000L)
+        assertEquals(armed, played)
         assertEquals("no duration, no random start", 42_000L, starts.resumePositionMs(MediaItemId("b")))
+    }
+
+    @Test
+    fun `once the item has played and saved its place, it resumes as usual`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("a", 10.minutes)), "test")
+
+        starts.save(MediaItemId("a"), 120_000, 600_000, Chosen.NO)
+
+        assertEquals(42_000L, starts.resumePositionMs(MediaItemId("a")))
+    }
+
+    @Test
+    fun `a random start is forgotten when its item leaves the queue`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("a", 10.minutes), item("b", 10.minutes)), "test")
+
+        starts.keepOnly(setOf(MediaItemId("b")))
+
+        assertEquals(42_000L, starts.resumePositionMs(MediaItemId("a")))
+        assertTrue(starts.peek(MediaItemId("b")) != null)
     }
 
     @Test

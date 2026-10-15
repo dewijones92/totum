@@ -809,7 +809,7 @@ public class Media3PlaybackController(
      */
     private fun metadataFor(item: MediaItem, kind: MediaKind): MediaMetadata = MediaMetadata.Builder()
         .setTitle(item.title)
-        .setArtist(item.author)
+        .setArtist(listOfNotNull(item.playedAs, item.author).joinToString(" · ").ifEmpty { null })
         // The show's publisher. Not shown in the system notification, which reads title + artist,
         // so this adds a fact to the app's own player without changing what the lock screen says.
         .setAlbumArtist(item.publisher)

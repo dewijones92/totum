@@ -80,6 +80,7 @@ public data class MediaItem(
      */
     val sourceUrl: HttpUrl? = null,
     val album: AlbumRef? = null,
+    val playedAs: String? = null,
 ) {
     init {
         require(duration == null || duration.isPositive()) { "duration must be positive when present" }

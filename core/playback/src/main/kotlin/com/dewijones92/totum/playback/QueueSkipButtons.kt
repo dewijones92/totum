@@ -35,7 +35,7 @@ internal class QueueSkipButtons(private val context: Context) {
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> SkipDirection.PREVIOUS
             else -> return false
         }
-        if (key.action == KeyEvent.ACTION_DOWN) {
+        if (key.action == KeyEvent.ACTION_DOWN && key.repeatCount == 0) {
             tellTheApp(
                 session,
                 from,
