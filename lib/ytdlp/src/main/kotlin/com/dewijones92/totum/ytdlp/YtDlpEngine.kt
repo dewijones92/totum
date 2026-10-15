@@ -40,6 +40,9 @@ public interface YtDlpEngine {
      */
     public suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String>
 
+    /** As [solveN], for the `s` of a `signatureCipher`; each answer is appended as the cipher's `sp`. */
+    public suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> = emptyMap()
+
     public suspend fun warmUp()
 
     /**

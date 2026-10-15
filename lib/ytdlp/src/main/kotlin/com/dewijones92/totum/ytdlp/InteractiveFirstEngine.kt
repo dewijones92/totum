@@ -51,6 +51,9 @@ public class InteractiveFirstEngine(
     override suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String> =
         asInteractive { delegate.solveN(challenges, playerUrl) }
 
+    override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
+        asInteractive { delegate.solveSignatures(challenges, playerUrl) }
+
     /**
      * Waits for interactive work to finish, then downloads.
      *

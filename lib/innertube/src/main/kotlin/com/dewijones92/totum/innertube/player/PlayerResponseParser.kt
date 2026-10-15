@@ -10,6 +10,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import java.net.URLDecoder
 import java.util.Base64
 
 /**
@@ -139,6 +140,19 @@ public object PlayerResponseParser {
             xtags = stringAt("xtags"),
             fps = this["fps"]?.jsonPrimitive?.longOrNull?.toInt(),
             contentLength = stringAt("contentLength")?.toLongOrNull(),
+            cipher = stringAt("signatureCipher")?.let(::signatureCipher),
+        )
+    }
+
+    private fun signatureCipher(encoded: String): SignatureCipher? {
+        val fields = encoded.split('&').mapNotNull { pair ->
+            val (key, value) = pair.split('=', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+            key to URLDecoder.decode(value, Charsets.UTF_8)
+        }.toMap()
+        return SignatureCipher(
+            signature = fields["s"] ?: return null,
+            parameter = fields["sp"] ?: "signature",
+            url = fields["url"]?.let(HttpUrl::parse) ?: return null,
         )
     }
 

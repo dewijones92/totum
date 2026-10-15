@@ -89,6 +89,11 @@ public class FakeYtDlpEngine : YtDlpEngine {
     override suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String> =
         solvedN.filterKeys { it in challenges }
 
+    public var solvedSignatures: Map<String, String> = emptyMap()
+
+    override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
+        solvedSignatures.filterKeys { it in challenges }
+
     /** The last download asked for — lets tests assert the format selector used. */
     public var lastRequest: DownloadRequest? = null
         private set

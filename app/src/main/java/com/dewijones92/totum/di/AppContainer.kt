@@ -126,6 +126,9 @@ import com.dewijones92.totum.innertube.player.MemoisedNSolver
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.innertube.player.SignatureSolver
+import com.dewijones92.totum.innertube.player.StreamingData
+import com.dewijones92.totum.innertube.player.withSolvedChallenges
 import com.dewijones92.totum.innertube.player.withSolvedN
 import com.dewijones92.totum.innertube.playlists.HttpYouTubePlaylists
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
@@ -743,21 +746,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 embedded = ::embeddedPlayer,
                 // Only the anonymous response needs solving here; the account path already
                 // solved its own, and doing it twice would transform an answer into nonsense.
-                solveN = { streaming ->
-                    val playerUrl = runCatching { signatureTimestamps.playerScriptUrl() }.getOrNull()
-                    if (playerUrl != null) {
-                        streaming.withSolvedN(nSolver, playerUrl)
-                    } else {
-                        // FAIL CLOSED. Returning the streams untouched here looked harmless and
-                        // was the worst option: their `n` is unsolved, so they 403 the moment
-                        // playback opens them — a video that resolved in 112ms and then died,
-                        // rather than one that took 14s and worked. Seen on the emulator
-                        // 2026-08-02. An empty solver drops every format carrying an `n`, which
-                        // sends the caller to extraction, and anything with no `n` survives.
-                        Diag.warn("resolve", "no player script — dropping any stream that needs its n solved")
-                        streaming.withSolvedN({ _, _ -> emptyMap() }, "")
-                    }
-                },
+                solveN = solvingChallenges(signatureTimestamps, nSolver, signatureSolver),
                 // Signed in, ask the account FIRST. Its client is a TV one, which is what SmartTube is
                 // — and SmartTube plays these videos in full on the same broadband where this app
                 // cannot. The path existed and was unreachable: it only fired when the anonymous call
@@ -1070,7 +1059,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val accountPlayer: InnerTubePlayerStreams.AccountPlayer by lazy {
-        SignedInTvPlayer(youTubeAccount, signatureTimestamps, innerTubeClient, nSolver)
+        SignedInTvPlayer(youTubeAccount, signatureTimestamps, innerTubeClient, nSolver, signatureSolver)
     }
 
     /**
@@ -1080,6 +1069,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * declares the port and `:lib:ytdlp` owns the JavaScript runtime, and the two stay
      * independent of each other so both remain separately publishable.
      */
+    private val signatureSolver: SignatureSolver by lazy {
+        SignatureSolver { challenges, playerUrl -> ytDlpEngine.solveSignatures(challenges, playerUrl) }
+    }
+
     private val nSolver: NSolver by lazy {
         MemoisedNSolver(NSolver { challenges, playerUrl -> ytDlpEngine.solveN(challenges, playerUrl) })
     }
@@ -1543,4 +1536,24 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
         groupAllows = c.groupDownloads::allows,
         groupChoicesChanged = c.groupDownloads.choices,
     ).start()
+}
+
+private fun solvingChallenges(
+    signatureTimestamps: HttpSignatureTimestampSource,
+    nSolver: NSolver,
+    signatureSolver: SignatureSolver,
+): suspend (StreamingData) -> StreamingData = { streaming ->
+    val playerUrl = runCatching { signatureTimestamps.playerScriptUrl() }.getOrNull()
+    if (playerUrl != null) {
+        streaming.withSolvedChallenges(nSolver, signatureSolver, playerUrl)
+    } else {
+        // FAIL CLOSED. Returning the streams untouched here looked harmless and
+        // was the worst option: their `n` is unsolved, so they 403 the moment
+        // playback opens them — a video that resolved in 112ms and then died,
+        // rather than one that took 14s and worked. Seen on the emulator
+        // 2026-08-02. An empty solver drops every format carrying an `n`, which
+        // sends the caller to extraction, and anything with no `n` survives.
+        Diag.warn("resolve", "no player script — dropping any stream that needs its n solved")
+        streaming.withSolvedN({ _, _ -> emptyMap() }, "")
+    }
 }

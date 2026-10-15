@@ -9,7 +9,8 @@ import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
-import com.dewijones92.totum.innertube.player.withSolvedN
+import com.dewijones92.totum.innertube.player.SignatureSolver
+import com.dewijones92.totum.innertube.player.withSolvedChallenges
 
 /**
  * Asks YouTube for a video as the signed-in account, for the ones it refuses anonymously.
@@ -22,6 +23,7 @@ class SignedInTvPlayer(
     private val signatureTimestamps: HttpSignatureTimestampSource,
     private val innerTubeClient: InnerTubeClient,
     private val nSolver: NSolver,
+    private val signatureSolver: SignatureSolver,
 ) : InnerTubePlayerStreams.AccountPlayer {
 
     override suspend fun playerFor(videoId: String): PlayerResult? {
@@ -67,7 +69,7 @@ class SignedInTvPlayer(
             Diag.warn("resolve", "$videoId resolved but no player script to solve its n parameters")
             return null
         }
-        val playable = parsed.streaming.withSolvedN(nSolver, playerUrl)
+        val playable = parsed.streaming.withSolvedChallenges(nSolver, signatureSolver, playerUrl)
         // DELIBERATELY still `directlyPlayable`, not `playableSomehow`. The sibling gate in
         // InnerTubePlayerStreams was widened to accept a SABR-only response; this one must not be.
         // Its whole job is to keep trying CLIENTS, and the current TV client answers OK for an
@@ -75,7 +77,11 @@ class SignedInTvPlayer(
         // short-circuited the downgraded client that returns seven fetchable URLs, and shipped a
         // feature that resolved and then would not play (2026-08-01).
         if (playable.directlyPlayable.isEmpty()) {
-            Diag.log("resolve", "$videoId as $client -> OK but nothing fetchable; no signed-in answer (the tracking client's links all 403, ADR 49)")
+            Diag.log(
+                "resolve",
+                "$videoId as $client -> OK but nothing fetchable; no signed-in answer " +
+                    "(the tracking client's links all 403, ADR 49)",
+            )
             return null
         }
         Diag.log("resolve", "$videoId as $client -> ${playable.directlyPlayable.size} fetchable format(s)")

@@ -10,6 +10,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResult
+import com.dewijones92.totum.innertube.player.SignatureSolver
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -40,6 +41,7 @@ class SignedInTvPlayerTest {
             ),
             innerTubeClient = InnerTubeClient(http, playerUrl = server.url("/player").toString()),
             nSolver = NSolver { challenges, _ -> challenges.associateWith { "solved" } },
+            signatureSolver = SignatureSolver { challenges, _ -> challenges.associateWith { "SIGNED+$it" } },
         )
     }
 
@@ -51,10 +53,19 @@ class SignedInTvPlayerTest {
     }
 
     @Test
+    fun `a ciphered format is signed and solved into a playable link`() = runBlocking {
+        timestampSource()
+        enqueue(onlyCiphered())
+        val result = player().playerFor("vid") as? PlayerResult.Success
+        val url = result?.streaming?.directlyPlayable?.singleOrNull()?.url?.value
+        assertEquals("https://x.test/videoplayback?itag=251&n=solved&sig=SIGNED%2BABC", url)
+    }
+
+    @Test
     fun `nothing fetchable from the downgraded TV client is no answer, not the tracking client's dead links`() =
         runBlocking {
             timestampSource()
-            enqueue(onlyCiphered())
+            enqueue(onlyUnsolvableCiphered())
             enqueue(onePlainFormat())
             val result = player().playerFor("vid")
             assertNull(result)
@@ -76,6 +87,14 @@ class SignedInTvPlayerTest {
          "streamingData":{"adaptiveFormats":[
            {"itag":251,"mimeType":"audio/webm; codecs=\"opus\"","bitrate":1000,
             "signatureCipher":"s=ABC&sp=sig&url=https%3A%2F%2Fx.test%2Fvideoplayback%3Fitag%3D251%26n%3DRAW"}]}}
+        """.trimIndent()
+
+    private fun onlyUnsolvableCiphered() =
+        """
+        {"playabilityStatus":{"status":"OK"},
+         "streamingData":{"adaptiveFormats":[
+           {"itag":251,"mimeType":"audio/webm; codecs=\"opus\"","bitrate":1000,
+            "signatureCipher":"sp=sig&url=https%3A%2F%2Fx.test%2Fvideoplayback%3Fitag%3D251%26n%3DRAW"}]}}
         """.trimIndent()
 
     private fun onePlainFormat() =

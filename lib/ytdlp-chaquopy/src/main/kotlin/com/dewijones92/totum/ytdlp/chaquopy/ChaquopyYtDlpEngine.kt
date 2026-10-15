@@ -123,6 +123,14 @@ public class ChaquopyYtDlpEngine(
             }
         }
 
+    override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
+        withContext(dispatcher) {
+            check(jsRuntimeConfigured)
+            timed("solve ${challenges.size} signature(s)") {
+                parseSolvedN(bridge.callAttr("solve_sig", challenges.toTypedArray(), playerUrl).toString())
+            }
+        }
+
     /**
      * Times every trip into Python and records it: these are the app's slowest calls and
      * the ones a user is most likely to be waiting on. A Python-side error used to reach

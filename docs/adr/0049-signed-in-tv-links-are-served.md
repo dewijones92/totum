@@ -41,6 +41,10 @@ needed. `playerTracking` keeps the TV scale: it is history sync, it hands out no
 - With the change, 11 of 11 blocked videos served their links from the laptop. On the emulator, two blocked
   videos that were not downloaded streamed at 1080p, with first sound in 1.4 s and 1.9 s, through the existing
   route: yt-dlp fails, and then "as downgraded TV -> N fetchable format(s)".
-- Links that come back ciphered (`signatureCipher`, 1 of the 11) are still not playable this way: Totum solves `n`
-  but not `sig`. That is a follow-up.
+- Ciphered links (`signatureCipher`): 1 of the 11 soak videos, and every music-label track on Dewi's phone
+  (0.1.617: "OK but nothing fetchable"). The bridge now solves signatures as well as `n` (`solve_sig`, the same
+  V8/QuickJS providers), and `withSolvedChallenges` signs those formats before the `n` solve for both player paths.
+  On the emulator: Gangnam Style 23/23 signatures in 0.98 s, a music track 20/20 in 72 ms, first sound 0.7 s.
+- The signed-in path no longer falls back to the tracking client (`playerAsAccount`): its one plain link is 360p
+  and answers 403 (`SignedInTvPlayerTest`).
 - Test: `PlayerTimestampScaleTest` pins the timestamp, the flag and the agent. It failed against the old request.

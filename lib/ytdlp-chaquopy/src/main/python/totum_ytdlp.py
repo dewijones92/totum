@@ -697,6 +697,11 @@ def _n_solver():
     return _N_SOLVER
 
 
+def solve_sig(challenges, player_url):
+    """As solve_n, for the `s` of a signatureCipher (ADR 49); the same V8/QuickJS providers answer both."""
+    return _solve_challenges("sig", challenges, player_url)
+
+
 def solve_n(challenges, player_url):
     """Deobfuscate YouTube `n` throttling parameters using the bundled QuickJS.
 
@@ -720,6 +725,10 @@ def solve_n(challenges, player_url):
     that moves this machinery must degrade to "age-restricted videos stopped working" and
     say so, never to a crash on the playback path.
     """
+    return _solve_challenges("n", challenges, player_url)
+
+
+def _solve_challenges(kind, challenges, player_url):
     if not _JS_RUNTIME_PATH:
         return json.dumps({"ok": False, "detail": "no JavaScript runtime bundled"})
     try:
@@ -727,13 +736,20 @@ def solve_n(challenges, player_url):
             JsChallengeRequest,
             JsChallengeType,
             NChallengeInput,
+            SigChallengeInput,
         )
 
         extractor = _n_solver()
-        request = JsChallengeRequest(
-            type=JsChallengeType.N,
-            input=NChallengeInput(challenges=list(challenges), player_url=player_url),
-        )
+        if kind == "sig":
+            request = JsChallengeRequest(
+                type=JsChallengeType.SIG,
+                input=SigChallengeInput(challenges=list(challenges), player_url=player_url),
+            )
+        else:
+            request = JsChallengeRequest(
+                type=JsChallengeType.N,
+                input=NChallengeInput(challenges=list(challenges), player_url=player_url),
+            )
         solved = {}
         for _request, response in extractor._jsc_director.bulk_solve([request]):
             solved.update(response.output.results)

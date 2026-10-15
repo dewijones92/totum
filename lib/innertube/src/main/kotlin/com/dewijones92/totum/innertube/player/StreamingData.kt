@@ -94,7 +94,11 @@ public data class PlayableFormat(
      * complete before it began.
      */
     val contentLength: Long? = null,
+    val cipher: SignatureCipher? = null,
 )
+
+/** A format YouTube hands out without a [PlayableFormat.url]: the link, and the signature to solve and append. */
+public data class SignatureCipher(val signature: String, val parameter: String, val url: HttpUrl)
 
 /**
  * What this format's sound is, from `xtags` and from the URL, which says the same thing.
