@@ -864,6 +864,9 @@ fails intermittently — need the XML kept somewhere. The cheapest durable optio
 already runs the crashlog server with a SQLite index behind Google auth; that pattern would make
 "is `SearchSectionStatesTest` flaky?" answerable, which it currently is not.
 
+- **Transcripts and radio mixes (2026-10-15):** `TranscriptParserTest`, `TranscriptLoaderTest`, `RssParserTest`
+  (podcast:transcript), `PlayerTabsForTest`, `RadioMixTest`. The tab was checked by hand on totum-api35 (a captioned
+  video: 60 lines, a tapped line seeks and is highlighted); a podcast transcript was not.
 - **New uploads and the silent tail (2026-10-15):** `NewUploadsTest` (a group gets new uploads next, once; Shorts
   follow the shuffle; a group that left is forgotten; an older group is adopted; the inbox's first look adds nothing;
   a covered source feeds its group, not the inbox; a manual pull checks one group), `AddedToGroupTest` (next while the

@@ -62,6 +62,7 @@ import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
+import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
 import com.dewijones92.totum.data.update.GitHubLatestRelease
 import com.dewijones92.totum.database.RoomAccountProgressOutbox
@@ -457,6 +458,8 @@ interface AppContainer {
 
     val newUploads: NewUploads
 
+    val transcripts: TranscriptLoader
+
     val recentActions: RecentActions
     val exploreMode: ExploreMode
     val statsLog: StatsLog
@@ -521,6 +524,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
+
+    override val transcripts: TranscriptLoader by lazy { TranscriptLoader(textFetcher) }
 
     override val newUploads: NewUploads by lazy {
         newUploadsOf(this, textFetcher, shufflePages, File(context.filesDir, "new_uploads.json"))

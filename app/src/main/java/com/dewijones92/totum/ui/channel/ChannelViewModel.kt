@@ -102,6 +102,7 @@ class ChannelViewModel(
         val downloadStates: Map<MediaItemId, DownloadState> = emptyMap(),
         val resolving: String? = null,
         val artworkUrl: HttpUrl? = null,
+        val channelId: String? = null,
     )
 
     private data class Content(
@@ -151,6 +152,7 @@ class ChannelViewModel(
             downloadStates = downloadStates,
             resolving = c.resolving,
             artworkUrl = source.artworkUrl ?: subs.artworkFor(c),
+            channelId = channelId ?: c.resolvedChannelId,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), UiState(source.title))
 

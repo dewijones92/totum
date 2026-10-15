@@ -194,6 +194,31 @@ class RssParserTest {
     }
 
     @Test
+    fun `reads every Podcasting 2_0 transcript link with its type and language`() {
+        val xml = """
+            <?xml version="1.0"?>
+            <rss version="2.0"><channel><title>Talky</title>
+              <item>
+                <title>Ep</title>
+                <podcast:transcript url="https://t.example.com/ep1.vtt" type="text/vtt" language="en"/>
+                <podcast:transcript url="https://t.example.com/ep1.json" type="application/json"/>
+                <podcast:transcript url=" " type="text/html"/>
+              </item>
+            </channel></rss>
+        """.trimIndent()
+
+        val episode = (parser.parse(xml) as RssParseResult.Success).feed.episodes.single()
+
+        assertEquals(
+            listOf(
+                ParsedTranscript("https://t.example.com/ep1.vtt", "text/vtt", "en"),
+                ParsedTranscript("https://t.example.com/ep1.json", "application/json", null),
+            ),
+            episode.transcripts,
+        )
+    }
+
+    @Test
     fun `rejects doctype declarations (XXE hardening)`() {
         val xml = """
             <?xml version="1.0"?>

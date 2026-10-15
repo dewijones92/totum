@@ -96,7 +96,7 @@ fun ChannelScreen(
     ChannelContent(
         state = state,
         headerAction = {
-            InboxToggle(source, state.subscribed)
+            InboxToggle(source, state.subscribed, state.channelId)
             ShuffleAllAction(
                 container.shuffleAll,
                 container.applicationScope,

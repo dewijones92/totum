@@ -11,6 +11,9 @@ import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -87,6 +90,41 @@ class MusicRadio(
             ),
             from = "radio",
         )
+        return true
+    }
+
+    suspend fun startMix(seeds: List<Pair<String, String>>): Boolean {
+        val title = mixTitle(seeds.map { it.second })
+        val radioSeeds = seeds.map { RadioSeed.forSong(it.first) }
+        Diag.log("radio", "starting a mix of ${seeds.size} song(s): ${seeds.joinToString { it.first }}")
+        val results = coroutineScope { radioSeeds.map { seed -> async { catalogue.radio(seed) } }.awaitAll() }
+        results.forEachIndexed { i, result ->
+            if (result is MusicResult.Failure) {
+                Diag.warn(
+                    "radio",
+                    "mix: no radio for ${seeds[i].first}: ${result.detail}"
+                )
+            }
+        }
+        val batches = results.map { (it as? MusicResult.Success)?.value?.songs.orEmpty() }
+        val mixed = interleaveRadios(batches)
+        if (mixed.isEmpty()) {
+            Diag.warn("radio", "mix \"$title\": none of its seeds gave a radio; nothing queued")
+            return false
+        }
+        val first = radioSeeds.first()
+        val group = QueueGroup(id = "${RADIO_GROUP_PREFIX}mix:${first.playlistId}", title = "Radio · $title")
+        val continuation = (results.first() as? MusicResult.Success)?.value?.continuation
+        fetching?.cancel()
+        station = Station(first, group, continuation, mixed.mapTo(mutableSetOf()) { it.videoId })
+        save()
+        Diag.log(
+            "radio",
+            "mix \"${group.title}\": ${mixed.size} songs from ${batches.count { it.isNotEmpty() }} of ${seeds.size} " +
+                "radios (${batches.joinToString { it.size.toString() }}), tops up from the first, " +
+                "continuation=${continuation != null}",
+        )
+        queue.playAll(mixed.map { it.toPlayable(MusicSources.radio(first.playlistId)) }, group)
         return true
     }
 

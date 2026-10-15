@@ -24,8 +24,8 @@ internal fun sharedWatchUrl(rawText: String?): HttpUrl? =
 internal fun whyNotPlayable(rawText: String?): String {
     val links = linksIn(rawText)
     if (links.isEmpty()) return "no link in the shared text"
-    val shapes = links.joinToString { url -> url.value.substringAfter("://").substringBefore('?').removePrefix("www.") }
-    return "${links.size} link(s), none a YouTube video: $shapes"
+    val hosts = links.joinToString { url -> url.value.substringAfter("://").substringBefore('/').removePrefix("www.") }
+    return "${links.size} link(s), none a YouTube video: $hosts"
 }
 
 internal fun logUnplayableShare(action: String?, text: String?, via: String) {

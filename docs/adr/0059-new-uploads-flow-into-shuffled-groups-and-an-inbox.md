@@ -33,8 +33,9 @@ at the end of the queue; the inbox switched on per source (page and Settings) or
 - The inbox: the sources switched on (or every subscription) that no shuffled group in the queue covers. A source's
   first look only notes what exists; later uploads go to the end of "📥 New" (`inbox:new`). Every id the latest
   fetch lists is remembered (no cap: a podcast feed lists its whole back catalogue), plus up to 200 that have dropped
-  out of it; a source covered by a group keeps its inbox memory current, so the inbox does not re-offer what the
-  group delivered once the group leaves. Shorts are left out of the inbox; a group follows its own Shorts choice.
+  out of it; a source covered by a group keeps its inbox memory current while it is an inbox source, so the inbox
+  does not re-offer what the group delivered once the group leaves. Memory for a source that is not an inbox source
+  is dropped, so switching the inbox on later always starts with a first look. Shorts are left out of the inbox; a group follows its own Shorts choice.
   Members-only items are left out only where the source says so: a channel's RSS feed does not, so they can arrive.
 - Only subscribed sources can feed the inbox: the 📥 button shows on a subscribed page only and stores the channel id
   (`inboxKeyOf`); a chosen source no longer subscribed is logged and skipped. A check waits up to 30 s for the YouTube
@@ -43,7 +44,9 @@ at the end of the queue; the inbox switched on per source (page and Settings) or
   metered (never under instrumentation). By hand: the group's ⋮ → 🔄 Pull new uploads, on any network, with a
   snackbar saying what happened. All requests go through the polite gate (RSS is about 6 KB per channel), four at
   a time; the lock is held only to read and write the state, never across the fetches. A check waits for the saved
-  queue to load first, so a background run in a fresh process cannot mistake an unloaded queue for an empty one.
+  queue to load first (up to 60 s, said when it gives up), so a background run in a fresh process cannot mistake an
+  unloaded queue for an empty one, and a group removed while its feeds were fetched is left alone, not re-created.
+  The inbox's sources are read before the lock, so a 30 s wait for subscriptions never holds a shuffle up.
 - State lives in `files/new_uploads.json` (not Room, so no schema bump); settings `inboxAll` and `inboxSources` are in
   `AppPreferences`, backed up and in reports.
 
@@ -58,4 +61,4 @@ at the end of the queue; the inbox switched on per source (page and Settings) or
   a real new upload arriving, and the Settings sheet.
 - Logs (`uploads`): every watched group's check (latest, new, added), each adoption, each inbox source's first look,
   every failure; reports carry `uploads.lastCheck`, `uploads.watchedGroups` and `settings.inbox`.
-- Tests: `NewUploadsTest`, `AddedToGroupTest`, `PreferenceBackupTest`.
+- Tests: `NewUploadsTest`, `NewUploadsOverTheQueueTest` (the real queue), `AddedToGroupTest`, `PreferenceBackupTest`.

@@ -163,7 +163,7 @@ class SharedLinkTest {
         assertEquals("no link in the shared text", whyNotPlayable(null))
         assertEquals("no link in the shared text", whyNotPlayable("just some words"))
         assertEquals(
-            "1 link(s), none a YouTube video: example.com/blog",
+            "1 link(s), none a YouTube video: example.com",
             whyNotPlayable("see https://example.com/blog?x=1")
         )
     }

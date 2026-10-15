@@ -9,6 +9,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.ui.player.LocalTranscripts
 import kotlinx.coroutines.launch
 
 /**
@@ -44,6 +45,7 @@ internal fun ProvidePlayStates(
         LocalPlayStates provides states,
         LocalExploreMode provides container.exploreMode,
         LocalAppPreferences provides container.appPreferences,
+        LocalTranscripts provides container.transcripts,
         LocalListeningSwitch provides listeningSwitchUi(container),
         LocalDownloadStates provides downloads,
         LocalSetPlayed provides setPlayed,

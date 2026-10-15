@@ -22,7 +22,9 @@ public fun HttpUrl.youTubeVideoId(): String? {
         "youtu.be/" in raw -> raw.substringAfter("youtu.be/")
         "/shorts/" in raw -> raw.substringAfter("/shorts/")
         "youtube.com/live/" in raw -> raw.substringAfter("youtube.com/live/")
-        "youtube.com/embed/" in raw -> raw.substringAfter("youtube.com/embed/")
+        "youtube.com/embed/" in raw -> raw.substringAfter("youtube.com/embed/").takeUnless { embed ->
+            NOT_VIDEOS.any { embed.startsWith(it) }
+        } ?: return null
         "/watch?" in raw -> raw.substringAfter("/watch?").split('&')
             .firstOrNull { it.startsWith("v=") }?.removePrefix("v=") ?: return null
         else -> return null
@@ -60,3 +62,5 @@ private val CHANNEL_ID = Regex("UC[A-Za-z0-9_-]{22}")
 
 /** YouTube video ids are always this long; anything else is a false match. */
 private const val ID_LENGTH = 11
+
+private val NOT_VIDEOS = listOf("videoseries", "live_stream")

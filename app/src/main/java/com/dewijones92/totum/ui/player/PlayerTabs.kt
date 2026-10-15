@@ -37,13 +37,14 @@ enum class PlayerTab(@param:StringRes val label: Int) {
     UP_NEXT(R.string.player_tab_up_next),
     RELATED(R.string.player_tab_related),
     COMMENTS(R.string.player_tab_comments),
+    TRANSCRIPT(R.string.player_tab_transcript),
     DETAILS(R.string.player_tab_details),
 }
 
-internal fun playerTabsFor(kind: MediaKind): List<PlayerTab> = when (kind) {
+internal fun playerTabsFor(kind: MediaKind, hasTranscript: Boolean = false): List<PlayerTab> = when (kind) {
     MediaKind.VIDEO -> PlayerTab.entries
-    MediaKind.PODCAST -> listOf(PlayerTab.UP_NEXT, PlayerTab.DETAILS)
-}
+    MediaKind.PODCAST -> listOf(PlayerTab.UP_NEXT, PlayerTab.TRANSCRIPT, PlayerTab.DETAILS)
+}.filter { hasTranscript || it != PlayerTab.TRANSCRIPT }
 
 @Suppress("LongParameterList")
 internal class PlayerTabContent(
@@ -59,7 +60,7 @@ internal class PlayerTabContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
-    val tabs = playerTabsFor(state.kind)
+    val tabs = playerTabsFor(state.kind, rememberHasTranscript(state))
     var chosen by rememberSaveable { mutableStateOf(PlayerTab.UP_NEXT) }
     val selected = chosen.takeIf { it in tabs } ?: PlayerTab.UP_NEXT
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -96,6 +97,7 @@ internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
                 LaunchedEffect(state.itemId) { content.replies.onWanted() }
                 CommentsSection(content.comments, content.watchActions, content.replies)
             }
+            PlayerTab.TRANSCRIPT -> TranscriptSection(state, content.onSeekTo)
             PlayerTab.DETAILS -> {
                 LyricsSection()
                 NotesChaptersAndSponsors(state, content.onSeekTo)

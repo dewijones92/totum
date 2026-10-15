@@ -45,7 +45,10 @@ public data class ParsedEpisode(
     val chapters: List<Chapter> = emptyList(),
     /** Podcasting 2.0 remote chapters URL (`<podcast:chapters url=…>`); fetched if no inline chapters. */
     val chaptersUrl: String? = null,
+    val transcripts: List<ParsedTranscript> = emptyList(),
 )
+
+public data class ParsedTranscript(val url: String, val type: String?, val language: String?)
 
 /**
  * Parses RSS 2.0 podcast feeds (with the usual iTunes extensions) via the
@@ -95,6 +98,15 @@ public class RssParser {
         imageUrl = itunesImage(),
         chapters = parseChapters(),
         chaptersUrl = firstChildElement("podcast:chapters")?.getAttribute("url")?.ifBlank { null },
+        transcripts = childElements("podcast:transcript").mapNotNull { element ->
+            element.getAttribute("url").trim().ifBlank { null }?.let { url ->
+                ParsedTranscript(
+                    url,
+                    element.getAttribute("type").ifBlank { null },
+                    element.getAttribute("language").ifBlank { null },
+                )
+            }
+        },
     )
 
     private fun Element.itunesImage(): String? =

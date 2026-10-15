@@ -47,6 +47,7 @@ internal fun ProvideItemActions(
         LocalReadyAhead provides { item -> container.readyAhead.ready(item.toPlayableOrNull(), "menu opened") },
         LocalOpenSource provides openSource,
         LocalStartRadio provides { item -> startRadio(container, item) },
+        LocalStartRadioMix provides { items -> startRadioMix(container, items) },
         LocalPins provides rememberPinActions(container),
         LocalRecent provides container.recentActions,
         LocalFavourites provides remember(container) {
@@ -115,8 +116,17 @@ private class ContainerItemActions(
     }
 }
 
+private fun startRadioMix(container: AppContainer, items: List<MediaItem>) {
+    val seeds = items.mapNotNull { item -> item.radioVideoId()?.let { it to item.title } }
+    Diag.log("radio", "radio from ${items.size} selected item(s): ${seeds.size} with a YouTube id")
+    if (seeds.isEmpty()) return
+    container.applicationScope.launch { container.musicRadio.startMix(seeds) }
+}
+
+internal fun MediaItem.radioVideoId(): String? = mediaUrl?.youTubeVideoId() ?: HttpUrl.parse(id.value)?.youTubeVideoId()
+
 private fun startRadio(container: AppContainer, item: MediaItem) {
-    val videoId = item.mediaUrl?.youTubeVideoId() ?: HttpUrl.parse(item.id.value)?.youTubeVideoId()
+    val videoId = item.radioVideoId()
     if (videoId == null) {
         Diag.warn("radio", "\"${item.title}\" has no YouTube id to start a radio from")
         return

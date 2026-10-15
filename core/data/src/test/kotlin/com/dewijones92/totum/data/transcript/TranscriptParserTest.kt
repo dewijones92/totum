@@ -61,6 +61,20 @@ class TranscriptParserTest {
     }
 
     @Test
+    fun `a short line that repeats the end of the last one is still a line`() {
+        val vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nand he said no\n\n00:00:05.000 --> 00:00:06.000\nno\n"
+
+        assertEquals(listOf("and he said no", "no"), TranscriptParser.parse(vtt, TranscriptFormat.VTT).map { it.text })
+    }
+
+    @Test
+    fun `an srt with no blank line between cues does not glue the cue number on`() {
+        val srt = "1\n00:00:01,000 --> 00:00:02,000\nfirst\n2\n00:00:03,000 --> 00:00:04,000\nsecond\n"
+
+        assertEquals(listOf("first", "second"), TranscriptParser.parse(srt, TranscriptFormat.SRT).map { it.text })
+    }
+
+    @Test
     fun `the podcast json transcript format is read`() {
         val json = """{"version":"1.0.0","segments":""" +
             """[{"speaker":"A","startTime":0.5,"endTime":2.25,"body":"Welcome"}]}"""

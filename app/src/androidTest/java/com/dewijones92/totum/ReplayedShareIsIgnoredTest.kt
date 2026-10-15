@@ -96,8 +96,8 @@ class ReplayedShareIsIgnoredTest {
     private fun ignored(line: String) = line.startsWith("ignored a replayed share")
 
     private companion object {
-        const val FIRST = "https://www.youtube.com/watch?v=no-video"
-        const val SECOND = "https://www.youtube.com/watch?v=no-video-either"
+        const val FIRST = "https://www.youtube.com/watch?v=noVideo0001"
+        const val SECOND = "https://www.youtube.com/watch?v=noVideo0002"
         const val TIMEOUT_MS = 10_000L
         const val POLL_MS = 50L
     }

@@ -160,6 +160,7 @@ class QueueAutoDownloader(
             Diag.log("download", "pass done: asked for ${started.get()} of ${ordered.size} queued item(s)")
         }
         val held = heldThisPass.entries.sortedByDescending { it.value }.joinToString { "\"${it.key}\" ${it.value}" }
+        if (held.isEmpty()) lastHeld = null
         if (held.isNotEmpty() && held != lastHeld) {
             lastHeld = held
             Diag.log(
@@ -219,7 +220,7 @@ class QueueAutoDownloader(
                 // members-only videos repeated their reason on every pass and took 14% of a
                 // 387-event report (0.1.229) saying nothing new — and the report buffer is
                 // bounded, so noise like that is evidence thrown away.
-                val heldGroup = entry.group?.takeIf { !groupAllows(it.id) }
+                val heldGroup = entry.group?.takeIf { skip.isNotEmpty() && !groupAllows(it.id) }
                 if (heldGroup != null) {
                     heldThisPass.merge(heldGroup.title, 1, Int::plus)
                 } else if (skip.isNotEmpty() && explained.add(item.id)) {

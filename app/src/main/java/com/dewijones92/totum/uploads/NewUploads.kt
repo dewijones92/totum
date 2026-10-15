@@ -70,17 +70,24 @@ class NewUploads(
 
     suspend fun check(why: String, onlyGroup: String? = null): UploadsReport {
         queue.ready()
-        val plan = lock.withLock { plan(onlyGroup) }
+        val eligible = inboxSources()
+        val plan = lock.withLock { plan(onlyGroup, eligible) }
         val sources = (plan.groups.flatMap { g -> g.shuffle.sources.mapNotNull { it.toSource() } } + plan.inbox)
             .distinctBy { it.id }
         val fetched = fetchAll(sources)
-        val failed = sources.filter { fetched[it.id.value] == null }.map { it.title }
+        val failed = sources.filter { fetched[it.id.value] == null }.map { it.title } + plan.failed
         return lock.withLock { apply(why, plan, fetched, failed) }
     }
 
-    private class Plan(val groups: List<WatchedGroup>, val inbox: List<MediaSource>, val unwatched: List<String>)
+    private class Plan(
+        val groups: List<WatchedGroup>,
+        val inbox: List<MediaSource>,
+        val unwatched: List<String>,
+        val eligible: Set<String>,
+        val failed: List<String>,
+    )
 
-    private suspend fun plan(onlyGroup: String?): Plan {
+    private suspend fun plan(onlyGroup: String?, eligible: List<MediaSource>): Plan {
         val state = store.load()
         val inQueue = queue.groupIds()
         state.groups.values.filter { it.groupId !in inQueue }.forEach {
@@ -102,10 +109,12 @@ class NewUploads(
         val groups = watched.filter { onlyGroup == null || it.groupId == onlyGroup }
         val unwatched = listOfNotNull(onlyGroup?.takeIf { id -> watched.none { it.groupId == id } })
         val covered = watched.flatMap { g -> g.shuffle.sources.map { it.id } }.toSet()
+        val unreadable = groups.flatMap { g -> g.shuffle.sources.filter { it.toSource() == null }.map { it.title } }
+        unreadable.forEach { Diag.warn(TAG, "a shuffled source \"$it\" has no usable link; not checked") }
         val inbox = if (onlyGroup != null) {
             emptyList()
         } else {
-            inboxSources().filter { source ->
+            eligible.filter { source ->
                 (source.id.value !in covered).also { free ->
                     if (!free) {
                         Diag.log(
@@ -116,7 +125,7 @@ class NewUploads(
                 }
             }
         }
-        return Plan(groups, inbox, unwatched)
+        return Plan(groups, inbox, unwatched, eligible.mapTo(mutableSetOf()) { it.id.value }, unreadable)
     }
 
     private suspend fun fetchAll(sources: List<MediaSource>): Map<String, List<MediaItem>?> = coroutineScope {
@@ -131,15 +140,21 @@ class NewUploads(
         failed: List<String>,
     ): UploadsReport {
         val state = store.load()
-        val inboxSeen = state.inboxSeen.toMutableMap()
+        val inboxSeen = state.inboxSeen.filterKeys { it in plan.eligible }.toMutableMap()
         val addedToGroups = mutableMapOf<String, Int>()
         val groups = state.groups.toMutableMap()
+        val stillQueued = queue.groupIds()
         plan.groups.forEach { planned ->
+            if (planned.groupId !in stillQueued) {
+                Diag.log(TAG, "\"${planned.shuffle.title}\" left the queue during the check; nothing added to it")
+                return@forEach
+            }
             val group = groups[planned.groupId] ?: planned
             val (updated, added) = refreshGroup(group, fetched)
             groups[group.groupId] = updated
             addedToGroups[group.groupId] = added
-            group.shuffle.sources.forEach { source -> fetched[source.id]?.let { noteSeen(inboxSeen, source.id, it) } }
+            group.shuffle.sources.filter { it.id in plan.eligible }
+                .forEach { source -> fetched[source.id]?.let { noteSeen(inboxSeen, source.id, it) } }
         }
         val fresh = plan.inbox.flatMap { source -> inboxNews(source, fetched[source.id.value], inboxSeen) }
         val playable = fresh.sortedByDescending { it.publishedAt }.mapNotNull { it.toPlayableOrNull() }

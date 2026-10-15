@@ -43,6 +43,7 @@ import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.subscription.fake.InMemorySubscriptionStore
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
 import com.dewijones92.totum.data.update.ReleaseLookup
 import com.dewijones92.totum.di.AppContainer
@@ -208,6 +209,10 @@ class FakeAppContainer(
             randomStarts,
         )
     }
+
+    override val transcripts: TranscriptLoader = TranscriptLoader(
+        fetcher = { com.dewijones92.totum.data.net.FetchResult.Failure("offline") },
+    )
 
     override val newUploads: NewUploads by lazy {
         NewUploads(

@@ -79,4 +79,11 @@ class WatchUrlTest {
         assertNull(HttpUrl.of(channel).youTubeVideoId())
         assertEquals(channel, HttpUrl.of(channel).canonicalWatchUrl().value)
     }
+
+    @Test
+    fun `an embedded playlist or live stream is not a video id`() {
+        assertNull(HttpUrl.of("https://www.youtube.com/embed/videoseries?list=PL123").youTubeVideoId())
+        assertNull(HttpUrl.of("https://www.youtube.com/embed/live_stream?channel=UC123").youTubeVideoId())
+        assertNull(HttpUrl.of("https://www.youtube.com/@someone/live").youTubeVideoId())
+    }
 }

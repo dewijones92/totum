@@ -2,7 +2,7 @@
 title: Radio tops itself up; repeat and shuffle are queue features, for both pillars
 kind: adr
 status: accepted
-updated: 2026-10-09
+updated: 2026-10-15
 ---
 
 # 27. Radio tops itself up; repeat and shuffle are queue features, for both pillars
@@ -53,3 +53,10 @@ The first version wrote the mark into the item's author, which a stream's resolv
 history then saved (found by the review); the station starts with the app, so a restart cannot leave a radio
 labelled endless with nothing topping it up. Tests: `MusicRadioTest`, `EndlessLabelTest`, `GroupHeaderShufflePlayTest`.
 
+## Revision 2026-10-15: radio from several songs
+
+Dewi chose "radio from several selected songs" from the product review. YouTube Music offers no several-seed radio
+that this app knows of, so the multi-select bar's "📻 Radio from these" (two or more items with a YouTube id) fetches
+each song's radio, takes them in turns with no song twice (`interleaveRadios`: each seed leads, then each radio's
+second song, …), and plays the blend as one radio group (`radio:mix:<first seed>`, "Radio · A, B + 2 more") that tops
+itself up from the first seed's continuation. A seed whose radio fails is logged and left out. `RadioMixTest`.

@@ -45,7 +45,7 @@ public object TranscriptParser {
             }
             val text = StringBuilder()
             i++
-            while (i < lines.size && lines[i].isNotBlank() && timing.find(lines[i]) == null) {
+            while (continuesCue(lines, i)) {
                 val clean = lines[i].replace(tags, "").replace("&amp;", "&").replace("&nbsp;", " ").trim()
                 if (clean.isNotEmpty()) text.append(if (text.isEmpty()) clean else " $clean")
                 i++
@@ -54,6 +54,12 @@ public object TranscriptParser {
         }
         return cues
     }
+
+    private fun continuesCue(lines: List<String>, i: Int): Boolean =
+        i < lines.size && lines[i].isNotBlank() && timing.find(lines[i]) == null && !isCueNumber(lines, i)
+
+    private fun isCueNumber(lines: List<String>, i: Int): Boolean =
+        lines[i].trim().all { it.isDigit() } && lines.getOrNull(i + 1)?.let { timing.find(it) } != null
 
     private fun collapseRolling(cues: List<Cue>): List<Cue> {
         val out = mutableListOf<Cue>()
@@ -64,7 +70,7 @@ public object TranscriptParser {
                     out[out.size - 1] = last.copy(endMs = maxOf(last.endMs, cue.endMs))
                 last != null && cue.text.startsWith(last.text) && cue.startMs - last.startMs < ROLLING_MS ->
                     out[out.size - 1] = cue.copy(startMs = last.startMs)
-                last != null && last.text.endsWith(cue.text) -> Unit
+                last != null && ' ' in cue.text && last.text.endsWith(cue.text) -> Unit
                 else -> {
                     val fresh = last?.let { stripOverlap(it.text, cue.text) } ?: cue.text
                     if (fresh.isNotBlank()) out += cue.copy(text = fresh)

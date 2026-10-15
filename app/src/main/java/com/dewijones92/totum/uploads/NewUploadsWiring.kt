@@ -49,7 +49,9 @@ class LatestUploads(
 
 class QueueForUploads(private val queue: PlaybackQueue) : UploadsQueue {
     override suspend fun ready() {
-        queue.hydrated.first { it }
+        if (withTimeoutOrNull(QUEUE_WAIT_MS) { queue.hydrated.first { it } } == null) {
+            Diag.warn(TAG, "the saved queue had not loaded after ${QUEUE_WAIT_MS}ms; checking against what is there")
+        }
     }
 
     override fun groupIds(): Set<String> = queue.state.value.entries.mapNotNullTo(mutableSetOf()) { it.group?.id }
@@ -112,10 +114,8 @@ private suspend fun inboxSourcesOf(c: AppContainer): List<MediaSource> {
     val matched = chosen.flatMap { listOf(inboxKeyOf(it), it.id.value) }.toSet()
     val missing = settings.inboxSources - matched
     if (missing.isNotEmpty()) {
-        Diag.log(
-            TAG,
-            "inbox: ${missing.size} chosen source(s) are not among your subscriptions, not checked: $missing"
-        )
+        val why = if (loaded) "are not among your subscriptions" else "could not be matched: subscriptions not loaded"
+        Diag.log(TAG, "inbox: ${missing.size} chosen source(s) $why, not checked: $missing")
     }
     return chosen
 }
@@ -124,4 +124,5 @@ fun inboxKeyOf(source: MediaSource): String =
     (source as? MediaSource.VideoChannel)?.youTubeChannelId?.let { "yt:$it" } ?: source.id.value
 
 private const val SUBSCRIPTIONS_WAIT_MS = 30_000L
+private const val QUEUE_WAIT_MS = 60_000L
 private const val TAG = "uploads"

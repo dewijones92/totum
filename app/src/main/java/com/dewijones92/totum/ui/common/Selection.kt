@@ -276,6 +276,7 @@ fun mediaBulkActions(
 ): (List<MediaItem>) -> List<BulkAction> {
     val actions = LocalItemActions.current
     val downloads = LocalDownloadStates.current
+    val mix = LocalStartRadioMix.current
     return { chosen ->
         actions?.let { a ->
             val onDisk = chosen.filter { downloads[it.id] is DownloadState.Downloaded }
@@ -291,6 +292,8 @@ fun mediaBulkActions(
                 BulkAction(R.string.queue_play_next) { a.queue(chosen, next = true) }.takeIf { queueing },
                 BulkAction(R.string.queue_add) { a.queue(chosen, next = false) }.takeIf { queueing },
                 BulkAction(R.string.playlist_add_to) { a.addToPlaylist(chosen) },
+                mix?.let { start -> BulkAction(R.string.radio_from_these) { start(chosen) } }
+                    ?.takeIf { chosen.count { it.radioVideoId() != null } >= 2 },
                 BulkAction(
                     R.string.download,
                     confirm = R.plurals.bulk_download_confirm,

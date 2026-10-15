@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinnedSource
 import com.dewijones92.totum.queue.GroupSpot
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -188,5 +189,56 @@ class NewUploadsTest {
         val report = uploads.check("manual", onlyGroup = "shuffle:peep")
 
         assertEquals(listOf("shuffle:peep"), report.unwatched)
+    }
+
+    @Test
+    fun `switching the inbox on later starts with a first look, even for a source a group used to cover`() = runTest {
+        uploads.remember("shuffle:peep", shuffle, emptyList())
+        latest[peep.id] = listOf(video("u0", 1))
+        uploads.check("grouped, inbox off")
+        groupsInQueue.clear()
+        added.clear()
+        inbox = listOf(peep)
+        latest[peep.id] = listOf(video("u0", 1), video("u1", 5), video("u2", 6))
+
+        uploads.check("inbox switched on")
+
+        assertTrue(added.isEmpty())
+    }
+
+    @Test
+    fun `a group removed while its feed was being fetched is not brought back`() = runTest {
+        uploads.remember("shuffle:peep", shuffle, emptyList())
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val fetching = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val slow = NewUploads(
+            latest = {
+                fetching.complete(Unit)
+                gate.await()
+                listOf(video("new", 9))
+            },
+            queue = object : UploadsQueue {
+                override fun groupIds() = groupsInQueue
+                override fun add(group: QueueGroup, items: List<PlayableItem>, spot: GroupSpot): Int {
+                    added += Triple(group.id, items.map { it.item.id.value }, spot)
+                    return items.size
+                }
+            },
+            inboxSources = { emptyList() },
+            store = object : UploadsStore {
+                override suspend fun load() = saved
+                override suspend fun save(state: UploadsState) {
+                    saved = state
+                }
+            },
+        )
+        val running = backgroundScope.async { slow.check("slow") }
+        fetching.await()
+        groupsInQueue.clear()
+        gate.complete(Unit)
+        running.await()
+
+        assertTrue(added.isEmpty())
+        assertTrue("shuffle:peep" !in saved.groups)
     }
 }

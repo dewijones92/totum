@@ -665,6 +665,17 @@
     <string name="settings_inbox_podcast">🎙️ Podcast</string>
     <string name="settings_inbox_channel">📺 Channel</string>
     <string name="settings_inbox_none">📭 No subscriptions yet</string>
+    <string name="player_tab_transcript">Transcript</string>
+    <string name="transcript_loading">⏳ Loading the transcript…</string>
+    <string name="transcript_none">📭 No transcript: %1$s</string>
+    <string name="transcript_failed">⚠️ The transcript could not be loaded: %1$s</string>
+    <string name="transcript_from">From %1$s</string>
+    <string name="transcript_search">Search the transcript</string>
+    <string name="transcript_match">%1$d of %2$d</string>
+    <string name="transcript_previous_match">Previous match</string>
+    <string name="transcript_next_match">Next match</string>
+    <string name="transcript_follow">↓ Follow along</string>
+    <string name="radio_from_these">📻 Radio from these</string>
     <string name="settings_rewind">Rewind a little after a pause</string>
     <string name="settings_rewind_summary">Talk picks up a few seconds back when you resume: 2 s after a short pause, up to 20 s after an hour or more. Never for music.</string>
     <string name="explore_on">🧭 Explore on: related videos play next, your queue waits</string>

@@ -22,10 +22,10 @@ val LocalAppPreferences = staticCompositionLocalOf<AppPreferences?> { null }
 const val INBOX_TOGGLE_TAG = "inboxToggle"
 
 @Composable
-fun InboxToggle(source: MediaSource, subscribed: Boolean) {
+fun InboxToggle(source: MediaSource, subscribed: Boolean, channelId: String? = null) {
     if (!subscribed) return
     val prefs = LocalAppPreferences.current ?: return
-    val key = inboxKeyOf(source)
+    val key = channelId?.let { "yt:$it" } ?: inboxKeyOf(source)
     val settings by prefs.settings.collectAsStateWithLifecycle()
     val on = settings.inboxAll || key in settings.inboxSources || source.id.value in settings.inboxSources
     IconButton(
