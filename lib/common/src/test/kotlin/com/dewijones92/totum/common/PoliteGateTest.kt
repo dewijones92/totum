@@ -28,7 +28,10 @@ class PoliteGateTest {
         perSecond = perSecond,
         burst = burst,
         now = { clock },
-        sleep = { ms -> slept += ms; clock += ms },
+        sleep = { ms ->
+            slept += ms
+            clock += ms
+        },
         jitter = { 0.5 },
     )
 
@@ -112,7 +115,9 @@ class PoliteGateTest {
         withTimeout(20_000) {
             coroutineScope {
                 (1..100).map { n ->
-                    async(Dispatchers.Default) { gate.passing("c$n") { withContext(Dispatchers.IO) { Thread.sleep(5) } } }
+                    async(
+                        Dispatchers.Default
+                    ) { gate.passing("c$n") { withContext(Dispatchers.IO) { Thread.sleep(5) } } }
                 }.awaitAll()
             }
         }

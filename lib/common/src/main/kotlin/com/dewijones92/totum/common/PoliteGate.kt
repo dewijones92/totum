@@ -74,7 +74,8 @@ public class PoliteGate(
         Diag.warn(
             "polite",
             "YouTube said slow down (429) on $what; every YouTube call waits until ${until - now()}ms from now " +
-                "(level $level, this answer alone ${waitMs}ms${retryAfterMs?.let { ", Retry-After ${it}ms" }.orEmpty()})",
+                "(level $level, this answer alone ${waitMs}ms" +
+                "${retryAfterMs?.let { ", Retry-After ${it}ms" }.orEmpty()})",
         )
     }
 
