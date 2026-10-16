@@ -94,4 +94,18 @@ class SortingTheQueueCanBeUndoneTest {
         assertEquals(listOf("now", "a", "c", "late"), queue.ids())
         work.cancel()
     }
+
+    @Test
+    fun `undo is refused once a row has been moved after the sort`() = runTest(dispatcher) {
+        val (queue, work) = queueOf(item("now", false), item("c", false), item("a", false), item("b", false))
+        advanceUntilIdle()
+
+        val before = queue.sortAfterCurrent("test", byTitle)
+        queue.move(1, 3)
+        val moved = queue.ids()
+
+        assertFalse(queue.undoSort(before))
+        assertEquals(moved, queue.ids())
+        work.cancel()
+    }
 }

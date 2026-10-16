@@ -40,9 +40,9 @@ class SortingTheQueueTest {
         entries = listOf(
             entry("p3", peep),
             entry("p9", peep),
-            entry("p1", peep),
-            entry("mine-b", null),
             entry("p5", peep),
+            entry("mine-b", null),
+            entry("p1", peep),
             entry("n2", news),
             entry("n1", news),
             entry("mine-a", null),
@@ -56,6 +56,20 @@ class SortingTheQueueTest {
 
         assertEquals(listOf("p3", "p9", "p1", "mine-b", "p5", "n2", "n1", "mine-a"), sorted.ids())
         assertEquals("p9", sorted.entries[sorted.currentIndex].item.item.id.value)
+    }
+
+    @Test
+    fun `during a peek the sort starts after the place it left, never above it`() {
+        val peeking = QueueSnapshot(
+            entries = listOf(entry("z", null), entry("y", null), entry("b", null), entry("a", null)),
+            currentIndex = QueueSnapshot.NOTHING_PLAYING,
+            anchor = MediaItemId("y"),
+        )
+
+        val sorted = peeking.sortedAfterCurrent(byTitle)
+
+        assertEquals(listOf("z", "y", "a", "b"), sorted.ids())
+        assertEquals(listOf("a", "b"), sorted.upNext.map { it.item.item.id.value })
     }
 
     @Test

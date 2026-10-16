@@ -241,9 +241,6 @@ class PlaybackQueue(
 
     fun shuffleUpNext(random: Random = Random.Default) = mutate("shuffle up next") { it.shuffledAfterCurrent(random) }
 
-    suspend fun playFromTheTop(): Boolean = _state.value.entries.indices.any { playAt(it, rollBackOnRefusal = true) }
-        .also { Diag.log("queue", "start again from the top -> played=$it") }
-
     fun addToGroup(group: QueueGroup, items: List<PlayableItem>, spot: GroupSpot = GroupSpot.END): Int {
         val queued = _state.value.entries.mapTo(mutableSetOf()) { it.item.item.id }
         val fresh = items.distinctBy { it.item.id }.filterNot { it.item.id in queued }
@@ -522,8 +519,6 @@ class PlaybackQueue(
      * have been.
      */
     suspend fun playNextInQueue(): Boolean = step(FORWARD)
-
-    internal fun rearrange(why: String, block: (QueueSnapshot) -> QueueSnapshot) = mutate(why, block)
 
     suspend fun continueInKind(): Boolean = step(FORWARD, keepTo = _nowPlaying.value?.item?.listening)
 

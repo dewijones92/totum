@@ -9,7 +9,7 @@ internal fun QueueSnapshot.sortedAfterCurrent(
     sorter: (List<QueueEntry>) -> List<QueueEntry>,
     inGroup: (QueueGroup?) -> Boolean = { true },
 ): QueueSnapshot {
-    val start = (currentIndex + 1).coerceAtLeast(0)
+    val start = (place + 1).coerceAtLeast(0)
     val result = entries.toMutableList()
     entries.withIndex()
         .filter { it.index >= start && inGroup(it.value.group) }
@@ -21,24 +21,28 @@ internal fun QueueSnapshot.sortedAfterCurrent(
     return copy(entries = result)
 }
 
+class SortUndo internal constructor(internal val before: QueueSnapshot, internal val after: QueueSnapshot)
+
 fun PlaybackQueue.sortAfterCurrent(
     why: String,
     sorter: (List<QueueEntry>) -> List<QueueEntry>,
     inGroup: (QueueGroup?) -> Boolean = { true },
-): QueueSnapshot {
+): SortUndo {
     val before = state.value
-    rearrange(why) { it.sortedAfterCurrent(sorter, inGroup) }
-    return before
+    reorder(why) { it.sortedAfterCurrent(sorter, inGroup) }
+    val after = state.value
+    val moved = before.entries.indices.count { before.entries[it] != after.entries.getOrNull(it) }
+    Diag.log("queue", "$why: $moved of ${after.entries.size} entries changed place")
+    return SortUndo(before, after)
 }
 
-fun PlaybackQueue.undoSort(before: QueueSnapshot): Boolean {
+fun PlaybackQueue.undoSort(undo: SortUndo): Boolean {
     val now = state.value
-    val ids = { snapshot: QueueSnapshot -> snapshot.entries.map { it.item.item.id.value }.sorted() }
-    if (ids(now) != ids(before) || now.current?.item?.item?.id != before.current?.item?.item?.id) {
+    if (now.entries != undo.after.entries || now.place != undo.after.place) {
         Diag.log("queue", "not undoing the sort: the queue changed after it")
         return false
     }
-    rearrange("undo sort") { before }
-    Diag.log("queue", "sort undone: ${before.entries.size} item(s) back in their old order")
+    reorder("undo sort") { undo.before }
+    Diag.log("queue", "sort undone: ${undo.before.entries.size} item(s) back in their old order")
     return true
 }

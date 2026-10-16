@@ -117,4 +117,18 @@ class AutoPlayStaysInMusicOrTalkTest {
         assertEquals("song", queue.playing())
         work.cancel()
     }
+
+    @Test
+    fun `starting again from the top stays in the kind that was playing`() = runTest(dispatcher) {
+        val (queue, work) = queueOf(item("song", true), item("peep", false))
+        advanceUntilIdle()
+        queue.playAt(1)
+        advanceUntilIdle()
+
+        assertTrue(queue.playFromTheTop())
+        advanceUntilIdle()
+
+        assertEquals("peep", queue.playing())
+        work.cancel()
+    }
 }

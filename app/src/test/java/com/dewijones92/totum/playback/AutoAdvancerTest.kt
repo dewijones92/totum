@@ -80,6 +80,20 @@ class AutoAdvancerTest {
     }
 
     @Test
+    fun `with repeat queue on, only the other kind left still loops back to the top`() = runTest {
+        queueHasNext = false
+        repeat = RepeatMode.QUEUE
+        otherKindLeft = Listening.MUSIC to 2
+        advancer()
+        runCurrent()
+
+        end("talk")
+
+        assertEquals(1, wrapped)
+        assertEquals(0, fellBackToRelated)
+    }
+
+    @Test
     fun `a queue with nothing at all left still falls back to a related video`() = runTest {
         queueHasNext = false
         advancer()

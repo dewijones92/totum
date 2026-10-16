@@ -24,6 +24,10 @@ music." He chose both directions, Explore (if on) when the kind runs out, else s
   choose.
 - When only the other kind is left ahead (`onlyOtherKindAhead`), `AutoAdvancer` hands over to Explore when it is on and
   otherwise stops, logging why, instead of falling back to related videos.
+- With repeat queue on, the queue first starts again from the top **in the same kind** (`playFromTheTop`), and only
+  stops for "only the other kind is left" when nothing of its kind will play. Repeat was not part of Dewi's choices;
+  this is the implementer's reading of the two rules together, found by the batch review (2026-10-16), and his to
+  confirm.
 - Manual ⏭ is unchanged: it plays the next item whatever its kind.
 
 ## Consequences

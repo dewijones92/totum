@@ -183,6 +183,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.keepTheQueuesPlace
+import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.startSharedMetadataRepair
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences

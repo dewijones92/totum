@@ -1,5 +1,6 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -8,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.listening
+import com.dewijones92.totum.domain.word
 
 internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =
     playingId
@@ -54,4 +56,14 @@ private fun QueueSnapshot.nextSpotIn(group: QueueGroup): Int {
     if (entries.getOrNull(place)?.group?.id == group.id) return place + 1
     val ahead = entries.withIndex().firstOrNull { (i, e) -> i > place && e.group?.id == group.id }?.index
     return ahead ?: (place + 1)
+}
+
+suspend fun PlaybackQueue.playFromTheTop(): Boolean {
+    val keepTo = nowPlaying.value?.item?.listening
+    val entries = state.value.entries
+    val inKind = entries.indices.filter { keepTo.admits(entries[it].item) }
+    val played = inKind.any { playAt(it, rollBackOnRefusal = true) }
+    val kind = keepTo?.word ?: "any kind"
+    Diag.log("queue", "from the top in $kind (${inKind.size} of ${entries.size}) -> played=$played")
+    return played
 }

@@ -54,14 +54,14 @@ enum class MediaSort(@StringRes val labelRes: Int, val needsAdded: Boolean = fal
         // Sorting is stable, so items with no known date/duration (e.g. YouTube
         // feed videos) keep their source order rather than shuffling.
         NEWEST -> items.sortedByDescending { item(it).publishedAt }
-        OLDEST -> items.sortedBy { item(it).publishedAt }
+        OLDEST -> items.sortedWith(compareBy(nullsLast()) { item(it).publishedAt })
         AS_LISTED -> items
         ADDED_NEWEST -> added?.let { key -> items.sortedWith(compareByDescending(nullsFirst()) { key(it) }) } ?: items
         ADDED_OLDEST -> added?.let { key -> items.sortedWith(compareBy(nullsLast()) { key(it) }) } ?: items
         TITLE -> items.sortedBy { item(it).title.lowercase() }
-        CHANNEL -> items.sortedBy { item(it).author.orEmpty().lowercase() }
+        CHANNEL -> items.sortedWith(compareBy(nullsLast()) { item(it).author?.ifBlank { null }?.lowercase() })
         LONGEST -> items.sortedByDescending { item(it).duration }
-        SHORTEST -> items.sortedBy { item(it).duration }
+        SHORTEST -> items.sortedWith(compareBy(nullsLast()) { item(it).duration })
     }
 
     companion object {

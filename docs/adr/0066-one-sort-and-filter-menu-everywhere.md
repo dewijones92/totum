@@ -33,7 +33,9 @@ sorts within each group; queue filters are view only.
   they need no column.
 - **Queue sort is permanent, with undo**: `PlaybackQueue.sortAfterCurrent` permutes each group's slots after the playing
   item (the playing item never moves); the group ⋮ menu sorts one group, the header sorts every group within itself. A
-  long snackbar offers Undo, which is refused if the queue changed meanwhile (`undoSort`).
+  long snackbar offers Undo, which is refused unless the queue is exactly as the sort left it (`SortUndo`: a drag,
+  another sort or a row learning its title in the meantime all refuse it). During a peek or Explore the sort starts
+  after the place the queue left (`QueueSnapshot.place`), never above it.
 - **Queue filters are view only**: they hide rows; playback still plays everything.
 - **Headers never squeeze the title**: the buttons that do not fit beside a title move to a line under it
   (`TitleAndActions`, used by `ScreenHeader` and `CollapsingTitle`); a wrapped collapsing title keeps the old 104 dp by
@@ -42,7 +44,11 @@ sorts within each group; queue filters are view only.
 
 ## Consequences
 
-- Paging lists (feeds, channel pages) sort and filter what has loaded so far.
+- Paging lists (feeds, channel pages) sort and filter what has loaded so far, and page by the rows they show, so a
+  filter hiding everything that arrives stops paging after one ask instead of walking the whole channel.
+- An item with no date, length or channel sorts after those that have one, in every order.
+- Corrected the same day after the batch review: rows from before v28 were being stamped with the moment of the first
+  change after the upgrade; only rows new to the queue are stamped now.
 - Tests: `ItemFiltersTest`, `SortingTheQueueTest`, `SortingTheQueueCanBeUndoneTest`,
   `AQueueEntryRemembersWhenItWasAddedTest`, `DownloadsMigrationTest.aRowQueuedBeforeV28HasNoAddedDateRatherThanAnInventedOne`,
   `TheQueueTitleIsNeverSqueezedTest`, `AScreenTitleNeverBreaksAWordTest` (both seen failing on the old headers).

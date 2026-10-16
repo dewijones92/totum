@@ -29,10 +29,13 @@ public fun QueueSnapshot.stampedSince(before: QueueSnapshot, now: Instant): Queu
     val known = before.entries.associate { it.item.item.id to it.addedAt }
     return copy(
         entries = entries.map { entry ->
-            entry.takeIf {
-                it.addedAt != null
-            } ?: entry.copy(addedAt = known[entry.item.item.id] ?: now)
-        }
+            val id = entry.item.item.id
+            when {
+                entry.addedAt != null -> entry
+                id in known -> entry.copy(addedAt = known[id])
+                else -> entry.copy(addedAt = now)
+            }
+        },
     )
 }
 

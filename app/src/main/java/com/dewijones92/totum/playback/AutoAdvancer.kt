@@ -102,13 +102,13 @@ internal class AutoAdvancer(
     private suspend fun afterTheQueue(id: String, mode: RepeatMode) {
         val other = otherKindLeft()
         when {
+            mode == RepeatMode.QUEUE && fromTheTop() ->
+                Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top, in kind")
             other != null -> Diag.log(
                 "advance",
                 "stopping after $id: only ${other.second} ${other.first.word} item(s) are left in the queue, so " +
                     "auto-play stays out of ${other.first.word}; the music/talk button carries on with them",
             )
-            mode == RepeatMode.QUEUE && fromTheTop() ->
-                Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top")
             else -> {
                 if (mode == RepeatMode.QUEUE) {
                     Diag.log(

@@ -130,6 +130,30 @@ class QueueRowDragTest {
     }
 
     @Test
+    fun aRowOfYourOwnDraggedIntoAGroupStaysUnderTheFinger() {
+        queue.playAll(listOf("g1", "g2", "g3").map(::playable), QueueGroup("album:g", "Group G"))
+        queue.enqueueAll(listOf(playable("mine")))
+        show()
+        val density = composeTestRule.density.density
+        val node = { composeTestRule.onNodeWithTag(queueRowGripTag("mine"), useUnmergedTree = true) }
+        val startTop = node().top()
+        val worst = mutableListOf<Float>()
+
+        drag(node, -ROW_DP * 2 * density, STEPS * 2, framesPerStep = 1) { travelled ->
+            worst += abs(node().top() - (startTop + travelled))
+        }
+        release(node)
+
+        val tolerance = SLOP_DP * density
+        assertTrue(
+            "the dragged row drifted from the finger by up to ${worst.max() / density}dp " +
+                "(tolerance $SLOP_DP dp): ${worst.map { (it / density).toInt() }} -> ${ids()}",
+            worst.max() <= tolerance,
+        )
+        assertTrue("two rows up should put it inside the group: ${ids()}", ids().indexOf("mine") < ids().indexOf("g3"))
+    }
+
+    @Test
     fun aDragSurvivesTheQueueGrowingUnderIt() {
         queue.playAll(ROWS.map(::playable))
         show()

@@ -36,4 +36,14 @@ class AQueueEntryRemembersWhenItWasAddedTest {
 
         assertEquals(listOf(friday, monday), stamped.entries.map { it.addedAt })
     }
+
+    @Test
+    fun `a row queued before added dates existed stays undated through later changes`() {
+        val before = QueueSnapshot(listOf(QueueEntry(item("old"))))
+        val after = QueueSnapshot(listOf(QueueEntry(item("old")), QueueEntry(item("new"))))
+
+        val stamped = after.stampedSince(before, friday)
+
+        assertEquals(listOf(null, friday), stamped.entries.map { it.addedAt })
+    }
 }
