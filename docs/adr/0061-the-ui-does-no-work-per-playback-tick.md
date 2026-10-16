@@ -53,6 +53,12 @@ and none with Library underneath. The 500 ms was the playback controller's posit
 - **Idle means idle.** The controller's position ticker suspends while nothing plays (`PlayingSignal`) and wakes on
   `onIsPlayingChanged`; both edges are logged ("position ticker idle until something plays" / "running again").
 - Release builds are `profileable` from the shell, so a phone can be traced without a debug build.
+- **The Queue's large title moves only while the list is scrolled** (or to expand at the very top). Its height sets
+  the list's viewport, so following every position change fed back into itself: whenever the rows overflowed the
+  viewport by less than the 48 dp the title gives back, title and list flipped every frame for ever. v0.1.635 does it
+  too (seen at CI's 640 dp screen; `QueueTitleSettlesAtAnyHeightTest` sweeps 300–900 dp and was red at 426 dp).
+  Known and unchanged: once collapsed, the title does not re-expand on returning to the top, because the jump to the
+  playing item leaves the list one row below its zero-height top spacer (v0.1.635 opens collapsed for the same reason).
 - **Recompositions are counted.** `CountRecompositions` in the shell, Queue, full player, video stage and dock. Every
   30 s snapshot drains the counts, and when any screen recomposed 20 times or more in that window (a per-tick screen
   does 60) the line adds "busy recompositions in the last 30s: …", so a report from the phone shows a screen

@@ -2,8 +2,6 @@ package com.dewijones92.totum.ui
 
 import android.os.Looper
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.media3.common.Player
@@ -51,13 +49,14 @@ class PlaybackTicksRedrawNoScreenTest {
         val controller = FakePlaybackController(player = composeTestRule.runOnUiThread { StubPlayer() })
         val container = FakeAppContainer(playbackController = controller)
         container.playbackQueue.playAll(listOf(queued("one"), queued("two"), queued("three")))
-        composeTestRule.setContent { TotumTheme { AppShell(container) } }
+        val openPlayer = androidx.compose.runtime.mutableIntStateOf(0)
+        composeTestRule.setContent { TotumTheme { AppShell(container, openPlayerRequest = openPlayer.intValue) } }
         composeTestRule.waitForIdle()
         composeTestRule.runOnIdle { controller.emitState(playing.copy(isPlaying = false)) }
         composeTestRule.waitForIdle()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         composeTestRule.onNodeWithText(context.getString(R.string.destination_queue)).performClick()
-        composeTestRule.onAllNodesWithText(playing.title).onFirst().performClick()
+        composeTestRule.runOnIdle { openPlayer.intValue = 1 }
         composeTestRule.waitForIdle()
         composeTestRule.runOnIdle { controller.emitState(playing) }
         composeTestRule.waitForIdle()

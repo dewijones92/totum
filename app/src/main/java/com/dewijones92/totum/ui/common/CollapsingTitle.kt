@@ -10,9 +10,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -43,17 +46,13 @@ fun CollapsingTitle(
     modifier: Modifier = Modifier,
     trailing: @Composable () -> Unit = {},
 ) {
-    // derivedStateOf, not a direct read: the scroll offset changes every frame, and reading it
-    // in composition would recompose the header on all of them. Derived, the header only
-    // recomposes when the FRACTION changes — so once collapsed it stops entirely, which is
-    // where a feed spends most of its life.
-    val fraction by remember(listState) {
-        derivedStateOf {
-            when {
-                listState.firstVisibleItemIndex > 0 -> 1f
-                else -> (listState.firstVisibleItemScrollOffset / COLLAPSE_DISTANCE_PX).coerceAtMost(1f)
-            }
-        }
+    // Moves only while the list is scrolled, or to expand at the very top: the title's height sets
+    // the list's viewport, so following every position change fed back into itself, and a queue
+    // that nearly fitted recomposed every frame for ever (ADR 61).
+    var fraction by remember(listState) { mutableFloatStateOf(0f) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to collapseOf(listState) }
+            .collect { (scrolling, target) -> if (scrolling || target == 0f) fraction = target }
     }
 
     Surface(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
@@ -77,6 +76,11 @@ fun CollapsingTitle(
             SearchAction()
         }
     }
+}
+
+private fun collapseOf(listState: LazyListState): Float = when {
+    listState.firstVisibleItemIndex > 0 -> 1f
+    else -> (listState.firstVisibleItemScrollOffset / COLLAPSE_DISTANCE_PX).coerceAtMost(1f)
 }
 
 /** Pixels of scroll before the title is fully collapsed. */
