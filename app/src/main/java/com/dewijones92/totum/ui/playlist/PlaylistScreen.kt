@@ -72,7 +72,7 @@ fun PlaylistScreen(
         listFilter,
         listState,
         enabled = state.canLoadMore && !state.loadingMore,
-        shownCount = state.videos.size,
+        shownCount = shown.size,
         loadMore = viewModel::loadMore,
     )
 

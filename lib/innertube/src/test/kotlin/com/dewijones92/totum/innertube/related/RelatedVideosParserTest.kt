@@ -16,6 +16,16 @@ class RelatedVideosParserTest {
         (RelatedVideosParser.parse(fixture()) as RelatedResult.Success).videos
 
     @Test
+    fun `the anonymous watch page also gives the playing video's description`() {
+        val body = checkNotNull(javaClass.getResourceAsStream("/watch_page_description_web_sample.json"))
+            .bufferedReader().readText()
+
+        val description = (RelatedVideosParser.parse(body) as RelatedResult.Success).description
+
+        assertTrue("got $description", description.orEmpty().startsWith("The official video for"))
+    }
+
+    @Test
     fun `collects video lockups in order, deduped, ignoring channel lockups`() {
         assertEquals(listOf("rel00000001", "rel00000002"), parsed().map { it.videoId })
     }

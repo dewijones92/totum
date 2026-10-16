@@ -101,7 +101,8 @@ internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
             PlayerTab.DETAILS -> {
                 ItemFactsCard(state)
                 LyricsSection()
-                NotesChaptersAndSponsors(state, content.onSeekTo)
+                val fromTheWatchPage = (content.related as? RelatedState.Loaded)?.description
+                NotesChaptersAndSponsors(state, content.onSeekTo, fromTheWatchPage)
                 SourceSkipsSection(state)
             }
         }

@@ -30,6 +30,15 @@ class AVideoOnAChannelPageIsThatChannelsTest {
         assertEquals(HttpUrl.of(other), listed.sourceUrl)
     }
 
+    @Test
+    fun `a row naming another channel's link is not given this channel's name`() {
+        val other = "https://www.youtube.com/channel/UCpolymath"
+        val listed = video(author = null, sourceUrl = other).listedOn(channel)
+
+        assertEquals(null, listed.author)
+        assertEquals(HttpUrl.of(other), listed.sourceUrl)
+    }
+
     private fun video(author: String?, sourceUrl: String?) = MediaItem(
         id = MediaItemId("v1"),
         sourceId = SourceId(CHANNEL_URL),

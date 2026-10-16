@@ -86,12 +86,10 @@ public fun MediaItem.statedFeed(): MediaSource.PodcastFeed? =
         )
     }
 
-public fun MediaItem.listedOn(channel: MediaSource.VideoChannel): MediaItem =
-    if (author != null && sourceUrl != null) {
-        this
-    } else {
-        copy(
-            author = author ?: channel.title,
-            sourceUrl = sourceUrl ?: channel.channelUrl
-        )
-    }
+public fun MediaItem.listedOn(channel: MediaSource.VideoChannel): MediaItem {
+    val thisChannels = sourceUrl == null || sourceUrl == channel.channelUrl
+    return copy(
+        author = author ?: channel.title.takeIf { thisChannels },
+        sourceUrl = sourceUrl ?: channel.channelUrl,
+    )
+}

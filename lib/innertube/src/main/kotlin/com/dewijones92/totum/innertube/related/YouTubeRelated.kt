@@ -13,6 +13,6 @@ public interface YouTubeRelated {
 }
 
 public sealed interface RelatedResult {
-    public data class Success(val videos: List<FeedVideo>) : RelatedResult
+    public data class Success(val videos: List<FeedVideo>, val description: String? = null) : RelatedResult
     public data class Failure(val detail: String) : RelatedResult
 }

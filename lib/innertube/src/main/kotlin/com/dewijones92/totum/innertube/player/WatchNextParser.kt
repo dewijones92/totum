@@ -26,8 +26,15 @@ public object WatchNextParser {
             author = owner?.readable("title"),
             channelId = ((owner?.get("navigationEndpoint") as? JsonObject)?.get("browseEndpoint") as? JsonObject)
                 ?.text("browseId"),
-            description = root.objectsHaving(DESCRIPTION).firstNotNullOfOrNull { it.readable(DESCRIPTION) },
+            description = root.description(),
         )
+    }
+
+    public fun description(body: String): String? =
+        runCatching { json.parseToJsonElement(body) }.getOrNull()?.description()
+
+    private fun JsonElement.description(): String? = DESCRIPTION_KEYS.firstNotNullOfOrNull { key ->
+        objectsHaving(key).firstNotNullOfOrNull { it.readable(key) }
     }
 
     private fun JsonElement.objectsHaving(key: String): Sequence<JsonObject> = sequence {
@@ -41,7 +48,11 @@ public object WatchNextParser {
         }
     }
 
-    private const val DESCRIPTION = "descriptionBodyText"
+    private val DESCRIPTION_KEYS = listOf(
+        "descriptionBodyText",
+        "attributedDescription",
+        "attributedDescriptionBodyText"
+    )
 
     private fun JsonElement.objectsNamed(name: String): Sequence<JsonObject> = sequence {
         when (val node = this@objectsNamed) {
@@ -60,6 +71,7 @@ public object WatchNextParser {
     private fun JsonObject.readable(key: String): String? {
         val node = this[key] as? JsonObject ?: return null
         node.text("simpleText")?.let { return it }
+        node.text("content")?.let { return it }
         val runs = node["runs"] as? JsonArray ?: return null
         return runs.joinToString("") { (it as? JsonObject)?.text("text").orEmpty() }.ifBlank { null }
     }

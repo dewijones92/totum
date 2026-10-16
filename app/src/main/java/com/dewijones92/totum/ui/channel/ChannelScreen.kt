@@ -293,7 +293,7 @@ private fun MediaItemTab(
     val listState = rememberLazyListState()
     val shaped = shape?.let { tab.items.shapedBy(it) { item -> item } } ?: tab.items
     val shown = listFilter?.filter(shaped, { it.searchableText }, pausesPaging = tab.canLoadMore) ?: shaped
-    LoadMoreUnlessFiltered(listFilter, listState, tab.canLoadMore, tab.items.size, onLoadMore)
+    LoadMoreUnlessFiltered(listFilter, listState, tab.canLoadMore, shown.size, onLoadMore)
     when {
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
         tab.error -> Message(stringResource(R.string.feed_error))

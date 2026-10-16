@@ -22,8 +22,12 @@ did not show, and found the Details tab empty: signed in, the TV player response
   from the playing `MediaItem` (`LocalPlayingItem`), the playback state and the disk. Facts: published (long date and
   how long ago), length, views, by, publisher, album, kind, members-only, chapters, subtitles, skip segments, the copy
   on disk and its size, and the source. A fact the item does not know is left out, never shown as "unknown".
-- The description comes from the watch page (`/next`, `descriptionBodyText`) when the player response has none
-  (`WatchNextDetails.description`).
+- The description comes from the watch page when the player response has none. Two routes, one parser
+  (`WatchNextParser.description`, which reads the TV page's `descriptionBodyText` and the WEB page's
+  `attributedDescription`): the anonymous WEB `/next` that the Related tab already fetches carries it for every video
+  (`RelatedResult.description`, shown by the Details tab), and the account's `/next` is asked only for a row with no
+  title. The first version used only the second route, which a titled row (every feed and channel row) never takes, so
+  Details stayed empty for most plays; the batch review caught it.
 - A channel page stamps its own channel on the items it lists (`MediaItem.listedOn`), because YouTube's channel grid
   omits the channel on every row; so a video played from a channel page knows whose it is, and its follow mark is
   right (it said ❔ unknown on the page of a channel Dewi follows).

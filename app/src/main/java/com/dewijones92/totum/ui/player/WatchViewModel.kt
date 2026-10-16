@@ -125,7 +125,7 @@ constructor(
 
     sealed interface RelatedState {
         data object Loading : RelatedState
-        data class Loaded(val videos: List<MediaItem>) : RelatedState
+        data class Loaded(val videos: List<MediaItem>, val description: String? = null) : RelatedState
         data object Error : RelatedState
     }
 
@@ -207,8 +207,11 @@ constructor(
             val loaded = when (val result = relatedSource.relatedTo(videoId)) {
                 // Converted here, at the boundary, so the list downstream is the domain
                 // shape every other list uses — and therefore gets the shared row.
-                is RelatedResult.Success ->
-                    RelatedState.Loaded(result.videos.map { it.toMediaItem(RELATED_SOURCE) })
+                is RelatedResult.Success -> {
+                    val chars = result.description?.length ?: 0
+                    Diag.log("watch", "watch page for $videoId: $chars chars of description")
+                    RelatedState.Loaded(result.videos.map { it.toMediaItem(RELATED_SOURCE) }, result.description)
+                }
                 is RelatedResult.Failure -> RelatedState.Error
             }
             if (this@WatchViewModel.videoId == videoId) _related.value = loaded
