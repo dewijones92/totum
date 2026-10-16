@@ -1,5 +1,7 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.domain.word
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.settings.RepeatMode
@@ -47,6 +49,7 @@ internal class AutoAdvancer(
     private val fromTheTop: suspend () -> Boolean = { false },
     private val sleepsAfter: (MediaItemId) -> Boolean = { false },
     private val explore: suspend (MediaItemId) -> Boolean = { false },
+    private val otherKindLeft: () -> Pair<Listening, Int>? = { null },
 ) {
     fun start() {
         // Said out loud so "nothing ended" and "the advancer was not running" stop looking
@@ -94,6 +97,14 @@ internal class AutoAdvancer(
                 if (explored) "Explore is on: a related video follows, the queue waits" else "queue advance=$advanced",
         )
         if (advanced) return
+        otherKindLeft()?.let { (kind, count) ->
+            Diag.log(
+                "advance",
+                "stopping after $id: only $count ${kind.word} item(s) are left in the queue, so auto-play stays " +
+                    "out of ${kind.word}; the music/talk button carries on with them",
+            )
+            return
+        }
         if (mode == RepeatMode.QUEUE) {
             val wrapped = fromTheTop()
             Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top=$wrapped")

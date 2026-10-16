@@ -1,5 +1,8 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.domain.listening
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -12,11 +15,20 @@ internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int 
         ?.takeIf { it >= 0 }
         ?: snapshot.place
 
-internal fun nextAfterThePlace(snapshot: QueueSnapshot, playingId: MediaItemId?): PlayableItem? =
+internal fun Listening?.admits(item: PlayableItem): Boolean = this == null || item.item.listening == this
+
+internal fun nextAfterThePlace(snapshot: QueueSnapshot, playingId: MediaItemId?, keepTo: Listening? = null): PlayableItem? =
     snapshot.entries
         .drop(advanceFrom(snapshot, playingId) + 1)
-        .firstOrNull { it.item.item.id != playingId }
+        .firstOrNull { it.item.item.id != playingId && keepTo.admits(it.item) }
         ?.item
+
+internal fun onlyOtherKindAfter(snapshot: QueueSnapshot, playing: MediaItem?): Pair<Listening, Int>? {
+    playing ?: return null
+    val ahead = snapshot.entries.drop(advanceFrom(snapshot, playing.id) + 1).filter { it.item.item.id != playing.id }
+    if (ahead.isEmpty() || ahead.any { it.item.item.listening == playing.listening }) return null
+    return playing.listening.other to ahead.size
+}
 
 enum class GroupSpot { END, NEXT }
 

@@ -1,5 +1,8 @@
 package com.dewijones92.totum.ui.player
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -30,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.ui.common.CheckedOptionsMenu
 
+internal val LocalCompactTiles = staticCompositionLocalOf { false }
+
 @Composable
 internal fun ControlTile(
     icon: ImageVector,
@@ -40,6 +45,7 @@ internal fun ControlTile(
     onClick: (() -> Unit)? = null,
     onToggle: ((Boolean) -> Unit)? = null,
     iconDescription: String? = null,
+    shortLabel: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val container by animateColorAsState(
@@ -51,6 +57,11 @@ internal fun ControlTile(
         onToggle != null -> Modifier.toggleable(value = active, role = Role.Switch, onValueChange = onToggle)
         onClick != null -> Modifier.clickable(role = Role.Button, onClick = onClick)
         else -> Modifier
+    }
+    if (LocalCompactTiles.current) {
+        val name = shortLabel ?: label
+        CompactTile(icon, value?.let { "$name · $it" } ?: name, active, interaction.semantics { contentDescription = label }, modifier)
+        return
     }
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -87,6 +98,25 @@ internal fun ControlTile(
 }
 
 @Composable
+private fun CompactTile(icon: ImageVector, text: String, active: Boolean, interaction: Modifier, modifier: Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = if (active) scheme.primaryContainer else scheme.surfaceContainerHigh,
+        contentColor = if (active) scheme.onPrimaryContainer else scheme.onSurface,
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = interaction.padding(horizontal = 10.dp, vertical = 8.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(text = text, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 6.dp))
+        }
+    }
+}
+
+@Composable
 internal fun ToggleTile(
     icon: ImageVector,
     label: String,
@@ -94,6 +124,7 @@ internal fun ToggleTile(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     detail: String? = null,
+    shortLabel: String? = null,
 ) {
     val state = stringResource(if (checked) R.string.control_on else R.string.control_off)
     ControlTile(
@@ -103,6 +134,7 @@ internal fun ToggleTile(
         active = checked,
         onToggle = onCheckedChange,
         modifier = modifier,
+        shortLabel = shortLabel,
     )
 }
 
@@ -116,6 +148,7 @@ internal fun <T> PickerTile(
     onSelect: (T) -> Unit,
     active: Boolean,
     modifier: Modifier = Modifier,
+    shortLabel: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
@@ -126,7 +159,8 @@ internal fun <T> PickerTile(
             active = active,
             onClick = { open = true },
             iconDescription = label,
-            modifier = Modifier.fillMaxSize(),
+            modifier = if (LocalCompactTiles.current) Modifier else Modifier.fillMaxSize(),
+            shortLabel = shortLabel,
         )
         CheckedOptionsMenu(
             expanded = open,

@@ -87,10 +87,13 @@
         <item quantity="one">🙈 1 item hidden</item>
         <item quantity="other">🙈 %1$d items hidden</item>
     </plurals>
-    <plurals name="queue_group_hidden_playing">
-        <item quantity="one">🙈 1 item hidden · playing</item>
-        <item quantity="other">🙈 %1$d items hidden · playing</item>
+    <string name="queue_group_title_playing">▶️ %1$s</string>
+    <plurals name="queue_added_by_you">
+        <item quantity="one">➕ Added by you · 1</item>
+        <item quantity="other">➕ Added by you · %1$d</item>
     </plurals>
+    <string name="queue_group_playing_now">🔊 Playing now</string>
+    <string name="queue_group_paused_here">⏸️ Paused here</string>
     <string name="queue_remove_group">Remove these</string>
     <string name="queue_reorder">Drag to reorder</string>
     <string name="queue_group_reorder">Drag %1$s to reorder</string>
@@ -208,6 +211,11 @@
     <string name="control_off">⚪ Off</string>
     <string name="playback_speed">Playback speed</string>
     <string name="volume_boost">Volume boost</string>
+    <string name="quick_speed">Speed</string>
+    <string name="quick_boost">Boost</string>
+    <string name="quick_sleep">Sleep</string>
+    <string name="quick_listen">Listen</string>
+    <string name="quick_watch">Watch</string>
     <string name="boost_off">⚪ Off</string>
     <string name="boost_auto">🔊 Auto</string>
     <string name="boost_even_out">🎚️ Even out</string>

@@ -1,5 +1,7 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.domain.listening
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -519,6 +521,10 @@ class PlaybackQueue(
      */
     suspend fun playNextInQueue(): Boolean = step(FORWARD)
 
+    suspend fun continueInKind(): Boolean = step(FORWARD, keepTo = _nowPlaying.value?.item?.listening)
+
+    fun onlyOtherKindAhead(): Pair<Listening, Int>? = onlyOtherKindAfter(_state.value, _nowPlaying.value?.item)
+
     suspend fun playPreviousInQueue(): Boolean {
         val positionMs = controller.state.value?.positionMs ?: 0L
         if (positionMs > RESTART_BEFORE_PREVIOUS_MS) {
@@ -537,7 +543,8 @@ class PlaybackQueue(
      * definitions of the same thing is precisely the bug that made a finished video replay
      * itself: one place asked the cursor, the other asked what was playing.
      */
-    fun peekNext(): PlayableItem? = nextAfterThePlace(_state.value, _nowPlaying.value?.item?.id)
+    fun peekNext(): PlayableItem? =
+        _nowPlaying.value?.item.let { playing -> nextAfterThePlace(_state.value, playing?.id, playing?.listening) }
 
     suspend fun armNext(allowStream: Boolean): Boolean {
         val queued = withSourceArtwork(peekNext() ?: return false).labelledForPlay(_state.value)

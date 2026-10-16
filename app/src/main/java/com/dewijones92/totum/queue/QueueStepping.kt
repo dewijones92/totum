@@ -1,11 +1,13 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.domain.word
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.common.Diag
 
 internal const val FORWARD = 1
 internal const val BACKWARD = -1
 
-internal suspend fun PlaybackQueue.step(direction: Int): Boolean {
+internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = null): Boolean {
     val snapshot = state.value
     val playingId = nowPlaying.value?.item?.id
     val from = advanceFrom(snapshot, playingId)
@@ -15,6 +17,7 @@ internal suspend fun PlaybackQueue.step(direction: Int): Boolean {
         Diag.log("queue", "nothing $way ${playingId?.value ?: "cursor $from"} of ${snapshot.entries.size}")
         return false
     }
+    var passedOver = 0
     while (index in state.value.entries.indices) {
         val entry = state.value.entries[index]
         val title = entry.item.item.title.take(STEP_TITLE_CHARS)
@@ -22,12 +25,15 @@ internal suspend fun PlaybackQueue.step(direction: Int): Boolean {
         // fix above: it also covers a duplicate that predates the de-duplication work.
         if (entry.item.item.id == playingId) {
             Diag.log("queue", "skipping index $index \"$title\" — it is what just played")
+        } else if (!keepTo.admits(entry.item)) {
+            passedOver++
         } else if (playAt(index, rollBackOnRefusal = true)) {
             // The SUCCESS says what it advanced to, not just that it did. Only the refusals
             // said anything, so a report of a queue advancing wrongly showed "advance=true"
             // and nothing about which of sixty items it had landed on.
             val verb = if (direction == FORWARD) "advanced" else "went back"
-            Diag.log("queue", "$verb from index $from to $index of ${state.value.entries.size} — \"$title\"")
+            val passed = if (passedOver > 0) " (passed over $passedOver ${keepTo?.other?.word} to stay in ${keepTo?.word})" else ""
+            Diag.log("queue", "$verb from index $from to $index of ${state.value.entries.size} — \"$title\"$passed")
             return true
         } else {
             // An item the player would not start. Silent before, so "nothing playable after
@@ -36,7 +42,7 @@ internal suspend fun PlaybackQueue.step(direction: Int): Boolean {
         }
         index += direction
     }
-    Diag.log("queue", "nothing playable $way index $from")
+    Diag.log("queue", "nothing playable $way index $from" + if (passedOver > 0) " in ${keepTo?.word} ($passedOver ${keepTo?.other?.word} left queued)" else "")
     return false
 }
 

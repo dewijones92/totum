@@ -870,7 +870,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private fun startAutoAdvance() {
         AutoAdvancer(
             events = playbackController.events,
-            advance = { playbackQueue.playNextInQueue() },
+            advance = { playbackQueue.continueInKind() },
             whenQueueEmpty = ::playRelatedNext,
             isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
@@ -879,6 +879,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             fromTheTop = { playbackQueue.playFromTheTop() },
             sleepsAfter = sleepTimer::firesAfter,
             explore = exploreMode::afterEnded,
+            otherKindLeft = playbackQueue::onlyOtherKindAhead,
         ).start()
     }
 

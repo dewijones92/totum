@@ -48,10 +48,11 @@ internal fun SleepTimerControl(
         ControlTile(
             icon = Icons.Outlined.Bedtime,
             label = stringResource(R.string.sleep_timer),
+            shortLabel = stringResource(R.string.quick_sleep),
             value = value,
             active = armed,
             onClick = { if (armed) onCancel() else menuOpen = true },
-            modifier = Modifier.fillMaxSize(),
+            modifier = if (LocalCompactTiles.current) Modifier else Modifier.fillMaxSize(),
         )
         DropdownMenu(
             expanded = menuOpen,

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.player
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -111,21 +112,8 @@ internal fun SecondaryControls(
     onSetSpeed: (Float) -> Unit,
 ) {
     val tiles = buildList<Pair<String, @Composable (Modifier) -> Unit>> {
-        add(
-            "sleep" to { m ->
-                SleepTimerControl(sleepTimer.value, onStartSleep, onStopSleepAfterItem, onCancelSleep, m)
-            }
-        )
-        add("silence" to { m -> SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence, m) })
-        // Speed is already on the video overlay when there is a video; offering it twice would
-        // be two controls for one setting.
-        if (!controlsOverlaid) add("speed" to { m -> SpeedTile(state.speed, onSetSpeed, m) })
-        add("boost" to { m -> BoostTile(state.volumeBoost, toggles.onSetVolumeBoost, m) })
         add("autoplay" to { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) })
         add("repeat" to { m -> RepeatTile(toggles.repeatMode, toggles.onSetRepeatMode, m) })
-        if (quality.offersListenOrWatch(state.hasVideo)) {
-            add("listen" to { m -> ListenWatchToggle(quality, state.hasVideo, m) })
-        }
         add("fast-start" to { m -> FastStartTile(toggles.sabrPlayback, toggles.onSetSabrPlayback, m) })
     }
     // Wrapping, not scrolling: every control stays visible and reachable at any text size,
@@ -142,6 +130,33 @@ internal fun SecondaryControls(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PlayerQuickStrip(
+    state: PlaybackState,
+    quality: QualityControl,
+    sleepTimer: State<SleepTimerState>,
+    toggles: PlaybackToggles,
+    onStartSleep: (Duration) -> Unit,
+    onStopSleepAfterItem: () -> Unit,
+    onCancelSleep: () -> Unit,
+    onSetSpeed: (Float) -> Unit,
+) {
+    CompositionLocalProvider(LocalCompactTiles provides true) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(STRIP_GAP),
+            verticalArrangement = Arrangement.spacedBy(STRIP_GAP),
+            modifier = Modifier.fillMaxWidth().testTag(PLAYER_QUICK_STRIP_TAG),
+        ) {
+            ListenWatchToggle(quality, state.hasVideo)
+            SpeedTile(state.speed, onSetSpeed)
+            BoostTile(state.volumeBoost, toggles.onSetVolumeBoost)
+            SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence)
+            SleepTimerControl(sleepTimer.value, onStartSleep, onStopSleepAfterItem, onCancelSleep)
+        }
+    }
+}
+
 private fun Modifier.linkTo(onClick: (() -> Unit)?, tag: String): Modifier =
     testTag(tag).then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
 
@@ -149,6 +164,8 @@ internal const val PLAYER_ARTIST_TAG = "player-artist"
 internal const val PLAYER_ALBUM_TAG = "player-album"
 
 private const val TILES_PER_ROW = 2
+private val STRIP_GAP = 8.dp
+internal const val PLAYER_QUICK_STRIP_TAG = "player-quick-strip"
 private val TILE_GAP = 10.dp
 
 /**

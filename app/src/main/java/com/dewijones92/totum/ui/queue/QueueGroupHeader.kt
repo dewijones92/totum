@@ -43,6 +43,7 @@ internal data class GroupHeaderModel(
     val collapsed: Boolean,
     val containsNowPlaying: Boolean,
     val draggable: Boolean,
+    val playing: Boolean = false,
     val downloading: Boolean = true,
 ) {
     val endless: Boolean get() = groupId.startsWith(RADIO_GROUP_PREFIX)
@@ -68,7 +69,13 @@ internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, d
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .graphicsLayer { shadowElevation = if (drag?.isDragging == true) DRAG_ELEVATION else 0f }
-            .background(if (drag?.isDragging == true) MaterialTheme.colorScheme.surface else Color.Transparent)
+            .background(
+                when {
+                    drag?.isDragging == true -> MaterialTheme.colorScheme.surface
+                    model.containsNowPlaying -> MaterialTheme.colorScheme.primaryContainer
+                    else -> Color.Transparent
+                },
+            )
             .fillMaxWidth()
             .clickable(onClickLabel = expandOrCollapse, onClick = actions.onToggle)
             .then(if (model.isFirstRun) Modifier.testTag(queueGroupHeaderTag(model.groupId)) else Modifier)
@@ -105,6 +112,30 @@ internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, d
 }
 
 @Composable
+internal fun UngroupedHeader(count: Int, containsNowPlaying: Boolean, playing: Boolean) {
+    val model = GroupHeaderModel(
+        groupId = UNGROUPED_ID,
+        isFirstRun = true,
+        title = pluralStringResource(R.plurals.queue_added_by_you, count, count),
+        count = count,
+        collapsed = false,
+        containsNowPlaying = containsNowPlaying,
+        draggable = false,
+        playing = playing,
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .background(if (containsNowPlaying) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .fillMaxWidth()
+            .testTag(QUEUE_UNGROUPED_HEADER_TAG)
+            .padding(start = 44.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+    ) {
+        GroupTitle(model, Modifier.weight(1f))
+    }
+}
+
+@Composable
 private fun GroupShufflePlay(model: GroupHeaderModel, onClick: () -> Unit) {
     val tag = if (model.isFirstRun) Modifier.testTag(queueGroupShufflePlayTag(model.groupId)) else Modifier
     IconButton(onClick = onClick, modifier = tag) {
@@ -120,10 +151,18 @@ private fun GroupShufflePlay(model: GroupHeaderModel, onClick: () -> Unit) {
 private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
     Column(modifier = modifier) {
         Text(
-            text = model.title,
+            text = if (model.containsNowPlaying) stringResource(R.string.queue_group_title_playing, model.title) else model.title,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
+        if (model.containsNowPlaying) {
+            Text(
+                text = stringResource(if (model.playing) R.string.queue_group_playing_now else R.string.queue_group_paused_here),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.testTag(QUEUE_GROUP_PLAYING_TAG),
+            )
+        }
         if (model.endless) {
             Text(
                 text = stringResource(R.string.queue_group_endless),
@@ -134,11 +173,7 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
         }
         if (model.collapsed) {
             Text(
-                text = if (model.containsNowPlaying) {
-                    pluralStringResource(R.plurals.queue_group_hidden_playing, model.count, model.count)
-                } else {
-                    pluralStringResource(R.plurals.queue_group_hidden, model.count, model.count)
-                },
+                text = pluralStringResource(R.plurals.queue_group_hidden, model.count, model.count),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -211,3 +246,7 @@ internal fun queueGroupHandleTag(groupId: String): String = "queue-group-handle-
 private const val DRAG_ELEVATION = 12f
 
 internal const val QUEUE_GROUP_ENDLESS_TAG = "queue-group-endless"
+
+internal const val QUEUE_GROUP_PLAYING_TAG = "queue-group-playing"
+internal const val QUEUE_UNGROUPED_HEADER_TAG = "queue-ungrouped-header"
+private const val UNGROUPED_ID = "added-by-you"

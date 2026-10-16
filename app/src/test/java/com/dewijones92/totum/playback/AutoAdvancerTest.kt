@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +38,7 @@ class AutoAdvancerTest {
     private var sleepAfter: String? = null
     private var exploring = false
     private var explored = 0
+    private var otherKindLeft: Pair<Listening, Int>? = null
 
     private fun TestScope.advancer() = AutoAdvancer(
         events = events,
@@ -61,7 +63,32 @@ class AutoAdvancerTest {
             if (exploring) explored++
             exploring
         },
+        otherKindLeft = { otherKindLeft },
     ).also { it.start() }
+
+    @Test
+    fun `talk with only music left after it stops there rather than fetching a related video`() = runTest {
+        queueHasNext = false
+        otherKindLeft = Listening.MUSIC to 2
+        advancer()
+        runCurrent()
+
+        end("talk")
+
+        assertEquals(1, advanced)
+        assertEquals("fell back to a related video", 0, fellBackToRelated)
+    }
+
+    @Test
+    fun `a queue with nothing at all left still falls back to a related video`() = runTest {
+        queueHasNext = false
+        advancer()
+        runCurrent()
+
+        end("last")
+
+        assertEquals(1, fellBackToRelated)
+    }
 
     @Test
     fun `with Explore on, a related video follows and the queue is not advanced`() = runTest {

@@ -62,6 +62,7 @@ internal fun ListenWatchToggle(quality: QualityControl, hasVideo: Boolean, modif
         ControlTile(
             icon = Icons.Outlined.Videocam,
             label = stringResource(R.string.watch_video),
+            shortLabel = stringResource(R.string.quick_watch),
             value = null,
             active = true,
             onClick = quality.onWatch,
@@ -71,6 +72,7 @@ internal fun ListenWatchToggle(quality: QualityControl, hasVideo: Boolean, modif
         ControlTile(
             icon = Icons.Outlined.Headphones,
             label = stringResource(R.string.listen),
+            shortLabel = stringResource(R.string.quick_listen),
             value = null,
             active = false,
             onClick = quality.onListen,

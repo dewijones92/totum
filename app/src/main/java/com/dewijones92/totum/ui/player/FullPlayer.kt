@@ -388,6 +388,9 @@ private fun PlayerDetails(
         TransportControls(state, onTogglePlayPause, onSeekBackward, onSeekForward)
     }
 
+    Spacer(Modifier.height(16.dp))
+    PlayerQuickStrip(state, quality, sleepTimer, toggles, onStartSleep, onStopSleepAfterItem, onCancelSleep, onSetSpeed)
+
     // Like / dislike / Watch Later — signed-in write actions for anything from YouTube, a song
     // playing as sound included.
     if (state.kind == MediaKind.VIDEO && watchActions.canAct) {

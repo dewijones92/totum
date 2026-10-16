@@ -1,5 +1,8 @@
 package com.dewijones92.totum.ui
 
+import com.dewijones92.totum.ui.player.PLAYER_QUICK_STRIP_TAG
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -215,6 +218,20 @@ class PlayerKeepsEveryControlTest {
         assertActionable("like", R.string.like)
         assertActionable("dislike", R.string.dislike)
         assertActionable("watch later", R.string.watch_later_save)
+    }
+
+    @Test
+    fun `the five quick controls sit in the strip under the title and nowhere else`() {
+        show(video)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val strip = composeTestRule.onNodeWithTag(PLAYER_QUICK_STRIP_TAG)
+        listOf(R.string.listen, R.string.playback_speed, R.string.volume_boost, R.string.skip_silence, R.string.sleep_timer)
+            .map(context::getString)
+            .forEach { label -> strip.assert(hasAnyDescendant(hasContentDescription(label).and(hasClickAction()))) }
+        listOf(R.string.sleep_timer, R.string.volume_boost, R.string.skip_silence).map(context::getString).forEach { label ->
+            val tiles = composeTestRule.onAllNodes(hasText(label)).fetchSemanticsNodes()
+            assertTrue("$label is still in the grid below as well: ${tiles.size}", tiles.isEmpty())
+        }
     }
 
     @Test

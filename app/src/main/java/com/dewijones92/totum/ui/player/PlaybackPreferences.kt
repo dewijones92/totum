@@ -156,6 +156,7 @@ internal fun SpeedTile(speed: Float, onSetSpeed: (Float) -> Unit, modifier: Modi
     PickerTile(
         icon = Icons.Outlined.Speed,
         label = stringResource(R.string.playback_speed),
+        shortLabel = stringResource(R.string.quick_speed),
         current = speed,
         options = PlaybackSpeeds,
         optionLabel = { speedLabel(it) },
@@ -170,6 +171,7 @@ internal fun BoostTile(boost: VolumeBoost, onSetBoost: (VolumeBoost) -> Unit, mo
     PickerTile(
         icon = Icons.AutoMirrored.Outlined.VolumeUp,
         label = stringResource(R.string.volume_boost),
+        shortLabel = stringResource(R.string.quick_boost),
         current = boost,
         options = VolumeBoost.entries,
         optionLabel = { stringResource(it.labelRes()) },

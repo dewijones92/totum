@@ -1,5 +1,6 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.data.queue.QueueGroup
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -23,9 +24,15 @@ class QueueDebugReceiver : BroadcastReceiver() {
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
                 }
+                val group = intent.getStringExtra("group")?.let { QueueGroup(id = "debug:$it", title = it) }
+                val appended = intent.getStringExtra("append").orEmpty().split(',').filter { it.isNotBlank() }.mapNotNull { id ->
+                    val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
+                    placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
+                }
                 container.applicationScope.launch {
                     container.playbackQueue.clear()
-                    container.playbackQueue.playAll(items)
+                    container.playbackQueue.playAll(items, group)
+                    if (appended.isNotEmpty()) container.playbackQueue.enqueueAll(appended)
                 }
             }
             ACTION_SEEK_NEAR_END -> container.applicationScope.launch {

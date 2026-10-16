@@ -44,4 +44,4 @@ public fun switchTarget(
     }
 }
 
-private val Listening.word: String get() = if (this == Listening.MUSIC) "music" else "talk"
+public val Listening.word: String get() = if (this == Listening.MUSIC) "music" else "talk"

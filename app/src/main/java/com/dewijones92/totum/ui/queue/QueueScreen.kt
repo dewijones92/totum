@@ -337,6 +337,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
     val groups = actions.groups
     val blockCount = entries.blocks().size
     val session = actions.dragSession
+    val hasGroups = entries.any { it.group != null }
     entries.forEachIndexed { index, entry ->
         val group = entry.group
         val startsRun = group != null && entries.getOrNull(index - 1)?.group?.id != group.id
@@ -360,6 +361,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                             count = run.size,
                             collapsed = groups.isCollapsed(group.id),
                             containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
+                            playing = nowPlaying.isPlaying,
                             draggable = isFirstRunOfGroup && blockCount > 1,
                             downloading = actions.groupDownloading(group.id),
                         ),
@@ -375,6 +377,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
                     header(null)
                 }
             }
+        }
+        if (hasGroups && group == null && (index == 0 || entries[index - 1].group != null)) {
+            val run = entries.drop(index).takeWhile { it.group == null }.size
+            val playingHere = nowPlaying.index in index until index + run
+            item(key = "ungrouped-$index") { UngroupedHeader(run, playingHere, nowPlaying.isPlaying) }
         }
         // Hidden, not removed: the entry keeps its index, so reordering and "play this" still
         // address the same item once it is shown again.
