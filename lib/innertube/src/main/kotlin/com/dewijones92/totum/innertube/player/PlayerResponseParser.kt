@@ -78,7 +78,7 @@ public object PlayerResponseParser {
             // A string in the response, and absent for a live stream.
             lengthSeconds = stringAt("lengthSeconds")?.toLongOrNull()?.takeIf { it > 0 },
             thumbnailUrl = bestThumbnailUrl(),
-            description = stringAt("shortDescription"),
+            description = stringAt("shortDescription") ?: describedBy?.description,
             isLive = this["isLiveContent"]?.jsonPrimitive?.booleanOrNull == true,
         )
     }

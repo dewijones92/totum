@@ -52,10 +52,12 @@ class SignedInTvPlayer(
     private suspend fun describedByTheWatchPage(videoId: String, token: AccessToken): WatchNextDetails? {
         val response = runCatching { innerTubeClient.nextAsAccount(videoId, token) }.getOrNull()
         val details = (response as? InnerTubeResponse.Success)?.body?.let { WatchNextParser.details(it, videoId) }
+        (response as? InnerTubeResponse.Success)?.body?.let { Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(it)}") }
         Diag.log(
             "resolve",
             if (details != null) {
-                "$videoId described by the account's watch page: \"${details.title}\" by ${details.author}"
+                "$videoId described by the account's watch page: \"${details.title}\" by ${details.author}, " +
+                    "${details.description?.length ?: 0} chars of description"
             } else {
                 "$videoId: the account's watch page gave no title (${response.toString().take(
                     LOGGED_RESPONSE_CHARS
@@ -87,6 +89,7 @@ class SignedInTvPlayer(
         val response = runCatching { request() }.getOrNull()
         val body = (response as? InnerTubeResponse.Success)?.body
         val parsed = body?.let(PlayerResponseParser::parse)
+        body?.let { Diag.log("resolve", "dewidebug $videoId $client player response ${descriptionKeys(it)}") }
         if (parsed !is PlayerResult.Success) {
             // WHAT it said, not just that it failed. Concluding "refused" from a null was the
             // mistake that made age restriction look impossible for two rounds.
@@ -122,3 +125,13 @@ class SignedInTvPlayer(
 }
 
 private const val LOGGED_RESPONSE_CHARS = 300
+
+private val DESCRIPTION_KEY = Regex(""""(shortDescription|description|attributedDescription|descriptionBodyText|attributedDescriptionBodyText)"\s*:\s*(.{0,60})""")
+
+internal fun descriptionKeys(body: String): String {
+    val hits = DESCRIPTION_KEY.findAll(body).toList()
+    if (hits.isEmpty()) return "has no description field"
+    return hits.groupBy { it.groupValues[1] }.entries.joinToString("; ") { (key, found) ->
+        "$key x${found.size}: ${found.first().groupValues[2].replace('\n', ' ')}"
+    }
+}

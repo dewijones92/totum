@@ -6,7 +6,12 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 
-public data class WatchNextDetails(val title: String, val author: String?, val channelId: String?)
+public data class WatchNextDetails(
+    val title: String,
+    val author: String?,
+    val channelId: String?,
+    val description: String? = null,
+)
 
 public object WatchNextParser {
     private val json = Json { ignoreUnknownKeys = true }
@@ -21,8 +26,22 @@ public object WatchNextParser {
             author = owner?.readable("title"),
             channelId = ((owner?.get("navigationEndpoint") as? JsonObject)?.get("browseEndpoint") as? JsonObject)
                 ?.text("browseId"),
+            description = root.objectsHaving(DESCRIPTION).firstNotNullOfOrNull { it.readable(DESCRIPTION) },
         )
     }
+
+    private fun JsonElement.objectsHaving(key: String): Sequence<JsonObject> = sequence {
+        when (val node = this@objectsHaving) {
+            is JsonObject -> {
+                if (key in node) yield(node)
+                node.values.forEach { yieldAll(it.objectsHaving(key)) }
+            }
+            is JsonArray -> node.forEach { yieldAll(it.objectsHaving(key)) }
+            else -> Unit
+        }
+    }
+
+    private const val DESCRIPTION = "descriptionBodyText"
 
     private fun JsonElement.objectsNamed(name: String): Sequence<JsonObject> = sequence {
         when (val node = this@objectsNamed) {
