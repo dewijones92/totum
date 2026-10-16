@@ -23,6 +23,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.containsChannel
 import com.dewijones92.totum.domain.findChannel
+import com.dewijones92.totum.domain.listedOn
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.channel.ChannelPlaylists
 import com.dewijones92.totum.innertube.channel.ChannelVideos
@@ -218,6 +219,17 @@ class ChannelViewModel(
         loadVideos()
     }
 
+    private fun Page<MediaItem>.listedHere(): Page<MediaItem> {
+        val unnamed = items.count { it.author == null || it.sourceUrl == null }
+        if (unnamed > 0) {
+            Diag.log(
+                "channel",
+                "\"${source.title}\": $unnamed of ${items.size} item(s) listed without their channel, given this one"
+            )
+        }
+        return map { it.listedOn(source) }
+    }
+
     private fun logLoad(tab: String, route: String, started: TimeSource.Monotonic.ValueTimeMark, items: Int?) {
         val ms = started.elapsedNow().inWholeMilliseconds
         val outcome = items?.let { "$it item(s)" } ?: "FAILED"
@@ -271,7 +283,7 @@ class ChannelViewModel(
             content.update { it.copy(videos = it.videos.copy(loading = true, error = false)) }
             val page = channelId?.let { id ->
                 when (val r = reader.innerTube.videos(id)) {
-                    is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }
+                    is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }.listedHere()
                     is ChannelVideos.Failure -> null
                 }
                 // The yt-dlp fallback returns everything it found in one go, so it is a last
@@ -300,7 +312,7 @@ class ChannelViewModel(
                 // you follow this channel.
                 content.update { it.copy(resolvedChannelId = r.channelId) }
                 Diag.log("channel", "resolved ${source.title} to ${r.channelId}")
-                r.videos
+                Page.last(r.videos).listedHere().items
             }
 
             is ChannelVideosResult.Failure -> null
@@ -315,7 +327,7 @@ class ChannelViewModel(
             val started = TimeSource.Monotonic.markNow()
             content.update { it.copy(shorts = it.shorts.copy(loading = true, error = false)) }
             val page = when (val r = reader.innerTube.shorts(id)) {
-                is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }
+                is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }.listedHere()
                 is ChannelVideos.Failure -> null
             }
             logLoad("shorts", "InnerTube", started, page?.items?.size)
@@ -390,7 +402,8 @@ class ChannelViewModel(
     }
 
     /** A tab result as domain items, or null when it failed. */
-    private fun videoPage(result: ChannelVideos): Page<MediaItem>? = result.toMediaItemPage(source.id)
+    private fun videoPage(result: ChannelVideos): Page<MediaItem>? =
+        result.toMediaItemPage(source.id)?.listedHere()
 
     /**
      * The paging step, once, for any tab. The three tabs differ only in which state they

@@ -85,3 +85,13 @@ public fun MediaItem.statedFeed(): MediaSource.PodcastFeed? =
             publisher = publisher,
         )
     }
+
+public fun MediaItem.listedOn(channel: MediaSource.VideoChannel): MediaItem =
+    if (author != null && sourceUrl != null) {
+        this
+    } else {
+        copy(
+            author = author ?: channel.title,
+            sourceUrl = sourceUrl ?: channel.channelUrl
+        )
+    }
