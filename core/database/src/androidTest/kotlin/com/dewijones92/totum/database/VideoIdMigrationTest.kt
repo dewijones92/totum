@@ -26,7 +26,6 @@ class VideoIdMigrationTest {
         const val BARE = "BNMKGYiJpvg"
         const val WATCH = "https://www.youtube.com/watch?v=$BARE"
         const val PODCAST_ID = "https://feed.test/episode.mp3"
-        val ITEM_TABLES = listOf("queue_items", "play_history", "downloads", "local_playlist_items")
     }
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
@@ -63,13 +62,7 @@ class VideoIdMigrationTest {
         val fresh = open()
         runBlocking { fresh.seed() }
         val raw = fresh.openHelper.writableDatabase
-        ITEM_TABLES.forEach { table ->
-            raw.execSQL("ALTER TABLE $table DROP COLUMN albumId")
-            raw.execSQL("ALTER TABLE $table DROP COLUMN albumTitle")
-        }
-        raw.execSQL("ALTER TABLE downloads DROP COLUMN downloadedAtEpochMs")
-        raw.execSQL("ALTER TABLE downloads DROP COLUMN openedAtEpochMs")
-        raw.execSQL("PRAGMA user_version = 25")
+        raw.rollBackTo(25)
         fresh.close()
         db = null
     }

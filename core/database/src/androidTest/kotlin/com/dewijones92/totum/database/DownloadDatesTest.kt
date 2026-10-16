@@ -115,9 +115,7 @@ class DownloadDatesTest {
         val fresh = open()
         fresh.store().put(episode, DownloadState.Downloaded("/data/ep.media", audioOnly = false), audioOnly = false)
         val raw = fresh.openHelper.writableDatabase
-        raw.execSQL("ALTER TABLE downloads DROP COLUMN downloadedAtEpochMs")
-        raw.execSQL("ALTER TABLE downloads DROP COLUMN openedAtEpochMs")
-        raw.execSQL("PRAGMA user_version = 26")
+        raw.rollBackTo(26)
         fresh.close()
         db = null
 
