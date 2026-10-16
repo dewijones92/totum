@@ -12,6 +12,7 @@ import android.hardware.SensorManager
 import androidx.core.content.edit
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.ThrottledChanges
 import com.dewijones92.totum.stats.NudgeWhat
 import com.dewijones92.totum.stats.StatEvent
 import com.dewijones92.totum.stats.StatsLog
@@ -39,7 +40,7 @@ class FlatPhoneNudge(
     private val stillness = FlatStillness()
     private var listening = false
     private var lastNudgeAt: Instant? = null
-    private var lastWhy: String? = null
+    private var notYet = ThrottledChanges(NOT_YET_LOG_GAP_MS)
     private val glyph by lazy { Icon.createWithBitmap(SurgiusPainter.glyphBitmap(ICON_PX)) }
 
     fun start() {
@@ -89,16 +90,16 @@ class FlatPhoneNudge(
         when (decision) {
             FlatNudge.Nudge -> {
                 lastNudgeAt = now
-                lastWhy = null
+                notYet = ThrottledChanges(NOT_YET_LOG_GAP_MS)
                 post(exsurge.view.value.settings.flatNudgeMinutes)
                 stats?.record(StatEvent.Nudge(now.toEpochMilli(), NudgeWhat.POSTED))
                 Diag.log(TAG, "dewidebug flat-phone nudge posted: flat and still for ${flatFor?.div(MS_PER_S)}s")
             }
             is FlatNudge.Not -> {
                 val kind = if (decision.why.startsWith("flat for")) "flat for" else decision.why
-                if (kind != lastWhy) {
-                    lastWhy = kind
-                    Diag.log(TAG, "dewidebug flat-phone nudge not yet: ${decision.why}")
+                notYet.offer(kind, now.toEpochMilli())?.let { folded ->
+                    val flips = if (folded > 0) " ($folded quick changes folded in since the last line)" else ""
+                    Diag.log(TAG, "dewidebug flat-phone nudge not yet: ${decision.why}$flips")
                 }
             }
         }
@@ -172,3 +173,5 @@ class FlatPhoneNudge(
         private const val ICON_PX = 96
     }
 }
+
+private const val NOT_YET_LOG_GAP_MS = 60_000L

@@ -66,6 +66,11 @@ class PlayerBackedDownloadStrategy(
         // a file that existed, played nothing, and reported success. Caught by the instrumented
         // test on 2026-08-06. One call decides, the same one playback uses.
         val stream = streamFor(url)
+        val ranged = fetch
+        if (stream == null && ranged != null) {
+            emitAll(rangedSound(ranged, url, item, target))
+            return@flow
+        }
         if (stream == null) {
             Diag.log("download", "fetching \"${item.item.title}\" from its resolved audio URL")
             http.download(item.item.copy(mediaUrl = url).let { PlayableItem(it, PlayHandle.Podcast()) }, target, true)
@@ -130,6 +135,35 @@ class PlayerBackedDownloadStrategy(
         }
     }
 
+    private fun rangedSound(ranged: RangedFetch, url: HttpUrl, item: PlayableItem, target: File): Flow<DownloadState> =
+        flow {
+            val expected = RangedFetch.lengthOf(url)
+            Diag.log(
+                "download",
+                "fetching \"${item.item.title}\" from its resolved audio URL in ranges (${expected ?: -1}B expected)",
+            )
+            val started = System.nanoTime()
+            emit(DownloadState.Downloading(0, expected))
+            val why = ranged.fetch(url, target) { emit(DownloadState.Downloading(it, expected)) }
+            val seconds = (System.nanoTime() - started) / NANOS_PER_SECOND.toDouble()
+            if (why != null) {
+                target.delete()
+                Diag.warn(
+                    "download",
+                    "\"${item.item.title}\": the ranged fetch failed after ${"%.1f".format(seconds)}s ($why)"
+                )
+                emit(DownloadState.Failed("the signed-in audio fetch failed: $why"))
+                return@flow
+            }
+            val bytes = target.length()
+            Diag.log(
+                "download",
+                "\"${item.item.title}\" sound fetched in ranges: ${bytes}B in ${"%.1f".format(seconds)}s " +
+                    "(${(bytes / BYTES_PER_KB / seconds.coerceAtLeast(MIN_SECONDS)).toLong()} KB/s)",
+            )
+            emit(DownloadState.Downloaded(target.absolutePath, audioOnly = true))
+        }
+
     // A function rather than the call inline: Android lint does not follow an opt-in into a
     // lambda, and `download` builds its work inside `flow { }`. Same workaround as PlaybackService.
     @OptIn(UnstableApi::class)
@@ -187,5 +221,8 @@ class PlayerBackedDownloadStrategy(
          */
         const val ENOUGH_PERCENT = 95
         const val PERCENT = 100
+        const val NANOS_PER_SECOND = 1_000_000_000L
+        const val BYTES_PER_KB = 1024.0
+        const val MIN_SECONDS = 0.001
     }
 }

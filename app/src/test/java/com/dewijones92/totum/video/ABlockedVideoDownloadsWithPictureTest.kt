@@ -72,7 +72,7 @@ class ABlockedVideoDownloadsWithPictureTest {
     )
 
     private fun strategy(merge: suspend (File, File, File) -> String?) = PlayerBackedDownloadStrategy(
-        resolveAudioUrl = { HttpUrl.of("https://rr1---sn.googlevideo.com/videoplayback?itag=140") },
+        resolveAudioUrl = { HttpUrl.of(server.url("/audio?clen=7").toString()) },
         http = soundOnly,
         resolveVideo = { quality() },
         fetch = RangedFetch(OkHttpClient(), chunkBytes = 10),
