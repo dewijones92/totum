@@ -72,6 +72,14 @@ internal class DiagnosticSnapshot(
             put("playing.speed", state?.speed?.toString() ?: "-")
             put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")
             put("playing.volumeBoost", state?.volumeBoost?.name ?: "-")
+            val listed = playbackQueue.nowPlaying.value?.item
+            put(
+                "playing.facts",
+                "queued item: published=${listed?.publishedAt ?: listed?.publishedText ?: "-"} " +
+                    "views=${listed?.viewsText ?: "-"} length=${listed?.duration ?: "-"} by=${listed?.author ?: "-"}; " +
+                    "player: published=${state?.publishedAt ?: state?.publishedText ?: "-"} views=${state?.viewsText ?: "-"} " +
+                    "description=${state?.description?.length ?: 0} chars",
+            )
         }
         runCatching {
             put("queue.size", entries.size.toString())

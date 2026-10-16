@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui
 
+import com.dewijones92.totum.ui.player.LocalPlayingItem
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -281,6 +282,7 @@ private fun FullPlayerFor(
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
 
     CompositionLocalProvider(
+        LocalPlayingItem provides playing?.item,
         LocalPlayerLinks provides playerLinksFor(
             playing?.item,
             container.musicCatalogue,

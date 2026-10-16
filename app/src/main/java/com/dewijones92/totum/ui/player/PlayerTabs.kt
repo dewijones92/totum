@@ -99,6 +99,7 @@ internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
             }
             PlayerTab.TRANSCRIPT -> TranscriptSection(state, content.onSeekTo)
             PlayerTab.DETAILS -> {
+                ItemFactsCard(state)
                 LyricsSection()
                 NotesChaptersAndSponsors(state, content.onSeekTo)
                 SourceSkipsSection(state)
