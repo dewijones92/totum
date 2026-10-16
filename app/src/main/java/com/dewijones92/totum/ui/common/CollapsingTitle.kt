@@ -1,10 +1,10 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -55,25 +55,29 @@ fun CollapsingTitle(
             .collect { (scrolling, target) -> if (scrolling || target == 0f) fraction = target }
     }
 
+    val style = MaterialTheme.typography.headlineLarge
     Surface(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.Bottom,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(lerp(ExpandedHeight, CollapsedHeight, fraction))
-                .padding(start = 20.dp, end = 8.dp, bottom = 10.dp),
+        Box(
+            contentAlignment = Alignment.BottomStart,
+            modifier = Modifier.fillMaxWidth().heightIn(min = lerp(ExpandedHeight, CollapsedHeight, fraction)),
         ) {
-            Text(
-                text = title,
-                // Size changes, weight does not: animating both reads as two effects fighting
-                // rather than one title shrinking.
-                style = MaterialTheme.typography.headlineLarge,
-                fontSize = lerpFloat(EXPANDED_SP, COLLAPSED_SP, fraction).sp,
-                maxLines = 1,
-                modifier = Modifier.weight(1f),
+            TitleAndActions(
+                titleWidth = rememberTextWidth(title, style.copy(fontSize = EXPANDED_SP.sp), wholeLine = true),
+                itemAlignment = Alignment.Bottom,
+                modifier = Modifier.padding(start = 20.dp, end = 8.dp, bottom = BottomPadding),
+                title = { place ->
+                    Text(
+                        text = title,
+                        style = style,
+                        fontSize = lerpFloat(EXPANDED_SP, COLLAPSED_SP, fraction).sp,
+                        maxLines = 1,
+                        modifier = place.heightIn(
+                            min = CollapsedHeight - BottomPadding
+                        ).wrapContentHeight(Alignment.Bottom),
+                    )
+                },
+                actions = trailing,
             )
-            Box(contentAlignment = Alignment.Center) { trailing() }
-            SearchAction()
         }
     }
 }
@@ -89,3 +93,4 @@ private const val EXPANDED_SP = 32f
 private const val COLLAPSED_SP = 20f
 private val ExpandedHeight = 104.dp
 private val CollapsedHeight = 56.dp
+private val BottomPadding = 10.dp

@@ -3,7 +3,6 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,28 +20,27 @@ fun ScreenHeader(
     supporting: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.semantics { heading() },
-            )
-            supporting?.let {
+    val style = MaterialTheme.typography.headlineLarge
+    TitleAndActions(
+        titleWidth = rememberTextWidth(title, style, wholeLine = false),
+        modifier = modifier.padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
+        title = { place ->
+            Column(place) {
                 Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = title,
+                    style = style,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.semantics { heading() },
                 )
+                supporting?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-        }
-        actions()
-        SearchAction()
-    }
+        },
+        actions = { Row(verticalAlignment = Alignment.CenterVertically) { actions() } },
+    )
 }
