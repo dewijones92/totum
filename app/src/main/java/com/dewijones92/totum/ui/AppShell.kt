@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui
 
-import com.dewijones92.totum.ui.player.LocalPlayingItem
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +53,7 @@ import com.dewijones92.totum.ui.music.MusicScreen
 import com.dewijones92.totum.ui.player.CommentReplies
 import com.dewijones92.totum.ui.player.FullPlayerOverlay
 import com.dewijones92.totum.ui.player.LocalPlayerLinks
+import com.dewijones92.totum.ui.player.LocalPlayingItem
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
 import com.dewijones92.totum.ui.player.VideoBounds

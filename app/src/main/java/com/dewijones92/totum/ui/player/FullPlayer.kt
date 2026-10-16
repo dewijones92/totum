@@ -402,17 +402,7 @@ private fun PlayerDetails(
     PlayerTabs(state, PlayerTabContent(queue, related, onPlayRelated, comments, replies, watchActions, onSeekTo))
 
     Spacer(Modifier.height(24.dp))
-    SecondaryControls(
-        state = state,
-        controlsOverlaid = controlsOverlaid,
-        quality = quality,
-        sleepTimer = sleepTimer,
-        toggles = toggles,
-        onStartSleep = onStartSleep,
-        onStopSleepAfterItem = onStopSleepAfterItem,
-        onCancelSleep = onCancelSleep,
-        onSetSpeed = onSetSpeed,
-    )
+    SecondaryControls(toggles)
 }
 
 /**

@@ -1,8 +1,8 @@
 package com.dewijones92.totum.queue
 
-import com.dewijones92.totum.domain.word
-import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.Listening
+import com.dewijones92.totum.domain.word
 
 internal const val FORWARD = 1
 internal const val BACKWARD = -1
@@ -32,7 +32,11 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
             // said anything, so a report of a queue advancing wrongly showed "advance=true"
             // and nothing about which of sixty items it had landed on.
             val verb = if (direction == FORWARD) "advanced" else "went back"
-            val passed = if (passedOver > 0) " (passed over $passedOver ${keepTo?.other?.word} to stay in ${keepTo?.word})" else ""
+            val passed = if (passedOver > 0) {
+                " (passed over $passedOver ${keepTo?.other?.word} to stay in ${keepTo?.word})"
+            } else {
+                ""
+            }
             Diag.log("queue", "$verb from index $from to $index of ${state.value.entries.size} — \"$title\"$passed")
             return true
         } else {
@@ -42,7 +46,11 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
         }
         index += direction
     }
-    Diag.log("queue", "nothing playable $way index $from" + if (passedOver > 0) " in ${keepTo?.word} ($passedOver ${keepTo?.other?.word} left queued)" else "")
+    Diag.log(
+        "queue",
+        "nothing playable $way index $from" +
+            if (passedOver > 0) " in ${keepTo?.word} ($passedOver ${keepTo?.other?.word} left queued)" else ""
+    )
     return false
 }
 

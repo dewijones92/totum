@@ -38,6 +38,9 @@ class TheWatchPageDescribesATvPlayTest {
 
         val result = PlayerResponseParser.parse(tvPlayerWithoutDescription, described)
 
-        assertEquals("From the page", ((result as? PlayerResult.Success)?.details ?: error("not parsed: $result")).description)
+        assertEquals(
+            "From the page",
+            ((result as? PlayerResult.Success)?.details ?: error("not parsed: $result")).description
+        )
     }
 }

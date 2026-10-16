@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -40,7 +39,9 @@ internal fun ItemFactsCard(state: PlaybackState) {
     val item = LocalPlayingItem.current?.takeIf { it.id == state.itemId }
     val offline = downloadStateOf(state.itemId)
     val bytes by produceState<Long?>(null, offline) {
-        value = (offline as? DownloadState.Downloaded)?.let { withContext(Dispatchers.IO) { File(it.localPath).length() } }
+        value = (offline as? DownloadState.Downloaded)?.let {
+            withContext(Dispatchers.IO) { File(it.localPath).length() }
+        }
     }
     val facts = itemFacts(item, state, offline, bytes)
     if (facts.isEmpty()) return
@@ -61,7 +62,11 @@ internal fun ItemFactsCard(state: PlaybackState) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(LABEL_WEIGHT),
                     )
-                    Text(text = value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(VALUE_WEIGHT))
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(VALUE_WEIGHT)
+                    )
                 }
             }
         }
@@ -94,7 +99,9 @@ private fun publishedValue(fact: ItemFact.Published): String {
 
 @Composable
 private fun offlineValue(fact: ItemFact.Offline): String {
-    val what = stringResource(if (fact.audioOnly) R.string.item_fact_offline_sound else R.string.item_fact_offline_video)
+    val what = stringResource(
+        if (fact.audioOnly) R.string.item_fact_offline_sound else R.string.item_fact_offline_video
+    )
     val size = fact.bytes?.let { "%.1f MB".format(it / BYTES_PER_MB) }
     return listOfNotNull(what, size).joinToString(" · ")
 }

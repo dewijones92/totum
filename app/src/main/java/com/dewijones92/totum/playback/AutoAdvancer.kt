@@ -1,9 +1,9 @@
 package com.dewijones92.totum.playback
 
-import com.dewijones92.totum.domain.word
-import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.word
 import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -96,21 +96,29 @@ internal class AutoAdvancer(
             "$id ended at ${ended.atMs}ms -> " +
                 if (explored) "Explore is on: a related video follows, the queue waits" else "queue advance=$advanced",
         )
-        if (advanced) return
-        otherKindLeft()?.let { (kind, count) ->
-            Diag.log(
+        if (!advanced) afterTheQueue(id, mode)
+    }
+
+    private suspend fun afterTheQueue(id: String, mode: RepeatMode) {
+        val other = otherKindLeft()
+        when {
+            other != null -> Diag.log(
                 "advance",
-                "stopping after $id: only $count ${kind.word} item(s) are left in the queue, so auto-play stays " +
-                    "out of ${kind.word}; the music/talk button carries on with them",
+                "stopping after $id: only ${other.second} ${other.first.word} item(s) are left in the queue, so " +
+                    "auto-play stays out of ${other.first.word}; the music/talk button carries on with them",
             )
-            return
+            mode == RepeatMode.QUEUE && fromTheTop() ->
+                Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top")
+            else -> {
+                if (mode == RepeatMode.QUEUE) {
+                    Diag.log(
+                        "advance",
+                        "repeat queue is on but nothing from the top would play"
+                    )
+                }
+                Diag.log("advance", "queue had nothing playable; trying a related video")
+                whenQueueEmpty()
+            }
         }
-        if (mode == RepeatMode.QUEUE) {
-            val wrapped = fromTheTop()
-            Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top=$wrapped")
-            if (wrapped) return
-        }
-        Diag.log("advance", "queue had nothing playable; trying a related video")
-        whenQueueEmpty()
     }
 }

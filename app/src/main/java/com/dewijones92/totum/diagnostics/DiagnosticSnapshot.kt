@@ -3,10 +3,12 @@ package com.dewijones92.totum.diagnostics
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.playback.PlaybackController
+import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.pathTaken
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -72,14 +74,7 @@ internal class DiagnosticSnapshot(
             put("playing.speed", state?.speed?.toString() ?: "-")
             put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")
             put("playing.volumeBoost", state?.volumeBoost?.name ?: "-")
-            val listed = playbackQueue.nowPlaying.value?.item
-            put(
-                "playing.facts",
-                "queued item: published=${listed?.publishedAt ?: listed?.publishedText ?: "-"} " +
-                    "views=${listed?.viewsText ?: "-"} length=${listed?.duration ?: "-"} by=${listed?.author ?: "-"}; " +
-                    "player: published=${state?.publishedAt ?: state?.publishedText ?: "-"} views=${state?.viewsText ?: "-"} " +
-                    "description=${state?.description?.length ?: 0} chars",
-            )
+            put("playing.facts", playingFacts(playbackQueue.nowPlaying.value?.item, state))
         }
         runCatching {
             put("queue.size", entries.size.toString())
@@ -250,4 +245,19 @@ internal fun <T> listedAround(
     val shown = entries.subList(from, to).joinToString(" | ", transform = describe)
     if (from == 0 && to == entries.size) return shown
     return "[items ${from + 1}-$to of ${entries.size}, around the playing one] $shown"
+}
+
+private fun playingFacts(listed: MediaItem?, state: PlaybackState?): String {
+    val queued = listOf(
+        "published=${listed?.publishedAt ?: listed?.publishedText ?: "-"}",
+        "views=${listed?.viewsText ?: "-"}",
+        "length=${listed?.duration ?: "-"}",
+        "by=${listed?.author ?: "-"}",
+    )
+    val player = listOf(
+        "published=${state?.publishedAt ?: state?.publishedText ?: "-"}",
+        "views=${state?.viewsText ?: "-"}",
+        "description=${state?.description?.length ?: 0} chars",
+    )
+    return "queued item: ${queued.joinToString(" ")}; player: ${player.joinToString(" ")}"
 }

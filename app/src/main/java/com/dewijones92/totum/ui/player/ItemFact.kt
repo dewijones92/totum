@@ -23,17 +23,33 @@ sealed interface ItemFact {
     data class Source(val host: String) : ItemFact
 }
 
-fun itemFacts(item: MediaItem?, state: PlaybackState, offline: DownloadState, bytes: Long?): List<ItemFact> = buildList {
+fun itemFacts(item: MediaItem?, state: PlaybackState, offline: DownloadState, bytes: Long?): List<ItemFact> =
+    whenAndHowLong(item, state) + whoAndWhat(item, state) + whatPlaybackKnows(item, state, offline, bytes)
+
+private fun whenAndHowLong(item: MediaItem?, state: PlaybackState): List<ItemFact> = buildList {
     val publishedAt = item?.publishedAt ?: state.publishedAt
     val publishedText = (item?.publishedText ?: state.publishedText).takeIf { publishedAt == null }
     if (publishedAt != null || publishedText != null) add(ItemFact.Published(publishedAt, publishedText))
     (item?.duration?.inWholeMilliseconds ?: state.durationMs)?.takeIf { it > 0 }?.let { add(ItemFact.Length(it)) }
     (item?.viewsText ?: state.viewsText)?.takeIf { it.isNotBlank() }?.let { add(ItemFact.Views(it)) }
-    (item?.author ?: state.artist)?.takeIf { it.isNotBlank() }?.let { add(ItemFact.By(it)) }
-    (item?.publisher ?: state.publisher)?.takeIf { it.isNotBlank() && it != item?.author }?.let { add(ItemFact.Publisher(it)) }
+}
+
+private fun whoAndWhat(item: MediaItem?, state: PlaybackState): List<ItemFact> = buildList {
+    val by = (item?.author ?: state.artist)?.takeIf { it.isNotBlank() }
+    by?.let { add(ItemFact.By(it)) }
+    val publisher = (item?.publisher ?: state.publisher)?.takeIf { it.isNotBlank() && it != item?.author }
+    publisher?.let { add(ItemFact.Publisher(it)) }
     item?.album?.title?.let { add(ItemFact.Album(it)) }
     add(ItemFact.Kind(item?.contentKind ?: state.contentKind, isVideo = state.kind == MediaKind.VIDEO))
     if (item?.membersOnly == true) add(ItemFact.MembersOnly)
+}
+
+private fun whatPlaybackKnows(
+    item: MediaItem?,
+    state: PlaybackState,
+    offline: DownloadState,
+    bytes: Long?,
+): List<ItemFact> = buildList {
     state.chapters.size.takeIf { it > 0 }?.let { add(ItemFact.Chapters(it)) }
     state.subtitles.map { it.label }.distinct().takeIf { it.isNotEmpty() }?.let { add(ItemFact.Subtitles(it)) }
     state.skipSegments.size.takeIf { it > 0 }?.let { add(ItemFact.Skips(it)) }

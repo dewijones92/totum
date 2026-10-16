@@ -1,10 +1,14 @@
 package com.dewijones92.totum.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.fake.FakeAppContainer
@@ -77,6 +81,7 @@ class QueueGroupCollapseTest {
         show()
 
         composeTestRule.onNodeWithText("S01E01").assertIsDisplayed()
+        composeTestRule.onAllNodes(hasScrollToNodeAction()).onFirst().performScrollToNode(hasText("S01E03"))
         composeTestRule.onNodeWithText("S01E03").assertIsDisplayed()
     }
 

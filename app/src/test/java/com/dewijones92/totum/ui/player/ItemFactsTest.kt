@@ -6,9 +6,9 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.playback.PlaybackState
-import com.dewijones92.totum.domain.SkipSegment
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Instant
@@ -64,7 +64,11 @@ class ItemFactsTest {
 
     @Test
     fun `a song says its album, and the counts come from what is playing`() {
-        val song = listed.copy(contentKind = MediaContentKind.MUSIC, album = AlbumRef("a1", "Romero Plays Rodrigo"), viewsText = null)
+        val song = listed.copy(
+            contentKind = MediaContentKind.MUSIC,
+            album = AlbumRef("a1", "Romero Plays Rodrigo"),
+            viewsText = null
+        )
         val playing = state.copy(skipSegments = listOf(SkipSegment(0.seconds, 1.seconds)))
 
         val facts = itemFacts(song, playing, DownloadState.NotDownloaded, null)
@@ -77,7 +81,12 @@ class ItemFactsTest {
 
     @Test
     fun `with no queued item the playing state still gives what it has`() {
-        val facts = itemFacts(null, state.copy(publishedText = "3 years ago", viewsText = "9 views"), DownloadState.NotDownloaded, null)
+        val facts = itemFacts(
+            null,
+            state.copy(publishedText = "3 years ago", viewsText = "9 views"),
+            DownloadState.NotDownloaded,
+            null
+        )
 
         assertEquals(ItemFact.Published(null, "3 years ago"), facts.first())
         assertEquals(ItemFact.Views("9 views"), facts.single { it is ItemFact.Views })

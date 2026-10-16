@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui.player
 
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -100,17 +100,7 @@ internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun SecondaryControls(
-    state: PlaybackState,
-    controlsOverlaid: Boolean,
-    quality: QualityControl,
-    sleepTimer: State<SleepTimerState>,
-    toggles: PlaybackToggles,
-    onStartSleep: (Duration) -> Unit,
-    onStopSleepAfterItem: () -> Unit,
-    onCancelSleep: () -> Unit,
-    onSetSpeed: (Float) -> Unit,
-) {
+internal fun SecondaryControls(toggles: PlaybackToggles) {
     val tiles = buildList<Pair<String, @Composable (Modifier) -> Unit>> {
         add("autoplay" to { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) })
         add("repeat" to { m -> RepeatTile(toggles.repeatMode, toggles.onSetRepeatMode, m) })

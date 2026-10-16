@@ -52,7 +52,9 @@ class SignedInTvPlayer(
     private suspend fun describedByTheWatchPage(videoId: String, token: AccessToken): WatchNextDetails? {
         val response = runCatching { innerTubeClient.nextAsAccount(videoId, token) }.getOrNull()
         val details = (response as? InnerTubeResponse.Success)?.body?.let { WatchNextParser.details(it, videoId) }
-        (response as? InnerTubeResponse.Success)?.body?.let { Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(it)}") }
+        (response as? InnerTubeResponse.Success)?.body?.let {
+            Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(it)}")
+        }
         Diag.log(
             "resolve",
             if (details != null) {
@@ -126,7 +128,15 @@ class SignedInTvPlayer(
 
 private const val LOGGED_RESPONSE_CHARS = 300
 
-private val DESCRIPTION_KEY = Regex(""""(shortDescription|description|attributedDescription|descriptionBodyText|attributedDescriptionBodyText)"\s*:\s*(.{0,60})""")
+private val DESCRIPTION_FIELDS = listOf(
+    "shortDescription",
+    "description",
+    "attributedDescription",
+    "descriptionBodyText",
+    "attributedDescriptionBodyText",
+)
+
+private val DESCRIPTION_KEY = Regex(""""(${DESCRIPTION_FIELDS.joinToString("|")})"\s*:\s*(.{0,60})""")
 
 internal fun descriptionKeys(body: String): String {
     val hits = DESCRIPTION_KEY.findAll(body).toList()
