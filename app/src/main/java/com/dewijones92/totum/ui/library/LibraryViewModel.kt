@@ -128,7 +128,12 @@ class LibraryViewModel(
             // Sized FIRST, then ordered: a sort by size cannot work on a list that does not know
             // its sizes yet, and doing it the other way round silently produced source order.
             val sized = items.map { Entry(it, fileSize(it.localPath)) }
-            order.sortedBy(sized, item = { it.item }, size = { it.sizeBytes })
+            order.sortedBy(
+                sized,
+                item = { it.item },
+                size = { it.sizeBytes },
+                added = { it.media.downloadedAt?.toEpochMilli() }
+            )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
 

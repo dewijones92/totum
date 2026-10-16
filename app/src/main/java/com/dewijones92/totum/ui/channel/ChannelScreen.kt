@@ -46,18 +46,22 @@ import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.InboxToggle
 import com.dewijones92.totum.ui.common.ListFilter
+import com.dewijones92.totum.ui.common.ListShape
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.shapedBy
 import com.dewijones92.totum.ui.group.GroupPicker
 import com.dewijones92.totum.ui.channel.ChannelViewModel.Tab as ChannelTab
 
@@ -133,6 +137,10 @@ private fun ChannelTabs(selected: ChannelTab, onSelectTab: (ChannelTab) -> Unit)
     }
 }
 
+@Composable
+private fun rememberTabFilters(title: String, sourceKey: String): List<ListFilter> =
+    listOf("videos", "shorts", "playlists").map { rememberListFilter("channel $title $it", key = sourceKey) }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChannelContent(
@@ -154,9 +162,8 @@ internal fun ChannelContent(
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            val videosFilter = rememberListFilter("channel ${state.title} videos", key = sourceKey)
-            val shortsFilter = rememberListFilter("channel ${state.title} shorts", key = sourceKey)
-            val playlistsFilter = rememberListFilter("channel ${state.title} playlists", key = sourceKey)
+            val (videosFilter, shortsFilter, playlistsFilter) = rememberTabFilters(state.title, sourceKey)
+            val shape = rememberListShape("channel $sourceKey")
             SourceHeader(
                 title = state.title,
                 subscribed = state.subscribed,
@@ -167,6 +174,7 @@ internal fun ChannelContent(
                 artworkUrl = state.artworkUrl,
                 actions = {
                     ChannelFilterToggle(state, videosFilter, shortsFilter, playlistsFilter)
+                    if (state.tab == ChannelTab.VIDEOS || state.tab == ChannelTab.SHORTS) ShapeControl(shape)
                     headerAction()
                 },
             )
@@ -181,7 +189,7 @@ internal fun ChannelContent(
                     onDeleteDownload,
                     onAddToPlaylist,
                     onLoadMore,
-                    place = "channel videos", sourceKey = sourceKey,
+                    place = "channel videos", sourceKey = sourceKey, shape = shape,
                 )
                 ChannelTab.SHORTS -> MediaItemTab(
                     shortsFilter,
@@ -192,7 +200,7 @@ internal fun ChannelContent(
                     onDeleteDownload,
                     onAddToPlaylist,
                     onLoadMore,
-                    place = "channel shorts", sourceKey = sourceKey,
+                    place = "channel shorts", sourceKey = sourceKey, shape = shape,
                 )
                 ChannelTab.PLAYLISTS -> PlaylistTab(playlistsFilter, state.playlists, onOpenPlaylist, onLoadMore)
                 ChannelTab.SEARCH -> SearchTab(
@@ -280,9 +288,11 @@ private fun MediaItemTab(
     onLoadMore: () -> Unit,
     place: String = "channel tab",
     sourceKey: String? = null,
+    shape: ListShape? = null,
 ) {
     val listState = rememberLazyListState()
-    val shown = listFilter?.filter(tab.items, { it.searchableText }, pausesPaging = tab.canLoadMore) ?: tab.items
+    val shaped = shape?.let { tab.items.shapedBy(it) { item -> item } } ?: tab.items
+    val shown = listFilter?.filter(shaped, { it.searchableText }, pausesPaging = tab.canLoadMore) ?: shaped
     LoadMoreUnlessFiltered(listFilter, listState, tab.canLoadMore, tab.items.size, onLoadMore)
     when {
         tab.loading && tab.items.isEmpty() -> CenteredProgress()

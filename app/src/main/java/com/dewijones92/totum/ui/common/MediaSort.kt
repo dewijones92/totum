@@ -1,13 +1,14 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.ItemFilters
 import com.dewijones92.totum.domain.MediaItem
 
 /**
@@ -33,10 +35,14 @@ import com.dewijones92.totum.domain.MediaItem
  * known publish time (e.g. YouTube feed videos), so they degrade gracefully
  * rather than shuffling randomly.
  */
-enum class MediaSort(@StringRes val labelRes: Int) {
+enum class MediaSort(@StringRes val labelRes: Int, val needsAdded: Boolean = false) {
+    AS_LISTED(R.string.sort_as_listed),
     NEWEST(R.string.sort_newest),
     OLDEST(R.string.sort_oldest),
+    ADDED_NEWEST(R.string.sort_added_newest, needsAdded = true),
+    ADDED_OLDEST(R.string.sort_added_oldest, needsAdded = true),
     TITLE(R.string.sort_title),
+    CHANNEL(R.string.sort_channel),
     LONGEST(R.string.sort_longest),
     SHORTEST(R.string.sort_shortest),
     ;
@@ -44,18 +50,24 @@ enum class MediaSort(@StringRes val labelRes: Int) {
     fun apply(items: List<MediaItem>): List<MediaItem> = sortedBy(items) { it }
 
     /** Sorts any list by the [MediaItem] each element carries (e.g. a download wrapper). */
-    fun <T> sortedBy(items: List<T>, item: (T) -> MediaItem): List<T> = when (this) {
+    fun <T> sortedBy(items: List<T>, added: ((T) -> Long?)? = null, item: (T) -> MediaItem): List<T> = when (this) {
         // Sorting is stable, so items with no known date/duration (e.g. YouTube
         // feed videos) keep their source order rather than shuffling.
         NEWEST -> items.sortedByDescending { item(it).publishedAt }
         OLDEST -> items.sortedBy { item(it).publishedAt }
+        AS_LISTED -> items
+        ADDED_NEWEST -> added?.let { key -> items.sortedWith(compareByDescending(nullsFirst()) { key(it) }) } ?: items
+        ADDED_OLDEST -> added?.let { key -> items.sortedWith(compareBy(nullsLast()) { key(it) }) } ?: items
         TITLE -> items.sortedBy { item(it).title.lowercase() }
+        CHANNEL -> items.sortedBy { item(it).author.orEmpty().lowercase() }
         LONGEST -> items.sortedByDescending { item(it).duration }
         SHORTEST -> items.sortedBy { item(it).duration }
     }
 
     companion object {
         val DEFAULT: MediaSort = NEWEST
+
+        fun offered(addedKnown: Boolean): List<MediaSort> = entries.filter { addedKnown || !it.needsAdded }
     }
 }
 
@@ -71,14 +83,19 @@ fun SectionHeaderWithSort(
     onSetSort: (MediaSort) -> Unit,
     modifier: Modifier = Modifier,
     extraActions: @Composable () -> Unit = {},
+    filters: ItemFilters? = null,
+    onFilters: ((ItemFilters) -> Unit)? = null,
+    addedKnown: Boolean = false,
 ) = SectionHeaderWithSortOptions(
     title = title,
-    options = MediaSort.entries,
+    options = MediaSort.offered(addedKnown),
     current = sort,
     label = { it.labelRes },
     onSelect = onSetSort,
     modifier = modifier,
     extraActions = extraActions,
+    filters = filters,
+    onFilters = onFilters,
 )
 
 /**
@@ -97,6 +114,8 @@ fun <T> SectionHeaderWithSortOptions(
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
     extraActions: @Composable () -> Unit = {},
+    filters: ItemFilters? = null,
+    onFilters: ((ItemFilters) -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -110,11 +129,17 @@ fun <T> SectionHeaderWithSortOptions(
             modifier = Modifier.weight(1f),
         )
         extraActions()
-        SortControl(options = options, current = current, label = label, onSelect = onSelect)
+        SortControl(
+            options = options,
+            current = current,
+            label = label,
+            onSelect = onSelect,
+            filters = filters,
+            onFilters = onFilters
+        )
     }
 }
 
-/** A compact sort menu: a sort icon that opens the given options. */
 @Composable
 fun <T> SortControl(
     options: List<T>,
@@ -122,23 +147,20 @@ fun <T> SortControl(
     label: (T) -> Int,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    filters: ItemFilters? = null,
+    onFilters: ((ItemFilters) -> Unit)? = null,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }, modifier = modifier) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }, modifier = modifier) {
+        BadgedBox(badge = { filters?.activeCount?.takeIf { it > 0 }?.let { Badge { Text(it.toString()) } } }) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Sort,
-                contentDescription = stringResource(R.string.sort_label),
+                contentDescription = stringResource(R.string.sort_and_filter)
             )
         }
-        CheckedOptionsMenu(
-            expanded = expanded,
-            onDismiss = { expanded = false },
-            options = options,
-            current = current,
-            label = { stringResource(label(it)) },
-            onSelect = onSelect,
-        )
+    }
+    if (open) {
+        SortAndFilterSheet(options, current, label, onSelect, filters, onFilters) { open = false }
     }
 }
 

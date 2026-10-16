@@ -37,8 +37,13 @@ sealed interface DownloadSort {
         override val labelRes: Int get() = R.string.sort_smallest
     }
 
-    fun <T> sortedBy(items: List<T>, item: (T) -> MediaItem, size: (T) -> Long): List<T> = when (this) {
-        is ByItem -> order.sortedBy(items, item)
+    fun <T> sortedBy(
+        items: List<T>,
+        item: (T) -> MediaItem,
+        size: (T) -> Long,
+        added: ((T) -> Long?)? = null,
+    ): List<T> = when (this) {
+        is ByItem -> order.sortedBy(items, added = added, item = item)
         Largest -> items.sortedByDescending(size)
         Smallest -> items.sortedBy(size)
     }

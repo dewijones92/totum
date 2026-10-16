@@ -48,14 +48,17 @@ import com.dewijones92.totum.ui.common.MediaFilterChips
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.PinToggle
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.filteredByProgress
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.shapedBy
 import com.dewijones92.totum.ui.podcasts.PodcastsViewModel.Subscribing
 
 /**
@@ -131,7 +134,8 @@ fun PodcastFeedScreen(
     val listFilter = rememberListFilter("podcast page ${page.source.title}", key = source.id.value)
     var subscribing by remember(source.id) { mutableStateOf<Subscribing>(Subscribing.Idle) }
     SubscribeOutcome(subscribing) { subscribing = Subscribing.Idle }
-    val episodes = page.episodes.filteredByProgress(settings.mediaFilter)
+    val shape = rememberListShape("podcast page ${source.id.value}")
+    val episodes = page.episodes.filteredByProgress(settings.mediaFilter).shapedBy(shape) { it }
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -143,6 +147,7 @@ fun PodcastFeedScreen(
                 onBack = onBack,
                 actions = {
                     FilterToggle(listFilter, episodes.size)
+                    ShapeControl(shape)
                     PinToggle(Pin.of(page.source))
                     InboxToggle(page.source, page.subscribed)
                     ShuffleAllAction(

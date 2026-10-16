@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.queue
 
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import java.time.Instant
 
 /**
  * Where a queue entry came from — a local playlist, a podcast feed, a channel, or
@@ -20,7 +21,20 @@ public data class QueueGroup(public val id: String, public val title: String)
 public data class QueueEntry(
     public val item: PlayableItem,
     public val group: QueueGroup? = null,
+    public val addedAt: Instant? = null,
 )
+
+public fun QueueSnapshot.stampedSince(before: QueueSnapshot, now: Instant): QueueSnapshot {
+    if (entries.none { it.addedAt == null }) return this
+    val known = before.entries.associate { it.item.item.id to it.addedAt }
+    return copy(
+        entries = entries.map { entry ->
+            entry.takeIf {
+                it.addedAt != null
+            } ?: entry.copy(addedAt = known[entry.item.item.id] ?: now)
+        }
+    )
+}
 
 /**
  * The queue and where playback is within it.

@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.music.RADIO_GROUP_PREFIX
 import com.dewijones92.totum.queue.GroupDestination
+import com.dewijones92.totum.ui.common.MediaSort
+import com.dewijones92.totum.ui.common.SortAndFilterSheet
 
 internal data class GroupHeaderModel(
     val groupId: String,
@@ -57,6 +59,7 @@ internal data class GroupHeaderActions(
     val onShuffleAndPlay: () -> Unit,
     val onSetDownload: (Boolean) -> Unit = {},
     val onPullNew: (() -> Unit)? = null,
+    val onSort: ((MediaSort) -> Unit)? = null,
 )
 
 @Composable
@@ -151,13 +154,22 @@ private fun GroupShufflePlay(model: GroupHeaderModel, onClick: () -> Unit) {
 private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
     Column(modifier = modifier) {
         Text(
-            text = if (model.containsNowPlaying) stringResource(R.string.queue_group_title_playing, model.title) else model.title,
+            text = if (model.containsNowPlaying) {
+                stringResource(
+                    R.string.queue_group_title_playing,
+                    model.title
+                )
+            } else {
+                model.title
+            },
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
         if (model.containsNowPlaying) {
             Text(
-                text = stringResource(if (model.playing) R.string.queue_group_playing_now else R.string.queue_group_paused_here),
+                text = stringResource(
+                    if (model.playing) R.string.queue_group_playing_now else R.string.queue_group_paused_here
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.testTag(QUEUE_GROUP_PLAYING_TAG),
@@ -184,6 +196,21 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
 @Composable
 private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
     var open by remember { mutableStateOf(false) }
+    var sorting by remember { mutableStateOf(false) }
+    if (sorting) {
+        actions.onSort?.let { sort ->
+            SortAndFilterSheet(
+                MediaSort.offered(addedKnown = true),
+                MediaSort.AS_LISTED,
+                { it.labelRes },
+                sort,
+                null,
+                null
+            ) {
+                sorting = false
+            }
+        }
+    }
     Box {
         IconButton(
             onClick = { open = true },
@@ -197,6 +224,7 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
             MenuItem(R.string.queue_move_to_top, close) { actions.onMove(GroupDestination.TOP) }
             MenuItem(R.string.queue_move_to_bottom, close) { actions.onMove(GroupDestination.BOTTOM) }
             if (model.count > 1) MenuItem(R.string.queue_group_shuffle, close, actions.onShuffle)
+            if (model.count > 1 && actions.onSort != null) MenuItem(R.string.queue_group_sort, close) { sorting = true }
             actions.onPullNew?.let { MenuItem(R.string.queue_group_pull_new, close, it) }
             if (model.downloading) {
                 MenuItem(R.string.queue_group_stop_download, close) { actions.onSetDownload(false) }

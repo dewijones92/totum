@@ -96,6 +96,24 @@ class DownloadsMigrationTest {
         )
     }
 
+    @Test
+    fun aRowQueuedBeforeV28HasNoAddedDateRatherThanAnInventedOne() {
+        val db = openAtV13()
+        db.execSQL(
+            "INSERT INTO queue_items (position, groupId, groupTitle, isCurrent, itemId, title, author, " +
+                "thumbnailUrl, sourceId, contentKind, playbackType, handle, mediaUrl) VALUES " +
+                "(0, NULL, NULL, 1, 'ep-9', 'An old one', 'Show', NULL, 'feed-9', 'STANDARD', " +
+                "'PODCAST', NULL, 'https://cdn.example/ep9.mp3')",
+        )
+
+        migrate(db)
+
+        assertEquals(
+            listOf(listOf<String?>(null)),
+            db.rows("SELECT addedAtEpochMs FROM queue_items WHERE itemId = 'ep-9'")
+        )
+    }
+
     /** The publisher must not become a second copy of the show's own name. */
     @Test
     fun aQueuedEpisodeWhoseAuthorWasTheShowGetsNoPublisher() {

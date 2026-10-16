@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.ItemFilters
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
@@ -69,8 +71,10 @@ import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.filteredByItems
 import com.dewijones92.totum.ui.common.filteredByProgress
 import com.dewijones92.totum.ui.common.rememberFeedGate
+import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
@@ -332,14 +336,16 @@ private fun VideosEmpty() {
     }
 }
 
+@Suppress("LongParameterList")
 private fun LazyListScope.videosHeader(
     state: VideosViewModel.UiState,
     newUploadsCount: Int,
     onOpenNotifications: () -> Unit,
     onSetSort: (MediaSort) -> Unit,
+    itemFilters: MutableState<ItemFilters>,
     filterToggle: @Composable () -> Unit,
 ) {
-    item { VideosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, filterToggle) }
+    item { VideosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, itemFilters, filterToggle) }
 }
 
 @Composable
@@ -348,11 +354,19 @@ private fun VideosHeader(
     newUploadsCount: Int,
     onOpenNotifications: () -> Unit,
     onSetSort: (MediaSort) -> Unit,
+    itemFilters: MutableState<ItemFilters>,
     filterToggle: @Composable () -> Unit,
 ) {
     ScreenHeader(title = feedTitle(state.selected)) {
         filterToggle()
-        SortControl(options = MediaSort.entries, current = state.sort, label = { it.labelRes }, onSelect = onSetSort)
+        SortControl(
+            options = MediaSort.offered(addedKnown = false),
+            current = state.sort,
+            label = { it.labelRes },
+            onSelect = onSetSort,
+            filters = itemFilters.value,
+            onFilters = { itemFilters.value = it },
+        )
         if (state.signedIn) NotificationsBell(newUploadsCount, onOpenNotifications)
     }
 }
@@ -398,7 +412,8 @@ private fun ChannelsAndVideos(
     TrackPlace("videos") { videosPlace(state, listState, listFilter) }
     // The SHOWN count, not state.videos.size: with a filter on, a page of arriving videos
     // can add nothing visible, and paging on the raw count never notices.
-    val unwatchedFiltered = state.videos.filteredByProgress(filter)
+    val itemFilters = rememberItemFilters("videos")
+    val unwatchedFiltered = state.videos.filteredByProgress(filter).filteredByItems(itemFilters.value) { it }
     val shown = listFilter.filter(unwatchedFiltered, { it.searchableText }, pausesPaging = state.canLoadMore)
     LoadMoreUnlessFiltered(
         listFilter,
@@ -416,7 +431,7 @@ private fun ChannelsAndVideos(
         key = state.selected?.cacheKey()
     ) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            videosHeader(state, newUploadsCount, onOpenNotifications, onSetSort) {
+            videosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, itemFilters) {
                 if (!feedHidden) FilterToggle(listFilter, unwatchedFiltered.size)
             }
             feedHeader(state, onChannelClick, showChannels = !feedHidden, groupAction = groupAction) {

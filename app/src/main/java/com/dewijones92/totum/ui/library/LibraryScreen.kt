@@ -70,8 +70,10 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.filteredByItems
 import com.dewijones92.totum.ui.common.pinnedSection
 import com.dewijones92.totum.ui.common.recentlySection
+import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.rowFacts
@@ -219,7 +221,8 @@ internal fun LibraryContent(
     val actions = LocalItemActions.current
     var reviewing by rememberSaveable { mutableStateOf<CleanupGroup?>(null) }
     val listFilter = rememberListFilter("downloads")
-    val shown = listFilter.filter(downloaded, { it.item.searchableText })
+    val itemFilters = rememberItemFilters("downloads")
+    val shown = listFilter.filter(downloaded.filteredByItems(itemFilters.value) { it.item }, { it.item.searchableText })
     Column(modifier = modifier.fillMaxSize()) {
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -246,6 +249,8 @@ internal fun LibraryContent(
                             label = { it.labelRes },
                             onSelect = onSetSort,
                             extraActions = { FilterToggle(listFilter, downloaded.size) },
+                            filters = itemFilters.value,
+                            onFilters = { itemFilters.value = it },
                         )
                     }
                     item { StorageSummary(storage) }

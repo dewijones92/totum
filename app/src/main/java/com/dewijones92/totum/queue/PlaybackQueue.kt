@@ -1,7 +1,5 @@
 package com.dewijones92.totum.queue
 
-import com.dewijones92.totum.domain.listening
-import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -10,6 +8,8 @@ import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.QueueSnapshot.Companion.NOTHING_PLAYING
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
+import com.dewijones92.totum.data.queue.stampedSince
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -21,6 +21,7 @@ import com.dewijones92.totum.domain.Refusal
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.fillingSilenceFrom
+import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.music.labelledForPlay
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import kotlin.random.Random
 
 /**
@@ -521,6 +523,8 @@ class PlaybackQueue(
      */
     suspend fun playNextInQueue(): Boolean = step(FORWARD)
 
+    internal fun rearrange(why: String, block: (QueueSnapshot) -> QueueSnapshot) = mutate(why, block)
+
     suspend fun continueInKind(): Boolean = step(FORWARD, keepTo = _nowPlaying.value?.item?.listening)
 
     fun onlyOtherKindAhead(): Pair<Listening, Int>? = onlyOtherKindAfter(_state.value, _nowPlaying.value?.item)
@@ -654,7 +658,7 @@ class PlaybackQueue(
 
     private fun mutate(why: String, block: (QueueSnapshot) -> QueueSnapshot) {
         touched = true
-        _state.update(block)
+        _state.update { before -> block(before).stampedSince(before, Instant.ofEpochMilli(clock())) }
         val now = _state.value
         // The title is labelled, because it is the CURRENT entry and not whatever was just
         // added — reading it as "the item this operation touched" cost a wrong diagnosis on

@@ -59,6 +59,8 @@ import com.dewijones92.totum.ui.common.TotumFab
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
+import com.dewijones92.totum.ui.common.filteredByItems
+import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
@@ -204,7 +206,8 @@ private fun SubscriptionsAndEpisodes(
     modifier: Modifier = Modifier,
 ) {
     val listFilter = rememberListFilter("podcasts")
-    val shown = listFilter.filter(state.episodes, { it.searchableText })
+    val itemFilters = rememberItemFilters("podcasts")
+    val shown = listFilter.filter(state.episodes.filteredByItems(itemFilters.value) { it }, { it.searchableText })
     SelectableMediaList("podcasts", state.episodes, shown, { it }, modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
@@ -214,10 +217,12 @@ private fun SubscriptionsAndEpisodes(
                 ) {
                     FilterToggle(listFilter, state.episodes.size)
                     SortControl(
-                        options = MediaSort.entries,
+                        options = MediaSort.offered(addedKnown = false),
                         current = state.sort,
                         label = { it.labelRes },
-                        onSelect = onSetSort
+                        onSelect = onSetSort,
+                        filters = itemFilters.value,
+                        onFilters = { itemFilters.value = it },
                     )
                 }
             }

@@ -40,6 +40,7 @@ public data class QueueEntity(
     override val membersOnly: Boolean = false,
     override val albumId: String? = null,
     override val albumTitle: String? = null,
+    public val addedAtEpochMs: Long? = null,
 ) : PlaylistItemColumns
 
 @Dao

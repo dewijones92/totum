@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.QueueStore
+import java.time.Instant
 
 /** [QueueStore] backed by Room, reusing the shared playable-item column mapping. */
 public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
@@ -15,7 +16,7 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
         val kept = rows.mapNotNull { row ->
             val item = playlistItemFrom(row) ?: return@mapNotNull null
             val group = row.groupId?.let { QueueGroup(it, row.groupTitle.orEmpty()) }
-            QueueEntry(item, group) to row.isCurrent
+            QueueEntry(item, group, row.addedAtEpochMs?.let(Instant::ofEpochMilli)) to row.isCurrent
         }
         return QueueSnapshot(
             entries = kept.map { it.first },
@@ -53,6 +54,7 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
                     playbackType = type,
                     handle = handle,
                     mediaUrl = media.mediaUrl?.value,
+                    addedAtEpochMs = entry.addedAt?.toEpochMilli(),
                 )
             },
         )

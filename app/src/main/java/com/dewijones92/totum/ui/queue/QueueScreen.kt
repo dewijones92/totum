@@ -17,15 +17,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +43,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
+import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ItemFilters
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.searchableText
@@ -71,14 +72,18 @@ import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalDownloadStates
 import com.dewijones92.totum.ui.common.LocalLongPressHeldElsewhere
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShuffleAsk
+import com.dewijones92.totum.ui.common.SortControl
 import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.filter
+import com.dewijones92.totum.ui.common.filteredByItems
 import com.dewijones92.totum.ui.common.rememberField
+import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 import com.dewijones92.totum.ui.common.rowFacts
@@ -114,6 +119,8 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val listFilter = rememberListFilter("queue")
     ForgetTheFilterWhenTheQueueEmpties(entries.isEmpty(), listFilter)
     val ask = rememberShuffleAsk()
+    val sortWithUndo = rememberSortWithUndo(queue, snackbar, scope)
+    val queueFilters = rememberItemFilters("queue")
     // Survives rotation and process death: a collapsed 24-episode season staying
     // collapsed is the entire point, and re-expanding on every return would undo it.
     var collapsedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -132,13 +139,11 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onJump = jump.takeIf { snapshot.currentIndex in entries.indices },
                 groups = groupIds to collapsedGroups,
                 onCollapseAll = { collapsedGroups = toggledAll(groupIds, collapsedGroups) },
+                onSort = { order: MediaSort -> sortWithUndo(order, null) }.takeIf { snapshot.upNext.size > 1 },
+                filters = queueFilters,
             )
             if (entries.isEmpty()) {
-                EmptyState(
-                    icon = Icons.AutoMirrored.Filled.QueueMusic,
-                    headline = stringResource(R.string.queue_title),
-                    supportingText = stringResource(R.string.queue_empty),
-                )
+                EmptyQueue()
             } else {
                 QueueOfflineSummary(container, entries, downloads)
                 val actions = rememberQueueActions(
@@ -149,46 +154,16 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     collapsedGroups = collapsedGroups,
                     onCollapsedChange = { collapsedGroups = it },
                     ask = ask,
+                    sortWithUndo = sortWithUndo,
                 )
                 val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
                     listFilter, entries, container, snapshot.currentIndex, isPlaying, progress, listState,
-                    reorder, actions,
+                    reorder, actions, queueFilters.value,
                 )
             }
         }
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
-    }
-}
-
-/**
- * Removal as the screen does it: drop the row BY IDENTITY, offer Undo on the snackbar, and put it back
- * at the same index if taken. Identity, not index, because the row a tap meant is the row that must go —
- * an index read at composition is stale the moment anything above it moves (see [PlaybackQueue.remove]).
- */
-@Composable
-private fun rememberRemoveWithUndo(
-    queue: PlaybackQueue,
-    snackbar: SnackbarHostState,
-    scope: CoroutineScope,
-): (QueueEntry) -> Unit {
-    val removedMessage = stringResource(R.string.queue_removed)
-    val undoLabel = stringResource(R.string.queue_undo)
-    return remember(queue, snackbar, scope) {
-        {
-                entry ->
-            val index = queue.remove(entry)
-            if (index != null) {
-                scope.launch {
-                    val result = snackbar.showSnackbar(
-                        message = removedMessage,
-                        actionLabel = undoLabel,
-                        duration = SnackbarDuration.Short,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) queue.restoreAt(index, entry)
-                }
-            }
-        }
     }
 }
 
@@ -200,6 +175,7 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onShuffleAndPlay = { onShuffleAndPlayGroup(id) },
     onSetDownload = { onSetGroupDownload(id, it) },
     onPullNew = if (id.startsWith("shuffle:")) { { onPullNew(id) } } else null,
+    onSort = { onSortGroup(id, it) },
 )
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -212,6 +188,7 @@ private fun rememberQueueActions(
     collapsedGroups: Set<String>,
     onCollapsedChange: (Set<String>) -> Unit,
     ask: ShuffleAsk,
+    sortWithUndo: (MediaSort, String?) -> Unit,
 ): QueueActions {
     val dragSession = rememberQueueDragSession()
     val context = LocalContext.current
@@ -245,6 +222,7 @@ private fun rememberQueueActions(
             }
         },
         onPullNew = { id -> scope.launch { snackbar.showSnackbar(pulled(context, container, id)) } },
+        onSortGroup = { id, order -> sortWithUndo(order, id) },
         dragSession = dragSession,
         onMove = queue::move,
         // A manual retry: the queue fetches audio by itself, but a failed
@@ -276,6 +254,7 @@ private data class QueueActions(
     val groupDownloading: (String) -> Boolean,
     val onSetGroupDownload: (String, Boolean) -> Unit,
     val onPullNew: (String) -> Unit,
+    val onSortGroup: (String, MediaSort) -> Unit,
     val dragSession: QueueDragSession,
     val onMove: (Int, Int) -> Unit,
     val onDownload: (MediaItem) -> Unit,
@@ -323,6 +302,60 @@ private data class NowPlaying(
  */
 private data class QueueAvailability(val offline: Boolean)
 
+private fun androidx.compose.foundation.lazy.LazyListScope.ungroupedHeading(
+    entries: List<QueueEntry>,
+    index: Int,
+    nowPlaying: NowPlaying,
+) {
+    if (entries[index].group != null || (index > 0 && entries[index - 1].group == null)) return
+    val run = entries.drop(index).takeWhile { it.group == null }.size
+    val playingHere = nowPlaying.index in index until index + run
+    item(key = "ungrouped-$index") { UngroupedHeader(run, playingHere, nowPlaying.isPlaying) }
+}
+
+@Suppress("LongParameterList")
+private fun androidx.compose.foundation.lazy.LazyListScope.groupHeaderItem(
+    entries: List<QueueEntry>,
+    index: Int,
+    group: QueueGroup,
+    isFirstRunOfGroup: Boolean,
+    nowPlaying: NowPlaying,
+    reorder: ReorderableLazyListState,
+    actions: QueueActions,
+    blockCount: Int,
+) {
+    val groups = actions.groups
+    val session = actions.dragSession
+    val run = entries.filter { it.group?.id == group.id }
+    val key = if (isFirstRunOfGroup) queueGroupHeaderKey(group.id) else "group-$index-${group.id}"
+    item(key = key) {
+        val header: @Composable (QueueRowDrag?) -> Unit = { drag ->
+            GroupHeader(
+                model = GroupHeaderModel(
+                    groupId = group.id,
+                    isFirstRun = isFirstRunOfGroup,
+                    title = group.title,
+                    count = run.size,
+                    collapsed = groups.isCollapsed(group.id),
+                    containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
+                    playing = nowPlaying.isPlaying,
+                    draggable = isFirstRunOfGroup && blockCount > 1,
+                    downloading = actions.groupDownloading(group.id),
+                ),
+                actions = actions.forGroup(group.id),
+                drag = drag,
+            )
+        }
+        if (isFirstRunOfGroup) {
+            ReorderableItem(reorder, key, enabled = session.draggingGroup) { dragging ->
+                header(QueueRowDrag(this, dragging, key, session))
+            }
+        } else {
+            header(null)
+        }
+    }
+}
+
 /**
  * Emits the queue rows, inserting a header wherever the group tag changes — so a
  * run of entries from one "Play all" reads as a block and can be dropped together.
@@ -349,40 +382,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
         val alreadyCollapsedAbove = group != null && groups.isCollapsed(group.id) && !isFirstRunOfGroup
         val splitHeaderMidDrag = !isFirstRunOfGroup && session.dragging
         if (startsRun && !alreadyCollapsedAbove && !splitHeaderMidDrag) {
-            val run = entries.filter { it.group?.id == group.id }
-            val key = if (isFirstRunOfGroup) queueGroupHeaderKey(group.id) else "group-$index-${group.id}"
-            item(key = key) {
-                val header: @Composable (QueueRowDrag?) -> Unit = { drag ->
-                    GroupHeader(
-                        model = GroupHeaderModel(
-                            groupId = group.id,
-                            isFirstRun = isFirstRunOfGroup,
-                            title = group.title,
-                            count = run.size,
-                            collapsed = groups.isCollapsed(group.id),
-                            containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
-                            playing = nowPlaying.isPlaying,
-                            draggable = isFirstRunOfGroup && blockCount > 1,
-                            downloading = actions.groupDownloading(group.id),
-                        ),
-                        actions = actions.forGroup(group.id),
-                        drag = drag,
-                    )
-                }
-                if (isFirstRunOfGroup) {
-                    ReorderableItem(reorder, key, enabled = session.draggingGroup) { dragging ->
-                        header(QueueRowDrag(this, dragging, key, session))
-                    }
-                } else {
-                    header(null)
-                }
-            }
+            groupHeaderItem(entries, index, group, isFirstRunOfGroup, nowPlaying, reorder, actions, blockCount)
         }
-        if (hasGroups && group == null && (index == 0 || entries[index - 1].group != null)) {
-            val run = entries.drop(index).takeWhile { it.group == null }.size
-            val playingHere = nowPlaying.index in index until index + run
-            item(key = "ungrouped-$index") { UngroupedHeader(run, playingHere, nowPlaying.isPlaying) }
-        }
+        if (hasGroups) ungroupedHeading(entries, index, nowPlaying)
         // Hidden, not removed: the entry keeps its index, so reordering and "play this" still
         // address the same item once it is shown again.
         if (group != null && groups.isCollapsed(group.id)) return@forEachIndexed
@@ -414,9 +416,14 @@ private fun FilterableQueue(
     listState: LazyListState,
     reorder: ReorderableLazyListState,
     actions: QueueActions,
+    filters: ItemFilters = ItemFilters(),
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
-    val matches = listFilter.filter(indexed, { it.value.item.item.searchableText })
+    val matches = listFilter.filter(
+        indexed.filteredByItems(filters) { it.value.item.item },
+        { it.value.item.item.searchableText }
+    )
+    val filtering = listFilter.filtering || filters.isActive
     val offline by remember(container) { container.offlineChanges }.collectAsStateWithLifecycle(container.isOffline())
     val availability = QueueAvailability(offline)
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
@@ -425,13 +432,13 @@ private fun FilterableQueue(
     SelectableMediaList(
         "queue",
         entries,
-        if (listFilter.filtering) matches.map { it.value } else entries.filterNot { actions.groups.hides(it) },
+        if (filtering) matches.map { it.value } else entries.filterNot { actions.groups.hides(it) },
         { it.item.item },
         queueing = false,
         downloadAudioOnly = true,
         extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }) },
     ) {
-        if (!listFilter.filtering) {
+        if (!filtering) {
             CompositionLocalProvider(
                 LocalLongPressHeldElsewhere provides { actions.dragSession.grip.held },
             ) {
@@ -560,21 +567,38 @@ private fun QueueHeader(
     onJump: (() -> Unit)? = null,
     groups: Pair<Set<String>, Set<String>> = emptySet<String>() to emptySet(),
     onCollapseAll: () -> Unit = {},
+    onSort: ((MediaSort) -> Unit)? = null,
+    filters: MutableState<ItemFilters>? = null,
 ) {
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            FilterToggle(listFilter, count)
-            onJump?.let { JumpToPlayingButton(it) }
-            if (groups.first.isNotEmpty()) CollapseAllButton(groups.first.all { it in groups.second }, onCollapseAll)
-            SwitchListeningButton("queue header")
-            ExploreToggle("queue header")
-            onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
-            if (count > 0) {
-                TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
-            }
+        FilterToggle(listFilter, count)
+        if (onSort != null || filters != null) {
+            SortControl(
+                options = MediaSort.offered(addedKnown = true),
+                current = MediaSort.AS_LISTED,
+                label = { it.labelRes },
+                onSelect = { order -> onSort?.invoke(order) },
+                filters = filters?.value,
+                onFilters = filters?.let { state -> { state.value = it } },
+            )
+        }
+        onJump?.let { JumpToPlayingButton(it) }
+        if (groups.first.isNotEmpty()) CollapseAllButton(groups.first.all { it in groups.second }, onCollapseAll)
+        SwitchListeningButton("queue header")
+        ExploreToggle("queue header")
+        onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
+        if (count > 0) {
+            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all), softWrap = false) }
         }
     }
 }
+
+@Composable
+private fun EmptyQueue() = EmptyState(
+    icon = Icons.AutoMirrored.Filled.QueueMusic,
+    headline = stringResource(R.string.queue_title),
+    supportingText = stringResource(R.string.queue_empty),
+)
 
 /**
  * Marks the entry the cursor is on — the playing item is a queue member, not a separate box,
