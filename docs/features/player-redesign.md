@@ -31,8 +31,9 @@ behind the stage, fading to the ordinary surface a third of the way down so body
 on the colour it was designed for. Animated over 600ms, because an abrupt change on every track
 advance is jarring and the fade is most of why it reads as considered rather than gimmicky.
 
-**A left-aligned header.** Channel above title, flush left, with the badge, overflow menu and Cast as
-a trailing cluster on the same row. Three centred lines became one block: centred text has no common
+**A left-aligned header.** Channel above title, flush left, across the whole width; the badge sits among
+the facts and the overflow menu and Cast are in the top bar (ADR 67, 2026-10-16: they used to be a
+trailing cluster on the title's row, which squeezed long titles). Three centred lines became one block: centred text has no common
 edge to run down, and a long title centred over a short channel name reads as two unrelated things.
 
 **One control strip instead of five stacked rows.** Sleep timer, skip-silence, speed, volume boost

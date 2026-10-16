@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
@@ -51,7 +52,7 @@ import kotlin.time.Duration
 @Composable
 internal fun TitleBlock(state: PlaybackState) {
     val links = LocalPlayerLinks.current
-    Column(modifier = Modifier.fillMaxWidth().testTag(PLAYER_TITLE_BLOCK_TAG)) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         state.artist?.let {
             Text(
                 text = it,
@@ -86,7 +87,7 @@ internal fun TitleBlock(state: PlaybackState) {
 @Composable
 internal fun PlayerTopActions(onMore: (() -> Unit)?, onDark: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        CastButton(onDark = onDark)
+        CastButton(modifier = Modifier.size(CAST_SIZE), onDark = onDark)
         onMore?.let {
             IconButton(onClick = it) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
@@ -149,11 +150,11 @@ private fun Modifier.linkTo(onClick: (() -> Unit)?, tag: String): Modifier =
 
 internal const val PLAYER_ARTIST_TAG = "player-artist"
 internal const val PLAYER_ALBUM_TAG = "player-album"
-internal const val PLAYER_TITLE_BLOCK_TAG = "player-title-block"
 
 private const val TILES_PER_ROW = 2
 private val STRIP_GAP = 8.dp
 internal const val PLAYER_QUICK_STRIP_TAG = "player-quick-strip"
+private val CAST_SIZE = 48.dp
 private val TILE_GAP = 10.dp
 
 /**

@@ -29,4 +29,9 @@ for audio.
 
 ## Consequences
 
+- The Cast button is an Android view inside Compose and is given a fixed 48 dp: unsized, it stretched across the
+  overlay's top row and swallowed the taps meant for ✕, ⋮ and the video settings in 0.1.644
+  (`TheVideoOverlayOffersTheMenuTest`, which passes against 0.1.641 and failed until the size was set).
+- The badge's glyph rule (`pillarIcon(kind, music)`) is shared with the mini player.
+
 - On a video the menu and Cast hide with the overlay's other controls; a tap brings them back.
