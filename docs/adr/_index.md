@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Architecture decision records
@@ -77,3 +77,8 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 59 | [New uploads flow into their shuffled group, or into an inbox](0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md) | Accepted |
 | 60 | [A transcript tab, for videos and podcasts](0060-a-transcript-tab.md) | Accepted |
 | 61 | [The UI does no work per playback tick](0061-the-ui-does-no-work-per-playback-tick.md) | Accepted |
+| 62 | [The quick controls sit under the title](0062-the-quick-controls-sit-under-the-title.md) | Accepted |
+| 63 | [The queue says whose each run is, and which group is playing](0063-the-queue-says-whose-each-run-is.md) | Accepted |
+| 64 | [Auto-play stays in music or in talk](0064-auto-play-stays-in-music-or-talk.md) | Accepted |
+| 65 | [The player says everything about the item](0065-the-player-says-everything-about-the-item.md) | Accepted |
+| 66 | [One sort and filter menu everywhere; a queue sort changes the play order](0066-one-sort-and-filter-menu-everywhere.md) | Accepted |

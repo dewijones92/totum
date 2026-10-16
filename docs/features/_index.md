@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Features
@@ -26,6 +26,10 @@ alone until they need more.
 | Every subscription in one list (Library), newest upload first; rows tinted by pillar | subscriptions | shipped | [all-subscriptions.md](all-subscriptions.md) |
 | Every row says whether you follow its channel / show (✅ subscribed, ➕ not subscribed, ❔ unknown); tap to subscribe, or to unsubscribe after a question | subscriptions | shipped | [ADR 22](../adr/0022-every-row-says-whether-you-follow-its-source.md) |
 | Fuzzy filter on every list (typos, abbreviations, accents) | ui | shipped | [list-filter.md](list-filter.md) |
+| Sort and filter every list from one sheet; queue sorts change the play order with Undo | ui | shipped 2026-10-16 | [sort-and-filter.md](sort-and-filter.md) |
+| Player: quick strip under the title (Listen/Watch, speed, boost, skip silences, sleep) | player | shipped 2026-10-16 | [adr 62](../adr/0062-the-quick-controls-sit-under-the-title.md) |
+| Player: ℹ️ About this card with everything known about the item | player | shipped 2026-10-16 | [adr 65](../adr/0065-the-player-says-everything-about-the-item.md) |
+| Queue: ➕ Added by you heading, ▶️ playing group header, auto-play stays in music or talk | queue | shipped 2026-10-16 | [adr 63](../adr/0063-the-queue-says-whose-each-run-is.md), [adr 64](../adr/0064-auto-play-stays-in-music-or-talk.md) |
 | Multi-select on every list (long-press; bulk queue, playlist, download, played, delete, unsubscribe) | ui | shipped | [multi-select.md](multi-select.md) |
 | A show's name AND its publisher, on every surface | podcasts | shipped | [show-and-publisher.md](show-and-publisher.md) |
 | Videos: signed-in feeds (Home/Subscriptions/Watch Later/History) | video | shipped | — |

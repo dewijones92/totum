@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Playback queue
@@ -148,3 +148,13 @@ related video follows, not the queue's next"). See ADR 56.
 A shuffle-all group keeps receiving its sources' new uploads, next in the group, and sources switched into the inbox
 (their page's 📥 button, Settings → 📥 New uploads, or every subscription) feed a "📥 New" group at the end. Checked
 every 2 hours on Wi-Fi, on opening, or by ⋮ → 🔄 Pull new uploads. See [ADR 59](../adr/0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md).
+
+## Headings, sorting and staying in kind (2026-10-16)
+
+- A run of items you added yourself, in a queue that has groups, sits under "➕ Added by you · N"; the group holding the
+  playing item is tinted, titled "▶️ <group>", and says "🔊 Playing now" or "⏸️ Paused here" ([ADR 63](../adr/0063-the-queue-says-whose-each-run-is.md)).
+- Auto-play and gapless arming stay in music or in talk; the other kind is passed over and stays queued; with only the
+  other kind left, Explore takes over if on, else the queue stops ([ADR 64](../adr/0064-auto-play-stays-in-music-or-talk.md)).
+- The header's sort sheet sorts every group within itself; a group's ⋮ sorts that group. Both change the play order
+  after the playing item, with Undo; its filters only hide rows ([sort-and-filter.md](sort-and-filter.md)).
+- The header's buttons wrap under the title; the title used to be squeezed to one letter at phone width.

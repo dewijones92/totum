@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Testing
@@ -51,6 +51,9 @@ instead).
 | A degraded resolve's replacement ladder is checked before use: refused keeps yt-dlp's stream, served or uncheckable uses the ladder; why TV-client URLs are refused (manual, signed in) | JVM + instrumented (manual) | `:app` `ARefusedDirectAskKeepsYtDlpsStreamTest`; `WhyTvUrlsAreRefusedTest` |
 | Whether you follow a row's source: subscribed / not / unknown for both pillars (signed out, list not loaded, handle only, no source, judged by channel name, id outranks name), a name-only ➕ looks the channel up before subscribing; the mark beside the maker, ➕ subscribes, ✅ asks then unsubscribes, Keep does nothing, ❔ does nothing, every row follows a change in subscriptions | JVM + instrumented | `:core:domain` `FollowingTest`; `:app` `SourceFollowingTest`, `SubscriptionsFetchedOnceTest`, `FollowMarkTest` |
 | Rotation enters fullscreen from the player and mini player, portrait leaves it, explicit exit holds and audio stays in the shell | instrumented | `:app` `FullscreenSurvivesTheNextVideoTest`, `RotationOpensTheVideoFromTheShellTest` |
+| Sort and filter (ADR 66): filters' unknown values, queue sort keeps the playing item and each group's place, undo refused after a change, added dates kept across moves and absent before v28, headers never squeeze or break a title | JVM + instrumented | `:core:domain` `ItemFiltersTest`; `:core:data` `AQueueEntryRemembersWhenItWasAddedTest`; `:app` `SortingTheQueueTest`, `SortingTheQueueCanBeUndoneTest`; `:core:database` `DownloadsMigrationTest` (v28 case); instrumented `TheQueueTitleIsNeverSqueezedTest`, `AScreenTitleNeverBreaksAWordTest` (both seen failing on the old headers) |
+| The player (ADRs 62, 65): five quick controls in the strip and nowhere else, every fact about the item, the watch page's description on a TV play, auto captions named once, a channel page's items carry their channel | JVM + instrumented | `:app` `ItemFactsTest`, `PlayerKeepsEveryControlTest`; `:lib:innertube` `TheWatchPageDescribesATvPlayTest`, `AnAutoCaptionIsNamedOnceTest`; `:core:domain` `AVideoOnAChannelPageIsThatChannelsTest` |
+| Auto-play stays in music or talk (ADR 64), armed successor too, stops or explores when only the other kind is left | JVM | `:app` `AutoPlayStaysInMusicOrTalkTest`, `AutoAdvancerTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |
 | Local playlists, play history | JVM unit | `:core:data` (in-memory store contracts) |

@@ -3,7 +3,7 @@ title: The player screen — tinted by what is playing
 kind: feature
 status: shipped
 area: player
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # The player screen
@@ -131,3 +131,9 @@ Explore mode follows related videos and leaves the queue waiting; see [ADR 56](.
 The Details tab also sets a show's or channel's **intro and outro** (Intro ends here / Outro starts here / Clear),
 skipped on everything from it; Explore follows a podcast into its show's next episode and can be capped. See
 [ADR 57](../adr/0057-rewind-on-resume-and-per-show-intro-outro.md) and [ADR 56](../adr/0056-player-tabs-and-explore-mode.md).
+
+## Quick strip and About card (2026-10-16)
+
+The five controls Dewi changes most (Listen/Watch, speed, boost, skip silences, sleep) moved from the grid to a strip
+under the title ([ADR 62](../adr/0062-the-quick-controls-sit-under-the-title.md)). Details opens with an "ℹ️ About this"
+card listing every fact known about the item, for any item ([ADR 65](../adr/0065-the-player-says-everything-about-the-item.md)).
