@@ -32,6 +32,6 @@ music." He chose both directions, Explore (if on) when the kind runs out, else s
 
 ## Consequences
 
-- Tests: `AutoPlayStaysInMusicOrTalkTest` (4), two new `AutoAdvancerTest` cases.
+- Tests: `AutoPlayStaysInMusicOrTalkTest`, `AutoAdvancerTest` (the stay-in-kind and repeat cases).
 - "Stopped because only music is left" is a new way for the queue to stop; the log line names it, so a report can tell it
   from a failure.

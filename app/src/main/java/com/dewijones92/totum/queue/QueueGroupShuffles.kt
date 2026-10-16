@@ -22,7 +22,7 @@ fun PlaybackQueue.shuffleGroupOrder(random: Random = Random.Default) =
     reorder("shuffle the order of ${state.value.upNext.blocks().size} block(s)") { it.shufflingGroupOrder(random) }
 
 internal fun QueueSnapshot.shufflingWithin(groupId: String, random: Random): QueueSnapshot {
-    val after = (currentIndex + 1).coerceAtLeast(0)
+    val after = (place + 1).coerceAtLeast(0)
     val slots = entries.indices.filter { it >= after && entries[it].group?.id == groupId }
     if (slots.size < 2) return this
     val shuffled = slots.map { entries[it] }.shuffled(random)
@@ -44,7 +44,7 @@ internal fun QueueSnapshot.shufflingToPlay(groupId: String, random: Random): Que
 }
 
 internal fun QueueSnapshot.shufflingGroupOrder(random: Random): QueueSnapshot {
-    val after = (currentIndex + 1).coerceAtLeast(0)
+    val after = (place + 1).coerceAtLeast(0)
     val blocks = entries.drop(after).blocks()
     if (blocks.size < 2) return this
     return copy(entries = entries.take(after) + blocks.shuffled(random).flatMap { it.entries })

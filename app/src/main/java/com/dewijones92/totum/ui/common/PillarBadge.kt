@@ -20,9 +20,10 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaKind
 
 /** The icon that marks each pillar — shared so every surface uses the same glyph. */
-fun pillarIcon(kind: MediaKind): ImageVector = when (kind) {
-    MediaKind.VIDEO -> Icons.Filled.OndemandVideo
-    MediaKind.PODCAST -> Icons.Filled.Podcasts
+fun pillarIcon(kind: MediaKind, music: Boolean = false): ImageVector = when {
+    music -> Icons.Filled.MusicNote
+    kind == MediaKind.VIDEO -> Icons.Filled.OndemandVideo
+    else -> Icons.Filled.Podcasts
 }
 
 private fun pillarLabelRes(kind: MediaKind): Int = when (kind) {
@@ -39,7 +40,7 @@ private fun pillarLabelRes(kind: MediaKind): Int = when (kind) {
 fun PillarBadge(kind: MediaKind, modifier: Modifier = Modifier, music: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Icon(
-            imageVector = if (music) Icons.Filled.MusicNote else pillarIcon(kind),
+            imageVector = pillarIcon(kind, music),
             contentDescription = null,
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -38,7 +38,8 @@ fun PlaybackQueue.sortAfterCurrent(
 
 fun PlaybackQueue.undoSort(undo: SortUndo): Boolean {
     val now = state.value
-    if (now.entries != undo.after.entries || now.place != undo.after.place) {
+    val moved = now.currentIndex != undo.after.currentIndex || now.anchor != undo.after.anchor
+    if (now.entries != undo.after.entries || moved) {
         Diag.log("queue", "not undoing the sort: the queue changed after it")
         return false
     }

@@ -125,7 +125,11 @@ constructor(
 
     sealed interface RelatedState {
         data object Loading : RelatedState
-        data class Loaded(val videos: List<MediaItem>, val description: String? = null) : RelatedState
+        data class Loaded(
+            val videos: List<MediaItem>,
+            val description: String? = null,
+            val videoId: String? = null,
+        ) : RelatedState
         data object Error : RelatedState
     }
 
@@ -210,7 +214,11 @@ constructor(
                 is RelatedResult.Success -> {
                     val chars = result.description?.length ?: 0
                     Diag.log("watch", "watch page for $videoId: $chars chars of description")
-                    RelatedState.Loaded(result.videos.map { it.toMediaItem(RELATED_SOURCE) }, result.description)
+                    RelatedState.Loaded(
+                        result.videos.map { it.toMediaItem(RELATED_SOURCE) },
+                        result.description,
+                        videoId
+                    )
                 }
                 is RelatedResult.Failure -> RelatedState.Error
             }

@@ -11,8 +11,11 @@ private val COLUMNS_ADDED_AT: Map<Int, List<Pair<String, String>>> = mapOf(
 )
 
 internal fun SupportSQLiteDatabase.rollBackTo(version: Int) {
+    require(version >= OLDEST_ROLLBACK) { "rollBackTo knows only the columns added after v$OLDEST_ROLLBACK" }
     COLUMNS_ADDED_AT.filterKeys { it > version }.values.flatten().forEach { (table, column) ->
         execSQL("ALTER TABLE $table DROP COLUMN $column")
     }
     execSQL("PRAGMA user_version = $version")
 }
+
+private const val OLDEST_ROLLBACK = 25

@@ -292,7 +292,7 @@ class PlaybackQueue(
         val kept = group ?: _state.value.entries.firstOrNull { it.item.item.id == item.item.id }?.group
         mutate("play-now${kept?.let { " (stays in \"${it.title}\")" }.orEmpty()}") { snapshot ->
             val withoutIt = snapshot.removing { it.item.item.id == item.item.id }
-            withoutIt.inserted(listOf(QueueEntry(item, kept))).also { index = it.currentIndex + 1 }
+            withoutIt.inserted(listOf(QueueEntry(item, kept))).also { index = it.place + 1 }
         }
         return playAt(index, quiet = quiet)
     }
@@ -1130,7 +1130,7 @@ private fun QueueSnapshot.adoptingRoutesFrom(fresh: List<PlayableItem>): QueueSn
 }
 
 private fun QueueSnapshot.shuffledAfterCurrent(random: Random): QueueSnapshot {
-    val after = (currentIndex + 1).coerceAtLeast(0)
+    val after = (place + 1).coerceAtLeast(0)
     if (entries.size - after < 2) {
         Diag.log("queue", "shuffle up next: fewer than two items after the current one, nothing to shuffle")
         return this
@@ -1140,7 +1140,7 @@ private fun QueueSnapshot.shuffledAfterCurrent(random: Random): QueueSnapshot {
 
 /** Inserts [run] immediately after the current entry, leaving the cursor put. */
 private fun QueueSnapshot.inserted(run: List<QueueEntry>): QueueSnapshot {
-    val at = (currentIndex + 1).coerceIn(0, entries.size)
+    val at = (place + 1).coerceIn(0, entries.size)
     return copy(entries = entries.take(at) + run + entries.drop(at))
 }
 

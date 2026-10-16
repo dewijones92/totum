@@ -33,7 +33,10 @@ public object WatchNextParser {
     public fun description(body: String): String? =
         runCatching { json.parseToJsonElement(body) }.getOrNull()?.description()
 
-    private fun JsonElement.description(): String? = DESCRIPTION_KEYS.firstNotNullOfOrNull { key ->
+    private fun JsonElement.description(): String? =
+        objectsNamed("videoSecondaryInfoRenderer").firstNotNullOfOrNull { it.anyDescription() } ?: anyDescription()
+
+    private fun JsonElement.anyDescription(): String? = DESCRIPTION_KEYS.firstNotNullOfOrNull { key ->
         objectsHaving(key).firstNotNullOfOrNull { it.readable(key) }
     }
 

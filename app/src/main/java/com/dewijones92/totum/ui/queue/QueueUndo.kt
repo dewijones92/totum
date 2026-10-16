@@ -70,7 +70,8 @@ internal fun rememberSortWithUndo(
                         duration = SnackbarDuration.Long,
                     )
                     if (shown == SnackbarResult.ActionPerformed) {
-                        queue.undoSort(before)
+                        val undone = queue.undoSort(before)
+                        if (!undone) snackbar.showSnackbar(resources.getString(R.string.queue_sort_undo_refused))
                     } else {
                         Diag.log("queue", "sort by $order kept: its undo was not taken")
                     }

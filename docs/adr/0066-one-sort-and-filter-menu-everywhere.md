@@ -35,7 +35,8 @@ sorts within each group; queue filters are view only.
   item (the playing item never moves); the group ⋮ menu sorts one group, the header sorts every group within itself. A
   long snackbar offers Undo, which is refused unless the queue is exactly as the sort left it (`SortUndo`: a drag,
   another sort or a row learning its title in the meantime all refuse it). During a peek or Explore the sort starts
-  after the place the queue left (`QueueSnapshot.place`), never above it.
+  after the place the queue left (`QueueSnapshot.place`), never above it; so do Play next, the Up next shuffle and the
+  group shuffles (second review, 2026-10-16), and a refused Undo says so on the snackbar.
 - **Queue filters are view only**: they hide rows; playback still plays everything.
 - **Headers never squeeze the title**: the buttons that do not fit beside a title move to a line under it
   (`TitleAndActions`, used by `ScreenHeader` and `CollapsingTitle`); a wrapped collapsing title keeps the old 104 dp by

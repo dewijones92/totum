@@ -101,8 +101,7 @@ internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
             PlayerTab.DETAILS -> {
                 ItemFactsCard(state)
                 LyricsSection()
-                val fromTheWatchPage = (content.related as? RelatedState.Loaded)?.description
-                NotesChaptersAndSponsors(state, content.onSeekTo, fromTheWatchPage)
+                NotesChaptersAndSponsors(state, content.onSeekTo, detailsDescription(state, content.related))
                 SourceSkipsSection(state)
             }
         }
@@ -134,3 +133,8 @@ private fun UpNextOrEmpty(queue: QueueControls) {
 }
 
 const val PLAYER_TAB_TAG = "player-tab:"
+
+internal fun detailsDescription(state: PlaybackState, related: RelatedState): String? =
+    (related as? RelatedState.Loaded)
+        ?.takeIf { state.kind == MediaKind.VIDEO && it.videoId == state.itemId.value }
+        ?.description

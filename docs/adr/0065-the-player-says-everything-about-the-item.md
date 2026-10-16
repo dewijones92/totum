@@ -24,7 +24,9 @@ did not show, and found the Details tab empty: signed in, the TV player response
   on disk and its size, and the source. A fact the item does not know is left out, never shown as "unknown".
 - The description comes from the watch page when the player response has none. Two routes, one parser
   (`WatchNextParser.description`, which reads the TV page's `descriptionBodyText` and the WEB page's
-  `attributedDescription`): the anonymous WEB `/next` that the Related tab already fetches carries it for every video
+  `attributedDescription`, preferring the playing video's `videoSecondaryInfoRenderer`): the anonymous WEB `/next`
+  that the Related tab already fetches carries it for a YouTube video (none when that request fails, and only for the
+  video it was fetched for, never a podcast playing after it)
   (`RelatedResult.description`, shown by the Details tab), and the account's `/next` is asked only for a row with no
   title. The first version used only the second route, which a titled row (every feed and channel row) never takes, so
   Details stayed empty for most plays; the batch review caught it.

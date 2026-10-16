@@ -100,6 +100,7 @@
     <string name="queue_group_menu">More for %1$s</string>
     <string name="queue_group_shuffle">Shuffle this group</string>
     <string name="queue_group_sort">Sort this group…</string>
+    <string name="queue_sort_undo_refused">⚠️ Can\'t undo: the queue changed after the sort</string>
     <string name="queue_sorted">🔃 Sorted: %1$s</string>
     <string name="queue_sort_undo">Undo</string>
     <string name="queue_group_shuffle_play">Shuffle and play %1$s</string>

@@ -26,6 +26,19 @@ class RelatedVideosParserTest {
     }
 
     @Test
+    fun `a related lockup's description listed first is not taken for the playing video's`() {
+        val body = """
+            {"contents":{"twoColumnWatchNextResults":{
+              "secondaryResults":{"secondaryResults":{"results":[
+                {"lockupViewModel":{"metadata":{"attributedDescription":{"content":"Someone else's video"}}}}]}},
+              "results":{"results":{"contents":[
+                {"videoSecondaryInfoRenderer":{"attributedDescription":{"content":"The playing video"}}}]}}}}}
+        """.trimIndent()
+
+        assertEquals("The playing video", (RelatedVideosParser.parse(body) as RelatedResult.Success).description)
+    }
+
+    @Test
     fun `collects video lockups in order, deduped, ignoring channel lockups`() {
         assertEquals(listOf("rel00000001", "rel00000002"), parsed().map { it.videoId })
     }

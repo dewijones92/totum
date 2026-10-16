@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.Starting
 
@@ -165,7 +166,7 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
                 )
             } else {
                 Icon(
-                    imageVector = pillarIcon(state.kind),
+                    imageVector = pillarIcon(state.kind, music = state.contentKind == MediaContentKind.MUSIC),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
