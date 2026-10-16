@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material3.Icon
@@ -35,16 +36,16 @@ private fun pillarLabelRes(kind: MediaKind): Int = when (kind) {
  * player, so the distinction reads the same everywhere.
  */
 @Composable
-fun PillarBadge(kind: MediaKind, modifier: Modifier = Modifier) {
+fun PillarBadge(kind: MediaKind, modifier: Modifier = Modifier, music: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Icon(
-            imageVector = pillarIcon(kind),
+            imageVector = if (music) Icons.Filled.MusicNote else pillarIcon(kind),
             contentDescription = null,
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = stringResource(pillarLabelRes(kind)),
+            text = stringResource(if (music) R.string.destination_music else pillarLabelRes(kind)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp),

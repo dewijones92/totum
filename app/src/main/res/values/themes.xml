@@ -11,4 +11,5 @@
          itself in an AppCompat context is not enough: the dialog is built from the activity,
          not from the button. -->
     <style name="Theme.Totum" parent="Theme.AppCompat.DayNight.NoActionBar" />
+    <style name="ThemeOverlay.Totum.CastOnDark" parent="ThemeOverlay.AppCompat.Dark" />
 </resources>

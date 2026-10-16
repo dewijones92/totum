@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -93,6 +94,7 @@ internal fun VideoStageWithControls(
     onSeekTo: (Long) -> Unit,
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
+    onMore: (() -> Unit)? = null,
 ) {
     CountRecompositions("stage")
     var controlsVisible by remember { mutableStateOf(true) }
@@ -150,6 +152,7 @@ internal fun VideoStageWithControls(
                 fullscreen = fullscreen,
                 onToggleFullscreen = onToggleFullscreen,
                 onDismiss = onDismiss,
+                onMore = onMore,
                 onTogglePlayPause = onTogglePlayPause,
                 onSeekTo = onSeekTo,
                 onSeekBackward = onSeekBackward,
@@ -173,6 +176,7 @@ private fun VideoControlsOverlay(
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
     bufferAhead: State<BufferAhead?>,
+    onMore: (() -> Unit)?,
 ) {
     // White content over a dark scrim so controls read against any frame.
     CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -188,7 +192,10 @@ private fun VideoControlsOverlay(
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
                 }
             }
-            VideoSettingsControls(settings, modifier = Modifier.align(Alignment.TopEnd))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.TopEnd)) {
+                if (!fullscreen) PlayerTopActions(onMore, onDark = true)
+                VideoSettingsControls(settings)
+            }
             TransportControls(
                 state,
                 onTogglePlayPause,

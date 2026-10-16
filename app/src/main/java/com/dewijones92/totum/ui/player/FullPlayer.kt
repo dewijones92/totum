@@ -55,7 +55,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -273,6 +275,7 @@ private fun DraggablePlayerContent(
             onSeekTo = onSeekTo,
             onSeekBackward = onSeekBackward,
             onSeekForward = onSeekForward,
+            onMore = onMore,
         )
 
         // Wrapped rather than padded per-child: PlayerDetails emits into this column's
@@ -301,7 +304,6 @@ private fun DraggablePlayerContent(
                 onSeekBackward = onSeekBackward,
                 onSeekForward = onSeekForward,
                 onSetSpeed = onSetSpeed,
-                onMore = onMore,
                 toggles = toggles,
             )
         }
@@ -325,6 +327,7 @@ private fun ColumnScope.PlayerStage(
     onSeekTo: (Long) -> Unit,
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
+    onMore: (() -> Unit)?,
 ) {
     if (videoPlayer != null) {
         dragHandle {
@@ -339,11 +342,16 @@ private fun ColumnScope.PlayerStage(
                 onSeekTo = onSeekTo,
                 onSeekBackward = onSeekBackward,
                 onSeekForward = onSeekForward,
+                onMore = onMore,
             )
         }
     } else {
-        IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.Start)) {
-            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
+            }
+            Spacer(Modifier.weight(1f))
+            PlayerTopActions(onMore)
         }
         dragHandle { Box(Modifier.padding(horizontal = CONTENT_PADDING)) { ArtworkStage(state) } }
     }
@@ -374,15 +382,14 @@ private fun PlayerDetails(
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
     onSetSpeed: (Float) -> Unit,
-    onMore: (() -> Unit)?,
     toggles: PlaybackToggles,
 ) {
     Spacer(Modifier.height(if (state.hasVideo) 16.dp else 32.dp))
-    TitleBlock(state, onMore)
+    TitleBlock(state)
 
     // Audio: seek + transport sit below the artwork (video has them overlaid).
     if (!controlsOverlaid) {
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(24.dp))
         SeekBar(state, onSeekTo)
         Spacer(Modifier.height(24.dp))
         TransportControls(state, onTogglePlayPause, onSeekBackward, onSeekForward)
@@ -477,8 +484,12 @@ private val UP_NEXT_THUMB_HEIGHT = 45.dp
  * list, and the SponsorBlock time ranges — all unified across both pillars.
  */
 @Composable
-internal fun NotesChaptersAndSponsors(state: PlaybackState, onSeekTo: (Long) -> Unit) {
-    val description = state.description
+internal fun NotesChaptersAndSponsors(
+    state: PlaybackState,
+    onSeekTo: (Long) -> Unit,
+    fromTheWatchPage: String? = null,
+) {
+    val description = state.description?.takeIf { it.isNotBlank() } ?: fromTheWatchPage
     if (!description.isNullOrBlank()) {
         Spacer(Modifier.height(24.dp))
         DescriptionSection(description, onSeekTo)
@@ -643,12 +654,13 @@ private fun DescriptionSection(description: String, onSeekTo: (Long) -> Unit) {
 /** Artwork for an audio item (a podcast), via the same [MediaThumbnail] every list uses. */
 @Composable
 private fun ArtworkStage(state: PlaybackState) {
+    val screenHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     Box(contentAlignment = Alignment.Center) {
         MediaThumbnail(
             url = HttpUrl.parse(state.artworkUrl.orEmpty()),
             contentDescription = state.title,
             modifier = Modifier
-                .widthIn(max = ARTWORK_MAX_WIDTH)
+                .widthIn(max = minOf(ARTWORK_MAX_WIDTH, screenHeight * ARTWORK_SCREEN_SHARE))
                 .fillMaxWidth()
                 .aspectRatio(1f),
         )
@@ -732,6 +744,7 @@ private const val SECONDS_PER_MINUTE = 60L
 private const val SECONDS_PER_HOUR = 3600L
 internal const val DEFAULT_VIDEO_ASPECT_RATIO = 16f / 9f
 private val ARTWORK_MAX_WIDTH = 320.dp
+private const val ARTWORK_SCREEN_SHARE = 0.3f
 private const val DESCRIPTION_COLLAPSED_LINES = 4
 
 /** Enough to read as a group without becoming a slab that competes with the artwork. */

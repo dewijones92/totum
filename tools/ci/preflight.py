@@ -237,7 +237,9 @@ ALLOWED_MAXLINES = {
         ["maxLines = 1"], "the duration chip is a clock ('1:02:45') and can never need a second line",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/common/CollapsingTitle.kt": (
-        ["maxLines = 1"], "a header whose height is animated, so it cannot grow; its one caller passes a string resource",
+        ["maxLines = 1"],
+        "a one-word screen title (its caller passes a string resource) that shrinks as the list scrolls; "
+        "TitleAndActions keeps it at least its own width, so it never needs a second line",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt": (
         ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",

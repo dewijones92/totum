@@ -82,3 +82,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 64 | [Auto-play stays in music or in talk](0064-auto-play-stays-in-music-or-talk.md) | Accepted |
 | 65 | [The player says everything about the item](0065-the-player-says-everything-about-the-item.md) | Accepted |
 | 66 | [One sort and filter menu everywhere; a queue sort changes the play order](0066-one-sort-and-filter-menu-everywhere.md) | Accepted |
+| 67 | [The player's title has the whole width; the menu and Cast are in the top bar](0067-the-title-has-the-whole-width.md) | Accepted |

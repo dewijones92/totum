@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
@@ -43,58 +44,54 @@ import kotlin.time.Duration
  */
 
 /**
- * Who made it, what it is called, and the facts under it — left-aligned, in that order.
- *
- * **Left-aligned and channel-first**, where this used to be three centred lines. Centred text has no
- * common edge for the eye to run down, and a long title centred over a short channel name reads as
- * two unrelated things; every player worth copying puts the source above the title, flush left. The
- * badge, overflow menu and Cast button move onto the same row as a trailing cluster instead of
- * stacking underneath, which is three fewer vertical steps before the transport.
- *
- * Nothing is lost — the badge, the menu and Cast are all still here, and
- * `PlayerKeepsEveryControlTest` is what says so.
+ * Who made it, what it is called, and the facts under it — left-aligned, in that order, across the whole
+ * width: the menu and Cast live in the top bar ([PlayerTopActions]), so the title is never squeezed beside
+ * them (Dewi's report from 0.1.643: a five-line title in half the width).
  */
 @Composable
-internal fun TitleBlock(state: PlaybackState, onMore: (() -> Unit)?) {
+internal fun TitleBlock(state: PlaybackState) {
     val links = LocalPlayerLinks.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            state.artist?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.linkTo(links.onArtist, PLAYER_ARTIST_TAG),
-                )
-            }
+    Column(modifier = Modifier.fillMaxWidth().testTag(PLAYER_TITLE_BLOCK_TAG)) {
+        state.artist?.let {
             Text(
-                text = state.title,
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(top = 2.dp),
+                text = it,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.linkTo(links.onArtist, PLAYER_ARTIST_TAG),
             )
-            links.album?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 2.dp).linkTo(links.onAlbum, PLAYER_ALBUM_TAG),
-                )
-            }
-            ViewsAndDate(state)
         }
-        // The trailing cluster: what this is, the same long-press menu every row has, and Cast.
-        // Sharing that sheet is what guarantees the player never offers less than a row does.
-        PillarBadge(state.kind)
+        Text(
+            text = state.title,
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        links.album?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 2.dp).linkTo(links.onAlbum, PLAYER_ALBUM_TAG),
+            )
+        }
+        PillarBadge(
+            state.kind,
+            music = state.contentKind == MediaContentKind.MUSIC,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        ViewsAndDate(state)
+    }
+}
+
+/** Cast and the same long-press menu every row has, in the player's top bar; [onDark] over a video. */
+@Composable
+internal fun PlayerTopActions(onMore: (() -> Unit)?, onDark: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        CastButton(onDark = onDark)
         onMore?.let {
             IconButton(onClick = it) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
             }
         }
-        // Self-hides when no Cast device is around.
-        CastButton()
     }
 }
 
@@ -152,6 +149,7 @@ private fun Modifier.linkTo(onClick: (() -> Unit)?, tag: String): Modifier =
 
 internal const val PLAYER_ARTIST_TAG = "player-artist"
 internal const val PLAYER_ALBUM_TAG = "player-album"
+internal const val PLAYER_TITLE_BLOCK_TAG = "player-title-block"
 
 private const val TILES_PER_ROW = 2
 private val STRIP_GAP = 8.dp
