@@ -40,6 +40,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.Starting
+import com.dewijones92.totum.ui.cast.CastStrip
 
 /**
  * Persistent now-playing bar shown above the bottom navigation whenever
@@ -63,6 +64,7 @@ fun MiniPlayerBar(
         color = Color.Transparent,
     ) {
         Column {
+            CastStrip(state, Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 10.dp, bottom = 6.dp),

@@ -8,6 +8,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
@@ -24,9 +25,11 @@ internal class CastStreams(
     private val boost: () -> VolumeBoost,
     private val skipSilence: () -> Boolean,
     private val newCutter: () -> SilenceCuttingAudioProcessor,
-    private val baseUrl: () -> String?,
-    private val onActive: (Boolean) -> Unit,
+    private val host: CastHost,
+    private val tvs: CastTvPort,
 ) {
+    private val refusals = ConcurrentHashMap<String, String>()
+
     private val server = CastHttpServer(::handle)
     private val sessions = ConcurrentHashMap<String, Session>()
     private val order = ConcurrentLinkedDeque<String>()
@@ -43,6 +46,13 @@ internal class CastStreams(
     ) {
         val cuts = videoUrl == null && (itemSkipsSilence(item) ?: skipSilence())
         val audio = ProcessedAudio(context, audioSource, boost, "${item.mediaId}/$token", newCutter.takeIf { cuts })
+        val subtitles = if (cuts) {
+            emptyList()
+        } else {
+            item.localConfiguration?.subtitleConfigurations.orEmpty().filter { it.mimeType == MimeTypes.TEXT_VTT }
+        }
+
+        @Volatile var videoRequests = 0
 
         @Volatile var layout: StreamLayout? = null
 
@@ -54,17 +64,42 @@ internal class CastStreams(
         fun ready() {
             if (prepared) return
             audio.prepare()
-            layout = when {
-                videoUrl == null -> null
-                videoUrl.startsWith("http") -> StreamLayouts.probe { span -> Upstream.bytes(videoUrl, span) }
-                else -> localVideo(File(videoUrl.toUri().path ?: videoUrl))
-            }
+            layout = videoUrl?.let(::video)
             prepared = true
             Diag.log(
                 "cast",
                 "session $token ready: ${item.mediaId} video=${layout?.describe() ?: "none"} " +
                     "audio=processed ${audio.format.sampleRate}Hz boost=${boost()}",
             )
+        }
+
+        private fun video(url: String): StreamLayout? {
+            val found = try {
+                if (url.startsWith("http")) {
+                    StreamLayouts.probe { span -> Upstream.bytes(url, span) }
+                } else {
+                    localVideo(File(url.toUri().path ?: url))
+                }
+            } catch (e: UnreadableLayout) {
+                return refuse("in a format Totum cannot read for a TV", e.message ?: "unreadable")
+            } ?: return null
+            val screen = tvs.current()?.screen
+            if (screen != null && !screen.canDecode(found.codecs, found.height)) {
+                val family = VideoCodecFamily.of(found.codecs)?.name ?: found.codecs
+                return refuse("$family ${found.height}p", "beyond ${screen.label}")
+            }
+            if (latest[item.mediaId] === this && refusals.remove(item.mediaId) != null) tvs.refused(refusals.toMap())
+            return found
+        }
+
+        private fun refuse(what: String, why: String): StreamLayout? {
+            videoFile = null
+            if (latest[item.mediaId] === this) {
+                refusals[item.mediaId] = what
+                tvs.refused(refusals.toMap())
+            }
+            Diag.warn("cast", "${item.mediaId}: the TV gets sound only — its video is $what ($why)")
+            return null
         }
 
         private fun localVideo(source: File): StreamLayout? {
@@ -88,6 +123,13 @@ internal class CastStreams(
                     codecs = audio.format.codecs,
                     segmentSamples = audio.segmentSamples,
                 ),
+                subtitles.mapIndexed { i, sub ->
+                    CastSubtitle(
+                        sub.language ?: "und",
+                        "subtitles/$i.vtt",
+                        sub.label?.toString() ?: sub.language ?: "Subtitles",
+                    )
+                },
             )
         }
     }
@@ -125,7 +167,7 @@ internal class CastStreams(
 
     fun urlFor(item: MediaItem): String? {
         val sources = sourcesFor(item) ?: return null
-        val base = baseUrl() ?: run {
+        val base = host.baseUrl(PORT) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
             return null
         }
@@ -134,9 +176,10 @@ internal class CastStreams(
         val session = Session(token, item, sources.video, sources.audio)
         sessions[token] = session
         latest[item.mediaId] = session
+        if (refusals.remove(item.mediaId) != null) tvs.refused(refusals.toMap())
         order.addLast(token)
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
-        onActive(true)
+        host.hold(true)
         val url = "$base/c/$token/manifest.mpd"
         Diag.log(
             "cast",
@@ -153,8 +196,10 @@ internal class CastStreams(
         sessions.clear()
         order.clear()
         latest.clear()
+        refusals.clear()
+        tvs.refused(emptyMap())
         server.stop()
-        onActive(false)
+        host.hold(false)
     }
 
     private fun handle(request: HttpRequest): HttpReply {
@@ -173,11 +218,12 @@ internal class CastStreams(
                 session.manifest().toByteArray()
             )
             what == "video" -> session.videoFile?.let { LocalRanges.reply(it, request.header("range")) }
-                ?: proxy(session.videoUrl ?: return notFound(), request.header("range"))
+                ?: proxy(session, session.videoUrl ?: return notFound(), request.header("range"))
             what == "audio/init.mp4" -> {
                 session.ready()
                 HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, session.audio.init())
             }
+            what.startsWith("subtitles/") -> subtitle(session, what)
             what.startsWith("audio/") && what.endsWith(".m4s") -> {
                 session.ready()
                 val n = what.removePrefix("audio/").removeSuffix(".m4s").toInt()
@@ -194,10 +240,26 @@ internal class CastStreams(
         return reply
     }
 
+    private fun subtitle(session: Session, what: String): HttpReply {
+        val index = what.removePrefix("subtitles/").removeSuffix(".vtt").toIntOrNull()
+        val config = index?.let(session.subtitles::getOrNull) ?: return notFound()
+        val reply = Upstream.get(config.uri.toString(), null)
+        Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: upstream ${reply.status}")
+        return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
+    }
+
     private fun notFound() = HttpReply.Bytes(Http.NOT_FOUND, "text/plain", ByteArray(0))
 
-    private fun proxy(upstream: String, range: String?): HttpReply {
+    private fun proxy(session: Session, upstream: String, range: String?): HttpReply {
+        val asked = System.currentTimeMillis()
         val reply = Upstream.get(upstream, range)
+        val n = ++session.videoRequests
+        if (n <= VIDEO_LOG_FIRST || n % VIDEO_LOG_EVERY == 0) {
+            Diag.log(
+                "cast",
+                "video request #$n ($range): upstream ${reply.status} in ${System.currentTimeMillis() - asked}ms",
+            )
+        }
         val extra = buildMap {
             put("Accept-Ranges", "bytes")
             reply.contentRange?.let { put("Content-Range", it) }
@@ -209,6 +271,8 @@ internal class CastStreams(
     companion object {
         const val PORT: Int = 8765
         private const val MAX_SESSIONS = 6
+        private const val VIDEO_LOG_FIRST = 3
+        private const val VIDEO_LOG_EVERY = 25
         private const val TOKEN_BYTES = 8
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
     }

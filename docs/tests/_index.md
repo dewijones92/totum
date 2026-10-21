@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-16
+updated: 2026-10-21
 ---
 
 # Testing
@@ -87,6 +87,7 @@ instead).
 | One list of both pillars' subscriptions, newest upload first | JVM unit + instrumented | `:core:domain` `SourceActivityTest`, `:app` `AllSubscriptionsViewModelTest`, `AllSubscriptionsListTest` |
 | Rows wear their pillar's wash, with cyan on top when played (pixels, both themes) | instrumented | `:app` `PlayedRowIsTintedTest` |
 | Old rows and playback borrow the show's artwork | JVM unit | `:app` `AnEpisodeWithNoPictureWearsItsShowsTest`, `:core:domain` `SourceArtworkTest` |
+| Casting: a remuxed HEVC (hev1/hvc1) video reads with its full codec string; the measured TVs take HEVC, an unknown device does not | JVM unit | `:core:playback` `HevcLayoutTest` — seen failing (all 3) with the HEVC sample entries removed, with report 20261021T190723-7a623b92's exact error. The rest of casting (stand-in receiver, sound-only path, subtitles, start/seek timing) is checked by hand with `tools/cast-bench/standin/`, deliberately not yet automated while Dewi shapes the feature |
 | Back on a podcast page returns to the list | instrumented | `:app` `BackFromPodcastPageTest` — it quit the app |
 | Show artwork parsed, inherited by episodes, filled by refresh; preview stores nothing | JVM unit | `:core:data` `RssParserTest`, `DefaultPodcastRepositoryTest` |
 | Instrumented test names are dex-safe | python | `tools/ci/preflight_dex_names_test.py` — an apostrophe fails the whole androidTest build |

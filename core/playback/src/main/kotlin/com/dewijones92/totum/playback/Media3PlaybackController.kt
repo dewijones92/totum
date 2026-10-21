@@ -34,6 +34,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.domain.showKey
 import com.dewijones92.totum.domain.skipTargetFor
+import com.dewijones92.totum.playback.cast.CastStatus
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -102,6 +103,12 @@ public class Media3PlaybackController(
     private var itemContext: ItemContext = ItemContext.NONE
     private var requestedContext: ItemContext = ItemContext.NONE
     private var subtitleLanguage: String? = null
+
+    @Volatile
+    private var castDeviceName: String? = null
+
+    @Volatile
+    private var castRefused: Map<String, String> = emptyMap()
 
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
     private var userSpeed: Float = 1f
@@ -631,6 +638,14 @@ public class Media3PlaybackController(
 
     @OptIn(UnstableApi::class)
     private fun switchListener() = object : MediaController.Listener {
+        override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
+            castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
+            val refused = extras.getBundle(CastStatus.EXTRA_CAST_REFUSED)
+            castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
+            Diag.log("cast", "cast status: device=${castDeviceName ?: "none"} refused=$castRefused")
+            _state.value = controller.currentPlaybackState()
+        }
+
         override fun onCustomCommand(
             controller: MediaController,
             command: SessionCommand,
@@ -910,6 +925,8 @@ public class Media3PlaybackController(
                 ?.let { it.width * it.pixelWidthHeightRatio / it.height },
             hasEnded = playbackState == Player.STATE_ENDED,
             onCastDevice = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE,
+            castDeviceName = castDeviceName,
+            castVideoRefused = castRefused[current.mediaId],
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,
             bufferedPositionMs = bufferedPosition.coerceAtLeast(currentPosition).coerceAtLeast(0),

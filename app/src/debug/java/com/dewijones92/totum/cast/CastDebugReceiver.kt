@@ -8,6 +8,7 @@ import android.os.Looper
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.cast.CastStandIn
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.CastContext
 
@@ -18,6 +19,10 @@ class CastDebugReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_CAST -> castTo(app, intent.getStringExtra("name").orEmpty())
             ACTION_STOP -> CastContext.getSharedInstance(app).sessionManager.endCurrentSession(true)
+            ACTION_SERVE -> Diag.log(
+                "cast",
+                "dewidebug STANDIN url=${CastStandIn.serveCurrent?.invoke(intent.getStringExtra("model")) ?: "none (no hook)"}",
+            )
         }
     }
 
@@ -55,6 +60,7 @@ class CastDebugReceiver : BroadcastReceiver() {
     private companion object {
         const val ACTION_CAST = "com.dewijones92.totum.DEBUG_CAST"
         const val ACTION_STOP = "com.dewijones92.totum.DEBUG_CAST_STOP"
+        const val ACTION_SERVE = "com.dewijones92.totum.DEBUG_CAST_SERVE"
         const val MAX_TRIES = 40
         const val TRY_MS = 500L
     }

@@ -3,11 +3,12 @@ package com.dewijones92.totum.playback
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import androidx.media3.cast.CastPlayer
+import androidx.media3.cast.RemoteCastPlayer
 import androidx.media3.cast.SessionAvailabilityListener
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -28,10 +29,16 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.playback.cast.CastHost
+import com.dewijones92.totum.playback.cast.CastStandIn
+import com.dewijones92.totum.playback.cast.CastStatus
 import com.dewijones92.totum.playback.cast.CastStreams
+import com.dewijones92.totum.playback.cast.CastTv
 import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
+import com.dewijones92.totum.playback.cast.TotumCastTrackSelector
+import com.dewijones92.totum.playback.cast.standInScreen
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -76,8 +83,9 @@ public class PlaybackService : MediaSessionService() {
     private var castPlayer: TimeMappedCastPlayer? = null
 
     @UnstableApi
-    private var castRemote: CastPlayer? = null
+    private var castRemote: RemoteCastPlayer? = null
     private var castStreams: CastStreams? = null
+    private val castStatus = CastStatus { mediaSession }
     private var currentPlayer: Player? = null
 
     // Last item/position handed across a local↔cast switch, so a cast disconnect
@@ -311,16 +319,25 @@ public class PlaybackService : MediaSessionService() {
                     speechWeights = silenceCutter.speechWeights
                 }
             },
-            baseUrl = { host.baseUrl(CastStreams.PORT) },
-            onActive = host::hold,
+            host = host,
+            tvs = castStatus,
         )
         castStreams = streams
-        val remote = CastPlayer(castContext, TotumCastConverter(streams))
+        val remote = RemoteCastPlayer.Builder(this)
+            .setMediaItemConverter(TotumCastConverter(streams))
+            .setTrackSelector(TotumCastTrackSelector())
+            .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
         remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
-                override fun onCastSessionAvailable() = switchTo(cast)
+                override fun onCastSessionAvailable() {
+                    val device = castContext.sessionManager.currentCastSession?.castDevice
+                    castStatus.connected(CastTv(device?.friendlyName ?: "the TV", CastScreen.of(device?.modelName)))
+                    switchTo(cast)
+                }
+
                 override fun onCastSessionUnavailable() {
+                    castStatus.connected(null)
                     switchTo(localPlayer)
                     streams.stopAll()
                 }
@@ -328,6 +345,20 @@ public class PlaybackService : MediaSessionService() {
         )
         castPlayer = cast
         castRemote = remote
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            CastStandIn.serveCurrent = serve@{ model ->
+                if (model == "none") {
+                    castStatus.connected(null)
+                    streams.stopAll()
+                    return@serve null
+                }
+                if (model != null) castStatus.connected(CastTv("stand-in $model", standInScreen(model)))
+                val item = mediaSession?.player?.currentMediaItem
+                item?.let(streams::urlFor).also {
+                    Diag.log("cast", "dewidebug stand-in serving ${item?.mediaId} as $model: $it")
+                }
+            }
+        }
     }
 
     /** Hands the current item + position to [target] and points the session at it (local ↔ cast). */
@@ -412,6 +443,7 @@ public class PlaybackService : MediaSessionService() {
         player?.release()
         pictureWatch.stop()
         castStreams?.stopAll()
+        CastStandIn.serveCurrent = null
         castPlayer?.stopWatching()
         castRemote?.setSessionAvailabilityListener(null)
         castPlayer?.release()

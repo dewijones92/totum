@@ -211,6 +211,23 @@ internal object CodecStrings {
         return "vp09.%02d.%02d.%02d".format(profile, level, depth)
     }
 
+    fun hevc(entry: String, hvcc: ByteArray): String? {
+        if (hvcc.size < 13) return null
+        val first = hvcc[1].toInt() and 0xFF
+        val space = listOf("", "A", "B", "C")[first shr 6]
+        val tier = if ((first and 0x20) != 0) "H" else "L"
+        val profile = first and 0x1F
+        val compat = ((hvcc[2].toLong() and 0xFF) shl 24) or ((hvcc[3].toLong() and 0xFF) shl 16) or
+            ((hvcc[4].toLong() and 0xFF) shl 8) or (hvcc[5].toLong() and 0xFF)
+        val reversed = Integer.reverse(compat.toInt()).toLong() and 0xFFFFFFFFL
+        val constraints = (6..11).map { hvcc[it].toInt() and 0xFF }.dropLastWhile { it == 0 }
+        val level = hvcc[12].toInt() and 0xFF
+        return "$entry.$space$profile.${reversed.toString(16).uppercase()}.$tier$level" +
+            constraints.joinToString("") { ".%X".format(it) }
+    }
+
+    const val HEVC_FALLBACK = "hev1.1.6.L120.90"
+
     fun aac(esds: ByteArray): String {
         val config = descriptorBody(esds, DECODER_SPECIFIC_TAG)
         val objectType = config?.firstOrNull()?.let { (it.toInt() and 0xFF) shr 3 } ?: AAC_LC

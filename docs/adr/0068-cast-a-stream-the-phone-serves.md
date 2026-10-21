@@ -72,14 +72,41 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   position so it switches stream. Measured 2026-10-21 through the relay: the LG OLED65C24LA's Cast player plays VP9 at
   2160p but errors on AV1 at any size (the TV itself decodes AV1); the Chromecast Ultra plays VP9 1080p but errors on
   VP9 2160p and AV1. So both are VP9/H.264, the LG up to 2160p and the Ultra up to 1080p; unknown devices are
-  VP9/H.264 1080p.
+  VP9/H.264 1080p. **HEVC** measured 2026-10-21 (1080p 8-bit DASH, `hev1` and `hvc1` tags): both TVs play it, so a
+  downloaded x265 torrent casts without re-encoding (its video is remuxed into an MP4); HEVC Main10 is not measured.
+  HEVC still in Matroska (a torrent streamed rather than downloaded) is not offered as video: a Cast receiver's
+  `video/webm` does not carry HEVC, so it goes as sound only until it is remuxed.
+- **The TV is never handed a video it cannot show.** The replay on a cast change is triggered by the Cast session
+  itself (`CastTarget.screens`), not by the player's remote flag, which flipped about 9 s late on Dewi's Pixel, so the
+  first item kept the phone's AV1 and the Ultra showed nothing (report 20261021T190400-f5d37fb7). As a safety net,
+  `CastStreams` drops a video the TV cannot decode or Totum cannot read and sends **sound only** (Dewi's choice). The
+  refusal travels with the TV's name to the phone's UI as session extras (`CastStatus`), and a strip on the mini and
+  full player says "📺 Casting to <device>" and, when it applies, why the picture is missing.
+- **Subtitles on the TV** follow the phone's Subtitles button (Dewi's choice). Media3 1.10.1's cast player keeps the
+  receiver's current tracks and ignores track-selection parameters unless it is given a `CastTrackSelector`;
+  `TotumCastTrackSelector` picks the text track in the chosen language and leaves audio and video as they are. Only
+  WebVTT tracks are offered to the TV, and items with silences cut carry none, because their times no longer match.
+  The phone fetches each track for the TV directly, as its own player does: neither goes through the YouTube politeness
+  gate yet (open, see the feature doc).
+- **Start and seek latency** (Dewi's "casting stuck": 5–9 s on his Pixel, v0.1.656). The audio producer pays for each
+  restart; the TV waits for three or four segments before it plays. The codec loop drains fully instead of waiting on
+  timeouts; a spare source is kept open for the next start or seek (used only under 20 s old, retried once on a fresh
+  one if it fails before producing anything; Media3's extractor turns a failed read into an end of input, so an end
+  more than 3 s or 2% short of the duration is treated as a failure, unless it repeats at the same place); after a seek the packets before the target are skipped without decoding
+  (the extractor lands on the previous cue, up to 6 s early); encoder input buffers are filled from several decoder
+  chunks. Each restart logs its open, seek and per-stage times. On the stand-in: start 1.8 → 1.4 s, seeks 2.2–3.3 →
+  1.6–2.0 s. Not yet re-measured on a real TV or the Pixel.
+- **A stand-in receiver** tests the receiving side without a TV: Shaka Player (what the Cast receiver plays DASH with)
+  in a private headless Edge on Windows, fed by a debug-only hook that serves the playing item exactly as a cast would
+  (`tools/cast-bench/standin/`). It covers manifests, segments, seeks, start time, subtitles and the sound-only path; it
+  cannot cover the Cast session (queue moves, the TV remote, ends), which needs a real device, because Android checks a
+  Cast device's Google-signed certificate.
 - **Android 17 local network protection:** Totum targets API 37, so it needs `ACCESS_LOCAL_NETWORK` to find or reach a
   TV. The first tap on Cast asks for it (Nearby devices), then opens the picker. Dewi's Pixel 7 on Android 17 found
-  no devices on v0.1.654 (report 20261021T165118-4d9542f7, "couldn't find devices??"); not yet confirmed fixed.
-- Not yet: (cast as
-  its sound for now), live streams (given to the receiver as they are),
-  a warning and opt-in re-encode for a format the TV cannot play, and a TV-side up-next UI (Dewi chose the free Cast
-  queue for now).
+  no devices on v0.1.654 (report 20261021T165118-4d9542f7, "couldn't find devices??"); fixed on v0.1.656, which found
+  the Ultra and cast to it from his Pixel.
+- Not yet: live streams (given to the receiver as they are), an opt-in re-encode for a video the TV cannot show (it
+  gets sound only and the strip says why), and a TV-side up-next UI (Dewi chose the free Cast queue for now).
 - Seeking with the TV remote restarts the audio producer at the new segment; expect a second or two of buffering.
 - With skips on, the TV's own seek bar shows the source's length and its clock runs behind the episode's; Totum's
   own seek bar, resume points and transcript use episode time.

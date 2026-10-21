@@ -34,6 +34,7 @@ data class VideoSettings(
     /** Language showing, or null for off. */
     val subtitleLanguage: String? = null,
     val onSetSubtitleLanguage: (String?) -> Unit = {},
+    val castDeviceName: String? = null,
 ) {
     companion object {
         val None: VideoSettings = VideoSettings(QualityControl.None, 1f, {})
@@ -57,6 +58,7 @@ internal fun rememberVideoSettings(
     subtitles = state.subtitles,
     subtitleLanguage = state.subtitleLanguage,
     onSetSubtitleLanguage = onSetSubtitleLanguage,
+    castDeviceName = state.castDeviceName,
 )
 
 /**
@@ -93,6 +95,13 @@ private fun SubtitleMenu(settings: VideoSettings) {
         )
     }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        settings.castDeviceName?.let { device ->
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.subtitles_on_cast_device, device)) },
+                onClick = {},
+                enabled = false,
+            )
+        }
         DropdownMenuItem(
             text = { Text(stringResource(R.string.subtitles_off)) },
             onClick = {

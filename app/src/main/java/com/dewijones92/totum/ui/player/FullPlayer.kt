@@ -75,6 +75,7 @@ import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.innertube.comments.Comment
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
+import com.dewijones92.totum.ui.cast.CastStrip
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SkipNextButton
@@ -385,6 +386,7 @@ private fun PlayerDetails(
     toggles: PlaybackToggles,
 ) {
     Spacer(Modifier.height(if (state.hasVideo) 16.dp else 32.dp))
+    CastStrip(state, Modifier.padding(bottom = 12.dp))
     TitleBlock(state)
 
     // Audio: seek + transport sit below the artwork (video has them overlaid).

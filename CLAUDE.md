@@ -76,6 +76,7 @@ say why it is the way it is.
 | Quick strip, queue headings, stay in kind (Oct 2026) | Listen/Watch, speed, boost, skip silences and sleep sit in a strip under the player's title and left the tile grid; ungrouped queue runs get "➕ Added by you", the playing group's header says ▶️ and 🔊 Playing now; auto-play (and gapless arming) stays in music or talk, the other kind left queued, then Explore or stop; manual ⏭ unchanged | Dewi's "currently I have to scroll down", "not added to Peep Show", "if I'm in non-music mode … I don't want music"; [ADRs 62–64](docs/adr/_index.md) |
 | Everything about the item (Oct 2026) | An "ℹ️ About this" card tops Details for any item (`itemFacts`); the description comes from the watch page when the TV player has none; a channel page stamps its channel on its rows | Dewi's "display everything about the item … a general rule"; [ADR 65](docs/adr/0065-the-player-says-everything-about-the-item.md) |
 | Sort and filter (Oct 2026) | One sheet on every list header (`SortAndFilterSheet`, `MediaSort`, `ItemFilters` in `:core:domain`); queue sorts change the play order within each group, the playing item fixed, with Undo; queue filters view only; date added in Room v28; a header's buttons wrap under its title rather than squeezing it (`TitleAndActions`) | Dewi's "sort … a group in the queue by date added … any possible filter"; [ADR 66](docs/adr/0066-one-sort-and-filter-menu-everywhere.md) |
+| Casting (Oct 2026) | The TV plays a static DASH stream the phone serves: original video packets relayed, Totum's processed audio as AAC segments; formats from measured TV profiles (VP9/H.264/HEVC; never AV1); a video the TV can't show goes as sound only with a "📺 Casting to …" strip saying why; the phone's Subtitles button drives the TV; tested without a TV on a Shaka-in-Edge stand-in (`tools/cast-bench/standin/`) | Dewi's "cast with Totum as the brain"; [ADR 68](docs/adr/0068-cast-a-stream-the-phone-serves.md) |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
 
 ## Quality bar (from the brief, non-negotiable)
@@ -138,6 +139,7 @@ say why it is the way it is.
 ./gradlew assembleDebug          # build debug APK
 python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run before every push
 ./gradlew detekt lint test koverVerify assembleDebugAndroidTest   # the full local gate (matches CI)
+./gradlew :app:assembleDebug     # the gate does NOT rebuild app-debug.apk: run this before installing after it
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
 ./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```

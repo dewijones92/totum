@@ -5,17 +5,28 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.playback.PlaybackState
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicReference
 
 object CastTarget {
 
-    @Volatile
-    var screen: CastScreen? = null
-        private set
+    private val current = MutableStateFlow<CastScreen?>(null)
+
+    val screens: StateFlow<CastScreen?> = current
+
+    val screen: CastScreen? get() = current.value
 
     private val listener = object : SessionManagerListener<CastSession> {
         override fun onSessionStarted(session: CastSession, sessionId: String) = casting(session, "started")
@@ -42,33 +53,52 @@ object CastTarget {
 
     private fun casting(session: CastSession, how: String) {
         val chosen = CastScreen.of(session.castDevice?.modelName)
-        screen = chosen
+        current.value = chosen
         Diag.log("cast", "session $how on ${session.castDevice?.friendlyName}: formats for ${chosen.label}")
     }
 
     private fun stopped(how: String) {
-        if (screen != null) Diag.log("cast", "session $how: formats are the phone's again")
-        screen = null
+        if (current.value != null) Diag.log("cast", "session $how: formats are the phone's again")
+        current.value = null
     }
 }
 
 fun startCastScreens(container: AppContainer, context: Context) {
     CastTarget.watch(context)
+    val lastSeen = AtomicReference<PlaybackState?>(null)
     container.applicationScope.launch {
-        var onTv: Boolean? = null
-        container.playbackController.state.filterNotNull().collect { state ->
-            val was = onTv
-            onTv = state.onCastDevice
-            val moved = was != null && was != state.onCastDevice
-            if (!moved || state.hasEnded || state.kind != MediaKind.VIDEO) return@collect
-            val where = if (state.onCastDevice) "the TV" else "the phone"
+        container.playbackController.state.filterNotNull().collect { lastSeen.set(it) }
+    }
+    container.applicationScope.launch {
+        CastTarget.screens.map { it != null }.distinctUntilChanged().drop(1).collect { onTv ->
+            val where = if (onTv) "the TV" else "the phone"
+            val settled = withTimeoutOrNull(HANDOVER_WAIT_MS) {
+                container.playbackController.state.first { it == null || it.onCastDevice == onTv }
+            }
+            val state = container.playbackController.state.value ?: lastSeen.get()
+            if (state == null) {
+                Diag.log("cast", "moved to $where with nothing played yet; nothing to replay")
+                return@collect
+            }
+            if (state.hasEnded || state.kind == MediaKind.PODCAST) {
+                Diag.log(
+                    "cast",
+                    "moved to $where with ${state.itemId.value} (${state.kind}, ended=${state.hasEnded}); " +
+                        "nothing to replay",
+                )
+                return@collect
+            }
+            val positionMs = state.positionMs
             Diag.log(
                 "cast",
-                "${state.itemId.value} moved to $where at ${state.positionMs}ms; " +
-                    "replaying it with streams for $where (${CastTarget.screen?.label ?: "this phone"})",
+                "moved to $where (player settled=${settled != null}, item=${state.itemId.value} " +
+                    "at ${positionMs}ms); replaying with streams for $where " +
+                    "(${CastTarget.screen?.label ?: "this phone"})",
             )
-            val replayed = container.playbackQueue.replayCurrent(state.positionMs)
-            Diag.log("cast", "${state.itemId.value} replay for $where=$replayed")
+            val replayed = container.playbackQueue.replayCurrent(positionMs)
+            Diag.log("cast", "replay for $where=$replayed")
         }
     }
 }
+
+private const val HANDOVER_WAIT_MS = 3_000L

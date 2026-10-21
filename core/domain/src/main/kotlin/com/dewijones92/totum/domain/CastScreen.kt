@@ -40,16 +40,17 @@ public data class CastScreen(
         private const val FULL_HD = 1080
         private const val UNKNOWN = "unknown Cast device"
         private val PLAIN = setOf(VideoCodecFamily.VP9, VideoCodecFamily.AVC)
+        private val MEASURED = PLAIN + VideoCodecFamily.HEVC
         private val LG_2020_ON = Regex("""^(OLED|QNED|NANO)\d{2}[A-Z]\d""", RegexOption.IGNORE_CASE)
 
         public fun of(modelName: String?): CastScreen {
             val model = modelName?.trim().orEmpty()
             val lower = model.lowercase()
             return when {
-                lower.contains("chromecast ultra") -> CastScreen(model, PLAIN, FULL_HD, known = true)
+                lower.contains("chromecast ultra") -> CastScreen(model, MEASURED, FULL_HD, known = true)
                 lower.contains("webos") || LG_2020_ON.containsMatchIn(model) -> CastScreen(
                     model,
-                    PLAIN,
+                    MEASURED,
                     UHD,
                     known = true
                 )

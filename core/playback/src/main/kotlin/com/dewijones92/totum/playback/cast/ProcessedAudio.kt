@@ -33,6 +33,12 @@ internal class ProcessedAudio(
     private var wantedUpTo = 0
     private var closed = false
     private var failure: Throwable? = null
+    private var spare: MediaExtractorCompat? = null
+    private var spareOpenedAt = 0L
+
+    @Volatile
+    private var earlyEndUs: Long? = null
+    private val refilling = java.util.concurrent.atomic.AtomicBoolean(false)
 
     @Volatile
     private var generation: Any? = null
@@ -48,6 +54,7 @@ internal class ProcessedAudio(
 
     fun prepare() {
         val extractor = extractor()
+        var kept = false
         try {
             val f = extractor.getTrackFormat(audioTrack(extractor))
             val rate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -61,9 +68,50 @@ internal class ProcessedAudio(
                 "audio $label prepared: ${f.getString(MediaFormat.KEY_MIME)} ${rate}Hz ${channels}ch " +
                     "duration=${durationUs / MILLI}ms segment=${segmentSamples * MILLI / rate}ms",
             )
+            kept = true
         } finally {
-            extractor.release()
+            if (kept) keepSpare(extractor) else extractor.release()
         }
+    }
+
+    private fun keepSpare(extractor: MediaExtractorCompat) {
+        val kept = synchronized(lock) {
+            if (closed || spare != null) {
+                false
+            } else {
+                spare = extractor
+                spareOpenedAt = System.currentTimeMillis()
+                true
+            }
+        }
+        if (!kept) extractor.release()
+    }
+
+    private fun takeSpare(): MediaExtractorCompat? {
+        val (taken, ageMs) = synchronized(lock) {
+            val s = spare
+            spare = null
+            s to System.currentTimeMillis() - spareOpenedAt
+        }
+        if (taken == null || ageMs <= SPARE_FRESH_MS) return taken
+        Diag.log("cast", "audio $label spare source is ${ageMs}ms old; opening a fresh one instead")
+        taken.release()
+        return null
+    }
+
+    private fun refillSpare() {
+        if (!refilling.compareAndSet(false, true)) return
+        Thread({
+            try {
+                keepSpare(extractor())
+            } catch (e: IOException) {
+                Diag.warn("cast", "audio $label could not open a spare source", e)
+            } catch (e: IllegalStateException) {
+                Diag.warn("cast", "audio $label could not open a spare source", e)
+            } finally {
+                refilling.set(false)
+            }
+        }, "cast-spare-$label").apply { isDaemon = true }.start()
     }
 
     fun init(): ByteArray = Fmp4Aac.init(format)
@@ -92,11 +140,15 @@ internal class ProcessedAudio(
         segments.getValue(n)
     }
 
-    fun close() = synchronized(lock) {
-        closed = true
-        generation = null
-        producer?.interrupt()
-        lock.notifyAll()
+    fun close() {
+        val idle = synchronized(lock) {
+            closed = true
+            generation = null
+            producer?.interrupt()
+            lock.notifyAll()
+            spare.also { spare = null }
+        }
+        idle?.release()
     }
 
     private fun start(n: Int) {
@@ -104,6 +156,7 @@ internal class ProcessedAudio(
         failure = null
         producingFrom = n
         produced = n - 1
+        lastReal = Int.MAX_VALUE
         segments.keys.retainAll { it in n - KEEP_BEHIND..n + AHEAD }
         wantedUpTo = n + AHEAD
         val mine = Any()
@@ -155,10 +208,27 @@ internal class ProcessedAudio(
         val sink = sinkFor(mine)
         var transcode: AudioTranscode? = null
         try {
-            val extractor = extractor()
-            val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs)
-            transcode = AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke())
-            transcode.run()
+            val spared = takeSpare()
+            val extractor = spared ?: extractor()
+            refillSpare()
+            Diag.log(
+                "cast",
+                "audio $label from segment $first: source ${if (spared != null) "was waiting" else "opened"} " +
+                    "in ${System.currentTimeMillis() - started}ms",
+            )
+            val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs, durationUs, earlyEndUs)
+            transcode = try {
+                AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke()).also { it.run() }
+            } catch (e: IOException) {
+                if (spared == null || synchronized(lock) { produced } >= first) throw e
+                Diag.warn(
+                    "cast",
+                    "audio $label waiting source failed before segment $first; once more on a fresh one",
+                    e,
+                )
+                val fresh = extractor()
+                AudioTranscode(plan, fresh, audioTrack(fresh), boost, sink, cutter?.invoke()).also { it.run() }
+            }
         } catch (e: InterruptedException) {
             Diag.log("cast", "audio $label producer from $first interrupted: ${e.message}")
         } catch (e: IOException) {
@@ -178,6 +248,7 @@ internal class ProcessedAudio(
 
     private fun fail(first: Int, mine: Any, e: Exception) {
         Diag.warn("cast", "audio $label producer from $first failed", e)
+        if (e is EarlyEnd) earlyEndUs = e.atUs
         synchronized(lock) {
             if (generation === mine) failure = e
             lock.notifyAll()
@@ -204,6 +275,7 @@ internal class ProcessedAudio(
         const val KEEP_BEHIND = 3
         const val RESTART_GAP = 3
         const val WAIT_MS = 45_000L
+        const val SPARE_FRESH_MS = 20_000L
         const val IDLE_WAIT_MS = 1_000L
         const val MILLI = 1000
         const val MICROS = 1_000_000L

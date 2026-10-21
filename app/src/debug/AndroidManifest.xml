@@ -33,6 +33,7 @@
             <intent-filter>
                 <action android:name="com.dewijones92.totum.DEBUG_CAST" />
                 <action android:name="com.dewijones92.totum.DEBUG_CAST_STOP" />
+                <action android:name="com.dewijones92.totum.DEBUG_CAST_SERVE" />
             </intent-filter>
         </receiver>
         <receiver

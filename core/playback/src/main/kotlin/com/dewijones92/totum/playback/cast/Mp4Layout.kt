@@ -82,6 +82,8 @@ internal object Mp4Layout {
         "avc3" to Visual("avcC", CodecStrings::avc, "avc1.640028"),
         "av01" to Visual("av1C", CodecStrings::av1, "av01.0.08M.08"),
         "vp09" to Visual("vpcC", CodecStrings::vp9, "vp09.00.40.08"),
+        "hev1" to Visual("hvcC", { CodecStrings.hevc("hev1", it) }, CodecStrings.HEVC_FALLBACK),
+        "hvc1" to Visual("hvcC", { CodecStrings.hevc("hvc1", it) }, "hvc1.1.6.L120.90"),
     )
 
     private fun inner(bytes: ByteArray, entry: Box, from: Int, name: String): ByteArray? =
