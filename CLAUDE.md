@@ -482,6 +482,13 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
 
 ## Working agreements
 
+- **Iterate quickly and keep shifting left** (Dewi, 2026-10-21: *"we want to iterate quickly … any big cycles that
+  take time … find bottlenecks and shift left"*). Treat a slow loop as a defect: measure where the minutes go
+  (2026-10-21: a 1-line change rebuilt in 17 s and installed in 2 s; the minutes were the full gate and UI-driving
+  scripts), then move the check earlier and cheaper — a laptop prototype for an unknown (the Python spike servers that
+  settled the TVs' formats in seconds), a debug broadcast instead of screen taps (`DEBUG_CAST`, `DEBUG_QUEUE_PLAY_ALL`;
+  `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate only before a push.
+  When a cycle is slow, fix the tooling in the same session rather than paying it again.
 - Commit as you go — small, coherent commits at each green state.
 - **Work in batches: build, push, then review and soak at the same time** (Dewi, 2026-10-14 and again 2026-10-15:
   *"implement a batch of a nice chunk of work … push to Git, and in the meantime then spin up an Opus review …

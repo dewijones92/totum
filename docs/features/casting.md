@@ -23,11 +23,16 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 - **Downloads** cast with their picture: the video track is copied (never re-encoded) into a seekable WebM or MP4
   once and cached.
 
-Not yet: formats picked for the TV, torrents, live streams, a warning before a format the TV cannot play.
+- **Formats for the TV:** 4K VP9 on the LG, 1080p VP9 on the Chromecast Ultra (measured); starting or stopping a cast
+  switches the current video to the right stream.
+- **Android 17:** the first Cast tap asks for local network access ("Nearby devices").
+
+Not yet: torrents, live streams, a warning before a format the TV cannot play.
+
+Bench: `tools/cast-bench/` (README there).
 
 Diagnostics: every decision logs under `[cast]` (`dewidebug`): the manifest URL and what it carries, each request the
 TV makes, audio production from which segment and why, the boost changing mid-cast, the receiver dropping an item and
 whether that was its end, `back on the phone 5000ms: rendered=…` after a cast, and `video frames in the last 30s` while
 a video plays locally.
 
-Bench: `~/claude-tasks/totum-cast-bench/` (mDNS replay in the emulator, the Pi hop, receiver and webcam checks).

@@ -97,6 +97,7 @@ class VideoResolver(
         /** Kept so switching audio track re-picks streams without paying for another extraction. */
         val metadata: MediaMetadata? = null,
         val sourceId: SourceId? = null,
+        val screen: String = "phone",
     )
 
     /**
@@ -780,8 +781,15 @@ class VideoResolver(
     }
 
     /** A cached entry still inside its TTL, or null. */
-    private fun fresh(watchUrl: HttpUrl): Resolved? =
-        cache[watchUrl]?.takeIf { now() < freshUntil(it) }?.resolved
+    private fun fresh(watchUrl: HttpUrl): Resolved? {
+        val entry = cache[watchUrl]?.takeIf { now() < freshUntil(it) } ?: return null
+        if (entry.screen != codecSupport.screen) {
+            val id = watchUrl.value.takeLast(ID_CHARS)
+            Diag.log("resolve", "cached streams for $id were for ${entry.screen}, now ${codecSupport.screen}")
+            return null
+        }
+        return entry.resolved
+    }
 
     private fun freshUntil(entry: Cached): Long = freshUntil(entry.resolved.streamUrls(), entry.at)
 
@@ -826,7 +834,7 @@ class VideoResolver(
         // order is a least-recently-resolved order and the first key is the one to drop.
         val kept = metadata ?: cache[watchUrl]?.metadata
         cache.remove(watchUrl)
-        cache[watchUrl] = Cached(resolved, now(), kept, sourceId ?: resolved.item.sourceId)
+        cache[watchUrl] = Cached(resolved, now(), kept, sourceId ?: resolved.item.sourceId, codecSupport.screen)
         while (cache.size > CACHE_SIZE) cache.remove(cache.keys.first())
     }
 

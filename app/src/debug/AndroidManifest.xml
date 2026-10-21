@@ -27,6 +27,15 @@
             </intent-filter>
         </receiver>
         <receiver
+            android:name="com.dewijones92.totum.cast.CastDebugReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.dewijones92.totum.DEBUG_CAST" />
+                <action android:name="com.dewijones92.totum.DEBUG_CAST_STOP" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name="com.dewijones92.totum.queue.QueueDebugReceiver"
             android:exported="true"
             tools:ignore="ExportedReceiver">

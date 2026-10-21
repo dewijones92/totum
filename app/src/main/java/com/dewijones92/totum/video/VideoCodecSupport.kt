@@ -2,6 +2,7 @@ package com.dewijones92.totum.video
 
 import android.media.MediaCodecList
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.CastScreen
 import android.media.MediaFormat as AndroidMediaFormat
 
 /**
@@ -26,6 +27,8 @@ public fun interface VideoCodecSupport {
      * is doing the work.
      */
     public fun isHardware(codec: String?, width: Int?, height: Int?): Boolean = false
+
+    public val screen: String get() = "phone"
 
     public companion object {
         /** Assumes everything decodes — for tests and previews. */
@@ -131,3 +134,16 @@ private const val LAST = 3
 /** Anything in hardware beats anything that is not, whatever the codec. */
 private const val SOFTWARE_PENALTY = 10
 private const val UNKNOWN = Int.MAX_VALUE
+
+public class CastAwareCodecSupport(
+    private val phone: VideoCodecSupport,
+    private val tv: () -> CastScreen?,
+) : VideoCodecSupport {
+    override fun canDecode(codec: String?, width: Int?, height: Int?): Boolean =
+        tv()?.canDecode(codec, height) ?: phone.canDecode(codec, width, height)
+
+    override fun isHardware(codec: String?, width: Int?, height: Int?): Boolean =
+        tv()?.canDecode(codec, height) ?: phone.isHardware(codec, width, height)
+
+    override val screen: String get() = tv()?.let { "tv:${it.model}" } ?: phone.screen
+}

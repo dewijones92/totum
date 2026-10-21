@@ -66,8 +66,18 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   WebM with its Cues at the front, or a fragmented MP4 with a global `sidx` when the codec cannot go in WebM, cached in
   `cacheDir/cast-remux`, and served by byte range beside the processed audio from the same file (Gangnam Style, 53 MB:
   0.2 s). The bundled binaries' names live once in `:lib:common` (`BundledBinaries`).
+- **Formats are chosen for the TV, from measurements, not spec sheets.** While a Cast session is up, the resolver's
+  codec support is the TV's (`CastScreen`, by the device's model name) and the height cap is the TV's; a cached
+  resolve records which screen it was built for. Starting or stopping a cast replays the current video at its
+  position so it switches stream. Measured 2026-10-21 through the relay: the LG OLED65C24LA's Cast player plays VP9 at
+  2160p but errors on AV1 at any size (the TV itself decodes AV1); the Chromecast Ultra plays VP9 1080p but errors on
+  VP9 2160p and AV1. So both are VP9/H.264, the LG up to 2160p and the Ultra up to 1080p; unknown devices are
+  VP9/H.264 1080p.
+- **Android 17 local network protection:** Totum targets API 37, so it needs `ACCESS_LOCAL_NETWORK` to find or reach a
+  TV. The first tap on Cast asks for it (Nearby devices), then opens the picker. Dewi's Pixel 7 on Android 17 found
+  no devices on v0.1.654 (report 20261021T165118-4d9542f7, "couldn't find devices??"); not yet confirmed fixed.
 - Not yet: (cast as
-  its sound for now), formats chosen for the TV rather than the phone, live streams (given to the receiver as they are),
+  its sound for now), live streams (given to the receiver as they are),
   a warning and opt-in re-encode for a format the TV cannot play, and a TV-side up-next UI (Dewi chose the free Cast
   queue for now).
 - Seeking with the TV remote restarts the audio producer at the new segment; expect a second or two of buffering.

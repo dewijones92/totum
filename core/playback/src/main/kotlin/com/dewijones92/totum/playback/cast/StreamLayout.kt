@@ -36,8 +36,9 @@ internal object StreamLayouts {
     fun probe(reader: RangeReader): StreamLayout {
         val head = reader.read(ByteSpan(0, HEAD_BYTES - 1))
         return when {
-            head.size >= MAGIC_BYTES && Ebml.id(head, 0).value == Ebml.EBML_HEADER -> WebmLayout.read(head, reader)
             head.size >= BOX_HEADER && Mp4Layout.isMp4(head) -> Mp4Layout.read(head)
+            head.size >= MAGIC_BYTES && head[0] != 0.toByte() && Ebml.id(head, 0).value == Ebml.EBML_HEADER ->
+                WebmLayout.read(head, reader)
             else -> throw UnreadableLayout("neither WebM nor MP4 (first bytes ${head.take(BOX_HEADER).hex()})")
         }
     }

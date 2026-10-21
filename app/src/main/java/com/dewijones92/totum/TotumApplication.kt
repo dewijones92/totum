@@ -5,6 +5,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.request.crossfade
+import com.dewijones92.totum.cast.startCastScreens
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
@@ -45,6 +46,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         container.startDownloadNotifications()
         container.listeningSwitcher.start()
         startGapless(container, NetworkStatus(this)::isMetered)
+        startCastScreens(container, this)
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         NewUploadsWorker.schedule(this)

@@ -12,6 +12,7 @@ import com.dewijones92.totum.backup.drive.driveBackupFor
 import com.dewijones92.totum.backup.drive.startDriveBackups
 import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
+import com.dewijones92.totum.cast.CastTarget
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
@@ -201,6 +202,7 @@ import com.dewijones92.totum.video.AccountChannel
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.CastAwareCodecSupport
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
@@ -752,7 +754,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         VideoResolver(
             ytDlpEngine,
             skipSegmentSource,
-            PlatformVideoCodecSupport(),
+            CastAwareCodecSupport(PlatformVideoCodecSupport()) { CastTarget.screen },
             // The InnerTube player source. Its PLAIN URLs are useless — measured
             // 2026-07-31, a ranged GET of an ANDROID-client stream serves the first megabyte
             // and then 403s at every offset beyond it, whatever the range size or User-Agent.
@@ -1253,7 +1255,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             audioPreferred = ::audioPlaybackPreferred,
             preferredMaxHeight = {
                 val settings = appPreferences.settings.value
-                if (networkStatus.isMetered()) settings.cellularMaxHeight else settings.wifiMaxHeight
+                CastTarget.screen?.maxHeight
+                    ?: if (networkStatus.isMetered()) settings.cellularMaxHeight else settings.wifiMaxHeight
             },
             choices = streamChoices,
             onResolved = { playbackQueue.adoptFacts(it) },

@@ -61,7 +61,7 @@ internal class RemoteEnd : Player.Listener {
         if (player.deviceInfo.playbackType != DeviceInfo.PLAYBACK_TYPE_REMOTE || now != null) return null
         val since = SystemClock.elapsedRealtime() - last.atMs
         val reached = last.positionMs + if (last.playing) since else 0
-        val ended = reached >= last.durationMs - NEAR_END_MS
+        val ended = last.playing && reached >= last.durationMs - NEAR_END_MS
         Diag.log(
             "cast",
             "${last.id} left the receiver at ~${reached}ms of ${last.durationMs}ms " +
