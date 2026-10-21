@@ -9,6 +9,8 @@ import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
+import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
+import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
@@ -18,12 +20,17 @@ import java.util.concurrent.ConcurrentLinkedDeque
 internal class CastStreams(
     private val context: Context,
     private val boost: () -> VolumeBoost,
+    private val skipSilence: () -> Boolean,
+    private val newCutter: () -> SilenceCuttingAudioProcessor,
     private val baseUrl: () -> String?,
     private val onActive: (Boolean) -> Unit,
 ) {
     private val server = CastHttpServer(::handle)
     private val sessions = ConcurrentHashMap<String, Session>()
     private val order = ConcurrentLinkedDeque<String>()
+    private val latest = ConcurrentHashMap<String, Session>()
+
+    fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
     private val random = SecureRandom()
 
     private inner class Session(
@@ -32,7 +39,8 @@ internal class CastStreams(
         val videoUrl: String?,
         val audioSource: String,
     ) {
-        val audio = ProcessedAudio(context, audioSource, boost, "${item.mediaId}/$token")
+        val cuts = videoUrl == null && (itemSkipsSilence(item) ?: skipSilence())
+        val audio = ProcessedAudio(context, audioSource, boost, "${item.mediaId}/$token", newCutter.takeIf { cuts })
 
         @Volatile var layout: StreamLayout? = null
 
@@ -89,10 +97,14 @@ internal class CastStreams(
         }
     }
 
+    private fun itemSkipsSilence(item: MediaItem): Boolean? =
+        item.requestMetadata.extras?.takeIf { it.containsKey(EXTRA_SKIP_SILENCE) }?.getBoolean(EXTRA_SKIP_SILENCE)
+
     private fun givenAsItIs(uri: String, separateAudio: String?, listening: Boolean): String? = when {
         MANIFEST_HINTS.any(uri::contains) -> "a live or adaptive manifest"
         listening -> null
-        separateAudio == null && uri.contains("googlevideo.com") -> "a single muxed stream"
+        separateAudio == null && uri.contains("googlevideo.com") && !uri.contains("mime=audio") ->
+            "a single muxed stream"
         separateAudio != null && !uri.startsWith("http") -> "video on disk is not cast with processing yet"
         else -> null
     }
@@ -105,7 +117,9 @@ internal class CastStreams(
         }
         server.start(PORT)
         val token = ByteArray(TOKEN_BYTES).also(random::nextBytes).joinToString("") { "%02x".format(it) }
-        sessions[token] = Session(token, item, sources.video, sources.audio)
+        val session = Session(token, item, sources.video, sources.audio)
+        sessions[token] = session
+        latest[item.mediaId] = session
         order.addLast(token)
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
         onActive(true)
@@ -114,7 +128,8 @@ internal class CastStreams(
             "cast",
             "${item.mediaId} -> $url (video=${if (sources.video != null) "passed through" else "none"}, " +
                 "audio=processed from ${if (sources.audio.startsWith("http")) "stream" else "disk"}, " +
-                "listening=${sources.listening})",
+                "listening=${sources.listening}, " +
+                "silences ${if (session.audio.timeline.cutsSilences) "cut" else "kept"})",
         )
         return url
     }
@@ -123,6 +138,7 @@ internal class CastStreams(
         sessions.values.forEach { it.audio.close() }
         sessions.clear()
         order.clear()
+        latest.clear()
         server.stop()
         onActive(false)
     }

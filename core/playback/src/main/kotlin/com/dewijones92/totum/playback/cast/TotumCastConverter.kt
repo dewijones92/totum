@@ -43,6 +43,10 @@ internal class TotumCastConverter(private val streams: CastStreams) : MediaItemC
 
     override fun toMediaItem(mediaQueueItem: MediaQueueItem): MediaItem {
         val converted = plain.toMediaItem(mediaQueueItem)
-        return originals[converted.mediaId] ?: converted
+        originals[converted.mediaId]?.let { return it }
+        if (converted.mediaId.isNotBlank()) return converted
+        val stand = "cast:${mediaQueueItem.media?.contentId?.hashCode() ?: mediaQueueItem.itemId}"
+        Diag.warn("cast", "the receiver reported an item Totum did not send (no id); calling it $stand")
+        return converted.buildUpon().setMediaId(stand).build()
     }
 }

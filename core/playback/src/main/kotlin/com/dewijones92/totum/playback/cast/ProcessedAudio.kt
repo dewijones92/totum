@@ -1,13 +1,14 @@
 package com.dewijones92.totum.playback.cast
 
 import android.content.Context
-import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.MediaExtractorCompat
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
 import java.io.IOException
 import kotlin.math.roundToInt
@@ -19,7 +20,11 @@ internal class ProcessedAudio(
     private val source: String,
     private val boost: () -> VolumeBoost,
     private val label: String,
+    private val cutter: (() -> SilenceCuttingAudioProcessor)?,
 ) {
+    val timeline = CastTimeline(cuts = cutter != null) { durationUs }
+    private var silence: ByteArray? = null
+    private var lastReal = Int.MAX_VALUE
     private val lock = Object()
     private val segments = HashMap<Int, ByteArray>()
     private var producer: Thread? = null
@@ -66,8 +71,9 @@ internal class ProcessedAudio(
     fun segment(n: Int): ByteArray = synchronized(lock) {
         wantedUpTo = maxOf(wantedUpTo, n + AHEAD)
         segments[n]?.let { return it }
+        if (n > lastReal) return silentSegment(n)
         val running = producer?.isAlive == true
-        if (!running || n < producingFrom || n > produced + RESTART_GAP) {
+        if (!running || n !in producingFrom..produced + RESTART_GAP || n <= produced) {
             Diag.log(
                 "cast",
                 "audio $label segment $n asked; producing from it " +
@@ -99,9 +105,19 @@ internal class ProcessedAudio(
         producingFrom = n
         produced = n - 1
         segments.keys.retainAll { it in n - KEEP_BEHIND..n + AHEAD }
+        wantedUpTo = n + AHEAD
         val mine = Any()
         generation = mine
-        producer = Thread({ produce(n, mine) }, "cast-audio-$label").apply { start() }
+        val tvUs = n * segmentSamples * MICROS / format.sampleRate
+        val sourceUs = timeline.sourceFor(tvUs)
+        timeline.anchor(tvUs, sourceUs)
+        if (timeline.cutsSilences) {
+            Diag.log(
+                "cast",
+                "audio $label segment $n is ${tvUs / MILLI}ms on the TV, ${sourceUs / MILLI}ms in the source"
+            )
+        }
+        producer = Thread({ produce(n, sourceUs, mine) }, "cast-audio-$label").apply { start() }
     }
 
     private fun sinkFor(mine: Any) = object : TranscodeSink {
@@ -111,23 +127,37 @@ internal class ProcessedAudio(
             while (segment > wantedUpTo && !stale()) lock.wait(IDLE_WAIT_MS)
         }
 
-        override fun publish(segment: Int, bytes: ByteArray) = synchronized(lock) {
+        override fun publish(segment: Int, bytes: ByteArray, tvEndUs: Long, sourceEndUs: Long) = synchronized(lock) {
             if (stale()) return@synchronized
+            timeline.anchor(tvEndUs, sourceEndUs)
             segments[segment] = bytes
             produced = segment
             segments.keys.retainAll { it >= wantedUpTo - AHEAD - KEEP_BEHIND }
             lock.notifyAll()
         }
+
+        override fun ended(tvEndUs: Long) = synchronized(lock) {
+            if (stale()) return@synchronized
+            lastReal = produced
+            timeline.ended(tvEndUs)
+            lock.notifyAll()
+        }
     }
 
-    private fun produce(first: Int, mine: Any) {
+    private fun silentSegment(n: Int): ByteArray {
+        val frame = silence ?: SilentAac.frame(format).also { silence = it }
+        Diag.log("cast", "audio $label segment $n is past the real end (segment $lastReal); serving silence")
+        return Fmp4Aac.segment(n + 1, n * segmentSamples, List(framesPerSegment) { frame })
+    }
+
+    private fun produce(first: Int, sourceUs: Long, mine: Any) {
         val started = System.currentTimeMillis()
         val sink = sinkFor(mine)
         var transcode: AudioTranscode? = null
         try {
             val extractor = extractor()
-            val plan = TranscodePlan(format, framesPerSegment, first, label)
-            transcode = AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink)
+            val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs)
+            transcode = AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke())
             transcode.run()
         } catch (e: InterruptedException) {
             Diag.log("cast", "audio $label producer from $first interrupted: ${e.message}")
@@ -154,15 +184,9 @@ internal class ProcessedAudio(
         }
     }
 
-    private fun extractor() = MediaExtractor().apply {
-        if (source.startsWith("http")) {
-            setDataSource(RangedMediaDataSource(source, label))
-        } else {
-            setDataSource(context, source.toUri(), null)
-        }
-    }
+    private fun extractor() = MediaExtractorCompat(context).apply { setDataSource(source.toUri(), 0) }
 
-    private fun audioTrack(extractor: MediaExtractor): Int =
+    private fun audioTrack(extractor: MediaExtractorCompat): Int =
         (0 until extractor.trackCount).firstOrNull {
             extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
         } ?: error("no audio track in $label")
@@ -179,9 +203,10 @@ internal class ProcessedAudio(
         const val AHEAD = 4
         const val KEEP_BEHIND = 3
         const val RESTART_GAP = 3
-        const val WAIT_MS = 20_000L
+        const val WAIT_MS = 45_000L
         const val IDLE_WAIT_MS = 1_000L
         const val MILLI = 1000
+        const val MICROS = 1_000_000L
         const val AAC_LC = 2
         const val AOT_SHIFT = 11
         const val RATE_SHIFT = 7

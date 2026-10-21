@@ -42,6 +42,18 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   itself and its remote's next works; Totum adopts the crossover as it does locally. An item the receiver drops near its
   end counts as ended (`RemoteEnd`); a crossover is judged ended or skipped by Totum's own clock, since the receiver
   reports the full duration either way.
+- **Skip silences** on an audio-only item runs the phone's own `SilenceCuttingAudioProcessor` (same mode and speech
+  model) before the boost. The manifest keeps the source's length, so the TV seeks a static timeline (a growing HLS
+  EVENT playlist was tried on 2026-10-21: it started at 0:00 and ended cleanly but the LG would not seek forward on it);
+  `CastTimeline` maps TV time to source time from where each segment ends, and `TimeMappedCastPlayer` gives Totum
+  source time for position, seeks and progress. Past the cut audio's real end the TV gets silent segments, and Totum
+  moves it to the next queued item (or stops it) as soon as it reaches that end. Whether an item cuts silences is
+  recorded on the item when it is built (`EXTRA_SKIP_SILENCE`, Totum's music-plays-plain rule), not read from whatever
+  was playing when it was armed. Video items keep their silences (Dewi's choice).
+- Speed reaches the TV through the receiver's own playback rate (measured 1.5×: 20.3 s of media in 13.5 s).
+- While casting, the phone's stall watchdog neither rebuilds nor ends an item: the TV buffers from Totum's own
+  stream, and the cast decides ends. The audio source is read with Media3's `MediaExtractorCompat`, which seeks by the
+  stream's index (Android's `MediaExtractor` scanned a WebM linearly to seek).
 - The service holds a wake lock and a Wi-Fi lock while it serves, so a cast survives the phone being locked; leaving the
   cast lets go of the video surface so the phone's picture comes back (`PictureWatch` logs the frames that prove it).
 - Debug builds read `files/cast-base-url.txt` for the address to advertise (the emulator bench reaches the TVs through an
@@ -50,8 +62,10 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 ## Consequences
 
 - The phone relays the video bytes over Wi-Fi and encodes the audio while casting; the TV decodes.
-- Not yet: skip silences while casting (it changes the timeline), speed on the TV, a downloaded video's picture (cast as
+- Not yet: a downloaded video's picture (cast as
   its sound for now), formats chosen for the TV rather than the phone, live streams (given to the receiver as they are),
   a warning and opt-in re-encode for a format the TV cannot play, and a TV-side up-next UI (Dewi chose the free Cast
   queue for now).
 - Seeking with the TV remote restarts the audio producer at the new segment; expect a second or two of buffering.
+- With skips on, the TV's own seek bar shows the source's length and its clock runs behind the episode's; Totum's
+  own seek bar, resume points and transcript use episode time.

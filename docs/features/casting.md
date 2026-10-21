@@ -13,13 +13,15 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 ([ADR 68](../adr/0068-cast-a-stream-the-phone-serves.md)).
 
 - **Video:** YouTube's original video packets, relayed by the phone untouched (never re-encoded).
-- **Audio:** decoded on the phone, through the same boost as local playback, re-encoded to AAC in 4 s segments.
+- **Audio:** decoded on the phone, through the same boost and (for talk, audio-only) the same silence skipping as local
+  playback, re-encoded to AAC in 4 s segments. With skips on, Totum keeps episode time and moves on at the real end.
+- **Speed** plays on the TV at the chosen rate.
 - **Seeking** with the TV remote works; **next** on the TV remote moves Totum's queue; the TV moves to the next queue
   item by itself at the end of one.
 - **Stop casting** hands back to the phone at the TV's position, picture and all.
 
-Not yet: skip silences while casting, speed on the TV, downloaded videos' picture (sound only), formats picked for the
-TV, live streams, a warning before a format the TV cannot play.
+Not yet: downloaded videos' picture (sound only), formats picked for the TV, torrents, live streams, a warning before
+a format the TV cannot play.
 
 Diagnostics: every decision logs under `[cast]` (`dewidebug`): the manifest URL and what it carries, each request the
 TV makes, audio production from which segment and why, the boost changing mid-cast, the receiver dropping an item and

@@ -19,3 +19,6 @@ internal fun tuningFor(kind: MediaContentKind, choices: PlaybackChoices): ItemTu
     MediaContentKind.STANDARD, MediaContentKind.SHORT ->
         ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true)
 }
+
+internal fun skipsSilence(kind: MediaContentKind, speed: Float, skipSilence: Boolean): Boolean =
+    tuningFor(kind, PlaybackChoices(speed, skipSilence)).skipSilence

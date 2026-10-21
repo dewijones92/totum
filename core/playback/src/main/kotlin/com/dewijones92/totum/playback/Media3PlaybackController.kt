@@ -58,7 +58,7 @@ import androidx.media3.common.MediaItem as Media3MediaItem
 // The one adapter binding the app's PlaybackController seam to Media3; its
 // method count is the interface surface plus a few small private helpers, and
 // collapsing them to satisfy the counter would only duplicate logic.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 public class Media3PlaybackController(
     context: Context,
     private val scope: CoroutineScope,
@@ -132,6 +132,11 @@ public class Media3PlaybackController(
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
+                remoteEnd.onEnded = { ended ->
+                    scope.launch { progressStore.setPlayed(ended.itemId, played = true) }
+                    _events.tryEmit(ended)
+                }
+                connected.addListener(remoteEnd)
                 connected.addListener(
                     ResumeRewindListener({ controller }, resumeRewind) {
                         ResumeFacts(talk = tuning.keepsChanges, live = false, enabled = rewindOnResume.value)
@@ -147,7 +152,7 @@ public class Media3PlaybackController(
                          */
                         override fun onPlaybackStateChanged(playbackState: Int) {
                             if (playbackState != Player.STATE_ENDED) return
-                            val id = connected.currentMediaItem?.mediaId ?: return
+                            val id = connected.currentMediaItem?.mediaId?.ifBlank { null } ?: return
                             scope.launch { progressStore.setPlayed(MediaItemId(id), played = true) }
                             noteItemEnd(connected, ItemEndWatch.Reason.ENDED)
                             // The one place an end is turned into a fact. This callback fires on
@@ -163,21 +168,15 @@ public class Media3PlaybackController(
                             )
                         }
 
-                        override fun onMediaItemTransition(mediaItem: Media3MediaItem?, reason: Int) {
-                            val ended = remoteEnd.vanished(connected, mediaItem) ?: return
-                            scope.launch { progressStore.setPlayed(ended.itemId, played = true) }
-                            _events.tryEmit(ended)
-                        }
-
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             playingNow.changed(isPlaying)
                             if (!isPlaying) return
-                            val id = connected.currentMediaItem?.mediaId ?: return
+                            val id = connected.currentMediaItem?.mediaId?.ifBlank { null } ?: return
                             startLatency.playing(id)?.let { Diag.log("latency", it) }
                         }
 
                         override fun onRenderedFirstFrame() {
-                            val id = connected.currentMediaItem?.mediaId ?: return
+                            val id = connected.currentMediaItem?.mediaId?.ifBlank { null } ?: return
                             startLatency.firstFrame(id)?.let { Diag.log("latency", it) }
                         }
 
@@ -190,7 +189,7 @@ public class Media3PlaybackController(
                                 Diag.warn("playback", "player error with no recovery for it", error)
                                 return
                             }
-                            val id = connected.currentMediaItem?.mediaId ?: return
+                            val id = connected.currentMediaItem?.mediaId?.ifBlank { null } ?: return
                             val at = connected.currentPosition
                             if (nextInLine.disarm("the player failed on $id") != null) dropAfterCurrent(connected)
                             Diag.log("playback", "stream failed at ${at}ms — $reason")
@@ -242,7 +241,6 @@ public class Media3PlaybackController(
                                 )
                             }
                             connected.duration.takeIf { it > 0 }?.let { lastDurationMs = it }
-                            remoteEnd.observe(player)
                             _state.value = connected.currentPlaybackState()
                         }
                     },
@@ -379,6 +377,7 @@ public class Media3PlaybackController(
         // the request metadata; the service merges it with the video-only URI.
         val extras = Bundle().apply {
             putBoolean(EXTRA_AUDIO_ONLY, audioOnly)
+            putBoolean(EXTRA_SKIP_SILENCE, skipsSilence(item.contentKind, userSpeed, skipSilence))
             audioUrl?.let { putString(EXTRA_AUDIO_URL, it.value) }
             if (startMs > 0) putLong(EXTRA_START_MS, startMs)
         }
@@ -793,7 +792,7 @@ public class Media3PlaybackController(
      * callers outside this class.
      */
     private fun saveProgress(controller: MediaController, chosen: Chosen = Chosen.NO) {
-        val id = controller.currentMediaItem?.mediaId ?: return
+        val id = controller.currentMediaItem?.mediaId?.ifBlank { null } ?: return
         val position = controller.currentPosition.coerceAtLeast(0)
         val duration = controller.duration.takeIf { it > 0 }
         if (chosen != Chosen.NO) Diag.log("playback", "saving $id at ${position}ms — $chosen")
@@ -883,7 +882,7 @@ public class Media3PlaybackController(
         .build()
 
     private fun MediaController.currentPlaybackState(): PlaybackState? {
-        val current = currentMediaItem ?: return null
+        val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() } ?: return null
         return PlaybackState(
             itemId = MediaItemId(current.mediaId),
             title = current.mediaMetadata.title?.toString().orEmpty(),

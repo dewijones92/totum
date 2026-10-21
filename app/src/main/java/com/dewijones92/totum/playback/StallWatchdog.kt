@@ -227,6 +227,14 @@ internal class StallWatchdog(
      * outcome than the stall.
      */
     private suspend fun rescueOrGiveUp(state: PlaybackState, diagnosis: String, remainingMs: Long?) {
+        if (state.onCastDevice) {
+            Diag.log(
+                "advance",
+                "${state.itemId.value} waits ${stalledForMs}ms at ${state.positionMs}ms on the TV — $diagnosis; " +
+                    "not rebuilding: the TV is buffering from Totum's own stream (see [cast])",
+            )
+            return
+        }
         if (rescues >= MAX_RESCUES) {
             // Out of rescues. Moving on is what a person does after the third restart, and it at
             // least keeps the queue alive; replaying a dead stream forever has nothing to
@@ -259,6 +267,14 @@ internal class StallWatchdog(
     /** At its end and frozen: whatever the player believes, this item is over. */
     private suspend fun advanceAtEnd(state: PlaybackState, diagnosis: String, remainingMs: Long?) {
         if (handled == state.itemId) return
+        if (state.onCastDevice) {
+            Diag.log(
+                "advance",
+                "${state.itemId.value} at its end on the TV — $diagnosis; the cast decides when it ends"
+            )
+            handled = state.itemId
+            return
+        }
         handled = state.itemId
         if (!isEnabled()) {
             Diag.log(

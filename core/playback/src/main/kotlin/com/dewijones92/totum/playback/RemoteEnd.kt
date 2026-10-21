@@ -7,7 +7,9 @@ import androidx.media3.common.Player
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItemId
 
-internal class RemoteEnd {
+internal class RemoteEnd : Player.Listener {
+
+    var onEnded: (PlaybackEvent.Ended) -> Unit = {}
 
     private data class Seen(
         val id: String,
@@ -19,13 +21,13 @@ internal class RemoteEnd {
 
     private var seen: Seen? = null
 
-    fun observe(player: Player) {
+    private fun observe(player: Player) {
         val item = player.currentMediaItem
         if (player.deviceInfo.playbackType != DeviceInfo.PLAYBACK_TYPE_REMOTE) {
             seen = null
             return
         }
-        if (item == null) return
+        if (item == null || item.mediaId.isBlank()) return
         val duration = player.duration.takeIf { it > 0 } ?: return
         seen = Seen(item.mediaId, player.currentPosition, duration, player.isPlaying, SystemClock.elapsedRealtime())
     }
@@ -41,7 +43,18 @@ internal class RemoteEnd {
         return ended
     }
 
-    fun vanished(player: Player, now: MediaItem?): PlaybackEvent.Ended? {
+    private var player: Player? = null
+
+    override fun onEvents(player: Player, events: Player.Events) {
+        this.player = player
+        observe(player)
+    }
+
+    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        player?.let { vanished(it, mediaItem) }?.let(onEnded)
+    }
+
+    private fun vanished(player: Player, now: MediaItem?): PlaybackEvent.Ended? {
         val last = seen ?: return null
         if (now != null && now.mediaId == last.id) return null
         seen = null

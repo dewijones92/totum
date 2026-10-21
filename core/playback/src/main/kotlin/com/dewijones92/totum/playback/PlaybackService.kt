@@ -30,6 +30,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.playback.cast.CastHost
 import com.dewijones92.totum.playback.cast.CastStreams
+import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
@@ -72,7 +73,10 @@ public class PlaybackService : MediaSessionService() {
     // The session swaps between the local player and this one as a Cast session
     // comes and goes; null (or no devices) means everything plays locally as before.
     @UnstableApi
-    private var castPlayer: CastPlayer? = null
+    private var castPlayer: TimeMappedCastPlayer? = null
+
+    @UnstableApi
+    private var castRemote: CastPlayer? = null
     private var castStreams: CastStreams? = null
     private var currentPlayer: Player? = null
 
@@ -297,10 +301,23 @@ public class PlaybackService : MediaSessionService() {
     private fun setUpCast(localPlayer: Player) {
         val castContext = runCatching { CastContext.getSharedInstance(this) }.getOrNull() ?: return
         val host = CastHost(this)
-        val streams = CastStreams(this, { booster.level }, { host.baseUrl(CastStreams.PORT) }, host::hold)
+        val streams = CastStreams(
+            context = this,
+            boost = { booster.level },
+            skipSilence = { skipSilenceEnabled },
+            newCutter = {
+                SilenceCuttingAudioProcessor().apply {
+                    mode = silenceCutter.mode
+                    speechWeights = silenceCutter.speechWeights
+                }
+            },
+            baseUrl = { host.baseUrl(CastStreams.PORT) },
+            onActive = host::hold,
+        )
         castStreams = streams
-        val cast = CastPlayer(castContext, TotumCastConverter(streams))
-        cast.setSessionAvailabilityListener(
+        val remote = CastPlayer(castContext, TotumCastConverter(streams))
+        val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
+        remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
                 override fun onCastSessionAvailable() = switchTo(cast)
                 override fun onCastSessionUnavailable() {
@@ -310,6 +327,7 @@ public class PlaybackService : MediaSessionService() {
             },
         )
         castPlayer = cast
+        castRemote = remote
     }
 
     /** Hands the current item + position to [target] and points the session at it (local ↔ cast). */
@@ -394,7 +412,8 @@ public class PlaybackService : MediaSessionService() {
         player?.release()
         pictureWatch.stop()
         castStreams?.stopAll()
-        castPlayer?.setSessionAvailabilityListener(null)
+        castPlayer?.stopWatching()
+        castRemote?.setSessionAvailabilityListener(null)
         castPlayer?.release()
         mediaSession = null
         player = null
@@ -488,6 +507,8 @@ private class MergingAudioVideoFactory(
 
 /** Extras key on a [MediaItem]'s request metadata carrying the separate audio-track URL. */
 internal const val EXTRA_AUDIO_URL: String = "com.dewijones92.totum.AUDIO_URL"
+
+internal const val EXTRA_SKIP_SILENCE: String = "com.dewijones92.totum.SKIP_SILENCE"
 
 internal const val EXTRA_START_MS: String = "com.dewijones92.totum.START_MS"
 internal const val EXTRA_AUDIO_ONLY: String = "com.dewijones92.totum.AUDIO_ONLY"

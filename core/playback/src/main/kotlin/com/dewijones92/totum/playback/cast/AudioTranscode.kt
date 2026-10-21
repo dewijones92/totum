@@ -2,14 +2,15 @@ package com.dewijones92.totum.playback.cast
 
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
-import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.MediaExtractorCompat
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BoostingAudioProcessor
+import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -19,9 +20,11 @@ internal class TranscodePlan(
     val framesPerSegment: Int,
     val first: Int,
     val label: String,
+    val startUs: Long,
 ) {
     val segmentSamples: Long get() = framesPerSegment.toLong() * Fmp4Aac.SAMPLES_PER_FRAME
-    val startUs: Long get() = first * segmentSamples * MICROS / format.sampleRate
+
+    fun samplesToUs(samples: Long): Long = samples * MICROS / format.sampleRate
 
     companion object {
         const val MICROS: Long = 1_000_000L
@@ -31,22 +34,26 @@ internal class TranscodePlan(
 internal interface TranscodeSink {
     fun waitWhileAhead(segment: Int)
     fun stale(): Boolean
-    fun publish(segment: Int, bytes: ByteArray)
+    fun publish(segment: Int, bytes: ByteArray, tvEndUs: Long, sourceEndUs: Long)
+    fun ended(tvEndUs: Long)
 }
 
 @OptIn(markerClass = [UnstableApi::class])
 @Suppress("TooManyFunctions")
 internal class AudioTranscode(
     private val plan: TranscodePlan,
-    private val extractor: MediaExtractor,
+    private val extractor: MediaExtractorCompat,
     private val track: Int,
     private val boost: () -> VolumeBoost,
     private val sink: TranscodeSink,
+    private val cutter: SilenceCuttingAudioProcessor?,
 ) {
     private val info = MediaCodec.BufferInfo()
     private val pending = ArrayDeque<ByteBuffer>()
     private val frames = ArrayList<ByteArray>()
     private val booster = BoostingAudioProcessor()
+    private val chain: List<AudioProcessor> = listOfNotNull(cutter, booster)
+    private var tvSamples = 0L
     private var decoder: MediaCodec? = null
     private var encoder: MediaCodec? = null
     private var segment = plan.first
@@ -76,7 +83,7 @@ internal class AudioTranscode(
     private fun open() {
         extractor.selectTrack(track)
         val inFormat = extractor.getTrackFormat(track)
-        extractor.seekTo(plan.startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+        extractor.seekTo(plan.startUs, MediaExtractorCompat.SEEK_TO_PREVIOUS_SYNC)
         decoder = MediaCodec.createDecoderByType(inFormat.getString(MediaFormat.KEY_MIME)!!).apply {
             configure(inFormat, null, null, 0)
             start()
@@ -94,10 +101,11 @@ internal class AudioTranscode(
             start()
         }
         booster.level = boost()
-        booster.configure(
-            AudioProcessor.AudioFormat(plan.format.sampleRate, plan.format.channels, C.ENCODING_PCM_16BIT)
-        )
-        booster.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        cutter?.enabled = true
+        chain.forEach {
+            it.configure(AudioProcessor.AudioFormat(plan.format.sampleRate, plan.format.channels, C.ENCODING_PCM_16BIT))
+            it.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        }
     }
 
     private fun feedDecoder() {
@@ -120,23 +128,32 @@ internal class AudioTranscode(
         val codec = decoder ?: return
         val o = codec.dequeueOutputBuffer(info, TIMEOUT_US)
         if (o < 0) return
-        trimmed(codec.getOutputBuffer(o)!!, codec.outputFormat)?.let(::boosted)
+        trimmed(codec.getOutputBuffer(o)!!, codec.outputFormat)?.let(::processed)
         codec.releaseOutputBuffer(o, false)
         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-            booster.queueEndOfStream()
-            pending.add(copy(booster.output))
+            var tail: ByteBuffer? = null
+            chain.forEach { processor ->
+                tail?.let(processor::queueInput)
+                processor.queueEndOfStream()
+                tail = copy(processor.output)
+            }
+            tail?.let(pending::add)
             decodedDone = true
         }
     }
 
-    private fun boosted(pcm: ByteBuffer) {
+    private fun processed(pcm: ByteBuffer) {
         val wanted = boost()
         if (booster.level != wanted) {
             Diag.log("cast", "audio ${plan.label} boost $wanted from segment $segment")
             booster.level = wanted
         }
-        booster.queueInput(pcm)
-        pending.add(copy(booster.output))
+        var buffer = pcm
+        chain.forEach { processor ->
+            processor.queueInput(buffer)
+            buffer = copy(processor.output)
+        }
+        if (buffer.hasRemaining()) pending.add(buffer)
     }
 
     private fun feedEncoder() {
@@ -177,11 +194,23 @@ internal class AudioTranscode(
             val take = minOf(plan.framesPerSegment, frames.size)
             val bytes = Fmp4Aac.segment(segment + 1, segment * plan.segmentSamples, frames.subList(0, take).toList())
             frames.subList(0, take).clear()
-            sink.publish(segment, bytes)
+            tvSamples += take.toLong() * Fmp4Aac.SAMPLES_PER_FRAME
+            val skipped = cutter?.skippedFrames ?: 0L
+            sink.publish(segment, bytes, tvEndUs(), plan.startUs + plan.samplesToUs(tvSamples + skipped))
             segment++
         }
-        if (last) encodeDone = true
+        if (last) {
+            encodeDone = true
+            sink.ended(tvEndUs())
+            Diag.log(
+                "cast",
+                "audio ${plan.label} ended at ${tvEndUs() / MILLI}ms on the TV's clock; " +
+                    "silences cut ${plan.samplesToUs(cutter?.skippedFrames ?: 0L) / MILLI}ms in this run",
+            )
+        }
     }
+
+    private fun tvEndUs() = plan.samplesToUs(plan.first * plan.segmentSamples + tvSamples)
 
     private fun ptsUs() = inputSamples * TranscodePlan.MICROS / plan.format.sampleRate
 
@@ -219,5 +248,6 @@ internal class AudioTranscode(
         const val BITRATE = 160_000
         const val MAX_INPUT = 32 * 1024
         const val BYTES_PER_SAMPLE = 2
+        const val MILLI = 1000L
     }
 }

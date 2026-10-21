@@ -155,6 +155,12 @@ push touches the silence/boost code (`.github/workflows/audio-quality.yml`), so 
 you change that code, and name any new source file in this area so the workflow's `paths:` match it
 (preflight fails otherwise).
 
+**Suppressing a warning is Claude's call, case by case** (Dewi, 2026-10-21) — detekt, lint, compiler or any
+other: when a rule fights the code's shape (a binary-format parser full of offsets, an adapter whose size is its
+interface, a `Player` wrapper that is all overrides, a wake lock held across calls by design), suppress it on that
+declaration and say why in the commit message; when it points at a real smell (a long method doing several things,
+a tangled condition), fix the code.
+
 **detekt autocorrects and still fails the run that found the issue**, per module and fail-fast: a
 gate that is red on `ImportOrdering`/`Indentation`/`ArgumentListWrapping` alone usually goes green on
 the next run without an edit, and a build that touched N modules can need N reruns. Only a rule detekt
