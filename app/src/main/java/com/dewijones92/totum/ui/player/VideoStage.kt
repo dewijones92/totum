@@ -27,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -129,9 +130,9 @@ internal fun VideoStageWithControls(
         // Inline, the stage is already the video's shape, so the surface fills it.
         // Fullscreen the stage fills the (wider) screen, so the surface is constrained to
         // the video's aspect and letterboxed — else the surface stretches the picture.
-        PlayerSurface(
+        StagePicture(
             player = player,
-            surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+            onCastDevice = state.onCastDevice,
             modifier = if (fullscreen) {
                 Modifier.aspectRatio(aspect ?: DEFAULT_VIDEO_ASPECT_RATIO, matchHeightConstraintsFirst = true)
             } else {
@@ -238,4 +239,12 @@ private fun OverlaySeekBar(
     modifier: Modifier,
 ) {
     SeekBar(state = state, onSeekTo = onSeekTo, bufferAhead = bufferAhead.value, modifier = modifier)
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun StagePicture(player: Player, onCastDevice: Boolean, modifier: Modifier) {
+    key(onCastDevice) {
+        PlayerSurface(player = player, surfaceType = SURFACE_TYPE_SURFACE_VIEW, modifier = modifier)
+    }
 }

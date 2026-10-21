@@ -28,6 +28,9 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.playback.cast.CastHost
+import com.dewijones92.totum.playback.cast.CastStreams
+import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -70,6 +73,7 @@ public class PlaybackService : MediaSessionService() {
     // comes and goes; null (or no devices) means everything plays locally as before.
     @UnstableApi
     private var castPlayer: CastPlayer? = null
+    private var castStreams: CastStreams? = null
     private var currentPlayer: Player? = null
 
     // Last item/position handed across a local↔cast switch, so a cast disconnect
@@ -138,6 +142,7 @@ public class PlaybackService : MediaSessionService() {
         cachedPreloader = preloader
         sourceFactory().heldSourceFor = preloader::takeFor
         setUpCast(player)
+        pictureWatch.start()
         mediaSession = MediaSession.Builder(this, currentPlayer ?: player)
             .setCallback(SkipSilenceCallback())
             .setMediaButtonPreferences(queueSkip.buttons())
@@ -291,11 +296,17 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     private fun setUpCast(localPlayer: Player) {
         val castContext = runCatching { CastContext.getSharedInstance(this) }.getOrNull() ?: return
-        val cast = CastPlayer(castContext)
+        val host = CastHost(this)
+        val streams = CastStreams(this, { booster.level }, { host.baseUrl(CastStreams.PORT) }, host::hold)
+        castStreams = streams
+        val cast = CastPlayer(castContext, TotumCastConverter(streams))
         cast.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
                 override fun onCastSessionAvailable() = switchTo(cast)
-                override fun onCastSessionUnavailable() = switchTo(localPlayer)
+                override fun onCastSessionUnavailable() {
+                    switchTo(localPlayer)
+                    streams.stopAll()
+                }
             },
         )
         castPlayer = cast
@@ -320,9 +331,14 @@ public class PlaybackService : MediaSessionService() {
             lastHandoffPositionMs = position
         }
         previous.stop()
+        if (target === castPlayer) {
+            previous.clearVideoSurface()
+            Diag.log("cast", "the phone's player let go of its video surface while the TV plays")
+        }
         currentPlayer = target
         mediaSession?.player = target
         Diag.log("cast", "player -> ${if (target === castPlayer) "cast" else "local"}")
+        if (target === player) pictureWatch.afterCast()
     }
 
     /** Tapping the media notification reopens the app (its launcher activity). */
@@ -355,6 +371,9 @@ public class PlaybackService : MediaSessionService() {
     private val foregroundHold = ForegroundHold(FOREGROUND_AFTER_STOP_MS) { SystemClock.elapsedRealtime() }
     private val releaseCheck = Handler(Looper.getMainLooper())
 
+    @UnstableApi
+    private val pictureWatch = PictureWatch({ player }, { currentPlayer })
+
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
         val player = session.player
         super.onUpdateNotification(
@@ -373,6 +392,8 @@ public class PlaybackService : MediaSessionService() {
         silentTail.stop()
         mediaSession?.release()
         player?.release()
+        pictureWatch.stop()
+        castStreams?.stopAll()
         castPlayer?.setSessionAvailabilityListener(null)
         castPlayer?.release()
         mediaSession = null

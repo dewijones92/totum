@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.os.bundleOf
 import androidx.media3.common.C
+import androidx.media3.common.DeviceInfo
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -74,6 +75,7 @@ public class Media3PlaybackController(
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
     private val playingNow = PlayingSignal()
+    private val remoteEnd = RemoteEnd()
 
     // extraBufferCapacity so an emit from the player's main-thread callback never suspends.
     private val _streamFailures = MutableSharedFlow<StreamFailure>(extraBufferCapacity = 1)
@@ -161,6 +163,12 @@ public class Media3PlaybackController(
                             )
                         }
 
+                        override fun onMediaItemTransition(mediaItem: Media3MediaItem?, reason: Int) {
+                            val ended = remoteEnd.vanished(connected, mediaItem) ?: return
+                            scope.launch { progressStore.setPlayed(ended.itemId, played = true) }
+                            _events.tryEmit(ended)
+                        }
+
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             playingNow.changed(isPlaying)
                             if (!isPlaying) return
@@ -234,6 +242,7 @@ public class Media3PlaybackController(
                                 )
                             }
                             connected.duration.takeIf { it > 0 }?.let { lastDurationMs = it }
+                            remoteEnd.observe(player)
                             _state.value = connected.currentPlaybackState()
                         }
                     },
@@ -571,7 +580,8 @@ public class Media3PlaybackController(
             return
         }
         val from = itemContext.id
-        val finished = reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
+        val finished = remoteEnd.finishedOnTv(from, new.mediaItem?.mediaId)
+            ?: (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION)
         noteItemEnd(
             controller,
             if (finished) ItemEndWatch.Reason.ENDED else ItemEndWatch.Reason.REPLACED,
@@ -900,6 +910,7 @@ public class Media3PlaybackController(
             videoAspectRatio = videoSize.takeIf { it.width > 0 && it.height > 0 }
                 ?.let { it.width * it.pixelWidthHeightRatio / it.height },
             hasEnded = playbackState == Player.STATE_ENDED,
+            onCastDevice = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE,
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,
             bufferedPositionMs = bufferedPosition.coerceAtLeast(currentPosition).coerceAtLeast(0),

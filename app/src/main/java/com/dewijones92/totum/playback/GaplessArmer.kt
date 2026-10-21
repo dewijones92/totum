@@ -50,6 +50,7 @@ internal class GaplessArmer(
     }
 
     private fun due(state: PlaybackState): Boolean {
+        if (state.onCastDevice) return !state.hasEnded
         val remaining = state.durationMs?.let { it - state.positionMs } ?: return false
         return !state.hasEnded && remaining in 0..leadMs && settled(state, remaining)
     }
@@ -67,7 +68,8 @@ internal class GaplessArmer(
         val remaining = state.durationMs?.minus(state.positionMs)
         Diag.log(
             "gapless",
-            "${remaining}ms left of ${state.itemId.value} — getting ${next.item.id.value} in line (metered=$onMetered)",
+            "${remaining}ms left of ${state.itemId.value} — getting ${next.item.id.value} in line " +
+                "(metered=$onMetered, cast=${state.onCastDevice})",
         )
         if (!line.arm(!onMetered)) {
             Diag.log("gapless", "${next.item.id.value} was not put in line; the queue will advance as usual")

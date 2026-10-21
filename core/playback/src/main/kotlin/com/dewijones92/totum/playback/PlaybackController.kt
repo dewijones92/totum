@@ -230,6 +230,7 @@ public data class PlaybackState(
      * undecided. See `StallWatchdog`.
      */
     val bufferedPositionMs: Long = positionMs,
+    val onCastDevice: Boolean = false,
     /** Skip (e.g. SponsorBlock) segments for the current item — drawn on the seek bar. */
     val skipSegments: List<SkipSegment> = emptyList(),
     /** Whether silence-skipping (dead-air trimming) is currently on. */
