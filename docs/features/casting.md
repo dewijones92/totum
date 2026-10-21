@@ -20,8 +20,10 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
   item by itself at the end of one.
 - **Stop casting** hands back to the phone at the TV's position, picture and all.
 
-Not yet: downloaded videos' picture (sound only), formats picked for the TV, torrents, live streams, a warning before
-a format the TV cannot play.
+- **Downloads** cast with their picture: the video track is copied (never re-encoded) into a seekable WebM or MP4
+  once and cached.
+
+Not yet: formats picked for the TV, torrents, live streams, a warning before a format the TV cannot play.
 
 Diagnostics: every decision logs under `[cast]` (`dewidebug`): the manifest URL and what it carries, each request the
 TV makes, audio production from which segment and why, the boost changing mid-cast, the receiver dropping an item and

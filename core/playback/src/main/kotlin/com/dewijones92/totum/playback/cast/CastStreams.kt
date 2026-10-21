@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback.cast
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -12,6 +13,7 @@ import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
+import java.io.File
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -44,19 +46,31 @@ internal class CastStreams(
 
         @Volatile var layout: StreamLayout? = null
 
+        @Volatile var videoFile: File? = null
+
         @Volatile var prepared = false
 
         @Synchronized
         fun ready() {
             if (prepared) return
             audio.prepare()
-            layout = videoUrl?.let { StreamLayouts.probe { span -> Upstream.bytes(it, span) } }
+            layout = when {
+                videoUrl == null -> null
+                videoUrl.startsWith("http") -> StreamLayouts.probe { span -> Upstream.bytes(videoUrl, span) }
+                else -> localVideo(File(videoUrl.toUri().path ?: videoUrl))
+            }
             prepared = true
             Diag.log(
                 "cast",
                 "session $token ready: ${item.mediaId} video=${layout?.describe() ?: "none"} " +
                     "audio=processed ${audio.format.sampleRate}Hz boost=${boost()}",
             )
+        }
+
+        private fun localVideo(source: File): StreamLayout? {
+            val remuxed = VideoRemux.videoOnly(context, source, "${item.mediaId}/$token") ?: return null
+            videoFile = remuxed
+            return StreamLayouts.probe { span -> LocalRanges.bytes(remuxed, span) }
         }
 
         fun manifest(): String {
@@ -92,6 +106,7 @@ internal class CastStreams(
         }
         return when {
             separateAudio != null && !listening -> Sources(uri, separateAudio, listening)
+            !listening && !uri.startsWith("http") -> Sources(uri, uri, listening)
             separateAudio != null -> Sources(null, separateAudio, listening)
             else -> Sources(null, uri, listening)
         }
@@ -105,7 +120,6 @@ internal class CastStreams(
         listening -> null
         separateAudio == null && uri.contains("googlevideo.com") && !uri.contains("mime=audio") ->
             "a single muxed stream"
-        separateAudio != null && !uri.startsWith("http") -> "video on disk is not cast with processing yet"
         else -> null
     }
 
@@ -158,7 +172,8 @@ internal class CastStreams(
                 MimeTypes.APPLICATION_MPD,
                 session.manifest().toByteArray()
             )
-            what == "video" -> proxy(session.videoUrl ?: return notFound(), request.header("range"))
+            what == "video" -> session.videoFile?.let { LocalRanges.reply(it, request.header("range")) }
+                ?: proxy(session.videoUrl ?: return notFound(), request.header("range"))
             what == "audio/init.mp4" -> {
                 session.ready()
                 HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, session.audio.init())

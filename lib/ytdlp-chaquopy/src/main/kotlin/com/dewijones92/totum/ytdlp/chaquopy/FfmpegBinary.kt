@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ytdlp.chaquopy
 
 import android.content.Context
+import com.dewijones92.totum.common.BundledBinaries
 import java.io.File
 
 /**
@@ -32,11 +33,11 @@ internal object FfmpegBinary {
         val nativeDir = context.applicationInfo.nativeLibraryDir
         // ffmpeg is required; ffprobe is linked when present so an older build that shipped
         // without it still merges streams rather than failing outright.
-        if (!File(nativeDir, "libffmpeg.so").exists()) return null
+        if (!File(nativeDir, BundledBinaries.FFMPEG).exists()) return null
 
         val dir = File(context.filesDir, LINK_DIR).apply { mkdirs() }
-        if (!NativeBinaryLink.point(File(dir, "ffmpeg"), File(nativeDir, "libffmpeg.so"))) return null
-        NativeBinaryLink.point(File(dir, "ffprobe"), File(nativeDir, "libffprobe.so"))
+        if (!NativeBinaryLink.point(File(dir, "ffmpeg"), File(nativeDir, BundledBinaries.FFMPEG))) return null
+        NativeBinaryLink.point(File(dir, "ffprobe"), File(nativeDir, BundledBinaries.FFPROBE))
         return dir.absolutePath
     }
 }

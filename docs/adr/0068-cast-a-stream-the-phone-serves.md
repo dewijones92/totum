@@ -62,7 +62,11 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 ## Consequences
 
 - The phone relays the video bytes over Wi-Fi and encodes the audio while casting; the TV decodes.
-- Not yet: a downloaded video's picture (cast as
+- A downloaded video's picture: its video track is remuxed (stream copy, no re-encode) with the bundled ffmpeg into a
+  WebM with its Cues at the front, or a fragmented MP4 with a global `sidx` when the codec cannot go in WebM, cached in
+  `cacheDir/cast-remux`, and served by byte range beside the processed audio from the same file (Gangnam Style, 53 MB:
+  0.2 s). The bundled binaries' names live once in `:lib:common` (`BundledBinaries`).
+- Not yet: (cast as
   its sound for now), formats chosen for the TV rather than the phone, live streams (given to the receiver as they are),
   a warning and opt-in re-encode for a format the TV cannot play, and a TV-side up-next UI (Dewi chose the free Cast
   queue for now).
