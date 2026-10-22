@@ -109,6 +109,8 @@ data class BulkAction(
     @param:PluralsRes val confirm: Int? = null,
     val confirmCount: Int? = null,
     val holdToConfirm: Boolean = false,
+    @param:StringRes val holdHint: Int = R.string.hold_to_download,
+    @param:StringRes val keep: Int = R.string.group_download_no,
     val run: () -> Unit,
 )
 
@@ -253,8 +255,8 @@ private fun ConfirmBulk(action: BulkAction, selected: Int, onDismiss: () -> Unit
                 title = null,
                 body = pluralStringResource(confirm, count, count),
                 yes = stringResource(action.label),
-                hint = stringResource(R.string.hold_to_download),
-                no = stringResource(R.string.group_download_no),
+                hint = stringResource(action.holdHint),
+                no = stringResource(action.keep),
             ),
             onYes = onConfirm,
             onNo = onDismiss,
@@ -309,7 +311,14 @@ fun mediaBulkActions(
                     )
                     missing.forEach { a.download(it, audioOnly = downloadAudioOnly) }
                 }.takeIf { missing.isNotEmpty() },
-                BulkAction(R.string.download_delete) { onDisk.forEach { a.deleteDownload(it.id) } }
+                BulkAction(
+                    R.string.download_delete,
+                    confirm = R.plurals.download_delete_confirm,
+                    confirmCount = onDisk.size,
+                    holdToConfirm = true,
+                    holdHint = R.string.hold_to_confirm,
+                    keep = R.string.keep_them,
+                ) { onDisk.forEach { a.deleteDownload(it.id) } }
                     .takeIf { onDisk.isNotEmpty() },
                 BulkAction(R.string.mark_played) { chosen.forEach { a.setPlayed(it.id, true) } },
                 BulkAction(R.string.mark_unplayed) { chosen.forEach { a.setPlayed(it.id, false) } },

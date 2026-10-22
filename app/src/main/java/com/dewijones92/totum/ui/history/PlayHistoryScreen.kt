@@ -1,5 +1,7 @@
 package com.dewijones92.totum.ui.history
 
+import com.dewijones92.totum.ui.common.destructiveTexts
+import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,13 +46,17 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
     val addToPlaylist = rememberPlaylistAdder(container)
     val selection = rememberSelection("history")
     val listFilter = rememberListFilter("history")
+    val confirmClear = rememberHoldToConfirmAsk()
+    val clearTexts = destructiveTexts(R.plurals.history_clear_confirm, items.size, R.string.history_clear)
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(stringResource(R.string.history_title), onBack) {
                 FilterToggle(listFilter, items.size)
                 if (items.isNotEmpty()) {
-                    TextButton(onClick = viewModel::clear) { Text(stringResource(R.string.history_clear)) }
+                    TextButton(onClick = { confirmClear(clearTexts) { viewModel.clear() } }) {
+                        Text(stringResource(R.string.history_clear))
+                    }
                 }
             }
             if (items.isEmpty()) {

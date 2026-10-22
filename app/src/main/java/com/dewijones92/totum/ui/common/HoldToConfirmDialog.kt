@@ -15,6 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.R
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 
 data class HoldToConfirmTexts(
     val title: String?,
@@ -53,6 +58,15 @@ fun HoldToConfirmDialog(
         },
     )
 }
+
+@Composable
+fun destructiveTexts(@PluralsRes body: Int, count: Int, @StringRes yes: Int): HoldToConfirmTexts = HoldToConfirmTexts(
+    title = null,
+    body = pluralStringResource(body, count, count),
+    yes = stringResource(yes),
+    hint = stringResource(R.string.hold_to_confirm),
+    no = stringResource(R.string.keep_them),
+)
 
 class HoldToConfirmAsk {
     internal var pending by mutableStateOf<Pair<HoldToConfirmTexts, () -> Unit>?>(null)

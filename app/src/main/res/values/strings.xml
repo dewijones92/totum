@@ -690,6 +690,28 @@
     <string name="refused_no_stream_signed_out">YouTube gave no stream for it. Signing in usually fixes this: Library → Account</string>
     <string name="details_copy_link">link</string>
     <string name="hold_to_download">⏳ Hold to download</string>
+    <string name="hold_to_confirm">⏳ Hold to confirm</string>
+    <string name="keep_them">Keep them</string>
+    <plurals name="queue_clear_confirm">
+        <item quantity="one">⚠️ Clear the queue? Its %d item goes, and this cannot be undone.</item>
+        <item quantity="other">⚠️ Clear the queue? All %d items go, and this cannot be undone.</item>
+    </plurals>
+    <plurals name="queue_remove_confirm">
+        <item quantity="one">⚠️ Remove %d item from the queue?</item>
+        <item quantity="other">⚠️ Remove %d items from the queue?</item>
+    </plurals>
+    <plurals name="download_delete_confirm">
+        <item quantity="one">⚠️ Delete the downloaded copy of %d item from this phone?</item>
+        <item quantity="other">⚠️ Delete the downloaded copies of %d items from this phone?</item>
+    </plurals>
+    <plurals name="playlist_remove_confirm">
+        <item quantity="one">⚠️ Remove %d item from this playlist?</item>
+        <item quantity="other">⚠️ Remove %d items from this playlist?</item>
+    </plurals>
+    <plurals name="history_clear_confirm">
+        <item quantity="one">⚠️ Clear your play history? Its %d entry goes, and this cannot be undone.</item>
+        <item quantity="other">⚠️ Clear your play history? All %d entries go, and this cannot be undone.</item>
+    </plurals>
     <string name="starting_play">⏳ Starting…</string>
     <string name="settings_explore">Start in Explore mode</string>
     <string name="settings_explore_summary">Explore plays a related video after each one, YouTube-style (for a podcast, the show\'s next episode), and leaves your queue waiting where it was.</string>

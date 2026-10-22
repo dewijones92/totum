@@ -123,7 +123,7 @@ private fun PlaylistBody(
             { it.item },
             hoisted = selection,
             extra = { chosen ->
-                listOf(BulkAction(R.string.playlist_remove_from) { chosen.forEach { viewModel.remove(it.item.id) } })
+                listOf(BulkAction(R.string.playlist_remove_from, confirm = R.plurals.playlist_remove_confirm) { chosen.forEach { viewModel.remove(it.item.id) } })
             },
         ) {
             LazyColumn(Modifier.fillMaxSize()) {
