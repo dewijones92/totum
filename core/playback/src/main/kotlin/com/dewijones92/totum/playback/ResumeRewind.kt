@@ -34,6 +34,12 @@ internal fun rewoundStart(positionMs: Long, pausedMs: Long, facts: ResumeFacts):
 internal data class SavedPlace(val positionMs: Long?, val savedAtEpochMs: Long?)
 
 internal fun startFor(saved: SavedPlace, nowEpochMs: Long, facts: ResumeFacts, introEndMs: Long?): StartChoice {
+    if (facts.live) {
+        return StartChoice(
+            0,
+            "live: from the edge of the stream, never a saved place (${saved.positionMs}ms)"
+        )
+    }
     val resumed = when {
         saved.positionMs == null -> StartChoice(0, "nothing saved, from the start")
         saved.savedAtEpochMs == null -> StartChoice(

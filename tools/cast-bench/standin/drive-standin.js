@@ -21,6 +21,12 @@ const page = `<!doctype html><html><body>
   });
   const tab = await browser.newPage();
   tab.on('console', (m) => say({ console: m.text().slice(0, 300) }));
+  if (process.env.LOG_SQ) {
+    tab.on('requestfinished', async (r) => {
+      const sq = /[?&]sq=(\d+)/.exec(r.url());
+      if (sq) say({ sq: sq[1], itag: (/itag=(\d+)/.exec(r.url()) || [])[1], ms: Math.round(r.timing().responseEnd) });
+    });
+  }
   tab.on('requestfailed', (r) => say({ requestFailed: r.url().replace(/\/c\/[0-9a-f]+\//, '/c/…/'), why: r.failure()?.errorText }));
   await tab.setContent(page);
   await tab.waitForFunction(() => window.shaka);

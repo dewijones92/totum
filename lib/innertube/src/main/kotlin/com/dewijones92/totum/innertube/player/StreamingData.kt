@@ -24,7 +24,7 @@ public data class StreamingData(
      * every format is directly fetchable, which is still the common case.
      */
     val serverAbrStreamingUrl: HttpUrl? = null,
-    val hlsManifestUrl: HttpUrl? = null,
+    val liveManifestUrl: HttpUrl? = null,
     /**
      * `videoPlaybackUstreamerConfig`, base64url-decoded — the one field a SABR request cannot
      * omit. Without it the server answers `RELOAD_PLAYER_RESPONSE: sabr.malformed_config`.
@@ -97,6 +97,8 @@ public data class PlayableFormat(
     val contentLength: Long? = null,
     val cipher: SignatureCipher? = null,
     val width: Int? = null,
+    val initRange: LongRange? = null,
+    val targetDurationSec: Int? = null,
 )
 
 public data class SignatureCipher(val signature: String, val parameter: String, val url: HttpUrl)

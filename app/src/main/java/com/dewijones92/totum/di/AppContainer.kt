@@ -171,6 +171,7 @@ import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
+import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.exploreModeFor
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.startStreamRecovery
@@ -205,6 +206,7 @@ import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.CastAwareCodecSupport
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
+import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
 import com.dewijones92.totum.video.ProgressOutboxDrain
@@ -775,6 +777,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 // for failures.
                 preferAccount = { accountSubscriptions.signedIn.value },
                 botBackOff = polite.botBackOff,
+                live = LiveStreamManifest(LiveStreamManifest.headsOver(httpClient), LocalManifests::publish),
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
             resumePositionMs = { id -> randomStarts.peek(id) ?: playbackProgressStore.resumePositionMs(id) },

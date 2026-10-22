@@ -115,6 +115,13 @@ class ResumeRewindTest {
     }
 
     @Test
+    fun `a live stream starts at its live edge, never at a saved place`() {
+        val live = talk.copy(live = true)
+        assertEquals(0L, startFor(SavedPlace(179_449, 0), 60_000, live, null).positionMs)
+        assertEquals(0L, startFor(SavedPlace(179_449, null), 60_000, live, introEndMs = 83_000).positionMs)
+    }
+
+    @Test
     fun `a start inside the show's intro begins where the intro ends instead`() {
         val fromTop = startFor(SavedPlace(null, null), 0, talk, introEndMs = 83_000)
         assertEquals(83_000L, fromTop.positionMs)

@@ -67,7 +67,7 @@ public object PlayerResponseParser {
             StreamingData(
                 formats = formats,
                 serverAbrStreamingUrl = streaming.stringAt("serverAbrStreamingUrl")?.let(HttpUrl::parse),
-                hlsManifestUrl = streaming.stringAt("hlsManifestUrl")?.let(HttpUrl::parse),
+                liveManifestUrl = streaming.stringAt("hlsManifestUrl")?.let(HttpUrl::parse),
                 ustreamerConfig = root.ustreamerConfig(),
             ),
             details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),
@@ -150,6 +150,12 @@ public object PlayerResponseParser {
             fps = this["fps"]?.jsonPrimitive?.longOrNull?.toInt(),
             contentLength = stringAt("contentLength")?.toLongOrNull(),
             cipher = stringAt("signatureCipher")?.takeIf { stringAt("url") == null }?.let(::signatureCipher),
+            initRange = (this["initRange"] as? JsonObject)?.let { range ->
+                val start = range.stringAt("start")?.toLongOrNull()
+                val end = range.stringAt("end")?.toLongOrNull()
+                if (start != null && end != null) start..end else null
+            },
+            targetDurationSec = this["targetDurationSec"]?.jsonPrimitive?.longOrNull?.toInt(),
         )
     }
 

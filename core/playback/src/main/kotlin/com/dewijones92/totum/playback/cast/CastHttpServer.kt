@@ -32,7 +32,10 @@ internal sealed interface HttpReply {
     ) : HttpReply
 }
 
-internal class CastHttpServer(private val handle: (HttpRequest) -> HttpReply) {
+internal class CastHttpServer(
+    private val handle: (HttpRequest) -> HttpReply,
+    private val address: java.net.InetAddress? = null,
+) {
 
     private var socket: ServerSocket? = null
     private val pool = Executors.newCachedThreadPool { r -> Thread(r, "cast-http").apply { isDaemon = true } }
@@ -48,14 +51,14 @@ internal class CastHttpServer(private val handle: (HttpRequest) -> HttpReply) {
         val s = runCatching {
             ServerSocket().apply {
                 reuseAddress = true
-                bind(InetSocketAddress(preferredPort))
+                bind(InetSocketAddress(address, preferredPort))
             }
         }
             .getOrElse {
                 Diag.warn("cast", "port $preferredPort is taken; serving on any free port", it)
                 ServerSocket().apply {
                     reuseAddress = true
-                    bind(InetSocketAddress(0))
+                    bind(InetSocketAddress(address, 0))
                 }
             }
         socket = s

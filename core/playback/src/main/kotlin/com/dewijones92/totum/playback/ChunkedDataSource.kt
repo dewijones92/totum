@@ -44,6 +44,7 @@ internal class ChunkedDataSource(
     private var spec: DataSpec? = null
     private var read: ChunkedRead? = null
     private var remote = false
+    private var direct = false
 
     override fun addTransferListener(transferListener: TransferListener) {
         upstream.addTransferListener(transferListener)
@@ -51,6 +52,8 @@ internal class ChunkedDataSource(
 
     override fun open(dataSpec: DataSpec): Long {
         spec = dataSpec
+        direct = dataSpec.uri.getQueryParameter("sq") != null
+        if (direct) return upstream.open(dataSpec)
         remote = dataSpec.uri.scheme?.lowercase() in REMOTE_SCHEMES
         val cursor = ChunkedRead(remainingFor(dataSpec), chunkBytes)
         read = cursor
@@ -155,6 +158,7 @@ internal class ChunkedDataSource(
      * refuses to continue past a range that produced nothing, and the loop cannot outlive that.
      */
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (direct) return upstream.read(buffer, offset, length)
         val cursor = read ?: return C.RESULT_END_OF_INPUT
         while (!cursor.finished) {
             if (!cursor.rangeOpen) openNextRange(cursor)
@@ -208,6 +212,7 @@ internal class ChunkedDataSource(
         closeRange()
         spec = null
         read = null
+        direct = false
     }
 
     /** Wraps another factory so every source it makes fetches in ranges. */

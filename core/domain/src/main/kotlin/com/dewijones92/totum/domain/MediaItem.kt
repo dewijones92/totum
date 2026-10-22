@@ -104,7 +104,11 @@ public data class MediaItem(
  * Substituted once, at the moment of resolution, so every downstream path (a quality switch,
  * Listen mode, a stall rescue) carries the listing's facts without knowing it has to.
  */
+internal fun MediaItem.kindLearnedFrom(resolved: MediaItem): MediaContentKind =
+    if (resolved.contentKind == MediaContentKind.LIVE) MediaContentKind.LIVE else contentKind
+
 public fun MediaItem.withStreamFrom(stream: MediaItem): MediaItem = copy(
+    contentKind = kindLearnedFrom(stream),
     // The resolution wins wherever it actually says something, so nothing about how a resolved
     // item plays or reads changes. This is deliberately the SMALLEST rule that fixes the loss:
     // an early version also preferred the listing's title, which changed shipped behaviour for no

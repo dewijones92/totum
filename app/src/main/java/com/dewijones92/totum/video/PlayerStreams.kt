@@ -104,6 +104,7 @@ class InnerTubePlayerStreams(
     private val preferAccount: () -> Boolean = { false },
     private val now: () -> Long = System::currentTimeMillis,
     private val botBackOff: com.dewijones92.totum.common.BotBackOff? = null,
+    private val live: LiveStreamManifest? = null,
 ) : PlayerStreams {
 
     private val accountMisses = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -225,7 +226,7 @@ class InnerTubePlayerStreams(
                 "$videoId: the signed-in TV client gave nothing ($outcome); trying anonymously"
             },
         )
-        return signedIn
+        return signedIn?.let { live?.applyTo(videoId, it) ?: it }
     }
 
     /**
@@ -297,7 +298,7 @@ internal fun StreamingData.videoQualities(
     wanted: List<String> = emptyList(),
     support: VideoCodecSupport = VideoCodecSupport.Permissive,
 ): List<VideoQuality> {
-    hlsManifestUrl?.let { live ->
+    liveManifestUrl?.let { live ->
         val height = bestOfferedHeight ?: LIVE_LABEL_HEIGHT
         return listOf(VideoQuality(LIVE_ID, "🔴 Live", height, live, audioUrl = null))
     }
@@ -356,7 +357,7 @@ private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioT
     VideoQuality("$height", "${height}p", height, url, audioUrl, audio = audio)
 
 /** Best audio-only stream, for "Listen" mode and as the merge partner for a video-only one. */
-internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? = hlsManifestUrl
+internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? = liveManifestUrl
     ?: bestAudioFormat(wanted)?.url
 
 private fun StreamingData.bestAudioFormat(wanted: List<String>): PlayableFormat? =
@@ -369,7 +370,7 @@ private fun StreamingData.bestAudioFormat(wanted: List<String>): PlayableFormat?
  * data-friendly, and the quality menu offers the higher merged ladders on demand. Choosing the
  * tallest format here instead would quietly make every play a merged 2160p one.
  */
-internal fun StreamingData.bestMuxedUrl(wanted: List<String> = emptyList()): HttpUrl? = hlsManifestUrl
+internal fun StreamingData.bestMuxedUrl(wanted: List<String> = emptyList()): HttpUrl? = liveManifestUrl
     ?: directlyPlayable
         .filter { it.mimeType?.startsWith("video/") == true && it.mimeType?.contains("mp4a") == true }
         .bestSounding(wanted, tieBreak = compareBy { it.height ?: 0 })
