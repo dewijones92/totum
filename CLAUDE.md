@@ -152,7 +152,9 @@ added requests to the blocked IP. A push run logs "live YouTube phase skipped on
 
 `-Ptotum.exsurgeTests` does not ADD Exsurge's tests, it RESTRICTS every module's test task to them:
 the opt-in filter includes only the requested phases. Run it as its own command; combined with another
-module's `test` it reports "0 tests" for that module, which reads as a pass (2026-10-07).
+module's `test` it reports "0 tests" for that module, which reads as a pass (2026-10-07). The reverse bites too (2026-10-22): `--tests '*ExsurgeControllerTest'` WITHOUT the flag runs none of them and
+still succeeds, so a change to Exsurge passed locally and went red in CI. Any change under `exsurge` gets
+`./gradlew test -Ptotum.exsurgeTests` before the push.
 
 The audio-quality suite (`…playback.audioquality.*`) is excluded from `test` and runs in CI only when a
 push touches the silence/boost code (`.github/workflows/audio-quality.yml`), so run it yourself whenever

@@ -251,11 +251,11 @@ class ExsurgeControllerTest {
     }
 
     @Test
-    fun `turning it off cancels the alarm`() {
+    fun `turning it off cancels the summons and leaves only the next reminder`() {
         val exsurge = controller()
         exsurge.turnOn()
         exsurge.updateSettings("test") { it.copy(enabled = false) }
-        assertEquals(null, ports.wakes.last())
+        assertEquals(exsurge.view.value.settings.nextActiveStart(now, zone), ports.wakes.last())
         assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
     }
 
@@ -346,7 +346,7 @@ class ExsurgeControllerTest {
         exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
         exsurge.updateSettings("test") { it.copy(enabled = false) }
         assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
-        assertEquals(null, ports.wakes.last())
+        assertEquals(exsurge.view.value.settings.nextActiveStart(now, zone), ports.wakes.last())
     }
 
     @Test
