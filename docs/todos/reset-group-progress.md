@@ -1,7 +1,7 @@
 ---
 title: Reset a whole group or list to the start
 kind: todo
-status: requested 2026-10-22, decided
+status: built 2026-10-22 (queue groups)
 area: queue/library
 priority: medium
 requested: 2026-10-22

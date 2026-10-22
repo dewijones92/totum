@@ -44,6 +44,7 @@ fun BackHeader(
                 .padding(horizontal = 12.dp),
         )
         trailing()
+        CastingAction()
     }
 }
 

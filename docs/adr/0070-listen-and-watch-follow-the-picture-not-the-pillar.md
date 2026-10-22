@@ -39,5 +39,7 @@ picture is a separate fact, and only that one decides Listen and Watch.
 
 - One rule for every source, unit-tested in `PictureTest` and end to end in `TorrentListenModeTest` (both new cases
   failed against the old code: no switch for a torrent; a video podcast's picture still decoded in Listen mode).
-- A podcast episode with an extension-less link shows no switch on its row until it has been played once on screen.
+- A podcast episode with an extension-less link shows no switch on its row or menu (what playing finds is not stored per item); the player's toggle appears once the stream shows a video track.
 - Listening to a video podcast with no audio-only version saves decoding and battery, not data.
+- The "switch the picture off" rule is one function, `listensWithThePictureOff`, used by the queue's play route and by
+  gapless arming alike (the review of c7b1967a found arming had its own copy that kept the picture on).

@@ -53,7 +53,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 35 | [An "Even out" boost rides the level passage by passage](0035-even-out-rides-the-level.md) | Accepted |
 | 36 | [Recent actions come back as a Recently row and app-icon shortcuts](0036-recent-actions-come-back.md) | Accepted |
 | 37 | [Exsurge nudges when the phone has lain flat while it is off](0037-exsurge-nudges-a-flat-phone.md) | Accepted |
-| 38 | [Exsurge switched off comes back on when the next active day starts](0038-exsurge-off-means-off-for-today.md) | Accepted |
+| 38 | [Exsurge switched off comes back on when the next active day starts](0038-exsurge-off-means-off-for-today.md) | Superseded by 71 |
 | 39 | [The floor is Android 13 (minSdk 33), so Totum runs on a Pixel 4a](0039-minsdk-33-for-the-pixel-4a.md) | Accepted |
 | 40 | [The queue drags with the Reorderable library, and a group moves as one block](0040-the-queue-drags-by-real-positions.md) | Accepted |
 | 41 | [Renovate runs at weekends, merges only its own green PRs, and Media3 waits for a soak](0041-renovate-runs-at-weekends-and-media3-waits-for-a-soak.md) | Accepted |
@@ -86,3 +86,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 68 | [Casting plays a stream the phone serves, with Totum's own audio and the original video packets](0068-cast-a-stream-the-phone-serves.md) | Accepted |
 | 69 | [Live streams play a manifest Totum builds from the live head](0069-live-streams-play-a-manifest-totum-builds.md) | Accepted |
 | 70 | [Listen and Watch follow the picture, not the pillar](0070-listen-and-watch-follow-the-picture-not-the-pillar.md) | Accepted |
+| 71 | [Exsurge switched off stays off, and reminds once a day](0071-exsurge-off-stays-off-and-reminds-once-a-day.md) | Accepted |

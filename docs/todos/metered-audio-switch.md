@@ -4,7 +4,7 @@ kind: todo
 area: playback
 priority: high
 status: shipped — unit-tested, and proven on a device with the radios actually toggled
-updated: 2026-08-04
+updated: 2026-10-22
 ---
 
 # Drop to audio when Wi-Fi drops mid-video
@@ -45,9 +45,12 @@ level, and the interesting case is a state that persists.
 
 - **Coming back to Wi-Fi does NOT restore video.** Dewi's call: a screen lighting up with video
   nobody asked for is worse than staying put, and it is one tap away.
-- **Once per item, re-armed by returning to Wi-Fi**, so a second trip out switches again. A flag
-  that survives for the life of the process is the exact defect that broke autoplay and then the
-  stall rescue; this would have been the third time.
+- ~~**Once per item**~~ **Once per stretch of mobile data** (changed 2026-10-22), re-armed by returning to
+  Wi-Fi, so a second trip out switches again. Per item was wrong: report 20261017T082929 (0.1.645) had Dewi put
+  the picture back on for a Miss Rachel video on mobile data, and the next video was switched to audio again 17 s
+  later, because the stretch had long passed the hold: *"it kept weirdly switching back to audio"*. Putting the
+  picture back by hand now holds until Wi-Fi returns. The per-item "keep video" override this replaced was never
+  wired to anything; only its tests called it.
 - **A failed switch is never announced.** Video is still running, and saying otherwise would be a
   lie in a notification.
 - **Its own notification channel**, so it can be silenced alone. A notification you cannot turn off

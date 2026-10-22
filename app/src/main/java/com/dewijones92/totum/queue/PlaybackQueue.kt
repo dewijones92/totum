@@ -555,7 +555,7 @@ class PlaybackQueue(
             queued,
             decision.route,
             skipSegments = decision.onDisk?.skipSegments.orEmpty(),
-            pictureRefused = pictures.soundOnly(queued),
+            sound = ArmedSound(pictureRefused = pictures.soundOnly(queued), listening = decision.audio),
             allowStream = allowStream,
         )
     }

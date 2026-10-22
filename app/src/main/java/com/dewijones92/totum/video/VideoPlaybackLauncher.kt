@@ -14,6 +14,7 @@ import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.listensWithThePictureOff
 import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.withStreamFrom
@@ -142,6 +143,7 @@ class VideoPlaybackLauncher(
         current = null
         currentWatchUrl = null
         _quality.value = switchState(picture, audioOnly)
+        Diag.log("playback", "${item.id.value} plays from disk [picture=$picture listening=$audioOnly]")
         playback.play(
             item,
             kind,
@@ -155,7 +157,7 @@ class VideoPlaybackLauncher(
     fun playStream(route: PlayRoute.AudioStream, queued: PlayableItem, startPositionMs: Long, listening: Boolean) {
         val item = route.playable.item
         val picture = queued.pictureForSwitching
-        val withoutPicture = listening && picture != Picture.NO && !route.viaAudioOnlyUrl
+        val withoutPicture = queued.listensWithThePictureOff(route, listening)
         current = null
         currentWatchUrl = null
         _quality.value = switchState(picture, listening)
@@ -501,6 +503,7 @@ class VideoPlaybackLauncher(
         playback.play(
             resolved.item.copy(mediaUrl = audio),
             skipSegments = resolved.skipSegments,
+            subtitles = resolved.subtitles,
             startPositionMs = fromMs,
         )
     }
@@ -583,6 +586,7 @@ class VideoPlaybackLauncher(
             resolved.item.copy(mediaUrl = quality.videoUrl),
             skipSegments = resolved.skipSegments,
             audioUrl = quality.audioUrl,
+            subtitles = resolved.subtitles,
             startPositionMs = whereWeAre(),
         )
     }

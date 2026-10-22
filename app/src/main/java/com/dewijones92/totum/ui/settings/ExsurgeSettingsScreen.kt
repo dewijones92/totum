@@ -288,13 +288,6 @@ private val BEHAVIOUR = listOf(
         copy(pausePlayback = it)
     },
     SwitchSpec(
-        R.string.exsurge_settings_off_for_today,
-        R.string.exsurge_settings_off_for_today_summary,
-        { it.offForToday },
-    ) {
-        copy(offForToday = it)
-    },
-    SwitchSpec(
         R.string.exsurge_settings_flat_nudge,
         R.string.exsurge_settings_flat_nudge_summary,
         { it.flatNudge },

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
@@ -20,6 +21,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
+import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.library.DownloadSort
@@ -147,6 +149,14 @@ class ScreensKeepEveryControlTest {
         composeTestRule.waitForIdle()
 
         tap(context.getString(R.string.queue_clear_all))
+        composeTestRule.waitForIdle()
+        assertEquals("a tap alone must not clear it", 2, container.playbackQueue.state.value.entries.size)
+
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { down(center) }
+        composeTestRule.mainClock.advanceTimeBy(HOLD_THROUGH_MS)
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { up() }
+        composeTestRule.mainClock.autoAdvance = true
 
         composeTestRule.waitUntil(TIMEOUT_MS) { container.playbackQueue.state.value.entries.isEmpty() }
     }
@@ -159,5 +169,6 @@ class ScreensKeepEveryControlTest {
 
     private companion object {
         const val TIMEOUT_MS = 5_000L
+        const val HOLD_THROUGH_MS = 1_700L
     }
 }

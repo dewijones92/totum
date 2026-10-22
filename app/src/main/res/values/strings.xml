@@ -481,6 +481,7 @@
     <string name="repeat">Repeat</string>
     <string name="repeat_off">⚪ Off</string>
     <string name="repeat_queue">🔁 Queue</string>
+    <string name="repeat_group">🔁 This group</string>
     <string name="repeat_one">🔂 This one</string>
     <string name="queue_shuffle_up_next">Shuffle up next</string>
     <string name="pin_pin">Pin</string>
@@ -692,6 +693,16 @@
     <string name="hold_to_download">⏳ Hold to download</string>
     <string name="hold_to_confirm">⏳ Hold to confirm</string>
     <string name="keep_them">Keep them</string>
+    <string name="queue_group_select">☑️ Select these</string>
+    <string name="queue_group_start_again">↩️ Start again (mark unplayed)</string>
+    <plurals name="queue_group_started_again">
+        <item quantity="one">↩️ %d item starts from the beginning</item>
+        <item quantity="other">↩️ %d items start from the beginning</item>
+    </plurals>
+    <plurals name="queue_group_remove_confirm">
+        <item quantity="one">⚠️ Remove this group from the queue? Its %d item goes.</item>
+        <item quantity="other">⚠️ Remove this group from the queue? All %d items go.</item>
+    </plurals>
     <plurals name="queue_clear_confirm">
         <item quantity="one">⚠️ Clear the queue? Its %d item goes, and this cannot be undone.</item>
         <item quantity="other">⚠️ Clear the queue? All %d items go, and this cannot be undone.</item>
@@ -898,6 +909,7 @@
     <string name="cast_strip_casting">📺 Casting to %1$s</string>
     <string name="subtitles_on_cast_device">📺 Subtitles show on %1$s</string>
     <string name="cast_strip_unnamed_device">the TV</string>
+    <string name="cast_strip_quality">🎞️ %1$dp picture on %2$s</string>
     <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>
     <string name="cast_strip_not_fetching">⚠️ %1$s isn\'t fetching anything from the phone. Is the phone on the same Wi-Fi, and not on a guest network?</string>
     <string name="cast_strip_sound_only">⚠️ %1$s can\'t show this video (%2$s), so it plays the sound only</string>

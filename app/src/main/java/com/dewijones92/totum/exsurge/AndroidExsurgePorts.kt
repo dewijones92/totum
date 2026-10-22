@@ -20,6 +20,7 @@ import com.dewijones92.totum.reminders.kit.Utterance
 import com.dewijones92.totum.reminders.kit.mayUseFullScreenIntent
 import java.time.Instant
 
+@Suppress("TooManyFunctions")
 class AndroidExsurgePorts(
     private val context: Context,
     private val playback: () -> PlaybackController,
@@ -115,6 +116,8 @@ class AndroidExsurgePorts(
         controller.setPlaying(true)
         return "resume requested item=${state.itemId.value} at ${state.positionMs}ms; opened Totum"
     }
+
+    override fun remindItIsOff() = ExsurgeOffReminder.post(context)
 
     override fun viewChanged(view: ExsurgeView) {
         ExsurgeBannerService.reconcile(context, view, notifications)

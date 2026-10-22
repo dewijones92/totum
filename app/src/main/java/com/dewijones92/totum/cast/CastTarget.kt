@@ -69,6 +69,9 @@ fun startCastScreens(container: AppContainer, context: Context) {
     CastMoves(container).start()
 }
 
+private val PlaybackState.replayable: Boolean
+    get() = !hasEnded && !live && kind != MediaKind.PODCAST
+
 private class CastMoves(private val container: AppContainer) {
     private val lastOnPhone = AtomicReference<PlaybackState?>(null)
     private val lastOnTv = AtomicReference<PlaybackState?>(null)
@@ -86,11 +89,14 @@ private class CastMoves(private val container: AppContainer) {
     private suspend fun moved(onTv: Boolean) {
         val where = if (onTv) "the TV" else "the phone"
         val before = (if (onTv) lastOnPhone else lastOnTv).get()
-        val settled = withTimeoutOrNull(HANDOVER_WAIT_MS) { states.first { it != null && it.onCastDevice == onTv } }
+        if (onTv && replayedAtOnce(where, before)) return
+        val settled = withTimeoutOrNull(HANDOVER_WAIT_MS) {
+            states.first { it != null && it.onCastDevice == onTv && !it.castLoading }
+        }
         val state = settled ?: states.value ?: before
         when {
             state == null -> Diag.log("cast", "moved to $where with nothing played yet; nothing to replay")
-            state.hasEnded || state.kind == MediaKind.PODCAST || state.live -> Diag.log(
+            !state.replayable -> Diag.log(
                 "cast",
                 "moved to $where with ${state.itemId.value} " +
                     "(${state.kind}, live=${state.live}, ended=${state.hasEnded}); " +
@@ -117,6 +123,22 @@ private class CastMoves(private val container: AppContainer) {
                 "resuming it ourselves=$resume",
         )
         if (resume) container.playbackController.setPlaying(true)
+    }
+
+    private suspend fun replayedAtOnce(where: String, before: PlaybackState?): Boolean {
+        val replayable = before?.takeIf { it.replayable } ?: return false
+        val beyond = streamBeyondTheTv() ?: return false
+        Diag.log("cast", "${replayable.itemId.value}: the phone's stream is $beyond; replaying for the TV at once")
+        replay(where, replayable, replayable, settled = false)
+        return true
+    }
+
+    private fun streamBeyondTheTv(): String? {
+        val screen = CastTarget.screen ?: return null
+        val quality = container.videoPlaybackLauncher.quality.value
+        val playing = quality.options.firstOrNull { it.id == quality.selectedId } ?: return null
+        if (quality.listening || screen.canDecode(playing.codec, playing.height)) return null
+        return "${playing.codec} ${playing.height}p, beyond ${screen.label}"
     }
 
     private suspend fun alreadyRightForTheTv(item: MediaItemId): Boolean {

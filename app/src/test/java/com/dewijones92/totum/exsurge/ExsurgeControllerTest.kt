@@ -254,25 +254,26 @@ class ExsurgeControllerTest {
     fun `turning it off cancels the alarm`() {
         val exsurge = controller()
         exsurge.turnOn()
-        exsurge.updateSettings("test") { it.copy(offForToday = false) }
         exsurge.updateSettings("test") { it.copy(enabled = false) }
         assertEquals(null, ports.wakes.last())
         assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
     }
 
     @Test
-    fun `turned off for today it wakes when the next active day starts and switches itself back on`() {
+    fun `turned off it stays off, and reminds once when the next active hours start`() {
         val exsurge = controller()
         exsurge.turnOn()
         exsurge.updateSettings("test") { it.copy(enabled = false) }
-        val backOn = exsurge.view.value.settings.backOnAfterOff(now, zone)
-        assertEquals(backOn, ports.wakes.last())
+        val first = exsurge.view.value.settings.nextActiveStart(now, zone)!!
+        assertEquals(first, ports.wakes.last())
 
-        now = backOn!!
+        now = first
         exsurge.dispatch(ExsurgeEvent.Tick, "alarm")
 
-        assertTrue(exsurge.view.value.settings.enabled)
-        assertEquals(null, exsurge.view.value.settings.backOnAtEpochMs)
+        assertFalse(exsurge.view.value.settings.enabled)
+        assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
+        assertEquals(1, ports.reminders)
+        assertEquals(exsurge.view.value.settings.nextActiveStart(first, zone), ports.wakes.last())
     }
 
     @Test
@@ -343,7 +344,7 @@ class ExsurgeControllerTest {
         now = now.plus(Duration.ofHours(10))
         exsurge.turnOn()
         exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
-        exsurge.updateSettings("test") { it.copy(enabled = false, offForToday = false) }
+        exsurge.updateSettings("test") { it.copy(enabled = false) }
         assertEquals(ExsurgeState.Off, exsurge.view.value.memory.state)
         assertEquals(null, ports.wakes.last())
     }
@@ -377,6 +378,7 @@ class ExsurgeControllerTest {
     }
 
     private class RecordingPorts : ExsurgePorts {
+        var reminders = 0
         val wakes = mutableListOf<Instant?>()
         val takeovers = mutableListOf<TakeoverRequest>()
         val cues = mutableListOf<Cue>()
@@ -419,6 +421,10 @@ class ExsurgeControllerTest {
             continued++
             return "continued"
         }
+        override fun remindItIsOff() {
+            reminders++
+        }
+
         override fun viewChanged(view: ExsurgeView) {
             views++
         }

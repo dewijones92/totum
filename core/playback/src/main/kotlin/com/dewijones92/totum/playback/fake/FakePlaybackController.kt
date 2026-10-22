@@ -48,6 +48,8 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
     override val state: StateFlow<PlaybackState?> = _state
+    public val castDeviceFlow: MutableStateFlow<String?> = MutableStateFlow(null)
+    override val castDevice: StateFlow<String?> = castDeviceFlow
 
     private val _streamFailures = MutableSharedFlow<StreamFailure>(extraBufferCapacity = 1)
     override val streamFailures: Flow<StreamFailure> = _streamFailures.asSharedFlow()

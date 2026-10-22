@@ -71,6 +71,7 @@ fun SourceHeader(
             BackButton(onBack)
             Spacer(Modifier.weight(1f))
             actions()
+            CastingAction()
             onOpenGroups?.let { open ->
                 IconButton(onClick = open) {
                     Icon(Icons.Outlined.Bookmarks, contentDescription = stringResource(R.string.groups_add_to))

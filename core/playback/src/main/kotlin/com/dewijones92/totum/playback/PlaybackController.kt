@@ -26,6 +26,9 @@ public interface PlaybackController {
     /** Null when nothing has been queued this session. */
     public val state: StateFlow<PlaybackState?>
 
+    /** The Cast device a session is connected to, whether or not anything is playing on it. */
+    public val castDevice: StateFlow<String?>
+
     /**
      * Emits when the current stream died in a way a freshly-resolved URL would fix.
      *
@@ -236,6 +239,7 @@ public data class PlaybackState(
     val castVideoHeight: Int? = null,
     val castProblem: CastProblem? = null,
     val hasPictureTrack: Boolean = false,
+    val castLoading: Boolean = false,
     val live: Boolean = false,
     /** Skip (e.g. SponsorBlock) segments for the current item — drawn on the seek bar. */
     val skipSegments: List<SkipSegment> = emptyList(),

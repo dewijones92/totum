@@ -2,7 +2,7 @@
 title: Shuffle all walks every page of a source into one queue group
 kind: adr
 status: accepted
-updated: 2026-10-14
+updated: 2026-10-22
 ---
 
 # 30. Shuffle all walks every page of a source into one queue group
@@ -67,3 +67,10 @@ group. Every group chip on the Videos tab now has its own 🔀 beside it, the sa
 as a channel page, so a group no longer has to be selected first; the wide **Shuffle all** under a selected
 group stays. Queue groups get theirs in ADR 40.
 
+
+## Amended 2026-10-22: the item playing joins the group it was asked for with
+
+When a "play all" with a group (shuffle all, an album, an artist's songs, a playlist) includes the item already
+playing, that item moves into the new group instead of staying in its old one and appearing twice. Found as
+"Shuffle all on an artist duplicates the song playing" (93ac61c6, `QueueGroupPlaybackTest` seen red first). It
+applies to every grouped play-all, deliberately: the playing item is part of what was just asked for.

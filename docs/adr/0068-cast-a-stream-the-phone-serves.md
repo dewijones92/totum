@@ -129,3 +129,18 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 - Seeking with the TV remote restarts the audio producer at the new segment; expect a second or two of buffering.
 - With skips on, the TV's own seek bar shows the source's length and its clock runs behind the episode's; Totum's
   own seek bar, resume points and transcript use episode time.
+
+## Amended 2026-10-22: reaching the TV, a quiet receiver, the first load
+
+- **Address.** The phone advertises its Wi-Fi address, else Ethernet, never a VPN's (`CastAddress.choose`). A VPN
+  network carries the Wi-Fi transport on Android, and report 20261022T115247 had the TV handed `10.13.13.2`.
+- **Unreachable.** If nothing at all reaches the phone's server within 12 s of a hand-over (`CastReach`, judged by
+  any request rather than per item, so the next item queued behind the playing one never trips it), the casting
+  strip says the TV is not fetching (`CastProblem`).
+- **While the receiver loads** it reports an empty playlist for ~10 s. The controller shows the item it asked the
+  receiver to load (the hand-over's or a skip's), marked `castLoading`, for up to 30 s (`CastLoadHold`); `CastMoves`
+  waits past it. Nothing is held that was not asked for, so a finished cast leaves no ghost.
+- **Cast audio** reads YouTube through `ChunkedDataSource`, as the phone's player does: unranged, YouTube held it to
+  ~1x real time and a 4 s segment took ~2 s to arrive.
+- **The first load.** When the phone's own stream is one the TV cannot decode (AV1 on a Chromecast Ultra), the replay
+  for the TV's formats starts at the move instead of after the doomed load is refused.

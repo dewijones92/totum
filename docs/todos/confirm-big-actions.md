@@ -1,7 +1,7 @@
 ---
 title: Confirm big destructive actions
 kind: todo
-status: requested 2026-10-22, decided
+status: done 2026-10-22
 area: queue/ui
 priority: high
 requested: 2026-10-22

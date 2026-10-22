@@ -40,6 +40,26 @@ class PictureTest {
     }
 
     @Test
+    fun `listening switches the picture off only when there is no audio-only address and there may be a picture`() {
+        val episode = PlayableItem(item("https://feeds.test/ep/1.mp4"), PlayHandle.Podcast())
+        val plain = PlayRoute.AudioStream(episode, viaAudioOnlyUrl = false)
+        val remux = PlayRoute.AudioStream(episode, viaAudioOnlyUrl = true)
+        assertTrue(episode.listensWithThePictureOff(plain, listening = true))
+        assertFalse(episode.listensWithThePictureOff(plain, listening = false))
+        assertFalse(episode.listensWithThePictureOff(remux, listening = true))
+        val song = PlayableItem(item("https://feeds.test/ep/1.mp3"), PlayHandle.Podcast())
+        assertFalse(song.listensWithThePictureOff(PlayRoute.AudioStream(song, false), listening = true))
+    }
+
+    @Test
+    fun `a file name keeps a hash or a question mark in it`() {
+        assertEquals(Picture.YES, pictureOfFileName("Peep Show #3.mkv"))
+        assertEquals(Picture.YES, pictureOfFileName("Why?.mp4"))
+        assertEquals(Picture.NO, pictureOfFileName("Track 01.FLAC"))
+        assertEquals(Picture.UNKNOWN, pictureOfFileName("readme"))
+    }
+
+    @Test
     fun `a torrent with a picture offers listen and watch, an audio file does not`() {
         assertTrue(PlayableItem(item(torrentStream), PlayHandle.Podcast(audioUrl = remux)).offersListenAndWatch)
         assertFalse(PlayableItem(item("https://feeds.test/ep/1.mp3"), PlayHandle.Podcast()).offersListenAndWatch)

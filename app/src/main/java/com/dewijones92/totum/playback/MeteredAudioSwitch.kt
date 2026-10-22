@@ -46,21 +46,15 @@ internal class MeteredAudioSwitch(
     private var meteredForMs = 0L
 
     /**
-     * The item already downgraded, so it happens once rather than on every tick of a long journey.
+     * The item switched on this stretch of mobile data, or null before the first switch.
      *
-     * Cleared when Wi-Fi returns, so a second trip off it downgrades again — the alternative is a
-     * flag that goes stale for the life of the process, which is the exact defect that broke
-     * autoplay in [AutoAdvancer] and the stall rescue in [StallWatchdog]. Twice was enough.
+     * Once per stretch, not once per item: report 20261017T082929 had the picture put back on by hand
+     * and the very next video switched to audio again, because the stretch had long passed the hold.
+     * Cleared when Wi-Fi returns, so the next trip off it switches again.
      */
     private var switched: MediaItemId? = null
 
-    /**
-     * Set when the person asks for video back, so the app does not immediately take it away again.
-     *
-     * An automatic decision that cannot be overruled is worse than no automatic decision. Held per
-     * item: choosing video for this film says nothing about the next one.
-     */
-    private var overridden: MediaItemId? = null
+    private var lastStoodDownFor: MediaItemId? = null
 
     fun start() {
         Diag.log("data", "watching for a drop onto mobile data (hold ${holdMs}ms before switching)")
@@ -72,12 +66,6 @@ internal class MeteredAudioSwitch(
         }
     }
 
-    /** "Keep the video" — the undo behind the announcement. */
-    fun keepVideo(id: MediaItemId) {
-        overridden = id
-        Diag.log("data", "${id.value} asked to stay on video on mobile data — not switching it again")
-    }
-
     private suspend fun consider() {
         if (!metered()) {
             // Back on Wi-Fi. Deliberately does NOT switch video back on: the screen lighting up
@@ -86,13 +74,24 @@ internal class MeteredAudioSwitch(
             if (meteredForMs > 0) Diag.log("data", "back on unmetered network — the switch is re-armed")
             meteredForMs = 0
             switched = null
+            lastStoodDownFor = null
             return
         }
         meteredForMs += checkEveryMs
         if (meteredForMs < holdMs) return
 
         val id = playingVideoId() ?: return
-        if (switched == id || overridden == id) return
+        switched?.let { first ->
+            if (id != first && lastStoodDownFor != id) {
+                Diag.log(
+                    "data",
+                    "${id.value} plays video on mobile data: not switching, this stretch already switched " +
+                        "${first.value} and the picture was put back by hand",
+                )
+                lastStoodDownFor = id
+            }
+            return
+        }
         switched = id
 
         Diag.log("data", "${id.value} has been on mobile data ${meteredForMs}ms — switching to audio only")

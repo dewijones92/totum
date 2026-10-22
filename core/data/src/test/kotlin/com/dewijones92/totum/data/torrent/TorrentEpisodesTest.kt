@@ -17,6 +17,13 @@ class TorrentEpisodesTest {
         TorrentFile(index = 1, path = "Some.Release/$name", sizeBytes = size)
 
     @Test
+    fun `a file whose name holds a hash or a question mark is still playable, a sample is not`() {
+        val playable = listOf("Show/Peep Show #3.mkv", "Show/Why?.mp4", "Show/sample.mkv", "Show/notes.txt")
+            .mapIndexed { i, path -> TorrentFile(i, path, 1L).isPlayable }
+        assertEquals(listOf(true, true, false, false), playable)
+    }
+
+    @Test
     fun `reads the common SxxExx form`() {
         assertEquals(TorrentEpisodes.Episode(1, 3), TorrentEpisodes.episodeOf("Show.S01E03.1080p.mkv"))
         assertEquals(TorrentEpisodes.Episode(12, 24), TorrentEpisodes.episodeOf("Show.s12e24.mkv"))

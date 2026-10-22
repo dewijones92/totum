@@ -226,17 +226,17 @@ internal class CastStreams(
         item.requestMetadata.extras?.takeIf { it.containsKey(EXTRA_SKIP_SILENCE) }?.getBoolean(EXTRA_SKIP_SILENCE)
 
     fun urlFor(item: MediaItem): String? {
-        item.localConfiguration?.uri?.toString()?.let(LocalManifests::manifestAt)?.let { manifest ->
-            val base = host.baseUrl(PORT) ?: return null
-            server.start(PORT)
-            host.hold(true)
-            return live.open(item.mediaId, manifest, base, random.token())
-        }
-        val sources = sourcesFor(item) ?: return null
+        val manifest = item.localConfiguration?.uri?.toString()?.let(LocalManifests::manifestAt)
+        val sources = if (manifest == null) sourcesFor(item) ?: return null else null
         val base = host.baseUrl(PORT) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
             reach.noAddress()
             return null
+        }
+        if (manifest != null || sources == null) {
+            server.start(PORT)
+            host.hold(true)
+            return manifest?.let { live.open(item.mediaId, it, base, random.token()) }
         }
         server.start(PORT)
         val token = random.token()
@@ -279,7 +279,7 @@ internal class CastStreams(
             return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no such cast".toByteArray())
         }
         val what = parts.drop(2).joinToString("/")
-        reach.reached(session.item.mediaId, session.token, request.from)
+        reach.reached(session.item.mediaId, request.from)
         val started = System.currentTimeMillis()
         val reply = when {
             what == "manifest.mpd" -> HttpReply.Bytes(

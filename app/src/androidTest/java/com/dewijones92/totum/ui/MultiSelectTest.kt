@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -180,6 +181,8 @@ class MultiSelectTest {
         longPress("One")
         composeTestRule.onNodeWithText("Three").performClick()
         composeTestRule.onNodeWithText(activity.getString(R.string.queue_remove)).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithText(activity.getString(R.string.queue_remove)).onLast().performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { order().size == 2 }
         assertEquals(listOf("Two", "Four"), order())
     }

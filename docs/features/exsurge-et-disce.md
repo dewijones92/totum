@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-14
+updated: 2026-10-22
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -237,5 +237,6 @@ slider on the old steps; the takeover puts Surgius on a laurel medallion. See [A
 
 While Exsurge is off, in its hours, a phone flat and still for a minute (setting, 1–15) gets one "Sat down?"
 heads-up with **Turn on** and **Not today**, one short buzz, at most hourly (`FlatPhoneNudge`, verified on the
-emulator with a faked accelerometer: posted after 60 s). **Off means off for today** (on by default): switched
-off, it comes back when the next active day starts.
+emulator with a faked accelerometer: posted after 60 s). ~~Off means off for today~~ (ADR 38, superseded 2026-10-22): off now **stays off** and
+never summons; while off, one silent "🏛️ Exsurge is off" reminder with **Turn on** comes when active hours start
+each day ([ADR 71](../adr/0071-exsurge-off-stays-off-and-reminds-once-a-day.md)).

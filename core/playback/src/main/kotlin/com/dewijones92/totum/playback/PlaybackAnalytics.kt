@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import android.media.MediaCodecList
 import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -305,7 +306,11 @@ internal class PlaybackAnalytics(
         initializationDurationMs: Long,
     ) {
         Vitals.set("playback.videoDecoder", decoderName)
-        Diag.log("playback", "video decoder $decoderName ready in ${initializationDurationMs}ms")
+        val kind = runCatching {
+            MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos.firstOrNull { it.name == decoderName }
+                ?.let { if (it.isHardwareAccelerated) "hardware" else "software" }
+        }.getOrNull() ?: "unknown"
+        Diag.log("playback", "video decoder $decoderName ($kind) ready in ${initializationDurationMs}ms")
     }
 
     override fun onVideoDisabled(eventTime: AnalyticsListener.EventTime, decoderCounters: DecoderCounters) {

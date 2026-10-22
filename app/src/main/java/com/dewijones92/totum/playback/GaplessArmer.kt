@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.queue.groupRestartIndex
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -86,11 +87,13 @@ internal fun gaplessNotNow(
     settings: AppPreferences.Settings,
     sleepsAfterPlaying: Boolean,
     exploring: Boolean = false,
+    lastOfItsGroup: Boolean = false,
 ): String? = when {
     !settings.gaplessQueue -> "gapless queue is off in Settings"
     exploring -> "Explore is on: a related video follows, not the queue's next"
     !settings.autoPlayNext -> "auto-play next is off"
     settings.repeatMode == RepeatMode.ONE -> "repeat one is on"
+    settings.repeatMode == RepeatMode.GROUP && lastOfItsGroup -> "repeat group is on and this is its group's last item"
     sleepsAfterPlaying -> "the sleep timer stops after this item"
     else -> null
 }
@@ -106,6 +109,8 @@ internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
             sleepsAfterPlaying = container.sleepTimer.stopsAfterItem
                 .let { it != null && it == controller.state.value?.itemId },
             exploring = container.exploreMode.on.value,
+            lastOfItsGroup = controller.state.value?.itemId
+                ?.let { groupRestartIndex(queue.state.value, it) != null } == true,
         )
         override fun metered() = metered()
         override suspend fun arm(allowStream: Boolean) = queue.armNext(allowStream)

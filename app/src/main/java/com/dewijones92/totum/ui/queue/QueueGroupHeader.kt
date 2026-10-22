@@ -36,6 +36,8 @@ import com.dewijones92.totum.music.RADIO_GROUP_PREFIX
 import com.dewijones92.totum.queue.GroupDestination
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.SortAndFilterSheet
+import com.dewijones92.totum.ui.common.destructiveTexts
+import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 
 internal data class GroupHeaderModel(
     val groupId: String,
@@ -60,6 +62,8 @@ internal data class GroupHeaderActions(
     val onSetDownload: (Boolean) -> Unit = {},
     val onPullNew: (() -> Unit)? = null,
     val onSort: ((MediaSort) -> Unit)? = null,
+    val onSelect: (() -> Unit)? = null,
+    val onStartAgain: (() -> Unit)? = null,
 )
 
 @Composable
@@ -197,6 +201,8 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
 private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
     var open by remember { mutableStateOf(false) }
     var sorting by remember { mutableStateOf(false) }
+    val confirm = rememberHoldToConfirmAsk()
+    val removeTexts = destructiveTexts(R.plurals.queue_group_remove_confirm, model.count, R.string.queue_remove_group)
     if (sorting) {
         actions.onSort?.let { sort ->
             SortAndFilterSheet(
@@ -231,7 +237,9 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
             } else {
                 MenuItem(R.string.queue_group_download, close) { actions.onSetDownload(true) }
             }
-            MenuItem(R.string.queue_remove_group, close, actions.onRemove)
+            actions.onSelect?.let { MenuItem(R.string.queue_group_select, close, it) }
+            actions.onStartAgain?.let { MenuItem(R.string.queue_group_start_again, close, it) }
+            MenuItem(R.string.queue_remove_group, close) { confirm(removeTexts, actions.onRemove) }
         }
     }
 }

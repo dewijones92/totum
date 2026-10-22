@@ -47,6 +47,7 @@ internal class AutoAdvancer(
     private val repeat: () -> RepeatMode = { RepeatMode.OFF },
     private val replay: suspend () -> Boolean = { false },
     private val fromTheTop: suspend () -> Boolean = { false },
+    private val restartGroup: suspend (MediaItemId) -> Boolean = { false },
     private val sleepsAfter: (MediaItemId) -> Boolean = { false },
     private val explore: suspend (MediaItemId) -> Boolean = { false },
     private val otherKindLeft: () -> Pair<Listening, Int>? = { null },
@@ -87,6 +88,10 @@ internal class AutoAdvancer(
             // The one refusal left, and it still says so: an item ending with nothing happening
             // is otherwise indistinguishable from the advancer being dead.
             Diag.log("advance", "not advancing past $id: auto-play next is off")
+            return
+        }
+        if (mode == RepeatMode.GROUP && restartGroup(ended.itemId)) {
+            Diag.log("advance", "$id ended at ${ended.atMs}ms; repeat group is on -> its group started again")
             return
         }
         val explored = explore(ended.itemId)

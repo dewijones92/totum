@@ -1,7 +1,7 @@
 ---
 title: Repeat the current queue group
 kind: todo
-status: requested 2026-10-22, decided
+status: done 2026-10-22
 area: queue
 priority: medium
 requested: 2026-10-22

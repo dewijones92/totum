@@ -1,7 +1,7 @@
 ---
 title: Shuffle all on an artist duplicates the song playing
 kind: todo
-status: requested 2026-10-22, decided
+status: done 2026-10-22
 area: music/queue
 priority: high
 requested: 2026-10-22

@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.PlaybackController
@@ -44,6 +45,13 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
                     modifier = Modifier.weight(1f),
                 )
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
+            }
+            state.castVideoHeight?.let { height ->
+                Text(
+                    stringResource(R.string.cast_strip_quality, height, device),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
+                )
             }
             state.castProblem?.let { problem ->
                 Text(
@@ -72,8 +80,7 @@ private val CAST_BUTTON_SIZE = 40.dp
 @Composable
 fun rememberCastingTo(controller: PlaybackController): String? {
     val unnamed = stringResource(R.string.cast_strip_unnamed_device)
-    val casting by controller.rememberField { state ->
-        state?.castDeviceName ?: if (state?.onCastDevice == true) "" else null
-    }
-    return casting?.ifEmpty { unnamed }
+    val device by controller.castDevice.collectAsStateWithLifecycle()
+    val remote by controller.rememberField { it?.onCastDevice == true }
+    return device ?: unnamed.takeIf { remote }
 }

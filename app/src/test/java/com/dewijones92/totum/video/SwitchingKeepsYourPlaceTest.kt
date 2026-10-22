@@ -1,6 +1,8 @@
 package com.dewijones92.totum.video
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.SubtitleFormat
+import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.MediaItem
@@ -63,6 +65,7 @@ class SwitchingKeepsYourPlaceTest {
                         AUDIO_URL, null, "mp4a.40.2",
                     ),
                 ),
+                subtitles = listOf(CAPTIONS),
             ),
         )
     }
@@ -101,6 +104,18 @@ class SwitchingKeepsYourPlaceTest {
             AN_HOUR_IN,
             controller.lastStartPositionMs,
         )
+    }
+
+    @Test
+    fun `changing quality or listening keeps the subtitles`() = runTest {
+        playAndSeekAnHourIn()
+        assertEquals(listOf(CAPTIONS), controller.state.value?.subtitles)
+
+        launcher.selectQuality(launcher.quality.value.options.first { it.height == 480 }.id)
+        assertEquals("a quality change", listOf(CAPTIONS), controller.state.value?.subtitles)
+
+        launcher.listen(AN_HOUR_IN)
+        assertEquals("listening", listOf(CAPTIONS), controller.state.value?.subtitles)
     }
 
     /** Leaving Listen mode re-attaches the picture where the sound had got to. */
@@ -154,5 +169,12 @@ class SwitchingKeepsYourPlaceTest {
         const val AUDIO_URL = "https://x.test/a?n=solved"
         const val AN_HOUR_IN = 3_600_000L
         const val A_MINUTE = 60_000L
+        val CAPTIONS = SubtitleTrack(
+            "en",
+            "English",
+            HttpUrl.of("https://www.youtube.com/api/timedtext?v=$VIDEO"),
+            false,
+            SubtitleFormat.VTT,
+        )
     }
 }

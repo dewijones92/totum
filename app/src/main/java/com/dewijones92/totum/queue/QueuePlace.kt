@@ -58,6 +58,37 @@ private fun QueueSnapshot.nextSpotIn(group: QueueGroup): Int {
     return ahead ?: (place + 1)
 }
 
+internal fun groupRestartIndex(snapshot: QueueSnapshot, endedId: MediaItemId): Int? {
+    val at = snapshot.entries.indexOfFirst { it.item.item.id == endedId }.takeIf { it >= 0 } ?: return null
+    val group = snapshot.entries[at].group?.id ?: return null
+    if (snapshot.entries.getOrNull(at + 1)?.group?.id == group) return null
+    var first = at
+    while (first > 0 && snapshot.entries[first - 1].group?.id == group) first--
+    return first
+}
+
+suspend fun PlaybackQueue.repeatGroupAfter(endedId: MediaItemId): Boolean {
+    val snapshot = state.value
+    val at = snapshot.entries.indexOfFirst { it.item.item.id == endedId }
+    val group = snapshot.entries.getOrNull(at)?.group
+    val first = groupRestartIndex(snapshot, endedId)
+    if (first == null) {
+        Diag.log(
+            "queue",
+            "repeat group: ${endedId.value} " +
+                if (group == null) {
+                    "is in no group, so the queue carries on"
+                } else {
+                    "is not the last of \"${group.title}\""
+                },
+        )
+        return false
+    }
+    val played = playAt(first, rollBackOnRefusal = true)
+    Diag.log("queue", "repeat group: \"${group?.title}\" ended; back to its first item at $first -> played=$played")
+    return played
+}
+
 suspend fun PlaybackQueue.playFromTheTop(): Boolean {
     val keepTo = nowPlaying.value?.item?.listening
     val entries = state.value.entries

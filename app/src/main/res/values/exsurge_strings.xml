@@ -142,6 +142,7 @@
     <string name="exsurge_settings_flat_nudge">Nudge when the phone lies flat</string>
     <string name="exsurge_settings_flat_nudge_summary">While Exsurge is off, in its hours, a phone left flat and still suggests turning it on</string>
     <string name="exsurge_settings_flat_nudge_minutes">Flat for before the nudge</string>
-    <string name="exsurge_settings_off_for_today">Off means off for today</string>
-    <string name="exsurge_settings_off_for_today_summary">Turned off, it switches itself back on when your next active day starts</string>
+    <string name="exsurge_channel_off_reminder">Exsurge is off</string>
+    <string name="exsurge_off_reminder_title">🏛️ Exsurge is off</string>
+    <string name="exsurge_off_reminder_text">Switch it on for today\'s active hours?</string>
 </resources>

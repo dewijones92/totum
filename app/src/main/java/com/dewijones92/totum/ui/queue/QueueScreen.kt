@@ -76,6 +76,7 @@ import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.PlayingEqualiser
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.Selection
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.SortControl
 import com.dewijones92.totum.ui.common.SwitchListeningButton
@@ -85,6 +86,7 @@ import com.dewijones92.totum.ui.common.filteredByItems
 import com.dewijones92.totum.ui.common.rememberField
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.CoroutineScope
@@ -177,6 +179,8 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onSetDownload = { onSetGroupDownload(id, it) },
     onPullNew = if (id.startsWith("shuffle:")) { { onPullNew(id) } } else null,
     onSort = { onSortGroup(id, it) },
+    onSelect = { selection.selectAll(groupIdsOf(id)) },
+    onStartAgain = { onStartGroupAgain(id) },
 )
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -195,6 +199,8 @@ private fun rememberQueueActions(
     val context = LocalContext.current
     val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
+    val selection = rememberSelection("queue")
+    val startAgain = rememberStartGroupAgain(queue, snackbar, scope)
     return QueueActions(
         onPlay = queue::jumpTo,
         onPlayInstead = { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } },
@@ -239,6 +245,9 @@ private fun rememberQueueActions(
             onChange = onCollapsedChange,
         ),
         onDeleteDownload = { id -> scope.launch { container.downloadManager.delete(id) } },
+        selection = selection,
+        onStartGroupAgain = startAgain,
+        groupIdsOf = { id -> queue.idsIn(id) },
     )
 }
 
@@ -263,6 +272,9 @@ private data class QueueActions(
     val onDeleteDownload: (MediaItemId) -> Unit,
     /** Which group runs are folded away. Here because it travels with the rows, like the rest. */
     val groups: GroupCollapse,
+    val selection: Selection,
+    val onStartGroupAgain: (String) -> Unit,
+    val groupIdsOf: (String) -> List<String>,
 )
 
 /**
@@ -437,6 +449,7 @@ private fun FilterableQueue(
         { it.item.item },
         queueing = false,
         downloadAudioOnly = true,
+        hoisted = actions.selection,
         extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }) },
     ) {
         if (!filtering) {

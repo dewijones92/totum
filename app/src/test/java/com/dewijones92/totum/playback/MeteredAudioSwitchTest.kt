@@ -37,6 +37,23 @@ class MeteredAudioSwitchTest {
     ).also { it.start() }
 
     @Test
+    fun `choosing video again on the same stretch of mobile data is not undone, even for the next video`() = runTest {
+        switcher()
+        metered = true
+        advanceTimeBy(20_000)
+        playing = MediaItemId("the-next-video")
+        advanceTimeBy(60_000)
+
+        assertEquals(1, switches)
+
+        metered = false
+        advanceTimeBy(10_000)
+        metered = true
+        advanceTimeBy(20_000)
+        assertEquals("a new trip off Wi-Fi switches again", 2, switches)
+    }
+
+    @Test
     fun `mobile data that holds switches to audio and says so`() = runTest {
         switcher()
         metered = true
@@ -91,28 +108,6 @@ class MeteredAudioSwitchTest {
         advanceTimeBy(60_000)
 
         assertEquals(0, switches)
-    }
-
-    /** An automatic decision that cannot be overruled is worse than no automatic decision. */
-    @Test
-    fun `asking to keep video is respected`() = runTest {
-        val switcher = switcher()
-        switcher.keepVideo(item)
-        metered = true
-        advanceTimeBy(600_000)
-
-        assertEquals(0, switches)
-    }
-
-    /** But only for that item — choosing video for one film says nothing about the next. */
-    @Test
-    fun `keeping video for one item does not exempt another`() = runTest {
-        val switcher = switcher()
-        switcher.keepVideo(MediaItemId("something-else"))
-        metered = true
-        advanceTimeBy(60_000)
-
-        assertEquals(1, switches)
     }
 
     /**

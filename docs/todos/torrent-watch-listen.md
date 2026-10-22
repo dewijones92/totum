@@ -1,7 +1,7 @@
 ---
 title: Torrent items have no Watch / Listen
 kind: todo
-status: requested 2026-10-22, decided
+status: done 2026-10-22
 area: torrents/player
 priority: high
 requested: 2026-10-22

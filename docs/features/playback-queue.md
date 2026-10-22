@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-16
+updated: 2026-10-22
 ---
 
 # Playback queue
@@ -158,3 +158,13 @@ every 2 hours on Wi-Fi, on opening, or by ⋮ → 🔄 Pull new uploads. See [AD
 - The header's sort sheet sorts every group within itself; a group's ⋮ sorts that group. Both change the play order
   after the playing item, with Undo; its filters only hide rows ([sort-and-filter.md](sort-and-filter.md)).
 - The header's buttons wrap under the title; the title used to be squeezed to one letter at phone width.
+
+## Group parity (2026-10-22)
+
+Dewi: *"operations on my whole queue, I want replicated to subsets of the queue, i.e. the groups"*. A group's ⋮ now
+also has **☑️ Select these** (every item of the group selected, so every bulk action works on a group: download,
+add to playlist, remove, mark played or unplayed), **↩️ Start again** (the group's items marked unplayed, positions
+cleared), and **remove group asks first** (hold to confirm, like clearing the queue). The repeat picker gains
+**🔁 This group**: when the group's last item ends, its first plays again (`repeatGroupAfter`, `RepeatGroupTest`);
+gapless does not arm past a group's last item while it is on. Start again on a YouTube item clears the app's
+position; the account's own watched position can still resume it.

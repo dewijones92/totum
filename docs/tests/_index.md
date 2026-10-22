@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-21
+updated: 2026-10-22
 ---
 
 # Testing
@@ -89,6 +89,11 @@ instead).
 | Old rows and playback borrow the show's artwork | JVM unit | `:app` `AnEpisodeWithNoPictureWearsItsShowsTest`, `:core:domain` `SourceArtworkTest` |
 | Casting: a remuxed HEVC (hev1/hvc1) video reads with its full codec string; the measured TVs take HEVC, an unknown device does not | JVM unit | `:core:playback` `HevcLayoutTest` — seen failing (all 3) with the HEVC sample entries removed, with report 20261021T190723-7a623b92's exact error. The rest of casting (stand-in receiver, sound-only path, subtitles, start/seek timing) is checked by hand with `tools/cast-bench/standin/`, deliberately not yet automated while Dewi shapes the feature |
 | Casting: a streaming torrent's MKV (HEVC and H.264, B-frames, open GOP, audio track first) remuxes into one fMP4 segment per cue, every frame kept, on the cue timeline | JVM unit | `:core:playback` `MkvRemuxTest`; the remuxed output was decoded and every frame matched the source (ffmpeg framemd5, by hand); a 2-minute HEVC MKV played on both TVs through the phone with no jumps |
+| Casting: the TV is given the Wi-Fi (else Ethernet) address, never a VPN's; a TV that fetches nothing is reported, the item queued behind the playing one never trips it | JVM unit | `:core:playback` `CastAddressTest` (all three seen failing on the old first-Wi-Fi rule), `CastReachTest` |
+| Casting: while the receiver loads, the item asked for shows as loading, never the one before, and nothing is held once it arrives, after 30 s, or when nothing was asked for | JVM unit | `:core:playback` `CastLoadHoldTest` |
+| Listen and Watch for anything with a picture (YouTube, a torrent's video file, a video podcast); Listen switches the picture off when there is no audio-only address; torrent file names keep `#` and `?` | JVM unit | `:core:domain` `PictureTest`; `:app` `TorrentListenModeTest` (torrent and video-podcast cases seen failing on the old code); `:core:data` `TorrentEpisodesTest` |
+| Repeat group: the group's last item ending goes back to its first; mid-group or outside a group the queue carries on | JVM unit | `:app` `RepeatGroupTest` |
+| Exsurge off stays off and reminds once when active hours start | JVM unit | `:app` `ExsurgeControllerTest`, `:lib:exsurge` `OffReminderTest` |
 | A live YouTube stream plays a manifest (YouTube's HLS, or one Totum builds from the live head), starts at the edge, and is known as live | JVM unit | `:app` `ALiveStreamPlaysItsManifestTest` (seen failing, both tests), `:lib:innertube` `LiveDashTest`, `:core:playback` `ResumeRewindTest` live case (seen failing: expected 0 but was 179449, the device's own number), `:core:domain` `WithStreamFromTest` live case; on the emulator a 24/7 stream played at real time with no stalls (the `Range`-header hang was found and proved from the laptop) |
 | Back on a podcast page returns to the list | instrumented | `:app` `BackFromPodcastPageTest` — it quit the app |
 | Show artwork parsed, inherited by episodes, filled by refresh; preview stores nothing | JVM unit | `:core:data` `RssParserTest`, `DefaultPodcastRepositoryTest` |

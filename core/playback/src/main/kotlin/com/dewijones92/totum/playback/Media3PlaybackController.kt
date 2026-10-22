@@ -88,6 +88,8 @@ public class Media3PlaybackController(
     // the "already ended on connect" case the old state-watching code had to special-case.
     private val _events = MutableSharedFlow<PlaybackEvent>(extraBufferCapacity = EVENT_BUFFER)
     override val state: StateFlow<PlaybackState?> = _state
+    private val _castDevice = MutableStateFlow<String?>(null)
+    override val castDevice: StateFlow<String?> = _castDevice
 
     override val streamFailures: Flow<StreamFailure> = _streamFailures.asSharedFlow()
 
@@ -111,7 +113,8 @@ public class Media3PlaybackController(
     @Volatile
     private var castRefused: Map<String, String> = emptyMap()
     private var castProblem: CastProblem? = null
-    private val castLoad = CastLoadHold(SystemClock::elapsedRealtime)
+    private val castLoad = CastLoadHold<Media3MediaItem>(SystemClock::elapsedRealtime)
+    private val holdTimer = android.os.Handler(android.os.Looper.getMainLooper())
 
     @Volatile
     private var castSentHeights: Map<String, Int> = emptyMap()
@@ -250,7 +253,8 @@ public class Media3PlaybackController(
                                 Diag.log(
                                     "playback",
                                     "video size=${player.videoSize.width}x${player.videoSize.height} " +
-                                        "hasVideo=${player.currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO)}",
+                                        "hasVideo=${player.currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO)} " +
+                                        "pictureTrack=${player.currentTracks.containsType(C.TRACK_TYPE_VIDEO)}",
                                 )
                             }
                             connected.duration.takeIf { it > 0 }?.let { lastDurationMs = it }
@@ -339,6 +343,7 @@ public class Media3PlaybackController(
                 Diag.log("playback", "${item.id.value} starts at ${start.positionMs}ms: ${start.why}")
                 noteItemEnd(controller, ItemEndWatch.Reason.REPLACED)
                 becameCurrent(requestedContext)
+                askTheReceiver(controller, item.id.value, media3Item, start.positionMs)
                 controller.setMediaItem(media3Item, start.positionMs)
                 applyChoices(controller, tuned, boost, audioOnly)
                 controller.prepare()
@@ -650,6 +655,7 @@ public class Media3PlaybackController(
     private fun switchListener() = object : MediaController.Listener {
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
             castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
+            _castDevice.value = castDeviceName
             val refused = extras.getBundle(CastStatus.EXTRA_CAST_REFUSED)
             castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
             val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
@@ -916,11 +922,32 @@ public class Media3PlaybackController(
         .build()
 
     private fun MediaController.currentPlaybackState(): PlaybackState? {
-        val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() } ?: return castLoad.nothingCurrent(
-            onCastDevice = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE,
-            castSession = castDeviceName != null,
+        val remote = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE
+        val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() }
+        if (current != null) {
+            castLoad.seen(current.mediaId, current, currentPosition.takeIf { !remote })
+            return itemState(current)
+        }
+        if (!remote || castDeviceName == null) return null
+        val (asked, startMs) = castLoad.loading() ?: return null
+        refreshAfterTheHold()
+        return itemState(asked).copy(
+            isPlaying = false,
+            isBuffering = true,
+            positionMs = startMs,
+            bufferedPositionMs = startMs,
+            onCastDevice = true,
+            castLoading = true,
         )
-        return castLoad.seen(itemState(current))
+    }
+
+    private fun askTheReceiver(controller: MediaController, id: String, item: Media3MediaItem, startMs: Long) {
+        if (controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE) castLoad.asked(id, item, startMs)
+    }
+
+    private fun refreshAfterTheHold() {
+        holdTimer.removeCallbacksAndMessages(null)
+        holdTimer.postDelayed({ controller?.let { _state.value = it.currentPlaybackState() } }, CastLoadHold.HOLD_MS)
     }
 
     private fun MediaController.itemState(current: Media3MediaItem): PlaybackState =

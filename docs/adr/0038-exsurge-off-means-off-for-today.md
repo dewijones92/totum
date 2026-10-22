@@ -1,13 +1,13 @@
 ---
 title: Exsurge switched off comes back on when the next active day starts
 kind: adr
-status: accepted
-updated: 2026-10-14
+status: superseded
+updated: 2026-10-22
 ---
 
 # 38. Exsurge switched off comes back on when the next active day starts
 
-- Status: Accepted
+- Status: Superseded by [ADR 71](0071-exsurge-off-stays-off-and-reminds-once-a-day.md) (2026-10-22: off now stays off)
 - Date: 2026-10-14
 
 ## Context

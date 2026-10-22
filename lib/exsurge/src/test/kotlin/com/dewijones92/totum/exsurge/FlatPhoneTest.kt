@@ -77,31 +77,31 @@ class FlatPhoneTest {
     }
 }
 
-class OffForTodayTest {
+class OffReminderTest {
 
     private val zone = ZoneId.of("Europe/London")
     private val settings = ExsurgeSettings()
 
     @Test
-    fun `turned off on a weekday, it comes back when the next weekday starts`() {
+    fun `turned off on a weekday afternoon, the reminder comes when the next weekday's hours start`() {
         val tuesdayAfternoon = Instant.parse("2026-10-13T14:00:00Z")
-        assertEquals(Instant.parse("2026-10-14T08:00:00Z"), settings.backOnAfterOff(tuesdayAfternoon, zone))
+        assertEquals(Instant.parse("2026-10-14T08:00:00Z"), settings.nextActiveStart(tuesdayAfternoon, zone))
     }
 
     @Test
-    fun `turned off before today's hours begin, it still waits for tomorrow`() {
+    fun `turned off before today's hours begin, the reminder comes when they do`() {
         val tuesdayEarly = Instant.parse("2026-10-13T05:00:00Z")
-        assertEquals(Instant.parse("2026-10-14T08:00:00Z"), settings.backOnAfterOff(tuesdayEarly, zone))
+        assertEquals(Instant.parse("2026-10-13T08:00:00Z"), settings.nextActiveStart(tuesdayEarly, zone))
     }
 
     @Test
-    fun `turned off on a Friday, it comes back on Monday`() {
+    fun `turned off on a Friday, the reminder comes on Monday`() {
         val friday = Instant.parse("2026-10-16T12:00:00Z")
-        assertEquals(Instant.parse("2026-10-19T08:00:00Z"), settings.backOnAfterOff(friday, zone))
+        assertEquals(Instant.parse("2026-10-19T08:00:00Z"), settings.nextActiveStart(friday, zone))
     }
 
     @Test
-    fun `with no active days it never comes back by itself`() {
-        assertNull(settings.copy(activeDays = emptySet()).backOnAfterOff(Instant.parse("2026-10-13T14:00:00Z"), zone))
+    fun `with no active days there is no reminder`() {
+        assertNull(settings.copy(activeDays = emptySet()).nextActiveStart(Instant.parse("2026-10-13T14:00:00Z"), zone))
     }
 }

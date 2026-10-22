@@ -22,14 +22,19 @@ public val PlayableItem.offersListenAndWatch: Boolean
 public val PlayableItem.pictureForSwitching: Picture
     get() = if (offersListenAndWatch) Picture.YES else picture
 
+public fun PlayableItem.listensWithThePictureOff(route: PlayRoute.AudioStream, listening: Boolean): Boolean =
+    listening && pictureForSwitching != Picture.NO && !route.viaAudioOnlyUrl
+
 public fun MediaItem.offersListenAndWatch(pillar: MediaKind = this.pillar): Boolean =
     pillar == MediaKind.VIDEO || picture == Picture.YES
 
 public fun pictureAt(url: HttpUrl): Picture = pictureAt(url.value)
 
-public fun pictureAt(address: String): Picture {
-    val extension = address.substringBefore('?').substringBefore('#').substringAfterLast('/')
-        .substringAfterLast('.', missingDelimiterValue = "").lowercase()
+public fun pictureAt(address: String): Picture =
+    pictureOfFileName(address.substringBefore('?').substringBefore('#').substringAfterLast('/'))
+
+public fun pictureOfFileName(name: String): Picture {
+    val extension = name.substringAfterLast('.', missingDelimiterValue = "").lowercase()
     return when (extension) {
         in VIDEO_EXTENSIONS -> Picture.YES
         in AUDIO_EXTENSIONS -> Picture.NO

@@ -43,8 +43,7 @@ public data class ExsurgeSettings(
     val midCueMinutes: Int = 2,
     val flatNudge: Boolean = true,
     val flatNudgeMinutes: Int = 1,
-    val offForToday: Boolean = true,
-    val backOnAtEpochMs: Long? = null,
+    val remindAtEpochMs: Long? = null,
 ) {
     internal fun fromBeforeRouteVersion(): ExsurgeSettings =
         if (destinationRoute.trim() == LEGACY_PRACTICE_ROUTE) {
@@ -98,9 +97,6 @@ public data class ExsurgeSettings(
             .map { startOn(it, zone) }
             .firstOrNull { it.isAfter(after) }
     }
-
-    public fun backOnAfterOff(at: Instant, zone: ZoneId): Instant? =
-        nextActiveStart(at.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1), zone)
 
     public fun activeEndAfter(at: Instant, zone: ZoneId): Instant {
         var day = at.atZone(zone).toLocalDate()

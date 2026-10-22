@@ -18,8 +18,10 @@ interface ExsurgePersistence {
     fun saveOutcomes(outcomes: List<BreakOutcome>)
 }
 
+@Suppress("TooManyFunctions")
 interface ExsurgePorts {
     fun scheduleWake(at: Instant?)
+    fun remindItIsOff()
     fun showTakeover(request: TakeoverRequest)
     fun hideTakeover()
     fun speak(cue: Cue, summonsId: Long, volumePercent: Int)
@@ -31,8 +33,10 @@ interface ExsurgePorts {
     fun viewChanged(view: ExsurgeView)
 }
 
+@Suppress("TooManyFunctions")
 object NoExsurgePorts : ExsurgePorts {
     override fun scheduleWake(at: Instant?) = Unit
+    override fun remindItIsOff() = Unit
     override fun showTakeover(request: TakeoverRequest) = Unit
     override fun hideTakeover() = Unit
     override fun speak(cue: Cue, summonsId: Long, volumePercent: Int) = Unit
@@ -100,15 +104,19 @@ class ExsurgeController(
             put("exsurge.streakDays", view.stats.streakDays.toString())
             put("exsurge.rank", "${view.stats.rank.latin} laurels=${view.stats.laurels}")
             put("exsurge.settings", settings.toString())
-            put("exsurge.backOnAt", settings.backOnAtEpochMs?.let(Instant::ofEpochMilli)?.toString() ?: "-")
+            put("exsurge.remindAt", settings.remindAtEpochMs?.let(Instant::ofEpochMilli)?.toString() ?: "-")
         }
 
     @Synchronized
     fun dispatch(event: ExsurgeEvent, source: String) {
-        val due = settings.backOnAtEpochMs?.let(Instant::ofEpochMilli)
+        val due = settings.remindAtEpochMs?.let(Instant::ofEpochMilli)
         if (due != null && !settings.enabled && !clock().isBefore(due)) {
-            Diag.log(TAG, "dewidebug exsurge back on after a day off (due $due, noticed by $source)")
-            updateSettings("back on after a day off") { it.copy(enabled = true) }
+            ports.remindItIsOff()
+            settings = settings.copy(remindAtEpochMs = settings.nextActiveStart(due, zone())?.toEpochMilli())
+            store.saveSettings(settings)
+            val next = settings.remindAtEpochMs?.let(Instant::ofEpochMilli)
+            Diag.log(TAG, "dewidebug exsurge off: reminded (due $due, noticed by $source); next reminder $next")
+            publish(clock())
             return
         }
         lastEvent = "$event from $source at ${clock()}"
@@ -161,14 +169,13 @@ class ExsurgeController(
             )
         }
         settings = when {
-            next.enabled -> next.copy(backOnAtEpochMs = null)
-            turnedOff && next.offForToday -> next.copy(
-                backOnAtEpochMs = next.backOnAfterOff(clock(), zone())?.toEpochMilli(),
+            next.enabled -> next.copy(remindAtEpochMs = null)
+            turnedOff -> next.copy(
+                remindAtEpochMs = next.nextActiveStart(clock(), zone())?.toEpochMilli(),
             ).also { off ->
-                val backOn = off.backOnAtEpochMs?.let(Instant::ofEpochMilli)
-                Diag.log(TAG, "dewidebug exsurge off for today: back on at $backOn")
+                val remind = off.remindAtEpochMs?.let(Instant::ofEpochMilli)
+                Diag.log(TAG, "dewidebug exsurge off: stays off, no summons; reminder at $remind")
             }
-            !next.offForToday -> next.copy(backOnAtEpochMs = null)
             else -> next
         }
         store.saveSettings(settings)
@@ -278,8 +285,8 @@ class ExsurgeController(
     private fun publish(at: Instant) {
         val view = viewAt(at)
         _view.value = view
-        val backOn = settings.backOnAtEpochMs?.takeIf { !settings.enabled }?.let(Instant::ofEpochMilli)
-        ports.scheduleWake(listOfNotNull(view.nextWake, backOn).minOrNull())
+        val remind = settings.remindAtEpochMs?.takeIf { !settings.enabled }?.let(Instant::ofEpochMilli)
+        ports.scheduleWake(listOfNotNull(view.nextWake, remind).minOrNull())
         ports.viewChanged(view)
     }
 

@@ -25,6 +25,7 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
             JUST_WALK -> exsurge.dispatch(ExsurgeEvent.JustWalk, "notification")
             TURN_ON -> {
                 FlatPhoneNudge.dismiss(context)
+                ExsurgeOffReminder.dismiss(context)
                 exsurge.updateSettings("banner") { it.copy(enabled = true) }
             }
             NUDGE_NOT_TODAY -> {

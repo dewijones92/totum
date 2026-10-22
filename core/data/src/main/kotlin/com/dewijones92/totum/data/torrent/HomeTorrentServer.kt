@@ -2,7 +2,7 @@ package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.Picture
-import com.dewijones92.totum.domain.pictureAt
+import com.dewijones92.totum.domain.pictureOfFileName
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -126,5 +126,5 @@ public data class TorrentFile(
      * a perfectly valid video and never the thing anyone wants.
      */
     public val isPlayable: Boolean
-        get() = pictureAt(name) != Picture.UNKNOWN && !name.contains("sample", ignoreCase = true)
+        get() = pictureOfFileName(name) != Picture.UNKNOWN && !name.contains("sample", ignoreCase = true)
 }

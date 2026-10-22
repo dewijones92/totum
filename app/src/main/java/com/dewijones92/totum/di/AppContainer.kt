@@ -186,6 +186,7 @@ import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.keepTheQueuesPlace
 import com.dewijones92.totum.queue.playFromTheTop
+import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
@@ -883,6 +884,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             repeat = { appPreferences.settings.value.repeatMode },
             replay = { playbackQueue.replayCurrent(positionMs = 0) },
             fromTheTop = { playbackQueue.playFromTheTop() },
+            restartGroup = { ended -> playbackQueue.repeatGroupAfter(ended) },
             sleepsAfter = sleepTimer::firesAfter,
             explore = exploreMode::afterEnded,
             otherKindLeft = playbackQueue::onlyOtherKindAhead,
