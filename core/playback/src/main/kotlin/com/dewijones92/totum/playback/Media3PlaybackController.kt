@@ -35,6 +35,7 @@ import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.domain.showKey
 import com.dewijones92.totum.domain.skipTargetFor
 import com.dewijones92.totum.playback.cast.CastStatus
+import com.dewijones92.totum.playback.cast.LocalManifests
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -303,10 +304,14 @@ public class Media3PlaybackController(
             // An explicit position wins: a re-resolved stream knows exactly where the dead
             // one stopped, which is finer-grained than the periodically-saved progress.
             val tuned = tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))
-            val start = if (startPositionMs > 0) {
-                StartChoice(startPositionMs, "an explicit start (a re-fetch keeps its place), not rewound")
-            } else {
-                startChoiceFor(item, tuned)
+            val start = when {
+                LocalManifests.isLive(uri) -> StartChoice(
+                    0,
+                    "live: from the edge of the stream, never a kept place (asked ${startPositionMs}ms)",
+                )
+                startPositionMs > 0 ->
+                    StartChoice(startPositionMs, "an explicit start (a re-fetch keeps its place), not rewound")
+                else -> startChoiceFor(item, tuned)
             }
             if (!tuned.keepsChanges) {
                 Diag.log(
@@ -936,6 +941,7 @@ public class Media3PlaybackController(
             castDeviceName = castDeviceName,
             castVideoRefused = castRefused[current.mediaId],
             castVideoHeight = castSentHeights[current.mediaId],
+            live = LocalManifests.isLive(current.localConfiguration?.uri?.toString()),
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,
             bufferedPositionMs = bufferedPosition.coerceAtLeast(currentPosition).coerceAtLeast(0),

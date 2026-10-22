@@ -19,6 +19,11 @@ public object LocalManifests {
         }
     }
 
+    public fun isLive(url: String?): Boolean = url != null && (
+        (url.startsWith("http://127.0.0.1:") && url.contains("/live/")) ||
+            url.contains("/hls_variant/") || url.contains("yt_live_broadcast")
+        )
+
     internal fun manifestAt(url: String): String? {
         if (!url.startsWith("http://127.0.0.1:") || !url.contains("/live/")) return null
         val id = url.substringAfter("/live/").substringBefore('?').removeSuffix(".mpd")
@@ -35,5 +40,5 @@ public object LocalManifests {
     }
 
     private const val PORT = 8766
-    private const val KEPT = 8
+    private const val KEPT = 32
 }

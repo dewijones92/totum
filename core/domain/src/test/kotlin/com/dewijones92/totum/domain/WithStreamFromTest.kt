@@ -238,13 +238,4 @@ class WithStreamFromTest {
     private companion object {
         const val YOUTUBE_ID = "dQw4w9WgXcQ"
     }
-
-    @Test
-    fun `a resolution that finds the item live makes it live, through either merge`() {
-        val live = listing.copy(contentKind = MediaContentKind.LIVE)
-        assertEquals(MediaContentKind.LIVE, listing.withStreamFrom(live).contentKind)
-        assertEquals(MediaContentKind.LIVE, listing.fillingSilenceFrom(live).contentKind)
-        assertEquals(MediaContentKind.LIVE, live.withStreamFrom(listing).contentKind)
-        assertEquals(MediaContentKind.STANDARD, listing.withStreamFrom(listing.copy(title = "x")).contentKind)
-    }
 }

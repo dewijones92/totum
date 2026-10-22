@@ -9,7 +9,6 @@ import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.Chapter
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -587,11 +586,6 @@ class VideoResolver(
                 chapters = chaptersFromDescription(details?.description)
                     .map { (at, title) -> Chapter(at.seconds, title) },
                 sourceUrl = details?.channelId?.let { youTubeChannelUrl(it) },
-                contentKind = if (response.streaming.liveManifestUrl != null) {
-                    MediaContentKind.LIVE
-                } else {
-                    MediaContentKind.STANDARD
-                },
             ),
             skipSegments = skipSegments.segmentsFor(request.id),
             qualities = qualities,

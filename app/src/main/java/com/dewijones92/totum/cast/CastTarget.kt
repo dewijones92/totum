@@ -4,7 +4,6 @@ import android.content.Context
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CastScreen
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.playback.PlaybackState
@@ -91,10 +90,10 @@ private class CastMoves(private val container: AppContainer) {
         val state = settled ?: states.value ?: before
         when {
             state == null -> Diag.log("cast", "moved to $where with nothing played yet; nothing to replay")
-            state.hasEnded || state.kind == MediaKind.PODCAST || state.contentKind == MediaContentKind.LIVE -> Diag.log(
+            state.hasEnded || state.kind == MediaKind.PODCAST || state.live -> Diag.log(
                 "cast",
                 "moved to $where with ${state.itemId.value} " +
-                    "(${state.kind}, ${state.contentKind}, ended=${state.hasEnded}); " +
+                    "(${state.kind}, live=${state.live}, ended=${state.hasEnded}); " +
                     "nothing to replay",
             )
             onTv && alreadyRightForTheTv(state.itemId) -> Unit

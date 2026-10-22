@@ -103,7 +103,6 @@ public fun MediaItem.fillingSilenceFrom(resolved: MediaItem): MediaItem {
         thumbnailUrl = thumbnailUrl ?: resolved.thumbnailUrl,
         description = description ?: resolved.description,
         viewsText = viewsText ?: resolved.viewsText,
-        contentKind = kindLearnedFrom(resolved),
     ).placedFrom(resolved)
     return if (filled == this) this else filled
 }

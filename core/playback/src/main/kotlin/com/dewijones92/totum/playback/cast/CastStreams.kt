@@ -88,6 +88,8 @@ internal class CastStreams(
                 }
             } catch (e: UnreadableLayout) {
                 refuse("in a format Totum cannot read for a TV", e.message ?: "unreadable")
+            } catch (e: java.io.IOException) {
+                Diag.warn("cast", "${item.mediaId}: could not look for a picture; sound only", e)
             }
         }
 
@@ -211,10 +213,18 @@ internal class CastStreams(
         }
         return when {
             separateAudio != null && !listening -> Sources(uri, separateAudio, listening)
-            !listening && !uri.contains(YOUTUBE_STREAMS) -> Sources(uri, uri, listening)
+            !listening && mayCarryVideo(uri) -> Sources(uri, uri, listening)
             separateAudio != null -> Sources(null, separateAudio, listening)
             else -> Sources(null, uri, listening)
         }
+    }
+
+    private fun mayCarryVideo(uri: String): Boolean {
+        if (uri.contains(YOUTUBE_STREAMS)) return false
+        val path = uri.substringBefore('?').lowercase()
+        if (AUDIO_FILES.any(path::endsWith)) return false
+        val torrent = uri.contains("/stream/") && uri.contains("link=")
+        return !uri.startsWith("http") || torrent || VIDEO_FILES.any(path::endsWith)
     }
 
     private fun itemSkipsSilence(item: MediaItem): Boolean? =
@@ -337,6 +347,8 @@ internal class CastStreams(
         private const val VIDEO_LOG_EVERY = 25
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
         private const val YOUTUBE_STREAMS = "googlevideo.com"
+        private val AUDIO_FILES = listOf(".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wav", ".flac")
+        private val VIDEO_FILES = listOf(".mkv", ".mp4", ".m4v", ".webm", ".mov")
     }
 }
 

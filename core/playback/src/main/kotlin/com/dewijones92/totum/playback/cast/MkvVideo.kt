@@ -27,7 +27,7 @@ internal class MkvVideo private constructor(
     data class Segment(val startMs: Long, val durationMs: Long)
 
     val timeline: List<Segment> = cues.mapIndexed { i, cue ->
-        Segment(cue.timeMs, (cues.getOrNull(i + 1)?.timeMs ?: durationMs) - cue.timeMs)
+        Segment(cue.timeMs, ((cues.getOrNull(i + 1)?.timeMs ?: durationMs) - cue.timeMs).coerceAtLeast(frameMs))
     }
 
     val describe: String get() = "$codecs ${width}x$height MKV, ${cues.size} cue(s), remuxed on demand"
@@ -39,6 +39,12 @@ internal class MkvVideo private constructor(
         val to = cues.getOrNull(n + 1)?.offset ?: end
         val frames = Clusters.frames(read.read(ByteSpan(from, to - 1)), track, scaleNs)
         if (frames.isEmpty()) throw UnreadableLayout("MKV segment $n ($from..$to) holds no frames of track $track")
+        if (!frames.first().key) {
+            com.dewijones92.totum.common.Diag.warn(
+                "cast",
+                "MKV segment $n does not start on a keyframe"
+            )
+        }
         return Fmp4.videoSegment(n + 1, frames, frameMs)
     }
 
@@ -270,8 +276,16 @@ internal object Fmp4 {
         )
         val moof = Boxes.box("moof", mfhd + Boxes.box("traf", tfhd + tfdt + trun))
         check(moof.size == moofLength) { "moof is ${moof.size} bytes, expected $moofLength" }
-        val mdat = ByteArrayOutputStream().apply { frames.forEach { write(it.bytes) } }.toByteArray()
-        return moof + Boxes.box("mdat", mdat)
+        val payload = frames.sumOf { it.bytes.size }
+        val out = ByteArray(moof.size + 8 + payload)
+        moof.copyInto(out)
+        (u32(8L + payload) + ascii("mdat")).copyInto(out, moof.size)
+        var at = moof.size + 8
+        frames.forEach { frame ->
+            frame.bytes.copyInto(out, at)
+            at += frame.bytes.size
+        }
+        return out
     }
 
     private fun moov(handler: String, timescale: Long, sampleEntry: ByteArray, width: Int, height: Int): ByteArray {
