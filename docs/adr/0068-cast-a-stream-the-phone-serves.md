@@ -76,6 +76,13 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   downloaded x265 torrent casts without re-encoding (its video is remuxed into an MP4); HEVC Main10 is not measured.
   HEVC still in Matroska (a torrent streamed rather than downloaded) is not offered as video: a Cast receiver's
   `video/webm` does not carry HEVC, so it goes as sound only until it is remuxed.
+- **Handing over** (2026-10-22, on the real Ultra): the cast player is told to play *before* it is given the item,
+  because it sends the receiver's load (with its autoplay) as soon as it has the item, and a play sent after that load
+  did not stick: the TV sat paused. A replay for the TV's formats waits for the cast player to settle, takes position
+  and play intent from the side being left (the cast player's first state is still loading, at 0 ms and paused), and
+  is skipped when what the TV was sent is already its best (no refusal, height at the TV's maximum): the replay cost a
+  second load. Releasing a waiting source happens off the main thread (stopping a cast crashed v0.1.657 with
+  `NetworkOnMainThreadException`: closing an HTTP source drains its body).
 - **The TV is never handed a video it cannot show.** The replay on a cast change is triggered by the Cast session
   itself (`CastTarget.screens`), not by the player's remote flag, which flipped about 9 s late on Dewi's Pixel, so the
   first item kept the phone's AV1 and the Ultra showed nothing (report 20261021T190400-f5d37fb7). As a safety net,

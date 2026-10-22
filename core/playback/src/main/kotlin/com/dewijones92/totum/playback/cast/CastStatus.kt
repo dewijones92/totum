@@ -10,7 +10,7 @@ internal class CastTv(val name: String, val screen: CastScreen)
 
 internal interface CastTvPort {
     fun current(): CastTv?
-    fun refused(byItem: Map<String, String>)
+    fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>)
 }
 
 internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort {
@@ -20,19 +20,24 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     @Volatile
     private var tv: CastTv? = null
     private var refusals: Map<String, String> = emptyMap()
+    private var sentHeights: Map<String, Int> = emptyMap()
 
     override fun current(): CastTv? = tv
 
-    override fun refused(byItem: Map<String, String>) {
+    override fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>) {
         main.post {
-            refusals = byItem
+            refusals = refused
+            this.sentHeights = sentHeights
             publish()
         }
     }
 
     fun connected(now: CastTv?) {
         tv = now
-        if (now == null) refusals = emptyMap()
+        if (now == null) {
+            refusals = emptyMap()
+            sentHeights = emptyMap()
+        }
         publish()
     }
 
@@ -40,6 +45,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         val extras = Bundle().apply {
             tv?.let { putString(EXTRA_CAST_DEVICE, it.name) }
             putBundle(EXTRA_CAST_REFUSED, Bundle().apply { refusals.forEach(::putString) })
+            putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sentHeights.forEach(::putInt) })
         }
         session()?.setSessionExtras(extras)
     }
@@ -47,5 +53,6 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     companion object {
         const val EXTRA_CAST_DEVICE: String = "cast_device"
         const val EXTRA_CAST_REFUSED: String = "cast_refused"
+        const val EXTRA_CAST_SENT_HEIGHT: String = "cast_sent_height"
     }
 }

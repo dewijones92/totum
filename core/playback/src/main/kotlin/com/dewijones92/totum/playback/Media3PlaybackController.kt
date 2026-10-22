@@ -110,6 +110,9 @@ public class Media3PlaybackController(
     @Volatile
     private var castRefused: Map<String, String> = emptyMap()
 
+    @Volatile
+    private var castSentHeights: Map<String, Int> = emptyMap()
+
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
     private var userSpeed: Float = 1f
     private var playGeneration = 0
@@ -642,7 +645,12 @@ public class Media3PlaybackController(
             castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
             val refused = extras.getBundle(CastStatus.EXTRA_CAST_REFUSED)
             castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
-            Diag.log("cast", "cast status: device=${castDeviceName ?: "none"} refused=$castRefused")
+            val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
+            castSentHeights = sent?.keySet()?.associateWith { sent.getInt(it) }.orEmpty()
+            Diag.log(
+                "cast",
+                "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights",
+            )
             _state.value = controller.currentPlaybackState()
         }
 
@@ -927,6 +935,7 @@ public class Media3PlaybackController(
             onCastDevice = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE,
             castDeviceName = castDeviceName,
             castVideoRefused = castRefused[current.mediaId],
+            castVideoHeight = castSentHeights[current.mediaId],
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,
             bufferedPositionMs = bufferedPosition.coerceAtLeast(currentPosition).coerceAtLeast(0),

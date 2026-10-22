@@ -11,7 +11,7 @@ export ANDROID_SERIAL=${ANDROID_SERIAL:-emulator-5554}
 P=com.dewijones92.totum
 case "$1" in
   play) adb shell am broadcast -a $P.DEBUG_QUEUE_PLAY_ALL -p $P --es ids "$2" >/dev/null ;;
-  cast) adb shell am broadcast -a $P.DEBUG_CAST -p $P --es name "${2:-webOS}" >/dev/null ;;
+  cast) adb shell am broadcast -a $P.DEBUG_CAST -p $P --es name "'${2:-webOS}'" >/dev/null ;;
   stop) adb shell am broadcast -a $P.DEBUG_CAST_STOP -p $P >/dev/null ;;
   tv) ssh pi@333133333.xyz "~/.local/share/catt-venv/bin/catt -d $TV info" 2>&1 | grep -iE '^title|player_state|current_time|content_type' | tr '\n' ' '; echo ;;
   snap) ssh pi@333133333.xyz 'curl -s -o ~/tmp/snap.jpg http://127.0.0.1:8101/snapshot' && scp -q pi@333133333.xyz:/home/pi/tmp/snap.jpg "$2" ;;

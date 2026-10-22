@@ -372,13 +372,18 @@ public class PlaybackService : MediaSessionService() {
         val item = previous.currentMediaItem ?: lastHandoffItem
         val position = previous.currentMediaItem?.let { previous.currentPosition } ?: lastHandoffPositionMs
         item?.let {
-            target.setMediaItem(it, position)
             target.playWhenReady = previous.playWhenReady
+            target.setMediaItem(it, position)
             target.playbackParameters = previous.playbackParameters // carry playback speed across the handoff
             target.prepare()
             lastHandoffItem = it
             lastHandoffPositionMs = position
         }
+        Diag.log(
+            "cast",
+            "handed ${item?.mediaId} over at ${position}ms with playWhenReady=${previous.playWhenReady} " +
+                "(set before the load, so the receiver starts as the phone was)",
+        )
         previous.stop()
         if (target === castPlayer) {
             previous.clearVideoSurface()

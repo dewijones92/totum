@@ -233,6 +233,7 @@ public data class PlaybackState(
     val onCastDevice: Boolean = false,
     val castDeviceName: String? = null,
     val castVideoRefused: String? = null,
+    val castVideoHeight: Int? = null,
     /** Skip (e.g. SponsorBlock) segments for the current item — drawn on the seek bar. */
     val skipSegments: List<SkipSegment> = emptyList(),
     /** Whether silence-skipping (dead-air trimming) is currently on. */

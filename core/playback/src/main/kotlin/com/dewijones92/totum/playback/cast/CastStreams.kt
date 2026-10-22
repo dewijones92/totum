@@ -28,7 +28,7 @@ internal class CastStreams(
     private val host: CastHost,
     private val tvs: CastTvPort,
 ) {
-    private val refusals = ConcurrentHashMap<String, String>()
+    private val videos = TvVideos(tvs)
 
     private val server = CastHttpServer(::handle)
     private val sessions = ConcurrentHashMap<String, Session>()
@@ -88,15 +88,16 @@ internal class CastStreams(
                 val family = VideoCodecFamily.of(found.codecs)?.name ?: found.codecs
                 return refuse("$family ${found.height}p", "beyond ${screen.label}")
             }
-            if (latest[item.mediaId] === this && refusals.remove(item.mediaId) != null) tvs.refused(refusals.toMap())
+            if (latest[item.mediaId] === this) {
+                videos.sent(item.mediaId, found.height)
+            }
             return found
         }
 
         private fun refuse(what: String, why: String): StreamLayout? {
             videoFile = null
             if (latest[item.mediaId] === this) {
-                refusals[item.mediaId] = what
-                tvs.refused(refusals.toMap())
+                videos.refused(item.mediaId, what)
             }
             Diag.warn("cast", "${item.mediaId}: the TV gets sound only — its video is $what ($why)")
             return null
@@ -176,7 +177,7 @@ internal class CastStreams(
         val session = Session(token, item, sources.video, sources.audio)
         sessions[token] = session
         latest[item.mediaId] = session
-        if (refusals.remove(item.mediaId) != null) tvs.refused(refusals.toMap())
+        videos.forget(item.mediaId)
         order.addLast(token)
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
         host.hold(true)
@@ -196,8 +197,7 @@ internal class CastStreams(
         sessions.clear()
         order.clear()
         latest.clear()
-        refusals.clear()
-        tvs.refused(emptyMap())
+        videos.clear()
         server.stop()
         host.hold(false)
     }

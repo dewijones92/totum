@@ -148,7 +148,7 @@ internal class ProcessedAudio(
             lock.notifyAll()
             spare.also { spare = null }
         }
-        idle?.release()
+        idle?.let { extractor -> Thread({ extractor.release() }, "cast-spare-release-$label").start() }
     }
 
     private fun start(n: Int) {
@@ -217,8 +217,10 @@ internal class ProcessedAudio(
                     "in ${System.currentTimeMillis() - started}ms",
             )
             val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs, durationUs, earlyEndUs)
-            transcode = try {
-                AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke()).also { it.run() }
+            try {
+                AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke())
+                    .also { transcode = it }
+                    .run()
             } catch (e: IOException) {
                 if (spared == null || synchronized(lock) { produced } >= first) throw e
                 Diag.warn(
@@ -227,7 +229,9 @@ internal class ProcessedAudio(
                     e,
                 )
                 val fresh = extractor()
-                AudioTranscode(plan, fresh, audioTrack(fresh), boost, sink, cutter?.invoke()).also { it.run() }
+                AudioTranscode(plan, fresh, audioTrack(fresh), boost, sink, cutter?.invoke())
+                    .also { transcode = it }
+                    .run()
             }
         } catch (e: InterruptedException) {
             Diag.log("cast", "audio $label producer from $first interrupted: ${e.message}")

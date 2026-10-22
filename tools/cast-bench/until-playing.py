@@ -14,7 +14,7 @@ import time
 import pychromecast
 
 host, mode = sys.argv[1], sys.argv[2]
-cast = pychromecast.get_chromecast_from_host((host, 8009, None, None, None))
+cast = pychromecast.get_chromecast_from_host((host, 8009, None, None, None), tries=2, retry_wait=3, timeout=8)
 cast.wait()
 media = cast.media_controller
 media.update_status()
