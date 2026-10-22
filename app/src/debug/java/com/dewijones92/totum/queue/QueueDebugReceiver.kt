@@ -31,6 +31,8 @@ class QueueDebugReceiver : BroadcastReceiver() {
                 }
                 val appendGroup = intent.getStringExtra("appendGroup")?.let { QueueGroup(id = "debug:$it", title = it) }
                 container.applicationScope.launch {
+                    (items + appended).forEach { container.playbackProgressStore.setPlayed(it.item.id, false) }
+                    Diag.log("queue", "dewidebug DEBUG play-all: ${items.size + appended.size} item(s) marked unplayed first")
                     container.playbackQueue.clear()
                     container.playbackQueue.playAll(items, group)
                     if (appended.isNotEmpty()) container.playbackQueue.enqueueAll(appended, appendGroup)
