@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.NetworkStatus
@@ -18,6 +19,7 @@ internal fun PlaybackQueue.startStreamRecovery(
     autoPlayNext: () -> Boolean,
     prefetchOne: suspend (PlayableItem) -> Unit,
     scope: CoroutineScope,
+    dropUnreadableCopy: suspend (MediaItemId, String) -> Unit = { _, _ -> },
 ) {
     StreamRecovery(
         failures = controller.streamFailures,
@@ -26,6 +28,7 @@ internal fun PlaybackQueue.startStreamRecovery(
         autoPlayNext = autoPlayNext,
         // The last thing to try before abandoning the item: the copy already on the disk.
         playWithoutTheStream = this::playCurrentWithoutItsStream,
+        dropUnreadableCopy = dropUnreadableCopy,
         // The sound without the picture, tried after the disk and before giving up. There is no
         // durable VIDEO stream to be had for a long video — see StreamRecovery's parameter doc —
         // so this is the difference between losing the picture and losing the item.

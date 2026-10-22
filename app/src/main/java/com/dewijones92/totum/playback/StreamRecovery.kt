@@ -76,6 +76,7 @@ internal class StreamRecovery(
     private val replay: suspend (Long) -> Boolean,
     private val moveOn: suspend () -> Boolean,
     private val playWithoutTheStream: suspend (Long) -> Boolean = { false },
+    private val dropUnreadableCopy: suspend (MediaItemId, String) -> Unit = { _, _ -> },
     /**
      * Plays the current item's SOUND without its picture, from a position — the last rung before the
      * item is abandoned.
@@ -215,6 +216,29 @@ internal class StreamRecovery(
         }
     }
 
+    private fun isStale(failure: StreamFailure): Boolean {
+        val current = currentStartedItem ?: return false
+        if (failure.itemId == current) return false
+        Diag.log(
+            "playback",
+            "ignoring a stale failure for ${failure.itemId.value} at ${failure.positionMs}ms — " +
+                "the queue has moved on to ${current.value}",
+        )
+        return true
+    }
+
+    private suspend fun streamedInsteadOfTheCopy(failure: StreamFailure): Boolean {
+        if (failure.reason != StreamFailure.Reason.UnreadableCopy) return false
+        Diag.warn(
+            "playback",
+            "${failure.itemId.value}: the copy on disk cannot be read; it is marked failed and the item streams",
+        )
+        dropUnreadableCopy(failure.itemId, UNREADABLE_COPY)
+        attempts++
+        if (!replay(failure.positionMs)) Diag.warn("playback", "could not stream ${failure.itemId.value} instead")
+        return true
+    }
+
     private suspend fun recover(failure: StreamFailure) {
         // Before anything else, and for every failure: whatever address just died must not be
         // handed out again. Recovery's own replay forgets it, but only for itself — so a tap on
@@ -230,15 +254,7 @@ internal class StreamRecovery(
         // queue's CURRENT item, so acting on a failure for anything else replays the wrong item at
         // the wrong position — the cross-item leak. Only drop when we positively know it is stale;
         // a null means no fresh start has been seen yet, and blocking then would break app-start.
-        val current = currentStartedItem
-        if (current != null && failure.itemId != current) {
-            Diag.log(
-                "playback",
-                "ignoring a stale failure for ${failure.itemId.value} at ${failure.positionMs}ms — " +
-                    "the queue has moved on to ${current.value}",
-            )
-            return
-        }
+        if (isStale(failure) || streamedInsteadOfTheCopy(failure)) return
         val generationAtFailure = generation
         if (failure.shouldResetBudget()) {
             attempts = 0
@@ -444,6 +460,7 @@ internal class StreamRecovery(
         if (reason == StreamFailure.Reason.Rejected) REFUSED_MAX_ATTEMPTS else maxAttempts
 
     private companion object {
+        const val UNREADABLE_COPY = "⚠️ the saved file could not be read; try again to fetch it fresh"
         const val MAX_ATTEMPTS = 3
 
         /** One, so a bad CDN node is covered and a refusing client is not argued with. */

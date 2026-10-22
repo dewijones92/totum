@@ -18,7 +18,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Shuffle all on an artist duplicates the song playing](artist-shuffle-duplicate.md) | music/queue | high | done 2026-10-22 (93ac61c6: the playing song moves into the new group) |
 | [Show the buffer on the seek bar](seek-bar-buffer.md) | player/ui | medium | built 2026-10-22 (strip under the slider) |
 | [Repeat the current queue group](repeat-group.md) | queue | medium | done 2026-10-22 (🔁 This group in the repeat picker) |
-| [Every download string says audio or video](downloads-say-audio-or-video.md) | downloads/ui | high | requested 2026-10-22 (Dewi's 24 h batch) |
+| [Every download string says audio or video](downloads-say-audio-or-video.md) | downloads/ui | high | ⏳ partly done 2026-10-22 (every download action says what it fetches) |
 | [Choose audio, video (and quality) or both when downloading](download-choice-and-quality.md) | downloads | high | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Lock a video for a child; a locked Peppa Pig shortcut](kid-lock-and-shortcut.md) | player/kids | high | ✅ done 2026-10-22 (ADR 76) |
 | [Skip finished items when the queue moves on](skip-finished-on-advance.md) | queue | high | ✅ done 2026-10-22 (ADR 74) |

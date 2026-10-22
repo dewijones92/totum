@@ -62,5 +62,7 @@ public data class StreamFailure(
          * with the screen off silently ended the queue.
          */
         Unreachable,
+
+        UnreadableCopy,
     }
 }

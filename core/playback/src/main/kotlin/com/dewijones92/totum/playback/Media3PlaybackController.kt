@@ -12,10 +12,13 @@ import androidx.core.os.bundleOf
 import androidx.media3.common.C
 import androidx.media3.common.DeviceInfo
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.ParserException
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.source.UnrecognizedInputFormatException
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
@@ -199,7 +202,8 @@ public class Media3PlaybackController(
 
                         @OptIn(markerClass = [UnstableApi::class])
                         override fun onPlayerError(error: PlaybackException) {
-                            val reason = error.recoverableReason() ?: run {
+                            val local = connected.currentMediaItem?.localConfiguration?.uri?.scheme == "file"
+                            val reason = error.recoverableReason(playingLocalFile = local) ?: run {
                                 // Said out loud: an unrecoverable error used to leave no
                                 // trace here at all, so "playback stopped and nothing in
                                 // the trail explains it" was a real state.
@@ -1122,8 +1126,28 @@ internal fun PlaybackException.deadAddressReason(nowEpochSeconds: Long): StreamF
 @UnstableApi
 internal fun PlaybackException.recoverableReason(
     nowEpochSeconds: Long = System.currentTimeMillis() / MILLIS_PER_SECOND,
+    playingLocalFile: Boolean = false,
 ): StreamFailure.Reason? =
-    recoveryReasonFrom(deadAddressReason(nowEpochSeconds), isSabrPrematureEnd(), isUnreachable())
+    recoveryReasonFrom(
+        deadAddressReason(nowEpochSeconds),
+        isSabrPrematureEnd(),
+        isUnreachable(),
+        unparsable(playingLocalFile)
+    )
+
+@UnstableApi
+internal fun PlaybackException.unparsable(playingLocalFile: Boolean): Unparsable {
+    var cause: Throwable? = this
+    while (cause != null) {
+        if (cause is UnrecognizedInputFormatException) {
+            return if (cause.uri.scheme == "file" || playingLocalFile) Unparsable.LOCAL_FILE else Unparsable.STREAM
+        }
+        if (cause is ParserException) return if (playingLocalFile) Unparsable.LOCAL_FILE else Unparsable.STREAM
+        if (cause is FileDataSource.FileDataSourceException) return Unparsable.LOCAL_FILE
+        cause = cause.cause
+    }
+    return Unparsable.NO
+}
 
 /**
  * Which answer wins when more than one applies.
@@ -1142,11 +1166,16 @@ internal fun PlaybackException.recoverableReason(
  * ordering was written for. Changing it would change what recovery does in the wild, so it is pinned
  * by a test rather than left to be rediscovered.
  */
+internal enum class Unparsable { NO, LOCAL_FILE, STREAM }
+
 internal fun recoveryReasonFrom(
     address: StreamFailure.Reason?,
     sabrStalled: Boolean,
     unreachable: Boolean,
+    unparsable: Unparsable = Unparsable.NO,
 ): StreamFailure.Reason? = when {
+    unparsable == Unparsable.LOCAL_FILE -> StreamFailure.Reason.UnreadableCopy
+    unparsable == Unparsable.STREAM -> StreamFailure.Reason.Rejected
     address != null -> address
     sabrStalled -> StreamFailure.Reason.Rejected
     unreachable -> StreamFailure.Reason.Unreachable
@@ -1212,12 +1241,16 @@ internal fun PlaybackException.isUnreachable(): Boolean {
         if (cause is HttpDataSource.InvalidResponseCodeException) return false
         // A stalled SABR stream is NOT a dead network, and treating it as one makes recovery wait for a
         // connection that is already there. Checked before the IOException catch-all because it IS one.
-        if (cause is SabrPrematureEndException) return false
+        if (cause is SabrPrematureEndException || cause.isLocalOrParse()) return false
         if (cause is IOException) return true
         cause = cause.cause
     }
     return false
 }
+
+@UnstableApi
+private fun Throwable.isLocalOrParse(): Boolean =
+    this is ParserException || this is FileDataSource.FileDataSourceException
 
 /** Whether a SABR stream stopped short — a refusal to serve, not a network fault. */
 internal fun PlaybackException.isSabrPrematureEnd(): Boolean {

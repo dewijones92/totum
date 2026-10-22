@@ -180,3 +180,22 @@ and is being profiled; the progress write was at most part of it.
 ## Locked downloads (2026-10-22)
 
 🔒 Lock this download (any item's sheet, beside Delete) keeps a copy from clean-up suggestions and from every delete: a delete asks "🔓 Unlock and delete" or Keep. [ADR 75](../adr/0075-a-locked-download-is-kept-until-unlocked.md).
+
+## An unreadable copy streams instead (2026-10-22)
+
+Report 0.1.679 ("live video not working??"): a downloaded audio copy the player could not parse
+(`ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED`) was filed as "Unreachable", because Media3's parse errors are
+`IOException`s, so recovery waited for a network and replayed the same file: 48 times in five minutes, which also
+filled the report's buffer so only five minutes of history survived. Now a parse error, or a file the data source
+cannot open, on a local file is `UnreadableCopy`: the download is marked failed ("⚠️ the saved file could not be read;
+try again to fetch it fresh"), its file deleted, and the item streams. A parse error on a stream gets one fresh lookup
+(`Rejected`), never a wait for the network. `AnUnreadableCopyIsNotANetworkFaultTest`, `StreamRecoveryTest`, both seen
+red; verified on totum-api35 with a copy overwritten by junk in audio mode (copy marked failed, then streamed).
+
+## Labels say what will be fetched (2026-10-22)
+
+The item menu's plain "Download" fetched sound only for a video, while the row's icon fetched the whole video. Labels
+now come from one rule (`downloadLabel`): 🎧 Download the sound only · 🎬 Download the video · 🎧 Download the song ·
+⬇️ Download the whole file; the full player's menu offers both sound and video for a video; bulk, album and queue-group
+downloads say sound or in full.
+

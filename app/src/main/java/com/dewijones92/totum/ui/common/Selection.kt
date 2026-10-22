@@ -298,7 +298,7 @@ fun mediaBulkActions(
                 mix?.let { start -> BulkAction(R.string.radio_from_these) { start(chosen) } }
                     ?.takeIf { chosen.count { it.radioVideoId() != null } >= 2 },
                 BulkAction(
-                    R.string.download,
+                    if (downloadAudioOnly) R.string.download_bulk_sound else R.string.download_bulk_full,
                     confirm = R.plurals.bulk_download_confirm,
                     confirmCount = missing.size,
                     holdToConfirm = true,

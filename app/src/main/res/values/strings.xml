@@ -70,7 +70,7 @@
     <string name="history_clear">Clear all</string>
     <string name="queue_title">Queue</string>
     <string name="queue_peek">Play once, don\u2019t queue it</string>
-    <string name="download_video">Download video</string>
+    <string name="download_video">🎬 Download the video too</string>
     <string name="watching_this_one">📺 Watching this one \u2014 audio mode kept</string>
     <string name="mode_audio_on">🎧 Audio mode on</string>
     <string name="mode_video_on">📺 Video mode on</string>
@@ -104,15 +104,15 @@
     <string name="queue_sorted">🔃 Sorted: %1$s</string>
     <string name="queue_sort_undo">Undo</string>
     <string name="queue_group_shuffle_play">Shuffle and play %1$s</string>
-    <string name="queue_group_download">Download this group offline</string>
+    <string name="queue_group_download">🎧 Download this group\'s sound for offline</string>
     <string name="queue_group_endless">♾️ Endless radio: more songs arrive as you listen</string>
     <string name="queue_group_stop_download">Stop downloading this group</string>
-    <string name="group_download_title">Download “%1$s” for offline?</string>
+    <string name="group_download_title">🎧 Download the sound of “%1$s” for offline?</string>
     <plurals name="group_download_body">
         <item quantity="one">1 item, audio only, so it plays without a connection. You can change this from the group\'s ⋮.</item>
         <item quantity="other">%1$d items, audio only, so they play without a connection. You can change this from the group\'s ⋮.</item>
     </plurals>
-    <string name="group_download_yes">Download</string>
+    <string name="group_download_yes">🎧 Download the sound</string>
     <string name="group_download_no">Not now</string>
     <string name="queue_shuffle_groups">Shuffle the order of groups</string>
     <string name="go_to_channel">Go to channel</string>
@@ -387,6 +387,12 @@
     <string name="fullscreen_enter">Fullscreen</string>
     <string name="fullscreen_exit">Exit fullscreen</string>
     <string name="download">Download</string>
+    <string name="download_the_sound">🎧 Download the sound only</string>
+    <string name="download_the_video">🎬 Download the video</string>
+    <string name="download_the_song">🎧 Download the song</string>
+    <string name="download_the_file">⬇️ Download the whole file</string>
+    <string name="download_bulk_sound">🎧 Download the sound</string>
+    <string name="download_bulk_full">⬇️ Download in full (videos with their picture)</string>
     <string name="downloaded_delete">Downloaded — tap to remove</string>
     <string name="download_delete">Delete downloaded file</string>
     <string name="library_downloads">Downloads</string>
@@ -507,7 +513,7 @@
     <string name="music_shuffle_radio">Shuffle radio</string>
     <string name="music_gathering_songs">⏳ Gathering every song by %1$s…</string>
     <string name="music_add_to_end">Add to end</string>
-    <string name="music_download_album">Download</string>
+    <string name="music_download_album">🎧 Download the songs</string>
     <string name="music_radio">Radio</string>
     <string name="music_start_radio">Start radio</string>
     <string name="music_mix">Mix</string>

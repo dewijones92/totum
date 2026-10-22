@@ -241,6 +241,21 @@ public class DefaultDownloadManager(
         if (store.noteOpened(id)) Diag.log("download", "opened ${id.value}: its download is marked opened now")
     }
 
+    override suspend fun markUnreadable(id: MediaItemId, why: String) {
+        val request = store.request(id)
+            ?: return Diag.warn("download", "${id.value} unreadable, but there is no record")
+        val file = (store.get(id) as? DownloadState.Downloaded)?.localPath?.let(::File)
+        val bytes = file?.length() ?: 0L
+        file?.delete()
+        store.put(request.item, DownloadState.Failed(why), request.audioOnly)
+        Diag.warn(
+            "download",
+            "\"${request.item.item.title}\" (${bytes}B, audioOnly=${request.audioOnly}) " +
+                "could not be read from the disk; " +
+                "deleted and kept as a failed download to fetch again",
+        )
+    }
+
     private companion object {
         const val EVENT_BUFFER = 64
 

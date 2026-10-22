@@ -89,4 +89,6 @@ public interface DownloadManager {
     public suspend fun delete(id: MediaItemId)
 
     public suspend fun noteOpened(id: MediaItemId)
+
+    public suspend fun markUnreadable(id: MediaItemId, why: String)
 }

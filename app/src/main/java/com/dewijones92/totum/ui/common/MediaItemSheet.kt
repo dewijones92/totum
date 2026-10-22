@@ -73,6 +73,7 @@ internal fun ActionSheet(
     onPeek: (() -> Unit)?,
     onDownloadVideo: (() -> Unit)?,
     onDownload: (() -> Unit)?,
+    downloadAudioOnly: Boolean = false,
     /**
      * Deletes the copy on disk. Dewi, 2026-09-20: *"in the 'download' section in the app it has
      * said I have used lots of space on my phone … give option to delete file on each item"* — the
@@ -124,7 +125,12 @@ internal fun ActionSheet(
             SongLikeAction(extras.songId, title, onDismiss)
             PinSheetActions(pins, extras.pin, onDismiss)
             extras.item?.let { DetailsSection(it) }
-            SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
+            SheetAction(
+                onDownload,
+                Icons.Outlined.Download,
+                extras.item?.let { downloadLabel(it, downloadAudioOnly, sourcePillar) } ?: R.string.download,
+                onDismiss,
+            )
             SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
             SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)
             DownloadLockAction(extras.item?.id?.takeIf { onDeleteDownload != null }, onDismiss)

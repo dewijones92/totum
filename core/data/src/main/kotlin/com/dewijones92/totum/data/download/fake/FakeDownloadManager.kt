@@ -116,6 +116,10 @@ public class FakeDownloadManager : DownloadManager {
 
     public val opened: MutableList<MediaItemId> = mutableListOf()
 
+    override suspend fun markUnreadable(id: MediaItemId, why: String) {
+        setFailed(id, why)
+    }
+
     override suspend fun noteOpened(id: MediaItemId) {
         opened += id
         completed.update { done -> done.map { if (it.item.id == id) it.copy(openedAt = Instant.now()) else it } }

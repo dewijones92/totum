@@ -978,6 +978,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             autoPlayNextEnabled,
             prefetchOne,
             applicationScope,
+            dropUnreadableCopy = downloadManager::markUnreadable,
         )
         playbackQueue.handOverFinishedDownloads(downloadManager, applicationScope)
         // `transferClient`, not `httpClient`: the latter carries BusyInterceptor and drives the

@@ -420,7 +420,7 @@ class MultiSelectTest {
 
         longPress("Alpha episode")
         composeTestRule.onNodeWithText("Beta episode").performClick()
-        val download = activity.getString(R.string.download)
+        val download = activity.getString(R.string.download_bulk_full)
         composeTestRule.onNodeWithTag(SELECTION_ACTIONS_TAG).performScrollToNode(hasText(download))
         composeTestRule.onNodeWithText(download).performClick()
         composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performClick()

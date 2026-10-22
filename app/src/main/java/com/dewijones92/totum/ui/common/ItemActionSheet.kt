@@ -42,9 +42,10 @@ internal fun ItemActionSheet(
         onRemoveFromQueue = null,
         onPeek = { actions.peek(item) },
         onDownloadVideo = { actions.download(item, audioOnly = false) }
-            .takeIf { video && (local as? DownloadState.Downloaded)?.audioOnly == true },
+            .takeIf { video && local !is DownloadState.Downloading && local.mayStillGetThePicture() },
         onDownload = { actions.download(item, audioOnly = true) }
             .takeIf { local !is DownloadState.Downloaded && local !is DownloadState.Downloading },
+        downloadAudioOnly = true,
         onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
         onSwitchMode = { actions.switchMode(item) }.takeIf { item.offersListenAndWatch(pillar) },
         audioMode = actions.audioMode,
@@ -62,3 +63,5 @@ internal fun ItemActionSheet(
         ),
     )
 }
+
+private fun DownloadState.mayStillGetThePicture(): Boolean = (this as? DownloadState.Downloaded)?.audioOnly != false

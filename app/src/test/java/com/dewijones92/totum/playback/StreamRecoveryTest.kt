@@ -53,6 +53,8 @@ class StreamRecoveryTest {
     private var diskHasIt = false
     private val playedFromDisk = mutableListOf<Long>()
 
+    private val unreadable = mutableListOf<MediaItemId>()
+
     private fun TestScope.recovery(maxAttempts: Int = 3, backoffMs: Long = 0): StreamRecovery =
         StreamRecovery(
             failures = failures,
@@ -76,6 +78,10 @@ class StreamRecoveryTest {
             forgetHeldStreams = { heldStreamsDropped += it },
             onSabrStalled = { sabrStalled += it },
             prefetchNext = { prefetched++ },
+            dropUnreadableCopy = { id, _ ->
+                unreadable += id
+                diskHasIt = false
+            },
             awaitNetwork = {
                 waitedForNetwork++
                 networkBack.await()
@@ -84,6 +90,20 @@ class StreamRecoveryTest {
             maxAttempts = maxAttempts,
             backoffMs = backoffMs,
         ).also { it.start() }
+
+    @Test
+    fun `a saved copy that cannot be read is dropped and the item streams, with no wait for a network`() = runTest {
+        recovery()
+        runCurrent()
+        diskHasIt = true
+        failures.emit(StreamFailure(MediaItemId("a"), 0, StreamFailure.Reason.UnreadableCopy))
+        runCurrent()
+
+        assertEquals(listOf(MediaItemId("a")), unreadable)
+        assertEquals(listOf(0L), replayedFrom)
+        assertEquals(0, waitedForNetwork)
+        assertEquals(emptyList<Long>(), playedFromDisk)
+    }
 
     @Test
     fun `re-resolves from the position the stream died at`() = runTest {
