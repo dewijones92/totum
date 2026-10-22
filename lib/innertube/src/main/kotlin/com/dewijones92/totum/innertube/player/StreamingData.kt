@@ -24,6 +24,7 @@ public data class StreamingData(
      * every format is directly fetchable, which is still the common case.
      */
     val serverAbrStreamingUrl: HttpUrl? = null,
+    val hlsManifestUrl: HttpUrl? = null,
     /**
      * `videoPlaybackUstreamerConfig`, base64url-decoded — the one field a SABR request cannot
      * omit. Without it the server answers `RELOAD_PLAYER_RESPONSE: sabr.malformed_config`.

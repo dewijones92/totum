@@ -52,6 +52,13 @@ public object PlayerResponseParser {
 
         val streaming = root["streamingData"] as? JsonObject
             ?: return PlayerResult.Failure("Player response carried no streamingData")
+        if ((root["videoDetails"] as? JsonObject)?.get("isLiveContent")?.jsonPrimitive?.booleanOrNull == true) {
+            com.dewijones92.totum.common.Diag.log(
+                "resolve",
+                "dewidebug live player response streamingData keys=${streaming.keys.sorted()} " +
+                    "live=${(root["videoDetails"] as? JsonObject)?.get("isLive")}",
+            )
+        }
         val formats = listOf("formats", "adaptiveFormats")
             .flatMap { key -> (streaming[key] as? JsonArray).orEmpty() }
             .mapNotNull { (it as? JsonObject)?.toFormat() }
@@ -60,6 +67,7 @@ public object PlayerResponseParser {
             StreamingData(
                 formats = formats,
                 serverAbrStreamingUrl = streaming.stringAt("serverAbrStreamingUrl")?.let(HttpUrl::parse),
+                hlsManifestUrl = streaming.stringAt("hlsManifestUrl")?.let(HttpUrl::parse),
                 ustreamerConfig = root.ustreamerConfig(),
             ),
             details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),

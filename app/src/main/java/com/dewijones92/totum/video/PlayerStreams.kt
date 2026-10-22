@@ -297,6 +297,10 @@ internal fun StreamingData.videoQualities(
     wanted: List<String> = emptyList(),
     support: VideoCodecSupport = VideoCodecSupport.Permissive,
 ): List<VideoQuality> {
+    hlsManifestUrl?.let { live ->
+        val height = bestOfferedHeight ?: LIVE_LABEL_HEIGHT
+        return listOf(VideoQuality(LIVE_ID, "🔴 Live", height, live, audioUrl = null))
+    }
     val audio = bestAudioFormat(wanted)
     val byAudio = audioLanguagePreference(wanted)
     // The bar every height has to clear: the best sound anywhere on this video, muxed streams
@@ -345,12 +349,15 @@ private val CODECS = Regex("""codecs="([^"]+)"""")
 private val PlayableFormat.carriesSound: Boolean
     get() = mimeType?.startsWith("audio/") == true || mimeType?.contains("mp4a") == true
 
+private const val LIVE_ID = "live"
+private const val LIVE_LABEL_HEIGHT = 1080
+
 private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioTrackTag) =
     VideoQuality("$height", "${height}p", height, url, audioUrl, audio = audio)
 
 /** Best audio-only stream, for "Listen" mode and as the merge partner for a video-only one. */
-internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? =
-    bestAudioFormat(wanted)?.url
+internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? = hlsManifestUrl
+    ?: bestAudioFormat(wanted)?.url
 
 private fun StreamingData.bestAudioFormat(wanted: List<String>): PlayableFormat? =
     directlyPlayable.filter { it.mimeType?.startsWith("audio/") == true }.bestSounding(wanted)
@@ -362,8 +369,8 @@ private fun StreamingData.bestAudioFormat(wanted: List<String>): PlayableFormat?
  * data-friendly, and the quality menu offers the higher merged ladders on demand. Choosing the
  * tallest format here instead would quietly make every play a merged 2160p one.
  */
-internal fun StreamingData.bestMuxedUrl(wanted: List<String> = emptyList()): HttpUrl? =
-    directlyPlayable
+internal fun StreamingData.bestMuxedUrl(wanted: List<String> = emptyList()): HttpUrl? = hlsManifestUrl
+    ?: directlyPlayable
         .filter { it.mimeType?.startsWith("video/") == true && it.mimeType?.contains("mp4a") == true }
         .bestSounding(wanted, tieBreak = compareBy { it.height ?: 0 })
         ?.url
