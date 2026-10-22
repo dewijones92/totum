@@ -32,6 +32,9 @@ public data class CastScreen(
         return family in codecs && (height == null || height <= maxHeight)
     }
 
+    public fun bestOf(offered: List<Pair<String?, Int>>): Int =
+        offered.filter { (codec, height) -> canDecode(codec, height) }.maxOfOrNull { it.second } ?: maxHeight
+
     public val label: String
         get() = "$model (${codecs.joinToString("/")} up to ${maxHeight}p${if (known) "" else ", assumed"})"
 

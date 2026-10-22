@@ -70,3 +70,10 @@ A YouTube video reaches the TV as up to three qualities in one codec family, and
 no reload when the phone was playing something lower than the TV can take. The casting strip shows the quality the TV
 is fetching, and "going up to …" while it climbs. When the phone's own stream is one the TV cannot decode (AV1 on the
 Ultra), the TV gets its own formats from the first load. See ADR 68's amendments.
+
+## The player stays on the phone (2026-10-22)
+
+After a replay on the TV, Media3 could lose the playing item's name and the phone hid its player while the TV played
+on (report 0.1.671). The phone now shows the item it sent last, so pause, seek and stop stay in reach. Listen-mode
+casts and videos already at their best for the TV no longer replay. See ADR 68's amendment.
+

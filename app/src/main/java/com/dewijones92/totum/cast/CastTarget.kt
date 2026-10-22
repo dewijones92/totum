@@ -143,17 +143,24 @@ private class CastMoves(private val container: AppContainer) {
 
     private suspend fun alreadyRightForTheTv(item: MediaItemId): Boolean {
         val screen = CastTarget.screen ?: return false
+        val quality = container.videoPlaybackLauncher.quality.value
+        if (quality.listening) {
+            Diag.log("cast", "${item.value} on the TV: sound only, by choice (Listen); no replay")
+            return true
+        }
+        val best = screen.bestOf(quality.options.map { it.codec to it.height })
         val sent = withTimeoutOrNull(SENT_WAIT_MS) {
             states.first {
                 it != null && it.itemId == item && (it.castVideoHeight != null || it.castVideoRefused != null)
             }
         }
         val height = sent?.castVideoHeight
-        val enough = sent?.castVideoRefused == null && height != null && height >= screen.maxHeight
+        val enough = sent?.castVideoRefused == null && height != null && height >= best
         Diag.log(
             "cast",
             "${item.value} on the TV: sent ${height?.let { "${it}p" } ?: "nothing yet"}, " +
-                "refused=${sent?.castVideoRefused}, the TV goes to ${screen.maxHeight}p -> " +
+                "refused=${sent?.castVideoRefused}, the TV goes to ${screen.maxHeight}p, " +
+                "the best of ${quality.options.size} offered it can show is ${best}p -> " +
                 if (enough) "already as good as it gets; no replay" else "replaying for the TV's own formats",
         )
         return enough

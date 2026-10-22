@@ -158,3 +158,17 @@ an unknown codec would otherwise let AV1 or a mix of families reach a TV that ca
 red: it offered AV1 1080p with H.264 720p to a Chromecast Ultra). Which quality the TV is fetching is logged and shown
 on the casting strip ("720p picture on Living Room, going up to 1080p"). Measured on the Ultra: VP9 1080/720/480
 offered, 1080p fetched from the start, no replay. Not done: a text note on the TV itself at the switch.
+
+### Amendment (2026-10-22): the phone keeps the player while the TV plays, and replays less
+
+Report 0.1.671: *"can't see the player when casting??? so how can I pause"*. After a replay on the TV, Media3's
+`CastTimelineTracker` (1.10.1) can report the current item as `MediaItem.EMPTY`: it keys items by content id, and
+during a load the old item id picks up the new content id, so when the old item leaves the queue the new one's entry
+goes with it. The TV played on; the phone saw an item with no id, so the mini player and full player vanished. Now an
+unnamed item on the receiver is shown as the one Totum sent it last, with the TV's real position and state
+(`CastLoadHold.unnamed`, `CastLoadHoldTest`, seen red), and a warning names it in the log.
+
+Two replays are dropped. An item cast in Listen mode goes as sound only by choice, so there is nothing to wait for and
+no replay (it replayed after 5 s of "sent nothing yet"). And "as good as it gets" is the best height on offer that the
+TV can decode, not the TV's maximum (`CastScreen.bestOf`, `CastScreenTest`, seen red): a 1080p video on the 4K LG had
+replayed for nothing.

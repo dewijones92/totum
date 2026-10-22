@@ -944,6 +944,15 @@ public class Media3PlaybackController(
             return itemState(current)
         }
         if (!remote || castDeviceName == null) return null
+        return unnamedOnTheTv() ?: loadingOnTheTv()
+    }
+
+    private fun MediaController.unnamedOnTheTv(): PlaybackState? {
+        if (currentMediaItem == null || playbackState == Player.STATE_IDLE) return null
+        return castLoad.unnamed()?.let { itemState(it).copy(onCastDevice = true) }
+    }
+
+    private fun MediaController.loadingOnTheTv(): PlaybackState? {
         val (asked, startMs) = castLoad.loading() ?: return null
         refreshAfterTheHold()
         return itemState(asked).copy(

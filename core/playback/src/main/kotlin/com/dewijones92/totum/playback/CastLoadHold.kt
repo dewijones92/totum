@@ -9,9 +9,12 @@ internal class CastLoadHold<T>(private val now: () -> Long, private val holdMs: 
     private var asked: Asked<T>? = null
     private var lastLocal: Asked<T>? = null
     private var announced: String? = null
+    private var sentLast: Asked<T>? = null
+    private var unnamedSince: String? = null
 
     fun asked(id: String, item: T, startMs: Long) {
         asked = Asked(id, item, startMs, now())
+        sentLast = asked
     }
 
     fun seen(id: String, item: T, localPositionMs: Long?) {
@@ -20,7 +23,12 @@ internal class CastLoadHold<T>(private val now: () -> Long, private val holdMs: 
             asked = null
             announced = null
         }
-        if (localPositionMs != null) lastLocal = Asked(id, item, localPositionMs, now())
+        if (localPositionMs != null) {
+            lastLocal = Asked(id, item, localPositionMs, now())
+        } else {
+            sentLast = Asked(id, item, 0L, now())
+        }
+        unnamedSince = null
     }
 
     fun loading(): Pair<T, Long>? {
@@ -48,6 +56,18 @@ internal class CastLoadHold<T>(private val now: () -> Long, private val holdMs: 
             announced = fresh.id
         }
         return fresh.item to fresh.startMs
+    }
+
+    fun unnamed(): T? {
+        val stand = asked ?: sentLast ?: lastLocal
+        if (stand != null && unnamedSince != stand.id) {
+            Diag.warn(
+                "cast",
+                "the receiver plays an item Media3 lost the name of; showing ${stand.id}, the one Totum sent last",
+            )
+            unnamedSince = stand.id
+        }
+        return stand?.item
     }
 
     fun forgetLocal() {

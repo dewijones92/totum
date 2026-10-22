@@ -37,4 +37,17 @@ class CastLoadHoldTest {
         hold.forgetLocal()
         assertNull(hold.loading())
     }
+
+    @Test
+    fun `an item the receiver plays without a name is the one Totum sent it last`() {
+        assertNull(hold.unnamed())
+        hold.asked("a", "A", startMs = 0)
+        hold.seen("a", "A", localPositionMs = null)
+        assertEquals("A", hold.unnamed())
+
+        hold.asked("b", "B", startMs = 1_000)
+        assertEquals("B", hold.unnamed())
+        clock = 600_000
+        assertEquals("still B long after the load hold", "B", hold.unnamed())
+    }
 }
