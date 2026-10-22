@@ -1,6 +1,7 @@
 package com.dewijones92.totum.pins
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -56,8 +57,22 @@ class PinMenuTest {
 
     @Test
     fun `a song tile has no tile menu of its own, so the song menu opens instead`() {
-        val song = pinMenuFor(Pin.of(trainVideo), inRecent = true)
-        assertEquals(listOf(PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME, PinAction.REMOVE_FROM_RECENT), song)
+        val video = pinMenuFor(Pin.of(trainVideo), inRecent = true)
+        assertEquals(
+            listOf(
+                PinAction.TOGGLE_PIN,
+                PinAction.ADD_TO_HOME,
+                PinAction.ADD_TO_HOME_LOCKED,
+                PinAction.REMOVE_FROM_RECENT
+            ),
+            video,
+        )
+        val song = trainVideo.copy(item = trainVideo.item.copy(contentKind = MediaContentKind.MUSIC))
+        assertEquals(
+            "a song is never locked for a child",
+            listOf(PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME, PinAction.REMOVE_FROM_RECENT),
+            pinMenuFor(Pin.of(song), inRecent = true),
+        )
     }
 
     @Test

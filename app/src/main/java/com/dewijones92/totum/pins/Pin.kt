@@ -4,6 +4,7 @@ import com.dewijones92.totum.backup.toBackup
 import com.dewijones92.totum.backup.toPlayable
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.BackupItem
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
@@ -18,7 +19,12 @@ sealed interface Pin {
     val key: String
     val title: String
     val artUrl: String?
-    val mayShowPicture: Boolean get() = this !is Album && this !is Artist && this !is Radio && this !is ArtistSongs
+    val mayShowPicture: Boolean
+        get() = when (this) {
+            is Item -> item.contentKind != MediaContentKind.MUSIC.name
+            is Album, is Artist, is Radio, is ArtistSongs -> false
+            else -> true
+        }
 
     @Serializable
     @SerialName("item")
