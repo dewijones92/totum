@@ -155,7 +155,10 @@ class ScreensKeepEveryControlTest {
         assertEquals("a tap alone must not clear it", 2, container.playbackQueue.state.value.entries.size)
 
         composeTestRule.waitUntil(TIMEOUT_MS) {
-            composeTestRule.onAllNodesWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+            composeTestRule.onAllNodesWithTag(
+                HOLD_TO_CONFIRM_TAG,
+                useUnmergedTree = true
+            ).fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.OnLongClick)
