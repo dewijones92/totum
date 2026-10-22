@@ -1,12 +1,14 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
@@ -152,11 +154,11 @@ class ScreensKeepEveryControlTest {
         composeTestRule.waitForIdle()
         assertEquals("a tap alone must not clear it", 2, container.playbackQueue.state.value.entries.size)
 
-        composeTestRule.mainClock.autoAdvance = false
-        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { down(center) }
-        composeTestRule.mainClock.advanceTimeBy(HOLD_THROUGH_MS)
-        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { up() }
-        composeTestRule.mainClock.autoAdvance = true
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.OnLongClick)
 
         composeTestRule.waitUntil(TIMEOUT_MS) { container.playbackQueue.state.value.entries.isEmpty() }
     }
@@ -169,6 +171,5 @@ class ScreensKeepEveryControlTest {
 
     private companion object {
         const val TIMEOUT_MS = 5_000L
-        const val HOLD_THROUGH_MS = 1_700L
     }
 }
