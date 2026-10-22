@@ -91,6 +91,15 @@ class AppSourcePages(
 
 data class ShuffleTarget(val key: String, val title: String, val sources: List<MediaSource>)
 
+fun shuffleTargetOf(picked: List<MediaSource>): ShuffleTarget {
+    val ids = picked.map { it.id.value }.sorted()
+    return ShuffleTarget(
+        key = if (picked.size == 1) "source:${ids.single()}" else "picked:${ids.joinToString(",").hashCode()}",
+        title = picked.joinToString(" + ") { it.title },
+        sources = picked,
+    )
+}
+
 sealed interface ShuffleOutcome {
     data class Shuffled(val count: Int, val unfinished: List<String>) : ShuffleOutcome
     data object Nothing : ShuffleOutcome

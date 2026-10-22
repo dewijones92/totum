@@ -201,6 +201,8 @@ internal fun RepeatTile(mode: RepeatMode, onSetMode: (RepeatMode) -> Unit, modif
 private fun RepeatMode.labelRes(): Int = when (this) {
     RepeatMode.OFF -> R.string.repeat_off
     RepeatMode.QUEUE -> R.string.repeat_queue
+    RepeatMode.QUEUE_SHUFFLED -> R.string.repeat_queue_shuffled
     RepeatMode.GROUP -> R.string.repeat_group
+    RepeatMode.GROUP_SHUFFLED -> R.string.repeat_group_shuffled
     RepeatMode.ONE -> R.string.repeat_one
 }

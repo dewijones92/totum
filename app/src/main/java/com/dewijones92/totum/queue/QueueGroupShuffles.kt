@@ -2,6 +2,7 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.MediaItemId
 import kotlin.random.Random
 
 fun PlaybackQueue.shuffleGroup(id: String, random: Random = Random.Default) =
@@ -49,3 +50,28 @@ internal fun QueueSnapshot.shufflingGroupOrder(random: Random): QueueSnapshot {
     if (blocks.size < 2) return this
     return copy(entries = entries.take(after) + blocks.shuffled(random).flatMap { it.entries })
 }
+
+internal fun QueueSnapshot.reshufflingRun(
+    first: Int,
+    last: Int,
+    random: Random,
+    avoidFirst: MediaItemId?,
+): QueueSnapshot {
+    if (first !in entries.indices || last !in entries.indices || last <= first) return this
+    val mixed = entries.subList(first, last + 1).shuffled(random).notStartingOn(avoidFirst)
+    return rebuiltFrom(entries.take(first) + mixed + entries.drop(last + 1))
+}
+
+internal fun QueueSnapshot.reshufflingEverything(random: Random, avoidFirst: MediaItemId?): QueueSnapshot {
+    val blocks = entries.blocks().shuffled(random).map { it.entries.shuffled(random) }
+    val head = blocks.firstOrNull() ?: return this
+    val ordered = when {
+        head.first().item.item.id != avoidFirst -> blocks
+        head.size > 1 -> listOf(head.notStartingOn(avoidFirst)) + blocks.drop(1)
+        else -> blocks.drop(1) + listOf(head)
+    }
+    return rebuiltFrom(ordered.flatten())
+}
+
+private fun List<QueueEntry>.notStartingOn(id: MediaItemId?): List<QueueEntry> =
+    if (size > 1 && first().item.item.id == id) listOf(this[1], this[0]) + drop(2) else this

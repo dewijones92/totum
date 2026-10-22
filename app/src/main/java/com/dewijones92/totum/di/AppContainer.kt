@@ -883,8 +883,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             scope = applicationScope,
             repeat = { appPreferences.settings.value.repeatMode },
             replay = { playbackQueue.replayCurrent(positionMs = 0) },
-            fromTheTop = { playbackQueue.playFromTheTop() },
-            restartGroup = { ended -> playbackQueue.repeatGroupAfter(ended) },
+            fromTheTop = { playbackQueue.playFromTheTop(appPreferences.settings.value.repeatMode.reshuffles) },
+            restartGroup = { ended ->
+                playbackQueue.repeatGroupAfter(ended, appPreferences.settings.value.repeatMode.reshuffles)
+            },
             sleepsAfter = sleepTimer::firesAfter,
             explore = exploreMode::afterEnded,
             otherKindLeft = playbackQueue::onlyOtherKindAhead,

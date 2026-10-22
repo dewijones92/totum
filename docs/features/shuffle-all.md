@@ -3,7 +3,7 @@ title: Shuffle all (a channel, a podcast or a group)
 kind: feature
 status: shipped
 area: queue/channel
-updated: 2026-10-14
+updated: 2026-10-22
 ---
 
 # Shuffle all
@@ -13,6 +13,13 @@ or **Shuffle all** under the feed chips when a group is selected, loads every up
 podcast's feed still lists, shuffles them, puts them after what is playing as one queue group, and
 starts the first. A channel asks **Include Shorts?** first. Members-only videos are left out.
 Decision and reasons: [ADR 30](../adr/0030-shuffle-all-walks-every-page-into-one-queue-group.md).
+
+## Several at once (2026-10-22)
+
+Library → Subscriptions: tick channels or shows (long-press, then tap), and the selection bar offers **🔀 Shuffle all of
+these**. It is the same walk as one source (`shuffleTargetOf` builds one target named "A + B", keyed by the sorted ids
+so the same set is one pin and one recent action), asking about Shorts when a channel is among them. The 🔀 button
+and this action share `rememberShuffleStarter`.
 
 ## Seam
 

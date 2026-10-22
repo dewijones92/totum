@@ -482,7 +482,9 @@
     <string name="repeat">Repeat</string>
     <string name="repeat_off">⚪ Off</string>
     <string name="repeat_queue">🔁 Queue</string>
+    <string name="repeat_queue_shuffled">🔀 Queue, reshuffled each round</string>
     <string name="repeat_group">🔁 This group</string>
+    <string name="repeat_group_shuffled">🔀 This group, reshuffled each round</string>
     <string name="repeat_one">🔂 This one</string>
     <string name="queue_shuffle_up_next">Shuffle up next</string>
     <string name="pin_pin">Pin</string>
@@ -563,6 +565,7 @@
     <string name="status_offline_video">Video saved offline</string>
     <string name="queue_move_to_top">Move to top</string>
     <string name="queue_shuffle_together">🔀 Shuffle together</string>
+    <string name="shuffle_all_of_these">🔀 Shuffle all of these</string>
     <string name="queue_shuffled_together_group">🔀 Shuffled together</string>
     <string name="queue_move_to_bottom">Move to bottom</string>
     <!-- Named rather than a bare count: the fix differs per cause, so "could not be reached"

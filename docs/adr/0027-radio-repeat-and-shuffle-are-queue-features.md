@@ -60,3 +60,17 @@ that this app knows of, so the multi-select bar's "📻 Radio from these" (two o
 each song's radio, takes them in turns with no song twice (`interleaveRadios`: each seed leads, then each radio's
 second song, …), and plays the blend as one radio group (`radio:mix:<first seed>`, "Radio · A, B + 2 more") that tops
 itself up from the first seed's continuation. A seed whose radio fails is logged and left out. `RadioMixTest`.
+
+### Amendment (2026-10-22): reshuffled repeats, and shuffling several things together
+
+Dewi: *"shuffle and repeat current playlist or current group of playlists … a bit more options"*. Repeat gains two modes
+beside Queue and This group: **Queue, reshuffled each round** (when the queue runs out, the order of its groups and the
+items in each are shuffled, groups kept whole, then it plays from the top) and **This group, reshuffled each round**
+(the group's run is reshuffled before it starts again). Neither round starts on the item that just ended.
+`RepeatMode.repeatsQueue` / `repeatsGroup` / `reshuffles` keep every rule in one place (the advancer, gapless arming);
+`reshufflingRun` / `reshufflingEverything`, `ReshuffleRoundTest` (seen red against no-op stubs).
+
+Two ways to mix several sources: the queue's selection bar has **🔀 Shuffle together** (ticked groups or rows become
+one shuffled group, "🔀 ArtistA + ArtistB"), and the Subscriptions list's selection bar has **🔀 Shuffle all of these**
+(every page of every ticked channel or show, one `ShuffleAll` target, `shuffleTargetOf`). With This group, reshuffled,
+a mixed group becomes "a group of playlists on shuffle and repeat".

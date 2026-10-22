@@ -94,6 +94,19 @@ class AutoAdvancerTest {
     }
 
     @Test
+    fun `repeat queue reshuffled loops back to the top too`() = runTest {
+        queueHasNext = false
+        repeat = RepeatMode.QUEUE_SHUFFLED
+        advancer()
+        runCurrent()
+
+        end("talk")
+
+        assertEquals(1, wrapped)
+        assertEquals(0, fellBackToRelated)
+    }
+
+    @Test
     fun `a queue with nothing at all left still falls back to a related video`() = runTest {
         queueHasNext = false
         advancer()

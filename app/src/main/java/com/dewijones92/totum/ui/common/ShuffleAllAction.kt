@@ -44,28 +44,8 @@ fun ShuffleAllAction(
 ) {
     val loading by shuffleAll.loading.collectAsStateWithLifecycle()
     val loaded = loading[target.key]
-    val context = LocalContext.current.applicationContext
-    var asking by remember(target.key) { mutableStateOf(false) }
-    var randomStarts by remember(target.key) { mutableStateOf(LastShuffleChoice.randomStarts) }
-    val ask = rememberShuffleAsk()
-    val start: (Boolean, Boolean) -> Unit = { includeShorts, startAtRandom ->
-        asking = false
-        LastShuffleChoice.randomStarts = startAtRandom
-        scope.launch {
-            val outcome = shuffleAll.shuffle(target, includeShorts, startAtRandom)
-            val message = when (outcome) {
-                ShuffleOutcome.AlreadyLoading -> return@launch
-                ShuffleOutcome.Nothing -> context.getString(R.string.shuffle_all_nothing)
-                is ShuffleOutcome.Shuffled ->
-                    context.resources.getQuantityString(R.plurals.shuffle_all_done, outcome.count, outcome.count) +
-                        if (outcome.unfinished.isEmpty()) "" else context.getString(R.string.shuffle_all_incomplete)
-            }
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
-    }
-    val onTap = {
-        if (target.sources.any { it is MediaSource.VideoChannel }) asking = true else ask { start(false, it) }
-    }
+    val begin = rememberShuffleStarter(shuffleAll, scope)
+    val onTap = { begin(target) }
     val label = loaded?.let { pluralStringResource(R.plurals.shuffle_all_loading, it, it) }
         ?: stringResource(R.string.shuffle_all)
     if (wide) {
@@ -84,8 +64,36 @@ fun ShuffleAllAction(
             Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.shuffle_all_of, target.title))
         }
     }
-    if (asking) {
-        ShortsQuestion(target.title, randomStarts, { randomStarts = it }, { asking = false }, start)
+}
+
+@Composable
+fun rememberShuffleStarter(shuffleAll: ShuffleAll, scope: CoroutineScope): (ShuffleTarget) -> Unit {
+    val context = LocalContext.current.applicationContext
+    var asking by remember { mutableStateOf<ShuffleTarget?>(null) }
+    var randomStarts by remember { mutableStateOf(LastShuffleChoice.randomStarts) }
+    val ask = rememberShuffleAsk()
+    val start: (ShuffleTarget, Boolean, Boolean) -> Unit = { target, includeShorts, startAtRandom ->
+        asking = null
+        LastShuffleChoice.randomStarts = startAtRandom
+        scope.launch {
+            val outcome = shuffleAll.shuffle(target, includeShorts, startAtRandom)
+            val message = when (outcome) {
+                ShuffleOutcome.AlreadyLoading -> return@launch
+                ShuffleOutcome.Nothing -> context.getString(R.string.shuffle_all_nothing)
+                is ShuffleOutcome.Shuffled ->
+                    context.resources.getQuantityString(R.plurals.shuffle_all_done, outcome.count, outcome.count) +
+                        if (outcome.unfinished.isEmpty()) "" else context.getString(R.string.shuffle_all_incomplete)
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+    asking?.let { target ->
+        ShortsQuestion(target.title, randomStarts, { randomStarts = it }, { asking = null }) { shorts, random ->
+            start(target, shorts, random)
+        }
+    }
+    return { target ->
+        if (target.sources.any { it is MediaSource.VideoChannel }) asking = target else ask { start(target, false, it) }
     }
 }
 

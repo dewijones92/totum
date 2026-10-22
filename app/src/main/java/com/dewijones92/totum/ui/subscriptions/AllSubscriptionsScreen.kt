@@ -23,6 +23,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,6 +39,7 @@ import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.shuffle.shuffleTargetOf
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.EmptyState
@@ -54,6 +56,7 @@ import com.dewijones92.totum.ui.common.orSelected
 import com.dewijones92.totum.ui.common.pillarRowTint
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.rememberShuffleStarter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.selectableClicks
 
@@ -63,6 +66,7 @@ fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val checking by viewModel.checking.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.checkChannels() }
+    val beginShuffle = rememberShuffleStarter(container.shuffleAll, rememberCoroutineScope())
     AllSubscriptionsContent(
         sources = sources,
         onBack = onBack,
@@ -70,6 +74,7 @@ fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier
         checking = checking,
         onRefresh = viewModel::refresh,
         onUnsubscribe = viewModel::unsubscribe,
+        onShuffle = { picked -> beginShuffle(shuffleTargetOf(picked)) },
     )
 }
 
@@ -82,6 +87,7 @@ internal fun AllSubscriptionsContent(
     checking: ChannelCheckProgress? = null,
     onRefresh: () -> Unit = {},
     onUnsubscribe: (List<MediaSource>) -> Unit = {},
+    onShuffle: ((List<MediaSource>) -> Unit)? = null,
     onOpen: ((SourceActivity) -> Unit)? = LocalOpenSource.current?.let { open -> { open(it.source) } },
 ) {
     val selection = rememberSelection("subscriptions")
@@ -108,7 +114,10 @@ internal fun AllSubscriptionsContent(
                             shown,
                             { it.source.id.value },
                             { chosen ->
-                                listOf(
+                                listOfNotNull(
+                                    onShuffle?.let { shuffle ->
+                                        BulkAction(R.string.shuffle_all_of_these) { shuffle(chosen.map { it.source }) }
+                                    },
                                     BulkAction(R.string.channel_unsubscribe, confirm = R.plurals.unsubscribe_confirm) {
                                         onUnsubscribe(chosen.map { it.source })
                                     },

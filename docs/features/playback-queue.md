@@ -177,3 +177,11 @@ ticked that is still to play becomes one shuffled group, "🔀 ArtistA + ArtistB
 Shuffled together" when none had one), placed where the first of them was. The playing item and what has already
 played stay where they are. `QueueShuffleTogether.kt`, `ShuffleTogetherTest`; logged as `shuffle together xN as
 "…" from {group=count}`. Verified on totum-api35 with two debug groups (7 mixed, the playing video kept in place).
+
+## Reshuffled repeats (2026-10-22)
+
+The repeat picker offers ⚪ Off · 🔁 Queue · 🔀 Queue, reshuffled each round · 🔁 This group · 🔀 This group,
+reshuffled each round · 🔂 This one. A reshuffled round mixes the group (or the queue's groups and their items)
+again before starting over, never on the item that just ended; logged as `repeat group: "…" reshuffled for its next
+round`. Verified on totum-api35 with a three-item group. ADR 27's amendment.
+

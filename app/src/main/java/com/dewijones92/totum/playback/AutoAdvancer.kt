@@ -90,7 +90,7 @@ internal class AutoAdvancer(
             Diag.log("advance", "not advancing past $id: auto-play next is off")
             return
         }
-        if (mode == RepeatMode.GROUP && restartGroup(ended.itemId)) {
+        if (mode.repeatsGroup && restartGroup(ended.itemId)) {
             Diag.log("advance", "$id ended at ${ended.atMs}ms; repeat group is on -> its group started again")
             return
         }
@@ -107,7 +107,7 @@ internal class AutoAdvancer(
     private suspend fun afterTheQueue(id: String, mode: RepeatMode) {
         val other = otherKindLeft()
         when {
-            mode == RepeatMode.QUEUE && fromTheTop() ->
+            mode.repeatsQueue && fromTheTop() ->
                 Diag.log("advance", "queue ran out and repeat queue is on -> started again from the top, in kind")
             other != null -> Diag.log(
                 "advance",
@@ -115,7 +115,7 @@ internal class AutoAdvancer(
                     "auto-play stays out of ${other.first.word}; the music/talk button carries on with them",
             )
             else -> {
-                if (mode == RepeatMode.QUEUE) {
+                if (mode.repeatsQueue) {
                     Diag.log(
                         "advance",
                         "repeat queue is on but nothing from the top would play"

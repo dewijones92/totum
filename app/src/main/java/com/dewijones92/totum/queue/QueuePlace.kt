@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.word
+import kotlin.random.Random
 
 internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =
     playingId
@@ -67,7 +68,7 @@ internal fun groupRestartIndex(snapshot: QueueSnapshot, endedId: MediaItemId): I
     return first
 }
 
-suspend fun PlaybackQueue.repeatGroupAfter(endedId: MediaItemId): Boolean {
+suspend fun PlaybackQueue.repeatGroupAfter(endedId: MediaItemId, reshuffle: Boolean = false): Boolean {
     val snapshot = state.value
     val at = snapshot.entries.indexOfFirst { it.item.item.id == endedId }
     val group = snapshot.entries.getOrNull(at)?.group
@@ -84,13 +85,24 @@ suspend fun PlaybackQueue.repeatGroupAfter(endedId: MediaItemId): Boolean {
         )
         return false
     }
+    if (reshuffle) {
+        reorder("repeat group: \"${group?.title}\" reshuffled for its next round (${at - first + 1} items)") {
+            it.reshufflingRun(first, at, Random.Default, avoidFirst = endedId)
+        }
+    }
     val played = playAt(first, rollBackOnRefusal = true)
     Diag.log("queue", "repeat group: \"${group?.title}\" ended; back to its first item at $first -> played=$played")
     return played
 }
 
-suspend fun PlaybackQueue.playFromTheTop(): Boolean {
+suspend fun PlaybackQueue.playFromTheTop(reshuffle: Boolean = false): Boolean {
     val keepTo = nowPlaying.value?.item?.listening
+    if (reshuffle) {
+        val ended = nowPlaying.value?.item?.id
+        reorder("repeat queue: reshuffled for its next round (${state.value.entries.size} items, groups kept whole)") {
+            it.reshufflingEverything(Random.Default, avoidFirst = ended)
+        }
+    }
     val entries = state.value.entries
     val inKind = entries.indices.filter { keepTo.admits(entries[it].item) }
     val played = inKind.any { playAt(it, rollBackOnRefusal = true) }

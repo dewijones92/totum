@@ -93,7 +93,7 @@ internal fun gaplessNotNow(
     exploring -> "Explore is on: a related video follows, not the queue's next"
     !settings.autoPlayNext -> "auto-play next is off"
     settings.repeatMode == RepeatMode.ONE -> "repeat one is on"
-    settings.repeatMode == RepeatMode.GROUP && lastOfItsGroup -> "repeat group is on and this is its group's last item"
+    settings.repeatMode.repeatsGroup && lastOfItsGroup -> "repeat group is on and this is its group's last item"
     sleepsAfterPlaying -> "the sleep timer stops after this item"
     else -> null
 }
