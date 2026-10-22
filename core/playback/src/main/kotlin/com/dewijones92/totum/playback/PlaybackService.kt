@@ -562,6 +562,8 @@ internal fun playbackSources(context: Context): DefaultMediaSourceFactory =
         .setLoadErrorHandlingPolicy(DoNotRetryWhatSabrHasGivenUpOn())
         .setDataSourceFactory(
             RefusedSubtitlesLoadEmpty(
-                SabrDataSourceFactory(ChunkedDataSource.Factory(DefaultDataSource.Factory(context)))
+                SabrDataSourceFactory(
+                    PlaybackCache.factory(context, ChunkedDataSource.Factory(DefaultDataSource.Factory(context))),
+                ),
             ),
         )

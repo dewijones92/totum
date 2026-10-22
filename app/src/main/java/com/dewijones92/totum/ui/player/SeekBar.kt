@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -68,6 +69,7 @@ internal fun SeekBar(
                 },
                 valueRange = 0f..duration.toFloat(),
             )
+            BufferStrip(state.itemId.value, live.positionMs, live.bufferedPositionMs, duration)
             SkipSegmentBar(state.skipSegments, duration)
             ChapterMarkerBar(state.chapters, duration)
             Row(
@@ -83,6 +85,43 @@ internal fun SeekBar(
             Text(
                 text = formatTime(live.positionMs),
                 style = MaterialTheme.typography.labelMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BufferStrip(itemId: String, positionMs: Long, bufferedMs: Long, durationMs: Long) {
+    if (durationMs <= 0) return
+    val played = remember(itemId) { PlayedSpans() }
+    played.at(positionMs)
+    val behind = MaterialTheme.colorScheme.secondary.copy(alpha = STRIP_ALPHA)
+    val ahead = MaterialTheme.colorScheme.primary.copy(alpha = STRIP_ALPHA)
+    val base = MaterialTheme.colorScheme.outlineVariant.copy(alpha = BASE_ALPHA)
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SLIDER_THUMB_INSET)
+            .height(SEGMENT_BAR_HEIGHT)
+            .testTag(BUFFER_STRIP_TAG),
+    ) {
+        drawRect(color = base, size = size)
+        played.spans.forEach { span ->
+            val startX = fractionX(span.first, durationMs)
+            val endX = fractionX(span.last, durationMs)
+            drawRect(
+                color = behind,
+                topLeft = Offset(startX, 0f),
+                size = Size((endX - startX).coerceAtLeast(1f), size.height)
+            )
+        }
+        if (bufferedMs > positionMs) {
+            val startX = fractionX(positionMs, durationMs)
+            val endX = fractionX(bufferedMs, durationMs)
+            drawRect(
+                color = ahead,
+                topLeft = Offset(startX, 0f),
+                size = Size((endX - startX).coerceAtLeast(1f), size.height)
             )
         }
     }
@@ -205,6 +244,9 @@ private fun DrawScope.fractionX(ms: Long, durationMs: Long): Float =
 
 private val SLIDER_THUMB_INSET = 10.dp
 private val SEGMENT_BAR_HEIGHT = 4.dp
+private const val STRIP_ALPHA = 0.45f
+private const val BASE_ALPHA = 0.5f
+internal const val BUFFER_STRIP_TAG = "buffer-strip"
 private val CHAPTER_TICK_WIDTH = 2.dp
 private val SponsorSegmentColor = Color(0xFF2ECC71) // SponsorBlock's brand green
 private val ChapterMarkerColor = Color(0xFFFFC107) // amber — visible on light and dark
