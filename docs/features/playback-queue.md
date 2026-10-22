@@ -185,3 +185,13 @@ reshuffled each round · 🔂 This one. A reshuffled round mixes the group (or t
 again before starting over, never on the item that just ended; logged as `repeat group: "…" reshuffled for its next
 round`. Verified on totum-api35 with a three-item group. ADR 27's amendment.
 
+## Rows drawn twice (2026-10-22, not reproduced)
+
+Report 0.1.680 ("queue looks double overlapped"): a screenshot of the queue with rows drawn twice, half-faded and about
+half a row apart, just after the queue expanded a 1,400-item group to show the playing item and jumped there. Not
+reproduced on totum-api35 (a 28-item queue, the same expand and jump). Two changes: row placement and fade animations
+(`animateItem`, applied by `ReorderableItem`) now run only while a drag is in progress, the one time they are needed,
+so an expand-and-jump cannot leave half-faded copies; and `WatchForOverlappingRows` checks the settled layout after
+every scroll or jump and warns with the rows' keys, offsets and heights if any overlap. If the doubling comes back with
+no such warning, it is drawing, not layout. Drag tests (`QueueRowDragTest`, `GroupHeaderShufflePlayTest`) pass.
+

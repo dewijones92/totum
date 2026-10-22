@@ -361,7 +361,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.groupHeaderItem(
             )
         }
         if (isFirstRunOfGroup) {
-            ReorderableItem(reorder, key, enabled = session.draggingGroup) { dragging ->
+            ReorderableItem(
+                reorder,
+                key,
+                enabled = session.draggingGroup,
+                animateItemModifier = if (session.dragging) Modifier.animateItem() else Modifier,
+            ) { dragging ->
                 header(QueueRowDrag(this, dragging, key, session))
             }
         } else {
@@ -404,7 +409,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders
         if (group != null && groups.isCollapsed(group.id)) return@forEachIndexed
         val key = entry.item.item.id.value
         item(key = key) {
-            ReorderableItem(reorder, key) { dragging ->
+            ReorderableItem(
+                reorder,
+                key,
+                animateItemModifier = if (session.dragging) Modifier.animateItem() else Modifier,
+            ) { dragging ->
                 QueueRow(
                     entry,
                     index,
@@ -458,6 +467,7 @@ private fun FilterableQueue(
             CompositionLocalProvider(
                 LocalLongPressHeldElsewhere provides { actions.dragSession.grip.held },
             ) {
+                WatchForOverlappingRows(listState)
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }
                     itemsWithGroupHeaders(
