@@ -545,6 +545,7 @@ private class MergingAudioVideoFactory(
 
 /** Extras key on a [MediaItem]'s request metadata carrying the separate audio-track URL. */
 internal const val EXTRA_AUDIO_URL: String = "com.dewijones92.totum.AUDIO_URL"
+internal const val EXTRA_VIDEO_LADDER: String = "com.dewijones92.totum.VIDEO_LADDER"
 
 internal const val EXTRA_SKIP_SILENCE: String = "com.dewijones92.totum.SKIP_SILENCE"
 

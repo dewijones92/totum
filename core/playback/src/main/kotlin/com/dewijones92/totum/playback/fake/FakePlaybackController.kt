@@ -13,6 +13,7 @@ import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.StreamFailure
+import com.dewijones92.totum.playback.VideoRung
 import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -131,6 +132,8 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         private set
 
     public var lastAudioOnly: Boolean = false
+
+    public var lastVideoLadder: List<VideoRung> = emptyList()
         private set
 
     override fun play(
@@ -142,7 +145,9 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         subtitles: List<SubtitleTrack>,
         startPositionMs: Long,
         audioOnly: Boolean,
+        videoLadder: List<VideoRung>,
     ) {
+        lastVideoLadder = videoLadder
         played += item.id.value
         if (adoptable?.id == item.id) adopted += item.id.value
         adoptable = null

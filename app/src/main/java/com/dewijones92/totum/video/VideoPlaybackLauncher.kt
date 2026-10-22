@@ -20,6 +20,7 @@ import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.withStreamFrom
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import com.dewijones92.totum.playback.PlaybackController
+import com.dewijones92.totum.playback.VideoRung
 import com.dewijones92.totum.ytdlp.isDurableAddress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -168,6 +169,9 @@ class VideoPlaybackLauncher(
         )
         playback.play(item, queued.pillar, startPositionMs = startPositionMs, audioOnly = withoutPicture)
     }
+
+    private fun VideoResolver.Resolved.castLadder(): List<VideoRung> =
+        qualities.filter { it.audioUrl != null }.map { VideoRung(it.videoUrl, it.height, it.codec) }
 
     private fun switchState(picture: Picture, listening: Boolean) =
         QualityState(canListen = picture == Picture.YES, listening = listening && picture != Picture.NO)
@@ -404,6 +408,7 @@ class VideoPlaybackLauncher(
                 audioUrl = chosen.audioUrl,
                 subtitles = resolved.subtitles,
                 startPositionMs = startPositionMs,
+                videoLadder = resolved.castLadder(),
             )
         } else {
             playback.play(
@@ -588,6 +593,7 @@ class VideoPlaybackLauncher(
             audioUrl = quality.audioUrl,
             subtitles = resolved.subtitles,
             startPositionMs = whereWeAre(),
+            videoLadder = resolved.castLadder(),
         )
     }
 }

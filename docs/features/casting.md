@@ -63,3 +63,10 @@ a video plays locally.
   (`NO_ADDRESS`). The first request of each cast is logged with how long it took to arrive.
 - **Casting is visible everywhere.** While a cast session is on, the Cast button sits beside 🔍 in every screen's
   header (`CastingAction` in `TitleAndActions`), so stopping a cast never needs the player open.
+
+## A ladder, not one quality (2026-10-22)
+
+A YouTube video reaches the TV as up to three qualities in one codec family, and the TV switches between them itself:
+no reload when the phone was playing something lower than the TV can take. The casting strip shows the quality the TV
+is fetching, and "going up to …" while it climbs. When the phone's own stream is one the TV cannot decode (AV1 on the
+Ultra), the TV gets its own formats from the first load. See ADR 68's amendments.

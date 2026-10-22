@@ -141,8 +141,11 @@ class ExsurgeTakeoverFlowTest {
                 duration = null
             )
             val beforeSkipSilence = playback.state.value?.skipSilence ?: false
+            val preferences = (context as TotumApplication).container.appPreferences
+            val beforeRewind = preferences.settings.value.rewindOnResume
             try {
                 instrumentation.runOnMainSync {
+                    preferences.setRewindOnResume(false)
                     playback.setSkipSilence(false)
                     playback.play(item, kind = kind, localPath = file.absolutePath, startPositionMs = 10_000)
                 }
@@ -153,6 +156,7 @@ class ExsurgeTakeoverFlowTest {
                     compose.waitUntil(5_000) { playback.state.value?.wantsToPlay == false }
                 }
                 val position = playback.state.value!!.positionMs
+                Thread.sleep(LONGER_THAN_A_QUICK_PAUSE_MS)
                 ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
                     compose.onNodeWithTag("exsurge-continue").performScrollTo()
                     capture()
@@ -171,6 +175,7 @@ class ExsurgeTakeoverFlowTest {
                 assertEquals(false, playback.state.value!!.wantsToPlay)
             } finally {
                 instrumentation.runOnMainSync {
+                    preferences.setRewindOnResume(beforeRewind)
                     playback.setPlaying(false)
                     playback.setSkipSilence(beforeSkipSilence)
                     playback.player?.stop()
@@ -219,3 +224,4 @@ class ExsurgeTakeoverFlowTest {
 }
 
 private const val PLAYED_BEFORE_PAUSE_MS = 10_300L
+private const val LONGER_THAN_A_QUICK_PAUSE_MS = 4_000L

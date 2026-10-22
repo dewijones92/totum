@@ -113,6 +113,7 @@ public class Media3PlaybackController(
     @Volatile
     private var castRefused: Map<String, String> = emptyMap()
     private var castProblem: CastProblem? = null
+    private var castFetchHeights: Map<String, Int> = emptyMap()
     private val castLoad = CastLoadHold<Media3MediaItem>(SystemClock::elapsedRealtime)
     private val holdTimer = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -279,6 +280,7 @@ public class Media3PlaybackController(
         subtitles: List<SubtitleTrack>,
         startPositionMs: Long,
         audioOnly: Boolean,
+        videoLadder: List<VideoRung>,
     ) {
         val uri = localPath?.let { File(it).toURI().toString() }
             ?: requireNotNull(item.mediaUrl) { "MediaItem ${item.id.value} has no mediaUrl" }.value
@@ -303,7 +305,7 @@ public class Media3PlaybackController(
         // leave the player on one item with another's source/segments/chapters.
         val generation = ++playGeneration
         requestedContext = ItemContext.of(item, kind, skipSegments, subtitles)
-        val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, audioOnly = audioOnly)
+        val media3Item = media3ItemFor(item, kind, uri, audioUrl, subtitles, 0, audioOnly).withLadder(videoLadder)
         // Resume where this item was left (both pillars). Fetched first so we
         // can hand the start position straight to the player — no jump from 0.
         scope.launch {
@@ -385,6 +387,17 @@ public class Media3PlaybackController(
 
     private fun adopting(controller: MediaController, id: String, uri: String, audioUrl: HttpUrl?, startMs: Long) =
         startMs <= 0 && nextInLine.adopt(id, uri, audioUrl?.value) && controller.currentMediaItem?.mediaId == id
+
+    private fun Media3MediaItem.withLadder(ladder: List<VideoRung>): Media3MediaItem {
+        if (ladder.isEmpty()) return this
+        val extras = Bundle(requestMetadata.extras ?: Bundle()).apply {
+            putStringArrayList(
+                EXTRA_VIDEO_LADDER,
+                ArrayList(ladder.map { "${it.height}\t${it.codec.orEmpty()}\t${it.url.value}" }),
+            )
+        }
+        return buildUpon().setRequestMetadata(requestMetadata.buildUpon().setExtras(extras).build()).build()
+    }
 
     private fun media3ItemFor(
         item: MediaItem,
@@ -660,13 +673,15 @@ public class Media3PlaybackController(
             castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
             val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
             castSentHeights = sent?.keySet()?.associateWith { sent.getInt(it) }.orEmpty()
+            val fetching = extras.getBundle(CastStatus.EXTRA_CAST_FETCH_HEIGHT)
+            castFetchHeights = fetching?.keySet()?.associateWith { fetching.getInt(it) }.orEmpty()
             castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
                 CastProblem.entries.firstOrNull { it.name == name }
             }
             Diag.log(
                 "cast",
                 "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
-                    "problem=${castProblem ?: "none"}",
+                    "problem=${castProblem ?: "none"} fetching=$castFetchHeights",
             )
             _state.value = controller.currentPlaybackState()
         }
@@ -982,6 +997,7 @@ public class Media3PlaybackController(
             castDeviceName = castDeviceName,
             castVideoRefused = castRefused[current.mediaId],
             castVideoHeight = castSentHeights[current.mediaId],
+            castFetchHeight = castFetchHeights[current.mediaId],
             castProblem = castProblem,
             live = LocalManifests.isLive(current.localConfiguration?.uri?.toString()),
             isBuffering = playbackState == Player.STATE_BUFFERING,

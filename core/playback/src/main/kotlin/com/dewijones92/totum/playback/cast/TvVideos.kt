@@ -5,10 +5,16 @@ import java.util.concurrent.ConcurrentHashMap
 internal class TvVideos(private val tvs: CastTvPort) {
     private val refusals = ConcurrentHashMap<String, String>()
     private val sentHeights = ConcurrentHashMap<String, Int>()
+    private val fetchingHeights = ConcurrentHashMap<String, Int>()
 
     fun sent(mediaId: String, height: Int?) {
         refusals.remove(mediaId)
         height?.let { sentHeights[mediaId] = it }
+        publish()
+    }
+
+    fun fetching(mediaId: String, height: Int) {
+        fetchingHeights[mediaId] = height
         publish()
     }
 
@@ -20,14 +26,16 @@ internal class TvVideos(private val tvs: CastTvPort) {
 
     fun forget(mediaId: String) {
         val hadRefusal = refusals.remove(mediaId) != null
-        if (sentHeights.remove(mediaId) != null || hadRefusal) publish()
+        val hadFetch = fetchingHeights.remove(mediaId) != null
+        if (sentHeights.remove(mediaId) != null || hadRefusal || hadFetch) publish()
     }
 
     fun clear() {
         refusals.clear()
         sentHeights.clear()
+        fetchingHeights.clear()
         publish()
     }
 
-    private fun publish() = tvs.videos(refusals.toMap(), sentHeights.toMap())
+    private fun publish() = tvs.videos(refusals.toMap(), sentHeights.toMap(), fetchingHeights.toMap())
 }

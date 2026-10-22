@@ -144,3 +144,17 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   ~1x real time and a 4 s segment took ~2 s to arrive.
 - **The first load.** When the phone's own stream is one the TV cannot decode (AV1 on a Chromecast Ultra), the replay
   for the TV's formats starts at the move instead of after the doomed load is refused.
+
+## Amended 2026-10-22 (later): the TV picks its quality within a ladder
+
+Dewi: *"the best seamless and fastest way is to just stream what is currently buffered on the phone but in parallel
+it's getting the highest quality stream that the TV supports"*. A YouTube video goes to the TV as **one adaptation set
+of up to three qualities** (`CastLadder.choose`): the best the TV decodes, the phone's own stream when it is in that
+codec family, and the next ones down. Each is relayed on its own path (`video/r<n>`), and the TV's player moves
+between them itself, so there is no replay and no restart when the phone's stream was lower than the TV's best.
+The launcher passes the video-only streams it already resolved (`VideoRung`, `EXTRA_VIDEO_LADDER`); their codecs are
+read from the streams themselves before choosing (`CastRungs`), because the signed-in lookup can leave them blank and
+an unknown codec would otherwise let AV1 or a mix of families reach a TV that cannot play them (`CastRungsTest`, seen
+red: it offered AV1 1080p with H.264 720p to a Chromecast Ultra). Which quality the TV is fetching is logged and shown
+on the casting strip ("720p picture on Living Room, going up to 1080p"). Measured on the Ultra: VP9 1080/720/480
+offered, 1080p fetched from the start, no replay. Not done: a text note on the TV itself at the switch.

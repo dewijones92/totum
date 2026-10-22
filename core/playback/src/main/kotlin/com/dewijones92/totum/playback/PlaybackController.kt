@@ -20,6 +20,8 @@ import java.time.Instant
  * episode and an extracted video are just [MediaItem]s whose [MediaItem.mediaUrl]
  * points at something playable.
  */
+public data class VideoRung(val url: HttpUrl, val height: Int, val codec: String?)
+
 @Suppress("TooManyFunctions")
 public interface PlaybackController {
 
@@ -75,6 +77,7 @@ public interface PlaybackController {
         subtitles: List<SubtitleTrack> = emptyList(),
         startPositionMs: Long = 0,
         audioOnly: Boolean = false,
+        videoLadder: List<VideoRung> = emptyList(),
     )
 
     /**
@@ -237,6 +240,7 @@ public data class PlaybackState(
     val castDeviceName: String? = null,
     val castVideoRefused: String? = null,
     val castVideoHeight: Int? = null,
+    val castFetchHeight: Int? = null,
     val castProblem: CastProblem? = null,
     val hasPictureTrack: Boolean = false,
     val castLoading: Boolean = false,

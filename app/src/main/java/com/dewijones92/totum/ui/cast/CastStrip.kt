@@ -46,9 +46,14 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
                 )
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
             }
-            state.castVideoHeight?.let { height ->
+            (state.castFetchHeight ?: state.castVideoHeight)?.let { height ->
+                val best = state.castVideoHeight
                 Text(
-                    stringResource(R.string.cast_strip_quality, height, device),
+                    if (best != null && best > height) {
+                        stringResource(R.string.cast_strip_quality_climbing, height, device, best)
+                    } else {
+                        stringResource(R.string.cast_strip_quality, height, device)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
                 )

@@ -14,7 +14,13 @@ internal sealed interface CastAudio {
 }
 
 internal sealed interface CastVideo {
-    data class Relayed(val layout: StreamLayout, val url: String) : CastVideo
+    data class Relayed(
+        val layout: StreamLayout,
+        val url: String,
+        val bandwidth: Int = DashManifest.bandwidthFor(layout.height),
+    ) : CastVideo
+
+    data class Ladder(val rungs: List<Relayed>) : CastVideo
 
     data class Segmented(
         val codecs: String,
@@ -49,7 +55,8 @@ internal object DashManifest {
     }
 
     private fun videoSet(video: CastVideo): String = when (video) {
-        is CastVideo.Relayed -> relayedVideoSet(video)
+        is CastVideo.Relayed -> relayedVideoSet(listOf(video))
+        is CastVideo.Ladder -> relayedVideoSet(video.rungs)
         is CastVideo.Segmented -> segmentedVideoSet(video)
     }
 
@@ -66,14 +73,29 @@ internal object DashManifest {
 </AdaptationSet>"""
     }
 
-    private fun relayedVideoSet(video: CastVideo.Relayed): String {
-        val l = video.layout
-        return """<AdaptationSet id="1" contentType="video" mimeType="${l.mimeType}" subsegmentAlignment="true" startWithSAP="1">
-<Representation id="video" codecs="${l.codecs}" bandwidth="$VIDEO_BANDWIDTH" width="${l.width}" height="${l.height}">
-<BaseURL>${xml(video.url)}</BaseURL>
+    private fun relayedVideoSet(rungs: List<CastVideo.Relayed>): String {
+        val reps = rungs.mapIndexed { i, rung ->
+            val l = rung.layout
+            val id = if (rungs.size == 1) "video" else "v$i"
+            """<Representation id="$id" codecs="${l.codecs}" bandwidth="${rung.bandwidth}" width="${l.width}" height="${l.height}">
+<BaseURL>${xml(rung.url)}</BaseURL>
 <SegmentBase indexRange="${l.index.dash}"><Initialization range="${l.init.dash}"/></SegmentBase>
-</Representation>
+</Representation>"""
+        }
+        val mime = rungs.first().layout.mimeType
+        return """<AdaptationSet id="1" contentType="video" mimeType="$mime" subsegmentAlignment="true" startWithSAP="1">
+${reps.joinToString("\n")}
 </AdaptationSet>"""
+    }
+
+    fun bandwidthFor(height: Int?): Int = when {
+        height == null -> VIDEO_BANDWIDTH
+        height >= UHD -> UHD_BANDWIDTH
+        height >= QHD -> QHD_BANDWIDTH
+        height >= FULL_HD -> VIDEO_BANDWIDTH
+        height >= HD -> HD_BANDWIDTH
+        height >= SD -> SD_BANDWIDTH
+        else -> LOW_BANDWIDTH
     }
 
     private fun audioSet(audio: CastAudio): String = when (audio) {
@@ -115,6 +137,16 @@ $template
     private const val CHANNEL_SCHEME = "urn:mpeg:dash:23003:3:audio_channel_configuration:2011"
     private const val TEXT_SET_BASE = 10
     private const val VIDEO_BANDWIDTH = 4_000_000
+    private const val UHD = 2160
+    private const val QHD = 1440
+    private const val FULL_HD = 1080
+    private const val HD = 720
+    private const val SD = 480
+    private const val UHD_BANDWIDTH = 16_000_000
+    private const val QHD_BANDWIDTH = 9_000_000
+    private const val HD_BANDWIDTH = 2_500_000
+    private const val SD_BANDWIDTH = 1_200_000
+    private const val LOW_BANDWIDTH = 700_000
     private const val AUDIO_BANDWIDTH = 160_000
     private const val DEFAULT_RATE = 48_000
 }

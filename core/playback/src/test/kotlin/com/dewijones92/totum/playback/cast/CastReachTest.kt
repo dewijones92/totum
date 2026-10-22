@@ -11,7 +11,11 @@ class CastReachTest {
     private val problems = mutableListOf<CastProblem?>()
     private val tvs = object : CastTvPort {
         override fun current(): CastTv? = null
-        override fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>) = Unit
+        override fun videos(
+            refused: Map<String, String>,
+            sentHeights: Map<String, Int>,
+            fetchingHeights: Map<String, Int>,
+        ) = Unit
         override fun problem(now: CastProblem?) {
             problems += now
         }

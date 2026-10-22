@@ -11,7 +11,7 @@ internal class CastTv(val name: String, val screen: CastScreen)
 
 internal interface CastTvPort {
     fun current(): CastTv?
-    fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>)
+    fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>, fetchingHeights: Map<String, Int>)
     fun problem(now: CastProblem?)
 }
 
@@ -23,14 +23,20 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     private var tv: CastTv? = null
     private var refusals: Map<String, String> = emptyMap()
     private var sentHeights: Map<String, Int> = emptyMap()
+    private var fetchingHeights: Map<String, Int> = emptyMap()
     private var problem: CastProblem? = null
 
     override fun current(): CastTv? = tv
 
-    override fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>) {
+    override fun videos(
+        refused: Map<String, String>,
+        sentHeights: Map<String, Int>,
+        fetchingHeights: Map<String, Int>,
+    ) {
         main.post {
             refusals = refused
             this.sentHeights = sentHeights
+            this.fetchingHeights = fetchingHeights
             publish()
         }
     }
@@ -48,6 +54,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         if (now == null) {
             refusals = emptyMap()
             sentHeights = emptyMap()
+            fetchingHeights = emptyMap()
             problem = null
         }
         publish()
@@ -59,6 +66,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             putBundle(EXTRA_CAST_REFUSED, Bundle().apply { refusals.forEach(::putString) })
             problem?.let { putString(EXTRA_CAST_PROBLEM, it.name) }
             putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sentHeights.forEach(::putInt) })
+            putBundle(EXTRA_CAST_FETCH_HEIGHT, Bundle().apply { fetchingHeights.forEach(::putInt) })
         }
         session()?.setSessionExtras(extras)
     }
@@ -68,5 +76,6 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         const val EXTRA_CAST_REFUSED: String = "cast_refused"
         const val EXTRA_CAST_SENT_HEIGHT: String = "cast_sent_height"
         const val EXTRA_CAST_PROBLEM: String = "cast_problem"
+        const val EXTRA_CAST_FETCH_HEIGHT: String = "cast_fetch_height"
     }
 }

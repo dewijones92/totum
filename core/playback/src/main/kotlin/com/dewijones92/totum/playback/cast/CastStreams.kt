@@ -14,6 +14,7 @@ import com.dewijones92.totum.domain.pictureAt
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
+import com.dewijones92.totum.playback.EXTRA_VIDEO_LADDER
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
 import java.io.File
@@ -47,7 +48,14 @@ internal class CastStreams(
         val item: MediaItem,
         val videoUrl: String?,
         val audioSource: String,
+        val ladder: List<CastRung>,
     ) {
+        val rungs = CastRungs(
+            item.mediaId,
+            onSent = { height -> if (latest[item.mediaId] === this) videos.sent(item.mediaId, height) },
+            onFetching = { height -> if (latest[item.mediaId] === this) videos.fetching(item.mediaId, height) },
+        )
+
         val cuts = videoUrl == null && (itemSkipsSilence(item) ?: skipSilence())
         val audio = ProcessedAudio(context, audioSource, boost, "${item.mediaId}/$token", newCutter.takeIf { cuts })
         val subtitles = if (cuts) {
@@ -74,7 +82,8 @@ internal class CastStreams(
             prepared = true
             Diag.log(
                 "cast",
-                "session $token ready: ${item.mediaId} video=${layout?.describe() ?: mkv?.describe ?: "none"} " +
+                "session $token ready: ${item.mediaId} " +
+                    "video=${rungs.describe() ?: layout?.describe() ?: mkv?.describe ?: "none"} " +
                     "audio=processed ${audio.format.sampleRate}Hz boost=${boost()}",
             )
         }
@@ -84,6 +93,7 @@ internal class CastStreams(
                 when {
                     !url.startsWith("http") ->
                         layout = localVideo(File(url.toUri().path ?: url))?.takeIf { shows(it.codecs, it.height) }
+                    url.contains(YOUTUBE_STREAMS) && rungs.choose(url, ladder, tvs.current()?.screen) -> Unit
                     url.contains(YOUTUBE_STREAMS) ->
                         layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
                             .takeIf { shows(it.codecs, it.height) }
@@ -170,9 +180,11 @@ internal class CastStreams(
             ready()
             val durationMs = audio.durationUs.takeIf { it != C.TIME_UNSET }?.div(Http.MILLIS)
                 ?: item.mediaMetadata.durationMs ?: 0L
+            val ladder = rungs.rungs.mapIndexed { i, (_, l) -> CastVideo.Relayed(l, "video/r$i") }
             return DashManifest.build(
                 durationMs,
-                layout?.let { CastVideo.Relayed(it, "video") }
+                ladder.takeIf { it.isNotEmpty() }?.let { CastVideo.Ladder(it) }
+                    ?: layout?.let { CastVideo.Relayed(it, "video") }
                     ?: mkv?.let {
                         CastVideo.Segmented(
                             it.codecs,
@@ -202,7 +214,12 @@ internal class CastStreams(
         }
     }
 
-    private data class Sources(val video: String?, val audio: String, val listening: Boolean)
+    private data class Sources(
+        val video: String?,
+        val audio: String,
+        val listening: Boolean,
+        val ladder: List<CastRung> = emptyList(),
+    )
 
     private fun sourcesFor(item: MediaItem): Sources? {
         val uri = item.localConfiguration?.uri?.toString() ?: return null
@@ -215,7 +232,7 @@ internal class CastStreams(
             return null
         }
         return when {
-            separateAudio != null && !listening -> Sources(uri, separateAudio, listening)
+            separateAudio != null && !listening -> Sources(uri, separateAudio, listening, ladderIn(extras))
             !listening && mayCarryVideo(uri) -> Sources(uri, uri, listening)
             separateAudio != null -> Sources(null, separateAudio, listening)
             else -> Sources(null, uri, listening)
@@ -240,7 +257,7 @@ internal class CastStreams(
         }
         server.start(PORT)
         val token = random.token()
-        val session = Session(token, item, sources.video, sources.audio)
+        val session = Session(token, item, sources.video, sources.audio, sources.ladder)
         sessions[token] = session
         latest[item.mediaId] = session
         videos.forget(item.mediaId)
@@ -287,9 +304,7 @@ internal class CastStreams(
                 MimeTypes.APPLICATION_MPD,
                 session.manifest().toByteArray()
             )
-            what.startsWith("video/") -> session.remuxedPart(what.removePrefix("video/"))
-            what == "video" -> session.videoFile?.let { LocalRanges.reply(it, request.header("range")) }
-                ?: proxy(session, session.videoUrl ?: return notFound(), request.header("range"))
+            what.startsWith("video") -> videoPart(session, what, request.header("range")) ?: return notFound()
             what.startsWith("subtitles/") -> subtitle(session, what)
             what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
             else -> notFound()
@@ -313,6 +328,19 @@ internal class CastStreams(
 
     private fun notFound() = HttpReply.Bytes(Http.NOT_FOUND, "text/plain", ByteArray(0))
 
+    private fun videoPart(session: Session, what: String, range: String?): HttpReply? = when {
+        what.startsWith("video/r") -> what.removePrefix("video/r").toIntOrNull()?.let { i ->
+            session.rungs.urlOf(i)?.let { url ->
+                session.rungs.fetched(i)
+                proxy(session, url, range)
+            }
+        }
+        what.startsWith("video/") -> session.remuxedPart(what.removePrefix("video/"))
+        what == "video" -> session.videoFile?.let { LocalRanges.reply(it, range) }
+            ?: session.videoUrl?.let { proxy(session, it, range) }
+        else -> null
+    }
+
     private fun proxy(session: Session, upstream: String, range: String?): HttpReply {
         val asked = System.currentTimeMillis()
         val reply = Upstream.get(upstream, range)
@@ -332,6 +360,13 @@ internal class CastStreams(
     }
 
     companion object {
+        private fun ladderIn(extras: android.os.Bundle?): List<CastRung> =
+            extras?.getStringArrayList(EXTRA_VIDEO_LADDER).orEmpty().mapNotNull { line ->
+                val (height, codec, url) = line.split('\t', limit = LADDER_FIELDS).takeIf { it.size == LADDER_FIELDS }
+                    ?: return@mapNotNull null
+                height.toIntOrNull()?.let { CastRung(url, it, codec.ifEmpty { null }) }
+            }
+
         private fun mayCarryVideo(uri: String): Boolean {
             if (uri.contains(YOUTUBE_STREAMS)) return false
             val picture = pictureAt(uri)
@@ -353,6 +388,7 @@ internal class CastStreams(
         private const val VIDEO_LOG_FIRST = 3
         private const val VIDEO_LOG_EVERY = 25
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
+        private const val LADDER_FIELDS = 3
         private const val YOUTUBE_STREAMS = "googlevideo.com"
     }
 }
