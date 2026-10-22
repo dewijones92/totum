@@ -29,10 +29,11 @@ class QueueDebugReceiver : BroadcastReceiver() {
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
                 }
+                val appendGroup = intent.getStringExtra("appendGroup")?.let { QueueGroup(id = "debug:$it", title = it) }
                 container.applicationScope.launch {
                     container.playbackQueue.clear()
                     container.playbackQueue.playAll(items, group)
-                    if (appended.isNotEmpty()) container.playbackQueue.enqueueAll(appended)
+                    if (appended.isNotEmpty()) container.playbackQueue.enqueueAll(appended, appendGroup)
                 }
             }
             ACTION_SEEK_NEAR_END -> container.applicationScope.launch {

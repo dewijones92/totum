@@ -58,6 +58,7 @@ import com.dewijones92.totum.queue.moveGroup
 import com.dewijones92.totum.queue.queueGroupHeaderKey
 import com.dewijones92.totum.queue.shuffleAndPlayGroup
 import com.dewijones92.totum.queue.shuffleGroup
+import com.dewijones92.totum.queue.shuffleTogether
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.CollapsingTitle
@@ -442,6 +443,7 @@ private fun FilterableQueue(
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
     val nowPlaying = NowPlaying(currentIndex, progress, isPlaying, starting?.id)
     FilterField(listFilter, matches.size, entries.size, hosted = true)
+    val togetherTitle = stringResource(R.string.queue_shuffled_together_group)
     SelectableMediaList(
         "queue",
         entries,
@@ -450,7 +452,7 @@ private fun FilterableQueue(
         queueing = false,
         downloadAudioOnly = true,
         hoisted = actions.selection,
-        extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }) },
+        extra = { chosen -> queueBulkActions(container.playbackQueue, chosen.map { it.item.item.id }, togetherTitle) },
     ) {
         if (!filtering) {
             CompositionLocalProvider(
@@ -479,9 +481,11 @@ private fun FilterableQueue(
     }
 }
 
-private fun queueBulkActions(queue: PlaybackQueue, ids: List<MediaItemId>): List<BulkAction> {
+private fun queueBulkActions(queue: PlaybackQueue, ids: List<MediaItemId>, togetherTitle: String): List<BulkAction> {
     fun indexOf(id: MediaItemId) = queue.state.value.entries.indexOfFirst { it.item.item.id == id }
-    return listOf(
+    return listOfNotNull(
+        BulkAction(R.string.queue_shuffle_together) { queue.shuffleTogether(ids.toSet(), togetherTitle) }
+            .takeIf { ids.size > 1 },
         BulkAction(R.string.queue_remove, confirm = R.plurals.queue_remove_confirm) {
             ids.forEach { id -> queue.state.value.entries.firstOrNull { it.item.item.id == id }?.let(queue::remove) }
         },

@@ -168,3 +168,12 @@ cleared), and **remove group asks first** (hold to confirm, like clearing the qu
 **🔁 This group**: when the group's last item ends, its first plays again (`repeatGroupAfter`, `RepeatGroupTest`);
 gapless does not arm past a group's last item while it is on. Start again on a YouTube item clears the app's
 position; the account's own watched position can still resume it.
+
+## Shuffle together (2026-10-22)
+
+Dewi: *"select multiple and shuffle them … artist A, artist B … just shuffle them both"*. With two or more items
+ticked (☑️ Select these on each group, or single rows), the selection bar offers **🔀 Shuffle together**: everything
+ticked that is still to play becomes one shuffled group, "🔀 ArtistA + ArtistB" (the source groups' titles; "🔀
+Shuffled together" when none had one), placed where the first of them was. The playing item and what has already
+played stay where they are. `QueueShuffleTogether.kt`, `ShuffleTogetherTest`; logged as `shuffle together xN as
+"…" from {group=count}`. Verified on totum-api35 with two debug groups (7 mixed, the playing video kept in place).
