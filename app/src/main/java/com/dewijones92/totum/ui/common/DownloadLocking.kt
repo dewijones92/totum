@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.download.LockRefusal
 import com.dewijones92.totum.data.download.LockingDownloadManager
 import com.dewijones92.totum.domain.MediaItemId
 import kotlinx.coroutines.launch
@@ -46,9 +47,9 @@ internal fun DownloadLockAction(id: MediaItemId?, onDismiss: () -> Unit) {
 
 @Composable
 internal fun LockedDownloadAsk(locking: LockingDownloadManager) {
-    val asked = remember { mutableStateListOf<MediaItemId>() }
+    val asked = remember { mutableStateListOf<LockRefusal>() }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(locking) { locking.refusals.collect { if (it !in asked) asked += it } }
+    LaunchedEffect(locking) { locking.refusals.collect { if (asked.none { a -> a.id == it.id }) asked += it } }
     if (asked.isEmpty()) return
     val close = { why: String ->
         Diag.log("download", "locked-download question for ${asked.size} item(s) closed: $why")
@@ -57,15 +58,15 @@ internal fun LockedDownloadAsk(locking: LockingDownloadManager) {
     AlertDialog(
         onDismissRequest = { close("dismissed; kept") },
         title = { Text(stringResource(R.string.download_locked_title)) },
-        text = { Text(pluralStringResource(R.plurals.download_locked_body, asked.size, asked.size)) },
+        text = { Text(lockedBody(asked)) },
         confirmButton = {
             TextButton(
                 onClick = {
-                    val ids = asked.toList()
-                    close("unlock and delete")
-                    scope.launch { ids.forEach { locking.unlockAndDelete(it) } }
+                    val refusals = asked.toList()
+                    close("unlock and go ahead")
+                    scope.launch { refusals.forEach { locking.unlockAndGoAhead(it) } }
                 },
-            ) { Text(stringResource(R.string.download_unlock_and_delete)) }
+            ) { Text(stringResource(R.string.download_unlock_and_go_ahead)) }
         },
         dismissButton = {
             TextButton(
@@ -73,4 +74,19 @@ internal fun LockedDownloadAsk(locking: LockingDownloadManager) {
             ) { Text(stringResource(R.string.download_keep_locked)) }
         },
     )
+}
+
+@Composable
+private fun lockedBody(asked: List<LockRefusal>): String {
+    val replacing = asked.count { it is LockRefusal.Replace }
+    val deleting = asked.size - replacing
+    return listOfNotNull(
+        deleting.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.download_locked_body, it, it) },
+        replacing.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.download_locked_replace_body, it, it) },
+    ).joinToString("\n")
+}
+
+private suspend fun LockingDownloadManager.unlockAndGoAhead(refusal: LockRefusal) = when (refusal) {
+    is LockRefusal.Delete -> unlockAndDelete(refusal.id)
+    is LockRefusal.Replace -> unlockAndDownload(refusal.item, refusal.audioOnly)
 }

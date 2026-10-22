@@ -41,6 +41,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.shuffle.ShuffleTarget
+import com.dewijones92.totum.shuffle.singleSourceKey
 import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
@@ -104,7 +105,7 @@ fun ChannelScreen(
             ShuffleAllAction(
                 container.shuffleAll,
                 container.applicationScope,
-                ShuffleTarget("channel:${source.id.value}", source.title, listOf(source)),
+                ShuffleTarget(singleSourceKey(source), source.title, listOf(source)),
             )
         },
         onBack = onBack,

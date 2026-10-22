@@ -50,4 +50,13 @@ class CastLoadHoldTest {
         clock = 600_000
         assertEquals("still B long after the load hold", "B", hold.unnamed())
     }
+
+    @Test
+    fun `after playing on the phone, an unnamed receiver item is not the one cast before`() {
+        hold.asked("b", "B", startMs = 0)
+        hold.seen("b", "B", localPositionMs = null)
+        hold.seen("c", "C", localPositionMs = 1_000)
+
+        assertEquals("C", hold.unnamed())
+    }
 }

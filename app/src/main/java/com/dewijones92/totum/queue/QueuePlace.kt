@@ -33,9 +33,14 @@ internal fun nextAfterThePlace(
         .firstOrNull { it.item.item.id != playingId && keepTo.admits(it.item) && passOver(it.item) == null }
         ?.item
 
-internal fun onlyOtherKindAfter(snapshot: QueueSnapshot, playing: MediaItem?): Pair<Listening, Int>? {
+internal fun onlyOtherKindAfter(
+    snapshot: QueueSnapshot,
+    playing: MediaItem?,
+    passOver: (PlayableItem) -> String? = { null },
+): Pair<Listening, Int>? {
     playing ?: return null
-    val ahead = snapshot.entries.drop(advanceFrom(snapshot, playing.id) + 1).filter { it.item.item.id != playing.id }
+    val ahead = snapshot.entries.drop(advanceFrom(snapshot, playing.id) + 1)
+        .filter { it.item.item.id != playing.id && passOver(it.item) == null }
     if (ahead.isEmpty() || ahead.any { it.item.item.listening == playing.listening }) return null
     return playing.listening.other to ahead.size
 }
@@ -50,6 +55,9 @@ internal fun passOverReason(
     states[item.item.id]?.isPlayed == true -> "finished"
     else -> null
 }
+
+fun PlaybackQueue.onlyOtherKindAhead(): Pair<Listening, Int>? =
+    onlyOtherKindAfter(state.value, nowPlaying.value?.item, passOver)
 
 enum class GroupSpot { END, NEXT }
 
@@ -113,8 +121,19 @@ suspend fun PlaybackQueue.playFromTheTop(reshuffle: Boolean = false): Boolean {
     val keepTo = nowPlaying.value?.item?.listening
     if (reshuffle) {
         val ended = nowPlaying.value?.item?.id
-        reorder("repeat queue: reshuffled for its next round (${state.value.entries.size} items, groups kept whole)") {
-            it.reshufflingEverything(Random.Default, avoidFirst = ended)
+        val stillAhead = nextAfterThePlace(state.value, ended, keepTo, passOver)
+        if (stillAhead != null) {
+            Diag.log(
+                "queue",
+                "repeat queue: not reshuffling, \"${stillAhead.item.title}\" is still to play " +
+                    "(the advance did not reach it); from the top as it is",
+            )
+        } else {
+            reorder(
+                "repeat queue: reshuffled for its next round (${state.value.entries.size} items, groups kept whole)"
+            ) {
+                it.reshufflingEverything(Random.Default, avoidFirst = ended) { entry -> keepTo.admits(entry.item) }
+            }
         }
     }
     val entries = state.value.entries

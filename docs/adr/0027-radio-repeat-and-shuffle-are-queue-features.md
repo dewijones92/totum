@@ -74,3 +74,8 @@ Two ways to mix several sources: the queue's selection bar has **🔀 Shuffle to
 one shuffled group, "🔀 ArtistA + ArtistB"), and the Subscriptions list's selection bar has **🔀 Shuffle all of these**
 (every page of every ticked channel or show, one `ShuffleAll` target, `shuffleTargetOf`). With This group, reshuffled,
 a mixed group becomes "a group of playlists on shuffle and repeat".
+
+Review corrections (2026-10-22): "Queue, reshuffled each round" reshuffles only when nothing in kind is left to play
+(an advance can also fail because items were refused offline, and that must not scramble the order), and a round's first
+playable item in kind is never the one that just ended, even behind an item of the other kind (`ReshuffleRoundTest`,
+`SkipFinishedTest`, seen red).

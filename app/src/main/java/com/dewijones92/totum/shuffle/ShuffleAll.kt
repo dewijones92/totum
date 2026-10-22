@@ -91,10 +91,15 @@ class AppSourcePages(
 
 data class ShuffleTarget(val key: String, val title: String, val sources: List<MediaSource>)
 
+fun singleSourceKey(source: MediaSource): String = when (source) {
+    is MediaSource.VideoChannel -> "channel:${source.id.value}"
+    is MediaSource.PodcastFeed -> "podcast:${source.id.value}"
+}
+
 fun shuffleTargetOf(picked: List<MediaSource>): ShuffleTarget {
     val ids = picked.map { it.id.value }.sorted()
     return ShuffleTarget(
-        key = if (picked.size == 1) "source:${ids.single()}" else "picked:${ids.joinToString(",").hashCode()}",
+        key = picked.singleOrNull()?.let(::singleSourceKey) ?: "picked:${ids.joinToString(",").hashCode()}",
         title = picked.joinToString(" + ") { it.title },
         sources = picked,
     )

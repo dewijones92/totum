@@ -9,7 +9,6 @@ import com.dewijones92.totum.data.queue.QueueSnapshot.Companion.NOTHING_PLAYING
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.data.queue.stampedSince
-import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -524,8 +523,6 @@ class PlaybackQueue(
     suspend fun playNextInQueue(): Boolean = step(FORWARD)
 
     suspend fun continueInKind(): Boolean = step(FORWARD, keepTo = _nowPlaying.value?.item?.listening)
-
-    fun onlyOtherKindAhead(): Pair<Listening, Int>? = onlyOtherKindAfter(_state.value, _nowPlaying.value?.item)
 
     suspend fun playPreviousInQueue(): Boolean {
         val positionMs = controller.state.value?.positionMs ?: 0L

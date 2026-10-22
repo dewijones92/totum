@@ -31,4 +31,4 @@ way back.
 
 - Nothing about the download manager changed: the same sections, sorts, filters and clean-up cards, one tap deeper.
 - A failed download is still visible without opening the page, because the tile counts it.
-- `ScreensKeepEveryControlTest` opens every tile, Downloads included; `CleanupCardsTest` drives `DownloadsContent`.
+- `ScreensKeepEveryControlTest` opens Playlists, History, Subscriptions, Account and Downloads (not Stats); `CleanupCardsTest` drives `DownloadsContent`.

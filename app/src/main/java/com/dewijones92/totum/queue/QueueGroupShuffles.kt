@@ -62,15 +62,31 @@ internal fun QueueSnapshot.reshufflingRun(
     return rebuiltFrom(entries.take(first) + mixed + entries.drop(last + 1))
 }
 
-internal fun QueueSnapshot.reshufflingEverything(random: Random, avoidFirst: MediaItemId?): QueueSnapshot {
-    val blocks = entries.blocks().shuffled(random).map { it.entries.shuffled(random) }
-    val head = blocks.firstOrNull() ?: return this
-    val ordered = when {
-        head.first().item.item.id != avoidFirst -> blocks
-        head.size > 1 -> listOf(head.notStartingOn(avoidFirst)) + blocks.drop(1)
-        else -> blocks.drop(1) + listOf(head)
+internal fun QueueSnapshot.reshufflingEverything(
+    random: Random,
+    avoidFirst: MediaItemId?,
+    admits: (QueueEntry) -> Boolean = { true },
+): QueueSnapshot {
+    var blocks = entries.blocks().shuffled(random).map { it.entries.shuffled(random) }
+    if (blocks.isEmpty()) return this
+    repeat(blocks.size) {
+        val at = blocks.indexOfFirst { block -> block.any(admits) }
+        val block = blocks.getOrNull(at) ?: return rebuiltFrom(blocks.flatten())
+        val first = block.indexOfFirst(admits)
+        if (block[first].item.item.id != avoidFirst) return rebuiltFrom(blocks.flatten())
+        val next = block.withIndex().firstOrNull { (i, e) -> i > first && admits(e) }?.index
+        blocks = if (next != null) {
+            blocks.toMutableList().also { list ->
+                list[at] = block.toMutableList().also { swapped ->
+                    swapped[first] = block[next]
+                    swapped[next] = block[first]
+                }
+            }
+        } else {
+            blocks.filterIndexed { i, _ -> i != at } + listOf(block)
+        }
     }
-    return rebuiltFrom(ordered.flatten())
+    return rebuiltFrom(blocks.flatten())
 }
 
 private fun List<QueueEntry>.notStartingOn(id: MediaItemId?): List<QueueEntry> =

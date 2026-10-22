@@ -81,4 +81,13 @@ class ReshuffleRoundTest {
         assertFalse(RepeatMode.GROUP.reshuffles || RepeatMode.QUEUE.reshuffles || RepeatMode.ONE.reshuffles)
         assertFalse(RepeatMode.OFF.repeatsGroup || RepeatMode.OFF.repeatsQueue)
     }
+
+    @Test
+    fun `a queue's round never starts on the ended item, even behind an item of the other kind`() {
+        repeat(20) { seed ->
+            val after = queue.reshufflingEverything(Random(seed), MediaItemId("a8")) { it.item.item.id.value != "x" }
+            val first = after.entries.first { it.item.item.id.value != "x" }
+            assertNotEquals("seed $seed", "a8", first.item.item.id.value)
+        }
+    }
 }

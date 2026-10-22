@@ -32,3 +32,11 @@ six places (row menus, Library, podcasts, history, playlists, clean-up cards).
 
 - A locked item can still be cancelled while downloading and re-downloaded; the lock is about deleting a finished copy.
 - `LockingDownloadManagerTest`.
+
+### Amendment (2026-10-22, after review)
+
+A new download of a locked, finished item would have replaced its file (an audio copy upgraded to video shares one
+path, and a cancel or failure lost the copy). The decorator now refuses that too, through both `download` entry points
+(the interface's `download(MediaItem)` default would otherwise go straight to the inner manager), and the same shell
+question offers "🔓 Unlock and go ahead". Only a finished copy is guarded: a failed row of a locked item can be
+dismissed. `LockingDownloadManagerTest`, seen red.

@@ -190,6 +190,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.keepTheQueuesPlace
+import com.dewijones92.totum.queue.onlyOtherKindAhead
 import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
@@ -1072,13 +1073,20 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     appPreferences.settings.value.repeatMode,
                     music = item.item.listening == Listening.MUSIC,
                     playStatesNow.value,
-                )
+                )?.let { reason ->
+                    val here = localPlayStatesNow.value[item.item.id]?.isPlayed == true
+                    if (here) "$reason here" else "$reason on YouTube"
+                }
             },
         )
     }
 
-    private val playStatesNow by lazy {
+    private val localPlayStatesNow by lazy {
         playbackProgressStore.observeStates().stateIn(applicationScope, SharingStarted.Eagerly, emptyMap())
+    }
+
+    private val playStatesNow by lazy {
+        rowPlayStates.stateIn(applicationScope, SharingStarted.Eagerly, emptyMap())
     }
 
     private val sourceArtworkNow by lazy { sourceArtwork.stateIn(applicationScope, SharingStarted.Eagerly, emptyMap()) }

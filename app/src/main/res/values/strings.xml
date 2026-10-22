@@ -578,7 +578,11 @@
         <item quantity="one">This download is locked, so it was kept. Unlock it and delete it?</item>
         <item quantity="other">%d downloads are locked, so they were kept. Unlock them and delete them?</item>
     </plurals>
-    <string name="download_unlock_and_delete">🔓 Unlock and delete</string>
+    <string name="download_unlock_and_go_ahead">🔓 Unlock and go ahead</string>
+    <plurals name="download_locked_replace_body">
+        <item quantity="one">This download is locked, so it was kept as it is. Unlock it and download it again?</item>
+        <item quantity="other">%d downloads are locked, so they were kept as they are. Unlock them and download them again?</item>
+    </plurals>
     <string name="download_keep_locked">Keep</string>
     <string name="shuffle_all_of_these">🔀 Shuffle all of these</string>
     <string name="queue_shuffled_together_group">🔀 Shuffled together</string>

@@ -177,3 +177,7 @@ Each ladder rung now declares the bandwidth measured from its own URL (`clen × 
 table only when the URL lacks them, because the TV picks rungs by that number and the table under-declared 4K VP9
 (`DashLadderTest`, seen red). The offer is logged ("ladder offered at 1080p=…kbps, …"), with how long probing took.
 
+Review corrections (2026-10-22): the stand-in for an unnamed receiver item is used only while the player is READY; while
+it loads, the load hold still shows "loading" (so a hand-over waiting for the TV to settle is not fooled); playing on the
+phone forgets the TV's last item, so a later cast cannot show a stale one; and `RemoteEnd` keeps the clock of an
+unnamed item as the continuation of the last named one, so a long pause then a stop is not read as an ending.

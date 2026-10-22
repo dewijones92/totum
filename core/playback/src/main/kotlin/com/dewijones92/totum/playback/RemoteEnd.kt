@@ -27,9 +27,21 @@ internal class RemoteEnd : Player.Listener {
             seen = null
             return
         }
-        if (item == null || item.mediaId.isBlank()) return
-        val duration = player.duration.takeIf { it > 0 } ?: return
-        seen = Seen(item.mediaId, player.currentPosition, duration, player.isPlaying, SystemClock.elapsedRealtime())
+        item ?: return
+        val duration = player.duration.takeIf { it > 0 }
+        seen = if (item.mediaId.isBlank()) {
+            seen?.let { last ->
+                last.copy(
+                    positionMs = player.currentPosition,
+                    durationMs = duration ?: last.durationMs,
+                    playing = player.isPlaying,
+                    atMs = SystemClock.elapsedRealtime(),
+                )
+            }
+        } else {
+            val now = SystemClock.elapsedRealtime()
+            duration?.let { Seen(item.mediaId, player.currentPosition, it, player.isPlaying, now) } ?: seen
+        }
     }
 
     fun finishedOnTv(from: String, to: String?): Boolean? {

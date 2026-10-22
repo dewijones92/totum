@@ -948,7 +948,7 @@ public class Media3PlaybackController(
     }
 
     private fun MediaController.unnamedOnTheTv(): PlaybackState? {
-        if (currentMediaItem == null || playbackState == Player.STATE_IDLE) return null
+        if (currentMediaItem == null || playbackState != Player.STATE_READY) return null
         return castLoad.unnamed()?.let { itemState(it).copy(onCastDevice = true) }
     }
 

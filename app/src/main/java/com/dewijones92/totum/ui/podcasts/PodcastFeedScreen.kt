@@ -40,6 +40,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.shuffle.ShuffleTarget
+import com.dewijones92.totum.shuffle.singleSourceKey
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.InboxToggle
@@ -153,7 +154,7 @@ fun PodcastFeedScreen(
                     ShuffleAllAction(
                         container.shuffleAll,
                         container.applicationScope,
-                        ShuffleTarget("podcast:${source.id.value}", page.source.title, listOf(page.source)),
+                        ShuffleTarget(singleSourceKey(source), page.source.title, listOf(page.source)),
                     )
                 },
                 onToggleSubscribed = {

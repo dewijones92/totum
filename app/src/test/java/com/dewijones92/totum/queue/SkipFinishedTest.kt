@@ -71,7 +71,7 @@ class SkipFinishedTest {
     }
 
     @Test
-    fun `next by hand passes over them too, and with nothing unfinished left the queue stops`() = runTest(dispatcher) {
+    fun `with nothing unfinished left the queue stops`() = runTest(dispatcher) {
         queue.playAll(listOf("t1", "t2", "t3").map(::episode))
         advanceUntilIdle()
         finished += setOf("t2", "t3")
@@ -90,4 +90,56 @@ class SkipFinishedTest {
         assertNull(passOverReason(talk, RepeatMode.GROUP, music = false, played))
         assertNull(passOverReason(episode("t2"), RepeatMode.OFF, music = false, played))
     }
+
+    @Test
+    fun `finished talk ahead does not hide that only music is left`() {
+        val talk = episode("now")
+        val music = (1..3).map { song("m$it") }
+        val snapshot = com.dewijones92.totum.data.queue.QueueSnapshot(
+            entries = (listOf(talk, episode("done1"), episode("done2")) + music)
+                .map { com.dewijones92.totum.data.queue.QueueEntry(it) },
+            currentIndex = 0,
+        )
+        val left = onlyOtherKindAfter(
+            snapshot,
+            talk.item
+        ) { if (it.item.id.value.startsWith("done")) "finished" else null }
+        assertEquals(com.dewijones92.totum.domain.Listening.MUSIC to 3, left)
+    }
+
+    @Test
+    fun `a reshuffled repeat leaves the order alone while there is still something to play`() = runTest(dispatcher) {
+        queue.playAll(listOf("t1", "t2", "t3", "t4").map(::episode))
+        advanceUntilIdle()
+
+        queue.playFromTheTop(reshuffle = true)
+        advanceUntilIdle()
+
+        assertEquals(listOf("t1", "t2", "t3", "t4"), queue.state.value.entries.map { it.item.item.id.value })
+    }
+
+    @Test
+    fun `next by hand passes over finished talk too`() = runTest(dispatcher) {
+        queue.playAll(listOf("t1", "t2", "t3").map(::episode))
+        advanceUntilIdle()
+        finished += "t2"
+
+        queue.playNextInQueue()
+        advanceUntilIdle()
+
+        assertEquals("t3", playing())
+    }
+
+    private fun song(id: String) = PlayableItem(
+        MediaItem(
+            id = MediaItemId(id),
+            sourceId = SourceId("album"),
+            title = id,
+            publishedAt = null,
+            duration = null,
+            mediaUrl = HttpUrl.of("https://www.youtube.com/watch?v=$id"),
+            contentKind = com.dewijones92.totum.domain.MediaContentKind.MUSIC,
+        ),
+        PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$id")),
+    )
 }

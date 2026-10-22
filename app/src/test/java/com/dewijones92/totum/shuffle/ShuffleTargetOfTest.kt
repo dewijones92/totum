@@ -24,5 +24,10 @@ class ShuffleTargetOfTest {
         assertEquals("Show A + Show B", target.title)
         assertEquals(listOf(a, b), target.sources)
         assertEquals(target.key, shuffleTargetOf(listOf(b, a)).key)
+        assertEquals(
+            "one source keeps its own page's key, so it is one pin",
+            "podcast:a",
+            shuffleTargetOf(listOf(a)).key
+        )
     }
 }

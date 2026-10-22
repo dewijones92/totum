@@ -29,7 +29,7 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
         } else if (!keepTo.admits(entry.item)) {
             passedOver++
         } else if (direction == FORWARD && passOver(entry.item) != null) {
-            finished += title
+            finished += "$title (${passOver(entry.item)})"
         } else if (playAt(index, rollBackOnRefusal = true)) {
             // The SUCCESS says what it advanced to, not just that it did. Only the refusals
             // said anything, so a report of a queue advancing wrongly showed "advance=true"

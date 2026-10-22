@@ -25,6 +25,8 @@ internal class CastLoadHold<T>(private val now: () -> Long, private val holdMs: 
         }
         if (localPositionMs != null) {
             lastLocal = Asked(id, item, localPositionMs, now())
+            sentLast = null
+            asked = null
         } else {
             sentLast = Asked(id, item, 0L, now())
         }

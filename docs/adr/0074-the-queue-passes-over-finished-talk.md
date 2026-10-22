@@ -30,4 +30,4 @@ here or on the YouTube account.
 ## Consequences
 
 - No setting yet; asked for as a behaviour. A finished item stays in the queue, dimmed as before, and plays on a tap.
-- `SkipFinishedTest` covers the advance, ⏭ and the readied next item agreeing, and the rule's three exemptions.
+- `SkipFinishedTest` covers the advance, ⏭ (`playNextInQueue`), the readied next item agreeing, the stay-in-kind stop with finished talk ahead, and the rule's exemptions. "Finished" is the rows' own account-aware state (watched to the end on YouTube counts), and the log says which ("finished here" or "finished on YouTube"), corrected after review.
