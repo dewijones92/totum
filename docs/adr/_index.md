@@ -88,3 +88,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 70 | [Listen and Watch follow the picture, not the pillar](0070-listen-and-watch-follow-the-picture-not-the-pillar.md) | Accepted |
 | 71 | [Exsurge switched off stays off, and reminds once a day](0071-exsurge-off-stays-off-and-reminds-once-a-day.md) | Accepted |
 | 72 | [A playback cache under every stream](0072-a-playback-cache-under-every-stream.md) | Accepted |
+| 73 | [The Library is a hub, and downloads have their own page](0073-the-library-is-a-hub-and-downloads-have-their-own-page.md) | Accepted |

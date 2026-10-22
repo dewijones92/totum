@@ -390,6 +390,7 @@
     <string name="downloaded_delete">Downloaded — tap to remove</string>
     <string name="download_delete">Delete downloaded file</string>
     <string name="library_downloads">Downloads</string>
+    <string name="downloads_on_the_phone">On the phone</string>
 
     <string name="search_hint">Search podcasts and videos</string>
     <string name="search_action">Search</string>
@@ -909,6 +910,18 @@
     <string name="cast_strip_casting">📺 Casting to %1$s</string>
     <string name="subtitles_on_cast_device">📺 Subtitles show on %1$s</string>
     <string name="cast_strip_unnamed_device">the TV</string>
+    <plurals name="downloads_summary_on_phone">
+        <item quantity="one">📥 %d on the phone</item>
+        <item quantity="other">📥 %d on the phone</item>
+    </plurals>
+    <plurals name="downloads_summary_running">
+        <item quantity="one">⏳ %d downloading</item>
+        <item quantity="other">⏳ %d downloading</item>
+    </plurals>
+    <plurals name="downloads_summary_failed">
+        <item quantity="one">⚠️ %d failed</item>
+        <item quantity="other">⚠️ %d failed</item>
+    </plurals>
     <string name="cast_strip_quality">🎞️ %1$dp picture on %2$s</string>
     <string name="cast_strip_quality_climbing">🎞️ %1$dp picture on %2$s, going up to %3$dp</string>
     <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>

@@ -3,10 +3,13 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-14
+updated: 2026-10-22
 ---
 
 # Managing downloads
+
+Since 2026-10-22 the download manager is its own page: Library → **Downloads** (the tile counts what is on the
+phone, running and failed), with the finished list headed "On the phone" ([ADR 73](../adr/0073-the-library-is-a-hub-and-downloads-have-their-own-page.md)).
 
 Dewi, 2026-08-07: *"improve the download manager experience ... e.g. cancel inprogress download, sort
 by size, sort by other stuff etc etc etc etc etc comprehensve please"*.

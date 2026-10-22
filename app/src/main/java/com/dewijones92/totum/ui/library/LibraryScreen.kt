@@ -1,15 +1,11 @@
 package com.dewijones92.totum.ui.library
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,13 +13,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CollectionsBookmark
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,8 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -59,20 +48,17 @@ import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
-import com.dewijones92.totum.ui.common.BuildInfoFooter
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.filteredByItems
-import com.dewijones92.totum.ui.common.pinnedSection
-import com.dewijones92.totum.ui.common.recentlySection
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
@@ -84,65 +70,41 @@ import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 import com.dewijones92.totum.ui.stats.StatsScreen
 import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
 
+private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS }
+
 @Composable
 fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
-    var showPlaylists by rememberSaveable { mutableStateOf(false) }
-    var showHistory by rememberSaveable { mutableStateOf(false) }
-    var showSubscriptions by rememberSaveable { mutableStateOf(false) }
-    var showAccount by rememberSaveable { mutableStateOf(false) }
-    var showStats by rememberSaveable { mutableStateOf(false) }
+    var pageName by rememberSaveable { mutableStateOf(LibraryPage.HOME.name) }
+    val page = LibraryPage.valueOf(pageName)
+    val go: (LibraryPage) -> Unit = { pageName = it.name }
     // The id is a value class over a String, so it saves as one and needs no saver.
     var openPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
     val playlist = openPlaylistId?.let(::PlaylistId)
-    TrackPlace("library") {
-        "playlists=$showPlaylists history=$showHistory subscriptions=$showSubscriptions account=$showAccount " +
-            "stats=$showStats playlist=$openPlaylistId"
-    }
+    TrackPlace("library") { "page=${page.name.lowercase()} playlist=$openPlaylistId" }
 
-    val open = listOf(
-        "playlist" to (playlist != null),
-        "playlists" to showPlaylists,
-        "history" to showHistory,
-        "subscriptions" to showSubscriptions,
-        "account" to showAccount,
-        "stats" to showStats,
-    ).firstOrNull { it.second }?.first
-    BackHandler(enabled = open != null) {
-        Diag.log("nav", "back from library $open")
-        when {
-            playlist != null -> openPlaylistId = null
-            showPlaylists -> showPlaylists = false
-            showHistory -> showHistory = false
-            showSubscriptions -> showSubscriptions = false
-            showStats -> showStats = false
-            else -> showAccount = false
-        }
+    BackHandler(enabled = playlist != null || page != LibraryPage.HOME) {
+        Diag.log("nav", "back from library ${if (playlist != null) "playlist" else page.name.lowercase()}")
+        if (playlist != null) openPlaylistId = null else go(LibraryPage.HOME)
     }
-
+    val home = { go(LibraryPage.HOME) }
     when {
         playlist != null ->
             LocalPlaylistDetailScreen(container, playlist, onBack = { openPlaylistId = null }, modifier = modifier)
-        showPlaylists ->
-            LocalPlaylistsScreen(
-                container,
-                onBack = { showPlaylists = false },
-                onOpen = { openPlaylistId = it.value },
-                modifier = modifier,
-            )
-        showHistory ->
-            PlayHistoryScreen(container, onBack = { showHistory = false }, modifier = modifier)
-        showSubscriptions ->
-            AllSubscriptionsScreen(container, onBack = { showSubscriptions = false }, modifier = modifier)
-        showAccount ->
-            AccountScreen(container, modifier = modifier, onBack = { showAccount = false })
-        showStats -> StatsScreen(container, onBack = { showStats = false }, modifier = modifier)
+        page == LibraryPage.PLAYLISTS ->
+            LocalPlaylistsScreen(container, onBack = home, onOpen = { openPlaylistId = it.value }, modifier = modifier)
+        page == LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = home, modifier = modifier)
+        page == LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = home, modifier = modifier)
+        page == LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = home)
+        page == LibraryPage.STATS -> StatsScreen(container, onBack = home, modifier = modifier)
+        page == LibraryPage.DOWNLOADS -> DownloadsScreen(container, onBack = home, modifier = modifier)
         else -> LibraryHome(
             container,
-            onOpenPlaylists = { showPlaylists = true },
-            onOpenHistory = { showHistory = true },
-            onOpenSubscriptions = { showSubscriptions = true },
-            onOpenAccount = { showAccount = true },
-            onOpenStats = { showStats = true },
+            onOpenPlaylists = { go(LibraryPage.PLAYLISTS) },
+            onOpenHistory = { go(LibraryPage.HISTORY) },
+            onOpenSubscriptions = { go(LibraryPage.SUBSCRIPTIONS) },
+            onOpenAccount = { go(LibraryPage.ACCOUNT) },
+            onOpenStats = { go(LibraryPage.STATS) },
+            onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
             modifier = modifier,
         )
     }
@@ -156,19 +118,39 @@ private fun LibraryHome(
     onOpenSubscriptions: () -> Unit,
     onOpenAccount: () -> Unit,
     onOpenStats: () -> Unit,
+    onOpenDownloads: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
     val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
     val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
     val failed by viewModel.failed.collectAsStateWithLifecycle()
+    val albums by viewModel.albums.collectAsStateWithLifecycle()
+    LibraryHub(
+        onOpenPlaylists = onOpenPlaylists,
+        onOpenHistory = onOpenHistory,
+        onOpenSubscriptions = onOpenSubscriptions,
+        onOpenAccount = onOpenAccount,
+        onOpenStats = onOpenStats,
+        onOpenDownloads = onOpenDownloads,
+        modifier = modifier,
+        downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
+        phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
+    )
+}
+
+@Composable
+private fun DownloadsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
+    val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
+    val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
+    val failed by viewModel.failed.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
     val sort by viewModel.sortOrder.collectAsStateWithLifecycle()
-    val albums by viewModel.albums.collectAsStateWithLifecycle()
     val cleanup by viewModel.cleanup.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
 
-    LibraryContent(
+    DownloadsContent(
         downloaded = downloaded,
         inProgress = inProgress,
         failed = failed,
@@ -178,33 +160,25 @@ private fun LibraryHome(
         onDismiss = viewModel::dismiss,
         storage = storage,
         sort = sort,
-        onOpenPlaylists = onOpenPlaylists,
-        onOpenHistory = onOpenHistory,
-        onOpenSubscriptions = onOpenSubscriptions,
-        onOpenAccount = onOpenAccount,
+        onBack = onBack,
         onPlay = viewModel::play,
         onDelete = viewModel::delete,
         onAddToPlaylist = { addToPlaylist(it.item) },
         onSetSort = viewModel::setSort,
         modifier = modifier,
-        phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
         cleanup = Cleanup(cleanup, viewModel::deleteSuggested),
-        onOpenStats = onOpenStats,
     )
 }
 
 @Composable
-internal fun LibraryContent(
+internal fun DownloadsContent(
     downloaded: List<LibraryViewModel.Entry>,
     /** Downloads running right now — shown above the finished ones, newest progress first. */
     inProgress: List<LibraryViewModel.InProgress>,
     failed: List<LibraryViewModel.Failed>,
     storage: StorageUsage,
     sort: DownloadSort,
-    onOpenPlaylists: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenSubscriptions: () -> Unit,
-    onOpenAccount: () -> Unit,
+    onBack: () -> Unit,
     onPlay: (LibraryViewModel.Entry) -> Unit,
     onDelete: (LibraryViewModel.Entry) -> Unit,
     onCancel: (MediaItemId) -> Unit,
@@ -214,9 +188,7 @@ internal fun LibraryContent(
     onAddToPlaylist: (LibraryViewModel.Entry) -> Unit,
     onSetSort: (DownloadSort) -> Unit,
     modifier: Modifier = Modifier,
-    phoneAlbums: PhoneAlbums = PhoneAlbums(),
     cleanup: Cleanup = Cleanup(),
-    onOpenStats: () -> Unit = {},
 ) {
     val actions = LocalItemActions.current
     var reviewing by rememberSaveable { mutableStateOf<CleanupGroup?>(null) }
@@ -226,13 +198,7 @@ internal fun LibraryContent(
     Column(modifier = modifier.fillMaxSize()) {
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item { ScreenHeader(stringResource(R.string.destination_library)) }
-                pinnedSection()
-                recentlySection()
-                item {
-                    LibraryTiles(onOpenPlaylists, onOpenSubscriptions, onOpenHistory, onOpenAccount, onOpenStats)
-                }
-                phoneAlbumsSection(phoneAlbums)
+                item { BackHeader(stringResource(R.string.library_downloads), onBack) }
                 // In-progress FIRST, and outside the empty check: a fresh install with everything
                 // still downloading would otherwise show "nothing downloaded yet" while the phone
                 // was busily downloading, which is the most misleading thing this screen could say.
@@ -243,7 +209,7 @@ internal fun LibraryContent(
                 } else if (downloaded.isNotEmpty()) {
                     item {
                         SectionHeaderWithSortOptions(
-                            title = stringResource(R.string.library_downloads),
+                            title = stringResource(R.string.downloads_on_the_phone),
                             options = DownloadSort.ALL,
                             current = sort,
                             label = { it.labelRes },
@@ -279,7 +245,6 @@ internal fun LibraryContent(
                 }
             }
         }
-        BuildInfoFooter()
     }
     CleanupReviewOf(cleanup, reviewing, downloaded) { reviewing = null }
 }
@@ -317,96 +282,6 @@ private fun StorageSummary(storage: StorageUsage) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LibraryTiles(
-    onOpenPlaylists: () -> Unit,
-    onOpenSubscriptions: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenAccount: () -> Unit,
-    onOpenStats: () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        verticalArrangement = Arrangement.spacedBy(TILE_GAP),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        LibraryTile(
-            Icons.Outlined.BarChart,
-            R.string.stats_tile,
-            scheme.tertiary,
-            scheme.onTertiary,
-            onOpenStats,
-            Modifier.fillMaxWidth(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-            LibraryTile(
-                Icons.AutoMirrored.Filled.PlaylistPlay,
-                R.string.playlists_title,
-                scheme.secondaryContainer,
-                scheme.onSecondaryContainer,
-                onOpenPlaylists,
-                Modifier.weight(1f),
-            )
-            LibraryTile(
-                Icons.Outlined.Subscriptions,
-                R.string.all_subscriptions_title,
-                scheme.primaryContainer,
-                scheme.onPrimaryContainer,
-                onOpenSubscriptions,
-                Modifier.weight(1f),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-            LibraryTile(
-                Icons.Outlined.History,
-                R.string.history_title,
-                scheme.tertiaryContainer,
-                scheme.onTertiaryContainer,
-                onOpenHistory,
-                Modifier.weight(1f),
-            )
-            // Account lives here rather than on the bottom bar: it's visited once to sign in,
-            // so it doesn't earn a permanent tab (the queue does).
-            LibraryTile(
-                Icons.Outlined.AccountCircle,
-                R.string.destination_account,
-                scheme.surfaceContainerHighest,
-                scheme.onSurface,
-                onOpenAccount,
-                Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun LibraryTile(
-    icon: ImageVector,
-    titleRes: Int,
-    container: Color,
-    content: Color,
-    onOpen: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        verticalArrangement = Arrangement.SpaceBetween,
-        modifier = modifier
-            .heightIn(min = TILE_HEIGHT)
-            .clip(MaterialTheme.shapes.large)
-            .background(container)
-            .clickable(onClick = onOpen)
-            .padding(16.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(28.dp))
-        Text(
-            text = stringResource(titleRes),
-            style = MaterialTheme.typography.titleMedium,
-            color = content,
-            modifier = Modifier.padding(top = 12.dp),
-        )
     }
 }
 
@@ -529,13 +404,11 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
 private const val PERCENT = 100
 private const val MIN_METER = 0.02f
 private const val FAILED_CARD_ALPHA = 0.35f
-private val TILE_GAP = 12.dp
-private val TILE_HEIGHT = 104.dp
 
 /**
  * What is being fetched right now, with a way to stop it.
  *
- * Its own function because [LibraryContent] grew past what one function should hold once downloads
+ * Its own function because [DownloadsContent] grew past what one function should hold once downloads
  * became manageable rather than merely visible — and because each section is now a separate idea.
  */
 internal fun LazyListScope.runningSection(

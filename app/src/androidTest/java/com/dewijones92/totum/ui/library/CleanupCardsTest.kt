@@ -51,16 +51,13 @@ class CleanupCardsTest {
     private fun show(vararg suggestions: CleanupSuggestion) {
         composeTestRule.setContent {
             TotumTheme {
-                LibraryContent(
+                DownloadsContent(
                     downloaded = entries,
                     inProgress = emptyList(),
                     failed = emptyList(),
                     storage = StorageUsage(itemCount = 3, usedBytes = 1000 * mb, freeBytes = null),
                     sort = DownloadSort.DEFAULT,
-                    onOpenPlaylists = {},
-                    onOpenHistory = {},
-                    onOpenSubscriptions = {},
-                    onOpenAccount = {},
+                    onBack = {},
                     onPlay = {},
                     onDelete = {},
                     onCancel = {},

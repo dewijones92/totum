@@ -20,14 +20,12 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.FILTER_FIELD_TAG
 import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
-import com.dewijones92.totum.ui.library.DownloadSort
-import com.dewijones92.totum.ui.library.LibraryContent
+import com.dewijones92.totum.ui.library.LibraryHub
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.videos.VideosContent
 import com.dewijones92.totum.ui.videos.VideosViewModel
@@ -66,24 +64,13 @@ class ScreensKeepEveryControlTest {
         val opened = mutableListOf<String>()
         composeTestRule.setContent {
             TotumTheme {
-                LibraryContent(
-                    downloaded = emptyList(),
-                    inProgress = emptyList(),
-                    failed = emptyList(),
-                    storage = StorageUsage(itemCount = 0, usedBytes = 0, freeBytes = null),
-                    sort = DownloadSort.DEFAULT,
+                LibraryHub(
                     onOpenPlaylists = { opened += "playlists" },
                     onOpenHistory = { opened += "history" },
                     onOpenSubscriptions = { opened += "subscriptions" },
                     onOpenAccount = { opened += "account" },
-                    onPlay = {},
-                    onDelete = {},
-                    onCancel = {},
-                    onCancelAll = {},
-                    onRetry = {},
-                    onDismiss = {},
-                    onAddToPlaylist = {},
-                    onSetSort = {},
+                    onOpenStats = { opened += "stats" },
+                    onOpenDownloads = { opened += "downloads" },
                 )
             }
         }
@@ -92,8 +79,9 @@ class ScreensKeepEveryControlTest {
         tap(context.getString(R.string.all_subscriptions_title))
         tap(context.getString(R.string.history_title))
         tap(context.getString(R.string.destination_account))
+        tap(context.getString(R.string.library_downloads))
 
-        assertEquals(listOf("playlists", "subscriptions", "history", "account"), opened)
+        assertEquals(listOf("playlists", "subscriptions", "history", "account", "downloads"), opened)
     }
 
     @Test

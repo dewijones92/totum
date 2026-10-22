@@ -3,7 +3,7 @@ title: One visual language across the app
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-25
+updated: 2026-10-22
 ---
 
 # One visual language
@@ -76,7 +76,7 @@ title**. Before/after screenshots were taken on `totum-api35` in both themes.
 | Play-state filter | Segmented buttons | `MediaFilterChips` |
 | Rows | Rounded cards carrying the SAME pillar wash and played wash; an unplayed dot on the artwork and a bold title; ⋮ and download stacked so the title gets the width; no dividers | `MediaItemRow` |
 | Player | Sleep, skip silences, speed, boost, auto-play, listen and fast start as a two-column tile grid; tonal like / dislike / save; up next as cards with artwork | `ui/player/ControlTiles.kt` |
-| Library | A 2×2 grid of colour tiles, a storage meter, downloading and failed downloads as cards | `LibraryScreen` |
+| Library | A one-screen hub: Recently, Pinned, colour tiles (Stats, Downloads with a count line, Playlists, Subscriptions, History, Account); downloads on their own page ([ADR 73](../adr/0073-the-library-is-a-hub-and-downloads-have-their-own-page.md)) | `LibraryHub`, `LibraryScreen` |
 | Source pages | A hero on a pillar-wash gradient with a full-width subscribe button | `SourceHeader` |
 | Empty states | A brand-colour blob behind the icon | `EmptyState` |
 
