@@ -46,5 +46,10 @@ the newest segment and the stream's length, then a DASH manifest of the adaptive
   75 before the pass-through).
 - The manifest is built once per resolve; a resolve replayed from the cache much later starts further behind the edge
   (still inside the stream's DVR window: segments 23 behind the head answered).
-- Not yet: casting live (the TV cannot fetch googlevideo, so the phone must relay the segments), DVR seeking back,
-  and anonymous yt-dlp answers for live (they come as HLS formats and are not mapped).
+- **Casting live**: the TV cannot fetch googlevideo (CORS), so the cast server serves the same manifest with each
+  segment URL pointing at the phone (`LiveRelay`), which fetches it with a plain GET and passes it on. The TV picks
+  its own quality from the manifest, so a live item skips the replay for the TV's formats (that cost a 5 s wait and
+  a second load). On the Ultra: cast tap to playing in 5.6 s, the TV's clock at real time, stop hands back to the
+  phone still live. The live sound is relayed as it is: Totum's boost does not reach a live stream on the TV yet.
+- Not yet: Totum's processing (boost) on live audio while casting, DVR seeking back, and anonymous yt-dlp answers for
+  live (they come as HLS formats and are not mapped).

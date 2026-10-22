@@ -30,10 +30,11 @@ internal class CastStreams(
 ) {
     private val videos = TvVideos(tvs)
 
-    private val server = CastHttpServer(::handle)
+    private val server = CastHttpServer(handle = { request -> live.replyTo(request) ?: handle(request) })
     private val sessions = ConcurrentHashMap<String, Session>()
     private val order = ConcurrentLinkedDeque<String>()
     private val latest = ConcurrentHashMap<String, Session>()
+    private val live = LiveCasts()
 
     fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
     private val random = SecureRandom()
@@ -228,13 +229,19 @@ internal class CastStreams(
     }
 
     fun urlFor(item: MediaItem): String? {
+        item.localConfiguration?.uri?.toString()?.let(LocalManifests::manifestAt)?.let { manifest ->
+            val base = host.baseUrl(PORT) ?: return null
+            server.start(PORT)
+            host.hold(true)
+            return live.open(item.mediaId, manifest, base, random.token())
+        }
         val sources = sourcesFor(item) ?: return null
         val base = host.baseUrl(PORT) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
             return null
         }
         server.start(PORT)
-        val token = ByteArray(TOKEN_BYTES).also(random::nextBytes).joinToString("") { "%02x".format(it) }
+        val token = random.token()
         val session = Session(token, item, sources.video, sources.audio)
         sessions[token] = session
         latest[item.mediaId] = session
@@ -254,6 +261,7 @@ internal class CastStreams(
     }
 
     fun stopAll() {
+        live.clear()
         sessions.values.forEach { it.audio.close() }
         sessions.clear()
         order.clear()
@@ -327,8 +335,13 @@ internal class CastStreams(
         private const val MAX_SESSIONS = 6
         private const val VIDEO_LOG_FIRST = 3
         private const val VIDEO_LOG_EVERY = 25
-        private const val TOKEN_BYTES = 8
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
         private const val YOUTUBE_STREAMS = "googlevideo.com"
     }
 }
+
+private fun SecureRandom.token(): String = ByteArray(
+    TOKEN_BYTES
+).also(::nextBytes).joinToString("") { "%02x".format(it) }
+
+private const val TOKEN_BYTES = 8

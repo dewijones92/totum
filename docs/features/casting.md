@@ -35,7 +35,10 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 - **Torrents while streaming** cast with their picture: the MKV is repackaged into MP4 pieces as the TV asks, nothing
   re-encoded (H.264 and HEVC).
 
-Not yet: live streams; an opt-in re-encode for a video the TV cannot show; YouTube subtitle fetches for the TV (and for
+- **Live streams** cast: the phone relays the live segments (the TV cannot fetch them itself); sound as YouTube
+  sends it, without Totum's boost yet ([ADR 69](../adr/0069-live-streams-play-a-manifest-totum-builds.md)).
+
+Not yet: Totum's boost on live sound while casting; an opt-in re-encode for a video the TV cannot show; YouTube subtitle fetches for the TV (and for
 the phone's own player) going through the politeness gate.
 
 Bench: `tools/cast-bench/` (README there). With no TV free, `tools/cast-bench/standin/standin.sh` plays what Totum
