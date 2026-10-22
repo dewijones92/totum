@@ -13,7 +13,18 @@ internal sealed interface CastAudio {
     ) : CastAudio
 }
 
-internal data class CastVideo(val layout: StreamLayout, val url: String)
+internal sealed interface CastVideo {
+    data class Relayed(val layout: StreamLayout, val url: String) : CastVideo
+
+    data class Segmented(
+        val codecs: String,
+        val width: Int,
+        val height: Int,
+        val timeline: List<MkvVideo.Segment>,
+        val initUrl: String,
+        val mediaTemplate: String,
+    ) : CastVideo
+}
 
 internal data class CastSubtitle(val language: String, val url: String, val label: String)
 
@@ -37,7 +48,25 @@ internal object DashManifest {
         return listOf(XML_HEAD, mpd, period, sets.joinToString("\n"), "</Period>", "</MPD>", "").joinToString("\n")
     }
 
-    private fun videoSet(video: CastVideo): String {
+    private fun videoSet(video: CastVideo): String = when (video) {
+        is CastVideo.Relayed -> relayedVideoSet(video)
+        is CastVideo.Segmented -> segmentedVideoSet(video)
+    }
+
+    private fun segmentedVideoSet(video: CastVideo.Segmented): String {
+        val timeline = video.timeline.joinToString("") { "<S t=\"${it.startMs}\" d=\"${it.durationMs}\"/>" }
+        return """<AdaptationSet id="1" contentType="video" mimeType="video/mp4" segmentAlignment="true" startWithSAP="1">
+<Representation id="video" codecs="${video.codecs}" bandwidth="$VIDEO_BANDWIDTH" width="${video.width}" height="${video.height}">
+<SegmentTemplate timescale="1000" initialization="${xml(
+            video.initUrl
+        )}" media="${xml(video.mediaTemplate)}" startNumber="0">
+<SegmentTimeline>$timeline</SegmentTimeline>
+</SegmentTemplate>
+</Representation>
+</AdaptationSet>"""
+    }
+
+    private fun relayedVideoSet(video: CastVideo.Relayed): String {
         val l = video.layout
         return """<AdaptationSet id="1" contentType="video" mimeType="${l.mimeType}" subsegmentAlignment="true" startWithSAP="1">
 <Representation id="video" codecs="${l.codecs}" bandwidth="$VIDEO_BANDWIDTH" width="${l.width}" height="${l.height}">

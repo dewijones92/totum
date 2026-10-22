@@ -32,9 +32,11 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 - **Subtitles** on the TV come from the player's usual Subtitles button; its menu says they show on the TV.
 - **Android 17:** the first Cast tap asks for local network access ("Nearby devices").
 
-Not yet: live streams; an opt-in re-encode for a video the TV cannot show; a torrent's HEVC picture while it is still
-streaming as Matroska (sound only until downloaded); YouTube subtitle fetches for the TV (and for the phone's own
-player) going through the politeness gate.
+- **Torrents while streaming** cast with their picture: the MKV is repackaged into MP4 pieces as the TV asks, nothing
+  re-encoded (H.264 and HEVC).
+
+Not yet: live streams; an opt-in re-encode for a video the TV cannot show; YouTube subtitle fetches for the TV (and for
+the phone's own player) going through the politeness gate.
 
 Bench: `tools/cast-bench/` (README there). With no TV free, `tools/cast-bench/standin/standin.sh` plays what Totum
 would cast in Shaka Player in a private headless Edge and times start, seeks and subtitles.

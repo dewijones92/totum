@@ -21,7 +21,7 @@ class CastDebugReceiver : BroadcastReceiver() {
             ACTION_STOP -> CastContext.getSharedInstance(app).sessionManager.endCurrentSession(true)
             ACTION_SERVE -> Diag.log(
                 "cast",
-                "dewidebug STANDIN url=${CastStandIn.serveCurrent?.invoke(intent.getStringExtra("model")) ?: "none (no hook)"}",
+                "dewidebug STANDIN url=${CastStandIn.serveCurrent?.invoke(intent.getStringExtra("model"), intent.getStringExtra("url")) ?: "none (no hook)"}",
             )
         }
     }

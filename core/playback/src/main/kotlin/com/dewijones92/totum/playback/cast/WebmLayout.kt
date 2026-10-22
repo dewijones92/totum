@@ -24,6 +24,39 @@ internal object Ebml {
 
     data class Read(val value: Long, val next: Int, val unknown: Boolean = false)
 
+    class Element(
+        val id: Long,
+        val dataStart: Int,
+        val dataEnd: Int,
+        val unknownSize: Boolean = false,
+        val declaredEnd: Long = dataEnd.toLong(),
+    ) {
+        val length: Int get() = dataEnd - dataStart
+    }
+
+    fun children(bytes: ByteArray, from: Int, to: Int): Sequence<Element> = sequence {
+        var at = from
+        while (at < to && at < bytes.size) {
+            val id = id(bytes, at)
+            val size = size(bytes, id.next)
+            val end = if (size.unknown) to else (size.next + size.value).toInt().coerceAtMost(to)
+            yield(Element(id.value, size.next, end, size.unknown, size.next + size.value))
+            if (id.value == CLUSTER) return@sequence
+            at = end
+        }
+    }
+
+    fun fields(bytes: ByteArray, parent: Element): Map<Long, Element> =
+        children(bytes, parent.dataStart, parent.dataEnd).associateBy { it.id }
+
+    fun seekTargets(bytes: ByteArray, seekHead: Element): Map<Long, Long> =
+        children(bytes, seekHead.dataStart, seekHead.dataEnd).filter { it.id == SEEK }.mapNotNull { seek ->
+            val f = fields(bytes, seek)
+            val target = f[SEEK_ID]?.let { uint(bytes, it.dataStart, it.length) } ?: return@mapNotNull null
+            val position = f[SEEK_POSITION]?.let { uint(bytes, it.dataStart, it.length) } ?: return@mapNotNull null
+            target to position
+        }.toMap()
+
     fun id(bytes: ByteArray, at: Int): Read = vint(bytes, at, keepMarker = true)
 
     fun size(bytes: ByteArray, at: Int): Read = vint(bytes, at, keepMarker = false)
@@ -50,6 +83,10 @@ internal object Ebml {
         return Read(value, at + length, unknown = !keepMarker && allOnes)
     }
 
+    fun isEbml(head: ByteArray): Boolean = head.size >= EBML_MAGIC && uint(head, 0, EBML_MAGIC) == EBML_HEADER
+
+    private const val EBML_MAGIC = 4
+
     fun uint(bytes: ByteArray, from: Int, length: Int): Long {
         var v = 0L
         for (k in 0 until length) v = (v shl 8) or (bytes[from + k].toLong() and 0xFF)
@@ -65,32 +102,17 @@ internal object Ebml {
 
 internal object WebmLayout {
 
-    private class Element(val id: Long, val dataStart: Int, val dataEnd: Int) {
-        val length: Int get() = dataEnd - dataStart
-    }
-
-    private fun elements(bytes: ByteArray, from: Int, to: Int): Sequence<Element> = sequence {
-        var at = from
-        while (at < to && at < bytes.size) {
-            val id = Ebml.id(bytes, at)
-            val size = Ebml.size(bytes, id.next)
-            val end = if (size.unknown) to else (size.next + size.value).toInt().coerceAtMost(to)
-            yield(Element(id.value, size.next, end))
-            if (id.value == Ebml.CLUSTER) return@sequence
-            at = end
-        }
-    }
-
     @Suppress("ThrowsCount")
     fun read(head: ByteArray, reader: RangeReader): StreamLayout {
-        val header = elements(head, 0, head.size).first()
-        val segment = elements(head, header.dataEnd, head.size).firstOrNull { it.id == Ebml.SEGMENT }
+        val header = Ebml.children(head, 0, head.size).first()
+        val segment = Ebml.children(head, header.dataEnd, head.size).firstOrNull { it.id == Ebml.SEGMENT }
             ?: throw UnreadableLayout("WebM has no Segment in its first ${head.size} bytes")
         var cuesAt: Long? = null
         var track: TrackFacts? = null
-        for (child in elements(head, segment.dataStart, head.size)) {
+        for (child in Ebml.children(head, segment.dataStart, head.size)) {
             when (child.id) {
-                Ebml.SEEK_HEAD -> cuesAt = cuesAt ?: seekTarget(head, child, Ebml.CUES)?.let { segment.dataStart + it }
+                Ebml.SEEK_HEAD ->
+                    cuesAt = cuesAt ?: Ebml.seekTargets(head, child)[Ebml.CUES]?.let { segment.dataStart + it }
                 Ebml.TRACKS -> track = firstTrack(head, child)
                 Ebml.CUES -> cuesAt = child.dataStart.toLong() - headerLength(head, child)
             }
@@ -113,7 +135,7 @@ internal object WebmLayout {
         )
     }
 
-    private fun headerLength(bytes: ByteArray, element: Element): Int {
+    private fun headerLength(bytes: ByteArray, element: Ebml.Element): Int {
         var at = element.dataStart - 1
         while (at > 0) {
             val id = runCatching { Ebml.id(bytes, at) }.getOrNull()
@@ -126,23 +148,6 @@ internal object WebmLayout {
         return 0
     }
 
-    private fun seekTarget(bytes: ByteArray, seekHead: Element, wanted: Long): Long? =
-        elements(
-            bytes,
-            seekHead.dataStart,
-            seekHead.dataEnd
-        ).filter { it.id == Ebml.SEEK }.firstNotNullOfOrNull { seek ->
-            var id: Long? = null
-            var position: Long? = null
-            for (field in elements(bytes, seek.dataStart, seek.dataEnd)) {
-                when (field.id) {
-                    Ebml.SEEK_ID -> id = Ebml.uint(bytes, field.dataStart, field.dataEnd - field.dataStart)
-                    Ebml.SEEK_POSITION -> position = Ebml.uint(bytes, field.dataStart, field.dataEnd - field.dataStart)
-                }
-            }
-            position.takeIf { id == wanted }
-        }
-
     private data class TrackFacts(
         val codecs: String,
         val width: Int?,
@@ -151,12 +156,12 @@ internal object WebmLayout {
         val channels: Int?,
     )
 
-    private fun firstTrack(bytes: ByteArray, tracks: Element): TrackFacts? {
-        val entry = elements(bytes, tracks.dataStart, tracks.dataEnd).firstOrNull { it.id == Ebml.TRACK_ENTRY }
+    private fun firstTrack(bytes: ByteArray, tracks: Ebml.Element): TrackFacts? {
+        val entry = Ebml.children(bytes, tracks.dataStart, tracks.dataEnd).firstOrNull { it.id == Ebml.TRACK_ENTRY }
             ?: return null
-        val fields = children(bytes, entry)
-        val video = fields[Ebml.VIDEO]?.let { children(bytes, it) }.orEmpty()
-        val audio = fields[Ebml.AUDIO]?.let { children(bytes, it) }.orEmpty()
+        val fields = Ebml.fields(bytes, entry)
+        val video = fields[Ebml.VIDEO]?.let { Ebml.fields(bytes, it) }.orEmpty()
+        val audio = fields[Ebml.AUDIO]?.let { Ebml.fields(bytes, it) }.orEmpty()
         val codecId = fields[Ebml.CODEC_ID]?.let { String(bytes, it.dataStart, it.length, Charsets.US_ASCII) }.orEmpty()
         val private = fields[Ebml.CODEC_PRIVATE]?.let { bytes.copyOfRange(it.dataStart, it.dataEnd) }
         return TrackFacts(
@@ -167,9 +172,6 @@ internal object WebmLayout {
             channels = audio[Ebml.CHANNELS]?.let { Ebml.uint(bytes, it.dataStart, it.length).toInt() },
         )
     }
-
-    private fun children(bytes: ByteArray, parent: Element): Map<Long, Element> =
-        elements(bytes, parent.dataStart, parent.dataEnd).associateBy { it.id }
 
     private fun codecsFor(codecId: String, private: ByteArray?): String = when (codecId) {
         "V_VP9" -> "vp9"

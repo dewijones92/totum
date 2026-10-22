@@ -74,8 +74,14 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   VP9 2160p and AV1. So both are VP9/H.264, the LG up to 2160p and the Ultra up to 1080p; unknown devices are
   VP9/H.264 1080p. **HEVC** measured 2026-10-21 (1080p 8-bit DASH, `hev1` and `hvc1` tags): both TVs play it, so a
   downloaded x265 torrent casts without re-encoding (its video is remuxed into an MP4); HEVC Main10 is not measured.
-  HEVC still in Matroska (a torrent streamed rather than downloaded) is not offered as video: a Cast receiver's
-  `video/webm` does not carry HEVC, so it goes as sound only until it is remuxed.
+  A torrent still streaming as **Matroska** (H.264 or HEVC) is **remuxed on demand** (Dewi's choice, 2026-10-22):
+  `MkvVideo` reads the header, the video track (often not the first) and the Cues by byte range, and each cue-to-cue
+  span becomes one fMP4 segment when the TV asks for it, its frames copied byte for byte (Matroska stores H.264/HEVC
+  length-prefixed exactly as `avcC`/`hvcC` describe), decode times derived for B-frames, a signed `trun`; the manifest
+  carries the cues as a `SegmentTimeline`. Every decoded frame of the remux matched the source in tests (HEVC and
+  H.264, B-frames, open GOP, audio track first), and both TVs played a 2-minute HEVC MKV through the phone with no
+  jumps. Laced or compressed tracks, and MP4s that are not fragmented, go as sound only and say so; an audio-only
+  file sends no picture and no warning.
 - **Handing over** (2026-10-22, on the real Ultra): the cast player is told to play *before* it is given the item,
   because it sends the receiver's load (with its autoplay) as soon as it has the item, and a play sent after that load
   did not stick: the TV sat paused. A replay for the TV's formats waits for the cast player to settle, takes position
@@ -83,6 +89,12 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   is skipped when what the TV was sent is already its best (no refusal, height at the TV's maximum): the replay cost a
   second load. Releasing a waiting source happens off the main thread (stopping a cast crashed v0.1.657 with
   `NetworkOnMainThreadException`: closing an HTTP source drains its body).
+- **Video skip silences while casting stays off** (Dewi's rule: only if both TVs cope). Measured 2026-10-22 with a
+  60 s clip and a manifest of 10 periods each skipping a 1–1.5 s span: Shaka, the Ultra and the LG all jump up to ~2 s
+  at every boundary (the next period can only start at a keyframe), so 48.6 s of kept content played in 42–43 s: about
+  6 s of real content lost. The control (one period) played exactly. Short 2× speed bursts sent from the phone, by
+  contrast, play on both TVs with no buffering (2.1–2.3× in the burst, ~1× after; the first burst takes about a second
+  to apply), so speeding through long pauses is possible; not built.
 - **The TV is never handed a video it cannot show.** The replay on a cast change is triggered by the Cast session
   itself (`CastTarget.screens`), not by the player's remote flag, which flipped about 9 s late on Dewi's Pixel, so the
   first item kept the phone's AV1 and the Ultra showed nothing (report 20261021T190400-f5d37fb7). As a safety net,

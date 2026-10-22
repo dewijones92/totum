@@ -18,5 +18,5 @@ private const val STAND_IN_HEIGHT = 1080
 
 public object CastStandIn {
     @Volatile
-    public var serveCurrent: ((asModel: String?) -> String?)? = null
+    public var serveCurrent: ((asModel: String?, url: String?) -> String?)? = null
 }

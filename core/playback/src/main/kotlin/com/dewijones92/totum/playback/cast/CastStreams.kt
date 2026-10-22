@@ -56,6 +56,8 @@ internal class CastStreams(
 
         @Volatile var layout: StreamLayout? = null
 
+        @Volatile var mkv: MkvVideo? = null
+
         @Volatile var videoFile: File? = null
 
         @Volatile var prepared = false
@@ -64,43 +66,71 @@ internal class CastStreams(
         fun ready() {
             if (prepared) return
             audio.prepare()
-            layout = videoUrl?.let(::video)
+            videoUrl?.let(::pickVideo)
             prepared = true
             Diag.log(
                 "cast",
-                "session $token ready: ${item.mediaId} video=${layout?.describe() ?: "none"} " +
+                "session $token ready: ${item.mediaId} video=${layout?.describe() ?: mkv?.describe ?: "none"} " +
                     "audio=processed ${audio.format.sampleRate}Hz boost=${boost()}",
             )
         }
 
-        private fun video(url: String): StreamLayout? {
-            val found = try {
-                if (url.startsWith("http")) {
-                    StreamLayouts.probe { span -> Upstream.bytes(url, span) }
-                } else {
-                    localVideo(File(url.toUri().path ?: url))
+        private fun pickVideo(url: String) {
+            try {
+                when {
+                    !url.startsWith("http") ->
+                        layout = localVideo(File(url.toUri().path ?: url))?.takeIf { shows(it.codecs, it.height) }
+                    url.contains(YOUTUBE_STREAMS) ->
+                        layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
+                            .takeIf { shows(it.codecs, it.height) }
+                    else -> remoteFile(url)
                 }
             } catch (e: UnreadableLayout) {
-                return refuse("in a format Totum cannot read for a TV", e.message ?: "unreadable")
-            } ?: return null
-            val screen = tvs.current()?.screen
-            if (screen != null && !screen.canDecode(found.codecs, found.height)) {
-                val family = VideoCodecFamily.of(found.codecs)?.name ?: found.codecs
-                return refuse("$family ${found.height}p", "beyond ${screen.label}")
+                refuse("in a format Totum cannot read for a TV", e.message ?: "unreadable")
             }
-            if (latest[item.mediaId] === this) {
-                videos.sent(item.mediaId, found.height)
-            }
-            return found
         }
 
-        private fun refuse(what: String, why: String): StreamLayout? {
+        private fun remoteFile(url: String) {
+            val head = Upstream.bytes(url, ByteSpan(0, StreamLayouts.HEAD_BYTES - 1))
+            when {
+                Ebml.isEbml(head) -> {
+                    val found = MkvVideo.probe(head) { span -> Upstream.bytes(url, span) }
+                    when {
+                        found == null -> noteNoPicture("an MKV with no video track")
+                        shows(found.codecs, found.height) -> mkv = found
+                    }
+                }
+                Mp4Layout.isMp4(head) && head.contains(ascii("vide")) ->
+                    layout = try {
+                        StreamLayouts.probe { span -> Upstream.bytes(url, span) }.takeIf { shows(it.codecs, it.height) }
+                    } catch (e: UnreadableLayout) {
+                        refuse("an MP4 Totum cannot stream to a TV yet (not fragmented)", e.message ?: "unreadable")
+                        null
+                    }
+                else -> noteNoPicture("audio only, or not a WebM, MP4 or MKV")
+            }
+        }
+
+        private fun noteNoPicture(why: String) =
+            Diag.log("cast", "${item.mediaId}: no picture to send the TV — $why; sound only, nothing refused")
+
+        private fun shows(codecs: String, height: Int?): Boolean {
+            val screen = tvs.current()?.screen
+            if (screen != null && !screen.canDecode(codecs, height)) {
+                val family = VideoCodecFamily.of(codecs)?.name ?: codecs
+                refuse("$family ${height}p", "beyond ${screen.label}")
+                return false
+            }
+            if (latest[item.mediaId] === this) videos.sent(item.mediaId, height)
+            return true
+        }
+
+        private fun refuse(what: String, why: String) {
             videoFile = null
             if (latest[item.mediaId] === this) {
                 videos.refused(item.mediaId, what)
             }
             Diag.warn("cast", "${item.mediaId}: the TV gets sound only — its video is $what ($why)")
-            return null
         }
 
         private fun localVideo(source: File): StreamLayout? {
@@ -109,13 +139,44 @@ internal class CastStreams(
             return StreamLayouts.probe { span -> LocalRanges.bytes(remuxed, span) }
         }
 
+        fun audioPart(part: String): HttpReply? {
+            ready()
+            val bytes = when {
+                part == "init.mp4" -> audio.init()
+                part.endsWith(".m4s") -> audio.segment(part.removeSuffix(".m4s").toInt())
+                else -> return null
+            }
+            return HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, bytes)
+        }
+
+        fun remuxedPart(part: String): HttpReply {
+            ready()
+            val source = mkv ?: return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no remuxed video".toByteArray())
+            val bytes = if (part == "init.mp4") {
+                source.init()
+            } else {
+                source.segment(part.removeSuffix(".m4s").toInt()) { span -> Upstream.bytes(videoUrl.orEmpty(), span) }
+            }
+            return HttpReply.Bytes(Http.OK, MimeTypes.VIDEO_MP4, bytes)
+        }
+
         fun manifest(): String {
             ready()
             val durationMs = audio.durationUs.takeIf { it != C.TIME_UNSET }?.div(Http.MILLIS)
                 ?: item.mediaMetadata.durationMs ?: 0L
             return DashManifest.build(
                 durationMs,
-                layout?.let { CastVideo(it, "video") },
+                layout?.let { CastVideo.Relayed(it, "video") }
+                    ?: mkv?.let {
+                        CastVideo.Segmented(
+                            it.codecs,
+                            it.width,
+                            it.height,
+                            it.timeline,
+                            "video/init.mp4",
+                            "video/\$Number\$.m4s",
+                        )
+                    },
                 CastAudio.Processed(
                     initUrl = "audio/init.mp4",
                     mediaTemplate = "audio/\$Number\$.m4s",
@@ -149,7 +210,7 @@ internal class CastStreams(
         }
         return when {
             separateAudio != null && !listening -> Sources(uri, separateAudio, listening)
-            !listening && !uri.startsWith("http") -> Sources(uri, uri, listening)
+            !listening && !uri.contains(YOUTUBE_STREAMS) -> Sources(uri, uri, listening)
             separateAudio != null -> Sources(null, separateAudio, listening)
             else -> Sources(null, uri, listening)
         }
@@ -217,18 +278,11 @@ internal class CastStreams(
                 MimeTypes.APPLICATION_MPD,
                 session.manifest().toByteArray()
             )
+            what.startsWith("video/") -> session.remuxedPart(what.removePrefix("video/"))
             what == "video" -> session.videoFile?.let { LocalRanges.reply(it, request.header("range")) }
                 ?: proxy(session, session.videoUrl ?: return notFound(), request.header("range"))
-            what == "audio/init.mp4" -> {
-                session.ready()
-                HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, session.audio.init())
-            }
             what.startsWith("subtitles/") -> subtitle(session, what)
-            what.startsWith("audio/") && what.endsWith(".m4s") -> {
-                session.ready()
-                val n = what.removePrefix("audio/").removeSuffix(".m4s").toInt()
-                HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, session.audio.segment(n))
-            }
+            what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
             else -> notFound()
         }
         if (what != "video") {
@@ -275,5 +329,6 @@ internal class CastStreams(
         private const val VIDEO_LOG_EVERY = 25
         private const val TOKEN_BYTES = 8
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
+        private const val YOUTUBE_STREAMS = "googlevideo.com"
     }
 }

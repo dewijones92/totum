@@ -346,14 +346,15 @@ public class PlaybackService : MediaSessionService() {
         castPlayer = cast
         castRemote = remote
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
-            CastStandIn.serveCurrent = serve@{ model ->
+            CastStandIn.serveCurrent = serve@{ model, url ->
                 if (model == "none") {
                     castStatus.connected(null)
                     streams.stopAll()
                     return@serve null
                 }
                 if (model != null) castStatus.connected(CastTv("stand-in $model", standInScreen(model)))
-                val item = mediaSession?.player?.currentMediaItem
+                val item = url?.let { MediaItem.Builder().setMediaId("standin-${it.hashCode()}").setUri(it).build() }
+                    ?: mediaSession?.player?.currentMediaItem
                 item?.let(streams::urlFor).also {
                     Diag.log("cast", "dewidebug stand-in serving ${item?.mediaId} as $model: $it")
                 }

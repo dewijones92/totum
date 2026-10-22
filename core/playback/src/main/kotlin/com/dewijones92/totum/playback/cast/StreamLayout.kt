@@ -49,3 +49,6 @@ internal object StreamLayouts {
 }
 
 internal fun List<Byte>.hex(): String = joinToString("") { "%02x".format(it) }
+
+internal fun ByteArray.contains(needle: ByteArray): Boolean =
+    (0..size - needle.size).any { i -> needle.indices.all { this[i + it] == needle[it] } }

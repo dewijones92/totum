@@ -90,6 +90,38 @@ const page = `<!doctype html><html><body>
         return { language: track.language, cue: null, note: 'no cue shown within 15s' };
       }, arg);
       say({ step, ...result });
+    } else if (kind === 'toend') {
+      const result = await tab.evaluate(async (maxS) => {
+        const video = document.getElementById('v');
+        let stalls = 0;
+        let stalledMs = 0;
+        let stalledAt = null;
+        video.addEventListener('waiting', () => { stalls++; stalledAt = performance.now(); });
+        video.addEventListener('playing', () => {
+          if (stalledAt !== null) { stalledMs += performance.now() - stalledAt; stalledAt = null; }
+        });
+        const began = performance.now();
+        const from = video.currentTime;
+        const jumps = [];
+        let lastT = video.currentTime;
+        let lastWall = performance.now();
+        while (!video.ended && performance.now() - began < maxS * 1000) {
+          await new Promise((r) => setTimeout(r, 100));
+          const nowWall = performance.now();
+          const moved = video.currentTime - lastT;
+          const expected = (nowWall - lastWall) / 1000 * video.playbackRate;
+          if (Math.abs(moved - expected) > 0.4) {
+            jumps.push(`${((nowWall - began) / 1000).toFixed(1)}s: ${lastT.toFixed(2)}->${video.currentTime.toFixed(2)}`);
+          }
+          lastT = video.currentTime;
+          lastWall = nowWall;
+        }
+        return {
+          ended: video.ended, wallS: ((performance.now() - began) / 1000).toFixed(2),
+          mediaS: (video.currentTime - from).toFixed(2), stalls, stalledMs: Math.round(stalledMs), jumps, errors: window.errors,
+        };
+      }, Number(arg));
+      say({ step, ...result });
     } else if (kind === 'wait') {
       await tab.waitForTimeout(Number(arg) * 1000);
       say({ step, at: await tab.evaluate(() => document.getElementById('v').currentTime.toFixed(2)), errors: await tab.evaluate(() => window.errors) });
