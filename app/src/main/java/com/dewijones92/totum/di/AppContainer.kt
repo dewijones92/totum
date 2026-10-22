@@ -148,6 +148,7 @@ import com.dewijones92.totum.innertube.related.RelatedResult
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
+import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.MusicFavourites
@@ -303,6 +304,7 @@ interface AppContainer {
     val skipSegmentSource: SkipSegmentSource
     val downloadManager: DownloadManager
     val lockingDownloads: LockingDownloadManager
+    val kidLock: KidLock
 
     /** Full backup / restore of everything that is not re-downloadable. */
     val backupService: BackupService
@@ -708,6 +710,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val downloadManager: DownloadManager get() = lockingDownloads
+
+    override val kidLock: KidLock = KidLock()
 
     override val lockingDownloads: LockingDownloadManager by lazy {
         LockingDownloadManager(plainDownloads, PrefsDownloadLocks(context))

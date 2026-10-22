@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -20,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.dewijones92.totum.busy.BusyBar
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
@@ -117,7 +115,7 @@ fun AppShell(
         return
     }
 
-    val openPlayer = remember { { showFullPlayer = true } }
+    val openPlayer = remember { { showFullPlayer = !container.kidLock.locked.value } }
     OpenVideoOnLandscape(shell?.hasVideo == true, shell?.itemId?.value, shortsReel == null, openPlayer)
     AnswerOpenPlayerRequests(openPlayerRequest, controller, openPlayer)
     LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
@@ -165,7 +163,7 @@ fun AppShell(
                 // Last in the Box so it draws over everything, including the full player and
                 // any overlay: "is the app doing something" is a question worth answering
                 // from whatever screen the user is on.
-                BusyBar(still = showFullPlayer || shortsReel != null, modifier = Modifier.safeDrawingPadding())
+                TopLayers(container, still = showFullPlayer || shortsReel != null) { showFullPlayer = false }
             }
         }
     }

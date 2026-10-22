@@ -22,6 +22,7 @@ enum class PinAction(@param:StringRes val label: Int) {
     SHUFFLE_AGAIN(R.string.pin_menu_shuffle_again),
     TOGGLE_PIN(R.string.pin_pin),
     ADD_TO_HOME(R.string.pin_home),
+    ADD_TO_HOME_LOCKED(R.string.pin_home_locked),
     REMOVE_FROM_RECENT(R.string.pin_menu_forget),
 }
 
@@ -63,6 +64,7 @@ fun pinMenuFor(pin: Pin, inRecent: Boolean): List<PinAction> {
     val common = listOfNotNull(
         PinAction.TOGGLE_PIN.takeIf { replayable },
         PinAction.ADD_TO_HOME.takeIf { replayable },
+        PinAction.ADD_TO_HOME_LOCKED.takeIf { replayable && pin.mayShowPicture },
         PinAction.REMOVE_FROM_RECENT.takeIf { inRecent },
     )
     return own + common

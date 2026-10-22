@@ -78,6 +78,7 @@ import com.dewijones92.totum.innertube.playlists.fake.FakeYouTubePlaylists
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
+import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.MusicFavourites
@@ -149,6 +150,7 @@ class FakeAppContainer(
     override val downloadManager: DownloadManager = FakeDownloadManager(),
     override val lockingDownloads: LockingDownloadManager =
         LockingDownloadManager(downloadManager, InMemoryDownloadLocks()),
+    override val kidLock: KidLock = KidLock(),
     override val feedCache: FeedCache = NoOpFeedCache,
     override val channelLatestUploads: ChannelLatestUploads = ChannelLatestUploads(
         fetcher = { FetchResult.Failure("no network in the fake") },

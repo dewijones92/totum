@@ -35,7 +35,7 @@ interface PinActions {
     val pinned: List<Pin>
     fun isPinned(key: String): Boolean = pinned.any { it.key == key }
     fun toggle(pin: Pin)
-    fun addToHomeScreen(pin: Pin)
+    fun addToHomeScreen(pin: Pin, lockOnOpen: Boolean = false)
     fun play(pin: Pin)
     fun run(pin: Pin, action: PinAction, onOutcome: (PinOutcome) -> Unit) = Unit
 }
@@ -90,7 +90,7 @@ private class ContainerPinActions(
         }
     }
 
-    override fun addToHomeScreen(pin: Pin) {
+    override fun addToHomeScreen(pin: Pin, lockOnOpen: Boolean) {
         container.pinStore.pin(pin)
         val shortcuts = container.homeScreenShortcuts
         if (shortcuts == null) {
@@ -98,7 +98,7 @@ private class ContainerPinActions(
             return
         }
         container.applicationScope.launch {
-            if (!shortcuts.requestPin(pin)) say(R.string.pin_home_unsupported, pin.title)
+            if (!shortcuts.requestPin(pin, lockOnOpen)) say(R.string.pin_home_unsupported, pin.title)
         }
     }
 
@@ -119,6 +119,7 @@ private class ContainerPinActions(
         when (action) {
             PinAction.TOGGLE_PIN -> return toggle(pin)
             PinAction.ADD_TO_HOME -> return addToHomeScreen(pin)
+            PinAction.ADD_TO_HOME_LOCKED -> return addToHomeScreen(pin, lockOnOpen = true)
             else -> Unit
         }
         container.applicationScope.launch {

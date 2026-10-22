@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.ChildCare
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RepeatOne
@@ -76,6 +77,18 @@ internal fun FastStartTile(checked: Boolean, onChange: (Boolean) -> Unit, modifi
         onChange,
         modifier,
         detail = stringResource(R.string.sabr_playback_detail),
+    )
+}
+
+@Composable
+internal fun KidLockTile(onLock: () -> Unit, modifier: Modifier = Modifier) {
+    ControlTile(
+        icon = Icons.Outlined.ChildCare,
+        label = stringResource(R.string.kid_lock),
+        value = stringResource(R.string.kid_lock_hint),
+        active = false,
+        onClick = onLock,
+        modifier = modifier,
     )
 }
 

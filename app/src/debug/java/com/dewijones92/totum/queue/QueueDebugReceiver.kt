@@ -44,6 +44,11 @@ class QueueDebugReceiver : BroadcastReceiver() {
                 container.playbackController.seekTo(target)
             }
             ACTION_SET_GAPLESS -> container.appPreferences.setGaplessQueue(intent.getBooleanExtra("on", true))
+            ACTION_KID_LOCK -> if (intent.getBooleanExtra("on", true)) {
+                container.kidLock.lock("a debug broadcast")
+            } else {
+                container.kidLock.unlock("a debug broadcast")
+            }
             ACTION_DOWNLOAD -> container.applicationScope.launch {
                 val audioOnly = intent.getBooleanExtra("audioOnly", false)
                 ids.mapNotNull { id ->
@@ -59,6 +64,7 @@ class QueueDebugReceiver : BroadcastReceiver() {
         const val ACTION_SEEK_NEAR_END = "com.dewijones92.totum.DEBUG_SEEK_NEAR_END"
         const val ACTION_SET_GAPLESS = "com.dewijones92.totum.DEBUG_SET_GAPLESS"
         const val ACTION_DOWNLOAD = "com.dewijones92.totum.DEBUG_DOWNLOAD"
+        const val ACTION_KID_LOCK = "com.dewijones92.totum.DEBUG_KID_LOCK"
         const val DEFAULT_BEFORE_END_MS = 35_000L
     }
 }

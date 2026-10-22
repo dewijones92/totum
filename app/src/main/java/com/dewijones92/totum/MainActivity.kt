@@ -15,6 +15,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.kidlock.KidLockWindow
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayed
 import com.dewijones92.totum.theme.TotumTheme
@@ -79,6 +80,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        KidLockWindow(this, container.kidLock).start()
         if (!restored) handleOpenPlayer(intent, via = "onCreate")
         handleShareIntent(intent, via = "onCreate", restored = restored)
     }
@@ -145,8 +147,16 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, getString(R.string.pin_gone), Toast.LENGTH_LONG).show()
             return true
         }
+        val lockOnOpen = HomeScreenShortcuts.locksOnOpen(intent.data)
         container.applicationScope.launch {
             val played = container.pinPlayer.play(pin, from = "home-screen shortcut via $via")
+            if (lockOnOpen) {
+                if (played is PinPlayed.Started) {
+                    container.kidLock.lock("home-screen shortcut $key (picture=${played.showsPicture})")
+                } else {
+                    Diag.warn("kidlock", "locked shortcut $key did not start ($played); not locking")
+                }
+            }
             if (played is PinPlayed.Started && played.showsPicture) {
                 openPlayerRequest.intValue++
                 Diag.log("pin", "$key is a video; opening the player (request ${openPlayerRequest.intValue})")

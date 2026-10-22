@@ -18,6 +18,7 @@ sealed interface Pin {
     val key: String
     val title: String
     val artUrl: String?
+    val mayShowPicture: Boolean get() = this !is Album && this !is Artist && this !is Radio && this !is ArtistSongs
 
     @Serializable
     @SerialName("item")

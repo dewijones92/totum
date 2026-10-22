@@ -490,6 +490,11 @@
     <string name="pin_pin">Pin</string>
     <string name="pin_unpin">Unpin</string>
     <string name="pin_home">Add to home screen</string>
+    <string name="pin_home_locked">👶 Add to home screen, locked for a child</string>
+    <string name="kid_lock">👶 Kid lock</string>
+    <string name="kid_lock_stage">Locked for a child</string>
+    <string name="kid_lock_hint">🔒 Pins the app: unpin with the phone\'s PIN</string>
+    <string name="kid_lock_pinning_off">📌 Not pinned yet, so only Totum is locked. If Android asked, tap Got it; if App pinning is off, turn it on in Settings for a full lock. To unlock now, hold the top-left corner for 3 seconds.</string>
     <string name="pin_added">📌 Pinned \"%1$s\"</string>
     <string name="pin_removed">📍 Unpinned \"%1$s\"</string>
     <string name="pin_home_unsupported">⚠️ This home screen does not take shortcuts; \"%1$s\" is pinned in the app</string>

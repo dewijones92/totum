@@ -103,6 +103,7 @@ internal fun SecondaryControls(toggles: PlaybackToggles) {
         add("autoplay" to { m -> AutoPlayNextTile(toggles.autoPlayNext, toggles.onSetAutoPlayNext, m) })
         add("repeat" to { m -> RepeatTile(toggles.repeatMode, toggles.onSetRepeatMode, m) })
         add("fast-start" to { m -> FastStartTile(toggles.sabrPlayback, toggles.onSetSabrPlayback, m) })
+        toggles.onKidLock?.let { lock -> add("kid-lock" to { m -> KidLockTile(lock, m) }) }
     }
     // Wrapping, not scrolling: every control stays visible and reachable at any text size,
     // where a horizontal scroller would hide some of them off the right-hand edge with nothing

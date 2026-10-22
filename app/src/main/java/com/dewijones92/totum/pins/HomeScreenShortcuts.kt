@@ -21,13 +21,16 @@ class HomeScreenShortcuts(private val context: Context) {
 
     val canPin: Boolean get() = ShortcutManagerCompat.isRequestPinShortcutSupported(context)
 
-    suspend fun requestPin(pin: Pin): Boolean {
+    suspend fun requestPin(pin: Pin, lockOnOpen: Boolean = false): Boolean {
         if (!canPin) {
             Diag.warn("pin", "this launcher does not accept pinned shortcuts; ${pin.key} stays in the app only")
             return false
         }
-        val asked = ShortcutManagerCompat.requestPinShortcut(context, shortcut(pin, artwork(pin)), null)
-        Diag.log("pin", "asked the launcher to pin ${pin.key} -> accepted the request=$asked")
+        val asked = ShortcutManagerCompat.requestPinShortcut(context, shortcut(pin, artwork(pin), lockOnOpen), null)
+        Diag.log(
+            "pin",
+            "asked the launcher to pin ${pin.key} (lock on open=$lockOnOpen) -> accepted the request=$asked"
+        )
         return asked
     }
 
@@ -48,15 +51,15 @@ class HomeScreenShortcuts(private val context: Context) {
         )
     }
 
-    private fun shortcut(pin: Pin, art: Bitmap?): ShortcutInfoCompat =
-        ShortcutInfoCompat.Builder(context, pin.key)
-            .setShortLabel(pin.title.take(SHORT_LABEL))
-            .setLongLabel(pin.title.take(LONG_LABEL))
+    private fun shortcut(pin: Pin, art: Bitmap?, lockOnOpen: Boolean = false): ShortcutInfoCompat =
+        ShortcutInfoCompat.Builder(context, if (lockOnOpen) "${pin.key}$LOCKED_SUFFIX" else pin.key)
+            .setShortLabel((if (lockOnOpen) "$LOCK_MARK${pin.title}" else pin.title).take(SHORT_LABEL))
+            .setLongLabel((if (lockOnOpen) "$LOCK_MARK${pin.title}" else pin.title).take(LONG_LABEL))
             .setIcon(
                 art?.let(IconCompat::createWithBitmap) ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher)
             )
             .setIntent(
-                Intent(Intent.ACTION_VIEW, deepLink(pin.key), context, MainActivity::class.java)
+                Intent(Intent.ACTION_VIEW, deepLink(pin.key, lockOnOpen), context, MainActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             )
             .build()
@@ -84,7 +87,16 @@ class HomeScreenShortcuts(private val context: Context) {
         private const val ICON_PX = 192
         private const val MAX_DYNAMIC = 4
 
-        fun deepLink(key: String): Uri = Uri.Builder().scheme(SCHEME).authority(HOST).appendPath(key).build()
+        private const val LOCK = "lock"
+        private const val LOCKED_SUFFIX = "#locked"
+        private const val LOCK_MARK = "👶 "
+
+        fun deepLink(key: String, lockOnOpen: Boolean = false): Uri =
+            Uri.Builder().scheme(SCHEME).authority(HOST).appendPath(key)
+                .apply { if (lockOnOpen) appendQueryParameter(LOCK, "1") }
+                .build()
+
+        fun locksOnOpen(uri: Uri?): Boolean = keyFrom(uri) != null && uri?.getQueryParameter(LOCK) == "1"
 
         fun keyFrom(uri: Uri?): String? =
             uri?.takeIf { it.scheme == SCHEME && it.host == HOST }?.pathSegments?.firstOrNull()

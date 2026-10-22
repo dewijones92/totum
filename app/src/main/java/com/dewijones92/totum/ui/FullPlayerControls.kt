@@ -59,4 +59,5 @@ internal fun playbackToggles(
     onSetVolumeBoost = controller::setVolumeBoost,
     repeatMode = settings.repeatMode,
     onSetRepeatMode = container.appPreferences::setRepeatMode,
+    onKidLock = { container.kidLock.lock("the player's Kid lock tile") },
 )

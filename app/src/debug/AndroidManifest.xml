@@ -45,6 +45,7 @@
                 <action android:name="com.dewijones92.totum.DEBUG_SEEK_NEAR_END" />
                 <action android:name="com.dewijones92.totum.DEBUG_SET_GAPLESS" />
                 <action android:name="com.dewijones92.totum.DEBUG_DOWNLOAD" />
+                <action android:name="com.dewijones92.totum.DEBUG_KID_LOCK" />
             </intent-filter>
         </receiver>
     </application>
