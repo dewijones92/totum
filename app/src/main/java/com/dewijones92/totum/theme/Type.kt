@@ -7,6 +7,8 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.dewijones92.totum.R
@@ -43,7 +45,7 @@ private fun TextStyle.display(weight: FontWeight, size: Int, line: Int, tracking
     fontSize = size.sp,
     lineHeight = line.sp,
     letterSpacing = tracking.sp,
-)
+).wrapsWell()
 
 private fun TextStyle.title(weight: FontWeight, size: Int, line: Int, tracking: Double = 0.0) = copy(
     fontFamily = TitleFamily,
@@ -51,7 +53,9 @@ private fun TextStyle.title(weight: FontWeight, size: Int, line: Int, tracking: 
     fontSize = size.sp,
     lineHeight = line.sp,
     letterSpacing = tracking.sp,
-)
+).wrapsWell()
+
+private fun TextStyle.wrapsWell() = copy(hyphens = Hyphens.Auto, lineBreak = LineBreak.Paragraph)
 
 val Typography = Typography(
     displayLarge = Base.displayLarge.display(FontWeight.ExtraBold, 56, 60, -1.5),
@@ -66,7 +70,7 @@ val Typography = Typography(
     labelLarge = Base.labelLarge.title(FontWeight.SemiBold, 14, 20, 0.1),
     labelMedium = Base.labelMedium.title(FontWeight.SemiBold, 12, 16, 0.3),
     labelSmall = Base.labelSmall.title(FontWeight.Bold, 11, 14, 0.4),
-    bodyLarge = Base.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.2.sp),
-    bodyMedium = Base.bodyMedium.copy(letterSpacing = 0.15.sp),
-    bodySmall = Base.bodySmall.copy(letterSpacing = 0.2.sp),
+    bodyLarge = Base.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.2.sp).wrapsWell(),
+    bodyMedium = Base.bodyMedium.copy(letterSpacing = 0.15.sp).wrapsWell(),
+    bodySmall = Base.bodySmall.copy(letterSpacing = 0.2.sp).wrapsWell(),
 )
