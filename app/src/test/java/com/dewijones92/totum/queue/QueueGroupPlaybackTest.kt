@@ -84,6 +84,22 @@ class QueueGroupPlaybackTest {
     private fun playingId() = queue.state.value.current?.item?.item?.id?.value
 
     @Test
+    fun `shuffling all of an artist while one of its songs plays takes that song into the new group`() =
+        runTest(dispatcher) {
+            val artistTop = QueueGroup("artist-top:x", "An artist")
+            val shuffled = QueueGroup("shuffle:x", "An artist, shuffled")
+            queue.playAll(listOf("s1", "s2", "s3").map(::track), artistTop)
+            advanceUntilIdle()
+
+            queue.playAll(listOf("s3", "s1", "s2", "s4").map(::track), shuffled)
+            advanceUntilIdle()
+
+            val entries = queue.state.value.entries
+            assertEquals(listOf("shuffle:x"), entries.mapNotNull { it.group?.id }.distinct())
+            assertEquals(listOf("s1", "s3", "s2", "s4"), entries.map { it.item.item.id.value })
+        }
+
+    @Test
     fun `shuffle and play gathers the group, shuffles it and plays its first song`() = runTest(dispatcher) {
         queue.playAll(listOf(track("other")))
         queue.enqueueAll(listOf("t1", "t2", "t3", "t4", "t5").map(::track), album)

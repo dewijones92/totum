@@ -327,6 +327,7 @@ class PlaybackQueue(
             refreshed
                 .removing { entry -> entry.item.item.id in ids && entry.item.item.id != playing }
                 .inserted(run.filterNot { it.item.id == playing }.map { QueueEntry(it, group) })
+                .let { now -> if (group != null && playing in ids) now.regrouping(playing, group) else now }
                 // Where the run's first item ACTUALLY ended up, rather than assuming it was
                 // inserted after the cursor: it may be the entry the cursor is already on.
                 .also { now -> index = now.entries.indexOfFirst { it.item.item.id == run.first().item.id } }
@@ -1128,6 +1129,9 @@ private fun QueueSnapshot.adoptingRoutesFrom(fresh: List<PlayableItem>): QueueSn
         },
     )
 }
+
+private fun QueueSnapshot.regrouping(id: MediaItemId?, group: QueueGroup): QueueSnapshot =
+    copy(entries = entries.map { entry -> if (entry.item.item.id == id) entry.copy(group = group) else entry })
 
 private fun QueueSnapshot.shuffledAfterCurrent(random: Random): QueueSnapshot {
     val after = (place + 1).coerceAtLeast(0)
