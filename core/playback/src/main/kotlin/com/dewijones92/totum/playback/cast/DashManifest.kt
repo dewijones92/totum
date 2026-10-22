@@ -88,6 +88,16 @@ ${reps.joinToString("\n")}
 </AdaptationSet>"""
     }
 
+    fun bandwidthFor(url: String, height: Int?): Int {
+        val query = url.substringAfter('?', "").split('&').mapNotNull { part ->
+            part.split('=', limit = 2).takeIf { it.size == 2 }?.let { (k, v) -> k to v }
+        }.toMap()
+        val bytes = query["clen"]?.toLongOrNull()
+        val seconds = query["dur"]?.toDoubleOrNull()
+        val measured = if (bytes != null && seconds != null && seconds > 0) bytes * BITS_PER_BYTE / seconds else null
+        return measured?.toInt() ?: bandwidthFor(height)
+    }
+
     fun bandwidthFor(height: Int?): Int = when {
         height == null -> VIDEO_BANDWIDTH
         height >= UHD -> UHD_BANDWIDTH
@@ -148,5 +158,6 @@ $template
     private const val SD_BANDWIDTH = 1_200_000
     private const val LOW_BANDWIDTH = 700_000
     private const val AUDIO_BANDWIDTH = 160_000
+    private const val BITS_PER_BYTE = 8
     private const val DEFAULT_RATE = 48_000
 }

@@ -11,7 +11,7 @@ internal class CastRungs(
     private val onFetching: (Int) -> Unit,
 ) {
 
-    var rungs: List<Pair<CastRung, StreamLayout>> = emptyList()
+    @Volatile var rungs: List<Pair<CastRung, StreamLayout>> = emptyList()
         private set
 
     @Volatile private var fetching = -1
@@ -22,6 +22,7 @@ internal class CastRungs(
         screen: CastScreen?,
         probe: (CastRung) -> StreamLayout = { rung -> StreamLayouts.probe { span -> Upstream.bytes(rung.url, span) } },
     ): Boolean {
+        val started = System.currentTimeMillis()
         val candidates = offered.distinctBy { it.url }.filter { screen?.canDecode(it.codec, it.height) ?: true }
             .sortedByDescending { it.height }.take(MAX_PROBES)
         val probed = candidates.mapNotNull { rung ->
@@ -41,7 +42,8 @@ internal class CastRungs(
         val flowing = offered.firstOrNull { it.url == current }?.label ?: "not in the ladder"
         Diag.log(
             "cast",
-            "$mediaId: the TV may switch between $between [phone's stream $flowing, offered ${offered.size}]"
+            "$mediaId: the TV may switch between $between [phone's stream $flowing, offered ${offered.size}, " +
+                "probed ${candidates.size} in ${System.currentTimeMillis() - started}ms]"
         )
         rungs.maxOfOrNull { it.second.height ?: 0 }?.let(onSent)
         return rungs.isNotEmpty()

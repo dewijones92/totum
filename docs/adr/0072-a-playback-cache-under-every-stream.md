@@ -19,13 +19,23 @@ ahead of the playhead, so any step back went to the network again.
 ## Decision
 
 - One process-wide Media3 `SimpleCache` in the app's cache folder, 1 GB, least recently used evicted
-  (`PlaybackCache`). It sits under the ranged fetcher (`ChunkedDataSource`), so cached bytes and fetched bytes go
-  through the same path, and above SABR's own source, which it never sees.
+  (`PlaybackCache`). It sits above the ranged fetcher (`ChunkedDataSource`), which fetches whatever it does not hold,
+  and below SABR's own source, which it never sees; cached bytes are read from the disk by Media3, not through the
+  fetcher. (Corrected 2026-10-22: this said "under", which was backwards.)
 - A router sends a request through the cache only when `PlaybackCacheKeys.cacheable` says so: http(s), not loopback,
   not a manifest, not a live segment (`sq=`, `live=1`). SABR, local files and live go direct.
-- Keys: a YouTube stream is keyed by its stream id, itag and length, not its URL, because every lookup signs a new
-  URL for the same bytes; a torrent stream drops its rotating `totumToken`; anything else is its URL.
-- A read error bypasses the cache for that request rather than failing playback.
+- Keys: a YouTube stream is keyed by its stream id, itag, length and `xtags` (a dubbed track shares id and itag), not
+  its URL, because every lookup signs a new URL for the same bytes; a torrent stream drops its rotating `totumToken`;
+  anything else, and a YouTube URL with no length, is its URL **for this launch only**: a podcast enclosure URL can
+  serve a different file tomorrow (dynamic ad insertion, a corrected upload), and mixing two versions' bytes would play
+  the wrong audio at the joins (review, 2026-10-22).
+- A read error from the cache fails that read; the load is retried and that data source skips the cache for the rest
+  of the item. A stream of unknown length is not stored (Media3's `FLAG_DONT_CACHE_IF_LENGTH_UNKNOWN` on progressive
+  loads), so it is not quite "everything". (Corrected 2026-10-22.)
+- Every open says what it decided (through the cache with how much is held from that position, or direct and why),
+  at most once per stream every 5 s; a report carries `cache.heldMb`, `cache.readFromDiskMb`, `cache.opens` and
+  `cache.ignoredAfterErrorOrUnknownLength`. The size is read off the main thread (opening the cache had blocked the
+  service's start on a 1 GB folder scan).
 - The seek bar shows the buffer ahead (pale tangerine, Dewi's choice) and what has played this session, which the
   cache holds, in cyan (`PlayedSpans`).
 

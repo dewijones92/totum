@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
+import com.dewijones92.totum.playback.PlaybackCacheReport
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.pathTaken
@@ -93,6 +94,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.appUpdate()) }
         runCatching { putAll(live.polite()) }
         runCatching { putAll(live.backup()) }
+        runCatching { putAll(PlaybackCacheReport.state()) }
     }
 
     private fun MutableMap<String, String>.putSettings(settings: AppPreferences.Settings) {

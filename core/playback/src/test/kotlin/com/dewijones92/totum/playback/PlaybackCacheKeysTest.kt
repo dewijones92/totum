@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,5 +37,26 @@ class PlaybackCacheKeysTest {
         assertTrue(PlaybackCacheKeys.cacheable(first))
         assertTrue(PlaybackCacheKeys.cacheable("https://feeds.test/ep/12.mp3?utm=1"))
         assertNull(PlaybackCacheKeys.key("file:///data/x.media"))
+    }
+
+    @Test
+    fun `a podcast enclosure is kept for this launch only, because the same URL can serve another file tomorrow`() {
+        val episode = "https://feeds.test/ep/12.mp3?utm=1"
+        assertEquals(PlaybackCacheKeys.key(episode, launch = "a"), PlaybackCacheKeys.key(episode, launch = "a"))
+        assertNotEquals(PlaybackCacheKeys.key(episode, launch = "a"), PlaybackCacheKeys.key(episode, launch = "b"))
+        assertEquals(PlaybackCacheKeys.key(first, launch = "a"), PlaybackCacheKeys.key(first, launch = "b"))
+        val torrent = "https://home.test/ts/stream/S01E02.mkv?link=abc&index=2&play&totumToken=t1"
+        assertEquals(PlaybackCacheKeys.key(torrent, launch = "a"), PlaybackCacheKeys.key(torrent, launch = "b"))
+    }
+
+    @Test
+    fun `a dubbed track and a YouTube stream with no length do not share the stable key`() {
+        val dubbed = first + "&xtags=acont%3Ddubbed%3Alang%3Dde"
+        assertNotEquals(PlaybackCacheKeys.key(first), PlaybackCacheKeys.key(dubbed))
+        val noLength = first.replace("&clen=99", "")
+        assertNotEquals(
+            PlaybackCacheKeys.key(noLength, launch = "a"),
+            PlaybackCacheKeys.key(noLength, launch = "b"),
+        )
     }
 }

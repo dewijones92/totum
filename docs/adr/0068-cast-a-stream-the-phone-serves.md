@@ -172,3 +172,8 @@ Two replays are dropped. An item cast in Listen mode goes as sound only by choic
 no replay (it replayed after 5 s of "sent nothing yet"). And "as good as it gets" is the best height on offer that the
 TV can decode, not the TV's maximum (`CastScreen.bestOf`, `CastScreenTest`, seen red): a 1080p video on the 4K LG had
 replayed for nothing.
+
+Each ladder rung now declares the bandwidth measured from its own URL (`clen × 8 / dur`), falling back to the height
+table only when the URL lacks them, because the TV picks rungs by that number and the table under-declared 4K VP9
+(`DashLadderTest`, seen red). The offer is logged ("ladder offered at 1080p=…kbps, …"), with how long probing took.
+

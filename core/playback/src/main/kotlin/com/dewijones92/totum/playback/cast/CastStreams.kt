@@ -180,7 +180,16 @@ internal class CastStreams(
             ready()
             val durationMs = audio.durationUs.takeIf { it != C.TIME_UNSET }?.div(Http.MILLIS)
                 ?: item.mediaMetadata.durationMs ?: 0L
-            val ladder = rungs.rungs.mapIndexed { i, (_, l) -> CastVideo.Relayed(l, "video/r$i") }
+            val ladder = rungs.rungs.mapIndexed { i, (rung, l) ->
+                CastVideo.Relayed(l, "video/r$i", DashManifest.bandwidthFor(rung.url, l.height))
+            }
+            if (ladder.isNotEmpty()) {
+                Diag.log(
+                    "cast",
+                    "${item.mediaId}: ladder offered at " +
+                        ladder.joinToString { "${it.layout.height}p=${it.bandwidth / KBPS}kbps" },
+                )
+            }
             return DashManifest.build(
                 durationMs,
                 ladder.takeIf { it.isNotEmpty() }?.let { CastVideo.Ladder(it) }
@@ -330,6 +339,7 @@ internal class CastStreams(
 
     private fun videoPart(session: Session, what: String, range: String?): HttpReply? = when {
         what.startsWith("video/r") -> what.removePrefix("video/r").toIntOrNull()?.let { i ->
+            session.ready()
             session.rungs.urlOf(i)?.let { url ->
                 session.rungs.fetched(i)
                 proxy(session, url, range)
@@ -398,3 +408,4 @@ private fun SecureRandom.token(): String = ByteArray(
 ).also(::nextBytes).joinToString("") { "%02x".format(it) }
 
 private const val TOKEN_BYTES = 8
+private const val KBPS = 1000

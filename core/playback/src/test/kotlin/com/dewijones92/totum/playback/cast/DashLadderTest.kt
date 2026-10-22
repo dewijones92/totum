@@ -44,4 +44,15 @@ class DashLadderTest {
             reps,
         )
     }
+
+    @Test
+    fun `a rung's bandwidth is measured from its own length and duration when the URL carries them`() {
+        val url = "https://rr1.googlevideo.com/videoplayback?itag=248&clen=75000000&dur=100.000&id=o-x"
+        assertEquals(6_000_000, DashManifest.bandwidthFor(url, 1080))
+        assertEquals(DashManifest.bandwidthFor(1080), DashManifest.bandwidthFor("https://x.test/v.webm", 1080))
+        assertEquals(
+            DashManifest.bandwidthFor(1080),
+            DashManifest.bandwidthFor("https://rr1.googlevideo.com/videoplayback?clen=5&dur=0.0", 1080),
+        )
+    }
 }
