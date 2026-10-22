@@ -6,8 +6,11 @@ import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.MediaExtractorCompat
+import androidx.media3.extractor.DefaultExtractorsFactory
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.ChunkedDataSource
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
 import java.io.IOException
@@ -259,7 +262,10 @@ internal class ProcessedAudio(
         }
     }
 
-    private fun extractor() = MediaExtractorCompat(context).apply { setDataSource(source.toUri(), 0) }
+    private fun extractor() = MediaExtractorCompat(
+        DefaultExtractorsFactory(),
+        ChunkedDataSource.Factory(DefaultDataSource.Factory(context)),
+    ).apply { setDataSource(source.toUri(), 0) }
 
     private fun audioTrack(extractor: MediaExtractorCompat): Int =
         (0 until extractor.trackCount).firstOrNull {

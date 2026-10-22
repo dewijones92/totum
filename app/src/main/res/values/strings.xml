@@ -898,5 +898,7 @@
     <string name="cast_strip_casting">📺 Casting to %1$s</string>
     <string name="subtitles_on_cast_device">📺 Subtitles show on %1$s</string>
     <string name="cast_strip_unnamed_device">the TV</string>
+    <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>
+    <string name="cast_strip_not_fetching">⚠️ %1$s isn\'t fetching anything from the phone. Is the phone on the same Wi-Fi, and not on a guest network?</string>
     <string name="cast_strip_sound_only">⚠️ %1$s can\'t show this video (%2$s), so it plays the sound only</string>
 </resources>

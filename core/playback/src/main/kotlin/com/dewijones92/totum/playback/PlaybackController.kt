@@ -234,6 +234,8 @@ public data class PlaybackState(
     val castDeviceName: String? = null,
     val castVideoRefused: String? = null,
     val castVideoHeight: Int? = null,
+    val castProblem: CastProblem? = null,
+    val hasPictureTrack: Boolean = false,
     val live: Boolean = false,
     /** Skip (e.g. SponsorBlock) segments for the current item — drawn on the seek bar. */
     val skipSegments: List<SkipSegment> = emptyList(),

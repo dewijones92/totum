@@ -22,6 +22,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.listening
+import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.music.labelledForPlay
@@ -1033,6 +1034,7 @@ class PlaybackQueue(
                     startPositionMs = startPositionMs,
                     kind = queued.pillar,
                     audioOnly = audioOnly,
+                    picture = queued.pictureForSwitching,
                 )
                 refreshSkips(route.playable.item.id)
                 if (audioOnly && queued.pillar == MediaKind.VIDEO) scope.launch { readyThePicture(queued) }
@@ -1048,7 +1050,7 @@ class PlaybackQueue(
                     forceVideo = forceVideo,
                 )
             is PlayRoute.AudioStream -> {
-                controller.play(route.playable.item, queued.pillar, startPositionMs = startPositionMs)
+                launcher.playStream(route, queued, startPositionMs, listening = audioNow)
                 true
             }
             is PlayRoute.Refused -> false

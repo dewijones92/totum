@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-10-08
+updated: 2026-10-22
 ---
 
 # Torrents (public-domain film & TV)
@@ -89,3 +89,10 @@ pillar reaches the UI as one more `SearchHit`, one more queue item, one more thi
 - **Not covered:** Listen mode's HLS audio over the wire (a stand-in cannot serve it honestly), and
   a full phone-to-Pi run (install → sign in → search → tap → watch), which needs the real device and
   is still owed.
+
+## Listen and Watch (2026-10-22)
+
+A torrent of a video file offers Listen ⇄ Watch like a YouTube video, on its row, its menu and in the player; a torrent
+of an audio file offers neither. Listen plays the home server's audio-only remux. The rule is the item's picture, not
+its pillar ([ADR 70](../adr/0070-listen-and-watch-follow-the-picture-not-the-pillar.md)); before it, torrents had no
+switch at all because they ride the podcast handle.

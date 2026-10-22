@@ -136,7 +136,7 @@ internal fun PlayerQuickStrip(
             verticalArrangement = Arrangement.spacedBy(STRIP_GAP),
             modifier = Modifier.fillMaxWidth().testTag(PLAYER_QUICK_STRIP_TAG),
         ) {
-            ListenWatchToggle(quality, state.hasVideo)
+            ListenWatchToggle(quality, state.hasVideo, hasPictureTrack = state.hasPictureTrack)
             SpeedTile(state.speed, onSetSpeed)
             BoostTile(state.volumeBoost, toggles.onSetVolumeBoost)
             SkipSilenceTile(state.skipSilence, toggles.onSetSkipSilence)

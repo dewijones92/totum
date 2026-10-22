@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.pillar
 
 /**
@@ -45,7 +46,7 @@ internal fun ItemActionSheet(
         onDownload = { actions.download(item, audioOnly = true) }
             .takeIf { local !is DownloadState.Downloaded && local !is DownloadState.Downloading },
         onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
-        onSwitchMode = { actions.switchMode(item) }.takeIf { video },
+        onSwitchMode = { actions.switchMode(item) }.takeIf { item.offersListenAndWatch(pillar) },
         audioMode = actions.audioMode,
         onGoToSource = actions.sourceLink(item),
         sourcePillar = pillar,

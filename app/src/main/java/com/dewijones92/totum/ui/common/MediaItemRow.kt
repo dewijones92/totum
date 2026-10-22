@@ -49,6 +49,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.withArtworkFrom
 
 /**
@@ -120,9 +121,9 @@ fun MediaItemRow(
      * way left to ask for the picture too.
      */
     onDownloadVideo: (() -> Unit)? = null,
-    /** Switches between listening and watching (and sets the mode); videos only. */
+    /** Switches between listening and watching (and sets the mode); anything with a picture. */
     onSwitchMode: (() -> Unit)? =
-        LocalItemActions.current.takeIf { pillar == MediaKind.VIDEO }.bind { switchMode(item) },
+        LocalItemActions.current.takeIf { item.offersListenAndWatch(pillar) }.bind { switchMode(item) },
     /** True when the mode is audio, so the action reads "Watch with video" instead. */
     audioMode: Boolean = LocalItemActions.current?.audioMode == true,
     /** Defaults to the app-wide play state, so no screen has to plumb it. */

@@ -8,10 +8,13 @@ import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.withStreamFrom
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
@@ -133,11 +136,12 @@ class VideoPlaybackLauncher(
         startPositionMs: Long = 0,
         kind: MediaKind = MediaKind.VIDEO,
         audioOnly: Boolean = false,
+        picture: Picture = if (kind == MediaKind.VIDEO) Picture.YES else Picture.NO,
     ) {
         beginPlay()
         current = null
         currentWatchUrl = null
-        _quality.value = QualityState(canListen = kind == MediaKind.VIDEO, listening = audioOnly)
+        _quality.value = switchState(picture, audioOnly)
         playback.play(
             item,
             kind,
@@ -147,6 +151,24 @@ class VideoPlaybackLauncher(
             audioOnly = audioOnly,
         )
     }
+
+    fun playStream(route: PlayRoute.AudioStream, queued: PlayableItem, startPositionMs: Long, listening: Boolean) {
+        val item = route.playable.item
+        val picture = queued.pictureForSwitching
+        val withoutPicture = listening && picture != Picture.NO && !route.viaAudioOnlyUrl
+        current = null
+        currentWatchUrl = null
+        _quality.value = switchState(picture, listening)
+        Diag.log(
+            "playback",
+            "${item.id.value} streams directly [picture=$picture listening=$listening " +
+                "pictureTrackOff=$withoutPicture]",
+        )
+        playback.play(item, queued.pillar, startPositionMs = startPositionMs, audioOnly = withoutPicture)
+    }
+
+    private fun switchState(picture: Picture, listening: Boolean) =
+        QualityState(canListen = picture == Picture.YES, listening = listening && picture != Picture.NO)
 
     /**
      * Resolves [watchUrl] to its display metadata without playing — so a bare link can be

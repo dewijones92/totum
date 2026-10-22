@@ -1,7 +1,5 @@
 package com.dewijones92.totum.ui.queue
 
-import com.dewijones92.totum.ui.common.destructiveTexts
-import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -121,8 +119,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val listFilter = rememberListFilter("queue")
     ForgetTheFilterWhenTheQueueEmpties(entries.isEmpty(), listFilter)
     val ask = rememberShuffleAsk()
-    val confirmClear = rememberHoldToConfirmAsk()
-    val clearTexts = destructiveTexts(R.plurals.queue_clear_confirm, entries.size, R.string.queue_clear_all)
+    val onClear = rememberClearQueue(queue, entries.size)
     val sortWithUndo = rememberSortWithUndo(queue, snackbar, scope)
     val queueFilters = rememberItemFilters("queue")
     // Survives rotation and process death: a collapsed 24-episode season staying
@@ -135,7 +132,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             QueueHeader(
                 entries.size,
-                onClear = { confirmClear(clearTexts) { queue.clear() } },
+                onClear = onClear,
                 listState = listState,
                 listFilter = listFilter,
                 onShuffle = shuffleUpNextOrNull(container, snapshot.upNext, ask),

@@ -35,6 +35,7 @@ internal fun TitleAndActions(
     ) {
         title(Modifier.weight(1f).widthIn(min = titleWidth))
         actions()
+        CastingAction()
         SearchAction()
     }
 }

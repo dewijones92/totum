@@ -85,3 +85,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 67 | [The player's title has the whole width; the menu and Cast are in the top bar](0067-the-title-has-the-whole-width.md) | Accepted |
 | 68 | [Casting plays a stream the phone serves, with Totum's own audio and the original video packets](0068-cast-a-stream-the-phone-serves.md) | Accepted |
 | 69 | [Live streams play a manifest Totum builds from the live head](0069-live-streams-play-a-manifest-totum-builds.md) | Accepted |
+| 70 | [Listen and Watch follow the picture, not the pillar](0070-listen-and-watch-follow-the-picture-not-the-pillar.md) | Accepted |

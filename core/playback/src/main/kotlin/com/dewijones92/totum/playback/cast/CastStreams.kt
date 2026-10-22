@@ -8,7 +8,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.VideoCodecFamily
+import com.dewijones92.totum.domain.pictureAt
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
@@ -38,6 +40,7 @@ internal class CastStreams(
 
     fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
     private val random = SecureRandom()
+    private val reach = CastReach(tvs)
 
     private inner class Session(
         val token: String,
@@ -219,24 +222,8 @@ internal class CastStreams(
         }
     }
 
-    private fun mayCarryVideo(uri: String): Boolean {
-        if (uri.contains(YOUTUBE_STREAMS)) return false
-        val path = uri.substringBefore('?').lowercase()
-        if (AUDIO_FILES.any(path::endsWith)) return false
-        val torrent = uri.contains("/stream/") && uri.contains("link=")
-        return !uri.startsWith("http") || torrent || VIDEO_FILES.any(path::endsWith)
-    }
-
     private fun itemSkipsSilence(item: MediaItem): Boolean? =
         item.requestMetadata.extras?.takeIf { it.containsKey(EXTRA_SKIP_SILENCE) }?.getBoolean(EXTRA_SKIP_SILENCE)
-
-    private fun givenAsItIs(uri: String, separateAudio: String?, listening: Boolean): String? = when {
-        MANIFEST_HINTS.any(uri::contains) -> "a live or adaptive manifest"
-        listening -> null
-        separateAudio == null && uri.contains("googlevideo.com") && !uri.contains("mime=audio") ->
-            "a single muxed stream"
-        else -> null
-    }
 
     fun urlFor(item: MediaItem): String? {
         item.localConfiguration?.uri?.toString()?.let(LocalManifests::manifestAt)?.let { manifest ->
@@ -248,6 +235,7 @@ internal class CastStreams(
         val sources = sourcesFor(item) ?: return null
         val base = host.baseUrl(PORT) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
+            reach.noAddress()
             return null
         }
         server.start(PORT)
@@ -260,6 +248,7 @@ internal class CastStreams(
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
         host.hold(true)
         val url = "$base/c/$token/manifest.mpd"
+        reach.handedOver(item.mediaId, token)
         Diag.log(
             "cast",
             "${item.mediaId} -> $url (video=${if (sources.video != null) "passed through" else "none"}, " +
@@ -271,6 +260,7 @@ internal class CastStreams(
     }
 
     fun stopAll() {
+        reach.clear()
         live.clear()
         sessions.values.forEach { it.audio.close() }
         sessions.clear()
@@ -289,6 +279,7 @@ internal class CastStreams(
             return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no such cast".toByteArray())
         }
         val what = parts.drop(2).joinToString("/")
+        reach.reached(session.item.mediaId, session.token, request.from)
         val started = System.currentTimeMillis()
         val reply = when {
             what == "manifest.mpd" -> HttpReply.Bytes(
@@ -341,14 +332,28 @@ internal class CastStreams(
     }
 
     companion object {
+        private fun mayCarryVideo(uri: String): Boolean {
+            if (uri.contains(YOUTUBE_STREAMS)) return false
+            val picture = pictureAt(uri)
+            if (picture == Picture.NO) return false
+            val torrent = uri.contains("/stream/") && uri.contains("link=")
+            return !uri.startsWith("http") || torrent || picture == Picture.YES
+        }
+
+        private fun givenAsItIs(uri: String, separateAudio: String?, listening: Boolean): String? = when {
+            MANIFEST_HINTS.any(uri::contains) -> "a live or adaptive manifest"
+            listening -> null
+            separateAudio == null && uri.contains("googlevideo.com") && !uri.contains("mime=audio") ->
+                "a single muxed stream"
+            else -> null
+        }
+
         const val PORT: Int = 8765
         private const val MAX_SESSIONS = 6
         private const val VIDEO_LOG_FIRST = 3
         private const val VIDEO_LOG_EVERY = 25
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
         private const val YOUTUBE_STREAMS = "googlevideo.com"
-        private val AUDIO_FILES = listOf(".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wav", ".flac")
-        private val VIDEO_FILES = listOf(".mkv", ".mp4", ".m4v", ".webm", ".mov")
     }
 }
 

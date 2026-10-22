@@ -22,17 +22,29 @@ internal class CastHost(private val context: Context) {
             return it
         }
         val cm = context.getSystemService(ConnectivityManager::class.java) ?: return null
-        val network = cm.allNetworks.firstOrNull {
-            cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+
+        @Suppress("DEPRECATION")
+        val networks = cm.allNetworks.map { network ->
+            val caps = cm.getNetworkCapabilities(network)
+            CastNetwork(
+                wifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true,
+                ethernet = caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true,
+                vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true,
+                ipv4 = cm.getLinkProperties(network)?.linkAddresses.orEmpty().map { it.address }
+                    .filter { it is Inet4Address && !it.isLoopbackAddress }.mapNotNull { it.hostAddress },
+            )
         }
-            ?: cm.activeNetwork
-        val address = network?.let(cm::getLinkProperties)?.linkAddresses
-            ?.map { it.address }?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
+        val address = CastAddress.choose(networks)
+        Diag.log(
+            "cast",
+            "address for the TV: ${address ?: "none"} from ${networks.size} network(s) " +
+                "[${networks.joinToString("; ") { it.label }}]",
+        )
         if (address == null) {
-            Diag.warn("cast", "no IPv4 address on Wi-Fi to advertise to the TV")
+            Diag.warn("cast", "no IPv4 address on Wi-Fi or Ethernet (a VPN's does not count) to advertise to the TV")
             return null
         }
-        return "http://${address.hostAddress}:$port"
+        return "http://$address:$port"
     }
 
     private fun override(): String? {

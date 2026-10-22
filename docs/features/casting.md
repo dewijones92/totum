@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-10-21
+updated: 2026-10-22
 ---
 
 # Casting
@@ -51,3 +51,15 @@ the TV: …`, each producer restart's `source opened/was waiting in`, `seeked to
 `ms spent`, each video range's `upstream 206 in Nms`, `back on the phone 5000ms: rendered=…` after a cast, and `video frames in the last 30s` while
 a video plays locally.
 
+
+## Reaching the TV, and knowing you are casting (2026-10-22)
+
+- **Which address the TV is given.** The phone advertises its Wi-Fi (else Ethernet) address, never a VPN's. A VPN
+  network on Android carries the Wi-Fi transport too, and report 20261022T115247 (0.1.662, "casting stuck???") shows the
+  TV handed `10.13.13.2`, the phone's WireGuard address, which it can never reach: it fetched nothing and the cast sat
+  still. `CastAddress.choose` (pure, `CastAddressTest`) decides; every candidate network is logged.
+- **When the TV fetches nothing.** If the TV has asked the phone for nothing 12 s after a hand-over (`CastReach`), the
+  casting strip says so (`CastProblem.TV_NOT_FETCHING`), and with no usable address at all it says that instead
+  (`NO_ADDRESS`). The first request of each cast is logged with how long it took to arrive.
+- **Casting is visible everywhere.** While a cast session is on, the Cast button sits beside 🔍 in every screen's
+  header (`CastingAction` in `TitleAndActions`), so stopping a cast never needs the player open.

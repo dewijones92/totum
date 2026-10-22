@@ -110,6 +110,8 @@ public class Media3PlaybackController(
 
     @Volatile
     private var castRefused: Map<String, String> = emptyMap()
+    private var castProblem: CastProblem? = null
+    private val castLoad = CastLoadHold(SystemClock::elapsedRealtime)
 
     @Volatile
     private var castSentHeights: Map<String, Int> = emptyMap()
@@ -652,9 +654,13 @@ public class Media3PlaybackController(
             castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
             val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
             castSentHeights = sent?.keySet()?.associateWith { sent.getInt(it) }.orEmpty()
+            castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
+                CastProblem.entries.firstOrNull { it.name == name }
+            }
             Diag.log(
                 "cast",
-                "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights",
+                "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
+                    "problem=${castProblem ?: "none"}",
             )
             _state.value = controller.currentPlaybackState()
         }
@@ -910,8 +916,15 @@ public class Media3PlaybackController(
         .build()
 
     private fun MediaController.currentPlaybackState(): PlaybackState? {
-        val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() } ?: return null
-        return PlaybackState(
+        val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() } ?: return castLoad.nothingCurrent(
+            onCastDevice = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE,
+            castSession = castDeviceName != null,
+        )
+        return castLoad.seen(itemState(current))
+    }
+
+    private fun MediaController.itemState(current: Media3MediaItem): PlaybackState =
+        PlaybackState(
             itemId = MediaItemId(current.mediaId),
             title = current.mediaMetadata.title?.toString().orEmpty(),
             artist = current.mediaMetadata.artist?.toString(),
@@ -934,6 +947,7 @@ public class Media3PlaybackController(
             // every pause in speech — the app appearing to change a setting nobody touched.
             speed = userSpeed,
             hasVideo = currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO),
+            hasPictureTrack = currentTracks.containsType(C.TRACK_TYPE_VIDEO),
             videoAspectRatio = videoSize.takeIf { it.width > 0 && it.height > 0 }
                 ?.let { it.width * it.pixelWidthHeightRatio / it.height },
             hasEnded = playbackState == Player.STATE_ENDED,
@@ -941,6 +955,7 @@ public class Media3PlaybackController(
             castDeviceName = castDeviceName,
             castVideoRefused = castRefused[current.mediaId],
             castVideoHeight = castSentHeights[current.mediaId],
+            castProblem = castProblem,
             live = LocalManifests.isLive(current.localConfiguration?.uri?.toString()),
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,
@@ -954,7 +969,6 @@ public class Media3PlaybackController(
             showKey = itemContext.showKey,
             contentKind = itemContext.contentKind,
         )
-    }
 
     /**
      * What we are TELLING Media3 each caption track is, beside what the URL asks YouTube for.

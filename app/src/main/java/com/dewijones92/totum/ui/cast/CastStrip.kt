@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -18,7 +19,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.playback.CastProblem
+import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.ui.common.rememberField
 
 @Composable
 fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
@@ -41,6 +45,16 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
                 )
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
             }
+            state.castProblem?.let { problem ->
+                Text(
+                    when (problem) {
+                        CastProblem.NO_ADDRESS -> stringResource(R.string.cast_strip_no_address, device)
+                        CastProblem.TV_NOT_FETCHING -> stringResource(R.string.cast_strip_not_fetching, device)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
+                )
+            }
             state.castVideoRefused?.let { what ->
                 Text(
                     stringResource(R.string.cast_strip_sound_only, device, what),
@@ -54,3 +68,12 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
 
 const val CAST_STRIP_TAG: String = "cast-strip"
 private val CAST_BUTTON_SIZE = 40.dp
+
+@Composable
+fun rememberCastingTo(controller: PlaybackController): String? {
+    val unnamed = stringResource(R.string.cast_strip_unnamed_device)
+    val casting by controller.rememberField { state ->
+        state?.castDeviceName ?: if (state?.onCastDevice == true) "" else null
+    }
+    return casting?.ifEmpty { unnamed }
+}

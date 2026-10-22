@@ -1,7 +1,5 @@
 package com.dewijones92.totum.ui.history
 
-import com.dewijones92.totum.ui.common.destructiveTexts
-import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +30,8 @@ import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.destructiveTexts
+import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowFacts

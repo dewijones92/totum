@@ -32,10 +32,12 @@ import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.cast.rememberCastingTo
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalAnimationsHidden
+import com.dewijones92.totum.ui.common.LocalCastingTo
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
@@ -126,6 +128,7 @@ fun AppShell(
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides openPlayer,
         LocalOpenSearch provides rememberSearchOpener(tabs, selected),
+        LocalCastingTo provides rememberCastingTo(controller),
         LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener { showFullPlayer = false } },
     ) {
         val openSource = remember {
