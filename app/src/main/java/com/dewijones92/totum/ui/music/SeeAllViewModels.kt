@@ -98,7 +98,7 @@ class ArtistSongsViewModel(
         appScope.launch {
             onDone(
                 artistShuffle.shuffleAll(
-                    ArtistSongs(page.artist, page.listing, artUrl = null),
+                    ArtistSongs(page.artist, page.listing, artUrl = null, artistId = page.artistId),
                     startAtRandom = startAtRandom
                 ),
             )

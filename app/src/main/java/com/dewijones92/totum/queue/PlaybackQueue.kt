@@ -125,6 +125,7 @@ class PlaybackQueue(
      */
     private val audioPreferred: () -> Boolean = { false },
     private val sourceArtwork: () -> Map<SourceId, HttpUrl> = { emptyMap() },
+    internal val passOver: (PlayableItem) -> String? = { null },
 ) {
     private val _state = MutableStateFlow(QueueSnapshot())
 
@@ -545,7 +546,9 @@ class PlaybackQueue(
      * itself: one place asked the cursor, the other asked what was playing.
      */
     fun peekNext(): PlayableItem? =
-        _nowPlaying.value?.item.let { playing -> nextAfterThePlace(_state.value, playing?.id, playing?.listening) }
+        _nowPlaying.value?.item.let { playing ->
+            nextAfterThePlace(_state.value, playing?.id, playing?.listening, passOver)
+        }
 
     suspend fun armNext(allowStream: Boolean): Boolean {
         val queued = withSourceArtwork(peekNext() ?: return false).labelledForPlay(_state.value)

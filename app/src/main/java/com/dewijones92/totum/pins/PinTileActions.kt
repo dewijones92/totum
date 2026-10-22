@@ -136,7 +136,7 @@ class PinTileActions(
         val shuffler = artistShuffle ?: return PinOutcome.Failed("shuffle all songs is not available here")
         val listing = (catalogue.artist(id) as? MusicResult.Success)?.value?.allSongs
             ?: return PinOutcome.Failed("the artist page lists no songs")
-        val count = shuffler.shuffleAll(ArtistSongs(artist.name, listing, artist.artUrl))
+        val count = shuffler.shuffleAll(ArtistSongs(artist.name, listing, artist.artUrl, id))
         return if (count > 0) PinOutcome.Done("$count songs shuffled") else PinOutcome.Failed("no songs found")
     }
 }
@@ -150,7 +150,7 @@ private fun playlistPage(pin: Pin): PinOutcome? = (pin as? Pin.Playlist)?.let {
 
 private suspend fun artistPage(catalogue: YouTubeMusicCatalogue, pin: Pin): PinOutcome? = when (pin) {
     is Pin.Artist -> PinOutcome.Open(MusicPage.Artist(pin.browseId, pin.name))
-    is Pin.ArtistSongs -> PinOutcome.Open(MusicPage.Artist(null, pin.artist))
+    is Pin.ArtistSongs -> PinOutcome.Open(MusicPage.Artist(pin.artistId, pin.artist))
     is Pin.Album -> (catalogue.album(pin.browseId) as? MusicResult.Success)?.value
         ?.let { album -> album.artist?.let { PinOutcome.Open(MusicPage.Artist(album.artistBrowseId, it)) } }
         ?: PinOutcome.Failed("the album names no artist")

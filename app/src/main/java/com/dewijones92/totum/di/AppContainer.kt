@@ -28,6 +28,7 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.EngineDownloadStrategy
 import com.dewijones92.totum.data.download.FallbackDownloadStrategy
 import com.dewijones92.totum.data.download.HttpDownloadStrategy
+import com.dewijones92.totum.data.download.LockingDownloadManager
 import com.dewijones92.totum.data.download.RoutedDownloadStrategy
 import com.dewijones92.totum.data.download.SkipSegmentsOnDisk
 import com.dewijones92.totum.data.feed.FeedCache
@@ -87,6 +88,7 @@ import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -99,9 +101,11 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
 import com.dewijones92.totum.domain.deservesAnotherRoute
+import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.downloads.PrefsDownloadLocks
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
@@ -185,6 +189,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.keepTheQueuesPlace
+import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
@@ -297,6 +302,7 @@ interface AppContainer {
     val searchHistoryStore: SearchHistoryStore
     val skipSegmentSource: SkipSegmentSource
     val downloadManager: DownloadManager
+    val lockingDownloads: LockingDownloadManager
 
     /** Full backup / restore of everything that is not re-downloadable. */
     val backupService: BackupService
@@ -479,7 +485,7 @@ interface AppContainer {
 // The count is the app's whole integration surface — every start*/install* entry point the
 // Application calls, plus the few private wire-ups they need. Splitting it would scatter the
 // one place the graph is built, which is the point of the class.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class DefaultAppContainer(private val context: Context) : AppContainer {
 
     /**
@@ -701,7 +707,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    override val downloadManager: DownloadManager by lazy {
+    override val downloadManager: DownloadManager get() = lockingDownloads
+
+    override val lockingDownloads: LockingDownloadManager by lazy {
+        LockingDownloadManager(plainDownloads, PrefsDownloadLocks(context))
+    }
+
+    private val plainDownloads: DownloadManager by lazy {
         DefaultDownloadManager(
             downloadDir = downloadDir,
             store = RoomDownloadStore(database.downloadDao()),
@@ -1050,7 +1062,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             refresh = { item -> readyAgain(item) },
             sourceArtwork = { sourceArtworkNow.value },
             refreshSkipsOnDisk = skipSegmentsOnDisk::refresh,
+            passOver = { item ->
+                passOverReason(
+                    item,
+                    appPreferences.settings.value.repeatMode,
+                    music = item.item.listening == Listening.MUSIC,
+                    playStatesNow.value,
+                )
+            },
         )
+    }
+
+    private val playStatesNow by lazy {
+        playbackProgressStore.observeStates().stateIn(applicationScope, SharingStarted.Eagerly, emptyMap())
     }
 
     private val sourceArtworkNow by lazy { sourceArtwork.stateIn(applicationScope, SharingStarted.Eagerly, emptyMap()) }

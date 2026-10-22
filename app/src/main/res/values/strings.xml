@@ -565,6 +565,16 @@
     <string name="status_offline_video">Video saved offline</string>
     <string name="queue_move_to_top">Move to top</string>
     <string name="queue_shuffle_together">🔀 Shuffle together</string>
+    <string name="download_lock">🔒 Lock this download</string>
+    <string name="download_unlock">🔓 Unlock this download</string>
+    <string name="download_locked_row">🔒 Locked: kept from clean-up and deletes</string>
+    <string name="download_locked_title">🔒 Locked download</string>
+    <plurals name="download_locked_body">
+        <item quantity="one">This download is locked, so it was kept. Unlock it and delete it?</item>
+        <item quantity="other">%d downloads are locked, so they were kept. Unlock them and delete them?</item>
+    </plurals>
+    <string name="download_unlock_and_delete">🔓 Unlock and delete</string>
+    <string name="download_keep_locked">Keep</string>
     <string name="shuffle_all_of_these">🔀 Shuffle all of these</string>
     <string name="queue_shuffled_together_group">🔀 Shuffled together</string>
     <string name="queue_move_to_bottom">Move to bottom</string>

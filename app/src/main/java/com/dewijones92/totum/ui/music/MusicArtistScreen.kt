@@ -92,7 +92,7 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
                         onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
                     )
                 }
-                seeAll(R.string.music_see_all_songs, artist.allSongs?.let { MusicPage.ArtistSongs(it, artist.name) })
+                seeAll(R.string.music_see_all_songs, MusicPage.ArtistSongs.of(artist))
                 releases("${FactEmoji.ALBUM} ", R.string.section_albums, artist.albums, "album")
                 seeAll(
                     R.string.music_see_all_albums,

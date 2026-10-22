@@ -89,3 +89,5 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 71 | [Exsurge switched off stays off, and reminds once a day](0071-exsurge-off-stays-off-and-reminds-once-a-day.md) | Accepted |
 | 72 | [A playback cache under every stream](0072-a-playback-cache-under-every-stream.md) | Accepted |
 | 73 | [The Library is a hub, and downloads have their own page](0073-the-library-is-a-hub-and-downloads-have-their-own-page.md) | Accepted |
+| 74 | [The queue passes over finished talk when it moves on](0074-the-queue-passes-over-finished-talk.md) | Accepted |
+| 75 | [A locked download is kept until it is unlocked](0075-a-locked-download-is-kept-until-unlocked.md) | Accepted |

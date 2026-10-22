@@ -18,6 +18,7 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
         return false
     }
     var passedOver = 0
+    val finished = mutableListOf<String>()
     while (index in state.value.entries.indices) {
         val entry = state.value.entries[index]
         val title = entry.item.item.title.take(STEP_TITLE_CHARS)
@@ -27,6 +28,8 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
             Diag.log("queue", "skipping index $index \"$title\" — it is what just played")
         } else if (!keepTo.admits(entry.item)) {
             passedOver++
+        } else if (direction == FORWARD && passOver(entry.item) != null) {
+            finished += title
         } else if (playAt(index, rollBackOnRefusal = true)) {
             // The SUCCESS says what it advanced to, not just that it did. Only the refusals
             // said anything, so a report of a queue advancing wrongly showed "advance=true"
@@ -37,7 +40,11 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
             } else {
                 ""
             }
-            Diag.log("queue", "$verb from index $from to $index of ${state.value.entries.size} — \"$title\"$passed")
+            Diag.log(
+                "queue",
+                "$verb from index $from to $index of ${state.value.entries.size} — \"$title\"$passed" +
+                    finishedNote(finished),
+            )
             return true
         } else {
             // An item the player would not start. Silent before, so "nothing playable after
@@ -49,9 +56,20 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
     Diag.log(
         "queue",
         "nothing playable $way index $from" +
-            if (passedOver > 0) " in ${keepTo?.word} ($passedOver ${keepTo?.other?.word} left queued)" else ""
+            (if (passedOver > 0) " in ${keepTo?.word} ($passedOver ${keepTo?.other?.word} left queued)" else "") +
+            finishedNote(finished),
     )
     return false
 }
 
+private fun finishedNote(finished: List<String>): String =
+    if (finished.isEmpty()) {
+        ""
+    } else {
+        " (passed over ${finished.size} finished: ${finished.take(
+            LISTED_FINISHED
+        ).joinToString(" | ")})"
+    }
+
 private const val STEP_TITLE_CHARS = 60
+private const val LISTED_FINISHED = 3

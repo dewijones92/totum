@@ -50,6 +50,7 @@ class LibraryViewModel(
     private val fileSize: (String) -> Long = { File(it).length() },
     private val freeSpace: () -> Long? = { null },
     private val playStates: Flow<Map<MediaItemId, PlayState>> = flowOf(emptyMap()),
+    private val locked: Flow<Set<MediaItemId>> = flowOf(emptySet()),
     private val now: () -> Instant = Instant::now,
     /** Injected so a test can drive the sizing pass; it is real disk IO in the app. */
     private val io: CoroutineDispatcher = Dispatchers.IO,
@@ -149,8 +150,9 @@ class LibraryViewModel(
         downloaded,
         playStates,
         queue.state.map { snapshot -> snapshot.entries.map { it.item.item.id }.toSet() }.distinctUntilChanged(),
-    ) { entries, states, queued ->
-        val candidates = entries.map { entry ->
+        locked,
+    ) { entries, states, queued, held ->
+        val candidates = entries.filterNot { it.item.id in held }.map { entry ->
             CleanupCandidate(
                 id = entry.item.id,
                 sizeBytes = entry.sizeBytes,
@@ -162,7 +164,7 @@ class LibraryViewModel(
         }
         suggestCleanup(candidates, now()).also { groups ->
             val loaded = lastCleanupLine != null || entries.isNotEmpty()
-            cleanupLine(candidates, groups).takeIf { loaded && it != lastCleanupLine }?.let {
+            cleanupLine(candidates, groups, held.size).takeIf { loaded && it != lastCleanupLine }?.let {
                 lastCleanupLine = it
                 Diag.log("library", it)
             }
@@ -254,15 +256,16 @@ class LibraryViewModel(
                     downloads = container.downloadManager,
                     freeSpace = container::freeDownloadSpaceBytes,
                     playStates = container.playbackProgressStore.observeStates(),
+                    locked = container.lockingDownloads.locks.locked,
                 )
             }
         }
     }
 }
 
-private fun cleanupLine(candidates: List<CleanupCandidate>, groups: List<CleanupSuggestion>): String {
+private fun cleanupLine(candidates: List<CleanupCandidate>, groups: List<CleanupSuggestion>, locked: Int): String {
     val line = groups.joinToString { "${it.group}=${it.count}/${formatBytes(it.bytes)}" }.ifEmpty { "none" }
     val undated = candidates.count { it.lastTouched == null }
     return "clean-up suggestions from ${candidates.size} download(s): $line " +
-        "(no download or open date on $undated, so never called unopened)"
+        "(no download or open date on $undated, so never called unopened; $locked locked, left out)"
 }

@@ -176,3 +176,7 @@ slots for every download, both pillars, whoever asked; a fifth waits and the log
 `20261014T195237` (0.1.614, *"laggy just now?"*) still shows ~100 MB collections every 1–3 s and eight
 "Skipped frames" while Shorts finished every 2–3 s, with the throttle visibly working. The cause is still open
 and is being profiled; the progress write was at most part of it.
+
+## Locked downloads (2026-10-22)
+
+🔒 Lock this download (any item's sheet, beside Delete) keeps a copy from clean-up suggestions and from every delete: a delete asks "🔓 Unlock and delete" or Keep. [ADR 75](../adr/0075-a-locked-download-is-kept-until-unlocked.md).

@@ -137,7 +137,7 @@ class PinPlayer(
 private suspend fun replayArtistSongs(shuffler: ArtistShuffle?, pin: Pin.ArtistSongs): PinPlayed {
     shuffler ?: return PinPlayed.Failed("shuffle all songs is not available here")
     val count = shuffler.shuffleAll(
-        ArtistSongs(pin.artist, MusicListing(pin.listingBrowseId, pin.listingParams), pin.artUrl)
+        ArtistSongs(pin.artist, MusicListing(pin.listingBrowseId, pin.listingParams), pin.artUrl, pin.artistId)
     )
     return if (count > 0) PinPlayed.Started(showsPicture = false) else PinPlayed.Failed("no songs found")
 }

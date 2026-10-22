@@ -104,6 +104,7 @@ sealed interface Pin {
         val listingParams: String?,
         val artist: String,
         override val artUrl: String?,
+        val artistId: String? = null,
     ) : Pin {
         override val key: String get() = "artist-songs:$listingBrowseId"
         override val title: String get() = "$artist · All songs"

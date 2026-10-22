@@ -13,6 +13,8 @@ import com.dewijones92.totum.data.content.ContentRefresher
 import com.dewijones92.totum.data.content.SeenItemsTracker
 import com.dewijones92.totum.data.content.fake.InMemorySeenItemsTracker
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.data.download.InMemoryDownloadLocks
+import com.dewijones92.totum.data.download.LockingDownloadManager
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.feed.NoOpFeedCache
@@ -145,6 +147,8 @@ class FakeAppContainer(
     override val sourceLocator: SourceLocator = DefaultSourceLocator(podcastRepository, ytDlpEngine),
     override val skipSegmentSource: SkipSegmentSource = SkipSegmentSource { emptyList() },
     override val downloadManager: DownloadManager = FakeDownloadManager(),
+    override val lockingDownloads: LockingDownloadManager =
+        LockingDownloadManager(downloadManager, InMemoryDownloadLocks()),
     override val feedCache: FeedCache = NoOpFeedCache,
     override val channelLatestUploads: ChannelLatestUploads = ChannelLatestUploads(
         fetcher = { FetchResult.Failure("no network in the fake") },

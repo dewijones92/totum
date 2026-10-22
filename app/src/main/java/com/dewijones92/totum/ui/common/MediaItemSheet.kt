@@ -127,6 +127,7 @@ internal fun ActionSheet(
             SheetAction(onDownload, Icons.Outlined.Download, R.string.download, onDismiss)
             SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
             SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)
+            DownloadLockAction(extras.item?.id?.takeIf { onDeleteDownload != null }, onDismiss)
             SheetAction(
                 onSwitchMode,
                 if (audioMode) Icons.Outlined.SmartDisplay else Icons.Outlined.Headphones,

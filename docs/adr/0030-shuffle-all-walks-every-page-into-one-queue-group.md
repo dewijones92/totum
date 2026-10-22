@@ -74,3 +74,14 @@ When a "play all" with a group (shuffle all, an album, an artist's songs, a play
 playing, that item moves into the new group instead of staying in its old one and appearing twice. Found as
 "Shuffle all on an artist duplicates the song playing" (93ac61c6, `QueueGroupPlaybackTest` seen red first). It
 applies to every grouped play-all, deliberately: the playing item is part of what was just asked for.
+
+### Amendment (2026-10-22): an artist's "All songs" is more than YouTube Music's top songs
+
+Report 0.1.677: shuffling all of Chopin queued 150, and Led Zeppelin, Rousseau and Kassia stopped at 149, 145 and 129.
+The walk was right: the artist's "See all" songs list is YouTube Music's **"Top songs"** playlist, which YouTube
+ends at 150 (page 1: 100 songs and a continuation; page 2: 50 and none; header "Top songs · 150 songs"; probed
+2026-10-22). So "All songs" now also walks the artist's discography: every album and single from the artist page's
+see-all lists (or the page's own rows when there is no see-all), each album's tracks, one song once by video id
+(`walkDiscography`, `WalkDiscographyTest`). The log gives each stage: top songs, songs from N releases, failures, the
+total. The artist's id travels with the target and the pin (`Pin.ArtistSongs.artistId`); a pin saved before this has
+none, so it says "top songs only" and plays them. Every request goes through the polite YouTube gate.

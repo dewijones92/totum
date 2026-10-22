@@ -7,9 +7,11 @@ import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.word
+import com.dewijones92.totum.settings.RepeatMode
 import kotlin.random.Random
 
 internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =
@@ -24,10 +26,11 @@ internal fun nextAfterThePlace(
     snapshot: QueueSnapshot,
     playingId: MediaItemId?,
     keepTo: Listening? = null,
+    passOver: (PlayableItem) -> String? = { null },
 ): PlayableItem? =
     snapshot.entries
         .drop(advanceFrom(snapshot, playingId) + 1)
-        .firstOrNull { it.item.item.id != playingId && keepTo.admits(it.item) }
+        .firstOrNull { it.item.item.id != playingId && keepTo.admits(it.item) && passOver(it.item) == null }
         ?.item
 
 internal fun onlyOtherKindAfter(snapshot: QueueSnapshot, playing: MediaItem?): Pair<Listening, Int>? {
@@ -35,6 +38,17 @@ internal fun onlyOtherKindAfter(snapshot: QueueSnapshot, playing: MediaItem?): P
     val ahead = snapshot.entries.drop(advanceFrom(snapshot, playing.id) + 1).filter { it.item.item.id != playing.id }
     if (ahead.isEmpty() || ahead.any { it.item.item.listening == playing.listening }) return null
     return playing.listening.other to ahead.size
+}
+
+internal fun passOverReason(
+    item: PlayableItem,
+    repeat: RepeatMode,
+    music: Boolean,
+    states: Map<MediaItemId, PlayState>,
+): String? = when {
+    music || repeat != RepeatMode.OFF -> null
+    states[item.item.id]?.isPlayed == true -> "finished"
+    else -> null
 }
 
 enum class GroupSpot { END, NEXT }

@@ -59,6 +59,7 @@ import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.filteredByItems
+import com.dewijones92.totum.ui.common.isDownloadLocked
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
@@ -230,7 +231,11 @@ internal fun DownloadsContent(
                             // every other fact — it used to be glued onto the end of the subtitle,
                             // which is precisely where an ellipsis reached it first.
                             subtitleLines = rowFacts(entry.item, entry.media.pillar) +
-                                "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}",
+                                "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}" +
+                                listOfNotNull(
+                                    stringResource(R.string.download_locked_row)
+                                        .takeIf { isDownloadLocked(entry.item.id) },
+                                ),
                             downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
                             pillar = entry.media.pillar,
                             onPlay = { onPlay(entry) },

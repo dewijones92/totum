@@ -11,7 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
-| [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | requested 2026-10-22 (Dewi's 24 h batch) |
+| [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | ⏳ partly done 2026-10-22 (Subscriptions, queue groups) |
 | [Exsurge off never summons; one nudge a day](exsurge-off-never-summons.md) | side-quest | high | done 2026-10-22 (ADR 71) |
 | [Rewind without buffering, for everything](instant-rewind-cache.md) | playback | high | built 2026-10-22 (ADR 72: 1 GB playback cache) |
 | [End talk early when the rest has no speech](end-early-no-speech.md) | playback | high | requested 2026-10-22 (Dewi's 24 h batch) |
@@ -21,14 +21,14 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Every download string says audio or video](downloads-say-audio-or-video.md) | downloads/ui | high | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Choose audio, video (and quality) or both when downloading](download-choice-and-quality.md) | downloads | high | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Lock a video for a child; a locked Peppa Pig shortcut](kid-lock-and-shortcut.md) | player/kids | high | requested 2026-10-22 (Dewi's 24 h batch) |
-| [Skip finished items when the queue moves on](skip-finished-on-advance.md) | queue | high | requested 2026-10-22 (Dewi's 24 h batch) |
+| [Skip finished items when the queue moves on](skip-finished-on-advance.md) | queue | high | ✅ done 2026-10-22 (ADR 74) |
 | [Download a whole torrent series or a queue group](download-series-and-groups.md) | downloads/torrents | high | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Torrent items have no Watch / Listen](torrent-watch-listen.md) | torrents/player | high | done 2026-10-22 (c7b1967a, ADR 70: Listen/Watch for anything with a picture) |
 | [What the Pi stores for Totum, and what it should](pi-storage-review.md) | pi/infra | medium | requested 2026-10-22 (Dewi's 24 h batch) |
 | [A ⭐ for any item](star-anything.md) | library | medium | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Recent searches in every search box](recent-searches-everywhere.md) | search/ui | medium | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Confirm big destructive actions](confirm-big-actions.md) | queue/ui | high | done 2026-10-22 (clear queue/history, delete downloads, remove group: hold to confirm) |
-| [Lock a download so it is not easily deleted](locked-downloads.md) | downloads | high | requested 2026-10-22 (Dewi's 24 h batch) |
+| [Lock a download so it is not easily deleted](locked-downloads.md) | downloads | high | ✅ done 2026-10-22 (ADR 75) |
 | [Reset a whole group or list to the start](reset-group-progress.md) | queue/library | medium | built 2026-10-22 for queue groups (⋮ → ↩️ Start again; ☑️ Select these → Mark as unplayed for any subset) |
 | [Speed through long pauses in videos while casting](video-skip-silences-speed.md) | cast | low | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Totum's boost on live sound while casting](live-cast-boost.md) | cast | low | requested 2026-10-22 (Dewi's 24 h batch) |
