@@ -1,7 +1,7 @@
 ---
 title: Rewind without buffering, for everything
 kind: todo
-status: requested 2026-10-22, decided
+status: built 2026-10-22 (ADR 72), soaking
 area: playback
 priority: high
 requested: 2026-10-22

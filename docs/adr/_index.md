@@ -87,3 +87,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 69 | [Live streams play a manifest Totum builds from the live head](0069-live-streams-play-a-manifest-totum-builds.md) | Accepted |
 | 70 | [Listen and Watch follow the picture, not the pillar](0070-listen-and-watch-follow-the-picture-not-the-pillar.md) | Accepted |
 | 71 | [Exsurge switched off stays off, and reminds once a day](0071-exsurge-off-stays-off-and-reminds-once-a-day.md) | Accepted |
+| 72 | [A playback cache under every stream](0072-a-playback-cache-under-every-stream.md) | Accepted |

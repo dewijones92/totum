@@ -5,6 +5,9 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 public data class WatchNextDetails(
     val title: String,
@@ -32,6 +35,22 @@ public object WatchNextParser {
 
     public fun description(body: String): String? =
         runCatching { json.parseToJsonElement(body) }.getOrNull()?.description()
+
+    public fun publishedOn(body: String): LocalDate? {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() ?: return null
+        val text = root.objectsNamed("videoPrimaryInfoRenderer").firstNotNullOfOrNull { it.readable("dateText") }
+            ?: root.objectsNamed("videoDescriptionHeaderRenderer").firstNotNullOfOrNull { it.readable("publishDate") }
+            ?: return null
+        return DATE_FORMATS.firstNotNullOfOrNull { format -> dateIn(text, format) }
+    }
+
+    private fun dateIn(text: String, format: DateTimeFormatter): LocalDate? =
+        text.indices.asSequence().filter { it == 0 || text[it - 1] == ' ' }.firstNotNullOfOrNull { start ->
+            runCatching { LocalDate.parse(text.substring(start).trim(), format) }.getOrNull()
+        }
+
+    private val DATE_FORMATS = listOf("MMM d, yyyy", "d MMM yyyy", "MMMM d, yyyy", "d MMMM yyyy")
+        .map { DateTimeFormatter.ofPattern(it, Locale.ENGLISH) }
 
     private fun JsonElement.description(): String? =
         objectsNamed("videoSecondaryInfoRenderer").firstNotNullOfOrNull { it.anyDescription() } ?: anyDescription()

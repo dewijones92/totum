@@ -23,11 +23,21 @@ sealed interface ItemFact {
     data class Source(val host: String) : ItemFact
 }
 
-fun itemFacts(item: MediaItem?, state: PlaybackState, offline: DownloadState, bytes: Long?): List<ItemFact> =
-    whenAndHowLong(item, state) + whoAndWhat(item, state) + whatPlaybackKnows(item, state, offline, bytes)
+fun itemFacts(
+    item: MediaItem?,
+    state: PlaybackState,
+    offline: DownloadState,
+    bytes: Long?,
+    pagePublished: java.time.Instant? = null,
+): List<ItemFact> = whenAndHowLong(item, state, pagePublished) + whoAndWhat(item, state) +
+    whatPlaybackKnows(item, state, offline, bytes)
 
-private fun whenAndHowLong(item: MediaItem?, state: PlaybackState): List<ItemFact> = buildList {
-    val publishedAt = item?.publishedAt ?: state.publishedAt
+private fun whenAndHowLong(
+    item: MediaItem?,
+    state: PlaybackState,
+    pagePublished: java.time.Instant?,
+): List<ItemFact> = buildList {
+    val publishedAt = item?.publishedAt ?: state.publishedAt ?: pagePublished
     val publishedText = (item?.publishedText ?: state.publishedText).takeIf { publishedAt == null }
     if (publishedAt != null || publishedText != null) add(ItemFact.Published(publishedAt, publishedText))
     (item?.duration?.inWholeMilliseconds ?: state.durationMs)?.takeIf { it > 0 }?.let { add(ItemFact.Length(it)) }

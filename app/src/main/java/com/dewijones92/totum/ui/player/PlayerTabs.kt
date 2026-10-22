@@ -99,7 +99,7 @@ internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
             }
             PlayerTab.TRANSCRIPT -> TranscriptSection(state, content.onSeekTo)
             PlayerTab.DETAILS -> {
-                ItemFactsCard(state)
+                ItemFactsCard(state, detailsPublished(state, content.related))
                 LyricsSection()
                 NotesChaptersAndSponsors(state, content.onSeekTo, detailsDescription(state, content.related))
                 SourceSkipsSection(state)
@@ -133,6 +133,11 @@ private fun UpNextOrEmpty(queue: QueueControls) {
 }
 
 const val PLAYER_TAB_TAG = "player-tab:"
+
+internal fun detailsPublished(state: PlaybackState, related: RelatedState): java.time.Instant? =
+    (related as? RelatedState.Loaded)
+        ?.takeIf { state.kind == MediaKind.VIDEO && it.videoId == state.itemId.value }
+        ?.publishedOn?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()
 
 internal fun detailsDescription(state: PlaybackState, related: RelatedState): String? =
     (related as? RelatedState.Loaded)

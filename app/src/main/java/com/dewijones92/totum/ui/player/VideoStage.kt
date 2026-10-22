@@ -22,6 +22,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -192,6 +195,16 @@ private fun VideoControlsOverlay(
                 IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopStart)) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
                 }
+            } else {
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth(FULLSCREEN_TITLE_WIDTH)
+                        .padding(start = 16.dp, top = 12.dp)
+                        .testTag(FULLSCREEN_TITLE_TAG),
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.TopEnd)) {
                 if (!fullscreen) PlayerTopActions(onMore, onDark = true)
@@ -225,6 +238,8 @@ private fun VideoControlsOverlay(
 }
 
 private val CUES_BOTTOM = 12.dp
+private const val FULLSCREEN_TITLE_WIDTH = 0.6f
+internal const val FULLSCREEN_TITLE_TAG = "fullscreen-title"
 private val CUES_BOTTOM_WITH_CONTROLS = 56.dp
 
 private const val CONTROLS_AUTOHIDE_MS = 3_000L

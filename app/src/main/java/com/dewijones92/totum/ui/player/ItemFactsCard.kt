@@ -35,7 +35,7 @@ import java.time.format.FormatStyle
 val LocalPlayingItem = compositionLocalOf<MediaItem?> { null }
 
 @Composable
-internal fun ItemFactsCard(state: PlaybackState) {
+internal fun ItemFactsCard(state: PlaybackState, pagePublished: java.time.Instant? = null) {
     val item = LocalPlayingItem.current?.takeIf { it.id == state.itemId }
     val offline = downloadStateOf(state.itemId)
     val bytes by produceState<Long?>(null, offline) {
@@ -43,7 +43,7 @@ internal fun ItemFactsCard(state: PlaybackState) {
             withContext(Dispatchers.IO) { File(it.localPath).length() }
         }
     }
-    val facts = itemFacts(item, state, offline, bytes)
+    val facts = itemFacts(item, state, offline, bytes, pagePublished)
     if (facts.isEmpty()) return
     Spacer(Modifier.height(24.dp))
     Surface(

@@ -92,4 +92,19 @@ class ItemFactsTest {
         assertEquals(ItemFact.Views("9 views"), facts.single { it is ItemFact.Views })
         assertEquals(ItemFact.By("Channel 4"), facts.single { it is ItemFact.By })
     }
+
+    @Test
+    fun `when neither the row nor the player knows the date, the watch page's is used`() {
+        val page = java.time.Instant.parse("2026-10-15T00:00:00Z")
+        val facts =
+            itemFacts(
+                null,
+                state.copy(publishedAt = null, publishedText = null),
+                DownloadState.NotDownloaded,
+                null,
+                page
+            )
+
+        assertEquals(ItemFact.Published(page, null), facts.first())
+    }
 }

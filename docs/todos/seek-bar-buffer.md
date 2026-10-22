@@ -1,7 +1,7 @@
 ---
 title: Show the buffer on the seek bar
 kind: todo
-status: requested 2026-10-22, decided
+status: built 2026-10-22 (ADR 72)
 area: player/ui
 priority: medium
 requested: 2026-10-22

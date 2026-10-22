@@ -129,6 +129,7 @@ constructor(
             val videos: List<MediaItem>,
             val description: String? = null,
             val videoId: String? = null,
+            val publishedOn: java.time.LocalDate? = null,
         ) : RelatedState
         data object Error : RelatedState
     }
@@ -213,11 +214,16 @@ constructor(
                 // shape every other list uses — and therefore gets the shared row.
                 is RelatedResult.Success -> {
                     val chars = result.description?.length ?: 0
-                    Diag.log("watch", "watch page for $videoId: $chars chars of description")
+                    Diag.log(
+                        "watch",
+                        "watch page for $videoId: $chars chars of description, " +
+                            "published ${result.publishedOn ?: "not said"}",
+                    )
                     RelatedState.Loaded(
                         result.videos.map { it.toMediaItem(RELATED_SOURCE) },
                         result.description,
-                        videoId
+                        videoId,
+                        result.publishedOn,
                     )
                 }
                 is RelatedResult.Failure -> RelatedState.Error

@@ -2,7 +2,7 @@
 title: The player says everything about the item
 kind: adr
 status: accepted
-updated: 2026-10-16
+updated: 2026-10-22
 ---
 
 # 65. The player says everything about the item
@@ -40,3 +40,12 @@ did not show, and found the Details tab empty: signed in, the TV player response
 - Tests: `ItemFactsTest`, `TheWatchPageDescribesATvPlayTest`, `AnAutoCaptionIsNamedOnceTest` (an auto caption is no
   longer labelled "(auto-generated) (auto-generated)"), `AVideoOnAChannelPageIsThatChannelsTest`.
 - A channel page logs how many of its items arrived without their channel.
+
+## Amended 2026-10-22: the watch page dates the video
+
+Report 20261017T054713 ("I should be able to see the date published of the andy video"): neither the queued row nor
+the signed-in TV answer carried a date (`published=-` on both), so "About this" had none. The watch page the player
+already fetches for the description does (`videoPrimaryInfoRenderer.dateText`, e.g. "Oct 15, 2026", read from a real
+response; `videoDescriptionHeaderRenderer.publishDate` as the fallback). `WatchNextParser.publishedOn` reads it,
+prefixes such as "Premiered" and "Streamed live on" included (`TheWatchPageDatesTheVideoTest`), and the card uses it
+only when nothing else knows the date (`ItemFactsTest`).
