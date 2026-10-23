@@ -20,6 +20,10 @@ import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable
+import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MusicPage
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +39,7 @@ class MusicArtistViewModel(
     private val radio: MusicRadio,
     private val appScope: CoroutineScope,
     private val artistShuffle: ArtistShuffle,
+    private val operations: Operations? = null,
 ) : ViewModel() {
 
     sealed interface State {
@@ -53,27 +58,35 @@ class MusicArtistViewModel(
     fun load() {
         _state.value = State.Loading
         viewModelScope.launch {
-            val browseId = page.browseId ?: findByName()
-            if (browseId == null) {
-                _state.value = State.Failed("no artist called \"${page.name}\"", canPlayMix = page.radio != null)
-                return@launch
+            operations.tracking("page:${page.label}", OperationKind.OPEN_PAGE, page.name) { loadNow() }
+        }
+    }
+
+    private suspend fun loadNow(): OperationEnd {
+        val browseId = page.browseId ?: findByName()
+        if (browseId == null) {
+            _state.value = State.Failed("no artist called \"${page.name}\"", canPlayMix = page.radio != null)
+            return OperationEnd.Nothing
+        }
+        _state.value = when (val result = catalogue.artist(browseId)) {
+            is MusicResult.Success -> {
+                val artist = result.value
+                Diag.log(
+                    "music",
+                    "artist $browseId \"${artist.name}\" loaded: top=${artist.topSongs.size} " +
+                        "albums=${artist.albums.size} singles=${artist.singles.size} " +
+                        "similar=${artist.similar.size} radio=${artist.radio != null}",
+                )
+                State.Loaded(artist, artist.topSongs.map { it.toMediaItem(MusicSources.artist(artist.browseId)) })
             }
-            _state.value = when (val result = catalogue.artist(browseId)) {
-                is MusicResult.Success -> {
-                    val artist = result.value
-                    Diag.log(
-                        "music",
-                        "artist $browseId \"${artist.name}\" loaded: top=${artist.topSongs.size} " +
-                            "albums=${artist.albums.size} singles=${artist.singles.size} " +
-                            "similar=${artist.similar.size} radio=${artist.radio != null}",
-                    )
-                    State.Loaded(artist, artist.topSongs.map { it.toMediaItem(MusicSources.artist(artist.browseId)) })
-                }
-                is MusicResult.Failure -> {
-                    Diag.warn("music", "artist ${page.label} failed: ${result.detail}")
-                    State.Failed(result.detail, canPlayMix = page.radio != null)
-                }
+            is MusicResult.Failure -> {
+                Diag.warn("music", "artist ${page.label} failed: ${result.detail}")
+                State.Failed(result.detail, canPlayMix = page.radio != null)
             }
+        }
+        return when (val now = _state.value) {
+            is State.Failed -> OperationEnd.Failed(now.detail)
+            else -> OperationEnd.Done(1)
         }
     }
 
@@ -131,6 +144,7 @@ class MusicArtistViewModel(
                     container.musicRadio,
                     container.applicationScope,
                     container.artistShuffle(),
+                    container.operations,
                 )
             }
         }

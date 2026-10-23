@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -46,6 +45,7 @@ import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.common.CountRecompositions
 import kotlinx.coroutines.delay
 
@@ -73,9 +73,7 @@ private fun Modifier.stageSizing(aspect: Float?, fullscreen: Boolean): Modifier 
  */
 @Composable
 private fun BoxScope.OverPicture(state: PlaybackState, player: Player, controlsVisible: Boolean) {
-    if (state.isBuffering) {
-        CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
-    }
+    LoadingOverlay(state.isLoading(), Modifier.align(Alignment.Center))
     // Cues lift clear of the seek bar while the controls show, so the two never overlap.
     SubtitleCues(
         player = player,

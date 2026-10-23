@@ -78,7 +78,8 @@ private const val REFRESH_MS = 15_000L
 fun ShellBanners(container: AppContainer) {
     val update by container.appUpdate.status.collectAsStateWithLifecycle()
     val signedIn by container.accountSubscriptions.signedIn.collectAsStateWithLifecycle()
-    val running by container.operations.running.collectAsStateWithLifecycle()
+    val all by container.operations.running.collectAsStateWithLifecycle()
+    val running = rememberLongRunning(all)
     RefusedTapToasts(container.playbackQueue, signedIn)
     OperationResultToasts(container.operations)
     Column {

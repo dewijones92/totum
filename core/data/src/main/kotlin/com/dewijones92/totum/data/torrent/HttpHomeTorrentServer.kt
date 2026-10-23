@@ -115,6 +115,13 @@ public class HttpHomeTorrentServer(
             "prepared ${hash.take(HASH_CHARS)} \"$name\" with ${files.size} file(s) in " +
                 "${started.elapsedNow().inWholeMilliseconds}ms (added in ${addedMs}ms)",
         )
+        Diag.log(
+            "torrent",
+            "${hash.take(HASH_CHARS)} files: ${files.count { it.isPlayable }} playable, " +
+                "${files.count { it.name.substringAfterLast('.', "").lowercase() in SUBTITLE_EXTENSIONS }} subtitle; " +
+                files.take(LISTED_FILES).joinToString(" | ") { "#${it.index} ${it.path} (${it.sizeBytes}B)" } +
+                if (files.size > LISTED_FILES) " | … ${files.size - LISTED_FILES} more" else "",
+        )
         PreparedTorrent(hash, name, files)
     }
 
@@ -247,6 +254,8 @@ public class HttpHomeTorrentServer(
         const val TOKEN_HEADER = "X-Totum-Token"
 
         const val HASH_CHARS = 12
+        const val LISTED_FILES = 40
+        val SUBTITLE_EXTENSIONS = setOf("srt", "vtt", "ass", "ssa", "sub")
         const val URL_CHARS = 80
 
         /** Roughly 30s of waiting for a swarm to answer, which is generous and still bounded. */

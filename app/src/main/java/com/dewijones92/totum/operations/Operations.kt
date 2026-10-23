@@ -15,7 +15,13 @@ import kotlinx.coroutines.job
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-enum class OperationKind { SHUFFLE_ARTIST, SHUFFLE_SOURCES }
+enum class OperationKind(val toastsResult: Boolean = true) {
+    SHUFFLE_ARTIST,
+    SHUFFLE_SOURCES,
+    OPEN_PAGE(toastsResult = false),
+    PREPARE_TORRENT,
+    DOWNLOAD_BATCH,
+}
 
 data class Operation(
     val id: Long,
@@ -26,6 +32,7 @@ data class Operation(
     val step: Int? = null,
     val steps: Int? = null,
     val playing: Boolean = false,
+    val startedAtMs: Long = 0,
 )
 
 sealed interface OperationEnd {
@@ -58,7 +65,7 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
     ): OperationEnd {
         val id = numbers.incrementAndGet()
         val started = clock()
-        live.update { it + Operation(id, key, kind, subject) }
+        live.update { it + Operation(id, key, kind, subject, startedAtMs = started) }
         jobs[id] = currentCoroutineContext().job
         Diag.log(TAG, "#$id started: $kind \"$subject\"")
         val progress = Progress(id)
@@ -115,3 +122,10 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
         const val ENDED_BUFFER = 16
     }
 }
+
+suspend fun Operations?.tracking(
+    key: String,
+    kind: OperationKind,
+    subject: String,
+    block: suspend (Operations.Progress?) -> OperationEnd,
+): OperationEnd = this?.track(key, kind, subject) { block(it) } ?: block(null)

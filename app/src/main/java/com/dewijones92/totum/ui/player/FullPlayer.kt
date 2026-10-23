@@ -75,6 +75,7 @@ import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.innertube.comments.Comment
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
+import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.cast.CastStrip
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -671,7 +672,7 @@ private fun ArtworkStage(state: PlaybackState) {
                 .aspectRatio(1f),
         )
         // Spinner over the artwork while audio is buffering, mirroring the video stage.
-        if (state.isBuffering) CircularProgressIndicator()
+        LoadingOverlay(state.isLoading())
     }
 }
 
@@ -706,15 +707,20 @@ internal fun TransportControls(
                 modifier = Modifier.size(36.dp),
             )
         }
-        FilledIconButton(
-            onClick = onTogglePlayPause,
-            modifier = Modifier
-                .padding(horizontal = 12.dp)
-                .size(72.dp),
-        ) {
-            val icon = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow
-            val desc = if (state.isPlaying) R.string.pause else R.string.play
-            Icon(icon, contentDescription = stringResource(desc), modifier = Modifier.size(40.dp))
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
+            val loading = state.isLoading()
+            FilledIconButton(onClick = onTogglePlayPause, modifier = Modifier.size(72.dp)) {
+                val showsPause = state.isPlaying || loading
+                val icon = if (showsPause) Icons.Filled.Pause else Icons.Filled.PlayArrow
+                val desc = if (showsPause) R.string.pause else R.string.play
+                Icon(icon, contentDescription = stringResource(desc), modifier = Modifier.size(40.dp))
+            }
+            if (loading) {
+                CircularProgressIndicator(
+                    strokeWidth = 4.dp,
+                    modifier = Modifier.size(84.dp).testTag(PLAY_BUTTON_LOADING_TAG),
+                )
+            }
         }
         IconButton(onClick = onSeekForward, modifier = Modifier.size(56.dp)) {
             Icon(
@@ -757,5 +763,6 @@ private const val DESCRIPTION_COLLAPSED_LINES = 4
 internal const val CONTROL_SURFACE_ALPHA = 0.4f
 
 const val FULL_PLAYER_TAG: String = "full-player"
+const val PLAY_BUTTON_LOADING_TAG: String = "play-button-loading"
 
 private const val UP_NEXT_SHOWN = 8

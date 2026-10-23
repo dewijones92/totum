@@ -47,3 +47,16 @@ its caption files, so when the player took that copy over (every gapless hand-ov
   an English SRT, on a real player). Verified on totum-api35: default `en of 6 offered`, first caption at 1.4 s; off
   for one item only; captions kept across a gapless hand-over; a captioned next item played "from the source held" with `en of 22
   offered`.
+
+## Amended 2026-10-23: a torrent's own subtitle files
+
+Report 0.1.698 (*"why no subs on the current white lotus item??"*): the MP4 had no text track, but the torrent
+carried two English `.srt` files per episode in `Subs/<episode>/` (RARBG's layout). Now, when a torrent episode streams
+with its picture, `TorrentSidecarSubtitles` reads the torrent's file list (handed over by the search screen, else asked
+of the home server, at most 1.5 s, never blocking the start) and `TorrentSubtitles.forVideo` picks the episode's files:
+its own `Subs/<episode>/` folder, files beside it named after it (`<episode>.en.srt`), or the only `Subs/` folder of a
+one-video torrent; the language from the name ("English" → en). They go to the player as ordinary subtitle tracks, so
+English-by-default, the CC menu and casting all apply. Prepared torrents now log their file list. Tests:
+`TorrentSubtitlesTest` (the real White Lotus layout), `TorrentSubtitlesPlayTest` (an episode starts with its English
+file, seen red).
+

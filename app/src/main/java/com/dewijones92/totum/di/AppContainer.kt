@@ -65,6 +65,7 @@ import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
+import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
@@ -306,6 +307,7 @@ interface AppContainer {
 
     /** Adds a torrent to the home server and turns it into queue items; null when unconfigured. */
     val homeTorrentServer: HomeTorrentServer?
+    val torrentSubtitles: TorrentSidecarSubtitles?
 
     /** Whether automatic downloads may run on the current connection — see the implementation. */
     fun autoDownloadAllowedNow(): Boolean
@@ -667,6 +669,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * therefore a property of the HTTP client rather than something this class knows about.
      */
     override val homeTorrentServer: HomeTorrentServer? by lazy { homeTorrentServerOf(appPreferences, httpClient) }
+    override val torrentSubtitles: TorrentSidecarSubtitles? by lazy {
+        homeTorrentServer?.let(
+            ::TorrentSidecarSubtitles
+        )
+    }
 
     override val torrentSearchSource: SearchSource? by lazy {
         homeTorrentServer?.let(::TorrentSearchSource)
@@ -1357,6 +1364,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             onResolved = { playbackQueue.adoptFacts(it) },
             background = applicationScope,
             onPlayBegun = { applicationScope.launch { accountResumePositions.refreshAhead() } },
+            sidecarSubtitles = { item -> torrentSubtitles?.forItem(item).orEmpty() },
         )
     }
 
@@ -1491,7 +1499,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
     override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
 
-    override val episodeDownloads: EpisodeDownloads by lazy { EpisodeDownloads(downloadManager, applicationScope) }
+    override val episodeDownloads: EpisodeDownloads by lazy {
+        EpisodeDownloads(downloadManager, applicationScope, operations)
+    }
 
     override val queueSkips: QueueSkips by lazy {
         QueueSkips(

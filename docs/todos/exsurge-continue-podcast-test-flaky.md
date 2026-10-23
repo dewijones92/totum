@@ -22,4 +22,15 @@ A flaky test is a defect either way; do not re-run CI to make it green.
 Also: running `ExsurgeTakeoverFlowTest` leaves Exsurge **enabled** on the device (2026-10-23, totum-api35:
 `enabled:true`, state `sitting`, summoning "Call 2 of 3" after a reboot). It dispatches `TurnOff` at the end
 but never restores the `enabled` setting it found, so the emulator starts summoning and spoils the next
-soak. The test should save and restore the setting, as it already does for `rewindOnResume`.
+soak.
+
+Correction, same day: the test DOES restore the settings it captured (`restore()` sets `before`), and a
+single rerun on totum-api35 left `enabled:false` on disk, as it should. So the cause was not shown.
+Candidates, both unproven: the restore is written with `apply()` (asynchronous) and instrumentation
+can kill the process before it reaches disk; or the emulator, OOM-killed at 16:32 that day, rebooted
+from an older snapshot. If it recurs, read `shared_prefs/exsurge.xml` straight after a run and note
+whether the emulator restarted in between.
+
+The CI flake's assertion now carries both positions and the playing state, and logs them under
+`dewidebug continueCurrent`, so the next red run says whether the player went back or the test read a
+stale state.

@@ -45,3 +45,16 @@ and then made it a rule: *"all async ops in this repo should have ui indicators 
 - The first song of an artist shuffle comes from the top 150, not from the whole catalogue.
 - Tests: `OperationsTest`, `ShuffleAllPlaysAtOnceTest` (plays before the albums arrive, seen red against the old
   walk-then-play; the kept list asks nothing; a removed group is not refilled), `SeeAllTest`, `WalkDiscographyTest`.
+
+## Amended 2026-10-23: pages, torrents, episode batches, and pressing Play
+
+- Artist and album pages, preparing a torrent, and a batch of episode downloads report through `Operations` too. A row
+  shows only once its work has run a second (`shownAt`), so quick loads never flash; a page load has no result toast
+  (the page shows it). An episode batch fills "📥 N of M on the phone" until every episode is on the phone or failed, and
+  its Cancel stops the ones still downloading.
+- Report 0.1.694 (*"no load screen?"*, a White Lotus episode: 7.4 s preparing, 5.7 s to first sound, 16–19 s
+  re-buffering after seeks): the full player's Play button read `isPlaying`, which is false while loading, so it showed ▶
+  through the whole wait. One rule now, `PlaybackState.isLoading` (wanting to play and buffering, or still starting):
+  the button shows ⏸ inside a spinning ring, the video or artwork carries a "⏳ Loading…" card that counts the seconds
+  after two, and the mini player uses the same rule, so buffering while paused no longer hides its Play button.
+

@@ -20,6 +20,10 @@ import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable
+import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -46,6 +50,7 @@ class MusicAlbumViewModel(
     private val recent: RecentActions? = null,
     private val stats: StatsLog? = null,
     private val randomStarts: RandomStarts? = null,
+    private val operations: Operations? = null,
 ) : ViewModel() {
 
     sealed interface State {
@@ -68,20 +73,29 @@ class MusicAlbumViewModel(
     fun load() {
         _state.value = State.Loading
         viewModelScope.launch {
-            val result = (page.browseId ?: findByTitle())?.let { catalogue.album(it) }
-                ?: page.playlistId?.let { catalogue.albumForPlaylist(it) }
-                ?: MusicResult.Failure("no album called \"${page.title}\"")
-            _state.value = when (result) {
-                is MusicResult.Success -> {
-                    val album = result.value
-                    Diag.log("music", "album ${album.browseId} \"${album.title}\" loaded: ${album.tracks.size} tracks")
-                    val tracks = album.tracks.map { it.toMediaItem(MusicSources.album(album.browseId)) }
-                    tracks.forEach { downloads.learnFacts(it) }
-                    State.Loaded(album, tracks)
+            operations.tracking("page:${page.label}", OperationKind.OPEN_PAGE, page.title) {
+                val result = (page.browseId ?: findByTitle())?.let { catalogue.album(it) }
+                    ?: page.playlistId?.let { catalogue.albumForPlaylist(it) }
+                    ?: MusicResult.Failure("no album called \"${page.title}\"")
+                _state.value = when (result) {
+                    is MusicResult.Success -> {
+                        val album = result.value
+                        Diag.log(
+                            "music",
+                            "album ${album.browseId} \"${album.title}\" loaded: ${album.tracks.size} tracks",
+                        )
+                        val tracks = album.tracks.map { it.toMediaItem(MusicSources.album(album.browseId)) }
+                        tracks.forEach { downloads.learnFacts(it) }
+                        State.Loaded(album, tracks)
+                    }
+                    is MusicResult.Failure -> {
+                        Diag.warn("music", "album ${page.label} failed: ${result.detail}")
+                        State.Failed(result.detail)
+                    }
                 }
-                is MusicResult.Failure -> {
-                    Diag.warn("music", "album ${page.label} failed: ${result.detail}")
-                    State.Failed(result.detail)
+                when (val now = _state.value) {
+                    is State.Failed -> OperationEnd.Failed(now.detail)
+                    else -> OperationEnd.Done(1)
                 }
             }
         }
@@ -168,6 +182,7 @@ class MusicAlbumViewModel(
                     container.recentActions,
                     container.statsLog,
                     container.randomStarts,
+                    container.operations,
                 )
             }
         }

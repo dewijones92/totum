@@ -18,8 +18,10 @@ import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.asSection
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.torrent.PreparedTorrent
 import com.dewijones92.totum.data.torrent.TorrentEpisodes
 import com.dewijones92.totum.data.torrent.TorrentPlayables
+import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
@@ -27,6 +29,10 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.downloads.EpisodeDownloads
+import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.TrackedViewModel
@@ -55,13 +61,17 @@ import kotlinx.coroutines.launch
  * with no server cannot play what it finds, and a server with no search has nothing to play.
  * Grouping them also keeps the view model's dependencies down to the things it actually has.
  */
-class TorrentServices(val search: SearchSource, val server: HomeTorrentServer) {
+class TorrentServices(
+    val search: SearchSource,
+    val server: HomeTorrentServer,
+    val subtitles: TorrentSidecarSubtitles? = null,
+) {
     companion object {
         /** Null unless BOTH are configured, so a half-set-up server is absent rather than odd. */
         fun from(container: AppContainer): TorrentServices? {
             val search = container.torrentSearchSource ?: return null
             val server = container.homeTorrentServer ?: return null
-            return TorrentServices(search, server)
+            return TorrentServices(search, server, container.torrentSubtitles)
         }
     }
 }
@@ -77,6 +87,7 @@ class SearchViewModel(
     val scope: SearchScope = SearchScope.EVERYTHING,
     private val onSearched: (SearchScope) -> Unit = {},
     private val episodeDownloads: EpisodeDownloads? = null,
+    private val operations: Operations? = null,
 ) : TrackedViewModel("search") {
 
     data class UiState(
@@ -350,8 +361,7 @@ class SearchViewModel(
         val episodes = episodeDownloads ?: return
         viewModelScope.launch {
             playAttempt.value = PlayAttempt(resolving = hit.title)
-            val prepared = server.prepare(hit.magnet)
-            val items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
+            val (prepared, items) = prepareTracked(server, hit)
             playAttempt.value = if (items.isEmpty()) PlayAttempt(failed = true) else PlayAttempt()
             if (items.isEmpty()) {
                 Diag.warn("search", "\"${hit.title}\" had nothing to download in it")
@@ -362,12 +372,25 @@ class SearchViewModel(
         }
     }
 
+    private suspend fun prepareTracked(
+        server: HomeTorrentServer,
+        hit: SearchHit.Torrent,
+    ): Pair<PreparedTorrent?, List<PlayableItem>> {
+        var prepared: PreparedTorrent? = null
+        var items: List<PlayableItem> = emptyList()
+        operations.tracking("torrent:${hit.magnet.hashCode()}", OperationKind.PREPARE_TORRENT, hit.title) {
+            prepared = server.prepare(hit.magnet)?.also { torrents?.subtitles?.remember(it) }
+            items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
+            if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size)
+        }
+        return prepared to items
+    }
+
     fun playTorrent(hit: SearchHit.Torrent) {
         val server = torrents?.server ?: return
         viewModelScope.launch {
             playAttempt.value = PlayAttempt(resolving = hit.title)
-            val prepared = server.prepare(hit.magnet)
-            val items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
+            val (prepared, items) = prepareTracked(server, hit)
             if (items.isEmpty()) {
                 Diag.warn("search", "\"${hit.title}\" had nothing playable in it")
                 playAttempt.value = PlayAttempt(failed = true)
@@ -544,6 +567,7 @@ class SearchViewModel(
                     scope = scope,
                     onSearched = { container.statsLog.use(UseKind.SEARCH, it.name) },
                     episodeDownloads = container.episodeDownloads,
+                    operations = container.operations,
                 )
             }
         }

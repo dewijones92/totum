@@ -16,6 +16,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.support.SilentWav
 import com.dewijones92.totum.support.keepsScreenOn
 import org.junit.After
@@ -166,7 +167,7 @@ class ExsurgeTakeoverFlowTest {
                             playback.state.value?.let { it.itemId == item.id && it.isPlaying } == true
                     }
                 }
-                assertTrue("the current item was restarted", playback.state.value!!.positionMs >= position)
+                assertNotRestarted(kind, paused, position, playback.state.value!!)
                 assertEquals(item.id, playback.state.value!!.itemId)
                 instrumentation.runOnMainSync { playback.setPlaying(false) }
                 compose.waitUntil(5_000) { playback.state.value?.wantsToPlay == false }
@@ -184,6 +185,19 @@ class ExsurgeTakeoverFlowTest {
                 file.delete()
             }
         }
+    }
+
+    private fun assertNotRestarted(kind: MediaKind, paused: Boolean, position: Long, after: PlaybackState) {
+        android.util.Log.i(
+            "dewidebug",
+            "continueCurrent kind=$kind paused=$paused before=${position}ms after=${after.positionMs}ms " +
+                "playing=${after.isPlaying} wants=${after.wantsToPlay} item=${after.itemId.value}",
+        )
+        assertTrue(
+            "the current item was restarted: ${position}ms before Continue, ${after.positionMs}ms after " +
+                "(playing=${after.isPlaying}, wantsToPlay=${after.wantsToPlay})",
+            after.positionMs >= position,
+        )
     }
 
     private fun fixture(kind: MediaKind): File {

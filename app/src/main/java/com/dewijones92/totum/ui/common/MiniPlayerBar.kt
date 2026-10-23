@@ -39,6 +39,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.queue.Starting
 import com.dewijones92.totum.ui.cast.CastStrip
 
@@ -114,7 +115,7 @@ private fun PlayPauseOrBuffering(
     onTogglePlayPause: () -> Unit,
     buffering: String,
 ) {
-    if (state.isBuffering || starting) {
+    if (state.isLoading(starting)) {
         CircularProgressIndicator(
             strokeWidth = 2.dp,
             modifier = Modifier

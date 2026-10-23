@@ -72,6 +72,7 @@ class VideoPlaybackLauncher(
     private val onResolved: (MediaItem) -> Unit = {},
     private val background: CoroutineScope? = null,
     private val onPlayBegun: () -> Unit = {},
+    private val sidecarSubtitles: suspend (MediaItem) -> List<SubtitleTrack> = { emptyList() },
 ) {
     /** The current video's quality options and which one is playing. */
     data class QualityState(
@@ -156,7 +157,12 @@ class VideoPlaybackLauncher(
         )
     }
 
-    fun playStream(route: PlayRoute.AudioStream, queued: PlayableItem, startPositionMs: Long, listening: Boolean) {
+    suspend fun playStream(
+        route: PlayRoute.AudioStream,
+        queued: PlayableItem,
+        startPositionMs: Long,
+        listening: Boolean,
+    ) {
         val item = route.playable.item
         val picture = queued.pictureForSwitching
         val withoutPicture = queued.listensWithThePictureOff(route, listening)
@@ -168,7 +174,14 @@ class VideoPlaybackLauncher(
             "${item.id.value} streams directly [picture=$picture listening=$listening " +
                 "pictureTrackOff=$withoutPicture]",
         )
-        playback.play(item, queued.pillar, startPositionMs = startPositionMs, audioOnly = withoutPicture)
+        val subtitles = if (withoutPicture) emptyList() else sidecarSubtitles(item)
+        playback.play(
+            item,
+            queued.pillar,
+            subtitles = subtitles,
+            startPositionMs = startPositionMs,
+            audioOnly = withoutPicture,
+        )
     }
 
     private fun VideoResolver.Resolved.castLadder(): List<VideoRung> =

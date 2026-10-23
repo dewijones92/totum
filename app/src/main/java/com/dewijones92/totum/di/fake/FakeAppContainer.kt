@@ -45,6 +45,7 @@ import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.subscription.fake.InMemorySubscriptionStore
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
 import com.dewijones92.totum.data.update.ReleaseLookup
@@ -141,6 +142,7 @@ class FakeAppContainer(
     /** Null by default: previews and most tests have no home server, which is the common case. */
     override val torrentSearchSource: SearchSource? = null,
     override val homeTorrentServer: HomeTorrentServer? = null,
+    override val torrentSubtitles: TorrentSidecarSubtitles? = null,
     override val videoSearchSource: SearchSource = YtDlpVideoSearchSource(ytDlpEngine),
     // Empty rather than absent: previews and tests get the section, with nothing in it.
     override val musicSearchSource: SearchSource = SearchSource { _, _, _ ->
