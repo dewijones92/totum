@@ -31,6 +31,10 @@ public interface PlaybackController {
     /** The Cast device a session is connected to, whether or not anything is playing on it. */
     public val castDevice: StateFlow<String?>
 
+    public val screens: StateFlow<ScreenTargets>
+
+    public fun playOnScreen(screenId: String?)
+
     /**
      * Emits when the current stream died in a way a freshly-resolved URL would fix.
      *
@@ -138,7 +142,12 @@ public interface PlaybackController {
      * three `still holding … — what started is …` lines where both URLs are the same video at
      * different itags, so the bytes were held for the rest of the session.
      */
-    public fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl? = null)
+    public fun preloadNext(
+        itemId: MediaItemId,
+        url: HttpUrl,
+        audioUrl: HttpUrl? = null,
+        subtitles: List<SubtitleTrack> = emptyList(),
+    )
 
     public val armedNext: MediaItemId?
 
@@ -273,3 +282,7 @@ public data class PlaybackState(
     public val progress: Float?
         get() = durationMs?.let { (positionMs.toFloat() / it).coerceIn(0f, 1f) }
 }
+
+public data class ScreenTarget(val id: String, val name: String)
+
+public data class ScreenTargets(val present: List<ScreenTarget> = emptyList(), val pageUrl: String? = null)

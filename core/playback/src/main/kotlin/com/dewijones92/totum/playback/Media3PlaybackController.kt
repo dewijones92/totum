@@ -94,6 +94,19 @@ public class Media3PlaybackController(
     private val _castDevice = MutableStateFlow<String?>(null)
     override val castDevice: StateFlow<String?> = _castDevice
 
+    private val _screens = MutableStateFlow(ScreenTargets())
+    override val screens: StateFlow<ScreenTargets> = _screens
+
+    override fun playOnScreen(screenId: String?) {
+        Diag.log("screen", if (screenId == null) "back to the phone" else "play on screen $screenId")
+        withController {
+            it.sendCustomCommand(
+                SessionCommand(ACTION_PLAY_ON_SCREEN, Bundle.EMPTY),
+                bundleOf(EXTRA_SCREEN_ID to screenId)
+            )
+        }
+    }
+
     override val streamFailures: Flow<StreamFailure> = _streamFailures.asSharedFlow()
 
     override val events: Flow<PlaybackEvent> = _events.asSharedFlow()
@@ -554,7 +567,7 @@ public class Media3PlaybackController(
         )
     }
 
-    override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?) {
+    override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?, subtitles: List<SubtitleTrack>) {
         withController {
             it.sendCustomCommand(
                 SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY),
@@ -563,6 +576,7 @@ public class Media3PlaybackController(
                     // The identity the service releases on. See PlaybackController.preloadNext.
                     EXTRA_PRELOAD_ITEM_ID to itemId.value,
                     EXTRA_PRELOAD_AUDIO_URI to audioUrl?.value,
+                    EXTRA_PRELOAD_SUBTITLES to ArrayList(subtitles.map { track -> track.toBundle() }),
                 ),
             )
         }
@@ -708,6 +722,11 @@ public class Media3PlaybackController(
             castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
                 CastProblem.entries.firstOrNull { it.name == name }
             }
+            val screens = extras.getBundle(CastStatus.EXTRA_SCREENS)
+            _screens.value = ScreenTargets(
+                present = screens?.keySet()?.map { ScreenTarget(it, screens.getString(it).orEmpty()) }.orEmpty(),
+                pageUrl = extras.getString(CastStatus.EXTRA_SCREEN_PAGE),
+            )
             Diag.log(
                 "cast",
                 "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
@@ -1095,13 +1114,6 @@ public class Media3PlaybackController(
         }
         Diag.log("subtitles", "${item.id.value}: ${subtitles.size} track(s) — $described")
     }
-
-    private fun SubtitleTrack.toSubtitleConfiguration(): Media3MediaItem.SubtitleConfiguration =
-        Media3MediaItem.SubtitleConfiguration.Builder(url.value.toUri())
-            .setMimeType(format.mimeType)
-            .setLanguage(languageCode)
-            .setLabel(label)
-            .build()
 
     private companion object {
         const val POSITION_TICK_MS = 500L

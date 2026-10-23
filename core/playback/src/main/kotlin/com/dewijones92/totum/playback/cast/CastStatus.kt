@@ -25,6 +25,8 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     private var sentHeights: Map<String, Int> = emptyMap()
     private var fetchingHeights: Map<String, Int> = emptyMap()
     private var problem: CastProblem? = null
+    private var screens: List<Screen> = emptyList()
+    private var screenPage: String? = null
 
     override fun current(): CastTv? = tv
 
@@ -49,6 +51,20 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         }
     }
 
+    fun screens(present: List<Screen>) {
+        main.post {
+            screens = present
+            publish()
+        }
+    }
+
+    fun screenPage(url: String?) {
+        main.post {
+            screenPage = url
+            publish()
+        }
+    }
+
     fun connected(now: CastTv?) {
         tv = now
         if (now == null) {
@@ -67,6 +83,8 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             problem?.let { putString(EXTRA_CAST_PROBLEM, it.name) }
             putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sentHeights.forEach(::putInt) })
             putBundle(EXTRA_CAST_FETCH_HEIGHT, Bundle().apply { fetchingHeights.forEach(::putInt) })
+            putBundle(EXTRA_SCREENS, Bundle().apply { screens.forEach { putString(it.id, it.name) } })
+            screenPage?.let { putString(EXTRA_SCREEN_PAGE, it) }
         }
         session()?.setSessionExtras(extras)
     }
@@ -77,5 +95,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         const val EXTRA_CAST_SENT_HEIGHT: String = "cast_sent_height"
         const val EXTRA_CAST_PROBLEM: String = "cast_problem"
         const val EXTRA_CAST_FETCH_HEIGHT: String = "cast_fetch_height"
+        const val EXTRA_SCREENS: String = "screens"
+        const val EXTRA_SCREEN_PAGE: String = "screen_page"
     }
 }

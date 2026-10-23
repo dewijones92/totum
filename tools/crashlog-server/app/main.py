@@ -15,6 +15,9 @@ Design rules, in priority order:
 
 from __future__ import annotations
 
+import ipaddress
+import html
+from urllib.parse import urlsplit
 import json
 import os
 import sqlite3
@@ -154,12 +157,56 @@ def _prune() -> None:
             connection.commit()
 
 
+SCREEN_FILE = DATA_DIR / "screen.json"
+SCREEN_NETWORKS = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10")]
+
+
+def remember_screen(parsed: Any) -> bool:
+    """Keep where the phone serves its PC screen page; only a home or WireGuard address is accepted."""
+    url = parsed.get("url") if isinstance(parsed, dict) else None
+    if not isinstance(url, str) or not url.startswith("http://"):
+        return False
+    try:
+        host = ipaddress.ip_address(urlsplit(url).hostname or "")
+    except ValueError:
+        return False
+    if not any(host in network for network in SCREEN_NETWORKS):
+        return False
+    SCREEN_FILE.write_text(json.dumps({"url": url, "at": datetime.now(timezone.utc).isoformat()}))
+    return True
+
+
+def screen_page() -> str:
+    known = json.loads(SCREEN_FILE.read_text()) if SCREEN_FILE.exists() else None
+    if not known:
+        return ("<!doctype html><meta charset=utf-8><title>Totum screen</title>"
+                "<body style='font:18px sans-serif;padding:24px'><h1>📭 No phone yet</h1>"
+                "<p>Open Totum on your phone on the same Wi-Fi, then reload this page.</p></body>")
+    target = json.dumps(known["url"])
+    return ("<!doctype html><meta charset=utf-8><title>Totum screen</title>"
+            "<body style='font:18px sans-serif;padding:24px'><h1>📺 Finding your phone…</h1>"
+            f"<p>Last heard {html.escape(known['at'])}.</p>"
+            f"<script>location.replace({target});</script></body>")
+
+
+@app.get("/screen", response_class=HTMLResponse)
+def screen() -> HTMLResponse:
+    return HTMLResponse(screen_page(), headers={"Cache-Control": "no-store"})
+
+
 @app.post("/ingest")
 async def ingest(request: Request) -> JSONResponse:
     """Accept a report. Stores first, parses second — a bad payload is still kept."""
     body = await request.body()
     if len(body) > MAX_BODY_BYTES:
         body = body[:MAX_BODY_BYTES]
+    try:
+        announced = json.loads(body.decode("utf-8", errors="replace"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        announced = None
+    if isinstance(announced, dict) and announced.get("kind") == "screen":
+        kept = remember_screen(announced)
+        return JSONResponse({"screen": "kept" if kept else "refused"}, status_code=202 if kept else 400)
 
     now = datetime.now(timezone.utc)
     report_id = f"{now.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"

@@ -148,8 +148,9 @@ command).
 - [SABR cannot be opened part-way through](sabr-cannot-seek.md) — a cold jump IS served on the embedded endpoint (2026-09-07, an hour in, 500KB a fetch); what is left is ours: a byte-addressed reader cannot consume a time-addressed answer — the ChunkSource redesign
 - [The signed-in TV /player answers UNPLAYABLE](signed-in-player-is-unplayable.md) — **fixed 2026-09-06**, it was the stamp's scale; age-restricted fallback re-measured working
 | [Upgrading a download keeps the old copy until the new one lands](download-upgrade-keeps-the-old-copy.md) | downloads | medium | ✅ done 2026-10-23 |
-| [The preloader's held copy should carry the next item's caption files](preload-keeps-captions.md) | playback | low | open 2026-10-23 (ADR 78) |
+| [The preloader's held copy should carry the next item's caption files](preload-keeps-captions.md) | playback | low | ✅ done 2026-10-23 (ADR 78) |
 | ["Now playing" drifted after quick skips](now-playing-drifts-after-quick-skips.md) | queue | high | done 2026-10-23 (QueueSkips) |
-| [Watch from the phone on the PC display](pc-display-receiver.md) | casting | high | requested 2026-10-23, decided: browser receiver page |
+| [Watch from the phone on the PC display](pc-display-receiver.md) | casting | high | ✅ built 2026-10-23 (ADR 81): a page the phone serves, found through the Pi bookmark |
 | [A live strip on every tab while something long runs](progress-strip-for-long-operations.md) | ui | high | requested 2026-10-23, decided |
 | [In Listen mode, offer the picture](listen-mode-offers-the-picture.md) | playback | high | requested 2026-10-23, decided |
+| [Everything Totum runs on the Pi lives in this repo](totum-backend-in-this-repo.md) | pi/infra | medium | requested 2026-10-23 |

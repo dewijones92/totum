@@ -12,6 +12,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
+/** The sink on Dewi's Pi; /ingest is the only unauthenticated path there. */
+public const val DIAGNOSTICS_ENDPOINT: String = "https://crashlog.333133333.xyz/ingest"
+
 /**
  * Sends pending reports to the sink and deletes them once accepted.
  *
@@ -44,7 +47,7 @@ public class DiagnosticsUploader(
     private val context: Context,
     private val client: OkHttpClient,
     private val scope: CoroutineScope,
-    private val endpoint: String = ENDPOINT,
+    private val endpoint: String = DIAGNOSTICS_ENDPOINT,
     private val onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
     private val underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
 ) {
@@ -104,8 +107,6 @@ public class DiagnosticsUploader(
     }
 
     private companion object {
-        /** The sink on Dewi's Pi; /ingest is the only unauthenticated path there. */
-        const val ENDPOINT = "https://crashlog.333133333.xyz/ingest"
         const val BYTES_PER_KB = 1024L
         val JSON = "application/json".toMediaType()
     }

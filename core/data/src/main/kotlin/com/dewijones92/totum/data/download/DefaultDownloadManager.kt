@@ -38,6 +38,7 @@ public class DefaultDownloadManager(
     private val scope: CoroutineScope,
     private val onDownloaded: suspend (PlayableItem) -> Unit = {},
     private val nowMs: () -> Long = { System.nanoTime() / NANOS_PER_MS },
+    private val mayResumeNow: () -> Boolean = { true },
 ) : DownloadManager {
 
     private val slots = Semaphore(MAX_AT_ONCE)
@@ -74,7 +75,9 @@ public class DefaultDownloadManager(
             }
             val recorded = settledUpgrade(media, state)
             store.put(item, recorded.first, recorded.second ?: audioOnly)
-            _events.tryEmit(DownloadEvent(media, if (state is DownloadState.Failed) state else recorded.first))
+            val passesThrough = state is DownloadState.Failed || state is DownloadState.Downloading
+            val told = if (passesThrough) state else recorded.first
+            _events.tryEmit(DownloadEvent(media, told))
             when (state) {
                 is DownloadState.Failed -> Diag.warn("download", "failed ${media.title}: ${state.reason}")
                 is DownloadState.Downloaded -> {
@@ -122,11 +125,20 @@ public class DefaultDownloadManager(
         // gone, so nothing will ever move it -- but DELETING it, which is what happened until
         // 2026-08-31, makes the download silently un-happen: the row disappears, the partial file
         // becomes bytes nothing points at, and whoever asked for it is told nothing. For a
-        // backgrounded app that is often, because Android reclaims the process. Recorded as failed
-        // instead, so Library offers Retry and the queue's automatic pass asks again. No event is
+        // backgrounded app that is often, because Android reclaims the process. Started again instead
+        // (ADR 80), or recorded as failed when it may not be, so Library offers Retry. No event is
         // emitted: the row is the surface for this, and a failure notification for something about
         // to be retried automatically would only alarm.
         scope.launch {
+            downloadDir
+                .listFiles { file -> file.name.endsWith(UPGRADE_SUFFIX) || file.name.endsWith("$UPGRADE_SUFFIX.part") }
+                ?.forEach { half ->
+                    Diag.warn(
+                        "download",
+                        "an upgrade the app died during left ${half.name}; cleared, the old copy is kept"
+                    )
+                    half.delete()
+                }
             store.observeAll().first()
                 .filterValues { it is DownloadState.Downloading }
                 .keys.forEach { id ->
@@ -144,6 +156,15 @@ public class DefaultDownloadManager(
     private suspend fun resumeOrFail(request: DownloadRequest) {
         val id = request.item.item.id
         val title = request.item.item.title
+        if (!mayResumeNow()) {
+            Diag.warn(
+                "download",
+                "\"$title\" was interrupted by the app stopping; not starting it again on this network (metered) — " +
+                    "left for Retry",
+            )
+            store.put(request.item, DownloadState.Failed(INTERRUPTED), request.audioOnly)
+            return
+        }
         val attempt = notes.resumedOnceMore(id)
         if (attempt > MAX_RESUMES) {
             Diag.warn(
@@ -165,8 +186,13 @@ public class DefaultDownloadManager(
 
     override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
         val media = item.item
-        if (store.get(media.id).satisfies(audioOnly)) return
-        notes.asked(media.id, maxHeight)
+        if (store.get(media.id).satisfies(audioOnly)) {
+            Diag.log(
+                "download",
+                "\"${media.title}\": already on the phone as asked (audioOnly=$audioOnly); not fetched again"
+            )
+            return
+        }
         // What is already being fetched is answered from MEMORY, under the lock, never from the
         // store. The store is Room: its first Downloading row lands milliseconds after it is
         // written, so two callers arriving inside that window both read NotDownloaded, both claim
@@ -180,6 +206,7 @@ public class DefaultDownloadManager(
                 Diag.log("download", "already fetching \"${media.title}\" — not starting a second")
                 return
             }
+            notes.asked(media.id, maxHeight)
             running[media.id] = fetch(item, audioOnly, maxHeight)
         }
     }
@@ -191,7 +218,7 @@ public class DefaultDownloadManager(
             Kept(copy, store.request(media.id)?.audioOnly ?: copy.audioOnly)
         }
         kept?.let { upgrading[media.id] = it } ?: upgrading.remove(media.id)
-        store.put(item, DownloadState.Downloading(0, null), audioOnly)
+        if (kept == null) store.put(item, DownloadState.Downloading(0, null), audioOnly)
         _events.tryEmit(DownloadEvent(media, DownloadState.Downloading(0, null)))
         val name = if (kept != null) media.id.upgradeFileName() else media.id.fileName()
         val target = File(downloadDir.apply { mkdirs() }, name)
@@ -251,6 +278,7 @@ public class DefaultDownloadManager(
                 )
                 kept.copy to kept.audioOnly
             }
+            is DownloadState.Downloading -> kept.copy to kept.audioOnly
             else -> state to null
         }
     }
@@ -333,7 +361,8 @@ public class DefaultDownloadManager(
         // Also whatever a cancelled-mid-flight download left behind, which has no record naming it —
         // including the part-fetched file, which would otherwise be resumed by a later download of
         // the same item long after this one was deleted.
-        File(downloadDir, id.fileName()).let { target ->
+        upgrading.remove(id)
+        listOf(id.fileName(), id.upgradeFileName()).map { File(downloadDir, it) }.forEach { target ->
             target.delete()
             target.partialDownload().delete()
         }
@@ -374,11 +403,12 @@ public class DefaultDownloadManager(
     /** Opaque, filesystem-safe name derived from the stable item id. */
     private fun MediaItemId.fileName(): String = "${value.hashCode().toUInt()}.media"
 
-    private fun MediaItemId.upgradeFileName(): String = "${value.hashCode().toUInt()}.upgrade.media"
+    private fun MediaItemId.upgradeFileName(): String = "${value.hashCode().toUInt()}$UPGRADE_SUFFIX"
 }
 
 private const val PROGRESS_WRITE_EVERY_MS = 1_000L
 private const val MAX_AT_ONCE = 4
 private const val MAX_RESUMES = 2
+private const val UPGRADE_SUFFIX = ".upgrade.media"
 private const val NOTES_FILE = "download-notes.txt"
 private const val NANOS_PER_MS = 1_000_000L

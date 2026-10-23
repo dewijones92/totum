@@ -69,6 +69,7 @@ internal class SilentTailWatch(
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var noted: String? = null
     private var acted: String? = null
+    private var lastTick: Pair<String, Long>? = null
 
     @Volatile
     var enabled: Boolean = false
@@ -131,7 +132,16 @@ internal class SilentTailWatch(
         val scans = speech ?: return false
         scans.want(id, player.currentMediaItem?.localConfiguration?.uri?.toString(), duration)
         val lastWords = scans.speechEnds(id)
-        if (acted == id || !endsWithNoSpeechLeft(position, duration, lastWords)) return false
+        val previous = lastTick?.takeIf { it.first == id }?.second ?: position
+        lastTick = id to position
+        if (lastWords != null && acted != id && landedPastBySeeking(previous, position, lastWords)) {
+            acted = id
+            com.dewijones92.totum.common.Diag.log(
+                "silence",
+                "$id: a seek to ${position}ms landed past its last speech (${lastWords}ms); left playing",
+            )
+        }
+        if (acted == id || !endsWithNoSpeechLeft(previous, position, duration, lastWords)) return false
         acted = id
         com.dewijones92.totum.common.Diag.log(
             "silence",

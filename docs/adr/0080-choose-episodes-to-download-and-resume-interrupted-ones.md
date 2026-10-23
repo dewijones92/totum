@@ -25,13 +25,17 @@ quality: the stored request only says sound or video.
   listed with its state (✅ on the phone, ⏳ downloading, ❌ failed), all ticked except what is already on the phone,
   Select all / none, and "📥 N of M on the phone". YouTube items get the ADR 77 choice (🎧 Sound, 🎬 best / 1080 / 720 /
   480, the remembered one preselected); a torrent file or podcast episode is always fetched as its file, since asking a
-  torrent for sound fetched the whole film anyway.
+  torrent for sound fetched the whole film anyway. A song (music) is always fetched as sound, and a batch of songs
+  asks nothing (review of 2026-10-23: songs play as sound until Watch, ADR 24).
 - Opened from a queue group's ⋮ → ⬇️ Choose episodes to download…, and from a torrent search result's ⬇️ (the torrent
   is prepared as for playing, and its playable files are offered).
 - "A few at a time" is the download manager's own limit of four at once.
 - **Every** download the app died during now starts again by itself at the next launch, with its variant and its
-  height, at most twice; after that it is left Failed for Retry as before, so a download that kills the app cannot
-  loop. The chosen height is kept in `download-notes.txt` beside the downloads (`DownloadNotes`), not in Room, so no
+  height, at most twice and never on a metered network; after that it is left Failed for Retry as before. That stops
+  the manager's own resumes looping; an item still in the queue is asked for again by the queue's automatic pass on
+  each launch, as it was before (its attempt count is per session). An upgrade keeps the old copy's record
+  throughout, so the old copy stays playable while the new one downloads, and an upgrade the app died during is
+  cleared at start-up with the old copy kept (review of 2026-10-23). The chosen height is kept in `download-notes.txt` beside the downloads (`DownloadNotes`), not in Room, so no
   schema bump; Retry uses it too.
 
 ## Consequences

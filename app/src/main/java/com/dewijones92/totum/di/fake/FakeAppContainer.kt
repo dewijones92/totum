@@ -265,7 +265,7 @@ class FakeAppContainer(
     override val queueSkips: QueueSkips by lazy {
         QueueSkips(
             applicationScope,
-            next = { exploreMode.next() ?: playbackQueue.playNextInQueue() },
+            next = { count -> exploreMode.next() ?: playbackQueue.playNextInQueue(count) },
             previous = { playbackQueue.playPreviousInQueue() },
         )
     }

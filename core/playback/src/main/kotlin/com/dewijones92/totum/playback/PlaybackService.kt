@@ -35,6 +35,7 @@ import com.dewijones92.totum.playback.cast.CastStandIn
 import com.dewijones92.totum.playback.cast.CastStatus
 import com.dewijones92.totum.playback.cast.CastStreams
 import com.dewijones92.totum.playback.cast.CastTv
+import com.dewijones92.totum.playback.cast.PcScreens
 import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.dewijones92.totum.playback.cast.TotumCastTrackSelector
@@ -89,6 +90,9 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     private var castRemote: RemoteCastPlayer? = null
     private var castStreams: CastStreams? = null
+
+    @UnstableApi
+    private var screens: PcScreens? = null
     private val castStatus = CastStatus { mediaSession }
     private var currentPlayer: Player? = null
 
@@ -221,6 +225,7 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_SWITCH_LISTENING, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_QUEUE_PREVIOUS, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_QUEUE_NEXT, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_PLAY_ON_SCREEN, Bundle.EMPTY))
                         .build(),
                 )
                 .build()
@@ -245,14 +250,13 @@ public class PlaybackService : MediaSessionService() {
                 switchButton.onCommand(session, controller, customCommand.customAction, args)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+            if (customCommand.customAction == ACTION_PLAY_ON_SCREEN) {
+                val id = args.getString(EXTRA_SCREEN_ID)
+                screens?.play(id) ?: Diag.warn("screen", "asked to play on screen $id, but screens are not set up")
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (customCommand.customAction == ACTION_PRELOAD_NEXT) {
-                val uri = args.getString(EXTRA_PRELOAD_URI)
-                val itemId = args.getString(EXTRA_PRELOAD_ITEM_ID)
-                if (uri != null && itemId != null) {
-                    cachedPreloader?.hold(itemId, uri, args.getString(EXTRA_PRELOAD_AUDIO_URI))
-                } else {
-                    Diag.warn("preload", "nomination with no ${if (uri == null) "uri" else "item id"} — ignored")
-                }
+                holdNomination(args)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_VOLUME_BOOST) {
@@ -286,6 +290,20 @@ public class PlaybackService : MediaSessionService() {
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             return super.onCustomCommand(session, controller, customCommand, args)
+        }
+
+        private fun holdNomination(args: Bundle) {
+            val uri = args.getString(EXTRA_PRELOAD_URI)
+            val itemId = args.getString(EXTRA_PRELOAD_ITEM_ID)
+            if (uri == null || itemId == null) {
+                Diag.warn("preload", "nomination with no ${if (uri == null) "uri" else "item id"} — ignored")
+                return
+            }
+            val captions = androidx.core.os.BundleCompat
+                .getParcelableArrayList(args, EXTRA_PRELOAD_SUBTITLES, Bundle::class.java)
+                .orEmpty()
+                .mapNotNull { it.toSubtitleConfiguration() }
+            cachedPreloader?.hold(itemId, uri, args.getString(EXTRA_PRELOAD_AUDIO_URI), captions)
         }
     }
 
@@ -327,6 +345,14 @@ public class PlaybackService : MediaSessionService() {
             tvs = castStatus,
         )
         castStreams = streams
+        screens = PcScreens(
+            streams,
+            castStatus,
+            localPlayer,
+            ::switchTo,
+            PcScreens.keyIn(getSharedPreferences(SCREEN_PREFS, MODE_PRIVATE)),
+            page = { assets.open(SCREEN_PAGE).use { it.readBytes() } },
+        )
         val remote = RemoteCastPlayer.Builder(this)
             .setMediaItemConverter(TotumCastConverter(streams))
             .setTrackSelector(TotumCastTrackSelector())
@@ -378,6 +404,7 @@ public class PlaybackService : MediaSessionService() {
         val position = previous.currentMediaItem?.let { previous.currentPosition } ?: lastHandoffPositionMs
         item?.let {
             target.playWhenReady = previous.playWhenReady
+            target.trackSelectionParameters = previous.trackSelectionParameters
             target.setMediaItem(it, position)
             target.playbackParameters = previous.playbackParameters // carry playback speed across the handoff
             target.prepare()
@@ -386,17 +413,25 @@ public class PlaybackService : MediaSessionService() {
         }
         Diag.log(
             "cast",
-            "handed ${item?.mediaId} over at ${position}ms with playWhenReady=${previous.playWhenReady} " +
+            "handed ${item?.mediaId} over at ${position}ms with playWhenReady=${previous.playWhenReady}, " +
+                "captions=${previous.trackSelectionParameters.preferredTextLanguages.ifEmpty { listOf("off") }} " +
                 "(set before the load, so the receiver starts as the phone was)",
         )
         previous.stop()
-        if (target === castPlayer) {
+        if (target === castPlayer || target === screens?.player) {
             previous.clearVideoSurface()
             Diag.log("cast", "the phone's player let go of its video surface while the TV plays")
         }
         currentPlayer = target
         mediaSession?.player = target
-        Diag.log("cast", "player -> ${if (target === castPlayer) "cast" else "local"}")
+        Diag.log(
+            "cast",
+            "player -> ${when {
+                target === castPlayer -> "cast"
+                target === screens?.player -> "screen"
+                else -> "local"
+            }}",
+        )
         if (target === player) pictureWatch.afterCast()
     }
 
@@ -498,6 +533,11 @@ internal const val EXTRA_PRELOAD_URI: String = "uri"
 /** The item a nomination is FOR; what the preloader releases on. See [NextItemPreloader]. */
 internal const val EXTRA_PRELOAD_ITEM_ID: String = "item_id"
 internal const val EXTRA_PRELOAD_AUDIO_URI: String = "audio_uri"
+internal const val EXTRA_PRELOAD_SUBTITLES: String = "subtitles"
+internal const val ACTION_PLAY_ON_SCREEN: String = "com.dewijones92.totum.PLAY_ON_SCREEN"
+internal const val EXTRA_SCREEN_ID: String = "screen_id"
+private const val SCREEN_PAGE = "screen.html"
+private const val SCREEN_PREFS = "totum_screen"
 internal const val ACTION_SILENCE_MODE: String = "com.dewijones92.totum.SILENCE_MODE"
 internal const val EXTRA_SILENCE_MODE: String = "silence_mode"
 internal const val ACTION_VOLUME_BOOST: String = "com.dewijones92.totum.VOLUME_BOOST"

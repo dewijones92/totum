@@ -16,6 +16,7 @@ import com.dewijones92.totum.cast.CastTarget
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PoliteGate
+import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.dailyAlarmController
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
@@ -83,10 +84,13 @@ import com.dewijones92.totum.database.TotumDatabase
 import com.dewijones92.totum.diagnostics.AccountReportValues
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
+import com.dewijones92.totum.diagnostics.DIAGNOSTICS_ENDPOINT
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
+import com.dewijones92.totum.diagnostics.runningOnAnEmulator
+import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
 import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.Listening
@@ -198,6 +202,7 @@ import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
+import com.dewijones92.totum.screens.ScreenAnnouncer
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
@@ -250,7 +255,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -770,6 +778,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             ),
             scope = applicationScope,
             onDownloaded = { item -> skipSegmentsOnDisk.refresh(item.item.id) },
+            mayResumeNow = { !networkStatus.isMetered() },
         )
     }
 
@@ -1047,6 +1056,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
+        announceScreens(this, httpClient)
         startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,
@@ -1262,7 +1272,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     // with the launcher's on every video with a quality ladder, so the bytes were
                     // held and then thrown away — twelve nominations, twelve wasted, in 0.1.390.
                     videoPlaybackLauncher.streamsThatWouldPlay(resolved)?.let { (url, audioUrl) ->
-                        nominatePreload(item.item.id, url, audioUrl)
+                        nominatePreload(item.item.id, url, audioUrl, videoPlaybackLauncher.captionsFor(resolved, url))
                     }
                 }
             is PlayHandle.LocalVideo -> Unit
@@ -1305,13 +1315,18 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * re-signed per resolve and is routinely not the one the item ends up playing, so keying on it
      * meant nothing was ever released. See `PlaybackController.preloadNext`.
      */
-    private fun nominatePreload(itemId: MediaItemId, url: HttpUrl?, audioUrl: HttpUrl? = null) {
+    private fun nominatePreload(
+        itemId: MediaItemId,
+        url: HttpUrl?,
+        audioUrl: HttpUrl? = null,
+        captions: List<SubtitleTrack> = emptyList(),
+    ) {
         if (url == null) return
         if (networkStatus.isMetered()) {
             Diag.log("preload", "not preloading $itemId: on metered data")
             return
         }
-        playbackController.preloadNext(itemId, url, audioUrl)
+        playbackController.preloadNext(itemId, url, audioUrl, captions)
     }
 
     override fun isOffline(): Boolean = !networkStatus.isOnline()
@@ -1475,7 +1490,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val queueSkips: QueueSkips by lazy {
         QueueSkips(
             applicationScope,
-            next = { exploreMode.next() ?: playbackQueue.playNextInQueue() },
+            next = { count -> exploreMode.next() ?: playbackQueue.playNextInQueue(count) },
             previous = { playbackQueue.playPreviousInQueue() },
         )
     }
@@ -1619,6 +1634,31 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     shuffleAll = c.shuffleAll,
     artistShuffle = c.artistShuffle(),
 )
+
+private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient) {
+    val json = "application/json".toMediaType()
+    ScreenAnnouncer(
+        c.applicationScope,
+        post = { body ->
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val request = Request.Builder().url(DIAGNOSTICS_ENDPOINT).post(body.toRequestBody(json)).build()
+                    client.newCall(request).execute().use { it.isSuccessful }
+                }.getOrElse {
+                    Diag.warn("screen", "telling the Pi where the PC screen page is failed", it)
+                    false
+                }
+            }
+        },
+        muted = {
+            when {
+                runningUnderInstrumentation() -> "a test run"
+                runningOnAnEmulator() -> "an emulator (its address would replace the phone's)"
+                else -> null
+            }
+        },
+    ).follow(c.playbackController.screens.map { it.pageUrl })
+}
 
 private fun followSkipRequests(c: DefaultAppContainer, context: Context) = c.applicationScope.launch {
     c.musicRadio

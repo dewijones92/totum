@@ -36,7 +36,10 @@ class RapidSkipsLandOnTheLastPressTest {
     private val controller = FakePlaybackController()
 
     private class SlowEngine : YtDlpEngine by FakeYtDlpEngine() {
+        val extracted = mutableListOf<String>()
+
         override suspend fun extract(url: HttpUrl): ExtractionResult {
+            extracted += url.value.substringAfter("v=")
             delay(EXTRACT_MS)
             val id = url.value.substringAfter("v=")
             return ExtractionResult.Success(
@@ -71,10 +74,11 @@ class RapidSkipsLandOnTheLastPressTest {
     @Test
     fun `three quick skips from the media session move straight to the third item`() = runTest(dispatcher) {
         val scope = CoroutineScope(dispatcher)
+        val engine = SlowEngine()
         val queue = PlaybackQueue(
             controller = controller,
             launcher = VideoPlaybackLauncher(
-                VideoResolver(SlowEngine(), SkipSegmentSource { emptyList() }),
+                VideoResolver(engine, SkipSegmentSource { emptyList() }),
                 controller,
                 FakeYouTubeWatchHistory(),
                 InMemoryPlayHistoryStore(),
@@ -85,7 +89,8 @@ class RapidSkipsLandOnTheLastPressTest {
         val ids = listOf("aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee")
         queue.playAll(ids.map(::video))
         advanceUntilIdle()
-        QueueSkips(scope, next = { queue.playNextInQueue() }, previous = { queue.playPreviousInQueue() })
+        engine.extracted.clear()
+        QueueSkips(scope, next = { count -> queue.playNextInQueue(count) }, previous = { queue.playPreviousInQueue() })
             .follow(controller.skips)
         runCurrent()
 
@@ -93,11 +98,13 @@ class RapidSkipsLandOnTheLastPressTest {
             controller.skips.emit(SkipDirection.NEXT)
             advanceTimeBy(PRESS_GAP_MS)
         }
+        advanceTimeBy(QueueSkips.SETTLE_MS)
 
-        assertEquals("the cursor is on the last press at once", 3, queue.state.value.currentIndex)
+        assertEquals("the burst lands three on", 3, queue.state.value.currentIndex)
         advanceUntilIdle()
         assertEquals(3, queue.state.value.currentIndex)
         assertEquals(MediaItemId("ddddddddddd"), controller.state.value?.itemId)
+        assertEquals("only the video landed on is looked up", listOf("ddddddddddd"), engine.extracted)
     }
 
     private companion object {

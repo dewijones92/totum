@@ -2,7 +2,9 @@ package com.dewijones92.totum.playback
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,16 +24,14 @@ class TheTailIsScannedForSpeechTest {
         }
 
     @Test
-    fun aTailOfMusicWithNoSpeechEndsWhereTheScanBegins() {
+    fun aTailWithNoSpeechHeardSaysNothingAndDoesNotEndTheItem() {
         val scan = scanTailForSpeech(file("speech-then-music.m4a").path, DURATION_MS, weights())
 
         assertNotNull(scan)
         android.util.Log.i("dewidebug", "speech-then-music scan: $scan")
-        assertTrue("scan $scan", scan!!.speechEndsMs!! <= scan.fromMs + SLACK_MS)
-        assertTrue(
-            "it would end early: $scan",
-            endsWithNoSpeechLeft(scan.fromMs + 5_000, DURATION_MS, scan.speechEndsMs)
-        )
+        assertNull("scan $scan", scan!!.speechEndsMs)
+        assertTrue(scan.heardMs > 0)
+        assertFalse(endsWithNoSpeechLeft(scan.fromMs + 4_000, scan.fromMs + 5_000, DURATION_MS, scan.speechEndsMs))
     }
 
     @Test
@@ -40,8 +40,10 @@ class TheTailIsScannedForSpeechTest {
 
         assertNotNull(scan)
         android.util.Log.i("dewidebug", "speech-into-the-tail scan: $scan")
-        assertTrue("scan $scan", scan!!.speechEndsMs!! in SPEECH_ENDS_MS - SLACK_MS..SPEECH_ENDS_MS + SLACK_MS)
-        assertTrue(!endsWithNoSpeechLeft(SPEECH_ENDS_MS - 2_000, DURATION_MS, scan.speechEndsMs))
+        val lastWords = scan!!.speechEndsMs!!
+        assertTrue("scan $scan", lastWords in SPEECH_ENDS_MS - SLACK_MS..SPEECH_ENDS_MS + SLACK_MS)
+        assertFalse(endsWithNoSpeechLeft(lastWords - 3_000, lastWords - 2_000, DURATION_MS, lastWords))
+        assertTrue(endsWithNoSpeechLeft(lastWords + 2_000, lastWords + 3_000, DURATION_MS, lastWords))
     }
 
     private companion object {

@@ -28,22 +28,15 @@ import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
-import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.cast.rememberCastingTo
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.Dock
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalAnimationsHidden
-import com.dewijones92.totum.ui.common.LocalCastingTo
-import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalItemActions
-import com.dewijones92.totum.ui.common.LocalOpenMusicPage
-import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.LocalQueueSkip
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.ProvidePlayStates
-import com.dewijones92.totum.ui.common.QueueSkip
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.ShellBanners
 import com.dewijones92.totum.ui.common.SteadyPlayback
@@ -54,7 +47,6 @@ import com.dewijones92.totum.ui.player.CommentReplies
 import com.dewijones92.totum.ui.player.FullPlayerOverlay
 import com.dewijones92.totum.ui.player.LocalPlayerLinks
 import com.dewijones92.totum.ui.player.LocalPlayingItem
-import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.OpenVideoOnLandscape
 import com.dewijones92.totum.ui.player.VideoBounds
 import com.dewijones92.totum.ui.player.WatchViewModel
@@ -119,18 +111,10 @@ fun AppShell(
     AnswerOpenPlayerRequests(openPlayerRequest, controller, openPlayer)
     LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
 
-    CompositionLocalProvider(
-        LocalVideoBounds provides videoBounds,
-        LocalQueueSkip provides rememberQueueSkip(container),
-        // Peeking opens the player, and the shell is what owns "open".
-        LocalExpandPlayer provides openPlayer,
-        LocalOpenSearch provides rememberSearchOpener(tabs, selected),
-        LocalCastingTo provides rememberCastingTo(controller),
-        LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener { showFullPlayer = false } },
-    ) {
-        val openSource = remember {
+    ProvideShellLocals(container, videoBounds, openPlayer, tabs, selected, { showFullPlayer = false }) {
+        val openSource: (MediaSource) -> Unit = remember {
             {
-                    source: MediaSource ->
+                    source ->
                 Diag.log("nav", "shell page over fullPlayer=$showFullPlayer shorts=${shortsReel != null}, closing both")
                 shellSource = source
                 showFullPlayer = false
@@ -423,16 +407,6 @@ private fun Destination(
         TopLevelDestination.Queue -> QueueScreen(container)
         TopLevelDestination.Music -> MusicScreen(container)
         TopLevelDestination.Library -> LibraryScreen(container)
-    }
-}
-
-@Composable
-private fun rememberQueueSkip(container: AppContainer): QueueSkip {
-    return remember(container) {
-        QueueSkip(
-            previous = { container.queueSkips.skip(SkipDirection.PREVIOUS, "the app") },
-            next = { container.queueSkips.skip(SkipDirection.NEXT, "the app") },
-        )
     }
 }
 

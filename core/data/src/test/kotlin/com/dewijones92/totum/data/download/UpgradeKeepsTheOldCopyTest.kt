@@ -7,8 +7,10 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.asPlayable
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -71,6 +73,46 @@ class UpgradeKeepsTheOldCopyTest {
     }
 
     private fun DownloadState.file(): File = File((this as DownloadState.Downloaded).localPath)
+
+    @Test
+    fun `while the video downloads the sound copy is still on the phone and playable`() = runTest {
+        val strategy = SoundThenHeldVideo()
+        val (manager, store) = soundOnDisk(strategy)
+        val sound = store.get(item.item.id)
+
+        manager.download(item, audioOnly = false)
+        strategy.videoStarted.await()
+        advanceUntilIdle()
+
+        assertEquals(sound, store.get(item.item.id))
+        assertEquals(listOf(item.item.id), store.observeDownloaded().first().map { it.item.id })
+        strategy.videoEnds.complete(null)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `an app that dies mid-upgrade comes back with the sound copy, and the half video cleared`() = runTest {
+        val strategy = SoundThenHeldVideo()
+        val (manager, store) = soundOnDisk(strategy)
+        val sound = store.get(item.item.id)
+        manager.download(item, audioOnly = false)
+        strategy.videoStarted.await()
+        advanceUntilIdle()
+        val halfVideo = strategy.videoTarget!!
+
+        DefaultDownloadManager(
+            temp.root,
+            store,
+            SoundThenHeldVideo(),
+            CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+        )
+        advanceUntilIdle()
+
+        assertEquals(sound, store.get(item.item.id))
+        assertEquals("the sound", sound.file().readText())
+        assertFalse("the half video is cleared at start-up", halfVideo.exists())
+        strategy.videoEnds.complete(null)
+    }
 
     @Test
     fun `a cancelled upgrade leaves the sound copy and its record`() = runTest {

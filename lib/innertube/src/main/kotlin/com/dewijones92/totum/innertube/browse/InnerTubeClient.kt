@@ -3,7 +3,7 @@ package com.dewijones92.totum.innertube.browse
 import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runInterruptible
 import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -370,7 +370,7 @@ public class InnerTubeClient(
     ): InnerTubeResponse {
         // The rule, applied once: a token only where the declared client will accept one.
         val token = bearer ?: if (identity.acceptsBearer) accountToken() else null
-        return withContext(Dispatchers.IO) {
+        return runInterruptible(Dispatchers.IO) {
             val builder = Request.Builder()
                 .url(url)
                 .addHeader("Content-Type", "application/json")

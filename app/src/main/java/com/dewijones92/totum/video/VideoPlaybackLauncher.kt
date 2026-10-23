@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PoliteGate
+import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -240,12 +241,11 @@ class VideoPlaybackLauncher(
                 Diag.log("gapless", "not arming ${listing.id.value}: nothing playable in its resolution")
                 return false
             }
-        val listening = url == resolved.audioOnlyUrl
         playback.armNext(
             resolved.item.copy(mediaUrl = url),
             skipSegments = resolved.skipSegments,
             audioUrl = audioUrl,
-            subtitles = if (listening) emptyList() else resolved.subtitles,
+            subtitles = captionsFor(resolved, url),
         )
         return true
     }
@@ -358,6 +358,9 @@ class VideoPlaybackLauncher(
      * A `null` means the resolution produced nothing playable, so there is nothing to hold.
      */
     fun urlThatWouldPlay(resolved: VideoResolver.Resolved): HttpUrl? = streamsThatWouldPlay(resolved)?.first
+
+    fun captionsFor(resolved: VideoResolver.Resolved, url: HttpUrl): List<SubtitleTrack> =
+        if (url == resolved.audioOnlyUrl) emptyList() else resolved.subtitles
 
     fun streamsThatWouldPlay(resolved: VideoResolver.Resolved): Pair<HttpUrl, HttpUrl?>? = when {
         // The cheap stream when listening: an audio-only track is a fraction of the video's size,

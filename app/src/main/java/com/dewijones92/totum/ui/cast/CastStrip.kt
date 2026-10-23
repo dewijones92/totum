@@ -45,6 +45,7 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                     modifier = Modifier.weight(1f),
                 )
                 actions()
+                ScreenButton()
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
             }
             (state.castFetchHeight ?: state.castVideoHeight)?.let { height ->

@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 
 # Casting
@@ -77,3 +77,10 @@ After a replay on the TV, Media3 could lose the playing item's name and the phon
 on (report 0.1.671). The phone now shows the item it sent last, so pause, seek and stop stay in reach. Listen-mode
 casts and videos already at their best for the TV no longer replay. See ADR 68's amendment.
 
+
+## On the PC screen (2026-10-23)
+
+🖥️ beside Cast plays on a PC instead of a TV: open the Pi bookmark `https://crashlog.333133333.xyz/screen` in Edge,
+click once to allow sound, and the 🖥️ button appears on the phone (only while a screen page is open). The PC gets the same
+stream as a TV, so skip-silence, boost, SponsorBlock and the queue behave as they do when casting; the phone is the
+remote, and "📱 Back to this phone" takes it back. See [ADR 81](../adr/0081-the-pc-screen-is-a-page-the-phone-serves.md).

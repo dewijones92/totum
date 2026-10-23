@@ -1,12 +1,19 @@
 package com.dewijones92.totum.playback
 
-internal fun endsWithNoSpeechLeft(positionMs: Long, durationMs: Long, speechEndsMs: Long?): Boolean {
-    val lastWords = speechEndsMs ?: return false
-    return positionMs >= lastWords + HEARD_OUT_MS && durationMs - positionMs > WORTH_ENDING_MS
+internal fun endsWithNoSpeechLeft(previousMs: Long, positionMs: Long, durationMs: Long, speechEndsMs: Long?): Boolean {
+    val endAt = (speechEndsMs ?: return false) + HEARD_OUT_MS
+    val ranPastIt = previousMs < endAt && positionMs >= endAt && positionMs - previousMs <= RUN_NOT_SEEK_MS
+    return ranPastIt && durationMs - positionMs > WORTH_ENDING_MS
+}
+
+internal fun landedPastBySeeking(previousMs: Long, positionMs: Long, speechEndsMs: Long): Boolean {
+    val endAt = speechEndsMs + HEARD_OUT_MS
+    return previousMs < endAt && positionMs >= endAt && positionMs - previousMs > RUN_NOT_SEEK_MS
 }
 
 private const val HEARD_OUT_MS = 2_500L
 private const val WORTH_ENDING_MS = 5_000L
+private const val RUN_NOT_SEEK_MS = 5_000L
 
 internal class TailSpeechScans(private val weights: () -> SpeechWeights?) {
     private val asked = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()

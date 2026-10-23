@@ -30,6 +30,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
+import com.dewijones92.totum.ui.cast.ScreenButton
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
 import com.dewijones92.totum.ui.common.mediaDateText
@@ -87,6 +88,7 @@ internal fun TitleBlock(state: PlaybackState) {
 @Composable
 internal fun PlayerTopActions(onMore: (() -> Unit)?, onDark: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
+        ScreenButton(onDark = onDark)
         CastButton(modifier = Modifier.size(CAST_SIZE), onDark = onDark)
         onMore?.let {
             IconButton(onClick = it) {

@@ -46,6 +46,16 @@ class QueueDebugReceiver : BroadcastReceiver() {
                 container.playbackController.seekTo(target)
             }
             ACTION_SET_GAPLESS -> container.appPreferences.setGaplessQueue(intent.getBooleanExtra("on", true))
+            ACTION_PLAY_ON_SCREEN -> {
+                val screens = container.playbackController.screens.value
+                val id = if (intent.getBooleanExtra("back", false)) {
+                    null
+                } else {
+                    intent.getStringExtra("id") ?: screens.present.firstOrNull()?.id
+                }
+                Diag.log("screen", "dewidebug DEBUG play on screen $id of ${screens.present.map { it.name }}")
+                container.playbackController.playOnScreen(id)
+            }
             ACTION_KID_LOCK -> if (intent.getBooleanExtra("on", true)) {
                 container.kidLock.lock("a debug broadcast")
             } else {
@@ -65,6 +75,7 @@ class QueueDebugReceiver : BroadcastReceiver() {
         const val ACTION_PLAY_ALL = "com.dewijones92.totum.DEBUG_QUEUE_PLAY_ALL"
         const val ACTION_SEEK_NEAR_END = "com.dewijones92.totum.DEBUG_SEEK_NEAR_END"
         const val ACTION_SET_GAPLESS = "com.dewijones92.totum.DEBUG_SET_GAPLESS"
+        const val ACTION_PLAY_ON_SCREEN = "com.dewijones92.totum.DEBUG_PLAY_ON_SCREEN"
         const val ACTION_DOWNLOAD = "com.dewijones92.totum.DEBUG_DOWNLOAD"
         const val ACTION_KID_LOCK = "com.dewijones92.totum.DEBUG_KID_LOCK"
         const val DEFAULT_BEFORE_END_MS = 35_000L

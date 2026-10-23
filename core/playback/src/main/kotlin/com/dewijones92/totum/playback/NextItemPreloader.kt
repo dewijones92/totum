@@ -38,15 +38,33 @@ internal class NextItemPreloader(private val manager: DefaultPreloadManager) {
     private var handedOver = false
     private var adding = false
 
+    private fun alreadyHolding(
+        itemId: String,
+        uri: String,
+        audioUri: String?,
+        captions: List<MediaItem.SubtitleConfiguration>,
+    ): Boolean {
+        val current = held ?: return false
+        val sameAddress = heldFor == itemId && current.uriOrNull() == uri
+        val sameCaptions = current.captionUris() == captions.map { it.uri.toString() }
+        return sameAddress && current.audioUriOrNull() == audioUri && sameCaptions
+    }
+
     @OptIn(UnstableApi::class)
-    fun hold(itemId: String, uri: String, audioUri: String? = null) {
-        if (heldFor == itemId && held?.uriOrNull() == uri && held.audioUriOrNull() == audioUri) return
+    fun hold(
+        itemId: String,
+        uri: String,
+        audioUri: String? = null,
+        captions: List<MediaItem.SubtitleConfiguration> = emptyList(),
+    ) {
+        if (alreadyHolding(itemId, uri, audioUri, captions)) return
         held?.let { manager.remove(it) }
         // The id rides on the MediaItem so the held copy carries its own identity: the URI cannot,
         // because it is re-signed on every resolve.
         val item = MediaItem.Builder()
             .setMediaId(itemId)
             .setUri(uri)
+            .setSubtitleConfigurations(captions)
             .setRequestMetadata(
                 MediaItem.RequestMetadata.Builder()
                     .setExtras(audioUri?.let { Bundle().apply { putString(EXTRA_AUDIO_URL, it) } })
@@ -67,7 +85,8 @@ internal class NextItemPreloader(private val manager: DefaultPreloadManager) {
         Diag.log(
             "preload",
             "holding the first ${BufferBudget.PRELOAD_MS}ms of $itemId — ${uri.forLog()}" +
-                (audioUri?.let { " + audio ${it.forLog()}" } ?: ""),
+                (audioUri?.let { " + audio ${it.forLog()}" } ?: "") +
+                (if (captions.isEmpty()) "" else " with ${captions.size} caption file(s)"),
         )
     }
 
@@ -84,11 +103,12 @@ internal class NextItemPreloader(private val manager: DefaultPreloadManager) {
             )
             return null
         }
-        val captions = mediaItem.localConfiguration?.subtitleConfigurations?.size ?: 0
-        if (captions > 0) {
+        val wanted = mediaItem.captionUris()
+        if (wanted != holding.captionUris()) {
             Diag.log(
                 "preload",
-                "held $heldFor without its $captions subtitle track(s), so it loads afresh to keep its captions",
+                "held $heldFor with ${holding.captionUris().size} caption file(s) but the player asked for " +
+                    "${wanted.size}, so it loads afresh to keep its captions",
             )
             return null
         }
@@ -153,6 +173,9 @@ internal class NextItemPreloader(private val manager: DefaultPreloadManager) {
      */
     private fun MediaItem.uriOrNull(): String? =
         (localConfiguration?.uri ?: requestMetadata.mediaUri)?.toString()
+
+    private fun MediaItem?.captionUris(): List<String> =
+        this?.localConfiguration?.subtitleConfigurations?.map { it.uri.toString() }.orEmpty()
 
     private fun MediaItem?.audioUriOrNull(): String? = this?.requestMetadata?.extras?.getString(EXTRA_AUDIO_URL)
 }

@@ -34,14 +34,16 @@ its caption files, so when the player took that copy over (every gapless hand-ov
   card (report 0.1.686, 11:42: *"how to enable sub titles?"* while casting Peppa Pig). The TV follows the phone's
   choice (ADR 68).
 - In Listen mode the text track type is disabled, so no caption file is fetched for an item nobody is watching.
-- The preloader hands over its held copy only to an item with no caption files; one with captions loads afresh
-  (logged), keeping its captions. Gapless still crosses over, because the armed item is the player's own second entry.
+- The preloader's held copy is built **with** the next item's caption files: `preloadNext` carries them (as bundles,
+  `CaptionConfigs.kt`) into `NextItemPreloader.hold`, and `takeFor` hands the copy over only when the caption URIs
+  match as well as the stream URLs. A mismatch loads afresh (logged), keeping its captions. Gapless still crosses
+  over, because the armed item is the player's own second entry. (Review of 2026-10-23: the first version refused
+  the held copy for every captioned item, so the preload was wasted for most YouTube videos.)
 
 ## Consequences
 
 - Every YouTube video now fetches one caption file when it is watched (through the polite gate, like any caption).
-- A held preload is wasted for a captioned next item; carrying the caption files into the hold would recover it
-  (`docs/todos/preload-keeps-captions.md`).
 - Tests: `CaptionPreferenceTest`, `SubtitleChoicesTest`, `SubtitlesInsideTheFileAreOfferedTest` (a generated MKV with
   an English SRT, on a real player). Verified on totum-api35: default `en of 6 offered`, first caption at 1.4 s; off
-  for one item only; captions kept across a gapless hand-over.
+  for one item only; captions kept across a gapless hand-over; a captioned next item played "from the source held" with `en of 22
+  offered`.

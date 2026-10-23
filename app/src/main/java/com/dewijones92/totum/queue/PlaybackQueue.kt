@@ -520,7 +520,7 @@ class PlaybackQueue(
      * while nothing had actually moved on, and why the report was harder to read than it should
      * have been.
      */
-    suspend fun playNextInQueue(): Boolean = step(FORWARD)
+    suspend fun playNextInQueue(count: Int = 1): Boolean = step(FORWARD, landOn = count)
 
     suspend fun continueInKind(): Boolean = step(FORWARD, keepTo = _nowPlaying.value?.item?.listening)
 

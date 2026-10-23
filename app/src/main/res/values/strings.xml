@@ -979,4 +979,7 @@
     <string name="episodes_state_failed">❌ failed</string>
     <string name="queue_group_download_pick">⬇️ Choose episodes to download…</string>
     <string name="torrent_download_episodes">Download episodes</string>
+    <string name="screen_menu">Play on a PC screen</string>
+    <string name="screen_play_on">🖥️ Play on %1$s</string>
+    <string name="screen_back_to_phone">📱 Back to this phone</string>
 </resources>

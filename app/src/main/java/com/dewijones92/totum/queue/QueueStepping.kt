@@ -7,7 +7,7 @@ import com.dewijones92.totum.domain.word
 internal const val FORWARD = 1
 internal const val BACKWARD = -1
 
-internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = null): Boolean {
+internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = null, landOn: Int = 1): Boolean {
     val snapshot = state.value
     val playingId = nowPlaying.value?.item?.id
     val from = advanceFrom(snapshot, playingId)
@@ -18,6 +18,7 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
         return false
     }
     var passedOver = 0
+    var stillToPass = landOn - 1
     val finished = mutableListOf<String>()
     while (index in state.value.entries.indices) {
         val entry = state.value.entries[index]
@@ -30,6 +31,9 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
             passedOver++
         } else if (direction == FORWARD && passOver(entry.item) != null) {
             finished += "$title (${passOver(entry.item)})"
+        } else if (stillToPass > 0) {
+            stillToPass--
+            Diag.log("queue", "skipping past index $index \"$title\" without starting it; $stillToPass more to pass")
         } else if (playAt(index, rollBackOnRefusal = true)) {
             val cursorNow = state.value.currentIndex
             if (cursorNow != index) {
@@ -42,16 +46,10 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
             // The SUCCESS says what it advanced to, not just that it did. Only the refusals
             // said anything, so a report of a queue advancing wrongly showed "advance=true"
             // and nothing about which of sixty items it had landed on.
-            val verb = if (direction == FORWARD) "advanced" else "went back"
-            val passed = if (passedOver > 0) {
-                " (passed over $passedOver ${keepTo?.other?.word} to stay in ${keepTo?.word})"
-            } else {
-                ""
-            }
             Diag.log(
                 "queue",
-                "$verb from index $from to $index of ${state.value.entries.size} — \"$title\"$passed" +
-                    finishedNote(finished),
+                "${verbFor(direction)} from index $from to $index of ${state.value.entries.size} — \"$title\"" +
+                    passedOverNote(passedOver, keepTo) + finishedNote(finished),
             )
             return true
         } else {
@@ -69,6 +67,11 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
     )
     return false
 }
+
+private fun verbFor(direction: Int): String = if (direction == FORWARD) "advanced" else "went back"
+
+private fun passedOverNote(passedOver: Int, keepTo: Listening?): String =
+    if (passedOver > 0) " (passed over $passedOver ${keepTo?.other?.word} to stay in ${keepTo?.word})" else ""
 
 private fun finishedNote(finished: List<String>): String =
     if (finished.isEmpty()) {

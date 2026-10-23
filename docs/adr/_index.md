@@ -96,3 +96,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 78 | [Captions are on in English, off is for one item, and a file's own tracks are offered](0078-captions-are-on-in-english-and-off-is-for-one-item.md) | Accepted |
 | 79 | [A star for anything, kept here, and a Like on YouTube for YouTube items](0079-a-star-for-anything-likes-youtube-items.md) | Accepted |
 | 80 | [Choose episodes to download, and an interrupted download starts again by itself](0080-choose-episodes-to-download-and-resume-interrupted-ones.md) | Accepted |
+| 81 | [The PC screen is a page the phone serves, found through a Pi bookmark](0081-the-pc-screen-is-a-page-the-phone-serves.md) | Accepted |

@@ -77,9 +77,9 @@ class DefaultDownloadManagerTest {
                 emit(DownloadState.Downloaded(target.absolutePath))
             }
         }
-        val manager = DefaultDownloadManager(tempFolder.root, store, strategy, backgroundScope, {}) {
+        val manager = DefaultDownloadManager(tempFolder.root, store, strategy, backgroundScope, {}, nowMs = {
             testScheduler.currentTime
-        }
+        })
 
         manager.download(item)
         store.observeAll().map { it[item.id] }.first { it is DownloadState.Downloaded }
@@ -167,6 +167,24 @@ class DefaultDownloadManagerTest {
 
         assertEquals(listOf(true to 720), asked)
         assertTrue(store.get(item.id) is DownloadState.Downloaded)
+    }
+
+    @Test
+    fun `an interrupted download is not started again on a metered network`() = runTest {
+        var asked = 0
+        store.put(item.asPlayable(), DownloadState.Downloading(500, 1000), audioOnly = true)
+
+        DefaultDownloadManager(
+            tempFolder.root,
+            store,
+            DownloadStrategy { _, _, _ -> flowOf<DownloadState>().also { asked++ } },
+            CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+            mayResumeNow = { false },
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, asked)
+        assertTrue(store.get(item.id) is DownloadState.Failed)
     }
 
     @Test

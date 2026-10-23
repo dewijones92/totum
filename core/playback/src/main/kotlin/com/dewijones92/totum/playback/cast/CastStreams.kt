@@ -33,7 +33,17 @@ internal class CastStreams(
 ) {
     private val videos = TvVideos(tvs)
 
-    private val server = CastHttpServer(handle = { request -> live.replyTo(request) ?: handle(request) })
+    @Volatile
+    var screens: ScreenLink? = null
+
+    private val server = CastHttpServer(
+        handle = { request -> live.replyTo(request) ?: screens?.replyTo(request) ?: handle(request) },
+    )
+
+    fun serveScreens(): String? {
+        server.start(PORT)
+        return host.baseUrl(PORT)
+    }
     private val sessions = ConcurrentHashMap<String, Session>()
     private val order = ConcurrentLinkedDeque<String>()
     private val latest = ConcurrentHashMap<String, Session>()
@@ -293,7 +303,14 @@ internal class CastStreams(
         order.clear()
         latest.clear()
         videos.clear()
-        server.stop()
+        if (screens == null) {
+            server.stop()
+        } else {
+            Diag.log(
+                "cast",
+                "still serving the PC screen page; the server stays up"
+            )
+        }
         host.hold(false)
     }
 
@@ -335,8 +352,6 @@ internal class CastStreams(
         return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
     }
 
-    private fun notFound() = HttpReply.Bytes(Http.NOT_FOUND, "text/plain", ByteArray(0))
-
     private fun videoPart(session: Session, what: String, range: String?): HttpReply? = when {
         what.startsWith("video/r") -> what.removePrefix("video/r").toIntOrNull()?.let { i ->
             session.ready()
@@ -370,6 +385,8 @@ internal class CastStreams(
     }
 
     companion object {
+        private fun notFound() = HttpReply.Bytes(Http.NOT_FOUND, "text/plain", ByteArray(0))
+
         private fun ladderIn(extras: android.os.Bundle?): List<CastRung> =
             extras?.getStringArrayList(EXTRA_VIDEO_LADDER).orEmpty().mapNotNull { line ->
                 val (height, codec, url) = line.split('\t', limit = LADDER_FIELDS).takeIf { it.size == LADDER_FIELDS }

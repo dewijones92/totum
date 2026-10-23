@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Totum screen</title>
+<script src="https://cdn.jsdelivr.net/npm/shaka-player@4.11.0/dist/shaka-player.compiled.js"></script>
+<style>
+  :root { --ink: #1a1c20; --soft: #565b64; --bg: #ffffff; --accent: #e8590c; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 18px/1.5 "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #stage { position: fixed; inset: 0; background: #000; display: none; }
+  #stage.on { display: block; }
+  video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  #wait { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; }
+  #wait h1 { font-size: 34px; margin: 0 0 8px; }
+  #wait p { color: var(--soft); margin: 4px 0; }
+  #tap { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.55);
+    color: #fff; font-size: 26px; cursor: pointer; text-align: center; }
+  #tap.on { display: grid; }
+  #status { position: fixed; left: 16px; bottom: 12px; font-size: 14px; color: #bbb; opacity: .8; }
+</style>
+</head>
+<body>
+<div id="wait">
+  <div>
+    <h1>📺 Waiting for Totum…</h1>
+    <p id="who">Connecting to your phone</p>
+    <p>Pick this screen in Totum's cast menu to play here.</p>
+  </div>
+</div>
+<div id="stage"><video id="video" playsinline></video></div>
+<div id="tap"><div>▶️ Click once to allow sound and full screen</div></div>
+<div id="status"></div>
+<script>
+(() => {
+  const key = new URLSearchParams(location.hash.slice(1)).get('key') || '';
+  const name = localStorage.getItem('totumScreenName') || 'PC (' + (navigator.userAgent.includes('Edg/') ? 'Edge' : 'browser') + ')';
+  const video = document.getElementById('video');
+  const stage = document.getElementById('stage');
+  const tap = document.getElementById('tap');
+  const status = document.getElementById('status');
+  let id = localStorage.getItem('totumScreenId') || '';
+  let greeted = false;
+  let after = 0;
+  let unlocked = false;
+  let lastError = '';
+  let player = null;
+
+  const say = (text) => { status.textContent = text; };
+  const api = (path, params) => {
+    const q = new URLSearchParams(Object.assign({ key }, params));
+    return fetch('/screen/' + path + '?' + q.toString(), { cache: 'no-store' });
+  };
+
+  function unlock() {
+    unlocked = true;
+    tap.classList.remove('on');
+    video.muted = false;
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    video.play().catch((e) => { lastError = 'play refused: ' + e.message; });
+  }
+  tap.addEventListener('click', unlock);
+
+  async function load(command) {
+    if (!player) {
+      shaka.polyfill.installAll();
+      player = new shaka.Player();
+      await player.attach(video);
+      player.addEventListener('error', (e) => { lastError = 'shaka ' + (e.detail && e.detail.code); });
+    }
+    stage.classList.add('on');
+    document.getElementById('wait').style.display = 'none';
+    const given = new URL(command.url);
+    await player.load(location.origin + given.pathname + given.search, (command.pos || 0) / 1000);
+    video.playbackRate = command.rate || 1;
+    if (command.subs) player.selectTextLanguage(command.subs), player.setTextTrackVisibility(true);
+    else player.setTextTrackVisibility(false);
+    if (command.play) start();
+    say('▶️ ' + (command.title || 'Playing from Totum'));
+  }
+
+  function start() {
+    if (!unlocked) tap.classList.add('on');
+    video.play().catch((e) => { tap.classList.add('on'); lastError = 'play needs a click: ' + e.message; });
+  }
+
+  async function apply(command) {
+    switch (command.do) {
+      case 'load': return load(command);
+      case 'play': return start();
+      case 'pause': return video.pause();
+      case 'seek': video.currentTime = (command.pos || 0) / 1000; return;
+      case 'rate': video.playbackRate = command.rate || 1; return;
+      case 'subs':
+        if (!player) return;
+        if (command.lang) { player.selectTextLanguage(command.lang); player.setTextTrackVisibility(true); }
+        else player.setTextTrackVisibility(false);
+        return;
+      case 'stop':
+        video.pause();
+        if (player) await player.unload();
+        stage.classList.remove('on');
+        document.getElementById('wait').style.display = 'grid';
+        say('⏹️ Stopped');
+        return;
+    }
+  }
+
+  function codecs() {
+    const probes = {
+      AVC: 'video/mp4; codecs="avc1.640028"',
+      VP9: 'video/webm; codecs="vp09.00.40.08"',
+      HEVC: 'video/mp4; codecs="hvc1.1.6.L120.90"',
+      AV1: 'video/mp4; codecs="av01.0.08M.08"',
+    };
+    const ok = (window.MediaSource && MediaSource.isTypeSupported) ? MediaSource.isTypeSupported.bind(MediaSource) : () => false;
+    return Object.keys(probes).filter((k) => ok(probes[k])).join('+');
+  }
+
+  async function hello() {
+    const reply = await api('hello', { name, id, codecs: codecs(), height: screen.height * (window.devicePixelRatio || 1) });
+    const body = await reply.json();
+    if (!reply.ok) throw new Error(body.error || reply.status);
+    id = body.id;
+    after = body.after || 0;
+    localStorage.setItem('totumScreenId', id);
+    greeted = true;
+    document.getElementById('who').textContent = '✅ Connected as “' + name + '”';
+  }
+
+  async function pollForever() {
+    for (;;) {
+      try {
+        if (!greeted) await hello();
+        const reply = await api('poll', { id, after });
+        if (reply.status === 400) { greeted = false; continue; }
+        for (const item of await reply.json()) {
+          after = Math.max(after, item.n);
+          try { await apply(item.command); } catch (e) { lastError = item.command.do + ': ' + e.message; }
+        }
+      } catch (e) {
+        document.getElementById('who').textContent = '⚠️ Cannot reach your phone; trying again…';
+        greeted = false;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+  }
+
+  setInterval(() => {
+    if (!id) return;
+    const buffering = !video.paused && video.readyState < 3;
+    api('state', {
+      id,
+      pos: Math.round(video.currentTime * 1000),
+      playing: !video.paused && !video.ended ? 1 : 0,
+      buffering: buffering ? 1 : 0,
+      ended: video.ended ? 1 : 0,
+      error: lastError,
+    }).catch(() => {});
+    lastError = '';
+  }, 1000);
+
+  pollForever();
+})();
+</script>
+</body>
+</html>

@@ -28,7 +28,10 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
   service decodes its last three minutes (or last 30% if shorter) on a low-priority thread (`scanTailForSpeech`,
   MediaExtractor + MediaCodec) and runs the bundled speech model over it (`SpeechTrack.speechEndsAtFrame`); once
   playback is 2.5 s past the last speech, with more than 5 s left, the item ends the same way
-  (`endsWithNoSpeechLeft`, `TailSpeechScans`). Same switch as the silent tail, so never for music or live. A
+  (`endsWithNoSpeechLeft`, `TailSpeechScans`). It ends only after **playing** at least 5 s past the last speech
+  (`RUN_NOT_SEEK_MS`): a seek or a scrub that lands past it does not end the item, so you can look around the
+  ending. A scan that hears no speech at all says nothing (null), rather than "speech ends at 0" ending the item at
+  once; the decoder reads 16-bit and float PCM, gives up after 120 s, and stops safely (review of 2026-10-23). Same switch as the silent tail, so never for music or live. A
   stream is not scanned yet (reading ahead would fetch its bytes early); the silent tail still covers it. Logged:
   the scanned span, how long it took, where speech ends and how much it would skip, and the ending itself.
 - The app tells the service per item, as it does skip-silence (`ACTION_SILENT_TAIL`): on when Settings → End on a

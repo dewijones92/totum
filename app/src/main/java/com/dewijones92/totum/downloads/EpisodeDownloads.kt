@@ -2,6 +2,7 @@ package com.dewijones92.totum.downloads
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
@@ -15,7 +16,7 @@ import kotlinx.coroutines.launch
 class EpisodeDownloads(private val downloads: DownloadManager, private val scope: CoroutineScope) {
 
     data class Ask(val title: String, val items: List<PlayableItem>) {
-        val offersAChoice: Boolean get() = items.any { it.handle is PlayHandle.Video }
+        val offersAChoice: Boolean get() = items.any { it.handle is PlayHandle.Video && !it.isSong }
     }
 
     private val _asking = MutableStateFlow<Ask?>(null)
@@ -42,13 +43,20 @@ class EpisodeDownloads(private val downloads: DownloadManager, private val scope
         scope.launch {
             picked.forEach { item ->
                 when (item.handle) {
-                    is PlayHandle.Video -> when (choice) {
-                        DownloadChoice.Sound -> downloads.download(item, audioOnly = true)
-                        is DownloadChoice.Video -> downloads.download(
+                    is PlayHandle.Video -> if (item.isSong) {
+                        downloads.download(
                             item,
-                            audioOnly = false,
-                            maxHeight = choice.maxHeight
+                            audioOnly = true
                         )
+                    } else {
+                        when (choice) {
+                            DownloadChoice.Sound -> downloads.download(item, audioOnly = true)
+                            is DownloadChoice.Video -> downloads.download(
+                                item,
+                                audioOnly = false,
+                                maxHeight = choice.maxHeight
+                            )
+                        }
                     }
                     is PlayHandle.Podcast, is PlayHandle.LocalVideo -> downloads.download(item, audioOnly = false)
                 }
@@ -60,3 +68,5 @@ class EpisodeDownloads(private val downloads: DownloadManager, private val scope
         const val TAG = "download"
     }
 }
+
+private val PlayableItem.isSong: Boolean get() = item.contentKind == MediaContentKind.MUSIC

@@ -21,5 +21,9 @@ media-key ⏭ now move the cursor to index 6 in 2.5 s and the player goes straig
 overtaken while it started logs "was skipped past while it started" instead of "advanced". Test:
 `RapidSkipsLandOnTheLastPressTest` (red against the serial version: cursor 1, not 3).
 
-Still true: each skipped-over video's lookup runs to the end in the background (through the polite gate), it just never
-plays.
+**Changed after the batch review (2026-10-23):** launching every press still looked up every video passed over,
+each through the polite gate. `QueueSkips` now gathers presses that come within 500 ms of each other and moves the
+queue once by their total (`playNextInQueue(count)`, `step(landOn)`), passing over the items in between without
+starting or resolving them. Three quick media-key ⏭ on totum-api35: "skipping 3 on at once", 0 → 3, and the only
+lookup was the item landed on. `RapidSkipsLandOnTheLastPressTest` now also asserts that only that item is
+extracted.

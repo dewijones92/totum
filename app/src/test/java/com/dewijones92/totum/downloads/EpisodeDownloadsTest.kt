@@ -2,6 +2,7 @@ package com.dewijones92.totum.downloads
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -61,6 +62,20 @@ class EpisodeDownloadsTest {
         testScheduler.advanceUntilIdle()
 
         assertEquals(listOf(false, false), downloads.requested.map { it.second })
+    }
+
+    @Test
+    fun `an album's songs come down as sound, and offer no picture choice`() = runTest {
+        val downloads = FakeDownloadManager()
+        val episodes = EpisodeDownloads(downloads, this)
+        val song = video("aaaaaaaaaaa").let { it.copy(item = it.item.copy(contentKind = MediaContentKind.MUSIC)) }
+        val ask = EpisodeDownloads.Ask("Pablo", listOf(song))
+
+        assertFalse(ask.offersAChoice)
+        episodes.start(ask, setOf(song.item.id), DownloadChoice.Video(null))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf(true), downloads.requested.map { it.second })
     }
 
     @Test

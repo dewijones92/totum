@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.ScreenTargets
 import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.StreamFailure
 import com.dewijones92.totum.playback.VideoRung
@@ -51,6 +52,14 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
     override val state: StateFlow<PlaybackState?> = _state
     public val castDeviceFlow: MutableStateFlow<String?> = MutableStateFlow(null)
     override val castDevice: StateFlow<String?> = castDeviceFlow
+
+    public val screensFlow: MutableStateFlow<ScreenTargets> = MutableStateFlow(ScreenTargets())
+    override val screens: StateFlow<ScreenTargets> = screensFlow
+    public val screenRequests: MutableList<String?> = mutableListOf()
+
+    override fun playOnScreen(screenId: String?) {
+        screenRequests += screenId
+    }
 
     private val _streamFailures = MutableSharedFlow<StreamFailure>(extraBufferCapacity = 1)
     override val streamFailures: Flow<StreamFailure> = _streamFailures.asSharedFlow()
@@ -301,7 +310,7 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         _events.tryEmit(PlaybackEvent.CrossedOver(next.id, from.itemId, finished))
     }
 
-    override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?) {
+    override fun preloadNext(itemId: MediaItemId, url: HttpUrl, audioUrl: HttpUrl?, subtitles: List<SubtitleTrack>) {
         preloaded += url
         preloadedFor += itemId
         preloadedAudio += audioUrl
