@@ -19,6 +19,8 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.playback.fake.InMemoryPlaybackProgressStore
+import com.dewijones92.totum.stars.STARRED_PLAYLIST
+import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -155,6 +157,38 @@ class BackupServiceTest {
         assertEquals(listOf("Later"), onto.playlists.observePlaylists().first().map { it.name })
         assertEquals(listOf("two"), onto.queue.load().entries.map { it.item.item.id.value })
         assertEquals(mapOf("playbackMode" to "AUDIO"), onto.settings)
+    }
+
+    @Test
+    fun `restoring merges stars into this device's own starred list`() = runTest {
+        val from = Fixture()
+        from.playlists.ensure(STARRED_PLAYLIST, STARRED_PLAYLIST_NAME)
+        from.playlists.addItem(STARRED_PLAYLIST, playable("starred-there"))
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.playlists.ensure(STARRED_PLAYLIST, STARRED_PLAYLIST_NAME)
+        onto.playlists.addItem(STARRED_PLAYLIST, playable("starred-here"))
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        assertEquals(listOf(STARRED_PLAYLIST), onto.playlists.observePlaylists().first().map { it.id })
+        assertEquals(
+            setOf("starred-here", "starred-there"),
+            onto.playlists.observeItems(STARRED_PLAYLIST).first().mapTo(mutableSetOf()) { it.item.id.value },
+        )
+    }
+
+    @Test
+    fun `restoring onto a device with no stars yet puts them in the starred list, not a copy`() = runTest {
+        val from = Fixture()
+        from.playlists.ensure(STARRED_PLAYLIST, STARRED_PLAYLIST_NAME)
+        from.playlists.addItem(STARRED_PLAYLIST, playable("starred-there"))
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        assertEquals(listOf(STARRED_PLAYLIST), onto.playlists.observePlaylists().first().map { it.id })
     }
 
     /**

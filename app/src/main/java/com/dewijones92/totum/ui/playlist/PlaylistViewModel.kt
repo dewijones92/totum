@@ -5,8 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
@@ -17,7 +15,6 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.feeds.FeedVideo
-import com.dewijones92.totum.innertube.playlists.PlaylistVideosResult
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MediaSort
@@ -27,7 +24,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -58,20 +54,12 @@ class PlaylistViewModel(
         val loadingMore: Boolean = false,
     )
 
-    private data class FetchState(
-        val videos: List<MediaItem> = emptyList(),
-        val loading: Boolean = true,
-        val error: Boolean = false,
-        val next: PageToken? = null,
-        val loadingMore: Boolean = false,
-    )
-
-    private val fetch = MutableStateFlow(FetchState())
+    private val pages = PlaylistPages(playlists, browseId, viewModelScope) { it.listed() }
     private val refreshing = MutableStateFlow(false)
     private val sort = MutableStateFlow(MediaSort.DEFAULT)
 
     val uiState: StateFlow<UiState> = combine(
-        fetch,
+        pages.state,
         downloads.observeDownloads(),
         refreshing,
         sort,
@@ -93,71 +81,18 @@ class PlaylistViewModel(
         load()
     }
 
-    fun load() {
-        viewModelScope.launch {
-            fetch.update { it.copy(loading = true, error = false) }
-            fetch.value = fetchState()
-        }
-    }
+    fun load(): Unit = pages.load()
 
     fun refresh() {
         if (refreshing.value) return
         viewModelScope.launch {
             refreshing.value = true
-            fetchState().takeIf { !it.error }?.let { fetch.value = it }
+            pages.refreshed()
             refreshing.value = false
         }
     }
 
-    private suspend fun fetchState(): FetchState = when (val result = playlists.videosIn(browseId)) {
-        is PlaylistVideosResult.Success -> FetchState(
-            videos = result.page.items.map { it.listed() },
-            loading = false,
-            next = result.page.next,
-        ).also { Diag.log("feed", "playlist $browseId loaded ${it.videos.size} item(s), more=${result.page.hasMore}") }
-
-        else -> FetchState(videos = fetch.value.videos, loading = false, error = true)
-            .also { Diag.warn("feed", "playlist $browseId failed to load: $result") }
-    }
-
-    /**
-     * Fetches the next page. A playlist can run to hundreds of videos and only the first
-     * page was ever shown — the continuation was parsed and thrown away, so a 184-video
-     * playlist looked like a 20-video one.
-     */
-    fun loadMore() {
-        val state = fetch.value
-        val after = state.next ?: return
-        if (state.loadingMore || state.loading) return
-        fetch.update { it.copy(loadingMore = true) }
-        viewModelScope.launch {
-            when (val result = playlists.videosIn(browseId, after)) {
-                is PlaylistVideosResult.Success -> fetch.update { current ->
-                    Diag.log(
-                        "feed",
-                        "playlist page +${result.page.items.size} (had ${current.videos.size}) " +
-                            "more=${result.page.hasMore}",
-                    )
-                    // Dedupe: YouTube returns overlapping pages, and a duplicate id in a
-                    // LazyColumn key is a crash, not a cosmetic problem.
-                    val existing = current.videos.map { it.id }.toSet()
-                    val fresh = result.page.items
-                        .map { it.listed() }
-                        .filter { it.id !in existing }
-                    current.copy(
-                        videos = current.videos + fresh,
-                        next = result.page.next,
-                        loadingMore = false,
-                    )
-                }
-
-                else -> {
-                    Diag.warn("feed", "playlist page failed; keeping what we have")
-                    fetch.update { it.copy(loadingMore = false) }
-                }
-            }
-        }
-    }
+    fun loadMore(): Unit = pages.loadMore()
 
     private fun FeedVideo.listed(): MediaItem =
         toMediaItem(sourceId).let { item -> contentKind?.let { item.copy(contentKind = it) } ?: item }

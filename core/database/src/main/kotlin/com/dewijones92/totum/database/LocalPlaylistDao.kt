@@ -23,6 +23,9 @@ public interface LocalPlaylistDao {
     @Upsert
     public suspend fun upsertPlaylist(playlist: LocalPlaylistEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    public suspend fun insertPlaylistIfAbsent(playlist: LocalPlaylistEntity)
+
     @Query("UPDATE local_playlists SET name = :name WHERE id = :id")
     public suspend fun rename(id: String, name: String)
 

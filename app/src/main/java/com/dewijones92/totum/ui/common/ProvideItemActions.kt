@@ -65,6 +65,9 @@ internal fun ProvideItemActions(
         LocalFavourites provides remember(container) {
             FavouritesHost(container.musicFavourites, container.applicationScope)
         },
+        LocalStars provides remember(container) {
+            StarHost(container.stars, container.musicFavourites, container.applicationScope)
+        },
         content = content,
     )
 }

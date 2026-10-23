@@ -204,6 +204,7 @@ import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
+import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.uploads.NewUploads
@@ -422,6 +423,7 @@ interface AppContainer {
     val musicLibrary: YouTubeMusicLibrary
 
     val musicFavourites: MusicFavourites
+    val stars: Stars
 
     val musicRadio: MusicRadio
 
@@ -1441,6 +1443,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val musicCatalogue: YouTubeMusicCatalogue by lazy { HttpYouTubeMusicCatalogue(innerTubeClient) }
 
     override val musicLibrary: YouTubeMusicLibrary by lazy { HttpYouTubeMusicLibrary(youTubeAccount, innerTubeClient) }
+
+    override val stars: Stars by lazy {
+        Stars(localPlaylistStore) { id, title, liked -> musicFavourites.setSongLiked(id, title, liked) }
+    }
 
     override val musicFavourites by lazy {
         MusicFavourites(

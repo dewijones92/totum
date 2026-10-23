@@ -24,6 +24,9 @@ public class RoomLocalPlaylistStore(private val dao: LocalPlaylistDao) : LocalPl
         return PlaylistId(id)
     }
 
+    override suspend fun ensure(id: PlaylistId, name: String): Unit =
+        dao.insertPlaylistIfAbsent(LocalPlaylistEntity(id.value, name, System.currentTimeMillis()))
+
     override suspend fun rename(id: PlaylistId, name: String): Unit = dao.rename(id.value, name)
 
     override suspend fun delete(id: PlaylistId): Unit = dao.deletePlaylist(id.value)

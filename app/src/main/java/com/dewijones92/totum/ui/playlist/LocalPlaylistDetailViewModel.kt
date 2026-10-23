@@ -13,10 +13,20 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.stars.LIKED_SOURCE
+import com.dewijones92.totum.stars.LIKED_VIDEOS_BROWSE_ID
+import com.dewijones92.totum.stars.STARRED_PLAYLIST
+import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
+import com.dewijones92.totum.stars.Stars
+import com.dewijones92.totum.stars.starredWithLikes
+import com.dewijones92.totum.ui.common.toMediaItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,16 +37,36 @@ class LocalPlaylistDetailViewModel(
     private val store: LocalPlaylistStore,
     private val queue: PlaybackQueue,
     private val downloads: DownloadManager,
+    private val stars: Stars? = null,
+    accountLikes: YouTubePlaylists? = null,
 ) : ViewModel() {
+
+    val isStarred: Boolean = id == STARRED_PLAYLIST
+
+    private val likes = accountLikes?.takeIf { isStarred }?.let { playlists ->
+        PlaylistPages(playlists, LIKED_VIDEOS_BROWSE_ID, viewModelScope) { it.toMediaItem(LIKED_SOURCE) }
+            .also { it.load() }
+    }
+
+    val canLoadMoreLikes: StateFlow<Boolean> =
+        (likes?.state?.map { it.next != null && !it.loadingMore } ?: flowOf(false))
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
+
+    fun loadMoreLikes() {
+        likes?.loadMore()
+    }
 
     val downloadStates: StateFlow<Map<MediaItemId, DownloadState>> = downloads.observeDownloads()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyMap())
 
     val name: StateFlow<String> = store.observePlaylists()
-        .map { list -> list.firstOrNull { it.id == id }?.name ?: "" }
+        .map { list -> list.firstOrNull { it.id == id }?.name ?: STARRED_PLAYLIST_NAME.takeIf { isStarred }.orEmpty() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), "")
 
-    val items: StateFlow<List<PlayableItem>> = store.observeItems(id)
+    val items: StateFlow<List<PlayableItem>> = combine(
+        store.observeItems(id),
+        likes?.state?.map { it.videos } ?: flowOf(emptyList()),
+    ) { local, liked -> starredWithLikes(local, liked) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
 
     /** True once the playlist was found empty — so deletion can pop the screen. */
@@ -57,7 +87,15 @@ class LocalPlaylistDetailViewModel(
     private fun group() = QueueGroup(id.value, name.value)
 
     fun remove(itemId: MediaItemId) {
-        viewModelScope.launch { store.removeItem(id, itemId) }
+        val starredItem = items.value.firstOrNull { it.item.id == itemId }
+        viewModelScope.launch {
+            if (stars != null && isStarred && starredItem != null) {
+                stars.setStarred(starredItem, false)
+                likes?.drop(itemId)
+            } else {
+                store.removeItem(id, itemId)
+            }
+        }
     }
 
     fun deleteDownload(itemId: MediaItemId) {
@@ -86,6 +124,8 @@ class LocalPlaylistDetailViewModel(
                     store = container.localPlaylistStore,
                     queue = container.playbackQueue,
                     downloads = container.downloadManager,
+                    stars = container.stars,
+                    accountLikes = container.youTubePlaylists,
                 )
             }
         }

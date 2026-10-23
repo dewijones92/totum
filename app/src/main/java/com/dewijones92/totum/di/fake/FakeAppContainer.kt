@@ -104,6 +104,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
+import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.uploads.InboxSources
 import com.dewijones92.totum.uploads.NewUploads
@@ -253,6 +254,9 @@ class FakeAppContainer(
     override val statsLog: StatsLog = StatsLog(null, applicationScope)
     override val groupDownloads: GroupDownloads = GroupDownloads(null, applicationScope)
     override val albumYears: AlbumYears by lazy { AlbumYears(musicCatalogue, applicationScope, null) }
+    override val stars: Stars by lazy {
+        Stars(localPlaylistStore) { id, title, liked -> musicFavourites.setSongLiked(id, title, liked) }
+    }
     override val randomStarts: RandomStarts by lazy { RandomStarts(playbackProgressStore, null, applicationScope) }
 
     override val pinPlayer: PinPlayer by lazy {

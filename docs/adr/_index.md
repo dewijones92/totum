@@ -94,3 +94,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 76 | [Kid lock pins the app to a bare full-screen video](0076-kid-lock-pins-the-app-to-a-bare-video.md) | Accepted |
 | 77 | [A download asks sound or video, and which quality](0077-a-download-asks-sound-or-video-and-quality.md) | Accepted |
 | 78 | [Captions are on in English, off is for one item, and a file's own tracks are offered](0078-captions-are-on-in-english-and-off-is-for-one-item.md) | Accepted |
+| 79 | [A star for anything, kept here, and a Like on YouTube for YouTube items](0079-a-star-for-anything-likes-youtube-items.md) | Accepted |

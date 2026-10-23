@@ -25,7 +25,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Download a whole torrent series or a queue group](download-series-and-groups.md) | downloads/torrents | high | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Torrent items have no Watch / Listen](torrent-watch-listen.md) | torrents/player | high | done 2026-10-22 (c7b1967a, ADR 70: Listen/Watch for anything with a picture) |
 | [What the Pi stores for Totum, and what it should](pi-storage-review.md) | pi/infra | medium | 🔍 investigated 2026-10-22: Totum uses ~100 MB; the disk is the media library |
-| [A ⭐ for any item](star-anything.md) | library | medium | requested 2026-10-22 (Dewi's 24 h batch) |
+| [A ⭐ for any item](star-anything.md) | library | medium | done 2026-10-23 (ADR 79) |
 | [Recent searches in every search box](recent-searches-everywhere.md) | search/ui | medium | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Confirm big destructive actions](confirm-big-actions.md) | queue/ui | high | done 2026-10-22 (clear queue/history, delete downloads, remove group: hold to confirm) |
 | [Lock a download so it is not easily deleted](locked-downloads.md) | downloads | high | ✅ done 2026-10-22 (ADR 75) |

@@ -17,17 +17,6 @@ class FavouritesHost(val favourites: MusicFavourites, val scope: CoroutineScope)
 
 internal val LocalFavourites = staticCompositionLocalOf<FavouritesHost?> { null }
 
-const val SONG_LIKE_TAG = "sheet-song-like"
-
-@Composable
-internal fun SongLikeAction(songId: String?, title: String, onDismiss: () -> Unit) {
-    val host = LocalFavourites.current ?: return
-    if (songId == null) return
-    val like = rememberSongLike(host.favourites, host.scope, songId, title)
-    if (like.on == null) return
-    SheetAction(like.flip, like.likeIcon, like.likeLabel, onDismiss, tag = SONG_LIKE_TAG)
-}
-
 const val TRACK_LIKE_TAG = "track-like"
 
 @Composable

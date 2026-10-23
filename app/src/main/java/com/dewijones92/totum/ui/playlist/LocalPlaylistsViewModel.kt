@@ -9,6 +9,7 @@ import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.PlaylistId
+import com.dewijones92.totum.stars.observeYourPlaylists
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
 class LocalPlaylistsViewModel(private val store: LocalPlaylistStore) : ViewModel() {
 
     val playlists: StateFlow<List<LocalPlaylist>> =
-        store.observePlaylists().stateIn(
+        store.observeYourPlaylists().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
             emptyList()

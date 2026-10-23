@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.DownloadForOffline
@@ -44,6 +45,7 @@ internal fun LibraryHub(
     onOpenStats: () -> Unit,
     onOpenDownloads: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenStarred: () -> Unit = {},
     downloads: DownloadsSummary = DownloadsSummary(),
     phoneAlbums: PhoneAlbums = PhoneAlbums(),
 ) {
@@ -60,6 +62,7 @@ internal fun LibraryHub(
                     onOpenAccount,
                     onOpenStats,
                     onOpenDownloads,
+                    onOpenStarred,
                     downloads,
                 )
             }
@@ -77,6 +80,7 @@ private fun LibraryTiles(
     onOpenAccount: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenStarred: () -> Unit,
     downloads: DownloadsSummary,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -84,14 +88,24 @@ private fun LibraryTiles(
         verticalArrangement = Arrangement.spacedBy(TILE_GAP),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        LibraryTile(
-            Icons.Outlined.BarChart,
-            R.string.stats_tile,
-            scheme.tertiary,
-            scheme.onTertiary,
-            onOpenStats,
-            Modifier.fillMaxWidth(),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+            LibraryTile(
+                Icons.Outlined.BarChart,
+                R.string.stats_tile,
+                scheme.tertiary,
+                scheme.onTertiary,
+                onOpenStats,
+                Modifier.weight(1f),
+            )
+            LibraryTile(
+                Icons.Filled.Star,
+                R.string.library_starred,
+                scheme.primary,
+                scheme.onPrimary,
+                onOpenStarred,
+                Modifier.weight(1f).testTag(STARRED_TILE_TAG),
+            )
+        }
         LibraryTile(
             Icons.Outlined.DownloadForOffline,
             R.string.library_downloads,
@@ -195,3 +209,5 @@ private fun LibraryTile(
 internal const val DOWNLOADS_TILE_TAG = "library-downloads-tile"
 private val TILE_GAP = 12.dp
 private val TILE_HEIGHT = 104.dp
+
+const val STARRED_TILE_TAG: String = "library-starred"

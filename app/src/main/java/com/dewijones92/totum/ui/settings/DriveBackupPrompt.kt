@@ -19,6 +19,7 @@ import com.dewijones92.totum.backup.drive.DriveBackup
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
+import com.dewijones92.totum.stars.observeYourPlaylists
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -34,7 +35,7 @@ fun DriveBackupPrompt(container: AppContainer) {
             runningUnderInstrumentation() -> Ask.NOTHING
             drive.isSetUp || drive.neverAsk -> Ask.NOTHING
             container.playHistoryStore.observe().first().isEmpty() &&
-                container.localPlaylistStore.observePlaylists().first().isEmpty() -> Ask.RESTORE
+                container.localPlaylistStore.observeYourPlaylists().first().isEmpty() -> Ask.RESTORE
             else -> Ask.BACK_UP
         }
         Diag.log("backup", "launch prompt: $ask (setUp=${drive.isSetUp} neverAsk=${drive.neverAsk})")

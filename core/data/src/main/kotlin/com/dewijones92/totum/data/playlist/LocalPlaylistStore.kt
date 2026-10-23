@@ -22,6 +22,8 @@ public interface LocalPlaylistStore {
     /** Creates an empty playlist, returning its id. */
     public suspend fun create(name: String): PlaylistId
 
+    public suspend fun ensure(id: PlaylistId, name: String)
+
     public suspend fun rename(id: PlaylistId, name: String)
 
     public suspend fun delete(id: PlaylistId)

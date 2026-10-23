@@ -29,6 +29,8 @@ import com.dewijones92.totum.domain.persisted
 import com.dewijones92.totum.domain.playHandleFrom
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
+import com.dewijones92.totum.stars.STARRED_PLAYLIST
+import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.Instant
@@ -96,6 +98,20 @@ class BackupService(
      * The queue is the exception — an order cannot be merged — and is replaced only when
      * the backup has one.
      */
+    private suspend fun restorePlaylists(backup: Backup): Int {
+        val existing = playlists.observePlaylists().first().associate { it.name to it.id }
+        var created = 0
+        backup.playlists.forEach { playlist ->
+            val id = when {
+                playlist.name == STARRED_PLAYLIST_NAME -> STARRED_PLAYLIST.also { playlists.ensure(it, playlist.name) }
+                else -> existing[playlist.name] ?: playlists.create(playlist.name).also { created++ }
+            }
+            playlist.items.mapNotNull { it.toPlayable() }.forEach { playlists.addItem(id, it) }
+            Diag.log("backup", "playlist \"${playlist.name}\": ${playlist.items.size} item(s) merged into ${id.value}")
+        }
+        return created
+    }
+
     suspend fun restore(backup: Backup): RestoreSummary {
         var restoredSubscriptions = 0
         backup.subscriptions.forEach { entry ->
@@ -110,14 +126,7 @@ class BackupService(
             restoredSubscriptions++
         }
 
-        val existingNames = playlists.observePlaylists().first().mapTo(mutableSetOf()) { it.name }
-        var restoredPlaylists = 0
-        backup.playlists.forEach { playlist ->
-            if (playlist.name in existingNames) return@forEach
-            val id = playlists.create(playlist.name)
-            playlist.items.mapNotNull { it.toPlayable() }.forEach { playlists.addItem(id, it) }
-            restoredPlaylists++
-        }
+        val restoredPlaylists = restorePlaylists(backup)
 
         backup.progress.forEach { entry ->
             val id = MediaItemId(canonicalItemId(entry.itemId))

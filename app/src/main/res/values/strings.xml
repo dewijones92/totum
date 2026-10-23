@@ -963,4 +963,10 @@
     <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>
     <string name="cast_strip_not_fetching">⚠️ %1$s isn\'t fetching anything from the phone. Is the phone on the same Wi-Fi, and not on a guest network?</string>
     <string name="cast_strip_sound_only">⚠️ %1$s can\'t show this video (%2$s), so it plays the sound only</string>
+    <string name="library_starred">⭐ Starred</string>
+    <string name="star">Star</string>
+    <string name="unstar">Unstar</string>
+    <string name="star_done">⭐ Starred “%1$s”</string>
+    <string name="unstar_done">☆ Unstarred “%1$s”</string>
+    <string name="star_account_problem">⚠️ %1$s here, but the YouTube like did not land: %2$s</string>
 </resources>

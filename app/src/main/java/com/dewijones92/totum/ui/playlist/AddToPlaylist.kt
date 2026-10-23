@@ -29,6 +29,7 @@ import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.stars.observeYourPlaylists
 import com.dewijones92.totum.ui.common.FilterableList
 import kotlinx.coroutines.launch
 
@@ -55,7 +56,7 @@ public fun rememberPlaylistPicker(container: AppContainer): (List<MediaItem>) ->
 @Composable
 private fun AddToPlaylistDialog(container: AppContainer, items: List<MediaItem>, onDismiss: () -> Unit) {
     val store = container.localPlaylistStore
-    val playlists by store.observePlaylists().collectAsStateWithLifecycle(emptyList())
+    val playlists by store.observeYourPlaylists().collectAsStateWithLifecycle(emptyList())
     val scope = container.applicationScope
     var newName by remember { mutableStateOf("") }
     val toAdd = remember(items) { items.mapNotNull { it.toPlayableOrNull() } }

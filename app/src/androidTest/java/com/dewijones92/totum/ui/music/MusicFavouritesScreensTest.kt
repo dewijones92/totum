@@ -210,7 +210,7 @@ class MusicFavouritesScreensTest {
     }
 
     @Test
-    fun aSongsMenuLikesItOnTheAccount() {
+    fun aSongsMenuStarLikesItOnTheAccount() {
         val song = MediaItem(
             MediaItemId("Nn_CcTBataE"),
             SourceId("music:album:x"),
@@ -231,8 +231,8 @@ class MusicFavouritesScreensTest {
         rule.onNodeWithContentDescription(text(R.string.queue_menu)).performClick()
         rule.waitUntil(
             TIMEOUT_MS
-        ) { rule.onAllNodes(hasText(text(R.string.music_like))).fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithText(text(R.string.music_like)).performClick()
+        ) { rule.onAllNodes(hasText(text(R.string.star))).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithText(text(R.string.star)).performClick()
 
         rule.waitUntil(TIMEOUT_MS) { actions.ratingCalls.isNotEmpty() }
         assertEquals(listOf("Nn_CcTBataE" to VideoRating.LIKE), actions.ratingCalls)

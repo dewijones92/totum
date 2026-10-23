@@ -122,7 +122,7 @@ internal fun ActionSheet(
             SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
-            SongLikeAction(extras.songId, title, onDismiss)
+            StarAction(extras.item, onDismiss)
             PinSheetActions(pins, extras.pin, onDismiss)
             extras.item?.let { DetailsSection(it) }
             SheetAction(

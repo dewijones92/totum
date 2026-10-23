@@ -24,6 +24,7 @@ import com.dewijones92.totum.playback.PlaybackIntent
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +56,7 @@ constructor(
     private val launcher: VideoPlaybackLauncher,
     private val queue: PlaybackQueue,
     private val preferences: AppPreferences,
+    private val stars: Stars? = null,
 ) : ViewModel() {
 
     /** The current video's selectable qualities; switching replays from the same spot. */
@@ -270,7 +272,21 @@ constructor(
         val previous = _rating.value
         _rating.value = target // optimistic
         viewModelScope.launch {
-            if (actions.setRating(id, target) !is ActionResult.Success) _rating.value = previous
+            if (actions.setRating(id, target) !is ActionResult.Success) {
+                _rating.value = previous
+                return@launch
+            }
+            val playing = queue.nowPlaying.value?.takeIf { it.item.id.value == id }
+            val starring = target == VideoRating.LIKE
+            if (playing == null) {
+                Diag.log(
+                    "stars",
+                    "$id ${target.name.lowercase()}d in the player, but it is not the item playing; star unchanged"
+                )
+            } else if (starring || previous == VideoRating.LIKE) {
+                stars?.markHere(playing, starring)
+                Diag.log("stars", "$id ${if (starring) "liked, so starred" else "unliked, so unstarred"} here too")
+            }
         }
     }
 
@@ -342,6 +358,7 @@ constructor(
                     container.videoPlaybackLauncher,
                     container.playbackQueue,
                     container.appPreferences,
+                    container.stars,
                 )
             }
         }

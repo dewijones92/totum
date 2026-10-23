@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -38,6 +39,7 @@ import com.dewijones92.totum.ui.common.BulkAction
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ListFilter
+import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.rememberChooseDownload
@@ -71,6 +73,7 @@ fun LocalPlaylistDetailScreen(
                 onBack = onBack,
                 onRename = { renaming = true },
                 onDelete = viewModel::delete,
+                fixed = viewModel.isStarred,
                 filterToggle = { FilterToggle(listFilter, items.size) },
             )
             PlaylistBody(items, downloadStates, viewModel, listFilter)
@@ -133,7 +136,10 @@ private fun PlaylistBody(
                 )
             },
         ) {
-            LazyColumn(Modifier.fillMaxSize()) {
+            val listState = rememberLazyListState()
+            val moreLikes by viewModel.canLoadMoreLikes.collectAsStateWithLifecycle()
+            LoadMoreUnlessFiltered(listFilter, listState, moreLikes, shown.size, viewModel::loadMoreLikes)
+            LazyColumn(Modifier.fillMaxSize(), state = listState) {
                 items(shown, key = { it.item.id.value }) { playlistItem ->
                     val media = playlistItem.item
                     MediaItemRow(
@@ -158,30 +164,33 @@ private fun DetailHeader(
     onBack: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    fixed: Boolean,
     filterToggle: @Composable () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     BackHeader(name, onBack) {
         filterToggle()
-        Box {
-            IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
-            }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.playlist_rename)) },
-                    onClick = {
-                        menu = false
-                        onRename()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.playlist_delete)) },
-                    onClick = {
-                        menu = false
-                        onDelete()
-                    },
-                )
+        if (!fixed) {
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.playlist_rename)) },
+                        onClick = {
+                            menu = false
+                            onRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.playlist_delete)) },
+                        onClick = {
+                            menu = false
+                            onDelete()
+                        },
+                    )
+                }
             }
         }
     }

@@ -18,7 +18,6 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
-import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.pins.Pin
@@ -47,7 +46,6 @@ data class SheetExtras(
     val pin: Pin? = null,
     val onGoToAlbum: (() -> Unit)? = null,
     val music: Boolean = false,
-    val songId: String? = null,
     val item: MediaItem? = null,
 )
 
@@ -57,7 +55,6 @@ internal fun sheetExtrasFor(item: MediaItem, onStartRadio: (() -> Unit)?): Sheet
     pin = item.toPlayableOrNull()?.let(Pin::of),
     onGoToAlbum = LocalItemActions.current?.albumLink(item),
     music = item.contentKind == MediaContentKind.MUSIC,
-    songId = item.id.value.takeIf { item.contentKind == MediaContentKind.MUSIC && isYouTubeVideoId(it) },
     item = item,
 )
 

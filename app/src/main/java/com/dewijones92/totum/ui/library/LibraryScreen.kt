@@ -46,6 +46,7 @@ import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.stars.STARRED_PLAYLIST
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BackHeader
@@ -106,6 +107,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
             onOpenAccount = { go(LibraryPage.ACCOUNT) },
             onOpenStats = { go(LibraryPage.STATS) },
             onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
+            onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
             modifier = modifier,
         )
     }
@@ -120,6 +122,7 @@ private fun LibraryHome(
     onOpenAccount: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenStarred: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
@@ -134,6 +137,7 @@ private fun LibraryHome(
         onOpenAccount = onOpenAccount,
         onOpenStats = onOpenStats,
         onOpenDownloads = onOpenDownloads,
+        onOpenStarred = onOpenStarred,
         modifier = modifier,
         downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),

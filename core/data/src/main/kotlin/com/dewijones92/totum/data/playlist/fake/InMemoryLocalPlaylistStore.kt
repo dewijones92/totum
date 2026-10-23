@@ -31,6 +31,10 @@ public class InMemoryLocalPlaylistStore : LocalPlaylistStore {
         return PlaylistId(id)
     }
 
+    override suspend fun ensure(id: PlaylistId, name: String) {
+        playlists.update { if (id.value in it) it else it + (id.value to Entry(name, emptyList())) }
+    }
+
     override suspend fun rename(id: PlaylistId, name: String) {
         playlists.update { map -> map[id.value]?.let { map + (id.value to it.copy(name = name)) } ?: map }
     }
