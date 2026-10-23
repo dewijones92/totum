@@ -26,6 +26,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.TrackedViewModel
@@ -75,6 +76,7 @@ class SearchViewModel(
     private val history: SearchHistoryStore,
     val scope: SearchScope = SearchScope.EVERYTHING,
     private val onSearched: (SearchScope) -> Unit = {},
+    private val episodeDownloads: EpisodeDownloads? = null,
 ) : TrackedViewModel("search") {
 
     data class UiState(
@@ -343,6 +345,23 @@ class SearchViewModel(
      * Preparing is the slow part (the server has to reach the swarm and read the metadata), so
      * the UI is told it is working rather than left silent for several seconds.
      */
+    fun downloadTorrent(hit: SearchHit.Torrent) {
+        val server = torrents?.server ?: return
+        val episodes = episodeDownloads ?: return
+        viewModelScope.launch {
+            playAttempt.value = PlayAttempt(resolving = hit.title)
+            val prepared = server.prepare(hit.magnet)
+            val items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
+            playAttempt.value = if (items.isEmpty()) PlayAttempt(failed = true) else PlayAttempt()
+            if (items.isEmpty()) {
+                Diag.warn("search", "\"${hit.title}\" had nothing to download in it")
+                return@launch
+            }
+            Diag.log("search", "offering ${items.size} file(s) of \"${hit.title}\" to download")
+            episodes.ask(prepared!!.name, items)
+        }
+    }
+
     fun playTorrent(hit: SearchHit.Torrent) {
         val server = torrents?.server ?: return
         viewModelScope.launch {
@@ -524,6 +543,7 @@ class SearchViewModel(
                     history = container.searchHistoryStore,
                     scope = scope,
                     onSearched = { container.statsLog.use(UseKind.SEARCH, it.name) },
+                    episodeDownloads = container.episodeDownloads,
                 )
             }
         }

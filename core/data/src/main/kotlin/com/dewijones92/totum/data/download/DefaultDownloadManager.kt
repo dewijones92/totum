@@ -42,35 +42,9 @@ public class DefaultDownloadManager(
 
     private val slots = Semaphore(MAX_AT_ONCE)
 
-    override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
+    private val notes = DownloadNotes(File(downloadDir, NOTES_FILE))
 
-    init {
-        // A "Downloading" record at startup means the process died mid-download. Its coroutine is
-        // gone, so nothing will ever move it -- but DELETING it, which is what happened until
-        // 2026-08-31, makes the download silently un-happen: the row disappears, the partial file
-        // becomes bytes nothing points at, and whoever asked for it is told nothing. For a
-        // backgrounded app that is often, because Android reclaims the process. Recorded as failed
-        // instead, so Library offers Retry and the queue's automatic pass asks again. No event is
-        // emitted: the row is the surface for this, and a failure notification for something about
-        // to be retried automatically would only alarm.
-        scope.launch {
-            store.observeAll().first()
-                .filterValues { it is DownloadState.Downloading }
-                .keys.forEach { id ->
-                    val request = store.request(id)
-                    if (request == null) {
-                        Diag.warn("download", "dropping interrupted download ${id.value}: no record of what it was")
-                        store.remove(id)
-                    } else {
-                        Diag.warn(
-                            "download",
-                            "\"${request.item.item.title}\" was interrupted by the app stopping — it can be retried",
-                        )
-                        store.put(request.item, DownloadState.Failed(INTERRUPTED), request.audioOnly)
-                    }
-                }
-        }
-    }
+    override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
 
     // Replay nothing and never suspend the producer: a download must not be held up by
     // whether anyone is listening to notifications.
@@ -108,6 +82,7 @@ public class DefaultDownloadManager(
                     // survive: the next fetch of this id would resume from bytes belonging to
                     // a download that has already finished.
                     target.partialDownload().delete()
+                    notes.settled(media.id)
                     Diag.log("download", "done ${media.title} sponsorSegmentsCut=${state.sponsorSegmentsCut}")
                     onDownloaded(item)
                 }
@@ -142,9 +117,56 @@ public class DefaultDownloadManager(
     private val upgrading = ConcurrentHashMap<MediaItemId, Kept>()
     private val runningLock = Mutex()
 
+    init {
+        // A "Downloading" record at startup means the process died mid-download. Its coroutine is
+        // gone, so nothing will ever move it -- but DELETING it, which is what happened until
+        // 2026-08-31, makes the download silently un-happen: the row disappears, the partial file
+        // becomes bytes nothing points at, and whoever asked for it is told nothing. For a
+        // backgrounded app that is often, because Android reclaims the process. Recorded as failed
+        // instead, so Library offers Retry and the queue's automatic pass asks again. No event is
+        // emitted: the row is the surface for this, and a failure notification for something about
+        // to be retried automatically would only alarm.
+        scope.launch {
+            store.observeAll().first()
+                .filterValues { it is DownloadState.Downloading }
+                .keys.forEach { id ->
+                    val request = store.request(id)
+                    if (request == null) {
+                        Diag.warn("download", "dropping interrupted download ${id.value}: no record of what it was")
+                        store.remove(id)
+                    } else {
+                        resumeOrFail(request)
+                    }
+                }
+        }
+    }
+
+    private suspend fun resumeOrFail(request: DownloadRequest) {
+        val id = request.item.item.id
+        val title = request.item.item.title
+        val attempt = notes.resumedOnceMore(id)
+        if (attempt > MAX_RESUMES) {
+            Diag.warn(
+                "download",
+                "\"$title\" was interrupted by the app stopping again (fresh start $attempt); left for Retry",
+            )
+            store.put(request.item, DownloadState.Failed(INTERRUPTED), request.audioOnly)
+            return
+        }
+        val height = notes.height(id)
+        Diag.log(
+            "download",
+            "\"$title\" was interrupted by the app stopping; starting it again (fresh start $attempt of " +
+                "$MAX_RESUMES) audioOnly=${request.audioOnly} maxHeight=${height ?: "best"}",
+        )
+        store.remove(id)
+        download(request.item, request.audioOnly, height)
+    }
+
     override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
         val media = item.item
         if (store.get(media.id).satisfies(audioOnly)) return
+        notes.asked(media.id, maxHeight)
         // What is already being fetched is answered from MEMORY, under the lock, never from the
         // store. The store is Room: its first Downloading row lands milliseconds after it is
         // written, so two callers arriving inside that window both read NotDownloaded, both claim
@@ -281,10 +303,14 @@ public class DefaultDownloadManager(
             Diag.warn("download", "retry $id: nothing to retry, there is no record of it")
             return
         }
-        Diag.log("download", "retry audioOnly=${request.audioOnly} ${request.item.item.title}")
+        val height = notes.height(id)
+        Diag.log(
+            "download",
+            "retry audioOnly=${request.audioOnly} maxHeight=${height ?: "best"} ${request.item.item.title}"
+        )
         // Cleared first, or `download` sees a record and decides the request is already satisfied.
         store.remove(id)
-        download(request.item, request.audioOnly)
+        download(request.item, request.audioOnly, height)
     }
 
     /**
@@ -312,6 +338,7 @@ public class DefaultDownloadManager(
             target.partialDownload().delete()
         }
         store.remove(id)
+        notes.forget(id)
     }
 
     override suspend fun noteOpened(id: MediaItemId) {
@@ -352,4 +379,6 @@ public class DefaultDownloadManager(
 
 private const val PROGRESS_WRITE_EVERY_MS = 1_000L
 private const val MAX_AT_ONCE = 4
+private const val MAX_RESUMES = 2
+private const val NOTES_FILE = "download-notes.txt"
 private const val NANOS_PER_MS = 1_000_000L

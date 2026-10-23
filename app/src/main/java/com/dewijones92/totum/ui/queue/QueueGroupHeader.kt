@@ -64,6 +64,7 @@ internal data class GroupHeaderActions(
     val onSort: ((MediaSort) -> Unit)? = null,
     val onSelect: (() -> Unit)? = null,
     val onStartAgain: (() -> Unit)? = null,
+    val onPickDownloads: (() -> Unit)? = null,
 )
 
 @Composable
@@ -237,6 +238,7 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
             } else {
                 MenuItem(R.string.queue_group_download, close) { actions.onSetDownload(true) }
             }
+            actions.onPickDownloads?.let { MenuItem(R.string.queue_group_download_pick, close, it) }
             actions.onSelect?.let { MenuItem(R.string.queue_group_select, close, it) }
             actions.onStartAgain?.let { MenuItem(R.string.queue_group_start_again, close, it) }
             MenuItem(R.string.queue_remove_group, close) { confirm(removeTexts, actions.onRemove) }

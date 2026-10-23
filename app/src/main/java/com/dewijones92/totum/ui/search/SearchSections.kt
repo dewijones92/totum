@@ -33,6 +33,7 @@ import com.dewijones92.totum.ui.search.SearchViewModel.Results
 internal fun LazyListScope.torrentSection(
     results: Results.Loaded,
     onPlayTorrent: (SearchHit.Torrent) -> Unit,
+    onDownloadTorrent: ((SearchHit.Torrent) -> Unit)? = null,
 ) {
     // Named rather than a generic error: the home server is only reachable at home or on
     // wg-home, so "cannot reach it" is usually a fact about where you are, not a fault.
@@ -46,7 +47,9 @@ internal fun LazyListScope.torrentSection(
                 ),
             )
         },
-    ) { hit -> TorrentHitRow(hit = hit, onPlay = { onPlayTorrent(hit) }) }
+    ) { hit ->
+        TorrentHitRow(hit = hit, onPlay = { onPlayTorrent(hit) }, onDownload = onDownloadTorrent?.let { { it(hit) } })
+    }
 }
 
 /**

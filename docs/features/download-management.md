@@ -199,6 +199,13 @@ now come from one rule (`downloadLabel`): 🎧 Download the sound only · 🎬 D
 ⬇️ Download the whole file; the full player's menu offers both sound and video for a video; bulk, album and queue-group
 downloads say sound or in full.
 
+## Choose episodes, and resuming (2026-10-23)
+
+A queue group's ⋮ → ⬇️ Choose episodes to download…, or a torrent result's ⬇️, opens one sheet listing every episode
+(already on the phone unticked), the sound / video choice for YouTube items, and "Download N". A download the app died
+during starts again by itself at the next launch, with its height, at most twice
+([ADR 80](../adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md)).
+
 ## Sound or video, and which quality (2026-10-23)
 
 ⬇️ asks 🎧 Sound or 🎬 Video (best, 1080p, 720p, 480p), with "Remember for next time"; once remembered, ⬇️ just

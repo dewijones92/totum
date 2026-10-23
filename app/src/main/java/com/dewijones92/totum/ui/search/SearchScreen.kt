@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Search
@@ -126,6 +127,7 @@ fun SearchScreen(
         onPlayVideo = viewModel::playVideo,
         onPlaySong = viewModel::playSong,
         onPlayTorrent = viewModel::playTorrent,
+        onDownloadTorrent = viewModel::downloadTorrent,
         onRemoveHistory = viewModel::removeHistory,
         onClearHistory = viewModel::clearHistory,
         actions = actions,
@@ -171,6 +173,7 @@ internal fun SearchContent(
     modifier: Modifier = Modifier,
     header: SearchHeader = SearchHeader(stringResource(R.string.destination_search), null),
     idle: (@Composable () -> Unit)? = null,
+    onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf(header.initialQuery) }
     var submitted by rememberSaveable { mutableStateOf(header.initialQuery.trim()) }
@@ -213,6 +216,7 @@ internal fun SearchContent(
                 onGoToChannel,
                 more,
                 query = submitted,
+                onDownloadTorrent = onDownloadTorrent,
             )
         }
     }
@@ -354,6 +358,7 @@ private fun ResultsList(
     more: SearchMore,
     modifier: Modifier = Modifier,
     query: String = "",
+    onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     // The same scroll trigger the account feeds and channel tabs use.
@@ -362,7 +367,7 @@ private fun ResultsList(
     val selectable = remember(results) { results.selectableItems() }
     SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize(), key = query) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            torrentSection(results, onPlayTorrent)
+            torrentSection(results, onPlayTorrent, onDownloadTorrent)
             hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
                     hit: SearchHit.Podcast ->
                 PodcastHitRow(
@@ -561,6 +566,7 @@ internal fun TorrentHitRow(
     hit: SearchHit.Torrent,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,
+    onDownload: (() -> Unit)? = null,
 ) {
     ListItem(
         headlineContent = { Text(hit.title) },
@@ -571,6 +577,16 @@ internal fun TorrentHitRow(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
+        },
+        trailingContent = onDownload?.let { download ->
+            {
+                IconButton(onClick = download) {
+                    Icon(
+                        Icons.Outlined.Download,
+                        contentDescription = stringResource(R.string.torrent_download_episodes)
+                    )
+                }
+            }
         },
         modifier = modifier.clickable(onClick = onPlay),
     )

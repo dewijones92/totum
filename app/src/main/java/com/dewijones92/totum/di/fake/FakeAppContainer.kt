@@ -54,6 +54,7 @@ import com.dewijones92.totum.domain.NoReconciledAccountProgress
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.downloads.DownloadChooser
+import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.InMemoryExsurgeStore
 import com.dewijones92.totum.exsurge.NoExsurgePorts
@@ -259,6 +260,8 @@ class FakeAppContainer(
         Stars(localPlaylistStore) { id, title, liked -> musicFavourites.setSongLiked(id, title, liked) }
     }
     override val randomStarts: RandomStarts by lazy { RandomStarts(playbackProgressStore, null, applicationScope) }
+    override val episodeDownloads: EpisodeDownloads by lazy { EpisodeDownloads(downloadManager, applicationScope) }
+
     override val queueSkips: QueueSkips by lazy {
         QueueSkips(
             applicationScope,

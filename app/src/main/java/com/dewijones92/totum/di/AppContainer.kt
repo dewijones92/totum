@@ -15,6 +15,7 @@ import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.cast.CastTarget
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.dailyAlarmController
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
@@ -106,6 +107,7 @@ import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.downloads.DownloadChooser
+import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.PrefsDownloadLocks
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
@@ -247,6 +249,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -484,6 +487,7 @@ interface AppContainer {
     val recentActions: RecentActions
     val exploreMode: ExploreMode
     val queueSkips: QueueSkips
+    val episodeDownloads: EpisodeDownloads
     val statsLog: StatsLog
     val groupDownloads: GroupDownloads
     val randomStarts: RandomStarts
@@ -1074,7 +1078,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // itself errs the other way when unsure, which is the safe direction for data.
             offline = ::isOffline,
             readyThePicture = { item -> readyAhead.ready(item, "audio copy playing") },
-            refresh = { item -> readyAgain(item) },
+            refresh = { item -> withContext(PoliteGate.background()) { readyAgain(item) } },
             sourceArtwork = { sourceArtworkNow.value },
             refreshSkipsOnDisk = skipSegmentsOnDisk::refresh,
             passOver = { item ->
@@ -1465,6 +1469,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
     override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
+
+    override val episodeDownloads: EpisodeDownloads by lazy { EpisodeDownloads(downloadManager, applicationScope) }
 
     override val queueSkips: QueueSkips by lazy {
         QueueSkips(

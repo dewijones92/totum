@@ -86,6 +86,7 @@ say why it is the way it is.
 | Download choice (Oct 2026) | ⬇️ asks 🎧 Sound or 🎬 Video (best/1080/720/480) with "remember"; once remembered it just downloads and press and hold asks again; one `DownloadChooser` for every list; the height is a ceiling passed to every strategy | Dewi's "choose audio, video and quality"; [ADR 77](docs/adr/0077-a-download-asks-sound-or-video-and-quality.md) |
 | Captions (Oct 2026) | On in English by default for everything; switching off lasts one item; a chosen language carries on; the CC menu also lists a file's own subtitle tracks (torrent MKVs); no captions fetched in Listen | Report 0.1.686 and Dewi's "defaulted on English … come back on the next item"; [ADR 78](docs/adr/0078-captions-are-on-in-english-and-off-is-for-one-item.md) |
 | Stars (Oct 2026) | ⭐ in every item's menu (and the player's Like) for both pillars; kept in a built-in "⭐ Starred" playlist, so it is backed up; a YouTube item's star is also its Like on the account; Library → ⭐ Starred merges the account's Liked videos | Dewi's "star anything"; [ADR 79](docs/adr/0079-a-star-for-anything-likes-youtube-items.md) |
+| Episode downloads (Oct 2026) | A queue group's ⋮ and a torrent result's ⬇️ open one sheet: every episode ticked except what is on the phone, the ADR 77 choice for YouTube items (torrents and podcasts as files); four at a time; any interrupted download starts again by itself at the next launch, with its height, at most twice | Dewi's "download a whole series"; [ADR 80](docs/adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md) |
 | Library hub (Oct 2026) | The Library tab fits on one screen (Recently, Pinned, tiles); Downloads is a tile with a count line and opens its own page | The download manager under the tiles made every other Library page a long scroll away; [ADR 73](docs/adr/0073-the-library-is-a-hub-and-downloads-have-their-own-page.md) |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
 
@@ -362,7 +363,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   `when` failing to compile. `DownloadState` in `:core:domain`; playback
   prefers the local file wherever one exists — decided by `routeNow` below, for
   both pillars, so a downloaded video needs no re-resolution. Interrupted downloads (a `Downloading` row at
-  startup) are dropped — an absent record already means NotDownloaded.
+  startup) start again by themselves, with their variant and height, at most twice, then are left Failed for Retry
+  (ADR 80; until 2026-08-31 they were dropped, then left Failed).
   Strategy IO runs off the main thread (`flowOn(Dispatchers.IO)`). Verified
   offline in airplane mode; video merge verified on-device (AV1 4K + Opus →
   one Matroska, played locally).

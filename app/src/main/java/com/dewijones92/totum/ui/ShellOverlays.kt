@@ -9,11 +9,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.DownloadChoiceAsk
+import com.dewijones92.totum.ui.common.EpisodePicker
 import com.dewijones92.totum.ui.common.LockedDownloadAsk
 import com.dewijones92.totum.ui.playlist.PlaylistScreen
 import com.dewijones92.totum.ui.podcasts.PodcastFeedScreen
@@ -30,6 +32,11 @@ internal fun ShellOverlays(
 ) {
     LockedDownloadAsk(container.lockingDownloads)
     DownloadChoiceAsk(container.downloadChooser)
+    EpisodePicker(
+        container.episodeDownloads,
+        container.downloadManager,
+        container.appPreferences.settings.collectAsStateWithLifecycle().value.downloadChoice,
+    )
     // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
     // channel reached via "go to channel" listed its playlists and none of them would open.
     var playlist by remember(source) { mutableStateOf<Playlist?>(null) }

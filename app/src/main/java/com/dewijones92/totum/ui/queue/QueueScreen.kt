@@ -182,6 +182,7 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onSort = { onSortGroup(id, it) },
     onSelect = { selection.selectAll(groupIdsOf(id)) },
     onStartAgain = { onStartGroupAgain(id) },
+    onPickDownloads = { onPickGroupDownloads(id) },
 )
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -249,6 +250,10 @@ private fun rememberQueueActions(
         selection = selection,
         onStartGroupAgain = startAgain,
         groupIdsOf = { id -> queue.idsIn(id) },
+        onPickGroupDownloads = { id ->
+            val members = queue.state.value.entries.filter { it.group?.id == id }
+            container.episodeDownloads.ask(members.firstOrNull()?.group?.title ?: id, members.map { it.item })
+        },
     )
 }
 
@@ -276,6 +281,7 @@ private data class QueueActions(
     val selection: Selection,
     val onStartGroupAgain: (String) -> Unit,
     val groupIdsOf: (String) -> List<String>,
+    val onPickGroupDownloads: (String) -> Unit,
 )
 
 /**

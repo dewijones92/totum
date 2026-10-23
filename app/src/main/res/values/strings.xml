@@ -969,4 +969,14 @@
     <string name="star_done">⭐ Starred “%1$s”</string>
     <string name="unstar_done">☆ Unstarred “%1$s”</string>
     <string name="star_account_problem">⚠️ %1$s here, but the YouTube like did not land: %2$s</string>
+    <string name="episodes_title">⬇️ Download from “%1$s”</string>
+    <string name="episodes_on_phone">📥 %1$d of %2$d on the phone</string>
+    <string name="episodes_all">Select all</string>
+    <string name="episodes_none">Select none</string>
+    <string name="episodes_download">Download %1$d</string>
+    <string name="episodes_state_on_phone">✅ on the phone</string>
+    <string name="episodes_state_downloading">⏳ downloading</string>
+    <string name="episodes_state_failed">❌ failed</string>
+    <string name="queue_group_download_pick">⬇️ Choose episodes to download…</string>
+    <string name="torrent_download_episodes">Download episodes</string>
 </resources>

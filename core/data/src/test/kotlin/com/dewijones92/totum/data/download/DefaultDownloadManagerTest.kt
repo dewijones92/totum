@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -144,35 +145,45 @@ class DefaultDownloadManagerTest {
         assertFalse(called)
     }
 
-    /**
-     * A download the process died during must be left VISIBLE and retryable, not vanish.
-     *
-     * It used to be deleted outright, on the reasoning that its coroutine was gone so the row would
-     * only show a stuck spinner. True, but the consequence is worse: the row disappears, the partial
-     * file becomes bytes nothing in the app points at, and the person who asked for the download is
-     * told nothing — a download that silently un-happens every time Android reclaims the process,
-     * which for a backgrounded app is often. Recorded as failed instead, so Library offers Retry and
-     * the queue's automatic pass asks again.
-     */
     @Test
-    fun `a download the app died during is left failed, so it can be retried`() = runTest {
+    fun `a download the app died during starts again by itself, as it was asked for`() = runTest {
+        val asked = mutableListOf<Pair<Boolean, Int?>>()
+        val strategy = object : DownloadStrategy {
+            override fun download(item: PlayableItem, target: java.io.File, audioOnly: Boolean) =
+                download(item, target, audioOnly, null)
+
+            override fun download(item: PlayableItem, target: java.io.File, audioOnly: Boolean, maxHeight: Int?) =
+                flowOf<DownloadState>(
+                    DownloadState.Downloaded(target.absolutePath)
+                ).also { asked += audioOnly to maxHeight }
+        }
+        manager(strategy, backgroundScope).download(item.asPlayable(), audioOnly = true, maxHeight = 720)
+        advanceUntilIdle()
+        asked.clear()
         store.put(item.asPlayable(), DownloadState.Downloading(500, 1000), audioOnly = true)
 
-        // Unconfined so the manager's init sweep runs eagerly at construction.
-        manager(DownloadStrategy { _, _, _ -> flowOf() }, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        manager(strategy, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
         advanceUntilIdle()
 
+        assertEquals(listOf(true to 720), asked)
+        assertTrue(store.get(item.id) is DownloadState.Downloaded)
+    }
+
+    @Test
+    fun `a download that keeps dying with the app is left failed after two fresh starts`() = runTest {
+        repeat(3) {
+            store.put(item.asPlayable(), DownloadState.Downloading(500, 1000), audioOnly = true)
+            manager(
+                DownloadStrategy { _, _, _ -> kotlinx.coroutines.flow.flow { kotlinx.coroutines.awaitCancellation() } },
+                CoroutineScope(UnconfinedTestDispatcher(testScheduler) + kotlinx.coroutines.Job()),
+            )
+            advanceTimeBy(1_000)
+        }
+
         val state = store.get(item.id)
-        assertTrue("an interrupted download must be reported, not dropped. Got: $state", state is DownloadState.Failed)
-        assertFalse(
-            "and it must stay retryable — the app stopping says nothing about the media",
-            (state as DownloadState.Failed).isPermanent,
-        )
-        assertEquals(
-            "what was asked for must survive too, or the retry fetches the wrong variant",
-            true,
-            store.request(item.id)?.audioOnly,
-        )
+        assertTrue("got $state", state is DownloadState.Failed)
+        assertFalse((state as DownloadState.Failed).isPermanent)
+        assertEquals(true, store.request(item.id)?.audioOnly)
     }
 
     /**
