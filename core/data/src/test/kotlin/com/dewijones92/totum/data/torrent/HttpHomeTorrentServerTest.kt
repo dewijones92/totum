@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.common.HttpUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -170,6 +171,31 @@ class HttpHomeTorrentServerTest {
 
         assertEquals(setOf("bytes=0-1048575", "bytes=-1048576"), ranges.toSet())
         assertTrue(server.takeRequest().target.startsWith("/ts/stream/"))
+    }
+
+    @Test
+    fun `the next episode's video is warmed from the address its queue entry holds`() = runTest {
+        val ranges = mutableListOf<String?>()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                synchronized(ranges) { ranges += request.headers["Range"] }
+                return MockResponse.Builder().code(206).body("x").build()
+            }
+        }
+        val torrents = serverWith(token = { "t" }, key = { "k" })
+        val film = PreparedTorrent("abc", "Sintel", listOf(TorrentFile(index = 6, path = "sintel.mkv", sizeBytes = 1)))
+
+        torrents.warmStream(torrents.stream(film, film.files.single()))
+
+        assertEquals(setOf("bytes=0-1048575", "bytes=-1048576"), ranges.toSet())
+        assertTrue(server.takeRequest().target.startsWith("/ts/stream/"))
+    }
+
+    @Test
+    fun `an address that is not one of the server's streams is not warmed`() = runTest {
+        serverWith(token = { "t" }, key = { "k" }).warmStream(HttpUrl.of("https://cdn.example.com/episode.mp3"))
+
+        assertEquals(0, server.requestCount)
     }
 
     @Test

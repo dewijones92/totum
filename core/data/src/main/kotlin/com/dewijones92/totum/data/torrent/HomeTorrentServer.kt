@@ -67,7 +67,9 @@ public interface HomeTorrentServer {
      */
     public suspend fun warmAudio(audioUrl: HttpUrl)
 
-    public suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile)
+    public suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile): Unit = warmStream(stream(torrent, file))
+
+    public suspend fun warmStream(streamUrl: HttpUrl)
 }
 
 public sealed interface TorrentSearchResult {

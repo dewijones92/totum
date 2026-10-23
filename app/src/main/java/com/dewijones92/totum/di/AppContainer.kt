@@ -1213,6 +1213,20 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private fun audioPlaybackPreferred(): Boolean = listeningNow
 
+    private suspend fun warmTheNextPicture(item: PlayableItem, handle: PlayHandle.Podcast) {
+        val server = homeTorrentServer ?: return
+        val stream = item.item.mediaUrl ?: return
+        if (handle.audioUrl == null || handle.localPath != null) return
+        when {
+            listeningNow -> Diag.log("torrent", "not warming the picture of ${item.item.id.value}: listening")
+            networkStatus.isMetered() -> Diag.log(
+                "torrent",
+                "not warming the picture of ${item.item.id.value}: on metered data"
+            )
+            else -> server.warmStream(stream)
+        }
+    }
+
     /**
      * Whether automatic downloads may run on the connection we are on right now.
      *
@@ -1245,7 +1259,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     }
                 }
             is PlayHandle.LocalVideo -> Unit
-            is PlayHandle.Podcast -> handle.audioUrl?.let { homeTorrentServer?.warmAudio(it) }
+            is PlayHandle.Podcast -> {
+                handle.audioUrl?.let { homeTorrentServer?.warmAudio(it) }
+                warmTheNextPicture(item, handle)
+            }
         }
         preloadBytesOf(item)
     }

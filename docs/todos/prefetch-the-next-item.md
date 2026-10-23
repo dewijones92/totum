@@ -4,7 +4,7 @@ kind: todo
 area: playback
 priority: medium
 status: done — readiness and byte preload both shipped, Wi-Fi only; the held bytes were never PLAYED until 2026-10-07 (ADR 13)
-updated: 2026-10-07
+updated: 2026-10-23
 ---
 
 # Preload the next item's first 30 seconds
@@ -29,7 +29,7 @@ playable cannot silently get no preparation.
 | Handle | Getting it ready |
 |---|---|
 | `Video` | resolve, warming the resolver's short-lived cache |
-| `Podcast` with an `audioUrl` (a torrent) | ask the home server to start remuxing — the ~25s case |
+| `Podcast` with an `audioUrl` (a torrent) | ask the home server to start remuxing — the ~25s case; and, unless listening or on metered data, fetch the first and last megabyte of its video stream (`warmStream`, 2026-10-23), so TorrServer has the swarm going before the hand-over |
 | `Podcast` without one | nothing; an enclosure URL is already playable |
 | `LocalVideo` | nothing; it is already on the device |
 

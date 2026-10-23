@@ -45,6 +45,12 @@ public class FakeHomeTorrentServer(
         warmedVideo += torrent.hash to file.index
     }
 
+    public val warmedStreams: MutableList<String> = mutableListOf()
+
+    override suspend fun warmStream(streamUrl: HttpUrl) {
+        warmedStreams += streamUrl.value
+    }
+
     override suspend fun warmAudio(audioUrl: HttpUrl) {
         warmed += audioUrl.value.substringBefore('?').removeSuffix("/index.m3u8").substringAfterLast("/audio/")
     }

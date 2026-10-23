@@ -30,6 +30,9 @@ its caption files, so when the player took that copy over (every gapless hand-ov
 - The menu lists `PlaybackState.subtitleChoices`: the fetched tracks, then the file's own text tracks from the player
   (`subtitleChoices`, deduplicated by base language, "English (in the file)"; one with no language is "Subtitles (in
   the file)" and is chosen through Media3's undetermined-language selection). The About card lists the same.
+- While casting the phone shows artwork, not the video overlay, so the CC button also sits on the "📺 Casting to …"
+  card (report 0.1.686, 11:42: *"how to enable sub titles?"* while casting Peppa Pig). The TV follows the phone's
+  choice (ADR 68).
 - In Listen mode the text track type is disabled, so no caption file is fetched for an item nobody is watching.
 - The preloader hands over its held copy only to an item with no caption files; one with captions loads afresh
   (logged), keeping its captions. Gapless still crosses over, because the armed item is the player's own second entry.

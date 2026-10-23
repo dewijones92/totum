@@ -26,7 +26,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.rememberField
 
 @Composable
-fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
+fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Composable () -> Unit = {}) {
     if (!state.onCastDevice && state.castDeviceName == null) return
     val device = state.castDeviceName ?: stringResource(R.string.cast_strip_unnamed_device)
     Surface(
@@ -44,6 +44,7 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.weight(1f),
                 )
+                actions()
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
             }
             (state.castFetchHeight ?: state.castVideoHeight)?.let { height ->

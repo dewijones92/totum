@@ -288,6 +288,7 @@ private fun DraggablePlayerContent(
         ) {
             PlayerDetails(
                 state = state,
+                settings = videoSettings,
                 controlsOverlaid = videoPlayer != null,
                 comments = comments,
                 replies = replies,
@@ -366,6 +367,7 @@ private fun ColumnScope.PlayerStage(
 @Composable
 private fun PlayerDetails(
     state: PlaybackState,
+    settings: VideoSettings,
     controlsOverlaid: Boolean,
     comments: CommentsState,
     replies: CommentReplies,
@@ -386,7 +388,9 @@ private fun PlayerDetails(
     toggles: PlaybackToggles,
 ) {
     Spacer(Modifier.height(if (state.hasVideo) 16.dp else 32.dp))
-    CastStrip(state, Modifier.padding(bottom = 12.dp))
+    CastStrip(state, Modifier.padding(bottom = 12.dp)) {
+        if (settings.subtitles.isNotEmpty()) SubtitleMenu(settings)
+    }
     TitleBlock(state)
 
     // Audio: seek + transport sit below the artwork (video has them overlaid).

@@ -26,6 +26,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
+import com.dewijones92.totum.playback.SubtitleChoice
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.player.CommentReplies
@@ -193,6 +194,20 @@ class PlayerKeepsEveryControlTest {
     private fun onScreenLabels(): String =
         runCatching { composeTestRule.onRoot(useUnmergedTree = true).printToString(maxDepth = TREE_DEPTH) }
             .getOrElse { "could not read the tree: $it" }
+
+    @Test
+    fun `subtitles can still be chosen while casting with no video on the phone`() {
+        show(
+            video.copy(
+                hasVideo = false,
+                onCastDevice = true,
+                castDeviceName = "Living Room",
+                subtitleChoices = listOf(SubtitleChoice("en", "English (auto-generated)")),
+            ),
+        )
+
+        assertActionable("Subtitles while casting", R.string.subtitles)
+    }
 
     @Test
     fun `the video player still offers everything it did`() {

@@ -85,7 +85,7 @@ internal fun VideoSettingsControls(settings: VideoSettings, modifier: Modifier =
  * where the thumb already is rather than at the bottom of a list of languages.
  */
 @Composable
-private fun SubtitleMenu(settings: VideoSettings) {
+internal fun SubtitleMenu(settings: VideoSettings) {
     var open by remember { mutableStateOf(false) }
     val on = settings.subtitleLanguage != null
     IconButton(onClick = { open = true }) {

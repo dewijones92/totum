@@ -189,9 +189,14 @@ public class HttpHomeTorrentServer(
         }
     }
 
-    override suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile): Unit = withContext(Dispatchers.IO) {
-        val url = stream(torrent, file).value
-        val what = "${torrent.hash.take(HASH_CHARS)}/${file.index}"
+    override suspend fun warmStream(streamUrl: HttpUrl): Unit = withContext(Dispatchers.IO) {
+        val url = streamUrl.value
+        if (!url.startsWith("$torrServerBase/stream/")) {
+            Diag.log("torrent", "not warming ${url.take(URL_CHARS)}: not a home-server video stream")
+            return@withContext
+        }
+        val query = url.substringAfter('?').split('&').associate { it.substringBefore('=') to it.substringAfter('=') }
+        val what = "${query["link"].orEmpty().take(HASH_CHARS)}/${query["index"].orEmpty()}"
         coroutineScope {
             listOf("start" to "bytes=0-${WARM_BYTES - 1}", "end" to "bytes=-$WARM_BYTES").forEach { (part, range) ->
                 launch {
