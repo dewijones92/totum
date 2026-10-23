@@ -925,7 +925,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             return
         }
         Diag.log("advance", "queue empty — playing related \"${next.item.title}\"")
-        playbackQueue.playNow(next, quiet = true)
+        playbackQueue.playNow(next, quiet = true, byYou = false)
     }
 
     // Auto-advance is app-scoped for the same reason the recovery is: it must keep

@@ -66,6 +66,7 @@ fun MiniPlayerBar(
     ) {
         Column {
             CastStrip(state, Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
+            PictureOfferStrip(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 10.dp, bottom = 6.dp),

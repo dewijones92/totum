@@ -153,5 +153,5 @@ command).
 | [Watch from the phone on the PC display](pc-display-receiver.md) | casting | high | ✅ built 2026-10-23 (ADR 81): a page the phone serves, found through the Pi bookmark |
 | [A live strip on every tab while something long runs](progress-strip-for-long-operations.md) | ui | high | ⏳ seam + strip built 2026-10-23 (ADR 82); pages, torrents, batches to move on |
 | [ExsurgeTakeoverFlowTest's paused-podcast case fails now and then on CI](exsurge-continue-podcast-test-flaky.md) | exsurge | medium | open 2026-10-23: red on 0fb35de5 and 1a2d2c35, green 10 runs between and 3/3 locally |
-| [In Listen mode, offer the picture](listen-mode-offers-the-picture.md) | playback | high | requested 2026-10-23, decided |
+| [In Listen mode, offer the picture](listen-mode-offers-the-picture.md) | playback | high | done 2026-10-23 (ADR 84) |
 | [Everything Totum runs on the Pi lives in this repo](totum-backend-in-this-repo.md) | pi/infra | medium | requested 2026-10-23 |

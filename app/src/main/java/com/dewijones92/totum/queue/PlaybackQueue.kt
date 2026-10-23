@@ -166,6 +166,7 @@ class PlaybackQueue(
     private val _freshStarts = MutableSharedFlow<MediaItemId>(extraBufferCapacity = FRESH_START_BUFFER)
 
     private val pictures = PictureChoices()
+    val pictureOffers = PictureOffers(clock, audioPreferred, pictures::soundOnly)
 
     /** Forgets the refusal for [id] — the person has asked for the picture back. */
     fun wantsThePictureAgain(id: MediaItemId) = pictures.wantsThePictureAgain(id)
@@ -268,7 +269,12 @@ class PlaybackQueue(
      * position and plays it, so pressing something never discards what was lined up.
      * An item already queued is moved rather than duplicated.
      */
-    suspend fun playNow(item: PlayableItem, group: QueueGroup? = null, quiet: Boolean = false): Boolean {
+    suspend fun playNow(
+        item: PlayableItem,
+        group: QueueGroup? = null,
+        quiet: Boolean = false,
+        byYou: Boolean = true,
+    ): Boolean {
         // A repeat of the SAME item within a blink is never a real second request. A report
         // from Dewi's phone showed play-now firing seventeen times in twelve seconds, about
         // every 170ms, alternating between two videos — and since each one resolves, and a
@@ -279,12 +285,7 @@ class PlaybackQueue(
         // A guard rather than a fix for the caller: whatever is re-firing is still worth
         // finding (the log below names it), but the queue should not be re-entrant on a
         // repeat regardless of who calls it.
-        val now = clock()
-        val sinceLast = now - lastPlayNowAt
-        val repeat = item.item.id == lastPlayNowId && sinceLast < REPEAT_WINDOW_MS
-        lastPlayNowId = item.item.id
-        lastPlayNowAt = now
-        if (repeat) {
+        repeatTaps.repeatMs(item.item.id)?.let { sinceLast ->
             Diag.warn("queue", "play-now REPEAT ${sinceLast}ms apart — ignored: ${item.item.title.take(TITLE_CHARS)}")
             return true
         }
@@ -295,15 +296,17 @@ class PlaybackQueue(
             val withoutIt = snapshot.removing { it.item.item.id == item.item.id }
             withoutIt.inserted(listOf(QueueEntry(item, kept))).also { index = it.place + 1 }
         }
-        return playAt(index, quiet = quiet)
+        return playAt(
+            index,
+            quiet = quiet
+        ).also { played -> if (played && byYou) pictureOffers.started(item, "play now") }
     }
 
     private val refusals = PlayAttempts(clock)
     val refusedTaps: SharedFlow<RefusedTap> get() = refusals.taps
     val starting: StateFlow<Starting?> get() = refusals.starting
 
-    private var lastPlayNowId: MediaItemId? = null
-    private var lastPlayNowAt = 0L
+    private val repeatTaps = RepeatTaps(clock)
 
     /**
      * Plays [items] as a run inserted after the current entry, starting with the
@@ -333,7 +336,7 @@ class PlaybackQueue(
                 // inserted after the cursor: it may be the entry the cursor is already on.
                 .also { now -> index = now.entries.indexOfFirst { it.item.item.id == run.first().item.id } }
         }
-        scope.launch { playAt(index) }
+        scope.launch { if (playAt(index)) pictureOffers.started(run.first(), "play all") }
     }
 
     /**
@@ -354,7 +357,7 @@ class PlaybackQueue(
 
     /** Plays the entry at [index]; nothing before it is discarded. */
     fun jumpTo(index: Int) {
-        scope.launch { playAt(index) }
+        scope.launch { if (playAt(index)) pictureOffers.startedAt(_state.value.entries.getOrNull(index)?.item) }
     }
 
     suspend fun playInsteadOfCurrent(entry: QueueEntry): Boolean {
@@ -1173,7 +1176,6 @@ private fun QueueSnapshot.removingAt(index: Int): QueueSnapshot {
  * deliberate double-tap, well above the ~170ms storm a real report showed, so it collapses
  * the storm without swallowing anything intended.
  */
-private const val REPEAT_WINDOW_MS = 400L
 private const val TITLE_CHARS = 60
 private const val RESTART_BEFORE_PREVIOUS_MS = 5_000L
 

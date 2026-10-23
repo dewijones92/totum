@@ -47,6 +47,7 @@ internal fun ProvidePlayStates(
         LocalAppPreferences provides container.appPreferences,
         LocalTranscripts provides container.transcripts,
         LocalListeningSwitch provides listeningSwitchUi(container),
+        LocalPictureOffer provides pictureOfferUi(container),
         LocalDownloadStates provides downloads,
         LocalSetPlayed provides setPlayed,
         LocalSourceArtwork provides artwork,
