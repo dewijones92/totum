@@ -31,8 +31,15 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
   (`endsWithNoSpeechLeft`, `TailSpeechScans`). It ends only after **playing** at least 5 s past the last speech
   (`RUN_NOT_SEEK_MS`): a seek or a scrub that lands past it does not end the item, so you can look around the
   ending. A scan that hears no speech at all says nothing (null), rather than "speech ends at 0" ending the item at
-  once; the decoder reads 16-bit and float PCM, gives up after 120 s, and stops safely (review of 2026-10-23). Same switch as the silent tail, so never for music or live. A
-  stream is not scanned yet (reading ahead would fetch its bytes early); the silent tail still covers it. Logged:
+  once; the decoder reads 16-bit and float PCM, gives up after 120 s, and stops safely (review of 2026-10-23). Same switch as the silent tail, so never for music or live.
+- **Streams too** (2026-10-23, Dewi's choice: audio-only streams, Wi-Fi only): an **audio-only** stream (no video
+  track at all in the player, so a video with its picture switched off does not count, since reading its tail
+  would fetch the video) on an **unmetered** network is scanned the same way, through MediaExtractor's own HTTP
+  reads, once it has played 10 s (past YouTube's fresh-URL 403 window, and off the start's bandwidth). The rule is
+  `tailSourceOf` (file / stream / not yet / not at all, with the reason logged). Measured on totum-api35, a 20-minute
+  YouTube audio stream: 180 s of tail scanned in 18.4 s while the app received 3.7 MB in all (player included),
+  against ~19 MB for the whole audio. A video stream, mobile data, or anything not over http is left to the silent
+  tail. Logged:
   the scanned span, how long it took, where speech ends and how much it would skip, and the ending itself.
 - The app tells the service per item, as it does skip-silence (`ACTION_SILENT_TAIL`): on when Settings → End on a
   silent tail is on (default) and the item is talk (`ItemTuning.silentTailEnds`: not music, not live).
@@ -49,5 +56,5 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
 - Logs: `<id> is in its last Nms: listening for a silent tail`, `<id> went silent for Nms at …: ending it`, and the
   per-item switch; reports carry `settings.silentTailEnds`.
 - The watch acts once per item, and again only if the item leaves the tail and comes back (a seek back).
-- Tests: `SilentTailTest`, `MusicPlaysPlainTest`, `OneTimeDefaultsTest`, `PreferenceBackupTest`. Not yet seen on a
+- Tests: `TailSourceTest` (JVM, red first: which source is scanned, and when), `TheTailIsScannedForSpeechTest` (instrumented: the same audio over HTTP from a local range server ends at the same last words as the file; a 240 KB fixture is fetched whole, so "reads only the tail" rests on the emulator measurement above), `SilentTailTest`, `MusicPlaysPlainTest`, `OneTimeDefaultsTest`, `PreferenceBackupTest`. Not yet seen on a
   device: a real silent tail ending an item (the seek to the end is the same one an outro skip uses).

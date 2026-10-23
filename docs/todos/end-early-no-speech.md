@@ -1,7 +1,7 @@
 ---
 title: End talk early when the rest has no speech
 kind: todo
-status: built 2026-10-23 for downloaded files; streams not yet
+status: done 2026-10-23 (files and audio-only streams on Wi-Fi; ADR 58)
 area: playback
 priority: high
 requested: 2026-10-22
@@ -20,3 +20,5 @@ a true 50.0 s). **Not yet:** streams (YouTube, torrents, podcast enclosures) —
 decoder over the playback cache, or fetching the tail early; until then the silent tail covers them.
 
 Streams chosen for the next batch (Dewi, 2026-10-23): audio-only streams, Wi-Fi only, by fetching the tail early.
+
+Done 2026-10-23 for audio-only streams on an unmetered network, once they have played 10 s ([ADR 58](../adr/0058-a-silent-tail-ends-the-item.md)). A video stream and mobile data stay with the silent tail.

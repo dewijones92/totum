@@ -14,7 +14,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | ⏳ partly done 2026-10-22 (Subscriptions, queue groups) |
 | [Exsurge off never summons; one nudge a day](exsurge-off-never-summons.md) | side-quest | high | done 2026-10-22 (ADR 71) |
 | [Rewind without buffering, for everything](instant-rewind-cache.md) | playback | high | built 2026-10-22 (ADR 72: 1 GB playback cache) |
-| [End talk early when the rest has no speech](end-early-no-speech.md) | playback | high | built 2026-10-23 for downloaded files (ADR 58); streams not yet |
+| [End talk early when the rest has no speech](end-early-no-speech.md) | playback | high | done 2026-10-23: files, and audio-only streams on Wi-Fi (ADR 58) |
 | [Shuffle all on an artist duplicates the song playing](artist-shuffle-duplicate.md) | music/queue | high | done 2026-10-22 (93ac61c6: the playing song moves into the new group) |
 | [Show the buffer on the seek bar](seek-bar-buffer.md) | player/ui | medium | built 2026-10-22 (strip under the slider) |
 | [Repeat the current queue group](repeat-group.md) | queue | medium | done 2026-10-22 (🔁 This group in the repeat picker) |

@@ -7,26 +7,34 @@ import android.media.MediaFormat
 import com.dewijones92.totum.common.Diag
 import java.nio.ByteOrder
 
-internal data class TailScan(val speechEndsMs: Long?, val fromMs: Long, val heardMs: Long, val tookMs: Long)
+internal data class TailScan(
+    val speechEndsMs: Long?,
+    val fromMs: Long,
+    val heardMs: Long,
+    val tookMs: Long,
+    val receivedBytes: Long = 0,
+)
 
-internal fun scanTailForSpeech(path: String, durationMs: Long, weights: SpeechWeights): TailScan? {
+internal fun scanTailForSpeech(source: String, durationMs: Long, weights: SpeechWeights): TailScan? {
     val fromMs = (durationMs - minOf(TAIL_SCAN_MS, durationMs * TAIL_SCAN_PERCENT / PERCENT)).coerceAtLeast(0)
     val started = System.currentTimeMillis()
+    val receivedBefore = android.net.TrafficStats.getUidRxBytes(android.os.Process.myUid())
     val extractor = MediaExtractor()
     try {
-        extractor.setDataSource(path)
+        extractor.setDataSource(source)
         val trackIndex = (0 until extractor.trackCount).firstOrNull {
             extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
         }
         if (trackIndex == null) {
-            Diag.log(TAG, "no audio track to scan in ${path.substringAfterLast('/')}")
+            Diag.log(TAG, "no audio track to scan in ${nameOf(source)}")
             return null
         }
         extractor.selectTrack(trackIndex)
         val format = extractor.getTrackFormat(trackIndex)
         extractor.seekTo(fromMs * MICROS_PER_MS, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
         val heard = TailDecoder(extractor, format, fromMs, weights).run() ?: return null
-        return TailScan(heard.speechEndsMs, fromMs, heard.heardMs, System.currentTimeMillis() - started)
+        val received = android.net.TrafficStats.getUidRxBytes(android.os.Process.myUid()) - receivedBefore
+        return TailScan(heard.speechEndsMs, fromMs, heard.heardMs, System.currentTimeMillis() - started, received)
     } finally {
         extractor.release()
     }
@@ -138,3 +146,13 @@ private const val TIMEOUT_US = 10_000L
 private const val BYTES_PER_SAMPLE = 2
 private const val BYTES_PER_FLOAT = 4
 private const val SCAN_LIMIT_MS = 120_000L
+
+private fun nameOf(source: String): String =
+    if (source.startsWith(
+            "http"
+        )
+    ) {
+        "a stream from ${runCatching { java.net.URI(source).host }.getOrNull()}"
+    } else {
+        source.substringAfterLast('/')
+    }

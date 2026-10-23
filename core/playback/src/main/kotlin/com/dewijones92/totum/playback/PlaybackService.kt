@@ -78,7 +78,12 @@ public class PlaybackService : MediaSessionService() {
     private val silentTail = SilentTailWatch(
         { player },
         { booster.silentForMs },
-        TailSpeechScans { BundledSpeechModel.get(this) },
+        TailSpeechScans(
+            { BundledSpeechModel.get(this) },
+            unmetered = {
+                getSystemService(android.net.ConnectivityManager::class.java)?.isActiveNetworkMetered == false
+            },
+        ),
     )
 
     // Cast: present only when Google Play Services + a receiver are available.

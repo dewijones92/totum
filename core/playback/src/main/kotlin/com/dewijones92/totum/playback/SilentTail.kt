@@ -130,7 +130,13 @@ internal class SilentTailWatch(
         duration: Long,
     ): Boolean {
         val scans = speech ?: return false
-        scans.want(id, player.currentMediaItem?.localConfiguration?.uri?.toString(), duration)
+        scans.want(
+            id,
+            player.currentMediaItem?.localConfiguration?.uri?.toString(),
+            audioOnly = player.currentTracks.groups.none { it.type == androidx.media3.common.C.TRACK_TYPE_VIDEO },
+            positionMs = position,
+            durationMs = duration,
+        )
         val lastWords = scans.speechEnds(id)
         val previous = lastTick?.takeIf { it.first == id }?.second ?: position
         lastTick = id to position
