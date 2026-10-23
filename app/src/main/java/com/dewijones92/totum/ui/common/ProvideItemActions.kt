@@ -88,6 +88,12 @@ private class ContainerItemActions(
         scope.launch { container.downloadManager.download(item, audioOnly) }
     }
 
+    override fun downloadSome(items: List<MediaItem>, title: String) {
+        val playable = items.mapNotNull { it.toPlayableOrNull() }
+        Diag.log("download", "${items.size} selected to download (${playable.size} playable); asking how, in the sheet")
+        container.episodeDownloads.ask(title, playable)
+    }
+
     override fun chooseDownload(item: MediaItem, pillar: MediaKind, askAnyway: Boolean, videoOnly: Boolean) {
         container.downloadChooser.request(item, pillar, askAnyway, videoOnly)
     }

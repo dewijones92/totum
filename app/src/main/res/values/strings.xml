@@ -399,9 +399,12 @@
     <string name="download_the_video">🎬 Download the video</string>
     <string name="download_the_song">🎧 Download the song</string>
     <string name="download_the_file">⬇️ Download the whole file</string>
-    <string name="download_bulk_sound">🎧 Download the sound</string>
-    <string name="download_bulk_full">⬇️ Download in full (videos with their picture)</string>
     <string name="downloaded_delete">Downloaded — tap to remove</string>
+    <string name="download_bulk_choose">⬇️ Download… (sound or video, any quality)</string>
+    <plurals name="download_selection_title">
+        <item quantity="one">1 selected item</item>
+        <item quantity="other">%1$d selected items</item>
+    </plurals>
     <string name="download_delete">Delete downloaded file</string>
     <string name="library_downloads">Downloads</string>
     <string name="downloads_on_the_phone">On the phone</string>
@@ -681,7 +684,7 @@
     <string name="select_done">Done selecting</string>
     <plurals name="selected_count">
         <item quantity="one">%1$d selected</item>
-        <item quantity="other">%1$d selected</item>
+        <item quantity="other">%1$d selected items</item>
     </plurals>
     <plurals name="playlist_delete_confirm">
         <item quantity="one">Delete %1$d playlist? Its items stay wherever else they are.</item>
@@ -843,10 +846,6 @@
     <string name="pin_menu_restart_radio">Restart the radio</string>
     <string name="pin_menu_shuffle_again">Shuffle again</string>
     <string name="pin_menu_forget">Remove from Recently</string>
-    <plurals name="bulk_download_confirm">
-        <item quantity="one">Download 1 item for offline?</item>
-        <item quantity="other">Download %1$d items for offline?</item>
-    </plurals>
     <plurals name="album_download_confirm">
         <item quantity="one">Download 1 song of “%2$s” for offline?</item>
         <item quantity="other">Download %1$d songs of “%2$s” for offline?</item>

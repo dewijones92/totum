@@ -26,6 +26,7 @@ internal interface ItemActions {
     fun addToPlaylist(items: List<MediaItem>)
     fun peek(item: MediaItem)
     fun download(item: MediaItem, audioOnly: Boolean)
+    fun downloadSome(items: List<MediaItem>, title: String) = items.forEach { download(it, audioOnly = false) }
     fun chooseDownload(item: MediaItem, pillar: MediaKind, askAnyway: Boolean, videoOnly: Boolean = false) {
         download(item, audioOnly = false)
     }

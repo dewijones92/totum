@@ -3,7 +3,7 @@ title: Multi-select on every list
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-24
+updated: 2026-10-23
 ---
 
 # Multi-select on every list
@@ -20,7 +20,8 @@ own menu, so nothing was lost.
   checkbox while selecting, so nothing fires by accident.
 - **Media lists** (Videos feed, Podcasts, a podcast's page, a channel's Videos / Shorts / Search tabs, an
   account playlist, New uploads, History, Library downloads, a local playlist, Search song and video
-  results, Queue): Play next · Add to queue · Add to playlist · Download (if any is not on disk) ·
+  results, Queue): Play next · Add to queue · Add to playlist · Download… (if any is not on disk; opens the ADR 80 sheet to
+  choose 🎧 sound or 🎬 video and the quality) ·
   Delete downloaded file (if any is) · Mark played · Mark unplayed. Play next and Add to queue keep the
   list's order.
 - **Per list:** Queue adds Remove from queue, Move to top, Move to bottom (order kept); a local playlist
@@ -105,8 +106,8 @@ wires its rows. The add-to-playlist picker now takes many items (`rememberPlayli
 `SelectionTest` (JVM); `MultiSelectTest` (instrumented, 12): long-press/tap/toggle, Back, add-to-queue and
 play-next order, queue move-to-top and remove, select-all respects the filter, playlist delete and
 unsubscribe both confirm (cancel does nothing), holding the grip does not select, adding 12 to a slow
-playlist store keeps all 12, queue select-all ignores a collapsed group, bulk download fetches only the
-missing item, and a filter that briefly matches nothing keeps the selection. `PlaybackQueueTest` covers bulk add-to-end and play-next order,
+playlist store keeps all 12, queue select-all ignores a collapsed group, bulk download hands the
+selection to the episode sheet (ADR 80), which unticks what is on the phone, and a filter that briefly matches nothing keeps the selection. `PlaybackQueueTest` covers bulk add-to-end and play-next order,
 mirroring one but not many, and an empty add not discarding the saved queue; `GoToSourceGoesThereTest`
 covers the podcast page whose filter hides everything. Each of those was run with
 its fix undone and failed. Whole instrumented suite

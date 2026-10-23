@@ -36,7 +36,6 @@ import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.SELECTION_ACTIONS_TAG
@@ -375,13 +374,18 @@ class MultiSelectTest {
     }
 
     @Test
-    fun `bulk download fetches only what is not on disk yet`() {
+    fun `bulk download opens the sheet with the selection to ask sound or video and the quality`() {
         val asked = mutableListOf<String>()
+        var sheetTitle: String? = null
         val recorder = object : com.dewijones92.totum.ui.common.ItemActions {
             override fun queue(items: List<MediaItem>, next: Boolean) = Unit
             override fun addToPlaylist(items: List<MediaItem>) = Unit
             override fun peek(item: MediaItem) = Unit
-            override fun download(item: MediaItem, audioOnly: Boolean) { asked += item.id.value }
+            override fun download(item: MediaItem, audioOnly: Boolean) = Unit
+            override fun downloadSome(items: List<MediaItem>, title: String) {
+                asked += items.map { it.id.value }
+                sheetTitle = title
+            }
             override fun deleteDownload(id: MediaItemId) = Unit
             override fun setPlayed(id: MediaItemId, played: Boolean) = Unit
             override fun sourceLink(item: MediaItem): (() -> Unit)? = null
@@ -420,20 +424,13 @@ class MultiSelectTest {
 
         longPress("Alpha episode")
         composeTestRule.onNodeWithText("Beta episode").performClick()
-        val download = activity.getString(R.string.download_bulk_full)
+        val download = activity.getString(R.string.download_bulk_choose)
         composeTestRule.onNodeWithTag(SELECTION_ACTIONS_TAG).performScrollToNode(hasText(download))
         composeTestRule.onNodeWithText(download).performClick()
-        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performClick()
-        composeTestRule.waitForIdle()
-        assertEquals("a tap in the dialog must not download", emptyList<String>(), asked)
-
-        composeTestRule.mainClock.autoAdvance = false
-        composeTestRule.onNodeWithTag(HOLD_TO_CONFIRM_TAG, useUnmergedTree = true).performTouchInput { down(center) }
-        composeTestRule.mainClock.advanceTimeBy(1_700)
-        composeTestRule.mainClock.autoAdvance = true
         composeTestRule.waitForIdle()
 
-        assertEquals(listOf("b"), asked)
+        assertEquals("the sheet gets the whole selection; it unticks what is on the phone", listOf("a", "b"), asked)
+        assertEquals("2 selected items", sheetTitle)
     }
 
     @Test

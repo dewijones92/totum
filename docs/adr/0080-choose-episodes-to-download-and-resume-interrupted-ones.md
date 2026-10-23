@@ -27,8 +27,11 @@ quality: the stored request only says sound or video.
   480, the remembered one preselected); a torrent file or podcast episode is always fetched as its file, since asking a
   torrent for sound fetched the whole film anyway. A song (music) is always fetched as sound, and a batch of songs
   asks nothing (review of 2026-10-23: songs play as sound until Watch, ADR 24).
-- Opened from a queue group's ⋮ → ⬇️ Choose episodes to download…, and from a torrent search result's ⬇️ (the torrent
-  is prepared as for playing, and its playable files are offered).
+- Opened from a queue group's ⋮ → ⬇️ Choose episodes to download…, from a torrent search result's ⬇️ (the torrent
+  is prepared as for playing, and its playable files are offered), and, since 2026-10-23, from multi-select on every
+  list: **⬇️ Download…** hands the selection (less anything already downloading) to the same sheet, titled "N selected
+  items", in place of the old hold-to-confirm best-quality download (Dewi: *"batch download things like lists … audio
+  or video … what quality"*). It is offered while any selected item is not on the phone as wanted.
 - "A few at a time" is the download manager's own limit of four at once.
 - **Every** download the app died during now starts again by itself at the next launch, with its variant and its
   height, at most twice and never on a metered network; after that it is left Failed for Retry as before. That stops
@@ -41,5 +44,5 @@ quality: the stored request only says sound or video.
 ## Consequences
 
 - Progress for a batch is the sheet itself when reopened, and the Downloads page; there is no separate notification.
-- Tests: `EpisodeDownloadsTest`, `DefaultDownloadManagerTest` (resume with the height, red first; the two-restart cap),
+- Tests: `MultiSelectTest` (the selection reaches the sheet with its title), `EpisodeDownloadsTest`, `DefaultDownloadManagerTest` (resume with the height, red first; the two-restart cap),
   `EpisodePickerTest` (ticked ones only, at the chosen height; one already on the phone starts unticked).

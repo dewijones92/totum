@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -279,6 +280,7 @@ fun mediaBulkActions(
     val actions = LocalItemActions.current
     val downloadStates = LocalDownloadStates.current
     val mix = LocalStartRadioMix.current
+    val resources = LocalResources.current
     return { chosen ->
         val downloads = downloadStates.value
         actions?.let { a ->
@@ -297,19 +299,20 @@ fun mediaBulkActions(
                 BulkAction(R.string.playlist_add_to) { a.addToPlaylist(chosen) },
                 mix?.let { start -> BulkAction(R.string.radio_from_these) { start(chosen) } }
                     ?.takeIf { chosen.count { it.radioVideoId() != null } >= 2 },
-                BulkAction(
-                    if (downloadAudioOnly) R.string.download_bulk_sound else R.string.download_bulk_full,
-                    confirm = R.plurals.bulk_download_confirm,
-                    confirmCount = missing.size,
-                    holdToConfirm = true,
-                ) {
-                    val upgrades = missing.count { downloads[it.id] is DownloadState.Downloaded }
+                BulkAction(R.string.download_bulk_choose) {
                     Diag.log(
                         "select",
-                        "downloading ${missing.size} of ${chosen.size} (audioOnly=$downloadAudioOnly, " +
-                            "$upgrades replacing an audio-only copy), the rest on disk or fetching",
+                        "download ${chosen.size} selected, ${missing.size} not yet on the phone as wanted; " +
+                            "the sheet asks sound or video and which quality",
                     )
-                    missing.forEach { a.download(it, audioOnly = downloadAudioOnly) }
+                    a.downloadSome(
+                        chosen.filter { downloads[it.id] !is DownloadState.Downloading },
+                        resources.getQuantityString(
+                            R.plurals.download_selection_title,
+                            chosen.size,
+                            chosen.size
+                        ),
+                    )
                 }.takeIf { missing.isNotEmpty() },
                 BulkAction(
                     R.string.download_delete,
