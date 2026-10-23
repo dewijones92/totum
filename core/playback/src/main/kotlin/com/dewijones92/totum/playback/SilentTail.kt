@@ -64,6 +64,7 @@ private const val TAIL_SHARE = 10
 internal class SilentTailWatch(
     private val player: () -> androidx.media3.common.Player?,
     private val silentForMs: () -> Long,
+    private val speech: TailSpeechScans? = null,
 ) {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var noted: String? = null
@@ -96,6 +97,7 @@ internal class SilentTailWatch(
         val id = player.currentMediaItem?.mediaId ?: return
         val duration = player.duration.takeIf { it > 0 } ?: return
         val position = player.currentPosition
+        if (enabled && endNoSpeechLeft(player, id, position, duration)) return
         if (duration - position > tailWindowMs(duration)) {
             if (noted == id) noted = null
             if (acted == id) acted = null
@@ -118,6 +120,26 @@ internal class SilentTailWatch(
                 "ending it, as if it had finished",
         )
         player.seekTo(duration)
+    }
+
+    private fun endNoSpeechLeft(
+        player: androidx.media3.common.Player,
+        id: String,
+        position: Long,
+        duration: Long,
+    ): Boolean {
+        val scans = speech ?: return false
+        scans.want(id, player.currentMediaItem?.localConfiguration?.uri?.toString(), duration)
+        val lastWords = scans.speechEnds(id)
+        if (acted == id || !endsWithNoSpeechLeft(position, duration, lastWords)) return false
+        acted = id
+        com.dewijones92.totum.common.Diag.log(
+            "silence",
+            "$id has no speech after ${lastWords}ms (its file was scanned ahead); ending it at ${position}ms of " +
+                "${duration}ms, as if it had finished",
+        )
+        player.seekTo(duration)
+        return true
     }
 }
 

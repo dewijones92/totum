@@ -64,6 +64,12 @@ internal class SpeechTrack(
         private set
 
     @Volatile
+    private var lastSpeechChunk = -1L
+
+    val speechEndsAtFrame: Long?
+        get() = lastSpeechChunk.takeIf { it >= 0 }?.let { ((it + 1) * chunkFrames).toLong() }
+
+    @Volatile
     var chunksDropped: Long = 0L
         private set
 
@@ -151,7 +157,7 @@ internal class SpeechTrack(
             warmingUp = WARM_UP_AFTER_GAP
             UNKNOWN
         } else {
-            judge()
+            judge().also { if (it == SPEECH) lastSpeechChunk = index }
         }
         chunksDone = index + 1
     }

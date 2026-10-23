@@ -74,7 +74,11 @@ public class PlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
 
     @UnstableApi
-    private val silentTail = SilentTailWatch({ player }, { booster.silentForMs })
+    private val silentTail = SilentTailWatch(
+        { player },
+        { booster.silentForMs },
+        TailSpeechScans { BundledSpeechModel.get(this) },
+    )
 
     // Cast: present only when Google Play Services + a receiver are available.
     // The session swaps between the local player and this one as a Cast session

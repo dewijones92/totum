@@ -2,7 +2,7 @@
 title: A silent tail ends the item, and end cards are skipped by default
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-10-23
 ---
 
 # 58. A silent tail ends the item, and end cards are skipped by default
@@ -24,6 +24,13 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
   the count again). In the playback service, `SilentTailWatch` checks every 500 ms: in an item's last minute, or
   its last tenth if that is shorter (`tailWindowMs`), five seconds of silence (`SILENT_FOR_MS`) seeks to the end,
   so the item ends exactly as if it had finished (Ended, or a gapless crossover).
+- **No speech left** (2026-10-23, Dewi's batch item 5): for a talk item played from a **downloaded file**, the
+  service decodes its last three minutes (or last 30% if shorter) on a low-priority thread (`scanTailForSpeech`,
+  MediaExtractor + MediaCodec) and runs the bundled speech model over it (`SpeechTrack.speechEndsAtFrame`); once
+  playback is 2.5 s past the last speech, with more than 5 s left, the item ends the same way
+  (`endsWithNoSpeechLeft`, `TailSpeechScans`). Same switch as the silent tail, so never for music or live. A
+  stream is not scanned yet (reading ahead would fetch its bytes early); the silent tail still covers it. Logged:
+  the scanned span, how long it took, where speech ends and how much it would skip, and the ending itself.
 - The app tells the service per item, as it does skip-silence (`ACTION_SILENT_TAIL`): on when Settings → End on a
   silent tail is on (default) and the item is talk (`ItemTuning.silentTailEnds`: not music, not live).
 - The meter sits after the silence cutter: with skip-silence on, a silent tail is already cut to almost nothing,
