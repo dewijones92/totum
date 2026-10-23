@@ -40,6 +40,7 @@ class HttpYouTubeWatchHistoryTest {
             innerTube = InnerTubeClient(client, playerUrl = server.url("/youtubei/v1/player").toString()),
             signatureTimestamps = SignatureTimestampSource { signatureTimestamp?.let(::SignatureTimestamp) },
             newNonce = { "NONCE0123456789" },
+            statsHost = null,
         )
     }
 
@@ -96,9 +97,9 @@ class HttpYouTubeWatchHistoryTest {
 
         val watchtime = server.takeRequest()
         assertTrue(watchtime.target.contains("/api/stats/watchtime"))
-        assertTrue(watchtime.target.contains("st=30"))
-        assertTrue(watchtime.target.contains("et=30"))
+        assertTrue(watchtime.target, watchtime.target.contains("st=0.0&et=30.0"))
         assertEquals("Bearer at", watchtime.headers["Authorization"])
+        assertTrue("a TV agent, as SmartTube sends", watchtime.headers["User-Agent"].orEmpty().contains("Cobalt"))
     }
 
     @Test
@@ -116,6 +117,28 @@ class HttpYouTubeWatchHistoryTest {
         val next = server.takeRequest()
         assertTrue(next.target.contains("/api/stats/watchtime"))
         assertTrue(next.target.contains("cmt=60"))
+        assertTrue("the span watched since the last report: ${next.target}", next.target.contains("st=30.0&et=60.0"))
+    }
+
+    @Test
+    fun `a jump or a rewind starts a fresh span instead of claiming time nobody watched`() = runBlocking {
+        enqueuePlayer()
+        repeat(4) { ok() }
+        val history = history()
+        history.beginSession("vid1")
+        server.takeRequest()
+        history.reportProgress("vid1", 10f, 600f, finished = false)
+        repeat(2) { server.takeRequest() }
+
+        history.reportProgress("vid1", 300f, 600f, finished = false)
+        history.reportProgress("vid1", 315f, 600f, finished = false)
+        val jumped = server.takeRequest().target
+        history.reportProgress("vid1", 120f, 600f, finished = false)
+        history.reportProgress("vid1", 130f, 600f, finished = false)
+        val rewound = server.takeRequest().target
+
+        assertTrue(jumped, jumped.contains("st=300.0&et=315.0"))
+        assertTrue(rewound, rewound.contains("st=120.0&et=130.0"))
     }
 
     @Test

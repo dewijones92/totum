@@ -42,12 +42,14 @@ public class HttpYouTubeWatchHistory(
     private val innerTube: InnerTubeClient,
     private val signatureTimestamps: SignatureTimestampSource,
     private val newNonce: () -> String = ::randomClientPlaybackNonce,
+    private val statsHost: String? = STATS_HOST,
 ) : YouTubeWatchHistory {
 
     private class Session(
         val tracking: PlaybackTracking,
         val cpn: String,
         var recordCreated: Boolean = false,
+        var reportedSec: Float? = null,
     )
 
     /**
@@ -172,11 +174,42 @@ public class HttpYouTubeWatchHistory(
         // Open the record before watch-time updates land (SmartTube does the same).
         val playbackUrl = session.tracking.playbackUrl
         if (!session.recordCreated && playbackUrl != null) {
-            val opened = ping(playbackUrl + common, token)
+            val opened = ping(asAWatchPagePlay(playbackUrl, statsHost) + common, token)
             if (opened != WatchHistoryResult.Success) return opened
             session.recordCreated = true
         }
-        return ping(session.tracking.watchtimeUrl + common + "&st=$position&et=$position", token)
+        if (session.reportedSec == null) logTheTrackingUrl(session)
+        val from = spanStart(session.reportedSec, position)
+        if (position - from < MIN_SPAN_SEC && !finished) {
+            session.reportedSec = position
+            Diag.log("yt-sync", "watchtime from ${position}s not sent: nothing watched since the last report")
+            return WatchHistoryResult.Success
+        }
+        val result = ping(
+            asAWatchPagePlay(session.tracking.watchtimeUrl, statsHost) + common + "&st=$from&et=$position",
+            token
+        )
+        if (result == WatchHistoryResult.Success) session.reportedSec = position
+        Diag.log(
+            "yt-sync",
+            "watchtime span ${from}s to ${position}s of ${lengthSec}s${if (finished) ", final" else ""}: $result"
+        )
+        return result
+    }
+
+    private fun spanStart(reportedSec: Float?, position: Float): Float = when (reportedSec) {
+        null -> if (position < FROM_THE_START_SEC) 0f else position
+        else -> reportedSec.takeIf { position >= it && position - it <= MAX_SPAN_SEC } ?: position
+    }
+
+    private fun logTheTrackingUrl(session: Session) {
+        val query = session.tracking.watchtimeUrl.substringAfter('?').split('&')
+        Diag.log(
+            "yt-sync",
+            "dewidebug watchtime url keys=${query.map { it.substringBefore('=') }} " +
+                "len=${query.firstOrNull { it.startsWith("len=") }?.substringAfter('=')} " +
+                "playbackUrl=${session.tracking.playbackUrl != null}",
+        )
     }
 
     private suspend fun ping(url: String, token: AccessToken): WatchHistoryResult =
@@ -184,6 +217,7 @@ public class HttpYouTubeWatchHistory(
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer ${token.value}")
+                .header("User-Agent", InnerTubeClient.TV_DOWNGRADED_USER_AGENT)
                 .get()
                 .build()
             try {
@@ -206,9 +240,21 @@ public class HttpYouTubeWatchHistory(
 
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_FORBIDDEN = 403
+        const val MAX_SPAN_SEC = 60f
+        const val MIN_SPAN_SEC = 1f
+        const val FROM_THE_START_SEC = 180f
     }
 }
 
+internal fun asAWatchPagePlay(url: String, host: String?): String {
+    val path = url.substringBefore('?')
+    val base = host?.let { it + "/api/stats/" + path.substringAfter("/api/stats/") } ?: path
+    val kept = setOf("ns", "docid", "len", "ei", "vm", "of")
+    val query = url.substringAfter('?', "").split('&').filter { it.substringBefore('=') in kept }
+    return base + "?" + query.joinToString("&")
+}
+
+internal const val STATS_HOST: String = "https://www.youtube.com"
 private const val NONCE_LENGTH = 16
 private const val NONCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 

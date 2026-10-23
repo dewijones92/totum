@@ -1,12 +1,30 @@
 ---
 title: Two-way progress sync with YouTube
 kind: feature
-status: both halves shipped; YouTube's 10% floor no longer read as a position (2026-09-23, report 0.1.514)
+status: both halves shipped; the app's plays reached YouTube as fully watched until 2026-10-23, fixed
 area: video
-updated: 2026-10-05
+updated: 2026-10-23
 ---
 
 # Two-way progress sync with YouTube
+
+> 🐛 **The app's plays reached YouTube as fully watched. Fixed 2026-10-23.** Dewi asked whether a video
+> half-watched in the browser shows in the app and the other way round. Tested against his signed-in
+> browser (History card bar, `C:\edge-cdp\yt-sync.js`): **browser → app worked** (Big Buck Bunny to 53% in
+> Edge, the app resumed at 5:36), **app → browser did not**: Tears of Steel, Cosmos Laundromat and Spring,
+> each played 18–32% in the app, showed **100%** on YouTube and restarted from 0:00, although no `final`
+> was ever sent. SmartTube, signed in on the same emulator as the control, left Sprite Fright at **37%**,
+> so the TV identity was not the problem. Its pings on the wire: `www.youtube.com/api/stats/playback` then
+> `watchtime` with only `ns ver docid len cmt cpn ei vm of` (+`st et`), its Cobalt TV user agent, and
+> spans that start at 0 (`st=0 et=3`, then `st=3 et=96`). Ours went to the tracking URL's own host with all
+> its extra parameters (`cl fexp plid uga el`), with OkHttp's default user agent, and every span was
+> zero-length (`st=et=`position). The pings now copy SmartTube's on all of those at once; which one YouTube
+> cared about is not isolated (`el=detailpage` alone and the minimal parameters alone each still gave 100%).
+> After the change: Everything Blender, 0:00 → 3:14 of 12:48 in the app, showed **25%**; finishing it in
+> the app showed 100%. The September check below proved only that the plays *appeared* in history, never
+> where they stood, and the 16 Aug check (13%) shows partial positions had worked before then.
+> `HttpYouTubeWatchHistoryTest`: real spans (seen red), a jump or rewind starts afresh, nothing empty is
+> sent, the TV agent.
 
 > 🐛 **YouTube's 10% is a floor, not a position. Fixed 2026-09-23.** Report 0.1.514, Dewi: *"why
 > downloaded files have position of like 5% in to the video? please fix?"*. Five videos played for a

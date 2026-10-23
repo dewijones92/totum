@@ -5,10 +5,15 @@ status: DIAGNOSED AND FIXED 2026-09-20 — it was never refused again; three unt
 area: video
 priority: critical
 requested: 2026-09-06
-updated: 2026-09-20
+updated: 2026-10-23
 ---
 
 # Outbound progress sync is dead
+
+> ⚠️ **2026-10-23: "fixed" overclaimed.** The proof below was that the plays appeared at the top of
+> `/feed/history`; nobody looked at where they stood. They stood at **100%**: every partial play from the
+> app reached YouTube as fully watched. Found and fixed 2026-10-23; see
+> [`../features/progress-sync.md`](../features/progress-sync.md).
 
 > ✅ **FIXED 2026-09-20 — and "regressed" was the wrong diagnosis, twice over.** The status block
 > said `Unavailable(reason=… the signed-in TV /player is refused, held=123)`, which reads as the
