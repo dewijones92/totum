@@ -83,9 +83,11 @@ import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptio
 import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
+import com.dewijones92.totum.music.KeptArtistSongs
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
+import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.InMemoryPinStore
 import com.dewijones92.totum.pins.PinPlayer
@@ -222,8 +224,12 @@ class FakeAppContainer(
             recentActions,
             statsLog,
             randomStarts,
+            operations = operations,
         )
     }
+
+    override val operations: Operations = Operations()
+    override val keptArtistSongs: KeptArtistSongs = KeptArtistSongs(null)
 
     override val transcripts: TranscriptLoader = TranscriptLoader(
         fetcher = { com.dewijones92.totum.data.net.FetchResult.Failure("offline") },

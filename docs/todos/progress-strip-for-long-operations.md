@@ -1,7 +1,7 @@
 ---
 title: A live strip on every tab while something long runs
 kind: todo
-status: requested 2026-10-23, decided
+status: building 2026-10-23 (seam and strip built, ADR 82)
 area: ui
 priority: high
 requested: 2026-10-23
@@ -19,3 +19,7 @@ with a toast giving the result. The gate's slowness itself was eased the same da
 Widened the same afternoon into a standing rule (CLAUDE.md, "Every async operation shows itself"): the strip is the
 one seam **every** async operation the user starts reports to, not a list of four. First user: shuffle all, which now
 plays at once and keeps filling in behind (report 0.1.694: Chopin, 201 albums, 116 s).
+
+Built 2026-10-23 ([ADR 82](../adr/0082-every-async-operation-shows-itself.md)): `Operations`, the strip and result
+toasts; both shuffle-alls report through it. Still to move onto it: artist and album pages loading, preparing a
+torrent, an episode batch.

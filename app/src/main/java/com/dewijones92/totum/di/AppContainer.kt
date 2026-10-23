@@ -158,6 +158,7 @@ import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
 import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
+import com.dewijones92.totum.music.KeptArtistSongs
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
@@ -165,6 +166,7 @@ import com.dewijones92.totum.notifications.DataSaverNotifier
 import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
 import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource
+import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayer
 import com.dewijones92.totum.pins.PinStore
@@ -487,6 +489,8 @@ interface AppContainer {
     val polite: Politeness
 
     val shuffleAll: ShuffleAll
+    val operations: Operations
+    val keptArtistSongs: KeptArtistSongs
 
     val newUploads: NewUploads
 
@@ -558,6 +562,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
+    override val operations: Operations = Operations()
+    override val keptArtistSongs: KeptArtistSongs by lazy { KeptArtistSongs(File(context.filesDir, "artist-songs")) }
 
     override val transcripts: TranscriptLoader by lazy { TranscriptLoader(textFetcher) }
 
@@ -1588,6 +1594,7 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
     c.statsLog,
     c.randomStarts,
     c.newUploads,
+    c.operations,
 )
 
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */

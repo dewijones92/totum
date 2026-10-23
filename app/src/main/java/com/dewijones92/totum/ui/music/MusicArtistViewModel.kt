@@ -100,15 +100,13 @@ class MusicArtistViewModel(
 
     fun shuffle() = startStation((_state.value as? State.Loaded)?.artist?.shuffle ?: currentMix(), "shuffle")
 
-    fun shuffleAllSongs(startAtRandom: Boolean, onDone: (Int) -> Unit) {
+    fun shuffleAllSongs(startAtRandom: Boolean) {
         val artist = (_state.value as? State.Loaded)?.artist ?: return
         val listing = artist.allSongs ?: return Diag.warn("music", "artist \"${artist.name}\" has no all-songs listing")
         appScope.launch {
-            onDone(
-                artistShuffle.shuffleAll(
-                    ArtistSongs(artist.name, listing, artist.thumbnailUrl?.value, artist.browseId),
-                    startAtRandom = startAtRandom,
-                ),
+            artistShuffle.shuffleAll(
+                ArtistSongs(artist.name, listing, artist.thumbnailUrl?.value, artist.browseId),
+                startAtRandom = startAtRandom,
             )
         }
     }

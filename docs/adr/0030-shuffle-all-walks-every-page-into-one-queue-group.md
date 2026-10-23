@@ -2,7 +2,7 @@
 title: Shuffle all walks every page of a source into one queue group
 kind: adr
 status: accepted
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 
 # 30. Shuffle all walks every page of a source into one queue group
@@ -85,3 +85,9 @@ see-all lists (or the page's own rows when there is no see-all), each album's tr
 (`walkDiscography`, `WalkDiscographyTest`). The log gives each stage: top songs, songs from N releases, failures, the
 total. The artist's id travels with the target and the pin (`Pin.ArtistSongs.artistId`); a pin saved before this has
 none, so it says "top songs only" and plays them. Every request goes through the polite YouTube gate.
+
+### Amendment (2026-10-23): an artist's shuffle plays at once and is kept
+
+The discography walk made Chopin take 116 s before anything played (report 0.1.694). The top songs now play as soon
+as they arrive and the albums are shuffled in behind them; the full list is kept for a week; progress shows in the
+strip on every tab. See [ADR 82](0082-every-async-operation-shows-itself.md).

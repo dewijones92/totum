@@ -78,9 +78,13 @@ private const val REFRESH_MS = 15_000L
 fun ShellBanners(container: AppContainer) {
     val update by container.appUpdate.status.collectAsStateWithLifecycle()
     val signedIn by container.accountSubscriptions.signedIn.collectAsStateWithLifecycle()
+    val running by container.operations.running.collectAsStateWithLifecycle()
     RefusedTapToasts(container.playbackQueue, signedIn)
+    OperationResultToasts(container.operations)
     Column {
         OutOfDateBanner(container.appUpdate)
-        PoliteBanner(container.polite, signedIn, padStatusBar = update !is UpdateStatus.OutOfDate)
+        val first = update !is UpdateStatus.OutOfDate
+        OperationsStrip(running, padStatusBar = first, onCancel = container.operations::cancel)
+        PoliteBanner(container.polite, signedIn, padStatusBar = first && running.isEmpty())
     }
 }

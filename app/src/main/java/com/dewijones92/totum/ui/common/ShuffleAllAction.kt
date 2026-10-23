@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui.common
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,7 +17,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -27,7 +25,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.shuffle.ShuffleAll
-import com.dewijones92.totum.shuffle.ShuffleOutcome
 import com.dewijones92.totum.shuffle.ShuffleTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -42,8 +39,8 @@ fun ShuffleAllAction(
     wide: Boolean = false,
     tag: String = SHUFFLE_ALL_TAG,
 ) {
-    val loading by shuffleAll.loading.collectAsStateWithLifecycle()
-    val loaded = loading[target.key]
+    val running by shuffleAll.operations.running.collectAsStateWithLifecycle()
+    val loaded = running.firstOrNull { it.key == target.key }?.found
     val begin = rememberShuffleStarter(shuffleAll, scope)
     val onTap = { begin(target) }
     val label = loaded?.let { pluralStringResource(R.plurals.shuffle_all_loading, it, it) }
@@ -68,24 +65,13 @@ fun ShuffleAllAction(
 
 @Composable
 fun rememberShuffleStarter(shuffleAll: ShuffleAll, scope: CoroutineScope): (ShuffleTarget) -> Unit {
-    val context = LocalContext.current.applicationContext
     var asking by remember { mutableStateOf<ShuffleTarget?>(null) }
     var randomStarts by remember { mutableStateOf(LastShuffleChoice.randomStarts) }
     val ask = rememberShuffleAsk()
     val start: (ShuffleTarget, Boolean, Boolean) -> Unit = { target, includeShorts, startAtRandom ->
         asking = null
         LastShuffleChoice.randomStarts = startAtRandom
-        scope.launch {
-            val outcome = shuffleAll.shuffle(target, includeShorts, startAtRandom)
-            val message = when (outcome) {
-                ShuffleOutcome.AlreadyLoading -> return@launch
-                ShuffleOutcome.Nothing -> context.getString(R.string.shuffle_all_nothing)
-                is ShuffleOutcome.Shuffled ->
-                    context.resources.getQuantityString(R.plurals.shuffle_all_done, outcome.count, outcome.count) +
-                        if (outcome.unfinished.isEmpty()) "" else context.getString(R.string.shuffle_all_incomplete)
-            }
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
+        scope.launch { shuffleAll.shuffle(target, includeShorts, startAtRandom) }
     }
     asking?.let { target ->
         ShortsQuestion(target.title, randomStarts, { randomStarts = it }, { asking = null }) { shorts, random ->

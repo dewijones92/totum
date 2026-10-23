@@ -517,7 +517,6 @@
     <string name="music_shuffle">Shuffle</string>
     <string name="music_shuffle_all_songs">Shuffle all songs</string>
     <string name="music_shuffle_radio">Shuffle radio</string>
-    <string name="music_gathering_songs">⏳ Gathering every song by %1$s…</string>
     <string name="music_add_to_end">Add to end</string>
     <string name="music_download_album">🎧 Download the songs</string>
     <string name="music_radio">Radio</string>
@@ -904,8 +903,6 @@
     <string name="shuffle_ask_cancel">Cancel</string>
     <string name="shuffle_random_starts">🎲 Start each at a random point</string>
     <string name="shuffle_all_of">Shuffle all of %1$s</string>
-    <string name="shuffle_all_nothing">🤷 Nothing to shuffle</string>
-    <string name="shuffle_all_incomplete"> (some pages could not be loaded)</string>
     <string name="shuffle_all_shorts_title">Include Shorts?</string>
     <string name="shuffle_all_shorts_body">Shuffle everything from %1$s.</string>
     <string name="shuffle_all_with_shorts">Include Shorts</string>
@@ -933,10 +930,6 @@
     <plurals name="cleanup_delete">
         <item quantity="one">Delete 1 · %2$s</item>
         <item quantity="other">Delete %1$d · %2$s</item>
-    </plurals>
-    <plurals name="shuffle_all_done">
-        <item quantity="one">🔀 Shuffled 1 item into the queue</item>
-        <item quantity="other">🔀 Shuffled %1$d items into the queue</item>
     </plurals>
     <plurals name="shuffle_all_loading">
         <item quantity="one">⏳ Loading… 1</item>
@@ -982,4 +975,29 @@
     <string name="screen_menu">Play on a PC screen</string>
     <string name="screen_play_on">🖥️ Play on %1$s</string>
     <string name="screen_back_to_phone">📱 Back to this phone</string>
+    <string name="ops_shuffle_artist">🔀 Shuffling all of %1$s</string>
+    <string name="ops_shuffle_sources">🔀 Shuffling all of %1$s</string>
+    <plurals name="ops_found">
+        <item quantity="one">🔎 1 found so far</item>
+        <item quantity="other">🔎 %1$d found so far</item>
+    </plurals>
+    <plurals name="ops_step_albums">
+        <item quantity="one">📀 %1$d of %2$d album or single</item>
+        <item quantity="other">📀 %1$d of %2$d albums and singles</item>
+    </plurals>
+    <string name="ops_playing">▶️ Already playing; the rest is shuffled in as it arrives</string>
+    <string name="ops_cancel">Cancel</string>
+    <string name="ops_cancel_what">Cancel %1$s</string>
+    <plurals name="ops_done">
+        <item quantity="one">✅ %2$s: 1 shuffled in</item>
+        <item quantity="other">✅ %2$s: %1$d shuffled in</item>
+    </plurals>
+    <plurals name="ops_done_partial">
+        <item quantity="one">⚠️ %2$s: 1 shuffled in; some could not be read</item>
+        <item quantity="other">⚠️ %2$s: %1$d shuffled in; some could not be read</item>
+    </plurals>
+    <string name="ops_nothing">📭 %1$s: nothing found to play</string>
+    <string name="ops_failed">❌ %1$s: %2$s</string>
+    <string name="ops_cancelled">⏹️ %1$s: stopped before anything was queued</string>
+    <string name="ops_cancelled_playing">⏹️ %1$s: stopped; what is already playing stays queued</string>
 </resources>

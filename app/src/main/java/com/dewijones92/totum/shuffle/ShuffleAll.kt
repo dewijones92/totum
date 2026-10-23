@@ -17,6 +17,9 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.channel.YouTubeChannel
+import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
+import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinnedSource
 import com.dewijones92.totum.pins.RecentActions
@@ -26,11 +29,7 @@ import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.toMediaItemPage
 import com.dewijones92.totum.uploads.NewUploads
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.TimeSource
 
@@ -118,52 +117,59 @@ class ShuffleAll(
     private val stats: StatsLog? = null,
     private val randomStarts: RandomStarts? = null,
     private val uploads: NewUploads? = null,
+    val operations: Operations = Operations(),
 ) {
-    private val mutableLoading = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val loading: StateFlow<Map<String, Int>> = mutableLoading.asStateFlow()
-
     suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean, startAtRandom: Boolean? = null): ShuffleOutcome {
-        val (key, title, sources) = target
-        if (key in mutableLoading.value) {
-            Diag.log(TAG, "\"$title\" is already loading; ignoring a second tap")
+        if (operations.isRunning(target.key)) {
+            Diag.log(TAG, "\"${target.title}\" is already loading; ignoring a second tap")
             return ShuffleOutcome.AlreadyLoading
         }
+        var outcome: ShuffleOutcome = ShuffleOutcome.Nothing
+        operations.track(target.key, OperationKind.SHUFFLE_SOURCES, target.title) { progress ->
+            outcome = gatherAndPlay(target, includeShorts, startAtRandom, progress)
+            when (val done = outcome) {
+                is ShuffleOutcome.Shuffled -> OperationEnd.Done(done.count, partial = done.unfinished.isNotEmpty())
+                else -> OperationEnd.Nothing
+            }
+        }
+        return outcome
+    }
+
+    private suspend fun gatherAndPlay(
+        target: ShuffleTarget,
+        includeShorts: Boolean,
+        startAtRandom: Boolean?,
+        progress: Operations.Progress,
+    ): ShuffleOutcome {
+        val (key, title, sources) = target
         val started = TimeSource.Monotonic.markNow()
         Diag.log(TAG, "shuffle all \"$title\": ${sources.size} source(s), shorts=$includeShorts")
-        mutableLoading.update { it + (key to 0) }
-        try {
-            val gathered = whole.everything(
-                sources,
-                includeShorts
-            ) { count -> mutableLoading.update { it + (key to count) } }
-            val (membersOnly, open) = gathered.items.partition { it.membersOnly }
-            val playable = open.mapNotNull { it.toPlayableOrNull() }
-            Diag.log(
-                TAG,
-                "\"$title\": ${gathered.items.size} gathered, ${playable.size} playable, " +
-                    "${membersOnly.size} members-only left out, " +
-                    "${open.size - playable.size} without a playable link, " +
-                    "in ${started.elapsedNow()}",
-            )
-            if (playable.isEmpty()) return ShuffleOutcome.Nothing
-            val shuffled = playable.shuffled()
-            randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"", startAtRandom)
-            val group = QueueGroup(id = "shuffle:$key", title = title)
-            queue.playAll(shuffled, group)
-            stats?.use(UseKind.SHUFFLE, "shuffle all")
-            val pin = Pin.ShuffleAllOf(
-                target = key,
-                title = title,
-                artUrl = sources.firstNotNullOfOrNull { it.artworkUrl }?.value,
-                sources = sources.map(PinnedSource::of),
-                includeShorts = includeShorts,
-            )
-            recent?.record(pin, from = "shuffle all")
-            uploads?.remember(group.id, pin, gathered.items)
-            return ShuffleOutcome.Shuffled(playable.size, gathered.unfinished)
-        } finally {
-            mutableLoading.update { it - key }
-        }
+        val gathered = whole.everything(sources, includeShorts) { count -> progress.report(found = count) }
+        val (membersOnly, open) = gathered.items.partition { it.membersOnly }
+        val playable = open.mapNotNull { it.toPlayableOrNull() }
+        Diag.log(
+            TAG,
+            "\"$title\": ${gathered.items.size} gathered, ${playable.size} playable, " +
+                "${membersOnly.size} members-only left out, " +
+                "${open.size - playable.size} without a playable link, " +
+                "in ${started.elapsedNow()}",
+        )
+        if (playable.isEmpty()) return ShuffleOutcome.Nothing
+        val shuffled = playable.shuffled()
+        randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"", startAtRandom)
+        val group = QueueGroup(id = "shuffle:$key", title = title)
+        queue.playAll(shuffled, group)
+        stats?.use(UseKind.SHUFFLE, "shuffle all")
+        val pin = Pin.ShuffleAllOf(
+            target = key,
+            title = title,
+            artUrl = sources.firstNotNullOfOrNull { it.artworkUrl }?.value,
+            sources = sources.map(PinnedSource::of),
+            includeShorts = includeShorts,
+        )
+        recent?.record(pin, from = "shuffle all")
+        uploads?.remember(group.id, pin, gathered.items)
+        return ShuffleOutcome.Shuffled(playable.size, gathered.unfinished)
     }
 
     private companion object {

@@ -175,10 +175,7 @@ private fun artistButtons(
         MusicButton(R.string.music_play, Icons.Filled.PlayArrow, primary = true) { viewModel.playTop() }
             .takeIf { artist.topSongs.isNotEmpty() },
         MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
-            ask { startAtRandom ->
-                toast(context, context.getString(R.string.music_gathering_songs, artist.name))
-                viewModel.shuffleAllSongs(startAtRandom, shuffledToast(context))
-            }
+            ask { startAtRandom -> viewModel.shuffleAllSongs(startAtRandom) }
         }.takeIf { artist.allSongs != null },
         MusicButton(R.string.music_shuffle_radio, Icons.Outlined.Radio) {
             viewModel.shuffle()
@@ -210,16 +207,5 @@ private fun ArtistHeader(artist: MusicArtist) {
 }
 
 private val ART_SIZE = 112.dp
-
-internal fun shuffledToast(context: Context): (Int) -> Unit {
-    val app = context.applicationContext
-    return { count -> toast(app, shuffledText(app, count)) }
-}
-
-internal fun shuffledText(context: Context, count: Int): String = if (count > 0) {
-    context.resources.getQuantityString(R.plurals.shuffle_all_done, count, count)
-} else {
-    context.getString(R.string.shuffle_all_nothing)
-}
 
 private fun MusicArtist.asPin(): Pin = Pin.Artist(browseId, name, thumbnailUrl?.value, radio?.playlistId)
