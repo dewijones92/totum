@@ -139,7 +139,8 @@ internal object PlaybackCache {
             direct.addTransferListener(transferListener)
         }
 
-        override fun open(dataSpec: DataSpec): Long {
+        override fun open(requested: DataSpec): Long {
+            val dataSpec = SideLoadedText.cacheable(requested)
             val cacheable = PlaybackCacheKeys.cacheable(dataSpec.uri.toString())
             (if (cacheable) PlaybackCacheReport.opensCached else PlaybackCacheReport.opensDirect).incrementAndGet()
             runCatching { logOpen(store, dataSpec, cacheable) }

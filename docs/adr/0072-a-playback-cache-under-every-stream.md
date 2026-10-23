@@ -41,6 +41,12 @@ ahead of the playhead, so any step back went to the network again.
 
 ## Consequences
 
+- **Side-loaded subtitles are kept although their length is unknown** (2026-10-23). Media3 loads them with
+  `FLAG_DONT_CACHE_IF_LENGTH_UNKNOWN`, and YouTube's timedtext answers carry no length, so they were never stored
+  and every seek fetched them again (256 KB in 0.7 s on Dewi's phone, 3.5 s on the emulator) while playback
+  waited. Every subtitle address goes through `captionConfiguration`, which registers it (`SideLoadedText`), and
+  the cache's router drops that flag for registered addresses only. Media still follows the flag.
+
 - Going back over anything played recently is read from the disk (emulator: 28 MB from disk on a rewind into
   earlier-played ground, 62 MB written in a minute). A second play of a video's opening also comes from the disk.
 - Up to 1 GB of the phone's cache space. Android may clear it when storage runs low, which only costs a re-fetch.

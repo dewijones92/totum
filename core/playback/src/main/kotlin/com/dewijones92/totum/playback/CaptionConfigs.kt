@@ -18,7 +18,7 @@ internal fun Bundle.toSubtitleConfiguration(): MediaItem.SubtitleConfiguration? 
 }
 
 private fun captionConfiguration(url: String, mime: String?, language: String?, label: String?) =
-    MediaItem.SubtitleConfiguration.Builder(url.toUri())
+    MediaItem.SubtitleConfiguration.Builder(url.toUri().also { SideLoadedText.remember(it.toString()) })
         .setMimeType(mime)
         .setLanguage(language)
         .setLabel(label)

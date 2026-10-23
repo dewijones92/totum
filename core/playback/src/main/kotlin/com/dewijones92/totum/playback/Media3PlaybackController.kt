@@ -172,7 +172,7 @@ public class Media3PlaybackController(
                 }
                 connected.addListener(remoteEnd)
                 connected.addListener(
-                    ResumeRewindListener({ controller }, resumeRewind) {
+                    ResumeRewindListener({ controller }, resumeRewind, ::rewindOnTheService) {
                         ResumeFacts(talk = tuning.keepsChanges, live = false, enabled = rewindOnResume.value)
                     },
                 )
@@ -474,6 +474,14 @@ public class Media3PlaybackController(
             .also { describeSubtitles(item, subtitles) }
             .setMediaMetadata(metadataFor(item, kind))
             .build()
+    }
+
+    private fun rewindOnTheService(player: Player, positionMs: Long) {
+        val session = player as? MediaController ?: return player.seekTo(positionMs)
+        session.sendCustomCommand(
+            SessionCommand(ACTION_REWIND_TO, Bundle.EMPTY),
+            bundleOf(EXTRA_REWIND_TO_MS to positionMs)
+        )
     }
 
     @Volatile

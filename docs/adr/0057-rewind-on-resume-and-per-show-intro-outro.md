@@ -51,6 +51,17 @@ he sets once.
 
 ## Consequences
 
+- **Resume starts from the buffer (2026-10-23, report 0.1.698 "press play was delayed???").** A resume rewind used
+  to take 1.1 s and 2.0 s on Dewi's phone and 7.2 s on the emulator after a 150 s pause, with the media already in
+  the 30 s back buffer. Two causes, both fixed: every seek (and the rewind is one) made Media3 load the side-loaded
+  captions again, and the player waited for them (ADR 72 now keeps them in the cache); and the video decoder had to
+  decode from the previous keyframe up to the exact rewind point. The rewind now lands **on the keyframe at or
+  before** its target (`rewindToKeyframeBefore`, `SeekParameters.PREVIOUS_SYNC` for that one seek only, sent to the
+  service as `ACTION_REWIND_TO`), so it can rewind up to one group of pictures more than the table above says;
+  every other seek stays exact. Emulator after the fix: 0.13–0.38 s after an 8 s pause, 0.27 s after 150 s.
+  `[seek]` lines now log every load in the 10 s after a seek (none = it played from the buffer). Tests:
+  `AResumeRewindLandsOnAKeyframeTest` (red first, against a plain seek), `ARewindDoesNotFetchTheCaptionsAgainTest`.
+
 - A resume can land up to 20 s earlier than the saved position; the log line says by how much and why
   (`resumed`/`resuming saved … rewound`, or `no rewind (…)`).
 - A saved position touched by an account reconcile has a newer saved time, so it rewinds less.

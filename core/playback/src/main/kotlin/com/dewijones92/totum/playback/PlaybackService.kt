@@ -125,6 +125,7 @@ public class PlaybackService : MediaSessionService() {
         // throughput, load failures, dropped frames. Media3 exposes it only here.
         player.addAnalyticsListener(PlaybackAnalytics { player.videoDecoderCounters })
         player.addAnalyticsListener(SubtitleTrail())
+        player.addAnalyticsListener(SeekLoadTrail())
         player.addListener(UnaskedRewindGuard { player })
         silentTail.start()
         currentPlayer = player
@@ -220,6 +221,7 @@ public class PlaybackService : MediaSessionService() {
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand(ACTION_SKIP_SILENCE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SILENT_TAIL, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_REWIND_TO, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_VOLUME_BOOST, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SILENCE_MODE, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PRELOAD_NEXT, Bundle.EMPTY))
@@ -279,6 +281,10 @@ public class PlaybackService : MediaSessionService() {
             }
             if (customCommand.customAction == ACTION_SILENCE_MODE) {
                 silenceCutter.mode = SilenceMode.fromStoredName(args.getString(EXTRA_SILENCE_MODE))
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            if (customCommand.customAction == ACTION_REWIND_TO) {
+                player?.rewindToKeyframeBefore(args.getLong(EXTRA_REWIND_TO_MS))
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_SILENT_TAIL) {

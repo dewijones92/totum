@@ -136,6 +136,7 @@ internal class ResumeRewind(private val now: () -> Long) {
 internal class ResumeRewindListener(
     private val player: () -> Player?,
     private val rewind: ResumeRewind,
+    private val rewindTo: (Player, Long) -> Unit = { p, ms -> p.seekTo(ms) },
     private val facts: () -> ResumeFacts,
 ) : Player.Listener {
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -158,7 +159,7 @@ internal class ResumeRewindListener(
                 Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS,
         )
         val target = rewind.onChange(moment, endOfItem, facts().copy(live = player.isCurrentMediaItemLive))
-        target?.let(player::seekTo)
+        target?.let { rewindTo(player, it) }
     }
 }
 

@@ -21,7 +21,7 @@ import kotlin.concurrent.thread
 internal class LoopbackHttp(private val answer: (Int) -> Reply) : AutoCloseable {
 
     /** What to answer with: a status line as HTTP writes it, and a body. */
-    internal class Reply(val status: String, val body: ByteArray)
+    internal class Reply(val status: String, val body: ByteArray, val sayLength: Boolean = true)
 
     private val listener = ServerSocket(0)
     private val served = AtomicInteger()
@@ -49,12 +49,8 @@ internal class LoopbackHttp(private val answer: (Int) -> Reply) : AutoCloseable 
             drain(client.getInputStream())
             val reply = answer(served.getAndIncrement())
             client.getOutputStream().apply {
-                write(
-                    (
-                        "HTTP/1.1 ${reply.status}\r\nContent-Length: ${reply.body.size}\r\n" +
-                            "Connection: close\r\n\r\n"
-                        ).toByteArray(),
-                )
+                val length = if (reply.sayLength) "Content-Length: ${reply.body.size}\r\n" else ""
+                write("HTTP/1.1 ${reply.status}\r\n${length}Connection: close\r\n\r\n".toByteArray())
                 write(reply.body)
                 flush()
             }
