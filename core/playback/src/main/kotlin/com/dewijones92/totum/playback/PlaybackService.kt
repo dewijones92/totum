@@ -80,9 +80,7 @@ public class PlaybackService : MediaSessionService() {
         { booster.silentForMs },
         TailSpeechScans(
             { BundledSpeechModel.get(this) },
-            unmetered = {
-                getSystemService(android.net.ConnectivityManager::class.java)?.isActiveNetworkMetered == false
-            },
+            unmetered = { !activeNetworkIsMetered() },
         ),
     )
 

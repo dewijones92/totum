@@ -86,6 +86,8 @@ class ChannelViewModel(
         val loadingMore: Boolean = false,
     ) {
         val canLoadMore: Boolean get() = next != null && !loadingMore && !loading
+
+        val foundSomething: Boolean get() = items.isNotEmpty() && !loading
     }
 
     data class UiState(

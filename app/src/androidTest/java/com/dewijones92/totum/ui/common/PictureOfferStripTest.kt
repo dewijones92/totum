@@ -52,21 +52,32 @@ class PictureOfferStripTest {
         }
     }
 
-    private fun show(queuePlaying: MediaItemId) = composeTestRule.setContent {
+    private fun show(queuePlaying: MediaItemId, madeAgoMs: Long = 0) = composeTestRule.setContent {
         CompositionLocalProvider(
             LocalItemActions provides actions,
-            LocalPictureOffer provides PictureOfferUi(PictureOffer(offered, 0L), queuePlaying) { dismissed += it },
+            LocalPictureOffer provides PictureOfferUi(
+                PictureOffer(offered, System.currentTimeMillis() - madeAgoMs),
+                queuePlaying,
+            ) { _, why -> dismissed += why },
         ) {
             PictureOfferStrip()
         }
     }
 
     @Test
-    fun `the offer stands while the queue is on its item whatever the player still reports`() {
+    fun `the offer stands while the queue is on its item`() {
         show(queuePlaying = offered.item.id)
 
         composeTestRule.onNodeWithTag(PICTURE_OFFER_TAG).assertExists()
         assertEquals(emptyList<String>(), dismissed)
+    }
+
+    @Test
+    fun `an offer made while the strip could not be seen is not shown late`() {
+        show(queuePlaying = offered.item.id, madeAgoMs = 60_000)
+
+        composeTestRule.onNodeWithTag(PICTURE_OFFER_TAG).assertDoesNotExist()
+        assertEquals(1, dismissed.size)
     }
 
     @Test

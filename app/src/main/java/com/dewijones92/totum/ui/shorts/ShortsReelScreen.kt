@@ -145,6 +145,7 @@ private fun ReelQueueBinding(
                 short.mediaUrl?.let { PlayableItem(short, PlayHandle.Video(it)) }
             },
             QueueGroup(id = "shorts:${shorts.firstOrNull()?.id?.value.orEmpty()}", title = runTitle),
+            byYou = false,
         )
     }
 
@@ -163,7 +164,7 @@ private fun ReelQueueBinding(
         queue.state.value.entries
             .indexOfFirst { it.item.item.id == wanted.id }
             .takeIf { it >= 0 }
-            ?.let(queue::jumpTo)
+            ?.let { queue.jumpTo(it, byYou = false) }
     }
 
     // ...and the reverse: when something else advances the queue — a short ending in a pocket

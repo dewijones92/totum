@@ -28,4 +28,10 @@ class TailSourceTest {
         assertEquals(true, of("content://media/1") is TailSource.None)
         assertEquals(true, of(null) is TailSource.None)
     }
+
+    @Test
+    fun `a playlist or manifest is not something MediaExtractor can read, so it is left alone`() {
+        assertEquals(true, of("https://home.test/audio/abc/7/index.m3u8?totumToken=x") is TailSource.None)
+        assertEquals(true, of("http://127.0.0.1:8080/live/manifest.mpd") is TailSource.None)
+    }
 }

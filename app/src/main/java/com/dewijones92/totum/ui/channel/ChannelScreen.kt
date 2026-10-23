@@ -242,7 +242,7 @@ private fun SearchTab(
     KeepWhenSettled(
         recents,
         state.searchQuery,
-        worthKeeping = state.searchResults.items.isNotEmpty(),
+        worthKeeping = state.searchResults.foundSomething,
         why = "${state.searchResults.items.size} found",
     )
     Column {

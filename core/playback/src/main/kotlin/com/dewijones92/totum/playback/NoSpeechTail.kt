@@ -96,6 +96,8 @@ internal fun tailSourceOf(uri: String?, audioOnly: Boolean, unmetered: Boolean, 
         uri == null || !(uri.startsWith("https:") || uri.startsWith("http:")) -> TailSource.None(
             "not a file or a web stream"
         )
+        uri.substringBefore('?').substringAfterLast('.').lowercase() in MANIFESTS ->
+            TailSource.None("it is a playlist or manifest, which MediaExtractor cannot read")
         !audioOnly -> TailSource.None("it streams with its picture, and reading its tail would fetch the video")
         !unmetered -> TailSource.None("it streams on a metered network")
         playedMs < STREAM_SCAN_AFTER_MS -> TailSource.NotYet
@@ -104,3 +106,4 @@ internal fun tailSourceOf(uri: String?, audioOnly: Boolean, unmetered: Boolean, 
 }
 
 private const val STREAM_SCAN_AFTER_MS = 10_000L
+private val MANIFESTS = setOf("m3u8", "mpd", "ism", "m3u")

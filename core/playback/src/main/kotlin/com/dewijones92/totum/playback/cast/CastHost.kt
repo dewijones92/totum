@@ -37,7 +37,8 @@ internal class CastHost(private val context: Context) {
                 ipv4 = cm.getLinkProperties(network)?.linkAddresses.orEmpty().map { it.address }
                     .filter { it is Inet4Address && !it.isLoopbackAddress }.mapNotNull { it.hostAddress },
                 routes = cm.getLinkProperties(network)?.routes.orEmpty()
-                    .filter { it.destination.address is Inet4Address }.map { it.destination.toString() },
+                    .filter { it.type == android.net.RouteInfo.RTN_UNICAST && it.destination.address is Inet4Address }
+                    .map { it.destination.toString() },
             )
         }
         val address = CastAddress.choose(networks)

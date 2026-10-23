@@ -43,6 +43,10 @@ quality: the stored request only says sound or video.
 
 ## Consequences
 
+- Review of 2026-10-23: the multi-select sheet's title counts what it lists (playable, not already downloading); an
+  audio-only copy of a video starts ticked when the choice is a video (`startsTicked`), so selecting audio copies to
+  get their picture works as the old "download in full" did.
+
 - Progress for a batch is the sheet itself when reopened, and the Downloads page; there is no separate notification.
 - Tests: `MultiSelectTest` (the selection reaches the sheet with its title), `EpisodeDownloadsTest`, `DefaultDownloadManagerTest` (resume with the height, red first; the two-restart cap),
   `EpisodePickerTest` (ticked ones only, at the chosen height; one already on the phone starts unticked).

@@ -18,6 +18,7 @@ internal class CastReach(
 
     fun noAddress() = tvs.problem(CastProblem.NO_ADDRESS)
 
+    @Synchronized
     fun handedOver(mediaId: String, token: String) {
         val handedAt = now()
         if (vpnInTheWay()) {
@@ -31,6 +32,7 @@ internal class CastReach(
         later(WAIT_MS) { check(mediaId, token, handedAt) }
     }
 
+    @Synchronized
     fun reached(mediaId: String, from: String) {
         val previous = lastRequestAt
         lastRequestAt = now()
@@ -41,11 +43,13 @@ internal class CastReach(
         warned = false
     }
 
+    @Synchronized
     fun clear() {
         lastRequestAt = Long.MIN_VALUE
         warned = false
     }
 
+    @Synchronized
     private fun check(mediaId: String, token: String, handedAt: Long) {
         if (lastRequestAt >= handedAt) return
         warned = true

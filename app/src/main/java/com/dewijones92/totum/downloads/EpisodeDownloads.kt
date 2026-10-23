@@ -107,3 +107,7 @@ class EpisodeDownloads(
 }
 
 private val PlayableItem.isSong: Boolean get() = item.contentKind == MediaContentKind.MUSIC
+
+internal fun startsTicked(item: PlayableItem, state: DownloadState?, choice: DownloadChoice): Boolean =
+    state !is DownloadState.Downloaded ||
+        (state.audioOnly && choice is DownloadChoice.Video && item.handle is PlayHandle.Video && !item.isSong)

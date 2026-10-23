@@ -54,6 +54,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.toPlayableOrNull
 
 @Stable
 class Selection internal constructor(val place: String, private val state: MutableState<Set<String>>) {
@@ -305,13 +306,12 @@ fun mediaBulkActions(
                         "download ${chosen.size} selected, ${missing.size} not yet on the phone as wanted; " +
                             "the sheet asks sound or video and which quality",
                     )
+                    val offered = chosen.filter {
+                        downloads[it.id] !is DownloadState.Downloading && it.toPlayableOrNull() != null
+                    }
                     a.downloadSome(
-                        chosen.filter { downloads[it.id] !is DownloadState.Downloading },
-                        resources.getQuantityString(
-                            R.plurals.download_selection_title,
-                            chosen.size,
-                            chosen.size
-                        ),
+                        offered,
+                        resources.getQuantityString(R.plurals.download_selection_title, offered.size, offered.size),
                     )
                 }.takeIf { missing.isNotEmpty() },
                 BulkAction(

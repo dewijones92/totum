@@ -87,4 +87,15 @@ class EpisodeDownloadsTest {
         assertEquals(2, episodes.asking.value?.items?.size)
         assertTrue(episodes.asking.value!!.offersAChoice)
     }
+
+    @Test
+    fun `an audio-only copy of a video starts ticked when the picture is wanted`() {
+        val audioCopy = com.dewijones92.totum.domain.DownloadState.Downloaded("/x/a.m4a", audioOnly = true)
+        val fullCopy = com.dewijones92.totum.domain.DownloadState.Downloaded("/x/a.mkv")
+
+        assertTrue(startsTicked(video("a"), audioCopy, DownloadChoice.Video(null)))
+        assertFalse(startsTicked(video("a"), audioCopy, DownloadChoice.Sound))
+        assertFalse(startsTicked(video("a"), fullCopy, DownloadChoice.Video(720)))
+        assertTrue(startsTicked(video("a"), null, DownloadChoice.Sound))
+    }
 }

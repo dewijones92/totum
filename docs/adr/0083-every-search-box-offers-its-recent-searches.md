@@ -32,6 +32,10 @@ did not.
 
 ## Consequences
 
+- Review of 2026-10-23: a channel search counts as having found something only once its own results have arrived
+  (`TabState.foundSomething`: not while the previous query's results are still showing during the load); each box
+  subscribes to its store once, not on every keystroke.
+
 - Recents are not part of the Drive backup (neither was the main search's list).
 - Tests: `RecentSearchesTest` (instrumented: a settled filter is kept and offered again, a tap fills the box; a
   half-typed one is not kept; another kind of list has its own), red first; `SearchHistoryStoreTest` unchanged.

@@ -23,7 +23,6 @@ import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.routeNow
-import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.music.labelledForPlay
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.video.VideoPlaybackLauncher
@@ -313,7 +312,7 @@ class PlaybackQueue(
      * first. Deliberately does not replace the queue — an unwanted run is one
      * "remove these" away, whereas a replaced queue is gone. No-op if empty.
      */
-    fun playAll(items: List<PlayableItem>, group: QueueGroup? = null) {
+    fun playAll(items: List<PlayableItem>, group: QueueGroup? = null, byYou: Boolean = true) {
         if (items.isEmpty()) return
         // Distinct within the run as well as against the queue: a caller can legitimately hand
         // over a list with repeats (a feed showing the same video twice), and re-opening the
@@ -336,7 +335,7 @@ class PlaybackQueue(
                 // inserted after the cursor: it may be the entry the cursor is already on.
                 .also { now -> index = now.entries.indexOfFirst { it.item.item.id == run.first().item.id } }
         }
-        scope.launch { if (playAt(index)) pictureOffers.started(run.first(), "play all") }
+        scope.launch { if (playAt(index) && byYou) pictureOffers.started(run.first(), "play all") }
     }
 
     /**
@@ -356,8 +355,9 @@ class PlaybackQueue(
         ?.let { mutate("the queue's place restored after a restart: after ${id.value}") { s -> s.copy(anchor = id) } }
 
     /** Plays the entry at [index]; nothing before it is discarded. */
-    fun jumpTo(index: Int) {
-        scope.launch { if (playAt(index)) pictureOffers.startedAt(_state.value.entries.getOrNull(index)?.item) }
+    fun jumpTo(index: Int, byYou: Boolean = true) {
+        val tapped = _state.value.entries.getOrNull(index)?.item?.takeIf { byYou }
+        scope.launch { if (playAt(index)) pictureOffers.startedAt(tapped) }
     }
 
     suspend fun playInsteadOfCurrent(entry: QueueEntry): Boolean {
@@ -551,7 +551,7 @@ class PlaybackQueue(
         }
 
     suspend fun armNext(allowStream: Boolean): Boolean {
-        val queued = withSourceArtwork(peekNext() ?: return false).labelledForPlay(_state.value)
+        val queued = (peekNext() ?: return false).withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value)
         val decision = decide(queued)
         armedAtPlay = plays
         return QueueArming(controller, launcher).arm(
@@ -671,7 +671,9 @@ class PlaybackQueue(
         )
     }
 
-    private val modeSwitch = QueueModeSwitch(controller, { playingNow }, { playNow(it) }) { item, position, video ->
+    private val modeSwitch = QueueModeSwitch(controller, {
+        playingNow
+    }, { playNow(it, byYou = false) }) { item, position, video ->
         becameCurrent(item, fresh = true)
         route(item, position, forceVideo = video)
     }
@@ -902,14 +904,6 @@ class PlaybackQueue(
         return play(item, positionMs, retry = true, streamRefused = true)
     }
 
-    private fun withSourceArtwork(playable: PlayableItem): PlayableItem {
-        if (playable.item.thumbnailUrl != null) return playable
-        val item = playable.item.withArtworkFrom(sourceArtwork())
-        val outcome = if (item.thumbnailUrl != null) "using its source's" else "its source has none either"
-        Diag.log("playback", "no artwork of its own for ${item.id.value} from ${item.sourceId.value}: $outcome")
-        return playable.copy(item = item)
-    }
-
     /**
      * Picks a route with [routeNow] and carries it out — the only place playback starts.
      *
@@ -997,7 +991,7 @@ class PlaybackQueue(
         forceAudio: Boolean = false,
         forceVideo: Boolean = false,
     ): Boolean {
-        val queued = withSourceArtwork(listed).labelledForPlay(_state.value)
+        val queued = listed.withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value)
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
         // controller directly, so without claiming it here a streaming resolve still in flight
         // would land later and take playback back to the network — which is exactly what report

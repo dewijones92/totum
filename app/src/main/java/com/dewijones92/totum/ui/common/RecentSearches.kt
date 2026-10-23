@@ -60,7 +60,7 @@ class RecentSearches internal constructor(
 fun rememberRecentSearches(scope: String): RecentSearches? {
     val stores = LocalRecentSearches.current ?: return null
     val store = remember(stores, scope) { stores(scope) }
-    val state = store.recent().collectAsState(emptyList())
+    val state = remember(store) { store.recent() }.collectAsState(emptyList())
     val work = rememberCoroutineScope()
     return remember(scope, store, state, work) { RecentSearches(scope, store, work, state) }
 }

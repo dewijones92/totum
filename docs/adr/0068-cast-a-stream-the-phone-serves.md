@@ -61,6 +61,11 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 
 ## Consequences
 
+- Review of 2026-10-23: only unicast routes count as a VPN carrying the TV's network (a VPN's excluded routes are
+  `RTN_THROW`, which said "in the way" when it was not), and the hand-over, the TV's first request and the check
+  update the warning under one lock (the check runs 12 s after the hand-over), so a request arriving mid-warning cannot leave it stuck. Neither has a unit test:
+  `RouteInfo` cannot be built in a test, and the race needs two threads interleaving at one statement.
+
 - The phone relays the video bytes over Wi-Fi and encodes the audio while casting; the TV decodes.
 - A downloaded video's picture: its video track is remuxed (stream copy, no re-encode) with the bundled ffmpeg into a
   WebM with its Cues at the front, or a fragmented MP4 with a global `sidx` when the codec cannot go in WebM, cached in

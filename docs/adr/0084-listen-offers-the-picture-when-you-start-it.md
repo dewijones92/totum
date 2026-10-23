@@ -32,6 +32,14 @@ to video mode?"* Listen mode quietly plays a video as sound, so starting one gav
 
 ## Consequences
 
+- Review of 2026-10-23 (all fixed, red first where testable): choosing 🎧 Listen only on a row no longer offers the
+  picture back (`QueueModeSwitch` plays with `byYou = false`); the Shorts reel, which shows the picture anyway, makes
+  no offers; a queue tap names the entry it tapped, captured before the play; closing an offer closes only that offer
+  (`dismiss(offer, why)`), so an older strip's timer cannot close a newer one; an offer made while the strip could not
+  be seen (under the full player, or with the app in the background) expires by its `atMs` and is never shown late.
+  Left as it is: the strip reads the mode from a plain getter, so a switch to Watch elsewhere closes it at the next
+  recomposition or the 8 s timer rather than at once.
+
 - Tests: `ListenOffersThePictureTest` (JVM, red first: offered on play now and play all; not for sound, music, the
   app's own start, or when watching) and `PictureOfferStripTest` (instrumented, red first: it stands while the player
   still reports the previous item, closes once the queue moved on, Watch switches and closes).

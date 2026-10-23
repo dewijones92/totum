@@ -687,7 +687,7 @@
     <string name="select_done">Done selecting</string>
     <plurals name="selected_count">
         <item quantity="one">%1$d selected</item>
-        <item quantity="other">%1$d selected items</item>
+        <item quantity="other">%1$d selected</item>
     </plurals>
     <plurals name="playlist_delete_confirm">
         <item quantity="one">Delete %1$d playlist? Its items stay wherever else they are.</item>

@@ -27,7 +27,11 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.queue.PictureOffer
 import kotlinx.coroutines.delay
 
-class PictureOfferUi(val offer: PictureOffer?, val playingId: MediaItemId?, val dismiss: (String) -> Unit)
+class PictureOfferUi(
+    val offer: PictureOffer?,
+    val playingId: MediaItemId?,
+    val dismiss: (PictureOffer, String) -> Unit,
+)
 
 val LocalPictureOffer = compositionLocalOf<PictureOfferUi?> { null }
 
@@ -37,7 +41,7 @@ fun pictureOfferUi(container: AppContainer): PictureOfferUi {
     val offer by offers.offer.collectAsStateWithLifecycle()
     val playing by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
     val playingId = playing?.item?.id
-    return remember(offer, playingId, offers) { PictureOfferUi(offer, playingId, offers::dismiss) }
+    return remember(offer, playingId, offers) { PictureOfferUi(offer, playingId) { o, why -> offers.dismiss(o, why) } }
 }
 
 @Composable
@@ -46,15 +50,22 @@ fun PictureOfferStrip(modifier: Modifier = Modifier) {
     val offer = ui.offer ?: return
     val actions = LocalItemActions.current
     val current = ui.playingId == offer.item.item.id && actions?.audioMode != false
+    val leftMs = PICTURE_OFFER_MS - (System.currentTimeMillis() - offer.atMs)
     LaunchedEffect(offer, current) {
-        if (!current) {
-            ui.dismiss("playback moved on, or the mode changed, before an answer")
-            return@LaunchedEffect
+        when {
+            !current -> ui.dismiss(offer, "playback moved on, or the mode changed, before an answer")
+            leftMs <= 0 -> ui.dismiss(
+                offer,
+                "made ${(PICTURE_OFFER_MS - leftMs) / MS_PER_SECOND} s ago, while the strip could not be " +
+                    "seen; too late to ask",
+            )
+            else -> {
+                delay(leftMs)
+                ui.dismiss(offer, "no answer in ${PICTURE_OFFER_MS / MS_PER_SECOND} s, still listening")
+            }
         }
-        delay(PICTURE_OFFER_MS)
-        ui.dismiss("no answer in ${PICTURE_OFFER_MS / MS_PER_SECOND} s, still listening")
     }
-    if (!current) return
+    if (!current || leftMs <= 0) return
     Surface(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -70,11 +81,11 @@ fun PictureOfferStrip(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                TextButton(onClick = { ui.dismiss("Keep listening tapped") }) {
+                TextButton(onClick = { ui.dismiss(offer, "Keep listening tapped") }) {
                     Text(stringResource(R.string.picture_offer_keep))
                 }
                 Button(onClick = {
-                    ui.dismiss("Watch tapped")
+                    ui.dismiss(offer, "Watch tapped")
                     actions?.watch(offer.item.item)
                 }) { Text(stringResource(R.string.picture_offer_watch)) }
             }

@@ -38,6 +38,17 @@ class PictureOffers internal constructor(
         _offer.value = PictureOffer(item, clock())
     }
 
+    fun dismiss(offer: PictureOffer, why: String) {
+        if (_offer.value != offer) {
+            Diag.log(
+                TAG,
+                "an older picture offer for ${offer.item.item.id.value} would have closed ($why); the newer one stays"
+            )
+            return
+        }
+        dismiss(why)
+    }
+
     fun dismiss(why: String) {
         val was = _offer.value ?: return
         Diag.log(TAG, "picture offer for ${was.item.item.id.value} closed: $why")

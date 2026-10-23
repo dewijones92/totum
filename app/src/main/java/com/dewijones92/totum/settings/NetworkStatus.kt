@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.core.content.getSystemService
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.activeNetworkIsMetered
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -22,12 +23,7 @@ import kotlin.coroutines.resume
  */
 class NetworkStatus(private val context: Context) {
 
-    fun isMetered(): Boolean {
-        val cm = context.getSystemService<ConnectivityManager>() ?: return true
-        val network = cm.activeNetwork ?: return true
-        val caps = cm.getNetworkCapabilities(network) ?: return true
-        return !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-    }
+    fun isMetered(): Boolean = context.activeNetworkIsMetered()
 
     /** Whether there is a validated connection right now — actually reaching the internet. */
     fun isOnline(): Boolean {

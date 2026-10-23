@@ -82,6 +82,45 @@ class ListenOffersThePictureTest {
     }
 
     @Test
+    fun `choosing Listen only on a row does not then offer the picture`() = runTest(dispatcher) {
+        val queue = queue(listening = true)
+
+        queue.playInChosenMode(torrent)
+        advanceUntilIdle()
+
+        assertNull(queue.pictureOffers.offer.value)
+    }
+
+    @Test
+    fun `a tap in the queue offers the entry it tapped`() = runTest(dispatcher) {
+        val queue = queue(listening = true)
+        val other = PlayableItem(item("torrent:def:2", "https://home.test/ts/stream/S01E02.mkv"), PlayHandle.Podcast())
+        queue.playAll(listOf(torrent, other), byYou = false)
+        advanceUntilIdle()
+        assertNull("the app's own start", queue.pictureOffers.offer.value)
+
+        queue.jumpTo(1)
+        advanceUntilIdle()
+
+        assertEquals(other.item.id, queue.pictureOffers.offer.value?.item?.item?.id)
+    }
+
+    @Test
+    fun `closing an older offer leaves the newer one alone`() = runTest(dispatcher) {
+        val queue = queue(listening = true)
+        queue.playNow(torrent)
+        advanceUntilIdle()
+        val first = queue.pictureOffers.offer.value!!
+        val other = PlayableItem(item("torrent:def:2", "https://home.test/ts/stream/S01E02.mkv"), PlayHandle.Podcast())
+        queue.playNow(other)
+        advanceUntilIdle()
+
+        queue.pictureOffers.dismiss(first, "the strip of the first offer timed out")
+
+        assertEquals(other.item.id, queue.pictureOffers.offer.value?.item?.item?.id)
+    }
+
+    @Test
     fun `nothing is offered for sound, for music, when watching, or when the app moved on itself`() =
         runTest(dispatcher) {
             val listening = queue(listening = true)

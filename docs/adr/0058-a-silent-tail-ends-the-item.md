@@ -50,6 +50,11 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
 
 ## Consequences
 
+- Review of 2026-10-23: a playlist or manifest address (`.m3u8`, `.mpd`, a torrent's audio-only HLS) is not scanned,
+  since MediaExtractor cannot read one; "metered" is one rule, `activeNetworkIsMetered` in `:core:playback`, used by
+  the app's `NetworkStatus` and the service alike. Not done: a scan is not cancelled when the item changes or the
+  network turns metered mid-scan, and a blocking read can hold the single scan thread past its 120 s limit.
+
 - A video whose ending is quiet but meaningful (a whispered last line, a long pause before a punchline) can lose
   up to its last minute. The threshold is five seconds of near-silence to make that rare.
 - Credits with music over them are not caught here; SponsorBlock's end cards and the per-show outro (ADR 57) are.

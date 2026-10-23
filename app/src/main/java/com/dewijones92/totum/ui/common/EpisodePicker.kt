@@ -26,6 +26,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.downloads.EpisodeDownloads
+import com.dewijones92.totum.downloads.startsTicked
 import com.dewijones92.totum.settings.DownloadChoice
 
 const val EPISODE_PICKER_TAG = "episode-picker"
@@ -36,10 +37,10 @@ internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManage
     val current = ask ?: return
     val states by downloads.observeDownloads().collectAsStateWithLifecycle(initialValue = null)
     val known = states ?: return
-    var ticked by remember(current) {
-        mutableStateOf(current.items.map { it.item.id }.filterNot { known[it] is DownloadState.Downloaded }.toSet())
-    }
     var choice by remember(current) { mutableStateOf(remembered ?: DownloadChoice.Video(null)) }
+    var ticked by remember(current) {
+        mutableStateOf(current.items.filter { startsTicked(it, known[it.item.id], choice) }.map { it.item.id }.toSet())
+    }
     val onPhone = current.items.count { known[it.item.id] is DownloadState.Downloaded }
     AlertDialog(
         onDismissRequest = episodes::dismiss,
