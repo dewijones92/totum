@@ -200,7 +200,12 @@ Two regressions reached his phone that day (every lookup stuck at 360p; playback
 pause) because each change was checked with one or two taps that proved its mechanism fired, never a
 session, never the build before it for comparison, and never on an emulator set up like his phone.
 
-So any change to extraction, resolving, playback, the queue or downloads ships only after:
+**When the soak runs (Dewi, 2026-10-23):** each feature is pushed as soon as its gate is green and it has been checked
+on the emulator, so Dewi can try it on his phone; the soak below runs **once at the end of a batch**, against the
+release before the batch, in parallel with the Opus review (see "Work in batches"). A regression the soak finds is
+fixed with a test seen red first and pushed straight away. This replaces soaking before every playback push.
+
+The soak itself, for a batch that touched extraction, resolving, playback, the queue or downloads:
 
 1. **Build the previous build too**, without touching the working copy:
    `git archive <ref> | tar -x -C <scratch>/baseline && cp local.properties <scratch>/baseline/ && (cd
