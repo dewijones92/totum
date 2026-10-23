@@ -192,6 +192,18 @@ class HttpHomeTorrentServerTest {
     }
 
     @Test
+    fun `a file named with brackets still makes a valid stream address`() {
+        val name = "The.White.Lotus.S01E01.1080p.WEBRip.x265-RARBG[eztv.re].mp4"
+        val show =
+            PreparedTorrent("bbea9e", "The White Lotus", listOf(TorrentFile(index = 13, path = name, sizeBytes = 1)))
+
+        val url = serverWith(token = { "t" }, key = { "k" }).stream(show, show.files.single())
+
+        assertTrue(url.value, url.value.contains("RARBG%5Beztv.re%5D.mp4?link=bbea9e&index=13"))
+        assertEquals(name, java.net.URI(url.value).path.substringAfterLast('/'))
+    }
+
+    @Test
     fun `an address that is not one of the server's streams is not warmed`() = runTest {
         serverWith(token = { "t" }, key = { "k" }).warmStream(HttpUrl.of("https://cdn.example.com/episode.mp3"))
 

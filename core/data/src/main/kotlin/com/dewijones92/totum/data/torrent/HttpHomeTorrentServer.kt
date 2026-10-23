@@ -267,4 +267,5 @@ private fun String.quoted(): String =
     "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 /** Only what a path segment cannot contain; the server treats this purely as a label. */
-private fun String.urlPath(): String = replace(" ", "%20").replace("?", "").replace("#", "")
+private fun String.urlPath(): String =
+    java.net.URLEncoder.encode(this, Charsets.UTF_8).replace("+", "%20")
