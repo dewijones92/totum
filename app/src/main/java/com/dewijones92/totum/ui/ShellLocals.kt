@@ -13,6 +13,7 @@ import com.dewijones92.totum.ui.common.LocalExpandPlayer
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.LocalQueueSkip
+import com.dewijones92.totum.ui.common.LocalRecentSearches
 import com.dewijones92.totum.ui.common.QueueSkip
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.VideoBounds
@@ -36,6 +37,7 @@ internal fun ProvideShellLocals(
         LocalOpenSearch provides rememberSearchOpener(tabs, selected),
         LocalCastingTo provides rememberCastingTo(container.playbackController),
         LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener(closeFullPlayer) },
+        LocalRecentSearches provides container.recentSearches,
         content = content,
     )
 }

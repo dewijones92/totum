@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -36,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
@@ -47,7 +50,10 @@ import com.dewijones92.totum.data.transcript.TranscriptResult
 import com.dewijones92.totum.data.transcript.indexAt
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.ui.common.KeepWhenSettled
+import com.dewijones92.totum.ui.common.RecentSearchChips
 import com.dewijones92.totum.ui.common.live
+import com.dewijones92.totum.ui.common.rememberRecentSearches
 import java.util.Locale
 
 val LocalTranscripts = staticCompositionLocalOf<TranscriptLoader?> { null }
@@ -181,23 +187,30 @@ private fun TranscriptSearch(
     matches: Int,
     onMatch: (Int) -> Unit
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQuery,
-            singleLine = true,
-            label = { Text(stringResource(R.string.transcript_search)) },
-            modifier = Modifier.weight(1f).testTag(TRANSCRIPT_SEARCH_TAG),
-        )
-        if (matches > 0) {
-            Text(stringResource(R.string.transcript_match, match + 1, matches), Modifier.padding(horizontal = 8.dp))
-            IconButton(onClick = { onMatch((match - 1 + matches) % matches) }) {
-                Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.transcript_previous_match))
-            }
-            IconButton(onClick = { onMatch((match + 1) % matches) }) {
-                Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.transcript_next_match))
+    val recents = rememberRecentSearches("transcript")
+    KeepWhenSettled(recents, query, worthKeeping = matches > 0, why = "$matches line(s) found")
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQuery,
+                singleLine = true,
+                label = { Text(stringResource(R.string.transcript_search)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { recents?.record(query, "the keyboard's search key") }),
+                modifier = Modifier.weight(1f).testTag(TRANSCRIPT_SEARCH_TAG),
+            )
+            if (matches > 0) {
+                Text(stringResource(R.string.transcript_match, match + 1, matches), Modifier.padding(horizontal = 8.dp))
+                IconButton(onClick = { onMatch((match - 1 + matches) % matches) }) {
+                    Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.transcript_previous_match))
+                }
+                IconButton(onClick = { onMatch((match + 1) % matches) }) {
+                    Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.transcript_next_match))
+                }
             }
         }
+        if (query.isEmpty()) RecentSearchChips(recents, onPick = onQuery, Modifier.padding(top = 8.dp))
     }
 }
 

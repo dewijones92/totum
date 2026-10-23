@@ -319,6 +319,7 @@ interface AppContainer {
 
     /** Recent search queries, offered again in the search screen's idle state. */
     val searchHistoryStore: SearchHistoryStore
+    val recentSearches: (scope: String) -> SearchHistoryStore
     val skipSegmentSource: SkipSegmentSource
     val downloadManager: DownloadManager
     val lockingDownloads: LockingDownloadManager
@@ -709,6 +710,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val searchHistoryStore: SearchHistoryStore by lazy {
         SharedPrefsSearchHistoryStore(context)
+    }
+
+    private val scopedSearches = java.util.concurrent.ConcurrentHashMap<String, SearchHistoryStore>()
+
+    override val recentSearches: (scope: String) -> SearchHistoryStore = { scope ->
+        scopedSearches.getOrPut(scope) { SharedPrefsSearchHistoryStore(context, limit = RECENT_LIMIT, scope = scope) }
     }
 
     private val sponsorBlock: SponsorBlockSegmentSource by lazy {
@@ -1609,6 +1616,7 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
 
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */
 private const val TORRENT_SEARCH_TIMEOUT_SECONDS = 180L
+private const val RECENT_LIMIT = 8
 
 private fun homeTorrentServerOf(prefs: AppPreferences, httpClient: OkHttpClient): HomeTorrentServer? {
     val settings = prefs.settings.value

@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 
 # Testing
@@ -57,6 +57,7 @@ instead).
 | Auto-play stays in music or talk (ADR 64), armed successor too, stops or explores when only the other kind is left | JVM | `:app` `AutoPlayStaysInMusicOrTalkTest`, `AutoAdvancerTest` |
 | RSS parse, chapters, import/export | JVM unit | `:core:data` — the untrusted-input hot spot |
 | Search (sources, history), content refresher | JVM unit | `:core:data` |
+| Recent searches in every search box (a settled filter kept and offered again, half-typed not kept, one list per kind; ADR 83) | instrumented | `:app` `RecentSearchesTest` |
 | Local playlists, play history | JVM unit | `:core:data` (in-memory store contracts) |
 | Downloads (routed/engine/http strategies) | JVM unit | `:core:data` |
 | Cancelling and retrying a download | JVM unit | `:core:data` `CancelAndRetryTest` — incl. delete-in-flight, which used to write itself back |

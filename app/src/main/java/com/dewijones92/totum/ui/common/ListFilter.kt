@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -45,6 +47,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -171,6 +174,23 @@ fun FilterField(
 
 @Composable
 private fun FilterTextField(filter: ListFilter, shown: Int, total: Int, modifier: Modifier, inset: Dp) {
+    val recents = rememberRecentSearches("filter:${filter.place.substringBefore(' ')}")
+    KeepWhenSettled(recents, filter.query, worthKeeping = shown > 0, why = "left in place, $shown of $total shown")
+    Column {
+        FilterTextFieldOnly(filter, shown, total, modifier, inset, recents)
+        if (filter.query.isEmpty()) RecentSearchChips(recents, onPick = { filter.query = it })
+    }
+}
+
+@Composable
+private fun FilterTextFieldOnly(
+    filter: ListFilter,
+    shown: Int,
+    total: Int,
+    modifier: Modifier,
+    inset: Dp,
+    recents: RecentSearches?,
+) {
     TextField(
         value = filter.query,
         onValueChange = { filter.query = it },
@@ -194,6 +214,8 @@ private fun FilterTextField(filter: ListFilter, shown: Int, total: Int, modifier
         } else {
             null
         },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { recents?.record(filter.query, "the keyboard's search key") }),
         shape = CircleShape,
         colors = pillFieldColors(),
         modifier = modifier

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,6 +49,7 @@ import com.dewijones92.totum.ui.channel.ChannelViewModel.TabState
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.InboxToggle
+import com.dewijones92.totum.ui.common.KeepWhenSettled
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.ListShape
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
@@ -53,6 +57,7 @@ import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaListSkeleton
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.RecentSearchChips
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.ShuffleAllAction
@@ -62,6 +67,7 @@ import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberListShape
+import com.dewijones92.totum.ui.common.rememberRecentSearches
 import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.shapedBy
 import com.dewijones92.totum.ui.group.GroupPicker
@@ -232,16 +238,28 @@ private fun SearchTab(
     onLoadMore: () -> Unit,
     sourceKey: String,
 ) {
+    val recents = rememberRecentSearches("channel-search")
+    KeepWhenSettled(
+        recents,
+        state.searchQuery,
+        worthKeeping = state.searchResults.items.isNotEmpty(),
+        why = "${state.searchResults.items.size} found",
+    )
     Column {
         OutlinedTextField(
             value = state.searchQuery,
             onValueChange = onSearch,
             singleLine = true,
             label = { Text(stringResource(R.string.channel_search_hint)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = { recents?.record(state.searchQuery, "the keyboard's search key") }
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
         )
+        if (state.searchQuery.isEmpty()) RecentSearchChips(recents, onPick = onSearch)
         MediaItemTab(
             null,
             state.searchResults,

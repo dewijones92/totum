@@ -149,6 +149,7 @@ class FakeAppContainer(
         SearchOutcome.Success(Page.last(emptyList()))
     },
     override val searchHistoryStore: SearchHistoryStore = InMemorySearchHistoryStore(),
+    private val scopedSearches: MutableMap<String, SearchHistoryStore> = mutableMapOf(),
     override val playHistoryStore: PlayHistoryStore = InMemoryPlayHistoryStore(),
     override val playbackProgressStore: PlaybackProgressStore = NoOpPlaybackProgressStore,
     override val reconciledAccountProgress: ReconciledAccountProgress = NoReconciledAccountProgress,
@@ -315,6 +316,10 @@ class FakeAppContainer(
     val offlineNow = kotlinx.coroutines.flow.MutableStateFlow(false)
 
     override fun isOffline(): Boolean = offlineNow.value
+
+    override val recentSearches: (scope: String) -> SearchHistoryStore = { scope ->
+        scopedSearches.getOrPut(scope) { InMemorySearchHistoryStore() }
+    }
 
     override val offlineChanges: kotlinx.coroutines.flow.Flow<Boolean> = offlineNow
 

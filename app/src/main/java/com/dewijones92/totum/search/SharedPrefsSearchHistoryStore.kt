@@ -17,7 +17,10 @@ import kotlinx.coroutines.withContext
 public class SharedPrefsSearchHistoryStore(
     context: Context,
     private val limit: Int = 10,
+    scope: String? = null,
 ) : SearchHistoryStore {
+
+    private val key = scope?.let { "$KEY:$it" } ?: KEY
 
     private val prefs = context.getSharedPreferences("totum_search_history", Context.MODE_PRIVATE)
     private val state = MutableStateFlow(load())
@@ -39,12 +42,12 @@ public class SharedPrefsSearchHistoryStore(
     }
 
     private fun load(): List<String> =
-        prefs.getString(KEY, null)?.split(SEPARATOR)?.filter { it.isNotBlank() } ?: emptyList()
+        prefs.getString(key, null)?.split(SEPARATOR)?.filter { it.isNotBlank() } ?: emptyList()
 
     private suspend fun save(list: List<String>) {
         state.value = list
         withContext(Dispatchers.IO) {
-            prefs.edit { putString(KEY, list.joinToString(SEPARATOR)) }
+            prefs.edit { putString(key, list.joinToString(SEPARATOR)) }
         }
     }
 
