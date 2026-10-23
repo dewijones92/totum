@@ -24,7 +24,8 @@ content. He chose "the Pi bookmark finds the phone".
 - **The page lives on the phone.** `CastStreams`' server (port 8765, the one the TV fetches from) also answers
   `/screen` (the receiver page, `core/playback/src/main/assets/screen.html`, Shaka 4.11.0) and `/screen/hello`,
   `/poll`, `/state` (`ScreenLink`). Every call but the page itself needs the phone's screen key (128 random bits,
-  kept in prefs `totum_screen`, carried in the page's `#key=` fragment so it never reaches a server log).
+  kept in prefs `totum_screen`; the page reads it from its `#key=` fragment and sends it in every `/screen/*` call's
+  query string, and the Pi keeps it in `screen.json` to redirect to).
 - **The page is the remote's ear, not a cast device.** It says hello with its name, the codecs Edge can play
   (`MediaSource.isTypeSupported` probes for AVC, VP9, HEVC, AV1) and its height, then long-polls (20 s) for commands
   (`load`, `play`, `pause`, `seek`, `rate`, `subs`, `stop`) and reports its position every second. It keeps its id in
@@ -42,8 +43,9 @@ content. He chose "the Pi bookmark finds the phone".
 - **The Pi bookmark:** the phone posts `{"kind":"screen","url":…}` to the crashlog server's open `/ingest` whenever its
   page address changes (`ScreenAnnouncer`; never from an emulator or a test run, whose address would replace the
   phone's). The server keeps the latest only if it is a home or WireGuard address (10/8, 172.16/12, 192.168/16,
-  100.64/10), and `https://crashlog.333133333.xyz/screen` (Google-gated like the rest of that host) redirects to it.
-  No nginx change.
+  100.64/10) **and** of exactly the shape the phone sends (`http://<ip>:<port>/screen#key=<8–64 of [0-9a-z]>`,
+  re-checked when served), and `https://crashlog.333133333.xyz/screen` (Google-gated like the rest of that host)
+  answers with a **302 `Location`** to it, never an inline script. No nginx change.
 
 ## Consequences
 
@@ -52,8 +54,10 @@ content. He chose "the Pi bookmark finds the phone".
 - Edge needs one click on the page before it may play sound (the page asks for it).
 - Anyone on the home network who reads the key from the bookmark could drive the page; the key is per phone and can be
   reset by clearing `totum_screen`.
-- A forged `/ingest` could point the bookmark at another home-network address, which is why only private ranges are
-  kept.
+- `/ingest` is open, so anyone can post a screen address. The first version wrote it into an inline script on the
+  Google-gated page, so a planted `</script><script>…` ran with Dewi's session (found by the batch review, fixed the
+  same day: strict shape plus a header redirect). What remains: a forged post can still point the bookmark at another
+  home-network address's `/screen` page, which would then need its own key.
 - Tests: `ScreenLinkTest` (key, hello, long poll, reports), `ScreenCaptionsTest`, `ScreenAnnouncerTest`, `tests/test_screen.py` on the
   server; `tools/cast-bench/screen/screen.sh` drives it end to end (the emulator serves, a headless Edge on Windows
   plays through `adb forward`). Verified 2026-10-23: 1280×720 in Edge, pause and play from the phone, back to the

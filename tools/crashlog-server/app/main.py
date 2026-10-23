@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import ipaddress
 import html
-from urllib.parse import urlsplit
+import re
 import json
 import os
 import sqlite3
@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 DATA_DIR = Path(os.environ.get("CRASHLOG_DATA", "/data"))
@@ -159,15 +159,17 @@ def _prune() -> None:
 
 SCREEN_FILE = DATA_DIR / "screen.json"
 SCREEN_NETWORKS = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10")]
+SCREEN_URL = re.compile(r"http://(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}/screen#key=[0-9a-z]{8,64}")
 
 
 def remember_screen(parsed: Any) -> bool:
     """Keep where the phone serves its PC screen page; only a home or WireGuard address is accepted."""
     url = parsed.get("url") if isinstance(parsed, dict) else None
-    if not isinstance(url, str) or not url.startswith("http://"):
+    shape = SCREEN_URL.fullmatch(url) if isinstance(url, str) else None
+    if shape is None:
         return False
     try:
-        host = ipaddress.ip_address(urlsplit(url).hostname or "")
+        host = ipaddress.ip_address(shape.group(1))
     except ValueError:
         return False
     if not any(host in network for network in SCREEN_NETWORKS):
@@ -176,21 +178,24 @@ def remember_screen(parsed: Any) -> bool:
     return True
 
 
-def screen_page() -> str:
+def screen_target() -> str | None:
+    """The phone's page, re-checked on the way out so a file written by an older build cannot redirect anywhere."""
     known = json.loads(SCREEN_FILE.read_text()) if SCREEN_FILE.exists() else None
-    if not known:
-        return ("<!doctype html><meta charset=utf-8><title>Totum screen</title>"
-                "<body style='font:18px sans-serif;padding:24px'><h1>📭 No phone yet</h1>"
-                "<p>Open Totum on your phone on the same Wi-Fi, then reload this page.</p></body>")
-    target = json.dumps(known["url"])
+    url = known.get("url") if isinstance(known, dict) else None
+    return url if isinstance(url, str) and SCREEN_URL.fullmatch(url) else None
+
+
+def screen_page() -> str:
     return ("<!doctype html><meta charset=utf-8><title>Totum screen</title>"
-            "<body style='font:18px sans-serif;padding:24px'><h1>📺 Finding your phone…</h1>"
-            f"<p>Last heard {html.escape(known['at'])}.</p>"
-            f"<script>location.replace({target});</script></body>")
+            "<body style='font:18px sans-serif;padding:24px'><h1>📭 No phone yet</h1>"
+            "<p>Open Totum on your phone on the same Wi-Fi, then reload this page.</p></body>")
 
 
-@app.get("/screen", response_class=HTMLResponse)
-def screen() -> HTMLResponse:
+@app.get("/screen", response_model=None)
+def screen() -> Response:
+    target = screen_target()
+    if target is not None:
+        return RedirectResponse(target, status_code=302, headers={"Cache-Control": "no-store"})
     return HTMLResponse(screen_page(), headers={"Cache-Control": "no-store"})
 
 
