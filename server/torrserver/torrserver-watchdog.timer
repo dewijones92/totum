@@ -1,0 +1,14 @@
+[Unit]
+Description=Probe TorrServer's /torrents endpoint every 2 minutes
+Documentation=https://github.com/dewijones92/totum/tree/main/server
+
+[Timer]
+# The probe is a single wget with a 5s timeout - cheap enough that a short interval costs nothing,
+# and the failure it catches is user-visible (torrent streaming in Totum stops working) rather
+# than merely untidy, so hearing about it quickly is the point.
+OnBootSec=3min
+OnUnitActiveSec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

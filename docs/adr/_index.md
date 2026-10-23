@@ -100,3 +100,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 82 | [Every async operation shows itself, and an artist's shuffle plays at once](0082-every-async-operation-shows-itself.md) | Accepted |
 | 83 | [Every search box offers its recent searches](0083-every-search-box-offers-its-recent-searches.md) | Accepted |
 | 84 | [Listen mode offers the picture when you start something that has one](0084-listen-offers-the-picture-when-you-start-it.md) | Accepted |
+| 85 | [The Pi back end lives in this repo](0085-the-pi-back-end-lives-in-this-repo.md) | Accepted |

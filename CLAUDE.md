@@ -90,6 +90,7 @@ say why it is the way it is.
 | Episode downloads (Oct 2026) | A queue group's ⋮ and a torrent result's ⬇️ open one sheet: every episode ticked except what is on the phone, the ADR 77 choice for YouTube items (torrents and podcasts as files); four at a time; any interrupted download starts again by itself at the next launch, with its height, at most twice | Dewi's "download a whole series"; [ADR 80](docs/adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md) |
 | Listen offers the picture (Oct 2026) | Starting something with a picture yourself while listening shows "🎬 … has a picture" over the mini player for 8 s with Watch / Keep listening; never music, never the app's own moves (`byYou = false`) | Dewi's "prompt me, do you want to switch to video mode?"; [ADR 84](docs/adr/0084-listen-offers-the-picture-when-you-start-it.md) |
 | Recent searches (Oct 2026) | Every search box offers its recent searches as chips while empty: list filters (one list per kind of list), a channel's search, the transcript; a query is kept when it stood 2.5 s and found something, or on the keyboard's search key | Dewi's "every search in the app must contain recently searched"; [ADR 83](docs/adr/0083-every-search-box-offers-its-recent-searches.md) |
+| Pi back end (Oct 2026) | The torrent chain the app talks to lives in `server/` here, one compose project each, deployed from the Pi's clone; nginx and gluetun stay in `dot-files` | Dewi's "front end and back end all in this repo"; [ADR 85](docs/adr/0085-the-pi-back-end-lives-in-this-repo.md) |
 | Library hub (Oct 2026) | The Library tab fits on one screen (Recently, Pinned, tiles); Downloads is a tile with a count line and opens its own page | The download manager under the tiles made every other Library page a long scroll away; [ADR 73](docs/adr/0073-the-library-is-a-hub-and-downloads-have-their-own-page.md) |
 | Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
 
@@ -497,6 +498,9 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
 - `:lib:dailyalarms` — **Daily alarms** (ADR 18): `DailyAlarm` and the per-day state machine.
   `app/…/dailyalarms/` holds the controller, `RingService` (systemExempted foreground service that owns
   the ringing), the question and ring screens, notifications, receiver, tile and settings.
+- `server/` — what the app talks to on the home Pi (Prowlarr, FlareSolverr, TorrServer and its watchdog,
+  totum-audio), one compose project each, deployed from the Pi's `~/code/totum`; nginx and gluetun stay in the
+  Pi's `dot-files`. See `server/README.md` and ADR 85. The crash sink is `tools/crashlog-server/`.
 - `:lib:common` — pure-Kotlin utility module with no app dependencies, shared
   by app modules and standalone libraries alike (it would be published
   alongside `:lib:ytdlp`, like the old youtubedl-android's `common` module).

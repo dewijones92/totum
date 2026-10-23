@@ -1,0 +1,33 @@
+# FlareSolverr — solves Cloudflare interstitials for Prowlarr.
+#
+# 1337x and several other public indexers sit behind Cloudflare, which answers a plain HTTP
+# request with a challenge page rather than results — Prowlarr reports "blocked by CloudFlare
+# Protection" and the indexer is simply unusable. FlareSolverr drives a headless browser to pass
+# the challenge and hands the cookies back.
+#
+# Own compose project on bin_private with NO host port, like prowlarr/. Only Prowlarr talks to
+# it, container to container; nothing external can reach it and it needs no gate of its own.
+#
+# NOT in gluetun's netns, deliberately: it fetches indexer WEBSITES, never a swarm, so it has no
+# use for PureVPN — and a headless browser inside the VPN netns would route its traffic through
+# the same tunnel the torrent peers use, for no benefit.
+#
+# It runs a real Chromium, so it is the heaviest thing here: expect a few hundred MB resident.
+# That is why it is a separate project — it can be stopped without touching search itself, and
+# Prowlarr keeps working for the indexers that do not need it.
+name: flaresolverr
+
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/London
+    networks:
+      - bin_private
+    restart: always
+
+networks:
+  bin_private:
+    external: true

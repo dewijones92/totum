@@ -1,0 +1,17 @@
+[Unit]
+Description=Recover TorrServer when its /torrents endpoint deadlocks
+Documentation=https://github.com/dewijones92/totum/tree/main/server
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Deliberately NO RemainAfterExit. A Type=oneshot unit with RemainAfterExit=yes never leaves the
+# active state, so OnUnitActiveSec= can never re-arm AND `systemctl start` becomes a silent no-op
+# - which is exactly how hermes-firewall.timer stopped reasserting anything for three days
+# without a single error. Verified on 2026-08-05: starting that unit produced no journal lines
+# and left ExecMainStartTimestamp untouched.
+ExecStart=/home/pi/code/totum/server/torrserver/torrserver-watchdog.sh
+
+[Install]
+WantedBy=multi-user.target

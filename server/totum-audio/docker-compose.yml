@@ -1,0 +1,19 @@
+# Audio-only HLS beside TorrServer. Shares gluetun's network namespace for the same reason
+# TorrServer does: everything torrent-shaped leaves via the VPN, never the home IP — and it
+# reaches TorrServer on localhost:8090 as a result.
+name: totum-audio
+
+services:
+  totum-audio:
+    build: .
+    container_name: totum-audio
+    network_mode: "container:gluetun"
+    restart: unless-stopped
+    environment:
+      TORRSERVER: http://localhost:8090
+      PORT: 8099
+      # An abandoned tap costs three minutes of one ffmpeg, then nothing.
+      IDLE_SECONDS: 180
+    tmpfs:
+      # Segments never touch the disk. ~2.1 MB per minute of audio, reaped with the job.
+      - /tmp/totum-audio:size=512m

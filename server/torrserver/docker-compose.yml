@@ -1,0 +1,51 @@
+# TorrServer — torrent streaming with real seeking, for Totum.
+#
+# WHY this and not qBittorrent: qBittorrent is a downloader. It fills a file sequentially and its
+# WebAPI exposes FILE priorities, not PIECE priorities, so there is no way to say "fetch the
+# pieces at 40 minutes next". Seeking is therefore limited to whatever has already arrived.
+# TorrServer is built for streaming: it serves HTTP with range requests and fetches the pieces
+# you ask for, on demand, so seeking anywhere works — which is what Dewi asked for.
+#
+# It also works from a rolling cache rather than keeping complete files, which matters on a Pi
+# sitting at 88% full.
+#
+# `network_mode: container:gluetun` — the same trick webproxy uses. It shares gluetun's network
+# namespace, so every peer connection exits PureVPN behind the same kill-switch as qBittorrent,
+# and the home IP is never exposed to a swarm. Its port 8090 must be in gluetun's
+# FIREWALL_INPUT_PORTS or nginx cannot reach it.
+#
+# NOTE, and this bites: because `container:gluetun` is opaque to compose, a plain `up -d` after
+# gluetun is recreated will report "Running" while actually being attached to a destroyed
+# namespace, with nothing listening. After ANY gluetun recreate, run
+# `docker compose up -d --force-recreate` here — the same rule webproxy already carries.
+#
+# No host port. The only way in is nginx, which gates it with oauth2-proxy against the
+# authenticated-emails allowlist.
+name: torrserver
+
+services:
+  torrserver:
+    image: ghcr.io/yourok/torrserver:latest
+    container_name: torrserver
+    network_mode: container:gluetun
+    environment:
+      - TS_PORT=8090
+      - TS_DONTKILL=1
+      - TZ=Europe/London
+    volumes:
+      - /var/lib/torrserver:/opt/ts
+    restart: always
+    # Probes /torrents, NOT /echo, and the difference is the whole reason this exists. On
+    # 2026-08-05 /torrents — the only endpoint that lists or adds a torrent — had been deadlocked
+    # for two days while /echo, /settings, / and /viewed all answered in ~5ms, so `docker ps` said
+    # Up, nginx said 200, and streaming in Totum was dead with nothing anywhere reporting a fault.
+    # Docker will not restart an unhealthy container by itself; torrserver-watchdog.timer does
+    # that. This exists so the state is VISIBLE rather than having to be discovered.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 5 -O /dev/null --post-data='{\"action\":\"list\"}' http://127.0.0.1:8090/torrents"]
+      interval: 60s
+      timeout: 10s
+      # A cold start resolves DNS and bootstraps DHT before it serves; anything less and the
+      # container reports unhealthy every single time it legitimately starts.
+      start_period: 90s
+      retries: 3
