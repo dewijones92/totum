@@ -174,7 +174,6 @@ import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
-import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.cast.LocalManifests
@@ -189,6 +188,7 @@ import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
+import com.dewijones92.totum.queue.QueueSkips
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.keepTheQueuesPlace
 import com.dewijones92.totum.queue.onlyOtherKindAhead
@@ -483,6 +483,7 @@ interface AppContainer {
 
     val recentActions: RecentActions
     val exploreMode: ExploreMode
+    val queueSkips: QueueSkips
     val statsLog: StatsLog
     val groupDownloads: GroupDownloads
     val randomStarts: RandomStarts
@@ -1464,6 +1465,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
     override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
+
+    override val queueSkips: QueueSkips by lazy {
+        QueueSkips(
+            applicationScope,
+            next = { exploreMode.next() ?: playbackQueue.playNextInQueue() },
+            previous = { playbackQueue.playPreviousInQueue() },
+        )
+    }
     override val statsLog: StatsLog by lazy { StatsLog(File(context.filesDir, "stats"), applicationScope) }
 
     override val albumYears by lazy {
@@ -1609,12 +1618,7 @@ private fun followSkipRequests(c: DefaultAppContainer, context: Context) = c.app
     c.musicRadio
     c.randomStarts.follow(c.playbackQueue)
     keepTheQueuesPlace(c.playbackQueue, context, c.applicationScope)
-    c.playbackController.skipRequests.collect { direction ->
-        when (direction) {
-            SkipDirection.NEXT -> c.exploreMode.next() ?: c.playbackQueue.playNextInQueue()
-            SkipDirection.PREVIOUS -> c.playbackQueue.playPreviousInQueue()
-        }
-    }
+    c.queueSkips.follow(c.playbackController.skipRequests)
 }
 
 private fun startQueueAutoDownloader(c: DefaultAppContainer) {

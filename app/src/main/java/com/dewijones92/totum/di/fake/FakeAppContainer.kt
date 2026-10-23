@@ -99,6 +99,7 @@ import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.QueueSkips
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
@@ -258,6 +259,13 @@ class FakeAppContainer(
         Stars(localPlaylistStore) { id, title, liked -> musicFavourites.setSongLiked(id, title, liked) }
     }
     override val randomStarts: RandomStarts by lazy { RandomStarts(playbackProgressStore, null, applicationScope) }
+    override val queueSkips: QueueSkips by lazy {
+        QueueSkips(
+            applicationScope,
+            next = { exploreMode.next() ?: playbackQueue.playNextInQueue() },
+            previous = { playbackQueue.playPreviousInQueue() },
+        )
+    }
 
     override val pinPlayer: PinPlayer by lazy {
         PinPlayer(

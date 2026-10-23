@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 
 # Playback queue
@@ -195,3 +195,10 @@ so an expand-and-jump cannot leave half-faded copies; and `WatchForOverlappingRo
 every scroll or jump and warns with the rows' keys, offsets and heights if any overlap. If the doubling comes back with
 no such warning, it is drawing, not layout. Drag tests (`QueueRowDragTest`, `GroupHeaderShufflePlayTest`) pass.
 
+
+## Quick skips land on the last press (2026-10-23)
+
+Media keys, the notification and the app's ⏭/⏮ all go through `QueueSkips`, which starts every press at once rather
+than waiting for the previous item's lookup; the newest-play guards mean only the last press plays. Media-key skips used
+to run one at a time, so a burst of ⏭ marched through the queue one video every ~17 s with "Now playing" a step ahead
+of the player ([todo](../todos/now-playing-drifts-after-quick-skips.md)).

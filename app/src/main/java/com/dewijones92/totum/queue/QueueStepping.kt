@@ -31,6 +31,14 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
         } else if (direction == FORWARD && passOver(entry.item) != null) {
             finished += "$title (${passOver(entry.item)})"
         } else if (playAt(index, rollBackOnRefusal = true)) {
+            val cursorNow = state.value.currentIndex
+            if (cursorNow != index) {
+                Diag.log(
+                    "queue",
+                    "index $index \"$title\" was skipped past while it started; the cursor is on $cursorNow now",
+                )
+                return true
+            }
             // The SUCCESS says what it advanced to, not just that it did. Only the refusals
             // said anything, so a report of a queue advancing wrongly showed "advance=true"
             // and nothing about which of sixty items it had landed on.

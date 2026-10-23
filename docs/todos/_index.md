@@ -149,3 +149,4 @@ command).
 - [The signed-in TV /player answers UNPLAYABLE](signed-in-player-is-unplayable.md) — **fixed 2026-09-06**, it was the stamp's scale; age-restricted fallback re-measured working
 | [Upgrading a download keeps the old copy until the new one lands](download-upgrade-keeps-the-old-copy.md) | downloads | medium | ✅ done 2026-10-23 |
 | [The preloader's held copy should carry the next item's caption files](preload-keeps-captions.md) | playback | low | open 2026-10-23 (ADR 78) |
+| ["Now playing" drifted after quick skips](now-playing-drifts-after-quick-skips.md) | queue | high | done 2026-10-23 (QueueSkips) |

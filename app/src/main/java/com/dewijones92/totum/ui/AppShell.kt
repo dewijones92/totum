@@ -11,7 +11,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -29,6 +28,7 @@ import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.cast.rememberCastingTo
 import com.dewijones92.totum.ui.common.CountRecompositions
@@ -67,7 +67,6 @@ import com.dewijones92.totum.ui.settings.DriveBackupPrompt
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
 import com.dewijones92.totum.video.VideoPlaybackLauncher
-import kotlinx.coroutines.launch
 
 /**
  * Top-level scaffold: bottom navigation across the app's pillars with
@@ -429,11 +428,10 @@ private fun Destination(
 
 @Composable
 private fun rememberQueueSkip(container: AppContainer): QueueSkip {
-    val scope = rememberCoroutineScope()
     return remember(container) {
         QueueSkip(
-            previous = { scope.launch { container.playbackQueue.playPreviousInQueue() } },
-            next = { scope.launch { container.exploreMode.next() ?: container.playbackQueue.playNextInQueue() } },
+            previous = { container.queueSkips.skip(SkipDirection.PREVIOUS, "the app") },
+            next = { container.queueSkips.skip(SkipDirection.NEXT, "the app") },
         )
     }
 }
