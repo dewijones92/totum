@@ -18,3 +18,5 @@ scanned with the speech model (18 s of test audio in ~1 s on the emulator; a 3-m
 `TheTailIsScannedForSpeechTest` (speech then music ends where the scan begins; speech into the tail ends at 50.1 s of
 a true 50.0 s). **Not yet:** streams (YouTube, torrents, podcast enclosures) — judging "what is buffered" needs a second
 decoder over the playback cache, or fetching the tail early; until then the silent tail covers them.
+
+Streams chosen for the next batch (Dewi, 2026-10-23): audio-only streams, Wi-Fi only, by fetching the tail early.

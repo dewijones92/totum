@@ -22,7 +22,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Choose audio, video (and quality) or both when downloading](download-choice-and-quality.md) | downloads | high | done 2026-10-23 (ADR 77) |
 | [Lock a video for a child; a locked Peppa Pig shortcut](kid-lock-and-shortcut.md) | player/kids | high | ✅ done 2026-10-22 (ADR 76) |
 | [Skip finished items when the queue moves on](skip-finished-on-advance.md) | queue | high | ✅ done 2026-10-22 (ADR 74) |
-| [Download a whole torrent series or a queue group](download-series-and-groups.md) | downloads/torrents | high | requested 2026-10-22 (Dewi's 24 h batch) |
+| [Download a whole torrent series or a queue group](download-series-and-groups.md) | downloads/torrents | high | done 2026-10-23 (ADR 80) |
 | [Torrent items have no Watch / Listen](torrent-watch-listen.md) | torrents/player | high | done 2026-10-22 (c7b1967a, ADR 70: Listen/Watch for anything with a picture) |
 | [What the Pi stores for Totum, and what it should](pi-storage-review.md) | pi/infra | medium | 🔍 investigated 2026-10-22: Totum uses ~100 MB; the disk is the media library |
 | [A ⭐ for any item](star-anything.md) | library | medium | done 2026-10-23 (ADR 79) |
@@ -150,3 +150,6 @@ command).
 | [Upgrading a download keeps the old copy until the new one lands](download-upgrade-keeps-the-old-copy.md) | downloads | medium | ✅ done 2026-10-23 |
 | [The preloader's held copy should carry the next item's caption files](preload-keeps-captions.md) | playback | low | open 2026-10-23 (ADR 78) |
 | ["Now playing" drifted after quick skips](now-playing-drifts-after-quick-skips.md) | queue | high | done 2026-10-23 (QueueSkips) |
+| [Watch from the phone on the PC display](pc-display-receiver.md) | casting | high | requested 2026-10-23, decided: browser receiver page |
+| [A live strip on every tab while something long runs](progress-strip-for-long-operations.md) | ui | high | requested 2026-10-23, decided |
+| [In Listen mode, offer the picture](listen-mode-offers-the-picture.md) | playback | high | requested 2026-10-23, decided |
