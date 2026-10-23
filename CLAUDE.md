@@ -550,7 +550,10 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   it: the tip is a superset. Learned 2026-07-25, at the cost of the Totum APK. A newer push cancels the older
   run too, but the release is published as soon as the build job is done, so what gets cancelled is the later
   instrumented tests, not the APK (2026-10-15: two "cancelled" runs had both released). Check
-  `gh release view <tag> --json targetCommitish` before concluding a fix did not ship. Release signing key lives in
+  `gh release view <tag> --json targetCommitish` before concluding a fix did not ship. **But the build job
+  ("Quality gates + build") takes ~17-19 min and publishes only at its end, so pushes closer together than that
+  release nothing** (2026-10-23: four pushes ~15 min apart, three cancelled builds, no release for an hour while a
+  crash fix waited). Leave ~20 min between pushes, or batch commits into one push. Release signing key lives in
   three places, never this repo: locally at `/home/dewi/code/dewiuniapp-signing/`,
   in this repo's Actions secrets (CI signing; write-only), and backed up in
   the PRIVATE repo `dewijones92/uniapp-signing-backup` (survives laptop
