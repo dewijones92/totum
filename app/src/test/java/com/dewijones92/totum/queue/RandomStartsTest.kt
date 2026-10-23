@@ -58,7 +58,34 @@ class RandomStartsTest {
 
         assertTrue(armed != null && armed != 42_000L)
         assertEquals(armed, played)
-        assertEquals("no duration, no random start", 42_000L, starts.resumePositionMs(MediaItemId("b")))
+        assertEquals(
+            "no duration yet: from the top until the player knows it",
+            0L,
+            starts.resumePositionMs(MediaItemId("b"))
+        )
+    }
+
+    @Test
+    fun `an item with no known length gets its random point once the player knows the length`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("torrent", null)), "test", atRandom = true)
+
+        val picked = starts.startOnceLengthKnown(MediaItemId("torrent"), 10.minutes.inWholeMilliseconds)
+
+        assertTrue("picked $picked", picked != null && picked in 0 until 10.minutes.inWholeMilliseconds - 10_000)
+        assertEquals("a re-fetch keeps the point", picked, starts.resumePositionMs(MediaItemId("torrent")))
+        assertNull("asked again, nothing more to do", starts.startOnceLengthKnown(MediaItemId("torrent"), 600_000))
+    }
+
+    @Test
+    fun `learning the length moves nothing that was not shuffled to a random point`() = runTest {
+        val starts = RandomStarts(saved, null, backgroundScope, Random(3))
+        starts.assign(listOf(item("known", 10.minutes)), "test", atRandom = true)
+        starts.assign(listOf(item("top", null)), "test", atRandom = false)
+
+        assertNull(starts.startOnceLengthKnown(MediaItemId("known"), 600_000))
+        assertNull(starts.startOnceLengthKnown(MediaItemId("top"), 600_000))
+        assertNull(starts.startOnceLengthKnown(MediaItemId("never-shuffled"), 600_000))
     }
 
     @Test

@@ -48,7 +48,7 @@ class RandomStarts(
             val start = item.duration?.inWholeMilliseconds?.let { randomStartMs(it, random) }
             if (start == null) {
                 withoutDuration++
-                pending.remove(item.id)
+                pending[item.id] = ONCE_LENGTH_KNOWN
             } else {
                 pending[item.id] = start
             }
@@ -56,24 +56,44 @@ class RandomStarts(
         Diag.log(
             "shuffle",
             "random starts for $why: ${items.size - withoutDuration} of ${items.size} item(s)" +
-                if (withoutDuration > 0) ", $withoutDuration with no known duration start as usual" else "",
+                if (withoutDuration > 0) {
+                    ", $withoutDuration with no known duration pick theirs once the player knows the length"
+                } else {
+                    ""
+                },
         )
         save()
     }
 
-    fun peek(itemId: MediaItemId): Long? = pending[itemId]
+    fun peek(itemId: MediaItemId): Long? = pending[itemId]?.coerceAtLeast(0)
+
+    override suspend fun startOnceLengthKnown(itemId: MediaItemId, durationMs: Long): Long? {
+        if (pending[itemId] != ONCE_LENGTH_KNOWN) return null
+        val start = randomStartMs(durationMs, random)
+        if (start == null) {
+            pending[itemId] = 0L
+            Diag.log("shuffle", "${itemId.value} is ${durationMs}ms long, too short for a random start; from the top")
+        } else {
+            pending[itemId] = start
+            Diag.log("shuffle", "${itemId.value} is ${durationMs}ms long: its random start is ${start}ms, picked now")
+        }
+        save()
+        return start
+    }
 
     override suspend fun resumePositionMs(itemId: MediaItemId): Long? {
         val start = pending[itemId] ?: return inner.resumePositionMs(itemId)
         Diag.log(
             "shuffle",
-            if (start == 0L) {
-                "${itemId.value} starts from the top: it was shuffled without random starts"
-            } else {
-                "${itemId.value} starts at ${start}ms, a random point picked when it was shuffled"
+            when (start) {
+                ONCE_LENGTH_KNOWN ->
+                    "${itemId.value} starts from the top for now: its random point is picked once its length is known"
+                0L -> "${itemId.value} starts from the top: it was shuffled without random starts"
+                else ->
+                    "${itemId.value} starts at ${start}ms, a random point picked when it was shuffled"
             },
         )
-        return start
+        return start.coerceAtLeast(0)
     }
 
     override suspend fun lastSavedAtEpochMs(itemId: MediaItemId): Long? =
@@ -133,5 +153,6 @@ class RandomStarts(
     }
 }
 
+private const val ONCE_LENGTH_KNOWN = -1L
 private const val END_MARGIN_MS = 10_000L
 private const val END_MARGIN_FRACTION = 10

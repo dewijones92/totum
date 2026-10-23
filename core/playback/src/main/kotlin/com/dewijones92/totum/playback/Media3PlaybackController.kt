@@ -132,6 +132,7 @@ public class Media3PlaybackController(
     private var tuning = ItemTuning(speed = 1f, skipSilence = false, keepsChanges = true)
     private val endWatch = ItemEndWatch()
     private val resumeRewind = ResumeRewind(SystemClock::elapsedRealtime)
+    private val lengthKnownStart = LengthKnownStart()
     private val startLatency = StartLatency()
     private var volumeBoost = VolumeBoost.OFF
     private var ticksSinceSave = 0
@@ -263,6 +264,8 @@ public class Media3PlaybackController(
                                 )
                             }
                             connected.duration.takeIf { it > 0 }?.let { lastDurationMs = it }
+                            if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) lengthKnownStart.forget()
+                            startOnceLengthKnown(connected)
                             _state.value = connected.currentPlaybackState()
                         }
                     },
@@ -355,6 +358,25 @@ public class Media3PlaybackController(
                 controller.prepare()
                 if (startPaused) controller.pause() else controller.play()
             }
+        }
+    }
+
+    private fun startOnceLengthKnown(player: Player) {
+        val id = player.currentMediaItem?.mediaId?.ifBlank { null } ?: return
+        val duration = player.duration.takeIf { it > 0 }
+        val position = player.currentPosition
+        if (!lengthKnownStart.shouldAsk(id, duration, position)) return
+        scope.launch {
+            val start = progressStore.startOnceLengthKnown(MediaItemId(id), duration ?: return@launch) ?: return@launch
+            if (player.currentMediaItem?.mediaId != id) {
+                Diag.log("playback", "$id: its start once the length was known (${start}ms) came after it was replaced")
+                return@launch
+            }
+            Diag.log(
+                "playback",
+                "$id: its length is now known (${duration}ms), so it moves to ${start}ms from ${position}ms"
+            )
+            player.seekTo(start)
         }
     }
 

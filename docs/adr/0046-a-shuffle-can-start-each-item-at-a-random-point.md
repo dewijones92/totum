@@ -2,7 +2,7 @@
 title: A shuffle can start each item at a random point
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-10-23
 ---
 
 # 46. A shuffle can start each item at a random point
@@ -22,8 +22,11 @@ some items from halfway through"*. He chose "anywhere": from the start to just b
 - Ticked, the shuffled items get a start picked from 0 to the length minus min(10 s, a tenth), held by
   `RandomStarts`, which wraps the one resume store (`PlaybackProgressStore`) for both pillars. Reading it does not
   use it up (arming the next item for gapless reads it too); the item's first saved position does, and a start
-  is dropped when its item leaves the queue (both found by the review). Saved in `files/random-starts.txt`. Items with no
-  known length start as usual, and the log says how many.
+  is dropped when its item leaves the queue (both found by the review). Saved in `files/random-starts.txt`. An item with no
+  known length (a torrent episode) is marked to get its point once the player knows the length: it starts at 0:00
+  and the controller asks `PlaybackProgressStore.startOnceLengthKnown` the first time the length is known, then
+  moves it there (only if it has not played past 15 s). Until 2026-10-23 such items simply started as usual, so a
+  shuffled torrent series never started anywhere but the top (report 0.1.682: "0 of 54 item(s)").
 - Covered: Shuffle all (channel, podcast, group chip), the queue's up next, group order, a group, shuffle-and-play,
   an artist's songs, All songs, an album. Pinned shortcuts replay without asking.
 - The resolver peeks at it too, so a random start takes the extraction route rather than SABR, which cannot seek.

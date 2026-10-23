@@ -18,6 +18,8 @@ public interface PlaybackProgressStore {
 
     public suspend fun lastSavedAtEpochMs(itemId: MediaItemId): Long? = null
 
+    public suspend fun startOnceLengthKnown(itemId: MediaItemId, durationMs: Long): Long? = null
+
     /**
      * Everything this device knows about [itemId], in one read.
      *
