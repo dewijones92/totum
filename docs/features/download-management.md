@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 
 # Managing downloads
@@ -198,4 +198,12 @@ The item menu's plain "Download" fetched sound only for a video, while the row's
 now come from one rule (`downloadLabel`): 🎧 Download the sound only · 🎬 Download the video · 🎧 Download the song ·
 ⬇️ Download the whole file; the full player's menu offers both sound and video for a video; bulk, album and queue-group
 downloads say sound or in full.
+
+## An upgrade keeps the old copy until it lands (2026-10-23)
+
+Asking for the video of something saved as sound (or downloading again) fetches into its own file; the old copy and its
+record stay until the new one has finished, then the new file takes the item's own path. A cancel or a failure puts the
+old copy back and says so ("the new download failed (…); the sound copy is kept"), while the notification still reports
+the failure. Before, both shared one path: the record was overwritten at the start, and a cancel or failure lost the
+copy.
 

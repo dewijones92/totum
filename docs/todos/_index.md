@@ -147,4 +147,4 @@ command).
 - [Move SABR onto a Media3 ChunkSource](sabr-as-a-chunk-source.md) — designed. The proper fix for seeking AND the only route to adaptive quality, which is structurally unreachable under a progressive source (proven against the media3 1.10.1 jars)
 - [SABR cannot be opened part-way through](sabr-cannot-seek.md) — a cold jump IS served on the embedded endpoint (2026-09-07, an hour in, 500KB a fetch); what is left is ours: a byte-addressed reader cannot consume a time-addressed answer — the ChunkSource redesign
 - [The signed-in TV /player answers UNPLAYABLE](signed-in-player-is-unplayable.md) — **fixed 2026-09-06**, it was the stamp's scale; age-restricted fallback re-measured working
-| [Upgrading a download keeps the old copy until the new one lands](download-upgrade-keeps-the-old-copy.md) | downloads | medium | open (found in review 2026-10-22) |
+| [Upgrading a download keeps the old copy until the new one lands](download-upgrade-keeps-the-old-copy.md) | downloads | medium | ✅ done 2026-10-23 |

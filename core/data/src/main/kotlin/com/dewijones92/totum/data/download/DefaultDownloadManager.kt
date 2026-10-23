@@ -21,6 +21,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Routes every download through one [strategy] and records progress in the
@@ -91,8 +92,9 @@ public class DefaultDownloadManager(
             } else if (heldBack > 0) {
                 Diag.log("download", "${media.title}: $heldBack progress tick(s) not written, at most one a second")
             }
-            store.put(item, state, audioOnly)
-            _events.tryEmit(DownloadEvent(media, state))
+            val recorded = settledUpgrade(media, state)
+            store.put(item, recorded.first, recorded.second ?: audioOnly)
+            _events.tryEmit(DownloadEvent(media, if (state is DownloadState.Failed) state else recorded.first))
             when (state) {
                 is DownloadState.Failed -> Diag.warn("download", "failed ${media.title}: ${state.reason}")
                 is DownloadState.Downloaded -> {
@@ -126,6 +128,12 @@ public class DefaultDownloadManager(
      * completions all touch this and they arrive from different coroutines.
      */
     private val running = mutableMapOf<MediaItemId, Job>()
+
+    private data class Kept(val copy: DownloadState.Downloaded, val audioOnly: Boolean) {
+        val word: String get() = if (audioOnly) "sound" else "full"
+    }
+
+    private val upgrading = ConcurrentHashMap<MediaItemId, Kept>()
     private val runningLock = Mutex()
 
     override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
@@ -151,10 +159,19 @@ public class DefaultDownloadManager(
     /** Starts the coroutine that fetches [item] and records it. Called only while holding the lock. */
     private suspend fun fetch(item: PlayableItem, audioOnly: Boolean): Job {
         val media = item.item
+        val kept = (store.get(media.id) as? DownloadState.Downloaded)?.let { copy ->
+            Kept(copy, store.request(media.id)?.audioOnly ?: copy.audioOnly)
+        }
+        kept?.let { upgrading[media.id] = it } ?: upgrading.remove(media.id)
         store.put(item, DownloadState.Downloading(0, null), audioOnly)
         _events.tryEmit(DownloadEvent(media, DownloadState.Downloading(0, null)))
-        val target = File(downloadDir.apply { mkdirs() }, media.id.fileName())
-        Diag.log("download", "start audioOnly=$audioOnly ${media.title}")
+        val name = if (kept != null) media.id.upgradeFileName() else media.id.fileName()
+        val target = File(downloadDir.apply { mkdirs() }, name)
+        Diag.log(
+            "download",
+            "start audioOnly=$audioOnly ${media.title}" +
+                (kept?.let { " (replacing the ${it.word} copy, kept until this lands)" } ?: ""),
+        )
         val job = scope.launch {
             if (slots.availablePermits == 0) {
                 Diag.log("download", "waiting for a free slot: ${media.title} (at most $MAX_AT_ONCE at once)")
@@ -171,8 +188,62 @@ public class DefaultDownloadManager(
         return job
     }
 
+    private fun settledUpgrade(media: MediaItem, state: DownloadState): Pair<DownloadState, Boolean?> {
+        val kept = upgrading[media.id] ?: return state to null
+        return when (state) {
+            is DownloadState.Downloaded -> {
+                upgrading.remove(media.id)
+                val final = File(downloadDir, media.id.fileName())
+                val fetched = File(state.localPath)
+                when {
+                    fetched.path == final.path -> state to null
+                    !fetched.exists() -> state.also {
+                        Diag.warn(
+                            "download",
+                            "${media.title}: finished, but ${fetched.name} is not on the disk; left as reported",
+                        )
+                    } to null
+                    else -> {
+                        final.delete()
+                        if (!fetched.renameTo(final)) fetched.copyTo(final, overwrite = true).also { fetched.delete() }
+                        Diag.log("download", "${media.title}: the new copy replaced the old one at ${final.name}")
+                        state.copy(localPath = final.path) to null
+                    }
+                }
+            }
+            is DownloadState.Failed -> {
+                upgrading.remove(media.id)
+                File(downloadDir, media.id.upgradeFileName()).let {
+                    it.delete()
+                    it.partialDownload().delete()
+                }
+                Diag.warn(
+                    "download",
+                    "${media.title}: the new download failed (${state.reason}); the ${kept.word} copy is kept",
+                )
+                kept.copy to kept.audioOnly
+            }
+            else -> state to null
+        }
+    }
+
     override suspend fun cancel(id: MediaItemId) {
         val job = runningLock.withLock { running.remove(id) }
+        upgrading.remove(id)?.let { kept ->
+            job?.cancelAndJoin()
+            File(downloadDir, id.upgradeFileName()).let {
+                it.delete()
+                it.partialDownload().delete()
+            }
+            val request = store.request(id)
+            request?.let { store.put(it.item, kept.copy, kept.audioOnly) }
+            request?.let { _events.tryEmit(DownloadEvent(it.item.item, kept.copy)) }
+            Diag.log(
+                "download",
+                "cancelled the new download of ${request?.item?.item?.title ?: id.value}; the old copy is kept"
+            )
+            return
+        }
         // Read BEFORE the record goes: an event with no item cannot be rendered, and the
         // notification consumer takes the title off it.
         val cancelled = store.request(id)?.item?.item
@@ -269,6 +340,8 @@ public class DefaultDownloadManager(
 
     /** Opaque, filesystem-safe name derived from the stable item id. */
     private fun MediaItemId.fileName(): String = "${value.hashCode().toUInt()}.media"
+
+    private fun MediaItemId.upgradeFileName(): String = "${value.hashCode().toUInt()}.upgrade.media"
 }
 
 private const val PROGRESS_WRITE_EVERY_MS = 1_000L
