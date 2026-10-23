@@ -137,6 +137,47 @@ class PoliteGateTest {
     }
 
     @Test
+    fun `a page load goes ahead of background lookups that queued first`() = runTest {
+        val gate =
+            PoliteGate(maxInFlight = 1, perSecond = 10_000.0, burst = 10_000, now = { testScheduler.currentTime })
+        val order = mutableListOf<String>()
+        val holder = launch { gate.passing("holder") { kotlinx.coroutines.delay(1_000) } }
+        advanceTimeBy(10)
+        val hearts = List(3) { n -> launch(PoliteGate.background()) { gate.passing("heart $n") { order += "heart" } } }
+        advanceTimeBy(10)
+        val page = launch { gate.passing("artist page") { order += "page" } }
+        advanceTimeBy(5_000)
+
+        (hearts + holder + page).forEach { it.join() }
+        assertEquals("page", order.first())
+    }
+
+    @Test
+    fun `background lookups never hold more than half the slots`() = runTest {
+        val gate =
+            PoliteGate(maxInFlight = 4, perSecond = 10_000.0, burst = 10_000, now = { testScheduler.currentTime })
+        var inFlight = 0
+        var most = 0
+        val hearts = List(8) {
+            launch(PoliteGate.background()) {
+                gate.passing("heart") {
+                    inFlight++
+                    most = maxOf(most, inFlight)
+                    kotlinx.coroutines.delay(500)
+                    inFlight--
+                }
+            }
+        }
+        advanceTimeBy(100)
+        val page = launch { gate.passing("artist page") { kotlinx.coroutines.delay(1) } }
+        advanceTimeBy(50)
+
+        assertEquals(true, page.isCompleted)
+        hearts.forEach { it.join() }
+        assertEquals(2, most)
+    }
+
+    @Test
     fun `blocking callers get their slots in the order they arrived`() {
         val gate = PoliteGate(maxInFlight = 1, perSecond = 10_000.0, burst = 10_000)
         val pool = Executors.newFixedThreadPool(5)

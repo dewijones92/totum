@@ -2,6 +2,7 @@ package com.dewijones92.totum.video
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayableItem
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.TimeSource
 
 class ReadyAhead(
@@ -87,7 +89,8 @@ class ReadyAhead(
         }
         val started = TimeSource.Monotonic.markNow()
         Diag.log("resolve", "looking up $id ahead ($why)")
-        val resolved = prefetch(url, item.item.sourceId, item.item.titleIsKnown)
+        val resolved =
+            withContext(PoliteGate.background()) { prefetch(url, item.item.sourceId, item.item.titleIsKnown) }
         val ms = started.elapsedNow().inWholeMilliseconds
         Diag.log(
             "resolve",

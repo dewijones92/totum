@@ -42,15 +42,17 @@ public class PoliteGate(
     public val slowDown: StateFlow<SlowDown?> = slowing.asStateFlow()
 
     public val inFlight: Int get() = maxInFlight - permits.availablePermits()
+
+    private val backgroundCap = (maxInFlight / 2).coerceAtLeast(1)
     public val queued: Int get() = waiting.size
 
     public fun <T> pass(what: String, block: () -> T): T {
         val queuedAt = now()
-        val ticket = waiting.join(INTERACTIVE.get() == true, what, permits)
+        val ticket = waiting.join(laneNow(), what, permits)
         try {
             val started = System.nanoTime()
             var noted = false
-            while (!waiting.take(ticket, permits)) {
+            while (!waiting.take(ticket, permits, backgroundCap)) {
                 if (Thread.interrupted()) throw InterruptedException("$what was interrupted waiting for the gate")
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(SLOT_POLL_MS))
                 val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
@@ -70,16 +72,17 @@ public class PoliteGate(
             return block()
         } finally {
             holders.release(held)
+            waiting.released(ticket)
             permits.release()
         }
     }
 
     public suspend fun <T> passing(what: String, block: suspend () -> T): T {
         val queuedAt = now()
-        val ticket = waiting.join(INTERACTIVE.get() == true, what, permits)
+        val ticket = waiting.join(laneNow(), what, permits)
         try {
             var noted = false
-            while (!waiting.take(ticket, permits)) {
+            while (!waiting.take(ticket, permits, backgroundCap)) {
                 pause(SLOT_POLL_MS)
                 if (!noted && now() - queuedAt >= SLOW_SLOT_MS) {
                     noted = true
@@ -97,6 +100,7 @@ public class PoliteGate(
             return block()
         } finally {
             holders.release(held)
+            waiting.released(ticket)
             permits.release()
         }
     }
@@ -212,6 +216,16 @@ public class PoliteGate(
 
         public fun interactive(): CoroutineContext.Element = INTERACTIVE.asContextElement(true)
 
+        private val BACKGROUND = ThreadLocal<Boolean>()
+
+        public fun background(): CoroutineContext.Element = BACKGROUND.asContextElement(true)
+
+        private fun laneNow(): Lane = when {
+            INTERACTIVE.get() == true -> Lane.INTERACTIVE
+            BACKGROUND.get() == true -> Lane.BACKGROUND
+            else -> Lane.NORMAL
+        }
+
         public const val DEFAULT_IN_FLIGHT: Int = 4
         public const val DEFAULT_PER_SECOND: Double = 2.0
         public const val DEFAULT_BURST: Int = 10
@@ -244,32 +258,54 @@ private class Holders {
         ) { (what, since) -> "$what for ${at - since}ms" }
 }
 
+private enum class Lane { INTERACTIVE, NORMAL, BACKGROUND }
+
 private class WaitLine {
     private val next = AtomicLong()
     private val line = ConcurrentSkipListSet<Ticket>()
+    private val backgroundHeld = java.util.concurrent.atomic.AtomicInteger()
     val size: Int get() = line.size
 
-    fun join(interactive: Boolean, what: String, permits: Semaphore): Ticket {
-        val ticket = Ticket(interactive, next.incrementAndGet())
+    fun join(lane: Lane, what: String, permits: Semaphore): Ticket {
+        val ticket = Ticket(lane, next.incrementAndGet())
         line.add(ticket)
-        if (interactive && permits.availablePermits() == 0) {
-            Diag.log(
-                "polite",
-                "$what is a play someone is waiting for: it goes ahead of " +
-                    "${line.count { !it.interactive }} background call(s)"
-            )
+        if (lane != Lane.BACKGROUND && permits.availablePermits() == 0) {
+            val behind = line.count { it.lane > lane }
+            if (behind > 0) {
+                Diag.log(
+                    "polite",
+                    "$what is ${if (lane == Lane.INTERACTIVE) "a play someone is waiting for" else "not background"}" +
+                        ": " +
+                        "it goes ahead of $behind queued call(s) of a lower lane",
+                )
+            }
         }
         return ticket
     }
 
-    fun take(ticket: Ticket, permits: Semaphore): Boolean = line.firstOrNull() == ticket && permits.tryAcquire()
+    fun take(ticket: Ticket, permits: Semaphore, backgroundCap: Int): Boolean {
+        if (line.firstOrNull() != ticket) return false
+        if (ticket.lane == Lane.BACKGROUND) {
+            if (backgroundHeld.get() >= backgroundCap || !permits.tryAcquire()) return false
+            backgroundHeld.incrementAndGet()
+            ticket.holdsBackground = true
+            return true
+        }
+        return permits.tryAcquire()
+    }
 
     fun leave(ticket: Ticket) {
         line.remove(ticket)
     }
 
-    data class Ticket(val interactive: Boolean, val seq: Long) : Comparable<Ticket> {
-        override fun compareTo(other: Ticket): Int =
-            compareValuesBy(this, other, { if (it.interactive) 0 else 1 }, { it.seq })
+    fun released(ticket: Ticket) {
+        if (ticket.holdsBackground) backgroundHeld.decrementAndGet()
+    }
+
+    data class Ticket(val lane: Lane, val seq: Long) : Comparable<Ticket> {
+        @Volatile
+        var holdsBackground: Boolean = false
+
+        override fun compareTo(other: Ticket): Int = compareValuesBy(this, other, { it.lane }, { it.seq })
     }
 }

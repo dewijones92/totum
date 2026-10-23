@@ -2,7 +2,7 @@
 title: A polite YouTube client
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-10-23
 ---
 
 # 51. A polite YouTube client
@@ -57,3 +57,12 @@ A superseded lookup is not cancelled: others can be joined to it, so cancelling 
   The meter and the once-a-minute wait summaries will show whether it bites.
 - During a 429 pause every YouTube call waits, which is the point. The banner says so and when it ends.
 - The numbers (4, 2/s, 10, 30 s, 60 min) are judgements, not measurements of YouTube's thresholds.
+
+## Update 2026-10-23: three lanes
+
+Report 0.1.686 (Dewi: *"the last bunch of ops took a while"*): an album page's per-track like lookups (27 `next`
+calls) filled the gate, and the artist page opened next waited 23 s behind them; 85 calls waited 724 s in all in that
+report. The gate now has three lanes, served in order: **interactive** (a play someone is waiting for), **normal**
+(everything not marked, page loads included) and **background** (`PoliteGate.background()`: the look-ahead resolves,
+the queue's next-item readying, album years, album-page ♡ lookups, new-upload checks). Background calls may hold at
+most half the slots (2 of 4), so two are always free for what you are waiting on. Tests in `PoliteGateTest`.

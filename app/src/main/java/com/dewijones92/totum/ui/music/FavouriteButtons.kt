@@ -22,11 +22,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.music.MusicFavourites
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 const val SAVE_ALBUM_TAG = "music-save-album"
 const val FOLLOW_ARTIST_TAG = "music-follow-artist"
@@ -112,7 +114,7 @@ internal fun rememberSongLike(
     var rating by remember(videoId) { mutableStateOf<VideoRating?>(null) }
     var known by remember(videoId) { mutableStateOf(false) }
     LaunchedEffect(videoId) {
-        rating = favourites.songRating(videoId)
+        rating = withContext(PoliteGate.background()) { favourites.songRating(videoId) }
         known = true
     }
     return rememberToggle(

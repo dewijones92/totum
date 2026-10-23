@@ -1,6 +1,7 @@
 package com.dewijones92.totum.music
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +33,7 @@ class AlbumYears(
 
     fun want(albumId: String) {
         if (albumId in known.value || !asked.add(albumId)) return
-        scope.launch {
+        scope.launch(PoliteGate.background()) {
             lanes.withPermit {
                 when (val result = catalogue.album(albumId)) {
                     is MusicResult.Success -> {

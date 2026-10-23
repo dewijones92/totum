@@ -1,6 +1,7 @@
 package com.dewijones92.totum.uploads
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.domain.MediaContentKind
@@ -17,6 +18,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -135,7 +137,10 @@ class NewUploads(
         return Plan(groups, inbox, unwatched, keep, unreadable)
     }
 
-    private suspend fun fetchAll(sources: List<MediaSource>): Map<String, List<MediaItem>?> = coroutineScope {
+    private suspend fun fetchAll(sources: List<MediaSource>): Map<String, List<MediaItem>?> =
+        withContext(PoliteGate.background()) { fetchEach(sources) }
+
+    private suspend fun fetchEach(sources: List<MediaSource>): Map<String, List<MediaItem>?> = coroutineScope {
         val permits = Semaphore(IN_FLIGHT)
         sources.map { source -> async { source.id.value to permits.withPermit { latest(source) } } }.awaitAll().toMap()
     }

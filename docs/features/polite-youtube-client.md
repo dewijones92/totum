@@ -3,7 +3,7 @@ title: A polite YouTube client
 kind: feature
 status: built 2026-10-15 — on main once pushed; not yet seen on the phone
 area: network/playback
-updated: 2026-10-15
+updated: 2026-10-23
 ---
 
 # A polite YouTube client
@@ -33,3 +33,8 @@ bot-blocked the home IP. See [ADR 51](../adr/0051-a-polite-youtube-client.md).
 
 Tests: `PoliteGateTest`, `BotBackOffTest`, `RequestMeterTest`, `PoliteInterceptorTest`,
 `PoliteYtDlpEngineTest`, `ReadyAheadTest` (throttled), `VisitorIdSourceTest` (kept per install).
+
+## Three lanes (2026-10-23)
+
+Interactive, normal and background, served in that order; background (look-aheads, readying the next item, album
+years, album-page ♡ lookups, new-upload checks) never holds more than half the slots. See ADR 51's update.
