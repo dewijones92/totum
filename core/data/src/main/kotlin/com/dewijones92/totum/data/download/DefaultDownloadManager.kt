@@ -78,10 +78,16 @@ public class DefaultDownloadManager(
 
     override fun events(): Flow<DownloadEvent> = _events.asSharedFlow()
 
-    private suspend fun fetchIn(item: PlayableItem, media: MediaItem, target: File, audioOnly: Boolean) {
+    private suspend fun fetchIn(
+        item: PlayableItem,
+        media: MediaItem,
+        target: File,
+        audioOnly: Boolean,
+        maxHeight: Int?,
+    ) {
         var lastProgressAt = Long.MIN_VALUE
         var heldBack = 0
-        strategy.download(item, target, audioOnly).collect { state ->
+        strategy.download(item, target, audioOnly, maxHeight).collect { state ->
             if (state is DownloadState.Downloading) {
                 val now = nowMs()
                 if (lastProgressAt != Long.MIN_VALUE && now - lastProgressAt < PROGRESS_WRITE_EVERY_MS) {
@@ -136,7 +142,7 @@ public class DefaultDownloadManager(
     private val upgrading = ConcurrentHashMap<MediaItemId, Kept>()
     private val runningLock = Mutex()
 
-    override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+    override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
         val media = item.item
         if (store.get(media.id).satisfies(audioOnly)) return
         // What is already being fetched is answered from MEMORY, under the lock, never from the
@@ -152,12 +158,12 @@ public class DefaultDownloadManager(
                 Diag.log("download", "already fetching \"${media.title}\" — not starting a second")
                 return
             }
-            running[media.id] = fetch(item, audioOnly)
+            running[media.id] = fetch(item, audioOnly, maxHeight)
         }
     }
 
     /** Starts the coroutine that fetches [item] and records it. Called only while holding the lock. */
-    private suspend fun fetch(item: PlayableItem, audioOnly: Boolean): Job {
+    private suspend fun fetch(item: PlayableItem, audioOnly: Boolean, maxHeight: Int? = null): Job {
         val media = item.item
         val kept = (store.get(media.id) as? DownloadState.Downloaded)?.let { copy ->
             Kept(copy, store.request(media.id)?.audioOnly ?: copy.audioOnly)
@@ -169,14 +175,14 @@ public class DefaultDownloadManager(
         val target = File(downloadDir.apply { mkdirs() }, name)
         Diag.log(
             "download",
-            "start audioOnly=$audioOnly ${media.title}" +
+            "start audioOnly=$audioOnly maxHeight=${maxHeight ?: "best"} ${media.title}" +
                 (kept?.let { " (replacing the ${it.word} copy, kept until this lands)" } ?: ""),
         )
         val job = scope.launch {
             if (slots.availablePermits == 0) {
                 Diag.log("download", "waiting for a free slot: ${media.title} (at most $MAX_AT_ONCE at once)")
             }
-            slots.withPermit { fetchIn(item, media, target, audioOnly) }
+            slots.withPermit { fetchIn(item, media, target, audioOnly, maxHeight) }
         }
         // Releasing its own claim on the way out, so the map tracks what is ACTUALLY running rather
         // than everything ever started — otherwise "cancel" would cancel an already-completed job,

@@ -10,7 +10,6 @@ import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
-import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PlaylistId
@@ -59,10 +58,6 @@ class LocalPlaylistDetailViewModel(
 
     fun remove(itemId: MediaItemId) {
         viewModelScope.launch { store.removeItem(id, itemId) }
-    }
-
-    fun download(item: MediaItem) {
-        viewModelScope.launch { downloads.download(item) }
     }
 
     fun deleteDownload(itemId: MediaItemId) {

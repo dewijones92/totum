@@ -44,6 +44,7 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.filteredByItems
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowFacts
@@ -58,6 +59,7 @@ fun PlaylistScreen(
     modifier: Modifier = Modifier,
     music: Boolean = false,
 ) {
+    val chooseDownload = rememberChooseDownload()
     val viewModel = playlistViewModel(container, playlist, music)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -98,7 +100,7 @@ fun PlaylistScreen(
                                     downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
                                     pillar = MediaKind.VIDEO,
                                     onPlay = { viewModel.play(video) },
-                                    onDownload = { viewModel.download(video) },
+                                    onDownload = { chooseDownload(video) },
                                     onDeleteDownload = { viewModel.deleteDownload(video) },
                                 )
                             }

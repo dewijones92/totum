@@ -22,8 +22,16 @@ public class RoutedDownloadStrategy(
 ) : DownloadStrategy {
 
     override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
+        download(item, target, audioOnly, maxHeight = null)
+
+    override fun download(
+        item: PlayableItem,
+        target: File,
+        audioOnly: Boolean,
+        maxHeight: Int?,
+    ): Flow<DownloadState> =
         when (item.handle.pillar) {
             MediaKind.VIDEO -> video
             MediaKind.PODCAST -> podcast
-        }.download(item, target, audioOnly)
+        }.download(item, target, audioOnly, maxHeight)
 }

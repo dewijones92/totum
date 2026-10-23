@@ -73,6 +73,7 @@ import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.filteredByItems
 import com.dewijones92.totum.ui.common.filteredByProgress
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberFeedGate
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
@@ -139,7 +140,7 @@ fun VideosScreen(
                         viewModel.play(item)
                     }
                 },
-                onDownload = viewModel::download,
+                onDownload = rememberChooseDownload(),
                 onDeleteDownload = viewModel::deleteDownload,
                 onSelectFeed = viewModel::select,
                 onChannelClick = { nav.channel = it },

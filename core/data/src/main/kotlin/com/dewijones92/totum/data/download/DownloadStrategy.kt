@@ -24,4 +24,12 @@ public fun interface DownloadStrategy {
      * it.
      */
     public fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState>
+
+    public fun download(
+        item: PlayableItem,
+        target: File,
+        audioOnly: Boolean,
+        maxHeight: Int?,
+    ): Flow<DownloadState> =
+        download(item, target, audioOnly)
 }

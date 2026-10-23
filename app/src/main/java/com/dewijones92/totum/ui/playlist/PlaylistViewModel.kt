@@ -171,10 +171,6 @@ class PlaylistViewModel(
         viewModelScope.launch { queue.playNow(PlayableItem(video, PlayHandle.Video(watchUrl))) }
     }
 
-    fun download(video: MediaItem) {
-        viewModelScope.launch { downloads.download(video) }
-    }
-
     fun deleteDownload(video: MediaItem) {
         viewModelScope.launch { downloads.delete(video.id) }
     }

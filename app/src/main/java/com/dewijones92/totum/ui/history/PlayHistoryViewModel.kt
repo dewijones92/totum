@@ -9,7 +9,6 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
-import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -34,10 +33,6 @@ class PlayHistoryViewModel(
     /** Replays a single history entry (re-resolving videos through the launcher). */
     fun play(item: PlayableItem) {
         queue.playAll(listOf(item))
-    }
-
-    fun download(item: MediaItem) {
-        viewModelScope.launch { downloads.download(item) }
     }
 
     fun deleteDownload(itemId: MediaItemId) {

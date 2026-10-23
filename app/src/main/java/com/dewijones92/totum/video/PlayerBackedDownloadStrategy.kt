@@ -41,17 +41,25 @@ class PlayerBackedDownloadStrategy(
     private val resolveAudioUrl: suspend (PlayableItem) -> HttpUrl?,
     /** Plain-HTTP fetch, so an ordinary URL is not downloaded twice in two ways. */
     private val http: DownloadStrategy,
-    private val resolveVideo: suspend (PlayableItem) -> VideoQuality? = { null },
+    private val resolveVideo: suspend (PlayableItem, Int?) -> VideoQuality? = { _, _ -> null },
     private val fetch: RangedFetch? = null,
     private val merge: suspend (File, File, File) -> String? = { _, _, _ -> "no merger" },
 ) : DownloadStrategy {
 
-    override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> = flow {
+    override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
+        download(item, target, audioOnly, maxHeight = null)
+
+    override fun download(
+        item: PlayableItem,
+        target: File,
+        audioOnly: Boolean,
+        maxHeight: Int?,
+    ): Flow<DownloadState> = flow {
         if (item.handle !is PlayHandle.Video) {
             emit(DownloadState.Failed("only a video can be fetched through the player"))
             return@flow
         }
-        if (!audioOnly && bothStreams(item, target) { emit(it) }) return@flow
+        if (!audioOnly && bothStreams(item, target, maxHeight) { emit(it) }) return@flow
         val url = resolveAudioUrl(item)
         if (url == null) {
             // Named, because "the signed-in path also failed" and "the signed-in path never ran"
@@ -80,9 +88,14 @@ class PlayerBackedDownloadStrategy(
         emitAll(sabrBytes(stream, item, target))
     }.flowOn(Dispatchers.IO)
 
-    private suspend fun bothStreams(item: PlayableItem, target: File, emit: suspend (DownloadState) -> Unit): Boolean {
+    private suspend fun bothStreams(
+        item: PlayableItem,
+        target: File,
+        maxHeight: Int?,
+        emit: suspend (DownloadState) -> Unit,
+    ): Boolean {
         val fetch = fetch ?: return false
-        val quality = resolveVideo(item) ?: run {
+        val quality = resolveVideo(item, maxHeight) ?: run {
             Diag.log(
                 "download",
                 "\"${item.item.title}\": the signed-in path gave no video stream; fetching the sound only",

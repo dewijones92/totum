@@ -199,6 +199,13 @@ now come from one rule (`downloadLabel`): 🎧 Download the sound only · 🎬 D
 ⬇️ Download the whole file; the full player's menu offers both sound and video for a video; bulk, album and queue-group
 downloads say sound or in full.
 
+## Sound or video, and which quality (2026-10-23)
+
+⬇️ asks 🎧 Sound or 🎬 Video (best, 1080p, 720p, 480p), with "Remember for next time"; once remembered, ⬇️ just
+downloads and press and hold asks again. Podcasts and songs download at once. One seam for every list
+(`DownloadChooser`, [ADR 77](../adr/0077-a-download-asks-sound-or-video-and-quality.md)); the height is a ceiling
+passed to every strategy. Tests: `DownloadChooserTest`.
+
 ## An upgrade keeps the old copy until it lands (2026-10-23)
 
 Asking for the video of something saved as sound (or downloading again) fetches into its own file; the old copy and its

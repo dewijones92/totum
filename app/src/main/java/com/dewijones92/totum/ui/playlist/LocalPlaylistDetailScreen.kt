@@ -40,6 +40,7 @@ import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowFacts
@@ -96,6 +97,7 @@ private fun PlaylistBody(
     viewModel: LocalPlaylistDetailViewModel,
     listFilter: ListFilter,
 ) {
+    val chooseDownload = rememberChooseDownload()
     val selection = rememberSelection("local-playlist")
     if (items.isEmpty()) {
         Text(
@@ -140,7 +142,7 @@ private fun PlaylistBody(
                         downloadState = downloadStates[media.id] ?: DownloadState.NotDownloaded,
                         pillar = playlistItem.pillar,
                         onPlay = { viewModel.playFrom(playlistItem) },
-                        onDownload = { viewModel.download(media) },
+                        onDownload = { chooseDownload(media) },
                         onDeleteDownload = { viewModel.deleteDownload(media.id) },
                         onRemoveFromPlaylist = { viewModel.remove(media.id) },
                     )

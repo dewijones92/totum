@@ -60,6 +60,7 @@ import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.filteredByItems
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
@@ -93,7 +94,7 @@ fun PodcastsScreen(container: AppContainer, modifier: Modifier = Modifier) {
         onSubscribe = viewModel::subscribe,
         onDialogClosed = viewModel::resetSubscribing,
         onPlayEpisode = viewModel::play,
-        onDownload = viewModel::download,
+        onDownload = rememberChooseDownload(),
         onDeleteDownload = viewModel::deleteDownload,
         onRefresh = viewModel::refresh,
         onSetSort = viewModel::setSort,

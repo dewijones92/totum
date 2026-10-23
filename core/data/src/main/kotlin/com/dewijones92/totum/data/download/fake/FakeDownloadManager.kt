@@ -97,7 +97,10 @@ public class FakeDownloadManager : DownloadManager {
     public var lastItem: PlayableItem? = null
         private set
 
-    override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+    public val requestedHeights: MutableList<Int?> = mutableListOf()
+
+    override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
+        requestedHeights += maxHeight
         val media = item.item
         val path = "/fake/${media.id.value}.media"
         requested.add(media.id to audioOnly)

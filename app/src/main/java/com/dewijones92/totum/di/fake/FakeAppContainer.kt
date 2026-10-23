@@ -53,6 +53,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.NoReconciledAccountProgress
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.ReconciledAccountProgress
+import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.InMemoryExsurgeStore
 import com.dewijones92.totum.exsurge.NoExsurgePorts
@@ -203,6 +204,10 @@ class FakeAppContainer(
         channelResolver = channelRepository,
     ),
 ) : AppContainer {
+    override val downloadChooser: DownloadChooser by lazy {
+        DownloadChooser(appPreferences, downloadManager, applicationScope)
+    }
+
     override val musicRadio: MusicRadio by lazy {
         MusicRadio(musicCatalogue, playbackQueue, applicationScope, recentActions)
     }

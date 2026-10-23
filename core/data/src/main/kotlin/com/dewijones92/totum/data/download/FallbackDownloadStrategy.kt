@@ -27,9 +27,17 @@ public class FallbackDownloadStrategy(
     private val shouldFallBack: (DownloadState.Failed) -> Boolean,
 ) : DownloadStrategy {
 
-    override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> = flow {
+    override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
+        download(item, target, audioOnly, maxHeight = null)
+
+    override fun download(
+        item: PlayableItem,
+        target: File,
+        audioOnly: Boolean,
+        maxHeight: Int?,
+    ): Flow<DownloadState> = flow {
         var failure: DownloadState.Failed? = null
-        primary.download(item, target, audioOnly).collect { state ->
+        primary.download(item, target, audioOnly, maxHeight).collect { state ->
             if (state is DownloadState.Failed) failure = state else emit(state)
         }
         val refused = failure
@@ -45,7 +53,7 @@ public class FallbackDownloadStrategy(
             "\"${item.item.title}\" was refused (${refused.reason.take(REASON_CHARS)}) — " +
                 "trying the app's own signed-in path",
         )
-        secondary.download(item, target, audioOnly).collect { state ->
+        secondary.download(item, target, audioOnly, maxHeight).collect { state ->
             // The first failure is the more informative one: it says WHY the ordinary path could
             // not do it. Kept alongside the second, rather than replaced by it.
             if (state is DownloadState.Failed) {

@@ -432,10 +432,6 @@ class VideosViewModel(
         }
     }
 
-    fun download(video: MediaItem) {
-        viewModelScope.launch { downloads.download(video) }
-    }
-
     fun deleteDownload(video: MediaItem) {
         viewModelScope.launch { downloads.delete(video.id) }
     }

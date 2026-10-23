@@ -52,7 +52,7 @@ public interface DownloadManager {
      * the full media, so asking for video after the queue auto-downloaded the audio
      * re-fetches rather than silently reporting "already downloaded".
      */
-    public suspend fun download(item: PlayableItem, audioOnly: Boolean = false)
+    public suspend fun download(item: PlayableItem, audioOnly: Boolean = false, maxHeight: Int? = null)
 
     /**
      * For callers holding only a feed item, whose pillar is inferred from its URL. A
@@ -60,8 +60,8 @@ public interface DownloadManager {
      * handle carries a video's stable watch URL, which is the only thing the engine can
      * re-resolve from.
      */
-    public suspend fun download(item: MediaItem, audioOnly: Boolean = false): Unit =
-        download(item.asPlayable(), audioOnly)
+    public suspend fun download(item: MediaItem, audioOnly: Boolean = false, maxHeight: Int? = null): Unit =
+        download(item.asPlayable(), audioOnly, maxHeight)
 
     /**
      * Stops a download that is still running and forgets it, partial file included.

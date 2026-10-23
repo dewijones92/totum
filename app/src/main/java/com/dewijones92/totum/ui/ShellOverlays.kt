@@ -13,6 +13,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelScreen
+import com.dewijones92.totum.ui.common.DownloadChoiceAsk
 import com.dewijones92.totum.ui.common.LockedDownloadAsk
 import com.dewijones92.totum.ui.playlist.PlaylistScreen
 import com.dewijones92.totum.ui.podcasts.PodcastFeedScreen
@@ -28,6 +29,7 @@ internal fun ShellOverlays(
     onCloseSource: () -> Unit,
 ) {
     LockedDownloadAsk(container.lockingDownloads)
+    DownloadChoiceAsk(container.downloadChooser)
     // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
     // channel reached via "go to channel" listed its playlists and none of them would open.
     var playlist by remember(source) { mutableStateOf<Playlist?>(null) }

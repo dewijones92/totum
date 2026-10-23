@@ -35,7 +35,11 @@ public sealed interface LockRefusal {
 
     public data class Delete(override val id: MediaItemId) : LockRefusal
 
-    public data class Replace(val item: PlayableItem, val audioOnly: Boolean) : LockRefusal {
+    public data class Replace(
+        val item: PlayableItem,
+        val audioOnly: Boolean,
+        val maxHeight: Int? = null,
+    ) : LockRefusal {
         override val id: MediaItemId get() = item.item.id
     }
 }
@@ -57,7 +61,7 @@ public class LockingDownloadManager(
         inner.delete(id)
     }
 
-    override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+    override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
         val id = item.item.id
         if (lockedCopy(id)) {
             Diag.log(
@@ -65,18 +69,19 @@ public class LockingDownloadManager(
                 "kept ${id.value} as it is: the download is locked, so a new ${if (audioOnly) "audio" else "video"} " +
                     "download would replace it; asking whether to unlock it",
             )
-            refused.emit(LockRefusal.Replace(item, audioOnly))
+            refused.emit(LockRefusal.Replace(item, audioOnly, maxHeight))
             return
         }
-        inner.download(item, audioOnly)
+        inner.download(item, audioOnly, maxHeight)
     }
 
-    override suspend fun download(item: MediaItem, audioOnly: Boolean): Unit = download(item.asPlayable(), audioOnly)
+    override suspend fun download(item: MediaItem, audioOnly: Boolean, maxHeight: Int?): Unit =
+        download(item.asPlayable(), audioOnly, maxHeight)
 
-    public suspend fun unlockAndDownload(item: PlayableItem, audioOnly: Boolean) {
+    public suspend fun unlockAndDownload(item: PlayableItem, audioOnly: Boolean, maxHeight: Int? = null) {
         locks.set(item.item.id, false)
         Diag.log("download", "unlocked ${item.item.id.value} by hand to download it again (audioOnly=$audioOnly)")
-        inner.download(item, audioOnly)
+        inner.download(item, audioOnly, maxHeight)
     }
 
     private suspend fun lockedCopy(id: MediaItemId): Boolean =

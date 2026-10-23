@@ -55,6 +55,7 @@ import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.filteredByProgress
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
@@ -213,6 +214,7 @@ private fun EpisodeList(
     listFilter: ListFilter,
     selectionKey: String,
 ) {
+    val chooseDownload = rememberChooseDownload()
     val actions = rememberMediaItemActions(container)
     val shown = listFilter.filter(episodes, { it.searchableText })
     SelectableMediaList(listFilter.place, episodes, shown, { it }, key = selectionKey) {
@@ -232,7 +234,7 @@ private fun EpisodeList(
                         downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                         pillar = MediaKind.PODCAST,
                         onPlay = { viewModel.play(episode) },
-                        onDownload = { viewModel.download(episode) },
+                        onDownload = { chooseDownload(episode) },
                         onDeleteDownload = { viewModel.deleteDownload(episode) },
                         onPlayNext = { viewModel.playNext(episode) },
                         onAddToQueue = { viewModel.enqueue(episode) },

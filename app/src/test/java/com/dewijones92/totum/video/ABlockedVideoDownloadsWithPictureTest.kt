@@ -74,7 +74,7 @@ class ABlockedVideoDownloadsWithPictureTest {
     private fun strategy(merge: suspend (File, File, File) -> String?) = PlayerBackedDownloadStrategy(
         resolveAudioUrl = { HttpUrl.of(server.url("/audio?clen=7").toString()) },
         http = soundOnly,
-        resolveVideo = { quality() },
+        resolveVideo = { _, _ -> quality() },
         fetch = RangedFetch(OkHttpClient(), chunkBytes = 10),
         merge = merge,
     )
@@ -105,7 +105,7 @@ class ABlockedVideoDownloadsWithPictureTest {
         val strategy = PlayerBackedDownloadStrategy(
             resolveAudioUrl = { null },
             http = soundOnly,
-            resolveVideo = { muxed },
+            resolveVideo = { _, _ -> muxed },
             fetch = RangedFetch(OkHttpClient(), chunkBytes = 10),
             merge = { _, _, _ -> "must not be asked" },
         )

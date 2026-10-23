@@ -31,6 +31,7 @@ import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.destructiveTexts
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
@@ -40,6 +41,7 @@ import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 /** Recently-played history across both pillars: tap to replay, or clear all. */
 @Composable
 fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val chooseDownload = rememberChooseDownload()
     val viewModel: PlayHistoryViewModel = viewModel(factory = PlayHistoryViewModel.factory(container))
     val items by viewModel.items.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
@@ -72,7 +74,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                                     downloadState = downloadStates[entry.item.id] ?: DownloadState.NotDownloaded,
                                     pillar = entry.pillar,
                                     onPlay = { viewModel.play(entry) },
-                                    onDownload = { viewModel.download(entry.item) },
+                                    onDownload = { chooseDownload(entry.item) },
                                     onDeleteDownload = { viewModel.deleteDownload(entry.item.id) },
                                     onAddToPlaylist = { addToPlaylist(entry.item) },
                                 )

@@ -72,7 +72,7 @@ class AFailedDownloadIsTriedAgainTest {
         /** Every attempt, in order, whether it went on to succeed or fail. */
         val asked: MutableList<String> = mutableListOf()
 
-        override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+        override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
             val id = item.item.id
             asked += id.value
             val used = attempts.getOrDefault(id, 0) + 1

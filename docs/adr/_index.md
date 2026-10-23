@@ -92,3 +92,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 74 | [The queue passes over finished talk when it moves on](0074-the-queue-passes-over-finished-talk.md) | Accepted |
 | 75 | [A locked download is kept until it is unlocked](0075-a-locked-download-is-kept-until-unlocked.md) | Accepted |
 | 76 | [Kid lock pins the app to a bare full-screen video](0076-kid-lock-pins-the-app-to-a-bare-video.md) | Accepted |
+| 77 | [A download asks sound or video, and which quality](0077-a-download-asks-sound-or-video-and-quality.md) | Accepted |

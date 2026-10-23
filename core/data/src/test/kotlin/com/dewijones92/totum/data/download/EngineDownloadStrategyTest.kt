@@ -82,6 +82,18 @@ class EngineDownloadStrategyTest {
     }
 
     @Test
+    fun `a video download capped at a height asks yt-dlp for that height, falling back to the best`() = runTest {
+        engine.registerMedia(watchUrl, FakeYtDlpEngine.sampleMetadata(id = "abc"))
+
+        EngineDownloadStrategy(
+            engine
+        ).download(videoItem(), temp.newFile("h.media"), audioOnly = false, maxHeight = 720)
+            .toList()
+
+        assertEquals("bv*[height<=720]+ba/b[height<=720]/bv*+ba/b", engine.lastRequest?.formatId)
+    }
+
+    @Test
     fun `a download keeps its sponsor segments by default and says so`() = runTest {
         engine.registerMedia(watchUrl, FakeYtDlpEngine.sampleMetadata(id = "abc"))
         val done = EngineDownloadStrategy(engine)

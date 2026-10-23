@@ -59,6 +59,7 @@ import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
+import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rowFacts
@@ -114,7 +115,7 @@ fun ChannelScreen(
         onSelectTab = viewModel::selectTab,
         onSearch = viewModel::search,
         onPlay = viewModel::play,
-        onDownload = viewModel::download,
+        onDownload = rememberChooseDownload(),
         onDeleteDownload = viewModel::deleteDownload,
         onAddToPlaylist = addToPlaylist,
         onOpenPlaylist = onOpenPlaylist,

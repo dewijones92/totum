@@ -105,6 +105,7 @@ import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.downloads.PrefsDownloadLocks
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
@@ -306,6 +307,7 @@ interface AppContainer {
     val downloadManager: DownloadManager
     val lockingDownloads: LockingDownloadManager
     val kidLock: KidLock
+    val downloadChooser: DownloadChooser
 
     /** Full backup / restore of everything that is not re-downloadable. */
     val backupService: BackupService
@@ -713,6 +715,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val downloadManager: DownloadManager get() = lockingDownloads
 
     override val kidLock: KidLock = KidLock()
+
+    override val downloadChooser: DownloadChooser by lazy {
+        DownloadChooser(appPreferences, downloadManager, applicationScope)
+    }
 
     override val lockingDownloads: LockingDownloadManager by lazy {
         LockingDownloadManager(plainDownloads, PrefsDownloadLocks(context))
@@ -1643,8 +1649,9 @@ private fun politeEngine(context: Context, updateDir: File, polite: Politeness):
         ),
     )
 
-private fun signedInVideo(resolver: VideoResolver): suspend (PlayableItem) -> VideoQuality? = { item ->
-    resolver.resolve(item, "download")?.qualities?.firstOrNull()
+private fun signedInVideo(resolver: VideoResolver): suspend (PlayableItem, Int?) -> VideoQuality? = { item, maxHeight ->
+    val qualities = resolver.resolve(item, "download")?.qualities.orEmpty()
+    qualities.firstOrNull { maxHeight == null || it.height <= maxHeight } ?: qualities.lastOrNull()
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

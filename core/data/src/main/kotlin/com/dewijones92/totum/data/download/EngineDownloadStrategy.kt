@@ -34,7 +34,15 @@ public class EngineDownloadStrategy(
     private val preferredAudioLanguages: () -> List<String> = { emptyList() },
 ) : DownloadStrategy {
 
-    override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> = flow {
+    override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
+        download(item, target, audioOnly, maxHeight = null)
+
+    override fun download(
+        item: PlayableItem,
+        target: File,
+        audioOnly: Boolean,
+        maxHeight: Int?,
+    ): Flow<DownloadState> = flow {
         val url = item.fetchUrl
         if (url == null) {
             emit(DownloadState.Failed("Nothing to download"))
@@ -48,7 +56,7 @@ public class EngineDownloadStrategy(
             val request = DownloadRequest(
                 url = url,
                 targetDirectory = work,
-                formatId = selectorFor(audioOnly),
+                formatId = selectorFor(audioOnly, maxHeight),
                 sponsorBlockCategories = sponsorBlockCategories,
             )
             engine.download(request).collect { event ->
@@ -92,11 +100,17 @@ public class EngineDownloadStrategy(
      * a video with no such track still downloads rather than failing -- the fallback IS the point,
      * because most videos have exactly one audio track and must be unaffected.
      */
-    private fun selectorFor(audioOnly: Boolean): String {
-        val base = if (audioOnly) BEST_AUDIO else BEST_MERGED
+    private fun selectorFor(audioOnly: Boolean, maxHeight: Int?): String {
+        val capped = maxHeight?.takeIf { !audioOnly }
+        val base = when {
+            audioOnly -> BEST_AUDIO
+            capped != null -> "bv*[height<=$capped]+ba/b[height<=$capped]/$BEST_MERGED"
+            else -> BEST_MERGED
+        }
         val wanted = preferredAudioLanguages().firstOrNull()?.takeIf { it.isNotBlank() } ?: return base
         val language = wanted.substringBefore('-')
-        return if (audioOnly) "ba[language^=$language]/$base" else "bv*+ba[language^=$language]/$base"
+        val video = capped?.let { "bv*[height<=$it]" } ?: "bv*"
+        return if (audioOnly) "ba[language^=$language]/$base" else "$video+ba[language^=$language]/$base"
     }
 
     public companion object {

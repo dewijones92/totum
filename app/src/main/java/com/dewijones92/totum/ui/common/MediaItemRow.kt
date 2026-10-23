@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -97,7 +99,7 @@ fun MediaItemRow(
      * (Related, Notifications, Search). Full media, as a screen's own Download tap fetches; the
      * action sheet's "Download video" covers upgrading an audio-only copy.
      */
-    onDownload: (() -> Unit)? = LocalItemActions.current.bind { download(item, audioOnly = false) },
+    onDownload: (() -> Unit)? = LocalItemActions.current.bind { chooseDownload(item, pillar, askAnyway = false) },
     onDeleteDownload: (() -> Unit)? = LocalItemActions.current.bind { deleteDownload(item.id) },
     /** Defaults to the app-wide offline state, so no screen has to plumb it. */
     downloadState: DownloadState = downloadStateOf(item.id),
@@ -188,7 +190,7 @@ fun MediaItemRow(
         Spacer(Modifier.width(12.dp))
         TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, followMark, Modifier.weight(1f))
         RowEnd(id, item.title, hasMenu, { showSheet = true }) {
-            TrailingControl(trailing, downloadState, onDownload, onDeleteDownload)
+            TrailingControl(trailing, downloadState, onDownload, onDeleteDownload, item, pillar)
         }
     }
     if (showSheet) {
@@ -368,23 +370,43 @@ private fun TrailingControl(
     downloadState: DownloadState,
     onDownload: (() -> Unit)?,
     onDeleteDownload: (() -> Unit)?,
+    item: MediaItem,
+    pillar: MediaKind,
 ) {
+    val ask = LocalItemActions.current?.let { actions -> { actions.chooseDownload(item, pillar, askAnyway = true) } }
     when {
         trailing != null -> trailing()
-        onDownload != null && onDeleteDownload != null -> DownloadControl(downloadState, onDownload, onDeleteDownload)
+        onDownload != null && onDeleteDownload != null -> DownloadControl(
+            downloadState,
+            onDownload,
+            onDeleteDownload,
+            ask
+        )
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun DownloadControl(
     state: DownloadState,
     onDownload: () -> Unit,
     onDeleteDownload: () -> Unit,
+    onAsk: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     when (state) {
         DownloadState.NotDownloaded, is DownloadState.Failed ->
-            IconButton(onClick = onDownload, modifier = modifier) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = modifier
+                    .size(DOWNLOAD_TARGET)
+                    .combinedClickable(
+                        role = Role.Button,
+                        onLongClickLabel = stringResource(R.string.download_choose_again),
+                        onLongClick = onAsk,
+                        onClick = onDownload,
+                    ),
+            ) {
                 Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.download))
             }
         is DownloadState.Downloading ->
@@ -412,3 +434,5 @@ fun Modifier.rowCard(tint: Color, shape: Shape, inset: Dp = ROW_CARD_MARGIN_H): 
     .padding(horizontal = inset, vertical = ROW_CARD_MARGIN_V)
     .clip(shape)
     .background(tint)
+
+private val DOWNLOAD_TARGET = 48.dp

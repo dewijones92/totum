@@ -10,6 +10,7 @@ import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
@@ -68,6 +69,7 @@ internal fun ProvideItemActions(
     )
 }
 
+@Suppress("TooManyFunctions")
 private class ContainerItemActions(
     private val container: AppContainer,
     private val rows: MediaItemActions,
@@ -81,6 +83,10 @@ private class ContainerItemActions(
 
     override fun download(item: MediaItem, audioOnly: Boolean) {
         scope.launch { container.downloadManager.download(item, audioOnly) }
+    }
+
+    override fun chooseDownload(item: MediaItem, pillar: MediaKind, askAnyway: Boolean, videoOnly: Boolean) {
+        container.downloadChooser.request(item, pillar, askAnyway, videoOnly)
     }
 
     override fun deleteDownload(id: MediaItemId) {

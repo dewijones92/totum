@@ -279,7 +279,7 @@ class QueueAutoDownloaderTest {
 
         override fun observeDownloads() = states
 
-        override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+        override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
             started += item.item.id.value
             states.value = states.value + (
                 item.item.id to
@@ -351,7 +351,7 @@ class QueueAutoDownloaderTest {
         var allowed = true
         val real = FakeDownloadManager()
         val flips = object : com.dewijones92.totum.data.download.DownloadManager by real {
-            override suspend fun download(item: PlayableItem, audioOnly: Boolean) {
+            override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
                 real.download(item, audioOnly)
                 allowed = false
             }

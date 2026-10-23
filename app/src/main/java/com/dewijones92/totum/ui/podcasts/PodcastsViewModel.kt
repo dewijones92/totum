@@ -129,10 +129,6 @@ class PodcastsViewModel(
             PlayHandle.Podcast((uiState.value.downloadStates[episode.id] as? DownloadState.Downloaded)?.localPath),
         )
 
-    fun download(episode: MediaItem) {
-        viewModelScope.launch { downloads.download(episode) }
-    }
-
     fun deleteDownload(episode: MediaItem) {
         viewModelScope.launch { downloads.delete(episode.id) }
     }

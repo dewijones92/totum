@@ -41,7 +41,7 @@ internal fun ItemActionSheet(
         onRemoveFromPlaylist = null,
         onRemoveFromQueue = null,
         onPeek = { actions.peek(item) },
-        onDownloadVideo = { actions.download(item, audioOnly = false) }
+        onDownloadVideo = { actions.chooseDownload(item, pillar, askAnyway = false, videoOnly = true) }
             .takeIf { video && local !is DownloadState.Downloading && local.mayStillGetThePicture() },
         onDownload = { actions.download(item, audioOnly = true) }
             .takeIf { local !is DownloadState.Downloaded && local !is DownloadState.Downloading },

@@ -80,6 +80,7 @@ interface AppPreferences {
     fun setHomeServerToken(token: String)
     fun setAutoDownloadQueue(enabled: Boolean)
     fun setAutoDownloadWifiOnly(enabled: Boolean)
+    fun setDownloadChoice(choice: DownloadChoice?)
     fun setPlaybackMode(mode: PlaybackMode)
     fun setMediaFilter(filter: MediaFilter)
 
@@ -145,6 +146,7 @@ interface AppPreferences {
          */
         val autoDownloadWifiOnly: Boolean = false,
         val playbackMode: PlaybackMode = PlaybackMode.AUTO,
+        val downloadChoice: DownloadChoice? = null,
         /**
          * Which items feeds show, by progress. Global rather than per-feed: "hide what I have
          * finished" is a preference about how you read, not about one subscription, and a
@@ -198,6 +200,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             homeServerToken = prefs.getString(KEY_HOME_TOKEN, "").orEmpty(),
             autoDownloadQueue = prefs.getBoolean(KEY_AUTO_DOWNLOAD, true),
             autoDownloadWifiOnly = prefs.getBoolean(KEY_AUTO_DOWNLOAD_WIFI, false),
+            downloadChoice = DownloadChoice.parse(prefs.getString(KEY_DOWNLOAD_CHOICE, null)),
             playbackMode = prefs.getString(KEY_PLAYBACK_MODE, null)
                 ?.let { name -> runCatching { PlaybackMode.valueOf(name) }.getOrNull() }
                 ?: PlaybackMode.AUTO,
@@ -283,6 +286,11 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         change("autoDownloadWifiOnly", enabled, { putBoolean(KEY_AUTO_DOWNLOAD_WIFI, enabled) }) {
             it.copy(autoDownloadWifiOnly = enabled)
         }
+
+    override fun setDownloadChoice(choice: DownloadChoice?): Unit =
+        change("downloadChoice", choice?.stored ?: "ask", {
+            if (choice == null) remove(KEY_DOWNLOAD_CHOICE) else putString(KEY_DOWNLOAD_CHOICE, choice.stored)
+        }) { it.copy(downloadChoice = choice) }
 
     override fun setSkipCategories(categories: Set<SkipCategory>): Unit =
         change("skipCategories", categories.map { it.id }.sorted(), {
@@ -380,6 +388,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_AUTO_DOWNLOAD = "auto_download_queue"
         const val KEY_AUTO_DOWNLOAD_WIFI = "auto_download_wifi_only"
         const val KEY_PLAYBACK_MODE = "playback_mode"
+        const val KEY_DOWNLOAD_CHOICE = "download_choice"
         const val KEY_MEDIA_FILTER = "media_filter"
         const val KEY_SKIP_CATEGORIES = "skip_categories"
         const val KEY_ENDCARDS_DEFAULT = "endcards_default_applied"
@@ -414,6 +423,7 @@ class InMemoryAppPreferences : AppPreferences {
     override fun setAutoDownloadWifiOnly(enabled: Boolean) =
         _settings.update { it.copy(autoDownloadWifiOnly = enabled) }
     override fun setPlaybackMode(mode: PlaybackMode) = _settings.update { it.copy(playbackMode = mode) }
+    override fun setDownloadChoice(choice: DownloadChoice?) = _settings.update { it.copy(downloadChoice = choice) }
     override fun setSkipCategories(categories: Set<SkipCategory>) =
         _settings.update { it.copy(skipCategories = categories) }
 

@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 
 /**
@@ -19,11 +20,15 @@ import com.dewijones92.totum.domain.MediaSource
  * to work to *remove* an action, and genuinely contextual ones (move within the queue,
  * remove from a playlist) stay explicit because they really do only exist somewhere.
  */
+@Suppress("TooManyFunctions")
 internal interface ItemActions {
     fun queue(items: List<MediaItem>, next: Boolean)
     fun addToPlaylist(items: List<MediaItem>)
     fun peek(item: MediaItem)
     fun download(item: MediaItem, audioOnly: Boolean)
+    fun chooseDownload(item: MediaItem, pillar: MediaKind, askAnyway: Boolean, videoOnly: Boolean = false) {
+        download(item, audioOnly = false)
+    }
     fun deleteDownload(id: MediaItemId)
     fun setPlayed(id: MediaItemId, played: Boolean)
 

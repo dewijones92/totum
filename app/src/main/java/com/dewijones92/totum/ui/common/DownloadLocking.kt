@@ -88,5 +88,5 @@ private fun lockedBody(asked: List<LockRefusal>): String {
 
 private suspend fun LockingDownloadManager.unlockAndGoAhead(refusal: LockRefusal) = when (refusal) {
     is LockRefusal.Delete -> unlockAndDelete(refusal.id)
-    is LockRefusal.Replace -> unlockAndDownload(refusal.item, refusal.audioOnly)
+    is LockRefusal.Replace -> unlockAndDownload(refusal.item, refusal.audioOnly, refusal.maxHeight)
 }
