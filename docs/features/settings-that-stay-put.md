@@ -3,7 +3,7 @@ title: Settings that stay put
 kind: feature
 status: shipped
 area: playback
-updated: 2026-09-26
+updated: 2026-10-23
 ---
 
 # Nothing changes unless you change it
@@ -21,7 +21,7 @@ because to a person they are one complaint.
 | Speed | across items, and across a silent stretch | stored; re-applied and re-declared on every item |
 | Volume boost | across items | stored; re-applied on every item |
 | Skip silence | across items | lives on the service, not the item |
-| Captions | across items | preference re-asserted on every item |
+| Captions | on in English by default; off lasts one item; a chosen language carries on | `CaptionPreference`, re-asserted on every item and transition ([ADR 78](../adr/0078-captions-are-on-in-english-and-off-is-for-one-item.md)) |
 | Quality (height) | across items, for the sitting | `StreamChoices` |
 | Audio track (language) | across items, for the sitting | `StreamChoices` |
 | Brightness | within fullscreen, for the sitting | `ChosenBrightness` — see below |

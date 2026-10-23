@@ -84,6 +84,14 @@ internal class NextItemPreloader(private val manager: DefaultPreloadManager) {
             )
             return null
         }
+        val captions = mediaItem.localConfiguration?.subtitleConfigurations?.size ?: 0
+        if (captions > 0) {
+            Diag.log(
+                "preload",
+                "held $heldFor without its $captions subtitle track(s), so it loads afresh to keep its captions",
+            )
+            return null
+        }
         val source = manager.getMediaSource(holding) ?: return null
         if (!source.canUpdateMediaItem(mediaItem)) {
             Diag.log("preload", "held $heldFor but its source cannot take the playing item, so it loads afresh")

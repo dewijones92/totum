@@ -61,7 +61,7 @@ private fun whatPlaybackKnows(
     bytes: Long?,
 ): List<ItemFact> = buildList {
     state.chapters.size.takeIf { it > 0 }?.let { add(ItemFact.Chapters(it)) }
-    state.subtitles.map { it.label }.distinct().takeIf { it.isNotEmpty() }?.let { add(ItemFact.Subtitles(it)) }
+    state.subtitleChoices.map { it.label }.distinct().takeIf { it.isNotEmpty() }?.let { add(ItemFact.Subtitles(it)) }
     state.skipSegments.size.takeIf { it > 0 }?.let { add(ItemFact.Skips(it)) }
     if (offline is DownloadState.Downloaded) add(ItemFact.Offline(offline.audioOnly, bytes))
     (item?.sourceUrl ?: item?.mediaUrl)?.let { url -> runCatching { java.net.URI(url.value).host }.getOrNull() }

@@ -254,6 +254,7 @@ public data class PlaybackState(
     val chapters: List<Chapter> = emptyList(),
     /** Caption tracks available for the current item; empty when it has none. */
     val subtitles: List<SubtitleTrack> = emptyList(),
+    val subtitleChoices: List<SubtitleChoice> = emptyList(),
     /** Language code of the caption track showing, or null for off. */
     val subtitleLanguage: String? = null,
     val showKey: SourceId? = null,

@@ -22,15 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
-import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.SubtitleChoice
 
 /** Quality, speed and subtitles for the on-video overlay, bundled so the stage keeps one parameter. */
 data class VideoSettings(
     val quality: QualityControl,
     val speed: Float,
     val onSetSpeed: (Float) -> Unit,
-    val subtitles: List<SubtitleTrack> = emptyList(),
+    val subtitles: List<SubtitleChoice> = emptyList(),
     /** Language showing, or null for off. */
     val subtitleLanguage: String? = null,
     val onSetSubtitleLanguage: (String?) -> Unit = {},
@@ -55,7 +55,7 @@ internal fun rememberVideoSettings(
     quality = quality,
     speed = state.speed,
     onSetSpeed = onSetSpeed,
-    subtitles = state.subtitles,
+    subtitles = state.subtitleChoices,
     subtitleLanguage = state.subtitleLanguage,
     onSetSubtitleLanguage = onSetSubtitleLanguage,
     castDeviceName = state.castDeviceName,
