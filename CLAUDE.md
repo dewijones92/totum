@@ -202,7 +202,7 @@ session, never the build before it for comparison, and never on an emulator set 
 
 **When the soak runs (Dewi, 2026-10-23):** each feature is pushed as soon as its gate is green and it has been checked
 on the emulator, so Dewi can try it on his phone; the soak below runs **once at the end of a batch**, against the
-release before the batch, in parallel with the Opus review (see "Work in batches"). A regression the soak finds is
+release before the batch, in parallel with the Opus review (see "How a batch runs"). A regression the soak finds is
 fixed with a test seen red first and pushed straight away. This replaces soaking before every playback push.
 
 The soak itself, for a batch that touched extraction, resolving, playback, the queue or downloads:
@@ -508,11 +508,21 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate only before a push.
   When a cycle is slow, fix the tooling in the same session rather than paying it again.
 - Commit as you go — small, coherent commits at each green state.
-- **Work in batches: build, push, then review and soak at the same time** (Dewi, 2026-10-14 and again 2026-10-15:
-  *"implement a batch of a nice chunk of work … push to Git, and in the meantime then spin up an Opus review …
-  and do the soak testing"*). Build a coherent batch of features, push it, then start a `reviewer` agent (Opus)
-  on the batch's commits, giving it the requests and accepted decisions, and run the soak alongside it. Read its whole report, check each finding against the code before acting, and fix what holds up
-  with a test seen red first.
+- **How a batch runs** (Dewi, 2026-10-14, 2026-10-15 and 2026-10-23):
+  1. **Start with a discussion.** Before a batch, list what it will contain and ask Dewi the questions only he can
+     answer (scope, defaults, trade-offs), with `AskUserQuestion`; then write each decision into its
+     `docs/todos/<item>.md` and the session's task file, so it survives a context reset. Questions are for intent and
+     defaults, never for facts the code can answer.
+  2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs
+     and ADRs in the same change, `./gradlew detekt` across all modules until clean, the full local gate, a look at
+     the changed screen on the emulator, then push **only when the gate's exit code is 0**
+     (`e=$?; [ $e -eq 0 ] && git push`). No soak per feature.
+  3. **The batch ends with a soak and an Opus review in parallel**: the soak (see "Before shipping a playback or
+     extraction change") against the release from before the batch, and a `reviewer` agent on the batch's commits,
+     given the requests and the accepted decisions. Read the whole report, check each finding against the code, fix
+     what holds up with a test seen red first, and push.
+  4. **Then report** in the end-of-run shape (🚧 Needs you, Changed, 🔍 Found, ⚠️ Couldn't confirm), and mark the
+     phone reports the batch answered as fixed, with the first release that contains each fix.
 - Remote: `github.com/dewijones92/totum` (public; renamed from `dewiuniapp` on
   2026-07-25 — GitHub redirects the old URL, so stale clones keep working). Local
   clone is `~/code/totum`, and the Pi's is `~/code/totum`. The **signing**
