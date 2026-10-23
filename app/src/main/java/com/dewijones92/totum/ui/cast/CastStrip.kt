@@ -65,6 +65,7 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                     when (problem) {
                         CastProblem.NO_ADDRESS -> stringResource(R.string.cast_strip_no_address, device)
                         CastProblem.TV_NOT_FETCHING -> stringResource(R.string.cast_strip_not_fetching, device)
+                        CastProblem.VPN_IN_THE_WAY -> stringResource(R.string.cast_strip_vpn, device)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),

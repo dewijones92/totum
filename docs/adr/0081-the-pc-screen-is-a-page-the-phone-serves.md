@@ -62,3 +62,12 @@ content. He chose "the Pi bookmark finds the phone".
   server; `tools/cast-bench/screen/screen.sh` drives it end to end (the emulator serves, a headless Edge on Windows
   plays through `adb forward`). Verified 2026-10-23: 1280×720 in Edge, pause and play from the phone, back to the
   phone.
+
+## Amended 2026-10-23 (batch review): the screen's lifecycle and stale reports
+
+- "📱 Back to this phone" now lets go of the cast streams and the wake and Wi-Fi locks (`stopAll`; the page server stays
+  up for the screen). Before, only a Cast session ending released them.
+- A Cast session ending while the PC screen plays leaves the screen alone; it used to pull playback back to the phone.
+- Each `load` carries a number, the page echoes it in its reports, and `ScreenPlayer` ignores a report about an older
+  load (`reportIsCurrent`), so the previous item's "ended" can no longer skip the new one. Tests: `ScreenReportsTest`,
+  `ScreenLinkTest`.

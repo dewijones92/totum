@@ -69,16 +69,18 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
         jobs[id] = currentCoroutineContext().job
         Diag.log(TAG, "#$id started: $kind \"$subject\"")
         val progress = Progress(id)
-        val end = try {
-            block(progress)
+        var end: OperationEnd? = null
+        try {
+            end = block(progress)
         } catch (cancelled: CancellationException) {
-            finish(id, kind, subject, OperationEnd.Cancelled(progress.playing()), started)
+            end = OperationEnd.Cancelled(progress.playing())
             throw cancelled
         } catch (failure: Exception) {
             Diag.warn(TAG, "#$id $kind \"$subject\" failed", failure)
-            OperationEnd.Failed(failure.message ?: failure.javaClass.simpleName)
+            end = OperationEnd.Failed(failure.message ?: failure.javaClass.simpleName)
+        } finally {
+            finish(id, kind, subject, end ?: OperationEnd.Failed("stopped by an error"), started)
         }
-        finish(id, kind, subject, end, started)
         return end
     }
 

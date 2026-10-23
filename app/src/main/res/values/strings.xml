@@ -956,6 +956,7 @@
     <string name="cast_strip_quality">🎞️ %1$dp picture on %2$s</string>
     <string name="cast_strip_quality_climbing">🎞️ %1$dp picture on %2$s, going up to %3$dp</string>
     <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>
+    <string name="cast_strip_vpn">🔒 A VPN on this phone is carrying your home network, so %1$s can\'t reach the phone. Turn the VPN off, or exclude Totum in the VPN app, then cast again.</string>
     <string name="cast_strip_not_fetching">⚠️ %1$s isn\'t fetching anything from the phone. Is the phone on the same Wi-Fi, and not on a guest network?</string>
     <string name="cast_strip_sound_only">⚠️ %1$s can\'t show this video (%2$s), so it plays the sound only</string>
     <string name="library_starred">⭐ Starred</string>

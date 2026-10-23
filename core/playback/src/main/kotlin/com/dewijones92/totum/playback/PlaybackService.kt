@@ -367,6 +367,10 @@ public class PlaybackService : MediaSessionService() {
                 }
 
                 override fun onCastSessionUnavailable() {
+                    if (currentPlayer === screens?.player) {
+                        Diag.log("cast", "the Cast session ended while the PC screen plays; the screen keeps playing")
+                        return
+                    }
                     castStatus.connected(null)
                     switchTo(localPlayer)
                     streams.stopAll()

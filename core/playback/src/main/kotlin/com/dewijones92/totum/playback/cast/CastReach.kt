@@ -9,6 +9,7 @@ internal class CastReach(
     private val tvs: CastTvPort,
     private val now: () -> Long = System::currentTimeMillis,
     private val later: (Long, () -> Unit) -> Unit = defaultLater(),
+    private val vpnInTheWay: () -> Boolean = { false },
 ) {
 
     @Volatile private var lastRequestAt = Long.MIN_VALUE
@@ -19,6 +20,14 @@ internal class CastReach(
 
     fun handedOver(mediaId: String, token: String) {
         val handedAt = now()
+        if (vpnInTheWay()) {
+            warned = true
+            Diag.warn(
+                "cast",
+                "$mediaId: a VPN carries the home network, so the strip says so before the TV is waited on"
+            )
+            tvs.problem(CastProblem.VPN_IN_THE_WAY)
+        }
         later(WAIT_MS) { check(mediaId, token, handedAt) }
     }
 
@@ -45,7 +54,7 @@ internal class CastReach(
             "$mediaId: the TV has asked the phone for nothing in ${WAIT_MS / MS_PER_S}s since token " +
                 "${token.take(TOKEN_SHOWN)} was handed over; it cannot reach this address, or is not trying",
         )
-        tvs.problem(CastProblem.TV_NOT_FETCHING)
+        tvs.problem(if (vpnInTheWay()) CastProblem.VPN_IN_THE_WAY else CastProblem.TV_NOT_FETCHING)
     }
 
     private companion object {

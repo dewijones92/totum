@@ -181,3 +181,13 @@ Review corrections (2026-10-22): the stand-in for an unnamed receiver item is us
 it loads, the load hold still shows "loading" (so a hand-over waiting for the TV to settle is not fooled); playing on the
 phone forgets the TV's last item, so a later cast cannot show a stale one; and `RemoteEnd` keeps the clock of an
 unnamed item as the continuation of the last named one, so a long pause then a stop is not read as an ending.
+
+## Amended 2026-10-23: a VPN that carries the home network is named on the strip
+
+Report 0.1.698 (*"peep show failed to cast???"*): the TV asked the phone for nothing; the phone had a VPN up
+(`wifi+vpn 10.13.13.2`), and Dewi confirmed he was on it. A VPN whose routes cover the address the TV is given
+(`0.0.0.0/0`, or the home subnet) can send the phone's replies into the tunnel, so the TV never connects. Now the
+address line logs each VPN's routes, `CastAddress.vpnCarries` checks them, and when one covers the address the cast card
+says so at once (🔒 "A VPN on this phone is carrying your home network … turn it off, or exclude Totum in the VPN app"),
+clearing by itself if the TV fetches after all. Not yet proven on his phone: the next report's route list will show
+whether this VPN covers 192.168.0.x. Tests: `VpnInTheWayTest`.

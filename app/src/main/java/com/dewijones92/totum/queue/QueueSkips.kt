@@ -24,27 +24,32 @@ class QueueSkips(
         when (direction) {
             SkipDirection.NEXT -> {
                 gathered++
-                settling?.cancel()
                 Diag.log(
                     TAG,
                     "skip #$pressed NEXT from $from; $gathered gathered, landing ${SETTLE_MS}ms after the last"
                 )
-                settling = scope.launch {
-                    delay(SETTLE_MS)
-                    val count = take()
-                    Diag.log(TAG, "skipping $count on at once, so only the item landed on is looked up")
-                    start { next(count) }
-                }
+                settle()
             }
-            SkipDirection.PREVIOUS -> {
+            SkipDirection.PREVIOUS -> if (gathered > 0) {
+                gathered--
+                Diag.log(TAG, "skip #$pressed PREVIOUS from $from while gathering; one NEXT taken off, $gathered left")
+                if (gathered == 0) settling?.cancel() else settle()
+            } else {
                 settling?.cancel()
-                val dropped = take()
-                Diag.log(
-                    TAG,
-                    "skip #$pressed PREVIOUS from $from" + if (dropped > 0) "; $dropped gathered NEXT dropped" else "",
-                )
+                Diag.log(TAG, "skip #$pressed PREVIOUS from $from")
                 start { previous() }
             }
+        }
+    }
+
+    private fun settle() {
+        settling?.cancel()
+        settling = scope.launch {
+            delay(SETTLE_MS)
+            val count = take()
+            if (count == 0) return@launch
+            Diag.log(TAG, "skipping $count on at once, so only the item landed on is looked up")
+            start { next(count) }
         }
     }
 

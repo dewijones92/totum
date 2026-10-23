@@ -176,6 +176,56 @@ class ShuffleAllPlaysAtOnceTest {
         }
 
     @Test
+    fun `a quiet refresh that could not walk the albums keeps the longer kept list`() = runTest(dispatcher) {
+        albumsMayAnswer.complete(Unit)
+        val (queue, work) = queue()
+        ArtistShuffle(slowAlbums, queue, recent = null, kept = kept(), scope = work).shuffleAll(target)
+        advanceUntilIdle()
+        val dayLater = KeptArtistSongs(folder.root, clock = { 1_000L + 2 * 24 * 60 * 60 * 1000L }, io = dispatcher)
+        val noArtistPage = FakeYouTubeMusicCatalogue(
+            listingPages = mapOf(null to Page.last(listOf(song("top1"), song("top2")))),
+        )
+
+        ArtistShuffle(noArtistPage, queue, recent = null, kept = dayLater, scope = work).shuffleAll(target)
+        advanceUntilIdle()
+
+        assertEquals(5, dayLater.read(listing.browseId)?.songs?.size)
+        work.cancel()
+    }
+
+    @Test
+    fun `an album that cannot be read makes the result say some were missed`() = runTest(dispatcher) {
+        fake.albumsById = fake.albumsById - "etudes"
+        albumsMayAnswer.complete(Unit)
+        val (queue, work) = queue()
+        val operations = Operations()
+        val ended = mutableListOf<Ended>()
+        work.launch { operations.ended.collect { ended += it } }
+
+        ArtistShuffle(slowAlbums, queue, recent = null, operations = operations, scope = work).shuffleAll(target)
+        advanceUntilIdle()
+
+        assertEquals(OperationEnd.Done(4, partial = true), ended.single().end)
+        work.cancel()
+    }
+
+    @Test
+    fun `two quick taps start one walk`() = runTest(dispatcher) {
+        val (queue, work) = queue()
+        val shuffle = ArtistShuffle(slowAlbums, queue, recent = null, scope = work)
+
+        val first = async { shuffle.shuffleAll(target) }
+        val second = async { shuffle.shuffleAll(target) }
+        advanceUntilIdle()
+
+        assertEquals(listOf(2, 0), listOf(first.await(), second.await()))
+        assertEquals("one walk of the albums", listOf("nocturnes"), albumsAsked)
+        albumsMayAnswer.complete(Unit)
+        advanceUntilIdle()
+        work.cancel()
+    }
+
+    @Test
     fun `songs found after the group was removed are not put back`() = runTest(dispatcher) {
         val (queue, work) = queue()
         val shuffle = ArtistShuffle(slowAlbums, queue, recent = null, scope = work)

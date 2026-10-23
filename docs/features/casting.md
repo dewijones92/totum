@@ -84,3 +84,9 @@ casts and videos already at their best for the TV no longer replay. See ADR 68's
 click once to allow sound, and the 🖥️ button appears on the phone (only while a screen page is open). The PC gets the same
 stream as a TV, so skip-silence, boost, SponsorBlock and the queue behave as they do when casting; the phone is the
 remote, and "📱 Back to this phone" takes it back. See [ADR 81](../adr/0081-the-pc-screen-is-a-page-the-phone-serves.md).
+
+## A VPN in the way (2026-10-23)
+
+If a VPN on the phone carries your home network, the TV cannot reach the phone. The cast card now says so straight
+away (🔒) instead of waiting for the TV to give up; turn the VPN off, or exclude Totum in the VPN app. ADR 68.
+

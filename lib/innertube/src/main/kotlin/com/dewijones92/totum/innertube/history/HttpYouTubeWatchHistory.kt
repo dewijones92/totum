@@ -180,7 +180,7 @@ public class HttpYouTubeWatchHistory(
         }
         if (session.reportedSec == null) logTheTrackingUrl(session)
         val from = spanStart(session.reportedSec, position)
-        if (position - from < MIN_SPAN_SEC && !finished) {
+        if (session.reportedSec != null && position - from < MIN_SPAN_SEC && !finished) {
             session.reportedSec = position
             Diag.log("yt-sync", "watchtime from ${position}s not sent: nothing watched since the last report")
             return WatchHistoryResult.Success
@@ -197,9 +197,10 @@ public class HttpYouTubeWatchHistory(
         return result
     }
 
-    private fun spanStart(reportedSec: Float?, position: Float): Float = when (reportedSec) {
-        null -> if (position < FROM_THE_START_SEC) 0f else position
-        else -> reportedSec.takeIf { position >= it && position - it <= MAX_SPAN_SEC } ?: position
+    private fun spanStart(reportedSec: Float?, position: Float): Float = when {
+        reportedSec == null && position < FROM_THE_START_SEC -> 0f
+        reportedSec != null && position >= reportedSec && position - reportedSec <= MAX_SPAN_SEC -> reportedSec
+        else -> (position - MAX_SPAN_SEC).coerceAtLeast(0f)
     }
 
     private fun logTheTrackingUrl(session: Session) {

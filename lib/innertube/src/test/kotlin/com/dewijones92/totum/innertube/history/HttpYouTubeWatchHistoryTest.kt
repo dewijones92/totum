@@ -121,9 +121,24 @@ class HttpYouTubeWatchHistoryTest {
     }
 
     @Test
-    fun `a jump or a rewind starts a fresh span instead of claiming time nobody watched`() = runBlocking {
+    fun `a held report far into the video is still sent, so an offline watch reaches YouTube`() = runBlocking {
         enqueuePlayer()
-        repeat(4) { ok() }
+        repeat(2) { ok() }
+        val history = history()
+        history.beginSession("vid1")
+        server.takeRequest()
+
+        assertEquals(WatchHistoryResult.Success, history.reportProgress("vid1", 600f, 1200f, finished = false))
+
+        server.takeRequest()
+        val watchtime = server.takeRequest(1, java.util.concurrent.TimeUnit.SECONDS)?.target
+        assertTrue("a watchtime ping with a real span: $watchtime", watchtime.orEmpty().contains("st=540.0&et=600.0"))
+    }
+
+    @Test
+    fun `a jump or a rewind starts a fresh span of at most a minute`() = runBlocking {
+        enqueuePlayer()
+        repeat(6) { ok() }
         val history = history()
         history.beginSession("vid1")
         server.takeRequest()
@@ -131,14 +146,15 @@ class HttpYouTubeWatchHistoryTest {
         repeat(2) { server.takeRequest() }
 
         history.reportProgress("vid1", 300f, 600f, finished = false)
-        history.reportProgress("vid1", 315f, 600f, finished = false)
         val jumped = server.takeRequest().target
+        history.reportProgress("vid1", 315f, 600f, finished = false)
+        val after = server.takeRequest().target
         history.reportProgress("vid1", 120f, 600f, finished = false)
-        history.reportProgress("vid1", 130f, 600f, finished = false)
         val rewound = server.takeRequest().target
 
-        assertTrue(jumped, jumped.contains("st=300.0&et=315.0"))
-        assertTrue(rewound, rewound.contains("st=120.0&et=130.0"))
+        assertTrue(jumped, jumped.contains("st=240.0&et=300.0"))
+        assertTrue(after, after.contains("st=300.0&et=315.0"))
+        assertTrue(rewound, rewound.contains("st=60.0&et=120.0"))
     }
 
     @Test

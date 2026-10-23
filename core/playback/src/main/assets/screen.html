@@ -42,6 +42,7 @@
   const status = document.getElementById('status');
   let id = localStorage.getItem('totumScreenId') || '';
   let greeted = false;
+  let currentLoad = 0;
   let after = 0;
   let unlocked = false;
   let lastError = '';
@@ -63,6 +64,7 @@
   tap.addEventListener('click', unlock);
 
   async function load(command) {
+    currentLoad = command.load || 0;
     if (!player) {
       shaka.polyfill.installAll();
       player = new shaka.Player();
@@ -153,6 +155,7 @@
     api('state', {
       id,
       pos: Math.round(video.currentTime * 1000),
+      load: currentLoad,
       playing: !video.paused && !video.ended ? 1 : 0,
       buffering: buffering ? 1 : 0,
       ended: video.ended ? 1 : 0,

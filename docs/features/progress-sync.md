@@ -25,6 +25,9 @@ updated: 2026-10-23
 > where they stood, and the 16 Aug check (13%) shows partial positions had worked before then.
 > `HttpYouTubeWatchHistoryTest`: real spans (seen red), a jump or rewind starts afresh, nothing empty is
 > sent, the TV agent.
+> Batch review, same day: with no earlier report in the session (an update held offline and sent later) or after a
+> jump, the span is now the minute before the position rather than empty, so the report is never dropped while the
+> outbox marks it sent. Only a report under a second after the last is skipped.
 
 > 🐛 **YouTube's 10% is a floor, not a position. Fixed 2026-09-23.** Report 0.1.514, Dewi: *"why
 > downloaded files have position of like 5% in to the video? please fix?"*. Five videos played for a

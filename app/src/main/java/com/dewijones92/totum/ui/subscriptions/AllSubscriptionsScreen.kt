@@ -23,7 +23,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -66,7 +65,7 @@ fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val checking by viewModel.checking.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.checkChannels() }
-    val beginShuffle = rememberShuffleStarter(container.shuffleAll, rememberCoroutineScope())
+    val beginShuffle = rememberShuffleStarter(container.shuffleAll, container.applicationScope)
     AllSubscriptionsContent(
         sources = sources,
         onBack = onBack,

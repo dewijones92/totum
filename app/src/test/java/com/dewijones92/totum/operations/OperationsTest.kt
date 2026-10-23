@@ -75,4 +75,21 @@ class OperationsTest {
         assertEquals(end, ended.single().end)
         collector.cancel()
     }
+
+    @Test
+    fun `even an Error leaves the strip, and is reported`() = runTest {
+        val ended = mutableListOf<Ended>()
+        val collector = launch { operations.ended.collect { ended += it } }
+        advanceUntilIdle()
+
+        val thrown = runCatching {
+            operations.track("k", OperationKind.SHUFFLE_ARTIST, "Chopin") { throw NotImplementedError("not yet") }
+        }.exceptionOrNull()
+        advanceUntilIdle()
+
+        assertTrue(thrown is NotImplementedError)
+        assertTrue(operations.running.value.isEmpty())
+        assertTrue(ended.single().end is OperationEnd.Failed)
+        collector.cancel()
+    }
 }

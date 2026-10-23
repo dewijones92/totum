@@ -26,6 +26,7 @@ import com.dewijones92.totum.stats.UseKind
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 import kotlin.time.TimeSource
 
@@ -112,34 +113,52 @@ class ArtistShuffle(
     private val operations: Operations? = null,
     private val scope: CoroutineScope? = null,
 ) {
+    private val claimed: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val refreshing: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     suspend fun shuffleAll(target: ArtistSongs, onProgress: (Int) -> Unit = {}, startAtRandom: Boolean? = null): Int {
-        if (operations?.isRunning(target.key) == true) {
+        if (!claimed.add(target.key)) {
             Diag.log(TAG, "\"${target.artist}\" is already being shuffled; ignoring a second tap")
             return 0
         }
-        kept?.read(target.listing.browseId)?.let { return playKept(target, it, startAtRandom) }
-        val playing = CompletableDeferred<Int>()
-        val work: suspend () -> Int = {
-            try {
-                tracked(target) { progress -> walkAndPlay(target, startAtRandom, progress, onProgress, playing) }
-            } finally {
-                playing.complete(0)
+        var handedOff = false
+        try {
+            kept?.read(target.listing.browseId)?.let { return playKept(target, it, startAtRandom) }
+            val playing = CompletableDeferred<Int>()
+            val work: suspend () -> Int = {
+                try {
+                    tracked(target) { progress -> walkAndPlay(target, startAtRandom, progress, onProgress, playing) }
+                } finally {
+                    playing.complete(0)
+                }
             }
+            val background = scope ?: return work()
+            background.launch {
+                try {
+                    work()
+                } finally {
+                    claimed.remove(target.key)
+                }
+            }
+            handedOff = true
+            return playing.await()
+        } finally {
+            if (!handedOff) claimed.remove(target.key)
         }
-        val background = scope ?: return work()
-        background.launch { work() }
-        return playing.await()
     }
 
-    private suspend fun tracked(target: ArtistSongs, block: suspend (Operations.Progress?) -> Int): Int {
-        val ops = operations ?: return block(null)
+    private suspend fun tracked(target: ArtistSongs, block: suspend (Operations.Progress?) -> Walked): Int {
+        val ops = operations ?: return block(null).count
         var count = 0
         ops.track(target.key, OperationKind.SHUFFLE_ARTIST, target.artist) { progress ->
-            count = block(progress)
-            if (count == 0) OperationEnd.Nothing else OperationEnd.Done(count)
+            val walked = block(progress)
+            count = walked.count
+            if (count == 0) OperationEnd.Nothing else OperationEnd.Done(count, partial = walked.partial)
         }
         return count
     }
+
+    private data class Walked(val count: Int, val partial: Boolean = false)
 
     private suspend fun walkAndPlay(
         target: ArtistSongs,
@@ -147,7 +166,7 @@ class ArtistShuffle(
         progress: Operations.Progress?,
         onProgress: (Int) -> Unit,
         playing: CompletableDeferred<Int>,
-    ): Int {
+    ): Walked {
         val started = TimeSource.Monotonic.markNow()
         Diag.log(TAG, "shuffle all songs of \"${target.artist}\" from ${target.listing.browseId}")
         val walk = walkAllSongs({ after -> catalogue.songs(target.listing, after) }) { found ->
@@ -165,10 +184,10 @@ class ArtistShuffle(
             progress?.report(playing = true)
             playing.complete(walk.songs.size)
         }
-        val more = discographyOf(target, walk.songs.size, onProgress, progress)
+        val (more, partial) = discographyOf(target, walk.songs.size, onProgress, progress)
         val songs = (walk.songs + more).distinctBy { it.videoId }
         Diag.log(TAG, "\"${target.artist}\": ${songs.size} song(s) in all, in ${started.elapsedNow()}")
-        if (songs.isEmpty()) return 0
+        if (songs.isEmpty()) return Walked(0)
         if (walk.songs.isEmpty()) {
             play(target, songs, group, startAtRandom, "every song, the top-songs list being empty")
             playing.complete(songs.size)
@@ -177,7 +196,7 @@ class ArtistShuffle(
             fillIn(target, group, songs.filterNot { it.videoId in known }, startAtRandom)
         }
         kept?.write(target.listing.browseId, songs)
-        return songs.size
+        return Walked(songs.size, partial)
     }
 
     private suspend fun playKept(target: ArtistSongs, keptSongs: KeptSongs, startAtRandom: Boolean?): Int {
@@ -191,15 +210,23 @@ class ArtistShuffle(
         tracked(target) { progress ->
             progress?.report(found = keptSongs.songs.size, playing = true)
             play(target, keptSongs.songs, group, startAtRandom, "the kept list")
-            keptSongs.songs.size
+            Walked(keptSongs.songs.size)
         }
-        if (keptSongs.stale) scope?.launch(PoliteGate.background()) { refresh(target, group, keptSongs, startAtRandom) }
+        if (keptSongs.stale && refreshing.add(target.key)) {
+            scope?.launch(PoliteGate.background()) {
+                try {
+                    refresh(target, group, keptSongs, startAtRandom)
+                } finally {
+                    refreshing.remove(target.key)
+                }
+            } ?: refreshing.remove(target.key)
+        }
         return keptSongs.songs.size
     }
 
     private suspend fun refresh(target: ArtistSongs, group: QueueGroup, keptSongs: KeptSongs, startAtRandom: Boolean?) {
         val walk = walkAllSongs({ after -> catalogue.songs(target.listing, after) })
-        val songs = (walk.songs + discographyOf(target, walk.songs.size, {}, null)).distinctBy { it.videoId }
+        val songs = (walk.songs + discographyOf(target, walk.songs.size, {}, null).first).distinctBy { it.videoId }
         if (songs.isEmpty()) {
             return Diag.warn(
                 TAG,
@@ -210,6 +237,14 @@ class ArtistShuffle(
         val added = songs.filterNot { it.videoId in known }
         Diag.log(TAG, "\"${target.artist}\": the quiet refresh found ${songs.size} song(s), ${added.size} new")
         fillIn(target, group, added, startAtRandom)
+        if (songs.size < keptSongs.songs.size) {
+            Diag.warn(
+                TAG,
+                "\"${target.artist}\": the refresh found ${songs.size}, fewer than the ${keptSongs.songs.size} kept " +
+                    "(an album or the artist page failed?), so the kept list stays",
+            )
+            return
+        }
         kept?.write(target.listing.browseId, songs)
     }
 
@@ -259,13 +294,13 @@ class ArtistShuffle(
         before: Int,
         onProgress: (Int) -> Unit,
         progress: Operations.Progress?,
-    ): List<MusicSong> {
-        val id = target.artistId ?: return emptyList<MusicSong>().also {
+    ): Pair<List<MusicSong>, Boolean> {
+        val id = target.artistId ?: return (emptyList<MusicSong>() to false).also {
             Diag.log(TAG, "\"${target.artist}\": no artist id here, so top songs only (a pin from before 2026-10-22)")
         }
         val page = when (val result = catalogue.artist(id)) {
             is MusicResult.Success -> result.value
-            is MusicResult.Failure -> return emptyList<MusicSong>().also {
+            is MusicResult.Failure -> return (emptyList<MusicSong>() to true).also {
                 Diag.warn(TAG, "\"${target.artist}\": artist page failed (${result.detail}); top songs only")
             }
         }
@@ -284,7 +319,7 @@ class ArtistShuffle(
             "\"${target.artist}\": ${walk.songs.size} song(s) from ${walk.releases} album(s) and single(s)" +
                 if (walk.failed.isEmpty()) "" else "; ${walk.failed.size} failed: ${walk.failed.take(LISTED_FAILURES)}",
         )
-        return walk.songs
+        return walk.songs to walk.failed.isNotEmpty()
     }
 
     private companion object {

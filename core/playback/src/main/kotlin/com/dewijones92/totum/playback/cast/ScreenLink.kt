@@ -14,6 +14,7 @@ internal data class ScreenReport(
     val ended: Boolean,
     val error: String?,
     val atMs: Long,
+    val load: Long? = null,
 )
 
 internal data class Screen(
@@ -115,6 +116,7 @@ internal class ScreenLink(
             ended = query["ended"] == "1",
             error = query["error"]?.ifBlank { null },
             atMs = clock(),
+            load = query["load"]?.toLongOrNull(),
         )
         report.error?.let { Diag.warn(TAG, "screen $id reports an error: $it") }
         onReport(id, report)
@@ -168,3 +170,6 @@ internal fun screenProfile(screen: Screen?): com.dewijones92.totum.domain.CastSc
 private const val DEFAULT_SCREEN_HEIGHT = 1080
 private const val MIN_SCREEN_HEIGHT = 480
 private const val MAX_SCREEN_HEIGHT = 2160
+
+internal fun reportIsCurrent(reportLoad: Long?, currentLoad: Long): Boolean =
+    reportLoad == null || reportLoad >= currentLoad

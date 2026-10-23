@@ -16,6 +16,10 @@ internal class CastHost(private val context: Context) {
     private var wifiLock: WifiManager.WifiLock? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
+    @Volatile
+    var vpnInTheWay: Boolean = false
+        private set
+
     fun baseUrl(port: Int): String? {
         override()?.let {
             Diag.log("cast", "advertising the debug address $it (from ${OVERRIDE_FILE})")
@@ -32,6 +36,8 @@ internal class CastHost(private val context: Context) {
                 vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true,
                 ipv4 = cm.getLinkProperties(network)?.linkAddresses.orEmpty().map { it.address }
                     .filter { it is Inet4Address && !it.isLoopbackAddress }.mapNotNull { it.hostAddress },
+                routes = cm.getLinkProperties(network)?.routes.orEmpty()
+                    .filter { it.destination.address is Inet4Address }.map { it.destination.toString() },
             )
         }
         val address = CastAddress.choose(networks)
@@ -43,6 +49,14 @@ internal class CastHost(private val context: Context) {
         if (address == null) {
             Diag.warn("cast", "no IPv4 address on Wi-Fi or Ethernet (a VPN's does not count) to advertise to the TV")
             return null
+        }
+        vpnInTheWay = CastAddress.vpnCarries(address, networks)
+        if (vpnInTheWay) {
+            Diag.warn(
+                "cast",
+                "a VPN routes $address's network, so the TV's requests may be answered into the tunnel and never " +
+                    "reach it; turning the VPN off, or excluding Totum from it, lets the TV fetch",
+            )
         }
         return "http://$address:$port"
     }

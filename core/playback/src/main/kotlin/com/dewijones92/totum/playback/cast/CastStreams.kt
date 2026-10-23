@@ -51,7 +51,7 @@ internal class CastStreams(
 
     fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
     private val random = SecureRandom()
-    private val reach = CastReach(tvs)
+    private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
 
     private inner class Session(
         val token: String,

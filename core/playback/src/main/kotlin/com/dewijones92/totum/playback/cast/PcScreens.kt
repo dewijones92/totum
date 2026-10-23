@@ -32,9 +32,10 @@ internal class PcScreens(
 
     fun play(id: String?) {
         if (id.isNullOrBlank()) {
-            Diag.log(TAG, "back to the phone from screen ${screen.screenId}")
+            Diag.log(TAG, "back to the phone from screen ${screen.screenId}; its streams and locks are let go")
             status.connected(null)
             switchTo(phone)
+            streams.stopAll()
             return
         }
         val named = link.present().firstOrNull { it.id == id }

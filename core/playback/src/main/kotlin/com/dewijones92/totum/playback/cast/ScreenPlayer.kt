@@ -35,12 +35,17 @@ internal class ScreenPlayer(
     private var asked = 0L
     private var report: ScreenReport? = null
     private var reportCountsFrom = 0L
+    private var loads = 0L
 
     fun follow() {
         link.onReport = { id, latest ->
             if (id == screenId) {
                 main.post {
-                    if (latest.atMs >= reportCountsFrom) report = latest
+                    if (latest.atMs >= reportCountsFrom && reportIsCurrent(latest.load, loads)) {
+                        report = latest
+                    } else if (!reportIsCurrent(latest.load, loads)) {
+                        Diag.log(TAG, "a report about load ${latest.load} ignored; load $loads is current")
+                    }
                     invalidateState()
                 }
             }
@@ -154,6 +159,7 @@ internal class ScreenPlayer(
     }
 
     private fun load() {
+        loads++
         val item = items.getOrNull(index) ?: return
         val url = urlFor(item)
         if (url == null) {
@@ -162,7 +168,7 @@ internal class ScreenPlayer(
         }
         val title = item.mediaMetadata.title?.toString().orEmpty()
         tell(
-            """{"do":"load","url":${quoted(url)},"pos":$asked,"play":$wantsToPlay,""" +
+            """{"do":"load","load":$loads,"url":${quoted(url)},"pos":$asked,"play":$wantsToPlay,""" +
                 """"rate":${parameters.speed},"title":${quoted(title)},""" +
                 """"subs":${captionsWanted(tracks)?.let(::quoted)}}""",
         )

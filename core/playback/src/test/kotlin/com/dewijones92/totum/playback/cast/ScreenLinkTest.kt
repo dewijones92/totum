@@ -58,12 +58,12 @@ class ScreenLinkTest {
 
         assertEquals(
             Http.NO_CONTENT,
-            get("/screen/state?key=k3y&id=pc1&pos=61500&playing=1&buffering=0&ended=0").status
+            get("/screen/state?key=k3y&id=pc1&pos=61500&playing=1&buffering=0&ended=0&load=7").status
         )
 
         assertEquals("pc1", reports.single().first)
         assertEquals(
-            ScreenReport(61_500, playing = true, buffering = false, ended = false, error = null, atMs = now),
+            ScreenReport(61_500, playing = true, buffering = false, ended = false, error = null, atMs = now, load = 7),
             reports.single().second
         )
     }
