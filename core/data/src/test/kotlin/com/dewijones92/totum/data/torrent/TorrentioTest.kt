@@ -56,8 +56,10 @@ class TorrentioTest {
         )
         assertEquals(listOf("Torrentio · YTS", "Torrentio · 1337x", "Torrentio"), found.results.map { it.indexer })
         assertEquals(
-            "magnet:?xt=urn:btih:${"a".repeat(40)}&dn=Night.of.the.Living.Dead.1968.2160p.BluRay.x265",
-            found.results.first().magnet,
+            TorrentLink.Magnet(
+                "magnet:?xt=urn:btih:${"a".repeat(40)}&dn=Night.of.the.Living.Dead.1968.2160p.BluRay.x265"
+            ),
+            found.results.first().link,
         )
         assertEquals(true, asked.any { it.startsWith("/catalog/movie/top/search=night%20of%20the%20living%20dead") })
     }
@@ -88,6 +90,28 @@ class TorrentioTest {
 
         assertEquals(listOf("Flash Gordon S02E03"), found.results.map { it.title })
         assertEquals(false, asked.any { it.startsWith("/stream/movie/") })
+    }
+
+    @Test
+    fun `a year in the search picks the film from that year and is not part of the title`() = runTest {
+        val asked = mutableListOf<String>()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                synchronized(asked) { asked += request.target }
+                return when {
+                    request.target == "/catalog/movie/top/search=night%20of%20the%20living%20dead.json" ->
+                        ok(fixture("cinemeta-movie.json"))
+                    request.target.startsWith("/catalog/series/") -> ok(fixture("cinemeta-series.json"))
+                    request.target.startsWith("/stream/movie/") -> ok(fixture("streams-movie.json"))
+                    else -> MockResponse.Builder().code(404).build()
+                }
+            }
+        }
+
+        val found = torrentio().search("night of the living dead 1990") as TorrentSearchResult.Success
+
+        assertEquals(3, found.results.size)
+        assertEquals(listOf("/stream/movie/tt0100258.json"), asked.filter { it.startsWith("/stream/") })
     }
 
     @Test

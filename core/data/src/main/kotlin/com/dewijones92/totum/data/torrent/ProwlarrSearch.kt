@@ -183,6 +183,38 @@ internal class ProwlarrSearch(
         }
     }
 
+    suspend fun magnetOf(link: TorrentLink.ViaIndexer): String? {
+        val started = TimeSource.Monotonic.markNow()
+        val request = Request.Builder()
+            .url("$prowlarrBase${link.path}")
+            .header("X-Api-Key", prowlarrApiKey())
+            .header(TOKEN_HEADER, token())
+            .build()
+        val answer = try {
+            noRedirects.newCall(request).await().use { response ->
+                response.header("Location")?.takeIf { it.startsWith("magnet:", ignoreCase = true) }
+                    ?: null.also {
+                        Diag.warn(
+                            "torrent",
+                            "indexer link ${link.path.substringBefore('?')} answered HTTP ${response.code} " +
+                                "(${response.header("Content-Type")}) with no magnet",
+                        )
+                    }
+            }
+        } catch (e: IOException) {
+            Diag.warn("torrent", "indexer link ${link.path.substringBefore('?')} could not be reached", e)
+            null
+        }
+        Diag.log(
+            "torrent",
+            "indexer link ${link.path.substringBefore('?')} -> " +
+                "${if (answer != null) "a magnet" else "no magnet"} in ${started.elapsedNow().inWholeMilliseconds}ms",
+        )
+        return answer
+    }
+
+    private val noRedirects by lazy { client.newBuilder().followRedirects(false).build() }
+
     private fun read(response: Response, query: String, label: String): TorrentSearchResult {
         if (!response.isSuccessful) {
             // Each code says something different to the person holding the phone, and
@@ -235,7 +267,10 @@ private fun combined(
 private fun onePerTorrent(results: List<TorrentResult>): List<TorrentResult> {
     val best = linkedMapOf<String, TorrentResult>()
     results.forEach { result ->
-        val key = INFO_HASH.find(result.magnet)?.groupValues?.get(1)?.lowercase() ?: result.magnet
+        val key = when (val link = result.link) {
+            is TorrentLink.Magnet -> INFO_HASH.find(link.uri)?.groupValues?.get(1)?.lowercase() ?: link.uri
+            is TorrentLink.ViaIndexer -> link.path
+        }
         val kept = best[key]
         if (kept == null || result.seeders > kept.seeders) best[key] = result
     }

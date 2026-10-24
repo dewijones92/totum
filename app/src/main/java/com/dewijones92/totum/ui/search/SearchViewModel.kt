@@ -378,8 +378,8 @@ class SearchViewModel(
     ): Pair<PreparedTorrent?, List<PlayableItem>> {
         var prepared: PreparedTorrent? = null
         var items: List<PlayableItem> = emptyList()
-        operations.tracking("torrent:${hit.magnet.hashCode()}", OperationKind.PREPARE_TORRENT, hit.title) {
-            prepared = server.prepare(hit.magnet)?.also { torrents?.subtitles?.remember(it) }
+        operations.tracking("torrent:${hit.link.hashCode()}", OperationKind.PREPARE_TORRENT, hit.title) {
+            prepared = server.prepare(hit.link)?.also { torrents?.subtitles?.remember(it) }
             items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
             if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size)
         }

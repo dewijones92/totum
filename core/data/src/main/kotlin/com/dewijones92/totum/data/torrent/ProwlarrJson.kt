@@ -44,14 +44,16 @@ public fun parseProwlarr(body: String): List<TorrentResult>? =
  */
 private fun JsonObject.toResult(): TorrentResult? {
     val title = this["title"]?.jsonPrimitive?.contentOrNull ?: return null
-    val magnet = MAGNET_FIELDS
+    val link = MAGNET_FIELDS
         .mapNotNull { field -> this[field]?.jsonPrimitive?.contentOrNull }
         .firstOrNull { it.startsWith("magnet:", ignoreCase = true) }
-        ?: infoHash()?.let { magnetFor(it, title) }
+        ?.let(TorrentLink::Magnet)
+        ?: infoHash()?.let { TorrentLink.Magnet(magnetFor(it, title)) }
+        ?: viaIndexer()
         ?: return null
     return TorrentResult(
         title = title,
-        magnet = magnet,
+        link = link,
         seeders = this["seeders"]?.jsonPrimitive?.intOrNull ?: 0,
         sizeBytes = this["size"]?.jsonPrimitive?.longOrNull ?: 0,
         indexer = this["indexer"]?.jsonPrimitive?.contentOrNull,
@@ -62,10 +64,19 @@ private fun JsonObject.infoHash(): String? =
     this["infoHash"]?.jsonPrimitive?.contentOrNull?.takeIf { HASH.matches(it) }
         ?: this["guid"]?.jsonPrimitive?.contentOrNull?.let { HASH_AT_END.find(it)?.groupValues?.get(1) }
 
+private fun JsonObject.viaIndexer(): TorrentLink.ViaIndexer? {
+    val url = this["downloadUrl"]?.jsonPrimitive?.contentOrNull ?: return null
+    val parsed = runCatching { java.net.URI(url) }.getOrNull() ?: return null
+    val path = parsed.rawPath?.takeIf { DOWNLOAD_PATH.matches(it) } ?: return null
+    val query = parsed.rawQuery.orEmpty().split('&').filter { it.isNotEmpty() && !it.startsWith("apikey=") }
+    return TorrentLink.ViaIndexer(if (query.isEmpty()) path else path + "?" + query.joinToString("&"))
+}
+
 internal fun magnetFor(infoHash: String, title: String): String =
     "magnet:?xt=urn:btih:$infoHash&dn=" + java.net.URLEncoder.encode(title, Charsets.UTF_8).replace("+", "%20")
 
 internal val HASH = Regex("[0-9A-Fa-f]{40}")
+private val DOWNLOAD_PATH = Regex("""/\d+/download""")
 private val HASH_AT_END = Regex("""/([0-9A-Fa-f]{40})/?(?:[?#].*)?$""")
 
 /** Checked in order, but only a value starting `magnet:` is ever accepted. */

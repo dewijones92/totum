@@ -53,7 +53,7 @@ public class TorrentSearchSource(
                     title = torrent.title,
                     subtitle = torrent.describe(),
                     artworkUrl = null,
-                    magnet = torrent.magnet,
+                    link = torrent.link,
                     seeders = torrent.seeders,
                     sizeBytes = torrent.sizeBytes,
                     indexer = torrent.indexer,

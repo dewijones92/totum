@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.search
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
+import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtistRef
@@ -65,8 +66,8 @@ public sealed interface SearchHit {
         override val title: String,
         override val subtitle: String?,
         override val artworkUrl: HttpUrl?,
-        /** Magnet link, handed to the server to add. Not fetched by the app itself. */
-        public val magnet: String,
+        /** Handed to the server to add; a link via an indexer becomes a magnet when chosen. */
+        public val link: TorrentLink,
         public val seeders: Int,
         public val sizeBytes: Long,
         public val indexer: String?,

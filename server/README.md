@@ -27,7 +27,8 @@ State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver` and
 - **The phone also asks Torrentio directly** (Cinemeta for the IMDb id, then Torrentio's streams), beside Prowlarr;
   nothing runs on the Pi for it ([ADR 86](../docs/adr/0086-torrentio-beside-prowlarr.md)).
 - **1337x results carry no magnet** in Prowlarr's search response, only `downloadUrl` (Prowlarr fetches the
-  details page when it is asked) and the page address, so the app drops them until it resolves that link.
+  details page when it is asked) and the page address; the app asks that link for the magnet (a 301 to it) when a
+  result is chosen ([ADR 89](../docs/adr/0089-a-result-without-a-magnet-is-resolved-when-chosen.md)).
 - **Search stays on the home IP** (Dewi, 2026-10-24): Prowlarr and FlareSolverr sit on `bin_private`, only the
   swarm (TorrServer, totum-audio) uses PureVPN. Measured: the first two exit as the home address, the second two as
   PureVPN's.

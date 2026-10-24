@@ -207,7 +207,7 @@ class HttpHomeTorrentServerTest {
         val found = serverWith(token = { "t" }, key = { "k" }, torrentio = true)
             .search("night of the living dead") as TorrentSearchResult.Success
 
-        val copies = found.results.filter { sameHash.lowercase() in it.magnet.lowercase() }
+        val copies = found.results.filter { sameHash.lowercase() in it.link.toString().lowercase() }
         assertEquals(listOf(58), copies.map { it.seeders })
         assertEquals(3, found.results.size)
     }
@@ -427,7 +427,7 @@ class HttpHomeTorrentServerTest {
             ).build(),
         )
 
-        val prepared = serverWith(token = { "t" }, key = { "k" }).prepare("magnet:?xt=urn:btih:abc")
+        val prepared = serverWith(token = { "t" }, key = { "k" }).prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:abc"))
 
         assertEquals(1, prepared?.files?.size)
     }
@@ -440,9 +440,49 @@ class HttpHomeTorrentServerTest {
             server.enqueue(MockResponse.Builder().code(200).body("""{"file_stats":[]}""").build())
         }
 
-        val prepared = serverWith(token = { "t" }, key = { "k" }).prepare("magnet:?xt=urn:btih:abc")
+        val prepared = serverWith(token = { "t" }, key = { "k" }).prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:abc"))
 
         assertEquals(emptyList<TorrentFile>(), prepared?.files)
+    }
+
+    @Test
+    fun `a result found only through an indexer's download link asks it for the magnet when chosen`() = runTest {
+        val magnet = "magnet:?xt=urn:btih:${"e".repeat(40)}&dn=Night+of+the+Living+Dead"
+        val asked = mutableListOf<RecordedRequest>()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                synchronized(asked) { asked += request }
+                return when {
+                    request.target.startsWith("/prowlarr/4/download") ->
+                        MockResponse.Builder().code(301).addHeader("Location", magnet).build()
+                    request.target.startsWith("/ts/torrents") && request.body?.utf8()?.contains("\"add\"") == true ->
+                        ok("""{"hash":"eee","name":"Night of the Living Dead"}""")
+                    request.target.startsWith("/ts/torrents") ->
+                        ok("""{"file_stats":[{"id":1,"path":"Night.of.the.Living.Dead.1968.mkv","length":100}]}""")
+                    else -> MockResponse.Builder().code(404).build()
+                }
+            }
+        }
+
+        val prepared = serverWith(token = { "t" }, key = { "k" })
+            .prepare(TorrentLink.ViaIndexer("/4/download?link=abc&file=Night"))
+
+        assertEquals(1, prepared?.files?.size)
+        val download = asked.first { it.target.startsWith("/prowlarr/4/download") }
+        assertEquals("k", download.headers["X-Api-Key"])
+        assertEquals(false, download.target.contains("apikey"))
+        val add = asked.first { it.body?.utf8()?.contains("\"add\"") == true }
+        assertTrue(add.body!!.utf8(), add.body!!.utf8().contains(magnet))
+    }
+
+    @Test
+    fun `a download link that gives no magnet is a failed prepare, not a crash`() = runTest {
+        answering { ok("[]") }
+
+        val prepared = serverWith(token = { "t" }, key = { "k" })
+            .prepare(TorrentLink.ViaIndexer("/4/download?link=gone"))
+
+        assertEquals(null, prepared)
     }
 
     private companion object {

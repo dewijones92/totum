@@ -28,14 +28,14 @@ public interface HomeTorrentServer {
     public suspend fun warmSearch() {}
 
     /**
-     * Registers [magnet] with the server and returns what it can play.
+     * Registers [link] with the server and returns what it can play.
      *
      * Separate from [stream] because adding is the slow part — the server has to reach the
      * swarm and read the metadata — and because doing it EARLY is what makes playback feel
      * quick. Calling this when a result is opened, rather than when play is pressed, means
      * pieces are already arriving by the time there is something to play.
      */
-    public suspend fun prepare(magnet: String): PreparedTorrent?
+    public suspend fun prepare(link: TorrentLink): PreparedTorrent?
 
     /**
      * A directly-playable URL for one file inside a prepared torrent.
@@ -84,9 +84,15 @@ public sealed interface TorrentSearchResult {
     public data class Failure(public val detail: String, public val slow: Boolean = false) : TorrentSearchResult
 }
 
+public sealed interface TorrentLink {
+    public data class Magnet(public val uri: String) : TorrentLink
+
+    public data class ViaIndexer(public val path: String) : TorrentLink
+}
+
 public data class TorrentResult(
     public val title: String,
-    public val magnet: String,
+    public val link: TorrentLink,
     public val seeders: Int,
     public val sizeBytes: Long,
     public val indexer: String?,

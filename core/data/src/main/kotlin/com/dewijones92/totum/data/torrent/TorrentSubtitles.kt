@@ -78,7 +78,9 @@ public class TorrentSidecarSubtitles(
         val parts = item.id.value.split(':')
         if (parts.size != ID_PARTS || parts[0] != "torrent") return emptyList()
         val (hash, index) = parts[1] to parts[2].toIntOrNull()
-        val torrent = prepared[hash] ?: withTimeoutOrNull(waitMs) { server.prepare("magnet:?xt=urn:btih:$hash") }
+        val torrent = prepared[hash] ?: withTimeoutOrNull(waitMs) {
+            server.prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:$hash"))
+        }
             ?.also(::remember)
         val video = torrent?.files?.firstOrNull { it.index == index }
         if (torrent == null || video == null) {

@@ -26,7 +26,7 @@ class TorrentSearchSourceTest {
     private val source = TorrentSearchSource(server)
 
     private fun result(title: String, seeders: Int, size: Long = 1_000_000_000) =
-        TorrentResult(title, "magnet:?xt=urn:btih:$title", seeders, size, indexer = "TPB")
+        TorrentResult(title, TorrentLink.Magnet("magnet:?xt=urn:btih:$title"), seeders, size, indexer = "TPB")
 
     @Test
     fun `a slow home server reaches the section as slow, not as unreachable`() = runTest {
@@ -70,7 +70,7 @@ class TorrentSearchSourceTest {
         val outcome = source.search(SearchQuery("x"), limit = 10, after = null)
 
         val hit = (outcome as SearchOutcome.Success).page.items.single() as SearchHit.Torrent
-        assertTrue(hit.magnet.startsWith("magnet:"))
+        assertTrue((hit.link as TorrentLink.Magnet).uri.startsWith("magnet:"))
     }
 
     /**
@@ -124,8 +124,8 @@ class ProwlarrShapeTest {
 
         val result = parsed.single()
         assertTrue(
-            "must not hand the streaming server a download-proxy URL: ${result.magnet}",
-            result.magnet.startsWith("magnet:"),
+            "must not hand the streaming server a download-proxy URL: ${result.link}",
+            (result.link as? TorrentLink.Magnet)?.uri?.startsWith("magnet:") == true,
         )
         assertEquals(4, result.seeders)
         assertEquals(1_011_075_711L, result.sizeBytes)
@@ -150,8 +150,8 @@ class ProwlarrShapeTest {
 
         assertEquals(listOf("Night of the Living Dead (1968) 1080p"), parsed.map { it.title })
         assertEquals(
-            "magnet:?xt=urn:btih:$hash&dn=Night%20of%20the%20Living%20Dead%20%281968%29%201080p",
-            parsed.single().magnet,
+            TorrentLink.Magnet("magnet:?xt=urn:btih:$hash&dn=Night%20of%20the%20Living%20Dead%20%281968%29%201080p"),
+            parsed.single().link,
         )
     }
 
@@ -172,5 +172,18 @@ class ProwlarrShapeTest {
         val noMagnet = """[{"title":"x","seeders":1,"size":1,"magnetUrl":"http://prowlarr/1/download?apikey=S"}]"""
 
         assertEquals(emptyList<TorrentResult>(), parseProwlarr(noMagnet))
+    }
+
+    @Test
+    fun `a 1337x result with only the indexer's download link is kept, without the key in it`() {
+        val leet = """[{"title":"Night of the Living Dead (1968) [BluRay] [1080p]",""" +
+            """"guid":"https://1337x.to/torrent/3714507/Night-of-the-Living-Dead-1968/",""" +
+            """"downloadUrl":"http://prowlarr:9696/4/download?apikey=SECRET&link=bTRzVk5Y&file=Night",""" +
+            """"seeders":120,"size":1623497637,"indexer":"1337x"}]"""
+
+        val parsed = parseProwlarr(leet)!!.single()
+
+        assertEquals(TorrentLink.ViaIndexer("/4/download?link=bTRzVk5Y&file=Night"), parsed.link)
+        assertEquals(120, parsed.seeders)
     }
 }

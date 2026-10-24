@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.fake.InMemorySearchHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
+import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.innertube.music.MusicSong
@@ -89,7 +90,7 @@ class SearchStreamsPerSectionTest {
         title = name,
         subtitle = null,
         artworkUrl = null,
-        magnet = "magnet:?xt=urn:btih:$name",
+        link = TorrentLink.Magnet("magnet:?xt=urn:btih:$name"),
         seeders = 10,
         sizeBytes = 1_000,
         indexer = "test",
@@ -168,7 +169,7 @@ class SearchStreamsPerSectionTest {
                     title = "Sintel",
                     subtitle = null,
                     artworkUrl = null,
-                    magnet = "magnet:?xt=urn:btih:abc",
+                    link = TorrentLink.Magnet("magnet:?xt=urn:btih:abc"),
                     seeders = 22,
                     sizeBytes = 1,
                     indexer = null,

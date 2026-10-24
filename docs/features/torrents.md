@@ -27,6 +27,7 @@ read afterwards and the whole path was there. **A status nobody re-checks is wor
 |---|---|
 | Search across indexers | `TorrentSearchSource` → `HttpHomeTorrentServer.search` (Prowlarr), best-seeded first |
 | Old AVIs | MP3 stored across frames is cut into whole frames before the decoder (`totumExtractors()`, [ADR 87](../adr/0087-mp3-in-an-avi-is-cut-into-whole-frames.md)); before, every such file failed at 0 ms |
+| 1337x | Its results carry only Prowlarr's download link; the magnet is asked for when one is chosen ([ADR 89](../adr/0089-a-result-without-a-magnet-is-resolved-when-chosen.md)); before, none ever reached the app |
 | Torrentio beside Prowlarr | `Torrentio`: Cinemeta finds the film or series, Torrentio lists its torrents in ~0.3 s; one more source in `ProwlarrSearch.updates`, the same info hash listed once ([ADR 86](../adr/0086-torrentio-beside-prowlarr.md)) |
 | Add a magnet, wait for metadata | `prepare` — polls for the file list, because asking once returns nothing |
 | Season packs as episodes | `TorrentEpisodes` + `TorrentPlayables.queueItems` — one queue item per playable file |

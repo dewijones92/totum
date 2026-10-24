@@ -105,8 +105,12 @@ public class HttpHomeTorrentServer(
             prowlarr.updates(query).flowOn(Dispatchers.IO)
         }
 
-    override suspend fun prepare(magnet: String): PreparedTorrent? = withContext(Dispatchers.IO) {
+    override suspend fun prepare(link: TorrentLink): PreparedTorrent? = withContext(Dispatchers.IO) {
         val started = TimeSource.Monotonic.markNow()
+        val magnet = when (link) {
+            is TorrentLink.Magnet -> link.uri
+            is TorrentLink.ViaIndexer -> prowlarr.magnetOf(link) ?: return@withContext null
+        }
         // save_to_db false: the server keeps a RAM cache and nothing is written to disk, which is
         // what makes this sustainable on a Pi that is 88% full.
         val added = post(

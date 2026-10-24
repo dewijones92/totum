@@ -45,4 +45,7 @@ Progress 2026-10-24:
   but carry no magnet or info hash. kickasstorrents.ws, left behind by the trial, failed and is disabled.
 - 🔍 **1337x has never reached the app**: its results carry no magnet (only a page address and Prowlarr's download
   link), so every one was dropped. Across every report on the Pi it answered "0 result(s)" 18 times and never more.
-  Next: resolve the magnet through Prowlarr's download link when a result is chosen.
+  ✅ Fixed: the result keeps the link and the magnet is asked for when chosen
+  ([ADR 89](../adr/0089-a-result-without-a-magnet-is-resolved-when-chosen.md)); emulator: 19 1337x results, the
+  magnet in 310 ms, playing 5.3 s after the tap.
+- ✅ A year in the search picks that year's film in Torrentio ("… 1968" had found nothing in 6.7 s).

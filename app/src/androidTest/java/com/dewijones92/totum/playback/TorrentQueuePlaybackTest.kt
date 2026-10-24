@@ -149,7 +149,7 @@ class TorrentQueuePlaybackTest {
     fun `a torrent found by search plays through the same queue as everything else`() =
         runBlocking(Dispatchers.Main) {
             val hit = searchForOnePublicDomainFilm()
-            val prepared = homeServer.prepare(hit.magnet)
+            val prepared = homeServer.prepare(hit.link)
             assertNotNull("the stand-in server never prepared the torrent", prepared)
 
             val items = TorrentPlayables.queueItems(homeServer, prepared!!)
@@ -187,7 +187,7 @@ class TorrentQueuePlaybackTest {
     @Test
     fun `a downloaded torrent plays with the radios off`() = runBlocking(Dispatchers.Main) {
         val hit = searchForOnePublicDomainFilm()
-        val prepared = homeServer.prepare(hit.magnet)
+        val prepared = homeServer.prepare(hit.link)
         val item = TorrentPlayables.queueItems(homeServer, prepared!!).first()
 
         downloads.download(item, audioOnly = true)

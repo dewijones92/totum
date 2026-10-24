@@ -32,7 +32,7 @@ public class Torrentio(
             Diag.log(
                 "torrent",
                 "torrentio \"$query\" -> ${results.size} stream(s) in ${started.elapsedNow().inWholeMilliseconds}ms " +
-                    "[title=\"${asked.title}\" episode=${asked.season}:${asked.episode}]",
+                    "[title=\"${asked.title}\" year=${asked.year ?: "-"} episode=${asked.season}:${asked.episode}]",
             )
             TorrentSearchResult.Success(results)
         } catch (e: IOException) {
@@ -42,7 +42,7 @@ public class Torrentio(
     }
 
     private suspend fun findAndList(kind: String, asked: Asked): List<TorrentResult> {
-        val meta = catalogue(kind, asked.title) ?: return emptyList()
+        val meta = catalogue(kind, asked) ?: return emptyList()
         val path = if (kind == SERIES) "$kind/${meta.id}:${asked.season}:${asked.episode}" else "$kind/${meta.id}"
         val body = get("$torrentioBase/stream/$path.json") ?: return emptyList()
         val streams = (runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject)
@@ -56,7 +56,8 @@ public class Torrentio(
         return results
     }
 
-    private suspend fun catalogue(kind: String, title: String): Meta? {
+    private suspend fun catalogue(kind: String, asked: Asked): Meta? {
+        val title = asked.title
         val encoded = URLEncoder.encode(title, Charsets.UTF_8).replace("+", "%20")
         val body = get("$cinemetaBase/catalog/$kind/top/search=$encoded.json") ?: return null
         val metas = (runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject)
@@ -66,9 +67,12 @@ public class Torrentio(
             val meta = element as? JsonObject ?: return@mapNotNull null
             val id = (meta["imdb_id"] ?: meta["id"])?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
             val name = meta["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-            Meta(id, name).takeIf { id.startsWith("tt") }
+            val released = meta["releaseInfo"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            Meta(id, name, released).takeIf { id.startsWith("tt") }
         }
-        val match = candidates.firstOrNull { it.name.wordsOf().containsAll(words) }
+        val named = candidates.filter { it.name.wordsOf().containsAll(words) }
+        val match = named.firstOrNull { asked.year != null && it.released.startsWith(asked.year) }
+            ?: named.firstOrNull()
         Diag.log(
             "torrent",
             "torrentio $kind catalogue \"$title\": ${candidates.size} entr(ies), " +
@@ -97,22 +101,28 @@ public class Torrentio(
         val site = SITE.find(facts)?.groupValues?.get(1)
         return TorrentResult(
             title = name,
-            magnet = magnetFor(hash, name),
+            link = TorrentLink.Magnet(magnetFor(hash, name)),
             seeders = SEEDERS.find(facts)?.groupValues?.get(1)?.toIntOrNull() ?: 0,
             sizeBytes = SIZE.find(facts)?.let { sizeOf(it.groupValues[1], it.groupValues[2]) } ?: 0,
             indexer = site?.let { "$NAME · $it" } ?: NAME,
         )
     }
 
-    private data class Meta(val id: String, val name: String)
+    private data class Meta(val id: String, val name: String, val released: String)
 
-    private data class Asked(val title: String, val season: Int, val episode: Int) {
+    private data class Asked(val title: String, val season: Int, val episode: Int, val year: String?) {
         companion object {
             fun of(query: String): Asked {
                 val episode = EPISODE.find(query)
-                val title = (episode?.let { query.removeRange(it.range) } ?: query).trim().replace(SPACES, " ")
+                val withoutEpisode = (episode?.let { query.removeRange(it.range) } ?: query).trim()
+                val year = YEAR.find(withoutEpisode)?.takeIf { withoutEpisode.removeRange(it.range).isNotBlank() }
+                val title = (year?.let { withoutEpisode.removeRange(it.range) } ?: withoutEpisode).trim().replace(
+                    SPACES,
+                    " "
+                )
                 return Asked(
                     title = title,
+                    year = year?.value,
                     season = episode?.groupValues?.get(1)?.toInt() ?: 1,
                     episode = episode?.groupValues?.get(2)?.toInt() ?: 1,
                 )
@@ -128,6 +138,7 @@ public class Torrentio(
         private const val SERIES = "series"
         private val EPISODE = Regex("""\b[sS](\d{1,2})\s*[eE](\d{1,3})\b""")
         private val SPACES = Regex("""\s+""")
+        private val YEAR = Regex("""\b(19|20)\d{2}\b""")
         private val SEEDERS = Regex("""👤\s*(\d+)""")
         private val SIZE = Regex("""💾\s*([\d.]+)\s*(TB|GB|MB|KB)""")
         private val SITE = Regex("""⚙️\s*(\S+)""")

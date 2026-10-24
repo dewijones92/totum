@@ -24,7 +24,8 @@ Measured from the Pi: Cinemeta 0.08 s, Torrentio 0.08-0.1 s (42 streams for a fi
   takes part in "still searching …" and the merge, and a source that fails does not hide the others' results.
 - It asks Cinemeta's movie and series catalogues in parallel and takes, from each, the first entry whose name holds
   every word of the search; a film lists `stream/movie/<id>`, a series `stream/series/<id>:<season>:<episode>`,
-  the episode taken from an `SxxEyy` in the search and S01E01 otherwise.
+  the episode taken from an `SxxEyy` in the search and S01E01 otherwise. A year in the search (1900-2099) is left
+  out of the catalogue search and picks the entry released that year (the 1968 film over the 1990 one).
 - A stream becomes a result only with a 40-character info hash; its magnet is built from the hash and the release
   name (`magnetFor`, shared with Prowlarr results that carry only a hash, such as YTS's). Seeders, size and the
   site come from the stream's last title line; the indexer reads "Torrentio · <site>".

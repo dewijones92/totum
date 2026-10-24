@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.PreparedTorrent
 import com.dewijones92.totum.data.torrent.TorrentFile
+import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.data.torrent.TorrentResult
 import com.dewijones92.totum.data.torrent.TorrentSearchResult
 
@@ -14,8 +15,8 @@ public class FakeHomeTorrentServer(
     public var slow: Boolean = false,
 ) : HomeTorrentServer {
 
-    /** Magnets handed to [prepare], so a test can assert the app added what the user picked. */
-    public val prepared: MutableList<String> = mutableListOf()
+    /** Links handed to [prepare], so a test can assert the app added what the user picked. */
+    public val prepared: MutableList<TorrentLink> = mutableListOf()
 
     public var files: List<TorrentFile> = listOf(
         TorrentFile(index = 1, path = "Some.Release/feature.mkv", sizeBytes = 1_700_000_000),
@@ -24,8 +25,8 @@ public class FakeHomeTorrentServer(
     override suspend fun search(query: String): TorrentSearchResult =
         failure?.let { TorrentSearchResult.Failure(it, slow) } ?: TorrentSearchResult.Success(results)
 
-    override suspend fun prepare(magnet: String): PreparedTorrent? {
-        prepared += magnet
+    override suspend fun prepare(link: TorrentLink): PreparedTorrent? {
+        prepared += link
         return failure?.let { null } ?: PreparedTorrent("abc123", "Some.Release", files)
     }
 
