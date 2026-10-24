@@ -1,0 +1,9 @@
+[Unit]
+Description=Keep the Cloudflare clearance of FlareSolverr-backed indexers warm for Totum's torrent search
+Documentation=https://github.com/dewijones92/totum/tree/main/server
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/pi/code/totum/server/prowlarr/search-warmer.sh

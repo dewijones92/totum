@@ -14,6 +14,20 @@ deployed the same way.
 State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver` and
 `/var/lib/torrserver-watchdog`, and is covered by the Pi's `pi-state-backup`.
 
+## Search speed (2026-10-24)
+
+- **1337x is the custom definition `prowlarr/definitions/1337x-fast.yml`**: Prowlarr's own 1337x with only pages
+  1 and 2, sorted by seeders (40 best-seeded results, ~5 s warm against ~12 s for four pages; the definition's
+  3 s `requestDelay` between pages is kept). Deploy: copy it to
+  `/var/lib/prowlarr/config/Definitions/Custom/`, `docker restart prowlarr`. The stock four-page indexer is kept
+  disabled as "1337x (4 pages)".
+- **`prowlarr/search-warmer.{sh,service,timer}`** searches every FlareSolverr-backed indexer every 15 minutes, so
+  Cloudflare's clearance is held and a real search skips the ~80 s solve. Its log (`journalctl -t search-warmer`)
+  says each time whether the clearance had lapsed. Link it like the watchdog.
+- **Search stays on the home IP** (Dewi, 2026-10-24): Prowlarr and FlareSolverr sit on `bin_private`, only the
+  swarm (TorrServer, totum-audio) uses PureVPN. Measured: the first two exit as the home address, the second two as
+  PureVPN's.
+
 ## What stays in the Pi's `dot-files` repo
 
 - **nginx**: one generated config for the whole Pi. The app reaches all of this through the `totum.` vhost
@@ -62,8 +76,9 @@ sudo docker exec nginx_dewi curl -s -X POST -d '{"action":"list"}' http://gluetu
 systemctl list-timers torrserver-watchdog.timer; journalctl -t torrserver-watchdog -n 5
 ```
 
-The watchdog's units are symlinked from here into `/etc/systemd/system`
-(`sudo systemctl link /home/pi/code/totum/server/torrserver/torrserver-watchdog.{service,timer}`, then
-`sudo systemctl enable --now torrserver-watchdog.timer`).
+The watchdog's and the warmer's units are symlinked from here into `/etc/systemd/system`
+(`sudo systemctl link /home/pi/code/totum/server/torrserver/torrserver-watchdog.{service,timer}
+/home/pi/code/totum/server/prowlarr/search-warmer.{service,timer}`, then
+`sudo systemctl enable --now torrserver-watchdog.timer search-warmer.timer`).
 
 Moved here from `dot-files` on 2026-10-23 ([ADR 85](../docs/adr/0085-the-pi-back-end-lives-in-this-repo.md)).
