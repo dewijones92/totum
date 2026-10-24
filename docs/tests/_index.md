@@ -107,6 +107,8 @@ instead).
 | Instrumented test names are dex-safe | python | `tools/ci/preflight_dex_names_test.py` — an apostrophe fails the whole androidTest build |
 | The shared row keeping every action through a restyle | instrumented | `:app` `MediaItemRowKeepsActionsTest` — ten screens depend on it |
 | The player keeping every control through a redesign | instrumented | `:app` `PlayerKeepsEveryControlTest` — written BEFORE the redesign, which is the whole point |
+| AVI whose MP3 is a byte stream cut across frames (zero first frame, chunks straddling frames): re-framed for the decoder, timed from the chunk its first byte arrived in, restarted at a seek, other codecs untouched; plays to the end on a device | JVM unit + instrumented | `:core:playback` `AviMp3FramingTest`, `AnAviWithMp3CutAcrossFramesPlaysTest` (fixture from `tools/avi/unaligned-mp3-avi.py`; fails with `DECODING_FAILED` without the fix) |
+| Download labels: anything outside the YouTube pillar is "the whole file", picture or not | JVM unit | `:app` `DownloadLabelsTest` |
 | Search results streaming per section | JVM unit | `:app` `SearchStreamsPerSectionTest` — incl. the reported case, a slow torrent search not blocking YouTube |
 | What each search section state looks like | instrumented | `:app` `SearchSectionStatesTest` |
 | The facts under every video title (maker, publisher, views, date — one per line) | JVM unit | `:app` `MediaItemSubtitleTest` — testable at all only because `@Composable` came off the formatter |

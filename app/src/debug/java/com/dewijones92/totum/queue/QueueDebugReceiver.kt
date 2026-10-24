@@ -7,6 +7,8 @@ import android.content.Intent
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
@@ -24,6 +26,7 @@ class QueueDebugReceiver : BroadcastReceiver() {
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
                 }
+                    .plus(directItems(intent.getStringExtra("urls")))
                 val group = intent.getStringExtra("group")?.let { QueueGroup(id = "debug:$it", title = it) }
                 val appended = intent.getStringExtra("append").orEmpty().split(',').filter { it.isNotBlank() }.mapNotNull { id ->
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
@@ -70,6 +73,22 @@ class QueueDebugReceiver : BroadcastReceiver() {
             }
         }
     }
+
+    private fun directItems(urls: String?): List<PlayableItem> =
+        urls.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty).mapIndexed { index, address ->
+            val url = HttpUrl.of(address)
+            PlayableItem(
+                MediaItem(
+                    id = MediaItemId("debug:url:$index:${address.hashCode()}"),
+                    sourceId = SourceId("debug"),
+                    title = address.substringAfterLast('/').substringBefore('?'),
+                    publishedAt = null,
+                    duration = null,
+                    mediaUrl = url,
+                ),
+                PlayHandle.Podcast(),
+            )
+        }
 
     private companion object {
         const val ACTION_PLAY_ALL = "com.dewijones92.totum.DEBUG_QUEUE_PLAY_ALL"
