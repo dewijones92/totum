@@ -10,9 +10,21 @@ deployed the same way.
 | `flaresolverr/` | Solves 1337x's Cloudflare challenge for Prowlarr, about 90 s a time. | `bin_private` |
 | `torrserver/` | Streams a torrent's files with real seeking, plus its `/torrents` watchdog timer. | gluetun's netns |
 | `totum-audio/` | Audio-only HLS of a TorrServer stream (`/audio/<hash>/<index>/index.m3u8`), about 2.1 MB a minute against 15.2 for the video. | gluetun's netns |
+| `totum-auth/` | A token per device: nginx asks it before every request to `totum.`; `totumauth.` (Google-gated) mints them ([ADR 90](../docs/adr/0090-a-token-per-device-and-none-in-links.md)). | `bin_private` |
 
-State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver` and
-`/var/lib/torrserver-watchdog`, and is covered by the Pi's `pi-state-backup`.
+State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver`, `/var/lib/torrserver-watchdog` and
+`/var/lib/totum-auth`, and is covered by the Pi's `pi-state-backup`.
+
+## Who gets in (2026-10-24)
+
+- `totum.` asks totum-auth on every request: `/var/lib/totum-auth/snippets/totum-guard.partial` is an `auth_request`
+  to its `/check`. A device's token is only accepted as the `X-Totum-Token` header; a token in a link is refused.
+- `totumauth.` (behind the Google gate) proxies to its `/signin` with a secret header from
+  `/var/lib/totum-auth/snippets/totum-token.partial`, so nothing else on `bin_private` can mint tokens.
+- Devices: `sudo docker exec totum-auth python server.py devices`, `... revoke <id>`. The old shared token
+  (`/var/lib/totum-auth/token`) is accepted until `... retire-legacy`.
+- Both partials are single-file mounts: rewrite them in place (`cat new > file`, keeping the inode), then
+  `docker exec nginx_dewi nginx -t && docker exec nginx_dewi nginx -s reload`.
 
 ## Search speed (2026-10-24)
 
@@ -36,7 +48,7 @@ State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver` and
 ## What stays in the Pi's `dot-files` repo
 
 - **nginx**: one generated config for the whole Pi. The app reaches all of this through the `totum.` vhost
-  (token-guarded, 180 s timeout for the Cloudflare step); people reach Prowlarr and TorrServer at
+  (gated by totum-auth, 180 s timeout for the Cloudflare step); people reach Prowlarr and TorrServer at
   `prowlarr.`/`torrserver.` behind the Google gate. nginx proxies by container name, so it does not care where
   a compose file lives.
 - **gluetun** (`vpn-stack/`), whose network namespace `torrserver` and `totum-audio` share, so every peer
@@ -48,7 +60,7 @@ State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver` and
 ```bash
 ssh pi@333133333.xyz
 cd ~/code/totum && git pull --ff-only -q origin main
-cd server/<service> && sudo docker compose up -d                     # prowlarr, flaresolverr
+cd server/<service> && sudo docker compose up -d                     # prowlarr, flaresolverr, totum-auth
 cd server/<service> && sudo docker compose up -d --force-recreate    # torrserver, totum-audio
 cd server/totum-audio && sudo docker compose up -d --build --force-recreate   # after changing server.py
 ```

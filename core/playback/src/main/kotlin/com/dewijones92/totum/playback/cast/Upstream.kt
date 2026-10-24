@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback.cast
 
+import com.dewijones92.totum.common.HomeServerAuth
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -21,6 +22,7 @@ internal object Upstream {
         (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS
+            HomeServerAuth.headersFor(getURL().host).forEach { (name, value) -> setRequestProperty(name, value) }
             range?.let { setRequestProperty("Range", it) }
         },
     )

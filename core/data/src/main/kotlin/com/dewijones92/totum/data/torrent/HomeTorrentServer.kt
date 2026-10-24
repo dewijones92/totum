@@ -27,6 +27,8 @@ public interface HomeTorrentServer {
 
     public suspend fun warmSearch() {}
 
+    public suspend fun signOut(): Boolean = false
+
     /**
      * Registers [link] with the server and returns what it can play.
      *

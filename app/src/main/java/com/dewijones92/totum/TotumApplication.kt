@@ -7,12 +7,14 @@ import coil3.SingletonImageLoader
 import coil3.request.crossfade
 import com.dewijones92.totum.cast.startCastScreens
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge
 import com.dewijones92.totum.notifications.NewContentWorker
 import com.dewijones92.totum.playback.startGapless
+import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.stats.ListenRecorder
 import com.dewijones92.totum.stats.recordFinishedDownloads
@@ -29,6 +31,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         // First thing, so a crash during the rest of startup is still captured.
         container.installCrashReporting()
+        signHomeServerRequests(container.appPreferences)
         // Fetch the latest yt-dlp in the background so YouTube-breaking changes
         // self-heal; the download applies on the next start.
         container.refreshExtractorEngine()
@@ -108,4 +111,17 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         ImageLoader.Builder(context)
             .crossfade(true)
             .build()
+}
+
+private fun signHomeServerRequests(prefs: AppPreferences) {
+    HomeServerAuth.use(
+        host = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { "totum.$it" } },
+        token = { prefs.settings.value.homeServerToken },
+    )
+    val settings = prefs.settings.value
+    Diag.log(
+        "auth",
+        "home server requests carry this device's token as a header " +
+            "[server=${settings.homeServerBase.isNotBlank()} signedIn=${settings.homeServerToken.isNotBlank()}]",
+    )
 }

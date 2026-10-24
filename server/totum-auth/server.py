@@ -199,6 +199,17 @@ def signin_page(token, prowlarr_key, device):
     ).encode()
 
 
+def legacy_page(token, prowlarr_key):
+    link = "totum://auth?token=%s&key=%s" % (token, quote(prowlarr_key))
+    safe = html.escape(link, quote=True)
+    return (
+        '<!doctype html><meta charset="utf-8"><title>Totum</title>'
+        f'<meta http-equiv="refresh" content="0;url={safe}">'
+        '<body style="font-family:system-ui;padding:2rem"><p>Signing Totum in&hellip;</p>'
+        f'<p><a href="{safe}">Tap here if it does not open automatically.</a></p></body>'
+    ).encode()
+
+
 def handler_for(gate, devices, signin_secret, prowlarr_key):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -233,6 +244,9 @@ def handler_for(gate, devices, signin_secret, prowlarr_key):
                 if not signin_secret or not hmac.compare_digest(offered, signin_secret):
                     log("signin refused: it did not come through the Google-gated host")
                     return self._send(403)
+                if "device" not in query and gate.legacy_token and not gate.legacy_retired():
+                    log("signin from an app that names no device: given the old shared token, as before")
+                    return self._send(200, legacy_page(gate.legacy_token, prowlarr_key), "text/html; charset=utf-8")
                 token, device = devices.mint(query.get("device", [""])[0])
                 return self._send(200, signin_page(token, prowlarr_key, device), "text/html; charset=utf-8")
             if url.path == "/auth/devices":

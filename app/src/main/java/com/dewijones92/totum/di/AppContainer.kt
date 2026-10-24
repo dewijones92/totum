@@ -63,6 +63,7 @@ import com.dewijones92.totum.data.source.DefaultSourceLocator
 import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
+import com.dewijones92.totum.data.torrent.HomeServerAuthInterceptor
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
@@ -527,6 +528,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private val transferClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(PoliteInterceptor(polite.gate, polite.meter))
+        .addInterceptor(HomeServerAuthInterceptor())
         .connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()

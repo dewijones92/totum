@@ -620,7 +620,10 @@ internal fun playbackSources(context: Context): DefaultMediaSourceFactory =
         .setDataSourceFactory(
             RefusedSubtitlesLoadEmpty(
                 SabrDataSourceFactory(
-                    PlaybackCache.factory(context, ChunkedDataSource.Factory(DefaultDataSource.Factory(context))),
+                    PlaybackCache.factory(
+                        context,
+                        ChunkedDataSource.Factory(homeServerAware(DefaultDataSource.Factory(context)))
+                    ),
                 ),
             ),
         )

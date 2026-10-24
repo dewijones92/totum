@@ -35,6 +35,7 @@ read afterwards and the whole path was there. **A status nobody re-checks is wor
 | Listen mode | the server's remuxed audio (HLS), 2.1 MB/min against 15.2 measured |
 | Offline | the same `routeNow` decision as every other pillar; a downloaded copy wins over the stream |
 | Zero config | the host is baked in at build time from `TOTUM_HOME_SERVER` (a CI secret, never committed); signing in is one tap, and the token and Prowlarr key arrive together on a `totum://auth` deep link |
+| Who may use it | a token per device, sent only as a header, checked by `server/totum-auth`; links carry no secret; sign out per device ([ADR 90](../adr/0090-a-token-per-device-and-none-in-links.md)) |
 
 Nothing above the `HomeTorrentServer` port knows a torrent is involved. That is the point: the
 pillar reaches the UI as one more `SearchHit`, one more queue item, one more thing that plays.

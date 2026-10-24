@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HttpUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -90,6 +91,21 @@ public class HttpHomeTorrentServer(
         prowlarr.search(query)
     }
 
+    override suspend fun signOut(): Boolean = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("$base/auth/signout")
+            .header(TOKEN_HEADER, token())
+            .post(ByteArray(0).toRequestBody())
+            .build()
+        val outcome = runCatching { client.newCall(request).await().use { it.code } }
+        val said = outcome.fold(
+            { code -> "HTTP $code" + if (code == HTTP_NO_CONTENT) ", this device's token is forgotten there" else "" },
+            { e -> "could not reach it (${e.message}); the token is forgotten on this phone only" },
+        )
+        Diag.log("auth", "signing out of the home server: $said")
+        outcome.getOrNull() == HTTP_NO_CONTENT
+    }
+
     override suspend fun warmSearch() {
         if (token().isBlank()) return
         withContext(Dispatchers.IO) { prowlarr.warm() }
@@ -175,25 +191,19 @@ public class HttpHomeTorrentServer(
     }
 
     /**
-     * The token rides in the QUERY here, not a header, and that is deliberate.
-     *
-     * This URL is handed to ExoPlayer, which fetches it with its own HTTP stack and knows
-     * nothing about the app's headers. A header-only scheme would authenticate every call the
-     * app makes and then fail on the one that actually plays the video.
+     * No token in the address: the player's data source adds this device's token as a header
+     * (`HomeServerAuth`), so a copied or leaked link is refused (ADR 90).
      */
     override fun stream(torrent: PreparedTorrent, file: TorrentFile): HttpUrl = HttpUrl.of(
-        "$torrServerBase/stream/${file.name.urlPath()}" +
-            "?link=${torrent.hash}&index=${file.index}&play&totumToken=${token()}",
+        "$torrServerBase/stream/${file.name.urlPath()}?link=${torrent.hash}&index=${file.index}&play",
     )
 
     /**
-     * The audio-only HLS playlist for one file. Same token-in-the-query trick as [stream], and
-     * for the same reason: ExoPlayer fetches this with its own HTTP stack and none of our
-     * headers, and it fetches every SEGMENT the same way — so the token has to survive into the
-     * playlist's relative URLs, which it does because they resolve against this address.
+     * The audio-only HLS playlist for one file. Like [stream] it carries no token: the playlist
+     * and every segment are fetched through the player's data source, which adds the header.
      */
     override fun audioStream(torrent: PreparedTorrent, file: TorrentFile): HttpUrl = HttpUrl.of(
-        "$torrServerBase/audio/${torrent.hash}/${file.index}/index.m3u8?totumToken=${token()}",
+        "$torrServerBase/audio/${torrent.hash}/${file.index}/index.m3u8",
     )
 
     override suspend fun warmAudio(audioUrl: HttpUrl) {
@@ -270,7 +280,8 @@ public class HttpHomeTorrentServer(
         val JSON_TYPE = "application/json".toMediaType()
 
         /** Checked by nginx before anything is proxied; a wrong or missing one is a 401. */
-        const val TOKEN_HEADER = "X-Totum-Token"
+        const val TOKEN_HEADER = HomeServerAuth.HEADER
+        private const val HTTP_NO_CONTENT = 204
 
         const val HASH_CHARS = 12
         const val LISTED_FILES = 40

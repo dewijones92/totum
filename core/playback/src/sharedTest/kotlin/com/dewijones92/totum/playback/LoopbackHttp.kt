@@ -32,6 +32,9 @@ internal class LoopbackHttp(private val answer: (Int) -> Reply) : AutoCloseable 
     /** How many requests have been answered, for a test that needs to know it was really asked. */
     val requestsAnswered: Int get() = served.get()
 
+    /** Each request's line and headers, as received. */
+    val heads: MutableList<String> = java.util.concurrent.CopyOnWriteArrayList()
+
     init {
         thread(isDaemon = true, name = "loopback-http") {
             while (!listener.isClosed) {
@@ -46,7 +49,7 @@ internal class LoopbackHttp(private val answer: (Int) -> Reply) : AutoCloseable 
         listener.accept().use { client ->
             // Drained first: an undrained request body reaches the client as a reset connection,
             // which would fail a test for a reason that is not its subject.
-            drain(client.getInputStream())
+            heads += drain(client.getInputStream())
             val reply = answer(served.getAndIncrement())
             client.getOutputStream().apply {
                 val length = if (reply.sayLength) "Content-Length: ${reply.body.size}\r\n" else ""
@@ -57,15 +60,16 @@ internal class LoopbackHttp(private val answer: (Int) -> Reply) : AutoCloseable 
         }
     }
 
-    private fun drain(input: InputStream) {
+    private fun drain(input: InputStream): String {
         val head = StringBuilder()
         while (!head.endsWith("\r\n\r\n")) {
             val byte = input.read()
-            if (byte < 0) return
+            if (byte < 0) return head.toString()
             head.append(byte.toChar())
         }
         val length = CONTENT_LENGTH.find(head)?.groupValues?.get(1)?.toInt() ?: 0
-        repeat(length) { if (input.read() < 0) return }
+        repeat(length) { if (input.read() < 0) return head.toString() }
+        return head.toString()
     }
 
     override fun close(): Unit = listener.close()

@@ -125,5 +125,26 @@ class HttpTest(unittest.TestCase):
         self.assertIn("Pixel 7", page)
 
 
+class OldAppSignInTest(unittest.TestCase):
+    def test_an_app_that_names_no_device_gets_the_old_token_until_it_is_retired(self):
+        devices = server.Devices(os.path.join(tempfile.mkdtemp(), "devices.json"))
+        retired = []
+        gate = server.Gate(devices, "LEGACY", lambda: bool(retired))
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.handler_for(gate, devices, "GATE", "K"))
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        url = f"http://127.0.0.1:{httpd.server_address[1]}/signin"
+        try:
+            request = urllib.request.Request(url, headers={"X-Totum-Signin-Gate": "GATE"})
+            with urllib.request.urlopen(request) as reply:
+                self.assertIn("token=LEGACY", reply.read().decode())
+            self.assertEqual([], devices.listing())
+            retired.append(True)
+            with urllib.request.urlopen(request) as reply:
+                self.assertNotIn("LEGACY", reply.read().decode())
+            self.assertEqual(1, len(devices.listing()))
+        finally:
+            httpd.shutdown()
+
+
 if __name__ == "__main__":
     unittest.main()

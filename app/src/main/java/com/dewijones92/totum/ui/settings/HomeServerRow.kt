@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui.settings
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
+import kotlinx.coroutines.launch
 
 /**
  * Points the app at the home server, and signs in to it.
@@ -74,6 +78,7 @@ internal fun HomeServerRow(container: AppContainer, modifier: Modifier = Modifie
             container = container,
             initialBase = settings.homeServerBase,
             initialKey = settings.prowlarrApiKey,
+            signedIn = settings.homeServerToken.isNotBlank(),
             onDone = { editing = false },
         )
     }
@@ -91,6 +96,7 @@ private fun HomeServerDialog(
     container: AppContainer,
     initialBase: String,
     initialKey: String,
+    signedIn: Boolean,
     onDone: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -114,6 +120,18 @@ private fun HomeServerDialog(
                     singleLine = true,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+                if (signedIn) {
+                    TextButton(
+                        onClick = {
+                            container.applicationScope.launch {
+                                container.homeTorrentServer?.signOut()
+                                container.appPreferences.setHomeServerToken("")
+                            }
+                            onDone()
+                        },
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) { Text(stringResource(R.string.settings_home_server_sign_out)) }
+                }
             }
         },
         confirmButton = {
@@ -125,7 +143,9 @@ private fun HomeServerDialog(
                 container.appPreferences.setHomeServer(base, key.ifBlank { initialKey })
                 onDone()
                 if (base.isNotBlank()) {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://totumauth.$base/".toUri()))
+                    val device = Uri.encode(thisDevice())
+                    Diag.log("auth", "signing in to the home server as \"${thisDevice()}\"")
+                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://totumauth.$base/?device=$device".toUri()))
                 }
             }) { Text(stringResource(R.string.settings_home_server_sign_in)) }
         },
@@ -134,3 +154,6 @@ private fun HomeServerDialog(
         },
     )
 }
+
+private fun thisDevice(): String =
+    "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}".trim()

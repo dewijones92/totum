@@ -630,6 +630,7 @@
     <string name="settings_home_server_domain">Domain (e.g. example.com)</string>
     <string name="settings_home_server_key">Prowlarr API key (fetched automatically)</string>
     <string name="settings_home_server_sign_in">Save and sign in</string>
+    <string name="settings_home_server_sign_out">🚪 Sign this phone out of the home server</string>
     <!-- Queue offline readiness. Wording is deliberately plain: these answer "can I listen to
          this with no signal?" at a glance, which a per-row glyph never could. Plurals rather
          than "item(s)", because the whole point of this line is that it reads like a sentence. -->

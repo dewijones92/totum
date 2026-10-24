@@ -25,7 +25,7 @@ ahead of the playhead, so any step back went to the network again.
 - A router sends a request through the cache only when `PlaybackCacheKeys.cacheable` says so: http(s), not loopback,
   not a manifest, not a live segment (`sq=`, `live=1`). SABR, local files and live go direct.
 - Keys: a YouTube stream is keyed by its stream id, itag, length and `xtags` (a dubbed track shares id and itag), not
-  its URL, because every lookup signs a new URL for the same bytes; a torrent stream drops its rotating `totumToken`;
+  its URL, because every lookup signs a new URL for the same bytes; a torrent stream drops the `totumToken` older builds put in its URL (it never rotated; since ADR 90 links carry none);
   anything else, and a YouTube URL with no length, is its URL **for this launch only**: a podcast enclosure URL can
   serve a different file tomorrow (dynamic ad insertion, a corrected upload), and mixing two versions' bytes would play
   the wrong audio at the joins (review, 2026-10-22).

@@ -12,6 +12,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.ChunkedDataSource
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.VolumeBoost
+import com.dewijones92.totum.playback.homeServerAware
 import com.dewijones92.totum.playback.totumExtractors
 import java.io.IOException
 import kotlin.math.roundToInt
@@ -264,7 +265,7 @@ internal class ProcessedAudio(
 
     private fun extractor() = MediaExtractorCompat(
         totumExtractors(),
-        ChunkedDataSource.Factory(DefaultDataSource.Factory(context)),
+        ChunkedDataSource.Factory(homeServerAware(DefaultDataSource.Factory(context))),
     ).apply { setDataSource(source.toUri(), 0) }
 
     private fun audioTrack(extractor: MediaExtractorCompat): Int =

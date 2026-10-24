@@ -476,6 +476,19 @@ class HttpHomeTorrentServerTest {
     }
 
     @Test
+    fun `signing out tells the home server to forget this device's token`() = runTest {
+        server.enqueue(MockResponse.Builder().code(204).build())
+
+        val signedOut = serverWith(token = { "device-token" }, key = { "k" }).signOut()
+
+        val request = server.takeRequest()
+        assertEquals(true, signedOut)
+        assertEquals("POST", request.method)
+        assertEquals("/auth/signout", request.target)
+        assertEquals("device-token", request.headers["X-Totum-Token"])
+    }
+
+    @Test
     fun `a download link that gives no magnet is a failed prepare, not a crash`() = runTest {
         answering { ok("[]") }
 
