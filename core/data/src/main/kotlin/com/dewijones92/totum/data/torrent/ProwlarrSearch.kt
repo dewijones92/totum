@@ -33,6 +33,7 @@ internal class ProwlarrSearch(
     private val token: () -> String,
     private val lateDeadlineMs: Long,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val alsoAsk: List<NamedSearch> = emptyList(),
 ) {
     @Volatile
     private var warmedAtMs: Long? = null
@@ -71,19 +72,21 @@ internal class ProwlarrSearch(
 
     fun updates(query: String): Flow<TorrentSearchResult> = channelFlow {
         val started = TimeSource.Monotonic.markNow()
-        val known = indexers ?: listIndexers()?.also { indexers = it }
-        if (known.isNullOrEmpty()) {
-            send(searchOne(query, null).also { logTotal(query, it, started) })
-            return@channelFlow
+        val listed = indexers ?: listIndexers()?.also { indexers = it }
+        val home = if (listed.isNullOrEmpty()) {
+            listOf(NamedSearch(ALL_INDEXERS) { searchOne(it, null) })
+        } else {
+            listed.map { indexer -> NamedSearch(indexer.name) { searchOne(it, indexer) } }
         }
-        val answers = mutableMapOf<Indexer, Pair<TorrentSearchResult, Long>>()
+        val known = home + alsoAsk
+        val answers = mutableMapOf<NamedSearch, Pair<TorrentSearchResult, Long>>()
         val lock = Mutex()
-        send(combined(known, answers))
-        val asks = known.map { indexer ->
+        if (known.size > 1) send(combined(known, answers))
+        val asks = known.map { source ->
             launch {
-                val one = searchOne(query, indexer)
+                val one = source.ask(query)
                 val snapshot = lock.withLock {
-                    answers[indexer] = one to started.elapsedNow().inWholeMilliseconds
+                    answers[source] = one to started.elapsedNow().inWholeMilliseconds
                     combined(known, answers)
                 }
                 send(snapshot)
@@ -101,8 +104,8 @@ internal class ProwlarrSearch(
 
     private fun logIndexers(
         query: String,
-        known: List<Indexer>,
-        answers: Map<Indexer, Pair<TorrentSearchResult, Long>>,
+        known: List<NamedSearch>,
+        answers: Map<NamedSearch, Pair<TorrentSearchResult, Long>>,
         started: TimeSource.Monotonic.ValueTimeMark,
     ) {
         val each = answers.entries.sortedBy { it.value.second }.joinToString("; ") { (indexer, answer) ->
@@ -115,7 +118,10 @@ internal class ProwlarrSearch(
         val leftOut = known.filterNot { it in answers }.map { it.name }
         val waited = started.elapsedNow().inWholeMilliseconds
         val tail = if (leftOut.isEmpty()) "" else "; gave up after ${waited}ms on: $leftOut"
-        Diag.log("torrent", "search \"$query\" per indexer: $each$tail")
+        val found = answers.values.sumOf { (it.first as? TorrentSearchResult.Success)?.results?.size ?: 0 }
+        val kept = (combined(known, answers) as? TorrentSearchResult.Success)?.results?.size ?: found
+        val merged = if (found > kept) "; ${found - kept} found by two sources listed once" else ""
+        Diag.log("torrent", "search \"$query\" per indexer: $each$tail$merged")
     }
 
     private fun logTotal(query: String, result: TorrentSearchResult, started: TimeSource.Monotonic.ValueTimeMark) {
@@ -210,18 +216,30 @@ internal class ProwlarrSearch(
 
 private data class Indexer(val id: Int, val name: String, val proxied: Boolean = false)
 
+internal class NamedSearch(val name: String, val ask: suspend (String) -> TorrentSearchResult)
+
 private fun combined(
-    known: List<Indexer>,
-    answers: Map<Indexer, Pair<TorrentSearchResult, Long>>,
+    known: List<NamedSearch>,
+    answers: Map<NamedSearch, Pair<TorrentSearchResult, Long>>,
 ): TorrentSearchResult {
-    val found = answers.values.mapNotNull { (it.first as? TorrentSearchResult.Success)?.results }
+    val found = known.mapNotNull { (answers[it]?.first as? TorrentSearchResult.Success)?.results }
     val waiting = known.filterNot { it in answers }.map { it.name }
     return when {
-        found.isNotEmpty() -> TorrentSearchResult.Success(found.flatten(), waiting)
+        found.isNotEmpty() -> TorrentSearchResult.Success(onePerTorrent(found.flatten()), waiting)
         waiting.isEmpty() -> answers.values.map { it.first }.firstOrNull { it is TorrentSearchResult.Failure }
             ?: TorrentSearchResult.Success(emptyList())
         else -> TorrentSearchResult.Success(emptyList(), waiting)
     }
+}
+
+private fun onePerTorrent(results: List<TorrentResult>): List<TorrentResult> {
+    val best = linkedMapOf<String, TorrentResult>()
+    results.forEach { result ->
+        val key = INFO_HASH.find(result.magnet)?.groupValues?.get(1)?.lowercase() ?: result.magnet
+        val kept = best[key]
+        if (kept == null || result.seeders > kept.seeders) best[key] = result
+    }
+    return best.values.toList()
 }
 
 private fun TorrentSearchResult.withoutWaiting(): TorrentSearchResult =
@@ -230,3 +248,5 @@ private fun TorrentSearchResult.withoutWaiting(): TorrentSearchResult =
 private const val WARM_EVERY_MS = 10 * 60_000L
 private const val WARM_QUERY = "ubuntu"
 private const val MS_PER_S = 1_000L
+private const val ALL_INDEXERS = "all indexers"
+private val INFO_HASH = Regex("""btih:([0-9A-Fa-f]{40})""")

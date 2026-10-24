@@ -24,6 +24,10 @@ State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver` and
 - **`prowlarr/search-warmer.{sh,service,timer}`** searches every FlareSolverr-backed indexer every 15 minutes, so
   Cloudflare's clearance is held and a real search skips the ~80 s solve. Its log (`journalctl -t search-warmer`)
   says each time whether the clearance had lapsed. Link it like the watchdog.
+- **The phone also asks Torrentio directly** (Cinemeta for the IMDb id, then Torrentio's streams), beside Prowlarr;
+  nothing runs on the Pi for it ([ADR 86](../docs/adr/0086-torrentio-beside-prowlarr.md)).
+- **1337x results carry no magnet** in Prowlarr's search response, only `downloadUrl` (Prowlarr fetches the
+  details page when it is asked) and the page address, so the app drops them until it resolves that link.
 - **Search stays on the home IP** (Dewi, 2026-10-24): Prowlarr and FlareSolverr sit on `bin_private`, only the
   swarm (TorrServer, totum-audio) uses PureVPN. Measured: the first two exit as the home address, the second two as
   PureVPN's.

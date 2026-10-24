@@ -43,11 +43,12 @@ public fun parseProwlarr(body: String): List<TorrentResult>? =
  * a result is worse than none.
  */
 private fun JsonObject.toResult(): TorrentResult? {
+    val title = this["title"]?.jsonPrimitive?.contentOrNull ?: return null
     val magnet = MAGNET_FIELDS
         .mapNotNull { field -> this[field]?.jsonPrimitive?.contentOrNull }
         .firstOrNull { it.startsWith("magnet:", ignoreCase = true) }
+        ?: infoHash()?.let { magnetFor(it, title) }
         ?: return null
-    val title = this["title"]?.jsonPrimitive?.contentOrNull ?: return null
     return TorrentResult(
         title = title,
         magnet = magnet,
@@ -56,6 +57,16 @@ private fun JsonObject.toResult(): TorrentResult? {
         indexer = this["indexer"]?.jsonPrimitive?.contentOrNull,
     )
 }
+
+private fun JsonObject.infoHash(): String? =
+    this["infoHash"]?.jsonPrimitive?.contentOrNull?.takeIf { HASH.matches(it) }
+        ?: this["guid"]?.jsonPrimitive?.contentOrNull?.let { HASH_AT_END.find(it)?.groupValues?.get(1) }
+
+internal fun magnetFor(infoHash: String, title: String): String =
+    "magnet:?xt=urn:btih:$infoHash&dn=" + java.net.URLEncoder.encode(title, Charsets.UTF_8).replace("+", "%20")
+
+internal val HASH = Regex("[0-9A-Fa-f]{40}")
+private val HASH_AT_END = Regex("""/([0-9A-Fa-f]{40})/?(?:[?#].*)?$""")
 
 /** Checked in order, but only a value starting `magnet:` is ever accepted. */
 private val MAGNET_FIELDS = listOf("guid", "magnetUrl", "downloadUrl")

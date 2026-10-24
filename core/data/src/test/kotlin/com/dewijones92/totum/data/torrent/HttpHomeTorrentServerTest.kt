@@ -36,25 +36,49 @@ class HttpHomeTorrentServerTest {
 
     @After fun tearDown() = server.close()
 
-    private fun serverWith(token: () -> String, key: () -> String, lateDeadlineMs: Long = 2_000) =
-        HttpHomeTorrentServer(
+    private fun serverWith(
+        token: () -> String,
+        key: () -> String,
+        lateDeadlineMs: Long = 2_000,
+        torrentio: Boolean = false,
+    ): HttpHomeTorrentServer {
+        val base = server.url("").toString().trimEnd('/')
+        return HttpHomeTorrentServer(
             client = OkHttpClient(),
-            base = server.url("").toString().trimEnd('/'),
+            base = base,
             prowlarrApiKey = key,
             token = token,
             lateDeadlineMs = lateDeadlineMs,
+            torrentio = if (torrentio) Torrentio(OkHttpClient(), cinemetaBase = base, torrentioBase = base) else null,
         )
+    }
 
     private fun ok(body: String) = MockResponse.Builder().code(200).body(body).build()
 
-    private fun answering(indexers: MockResponse = ok("[]"), search: (indexerId: String?) -> MockResponse) {
+    private fun answering(
+        indexers: MockResponse = ok("[]"),
+        catalogue: (path: String) -> MockResponse = { MockResponse.Builder().code(404).build() },
+        search: (indexerId: String?) -> MockResponse,
+    ) {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {
                 request.target.startsWith("/prowlarr/api/v1/indexer") -> indexers
                 request.target.startsWith("/prowlarr/api/v1/search") -> search(request.url.queryParameter("indexerIds"))
-                else -> MockResponse.Builder().code(404).build()
+                else -> catalogue(request.target)
             }
         }
+    }
+
+    private fun fixture(name: String) = javaClass.getResource("/torrentio/$name")!!.readText()
+
+    private fun torrentioFilm(delaySeconds: Long = 0): (String) -> MockResponse = { path ->
+        val response = when {
+            path.startsWith("/catalog/movie/") -> ok(fixture("cinemeta-movie.json"))
+            path.startsWith("/catalog/series/") -> ok(fixture("cinemeta-series.json"))
+            path == "/stream/movie/tt0063350.json" -> ok(fixture("streams-movie.json"))
+            else -> MockResponse.Builder().code(404).build()
+        }
+        response.newBuilder().headersDelay(delaySeconds, TimeUnit.SECONDS).build()
     }
 
     private fun enqueueEmptyResults() = answering { ok("[]") }
@@ -143,6 +167,49 @@ class HttpHomeTorrentServerTest {
         first as TorrentSearchResult.Success
         assertEquals(emptyList<String>(), first.results.map { it.title })
         assertEquals(setOf("The Pirate Bay", "1337x"), first.stillWaitingFor.toSet() - "YTS")
+    }
+
+    @Test
+    fun `Torrentio is searched beside the indexers and waited for like one of them`() = runTest {
+        answering(threeIndexers, catalogue = torrentioFilm(delaySeconds = 1)) { id ->
+            if (id == "1") ok("[${result("Night of the Living Dead 720p", 4, "The Pirate Bay")}]") else ok("[]")
+        }
+        val torrents = serverWith(token = { "t" }, key = { "k" }, lateDeadlineMs = 10_000, torrentio = true)
+
+        val answers = withContext(Dispatchers.Default) { torrents.searchUpdates("night of the living dead").toList() }
+
+        assertTrue(
+            "never waiting for Torrentio: ${answers.map { (it as? TorrentSearchResult.Success)?.stillWaitingFor }}",
+            answers.any { it is TorrentSearchResult.Success && "Torrentio" in it.stillWaitingFor },
+        )
+        val last = answers.last() as TorrentSearchResult.Success
+        assertEquals(
+            setOf("The Pirate Bay", "Torrentio · YTS", "Torrentio · 1337x", "Torrentio"),
+            last.results.map { it.indexer }.toSet(),
+        )
+        assertEquals(emptyList<String>(), last.stillWaitingFor)
+    }
+
+    @Test
+    fun `the same torrent from two sources is listed once, with the most seeders`() = runTest {
+        val sameHash = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        answering(threeIndexers, catalogue = torrentioFilm()) { id ->
+            if (id == "2") {
+                ok(
+                    """[{"title":"Night of the Living Dead (1968) [2160p]","guid":"magnet:?xt=urn:btih:$sameHash",""" +
+                        """"seeders":12,"size":1,"indexer":"YTS"}]""",
+                )
+            } else {
+                ok("[]")
+            }
+        }
+
+        val found = serverWith(token = { "t" }, key = { "k" }, torrentio = true)
+            .search("night of the living dead") as TorrentSearchResult.Success
+
+        val copies = found.results.filter { sameHash.lowercase() in it.magnet.lowercase() }
+        assertEquals(listOf(58), copies.map { it.seeders })
+        assertEquals(3, found.results.size)
     }
 
     @Test

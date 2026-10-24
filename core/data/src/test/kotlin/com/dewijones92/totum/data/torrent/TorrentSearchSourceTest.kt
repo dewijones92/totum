@@ -139,6 +139,23 @@ class ProwlarrShapeTest {
      * the search coroutine and killed the app. A search that cannot be read is a failed search.
      */
     @Test
+    fun `a result whose page address ends in its info hash still gets a magnet`() {
+        val hash = "B84153225C3112B9B386E30846FD1DA1F1E2C3A4"
+        val yts = """[{"title":"Night of the Living Dead (1968) 1080p",""" +
+            """"guid":"https://yts.gg/torrent/download/$hash",""" +
+            """"magnetUrl":"http://prowlarr:9696/2/download?apikey=k","seeders":13,"size":1,"indexer":"YTS"},""" +
+            """{"title":"No hash here","guid":"https://example.test/page/42","seeders":5,"size":1}]"""
+
+        val parsed = parseProwlarr(yts)!!
+
+        assertEquals(listOf("Night of the Living Dead (1968) 1080p"), parsed.map { it.title })
+        assertEquals(
+            "magnet:?xt=urn:btih:$hash&dn=Night%20of%20the%20Living%20Dead%20%281968%29%201080p",
+            parsed.single().magnet,
+        )
+    }
+
+    @Test
     fun `a body that is not JSON is null, never an exception`() {
         assertNull(parseProwlarr("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"/>"))
         assertNull(parseProwlarr(""))

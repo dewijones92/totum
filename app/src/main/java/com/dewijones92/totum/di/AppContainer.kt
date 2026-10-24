@@ -66,6 +66,7 @@ import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
+import com.dewijones92.totum.data.torrent.Torrentio
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
@@ -1638,6 +1639,7 @@ private fun homeTorrentServerOf(prefs: AppPreferences, httpClient: OkHttpClient)
         // built this with no key and never picked up the one sign-in delivered.
         prowlarrApiKey = { prefs.settings.value.prowlarrApiKey },
         token = { prefs.settings.value.homeServerToken },
+        torrentio = Torrentio(httpClient),
     )
 }
 

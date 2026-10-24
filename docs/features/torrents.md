@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-10-22
+updated: 2026-10-24
 ---
 
 # Torrents (public-domain film & TV)
@@ -26,6 +26,7 @@ read afterwards and the whole path was there. **A status nobody re-checks is wor
 | Piece | Where |
 |---|---|
 | Search across indexers | `TorrentSearchSource` → `HttpHomeTorrentServer.search` (Prowlarr), best-seeded first |
+| Torrentio beside Prowlarr | `Torrentio`: Cinemeta finds the film or series, Torrentio lists its torrents in ~0.3 s; one more source in `ProwlarrSearch.updates`, the same info hash listed once ([ADR 86](../adr/0086-torrentio-beside-prowlarr.md)) |
 | Add a magnet, wait for metadata | `prepare` — polls for the file list, because asking once returns nothing |
 | Season packs as episodes | `TorrentEpisodes` + `TorrentPlayables.queueItems` — one queue item per playable file |
 | Playback | **no new playback code**: a TorrServer stream is an ordinary ranged HTTP URL, so `MediaItem.mediaUrl` and the one `PlaybackController` take it unchanged |

@@ -38,3 +38,11 @@ Progress 2026-10-24:
 - ✅ A Pi timer keeps the Cloudflare clearance warm (`server/prowlarr/search-warmer.*`, every 15 minutes).
 - ✅ Opening search warms the FlareSolverr-backed indexers, at most once in 10 minutes (`HomeTorrentServer.warmSearch`);
   emulator: "warmed 1337x in 3689ms".
+- ✅ YTS results (no magnet, an address ending in the info hash) get a magnet built from the hash.
+- ✅ Torrentio beside Prowlarr ([ADR 86](../adr/0086-torrentio-beside-prowlarr.md)). Emulator, *Night of the Living
+  Dead*: Torrentio 295 ms, 42 results; YTS 458 ms; The Pirate Bay 831 ms; 134 results after 18 duplicates merged.
+- ❌ More Prowlarr indexers: EZTV is blocked by the ISP (HTTP 451); LimeTorrents and Torrent Downloads answer fast
+  but carry no magnet or info hash. kickasstorrents.ws, left behind by the trial, failed and is disabled.
+- 🔍 **1337x has never reached the app**: its results carry no magnet (only a page address and Prowlarr's download
+  link), so every one was dropped. Across every report on the Pi it answered "0 result(s)" 18 times and never more.
+  Next: resolve the magnet through Prowlarr's download link when a result is chosen.
