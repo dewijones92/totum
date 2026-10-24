@@ -27,11 +27,13 @@ internal class TabNavigation(searching: Boolean = false) {
     var showSearch by mutableStateOf(searching)
         private set
     val pages = mutableStateListOf<MusicPage>()
+    var onSearchOpened: () -> Unit = {}
 
     fun openSearch(over: TopLevelDestination) {
         Diag.log("nav", "search opened over $over (music pages open=${pages.size})")
         pages.clear()
         showSearch = true
+        onSearchOpened()
     }
 
     fun closeSearch() {

@@ -146,6 +146,36 @@ class HttpHomeTorrentServerTest {
     }
 
     @Test
+    fun `opening search warms only the indexers behind FlareSolverr and not twice in ten minutes`() = runTest {
+        val asked = mutableListOf<String?>()
+        answering(
+            ok(
+                """[{"id":1,"name":"The Pirate Bay","enable":true,"tags":[]},""" +
+                    """{"id":4,"name":"1337x","enable":true,"tags":[1]}]""",
+            ),
+        ) { id ->
+            synchronized(asked) { asked += id }
+            ok("[]")
+        }
+        var now = 0L
+        val torrents = HttpHomeTorrentServer(
+            client = OkHttpClient(),
+            base = server.url("").toString().trimEnd('/'),
+            prowlarrApiKey = { "k" },
+            token = { "t" },
+            clock = { now },
+        )
+
+        torrents.warmSearch()
+        now += 5 * 60_000
+        torrents.warmSearch()
+        now += 6 * 60_000
+        torrents.warmSearch()
+
+        assertEquals(listOf("4", "4"), asked)
+    }
+
+    @Test
     fun `an indexer that never answers is given up on at the late deadline`() = runTest {
         answering(threeIndexers) { id ->
             when (id) {

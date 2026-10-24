@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.navigation.TopLevelDestination
@@ -17,6 +18,7 @@ import com.dewijones92.totum.ui.common.LocalRecentSearches
 import com.dewijones92.totum.ui.common.QueueSkip
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.VideoBounds
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun ProvideShellLocals(
@@ -28,6 +30,7 @@ internal fun ProvideShellLocals(
     closeFullPlayer: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    SideEffect { tabs.onSearchOpened = { warmTorrentSearch(container) } }
     CompositionLocalProvider(
         LocalVideoBounds provides videoBounds,
         LocalQueueSkip provides rememberQueueSkip(container),
@@ -50,4 +53,9 @@ private fun rememberQueueSkip(container: AppContainer): QueueSkip {
             next = { container.queueSkips.skip(SkipDirection.NEXT, "the app") },
         )
     }
+}
+
+private fun warmTorrentSearch(container: AppContainer) {
+    val server = container.homeTorrentServer ?: return
+    container.applicationScope.launch { server.warmSearch() }
 }

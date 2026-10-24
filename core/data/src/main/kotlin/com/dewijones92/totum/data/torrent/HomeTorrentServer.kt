@@ -25,6 +25,8 @@ public interface HomeTorrentServer {
 
     public fun searchUpdates(query: String): Flow<TorrentSearchResult> = flow { emit(search(query)) }
 
+    public suspend fun warmSearch() {}
+
     /**
      * Registers [magnet] with the server and returns what it can play.
      *

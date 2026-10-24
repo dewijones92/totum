@@ -29,3 +29,12 @@ Decided with Dewi, 2026-10-24:
 - **More fast indexers** (EZTV for TV and similar), searched in parallel.
 - **Prototype a Stremio-style addon (Torrentio) beside Prowlarr**: torrents by film/episode in ~1-2 s.
 - Ship each change as its gate is green; soak and review at the end.
+
+Progress 2026-10-24:
+
+- ✅ The torrent section says at once which indexers it is waiting for (bb4276fc). Emulator: "the office" showed
+  "still waiting" at 420 ms and The Pirate Bay's results at 1.4 s.
+- ✅ 1337x: two pages, best-seeded first (`server/prowlarr/definitions/1337x-fast.yml`): 4.7 s warm, 40 results.
+- ✅ A Pi timer keeps the Cloudflare clearance warm (`server/prowlarr/search-warmer.*`, every 15 minutes).
+- ✅ Opening search warms the FlareSolverr-backed indexers, at most once in 10 minutes (`HomeTorrentServer.warmSearch`);
+  emulator: "warmed 1337x in 3689ms".

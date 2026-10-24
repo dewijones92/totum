@@ -32,7 +32,36 @@ internal class ProwlarrSearch(
     private val prowlarrApiKey: () -> String,
     private val token: () -> String,
     private val lateDeadlineMs: Long,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    @Volatile
+    private var warmedAtMs: Long? = null
+
+    suspend fun warm() {
+        val now = clock()
+        val last = warmedAtMs
+        if (last != null && now - last < WARM_EVERY_MS) {
+            Diag.log("torrent", "search opened: indexers warmed ${(now - last) / MS_PER_S}s ago, not again")
+            return
+        }
+        warmedAtMs = now
+        val proxied = (indexers ?: listIndexers()?.also { indexers = it }).orEmpty().filter { it.proxied }
+        if (proxied.isEmpty()) {
+            Diag.log("torrent", "search opened: no indexer goes through FlareSolverr, nothing to warm")
+            return
+        }
+        proxied.forEach { indexer ->
+            val started = TimeSource.Monotonic.markNow()
+            val answer = searchOne(WARM_QUERY, indexer)
+            Diag.log(
+                "torrent",
+                "search opened: warmed ${indexer.name} in ${started.elapsedNow().inWholeMilliseconds}ms so its " +
+                    "Cloudflare clearance is ready " +
+                    "(${if (answer is TorrentSearchResult.Success) "answered" else "failed"})",
+            )
+        }
+    }
+
     private val json = Json { ignoreUnknownKeys = true }
 
     @Volatile
@@ -125,7 +154,8 @@ internal class ProwlarrSearch(
             val indexer = element as? JsonObject ?: return@mapNotNull null
             val enabled = indexer["enable"]?.jsonPrimitive?.booleanOrNull ?: true
             val id = indexer["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-            Indexer(id, indexer["name"]?.jsonPrimitive?.contentOrNull ?: "indexer $id").takeIf { enabled }
+            val proxied = (indexer["tags"] as? JsonArray)?.isNotEmpty() == true
+            Indexer(id, indexer["name"]?.jsonPrimitive?.contentOrNull ?: "indexer $id", proxied).takeIf { enabled }
         }
 
     private suspend fun searchOne(query: String, indexer: Indexer?): TorrentSearchResult {
@@ -178,7 +208,7 @@ internal class ProwlarrSearch(
     }
 }
 
-private data class Indexer(val id: Int, val name: String)
+private data class Indexer(val id: Int, val name: String, val proxied: Boolean = false)
 
 private fun combined(
     known: List<Indexer>,
@@ -196,3 +226,7 @@ private fun combined(
 
 private fun TorrentSearchResult.withoutWaiting(): TorrentSearchResult =
     if (this is TorrentSearchResult.Success) copy(stillWaitingFor = emptyList()) else this
+
+private const val WARM_EVERY_MS = 10 * 60_000L
+private const val WARM_QUERY = "ubuntu"
+private const val MS_PER_S = 1_000L

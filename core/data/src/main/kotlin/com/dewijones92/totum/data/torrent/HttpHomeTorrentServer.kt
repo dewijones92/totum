@@ -35,6 +35,7 @@ import kotlin.time.TimeSource
  *
  * Endpoints verified live 2026-08-01 against the real services rather than read from docs.
  */
+@Suppress("TooManyFunctions")
 public class HttpHomeTorrentServer(
     private val client: OkHttpClient,
     /** One host, e.g. `https://totum.example.com` — Prowlarr under `/prowlarr/`, TorrServer `/ts/`. */
@@ -59,10 +60,11 @@ public class HttpHomeTorrentServer(
      */
     private val token: () -> String,
     private val lateDeadlineMs: Long = LATE_DEADLINE_MS,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : HomeTorrentServer {
 
     private val prowlarr =
-        ProwlarrSearch(client, "$base/prowlarr", prowlarrApiKey, token, lateDeadlineMs)
+        ProwlarrSearch(client, "$base/prowlarr", prowlarrApiKey, token, lateDeadlineMs, clock)
 
     private val torrServerBase get() = "$base/ts"
 
@@ -78,6 +80,11 @@ public class HttpHomeTorrentServer(
             return@withContext TorrentSearchResult.Failure("sign in to the home server first")
         }
         prowlarr.search(query)
+    }
+
+    override suspend fun warmSearch() {
+        if (token().isBlank()) return
+        withContext(Dispatchers.IO) { prowlarr.warm() }
     }
 
     override fun searchUpdates(query: String): Flow<TorrentSearchResult> =
