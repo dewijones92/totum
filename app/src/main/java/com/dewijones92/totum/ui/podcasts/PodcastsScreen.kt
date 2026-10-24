@@ -48,6 +48,7 @@ import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaSort
 import com.dewijones92.totum.ui.common.PodcastFeedSaver
@@ -81,36 +82,34 @@ fun PodcastsScreen(container: AppContainer, modifier: Modifier = Modifier) {
         Diag.log("nav", "back from podcast \"${openFeed?.title}\" to the podcast list")
         openFeed = null
     }
-    val feed = openFeed
-    if (feed != null) {
-        PodcastFeedScreen(container, feed, onBack = { openFeed = null }, modifier = modifier)
-        return
-    }
-
     val actions = rememberMediaItemActions(container)
 
-    PodcastsContent(
-        state = state,
-        onSubscribe = viewModel::subscribe,
-        onDialogClosed = viewModel::resetSubscribing,
-        onPlayEpisode = viewModel::play,
-        onDownload = rememberChooseDownload(),
-        onDeleteDownload = viewModel::deleteDownload,
-        onRefresh = viewModel::refresh,
-        onSetSort = viewModel::setSort,
-        onEnqueue = viewModel::enqueue,
-        onPlayNext = viewModel::playNext,
-        onAddToPlaylist = rememberPlaylistAdder(container),
-        onPeek = { episode -> actions.peek(episode) },
-        onOpenFeed = { openFeed = it },
-        onGoToPodcast = { episode ->
-            actions.goToSource(episode) { source ->
-                (source as? MediaSource.PodcastFeed)?.let { openFeed = it }
-            }
-        },
-        onDismissRefreshFailures = viewModel::clearRefreshFailures,
-        modifier = modifier,
-    )
+    ListThenDetail(openFeed, listKey = "podcasts", list = {
+        PodcastsContent(
+            state = state,
+            onSubscribe = viewModel::subscribe,
+            onDialogClosed = viewModel::resetSubscribing,
+            onPlayEpisode = viewModel::play,
+            onDownload = rememberChooseDownload(),
+            onDeleteDownload = viewModel::deleteDownload,
+            onRefresh = viewModel::refresh,
+            onSetSort = viewModel::setSort,
+            onEnqueue = viewModel::enqueue,
+            onPlayNext = viewModel::playNext,
+            onAddToPlaylist = rememberPlaylistAdder(container),
+            onPeek = { episode -> actions.peek(episode) },
+            onOpenFeed = { openFeed = it },
+            onGoToPodcast = { episode ->
+                actions.goToSource(episode) { source ->
+                    (source as? MediaSource.PodcastFeed)?.let { openFeed = it }
+                }
+            },
+            onDismissRefreshFailures = viewModel::clearRefreshFailures,
+            modifier = modifier,
+        )
+    }) { feed ->
+        PodcastFeedScreen(container, feed, onBack = { openFeed = null }, modifier = modifier)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

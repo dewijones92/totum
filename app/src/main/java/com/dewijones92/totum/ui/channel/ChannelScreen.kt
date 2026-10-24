@@ -50,6 +50,7 @@ import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.InboxToggle
 import com.dewijones92.totum.ui.common.KeepWhenSettled
+import com.dewijones92.totum.ui.common.KeepsEachPlace
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.ListShape
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
@@ -187,40 +188,31 @@ internal fun ChannelContent(
                 },
             )
             ChannelTabs(state.tab, onSelectTab)
-            when (state.tab) {
-                ChannelTab.VIDEOS -> MediaItemTab(
-                    videosFilter,
-                    state.videos,
-                    state.downloadStates,
-                    onPlay,
-                    onDownload,
-                    onDeleteDownload,
-                    onAddToPlaylist,
-                    onLoadMore,
-                    place = "channel videos", sourceKey = sourceKey, shape = shape,
-                )
-                ChannelTab.SHORTS -> MediaItemTab(
-                    shortsFilter,
-                    state.shorts,
-                    state.downloadStates,
-                    onPlay,
-                    onDownload,
-                    onDeleteDownload,
-                    onAddToPlaylist,
-                    onLoadMore,
-                    place = "channel shorts", sourceKey = sourceKey, shape = shape,
-                )
-                ChannelTab.PLAYLISTS -> PlaylistTab(playlistsFilter, state.playlists, onOpenPlaylist, onLoadMore)
-                ChannelTab.SEARCH -> SearchTab(
-                    state,
-                    onSearch,
-                    onPlay,
-                    onDownload,
-                    onDeleteDownload,
-                    onAddToPlaylist,
-                    onLoadMore,
-                    sourceKey,
-                )
+            KeepsEachPlace(state.tab.name) {
+                when (state.tab) {
+                    ChannelTab.VIDEOS, ChannelTab.SHORTS -> MediaItemTab(
+                        if (state.tab == ChannelTab.SHORTS) shortsFilter else videosFilter,
+                        if (state.tab == ChannelTab.SHORTS) state.shorts else state.videos,
+                        state.downloadStates,
+                        onPlay,
+                        onDownload,
+                        onDeleteDownload,
+                        onAddToPlaylist,
+                        onLoadMore,
+                        place = "channel ${state.tab.name.lowercase()}", sourceKey = sourceKey, shape = shape,
+                    )
+                    ChannelTab.PLAYLISTS -> PlaylistTab(playlistsFilter, state.playlists, onOpenPlaylist, onLoadMore)
+                    ChannelTab.SEARCH -> SearchTab(
+                        state,
+                        onSearch,
+                        onPlay,
+                        onDownload,
+                        onDeleteDownload,
+                        onAddToPlaylist,
+                        onLoadMore,
+                        sourceKey,
+                    )
+                }
             }
         }
     }

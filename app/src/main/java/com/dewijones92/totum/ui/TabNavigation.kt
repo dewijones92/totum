@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.dewijones92.totum.common.Diag
@@ -86,9 +87,14 @@ internal fun TabOverlays(container: AppContainer, tabs: TabNavigation) {
         Surface(Modifier.fillMaxSize()) { SearchScreen(container, onBack = tabs::closeSearch) }
     }
     BackHandler(enabled = tabs.pages.isNotEmpty()) { tabs.back() }
+    val pageStates = rememberSaveableStateHolder()
     tabs.pages.lastOrNull()?.let { page ->
         key(page) {
-            Surface(Modifier.fillMaxSize()) { MusicPageScreen(container, page, onBack = tabs::back) }
+            Surface(Modifier.fillMaxSize()) {
+                pageStates.SaveableStateProvider("${tabs.pages.size} ${page.label}") {
+                    MusicPageScreen(container, page, onBack = tabs::back)
+                }
+            }
         }
     }
 }

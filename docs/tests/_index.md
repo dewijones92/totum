@@ -109,6 +109,7 @@ instead).
 | The player keeping every control through a redesign | instrumented | `:app` `PlayerKeepsEveryControlTest` — written BEFORE the redesign, which is the whole point |
 | AVI whose MP3 is a byte stream cut across frames (zero first frame, chunks straddling frames): re-framed for the decoder, timed from the chunk its first byte arrived in, restarted at a seek, other codecs untouched; plays to the end on a device | JVM unit + instrumented | `:core:playback` `AviMp3FramingTest`, `AnAviWithMp3CutAcrossFramesPlaysTest` (fixture from `tools/avi/unaligned-mp3-avi.py`; fails with `DECODING_FAILED` without the fix) |
 | Download labels: anything outside the YouTube pillar is "the whole file", picture or not | JVM unit | `:app` `DownloadLabelsTest` |
+| A page opened over a list keeps the list's place (row 40 stays row 40), and system back closes the page | instrumented | `:app` `ListThenDetailTest` (seen failing against a pass-through: back at row 0) |
 | Search results streaming per section | JVM unit | `:app` `SearchStreamsPerSectionTest` — incl. the reported case, a slow torrent search not blocking YouTube |
 | What each search section state looks like | instrumented | `:app` `SearchSectionStatesTest` |
 | The facts under every video title (maker, publisher, views, date — one per line) | JVM unit | `:app` `MediaItemSubtitleTest` — testable at all only because `@Composable` came off the formatter |

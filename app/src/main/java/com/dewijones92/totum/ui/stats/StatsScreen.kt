@@ -34,6 +34,7 @@ import com.dewijones92.totum.stats.Period
 import com.dewijones92.totum.stats.TopKind
 import com.dewijones92.totum.stats.Totals
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.ListThenDetail
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -46,30 +47,30 @@ fun StatsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier 
     val detail by viewModel.detail.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.reload() }
     BackHandler(enabled = detail != null) { viewModel.closeDetail() }
-    detail?.let { open ->
-        StatsDetail(open, onBack = viewModel::closeDetail, modifier = modifier)
-        return
-    }
     var byHours by rememberSaveable { mutableStateOf(false) }
     var topKind by rememberSaveable { mutableStateOf(TopKind.ARTISTS) }
-    LazyColumn(modifier.fillMaxSize().testTag(STATS_SCREEN_TAG)) {
-        item { BackHeader(stringResource(R.string.stats_title), onBack) }
-        val current = page
-        if (current == null) {
-            item { CircularProgressIndicator(Modifier.padding(32.dp)) }
-            return@LazyColumn
+    ListThenDetail(detail, listKey = "stats", list = {
+        LazyColumn(modifier.fillMaxSize().testTag(STATS_SCREEN_TAG)) {
+            item { BackHeader(stringResource(R.string.stats_title), onBack) }
+            val current = page
+            if (current == null) {
+                item { CircularProgressIndicator(Modifier.padding(32.dp)) }
+                return@LazyColumn
+            }
+            item { PeriodChips(current.period, viewModel::show) }
+            item { Overview(current) }
+            item { SectionTitle(R.string.stats_over_time) }
+            item { MeasureChips(byHours) { byHours = it } }
+            item { BarChart(current.bars, byHours, viewModel::openBar) }
+            item { Hint(R.string.stats_over_time_hint) }
+            topSection(current, topKind, { topKind = it }, viewModel::openTop)
+            item { SectionTitle(R.string.stats_when) }
+            item { Heatmap(current.heatmap) }
+            sideQuests(current)
+            item { Hint(R.string.stats_counting_note) }
         }
-        item { PeriodChips(current.period, viewModel::show) }
-        item { Overview(current) }
-        item { SectionTitle(R.string.stats_over_time) }
-        item { MeasureChips(byHours) { byHours = it } }
-        item { BarChart(current.bars, byHours, viewModel::openBar) }
-        item { Hint(R.string.stats_over_time_hint) }
-        topSection(current, topKind, { topKind = it }, viewModel::openTop)
-        item { SectionTitle(R.string.stats_when) }
-        item { Heatmap(current.heatmap) }
-        sideQuests(current)
-        item { Hint(R.string.stats_counting_note) }
+    }) { open ->
+        StatsDetail(open, onBack = viewModel::closeDetail, modifier = modifier)
     }
 }
 

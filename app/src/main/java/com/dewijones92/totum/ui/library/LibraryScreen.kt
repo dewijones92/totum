@@ -52,6 +52,7 @@ import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
@@ -89,27 +90,37 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
         if (playlist != null) openPlaylistId = null else go(LibraryPage.HOME)
     }
     val home = { go(LibraryPage.HOME) }
-    when {
-        playlist != null ->
-            LocalPlaylistDetailScreen(container, playlist, onBack = { openPlaylistId = null }, modifier = modifier)
-        page == LibraryPage.PLAYLISTS ->
-            LocalPlaylistsScreen(container, onBack = home, onOpen = { openPlaylistId = it.value }, modifier = modifier)
-        page == LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = home, modifier = modifier)
-        page == LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = home, modifier = modifier)
-        page == LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = home)
-        page == LibraryPage.STATS -> StatsScreen(container, onBack = home, modifier = modifier)
-        page == LibraryPage.DOWNLOADS -> DownloadsScreen(container, onBack = home, modifier = modifier)
-        else -> LibraryHome(
-            container,
-            onOpenPlaylists = { go(LibraryPage.PLAYLISTS) },
-            onOpenHistory = { go(LibraryPage.HISTORY) },
-            onOpenSubscriptions = { go(LibraryPage.SUBSCRIPTIONS) },
-            onOpenAccount = { go(LibraryPage.ACCOUNT) },
-            onOpenStats = { go(LibraryPage.STATS) },
-            onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
-            onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
-            modifier = modifier,
-        )
+    ListThenDetail(playlist, listKey = "library ${page.name.lowercase()}", list = {
+        ListThenDetail(page.takeIf { it != LibraryPage.HOME }, listKey = "library home", list = {
+            LibraryHome(
+                container,
+                onOpenPlaylists = { go(LibraryPage.PLAYLISTS) },
+                onOpenHistory = { go(LibraryPage.HISTORY) },
+                onOpenSubscriptions = { go(LibraryPage.SUBSCRIPTIONS) },
+                onOpenAccount = { go(LibraryPage.ACCOUNT) },
+                onOpenStats = { go(LibraryPage.STATS) },
+                onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
+                onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
+                modifier = modifier,
+            )
+        }) { open ->
+            when (open) {
+                LibraryPage.PLAYLISTS -> LocalPlaylistsScreen(
+                    container,
+                    onBack = home,
+                    onOpen = { openPlaylistId = it.value },
+                    modifier = modifier,
+                )
+                LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = home, modifier = modifier)
+                LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = home, modifier = modifier)
+                LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = home)
+                LibraryPage.STATS -> StatsScreen(container, onBack = home, modifier = modifier)
+                LibraryPage.DOWNLOADS -> DownloadsScreen(container, onBack = home, modifier = modifier)
+                LibraryPage.HOME -> Unit
+            }
+        }
+    }) { open ->
+        LocalPlaylistDetailScreen(container, open, onBack = { openPlaylistId = null }, modifier = modifier)
     }
 }
 

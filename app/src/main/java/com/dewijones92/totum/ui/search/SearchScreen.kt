@@ -57,12 +57,11 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
-import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.MediaItemActions
@@ -76,7 +75,6 @@ import com.dewijones92.totum.ui.common.pillFieldColors
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.toMediaItem
-import com.dewijones92.totum.ui.playlist.PlaylistScreen
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 import com.dewijones92.totum.ui.search.SearchViewModel.UiState
 
@@ -100,52 +98,39 @@ fun SearchScreen(
     var browsingChannel by rememberSaveable(stateSaver = VideoChannelSaver) {
         mutableStateOf<MediaSource.VideoChannel?>(null)
     }
-    // A playlist opened from a channel browsed here. This passed `{}` and swallowed the tap, so a
-    // channel's playlists could be listed from Search and none of them would open.
-    var browsingPlaylist by remember { mutableStateOf<Playlist?>(null) }
-    browsingPlaylist?.let { playlist ->
-        PlaylistScreen(container, playlist, onBack = { browsingPlaylist = null }, modifier = modifier)
-        return
-    }
-    val channel = browsingChannel
-    if (channel != null) {
-        ChannelScreen(
-            container,
-            channel,
-            onBack = { browsingChannel = null },
-            onOpenPlaylist = { browsingPlaylist = it },
+    ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {
+        SearchContent(
+            state = state,
+            onSearch = viewModel::search,
+            onQueryChange = viewModel::onQueryChange,
+            onSubscribe = viewModel::subscribe,
+            onPlayVideo = viewModel::playVideo,
+            onPlaySong = viewModel::playSong,
+            onPlayTorrent = viewModel::playTorrent,
+            onDownloadTorrent = viewModel::downloadTorrent,
+            onRemoveHistory = viewModel::removeHistory,
+            onClearHistory = viewModel::clearHistory,
+            actions = actions,
+            more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
+            onGoToChannel = { item ->
+                actions.goToSource(item) { source ->
+                    (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
+                }
+            },
             modifier = modifier,
+            header = SearchHeader(
+                title,
+                onBack,
+                viewModel.lastQuery,
+                hint = stringResource(
+                    if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint
+                ),
+            ),
+            idle = idle,
         )
-        return
+    }) { channel ->
+        ChannelFromSearch(container, channel, onBack = { browsingChannel = null }, modifier)
     }
-
-    SearchContent(
-        state = state,
-        onSearch = viewModel::search,
-        onQueryChange = viewModel::onQueryChange,
-        onSubscribe = viewModel::subscribe,
-        onPlayVideo = viewModel::playVideo,
-        onPlaySong = viewModel::playSong,
-        onPlayTorrent = viewModel::playTorrent,
-        onDownloadTorrent = viewModel::downloadTorrent,
-        onRemoveHistory = viewModel::removeHistory,
-        onClearHistory = viewModel::clearHistory,
-        actions = actions,
-        more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
-        onGoToChannel = { item ->
-            actions.goToSource(item) { source ->
-                (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
-            }
-        },
-        modifier = modifier,
-        header = SearchHeader(
-            title,
-            onBack,
-            viewModel.lastQuery,
-            hint = stringResource(if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint),
-        ),
-        idle = idle,
-    )
 }
 
 @Immutable

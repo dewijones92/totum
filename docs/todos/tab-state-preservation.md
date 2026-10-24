@@ -5,7 +5,7 @@ status: shipped
 area: navigation
 priority: high
 requested: 2026-07-28
-updated: 2026-07-28
+updated: 2026-10-24
 ---
 
 # Switching tabs threw away where you were
@@ -90,3 +90,10 @@ view-model recreation is not it.
 
 Waiting on a report from 0.1.177+ to say which of the remaining candidates it is: overlay
 state lost, scroll not saved, or scroll saved but applied to a list that has not arrived.
+
+## Within a tab (2026-10-24)
+
+Report 0.1.709: search results came back at the top after "go to channel" and back. Tabs kept their place; a page
+opened *inside* a tab did not, because the screen returned early with the page in place of its list. Now every such
+page goes through `ListThenDetail` ([ADR 88](../adr/0088-a-page-opened-over-a-list-keeps-its-place.md)). Still open:
+leaving picture-in-picture rebuilds the shell, so every tab comes back at the top.

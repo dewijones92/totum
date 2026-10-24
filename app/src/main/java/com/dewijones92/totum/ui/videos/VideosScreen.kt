@@ -55,6 +55,7 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.MediaItemActions
@@ -211,28 +212,38 @@ private fun VideosOverlay(
     notificationsViewModel: NotificationsViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val playlist = nav.playlist
     val channel = nav.channel
-    when {
-        playlist != null ->
-            PlaylistScreen(container, playlist, onBack = { nav.playlist = null }, modifier = modifier)
-        nav.showPlaylists ->
-            PlaylistsListScreen(
-                container,
-                onOpen = { nav.playlist = it },
-                onBack = { nav.showPlaylists = false },
-                modifier = modifier,
-            )
-        nav.showNotifications ->
-            NotificationsScreen(notificationsViewModel, onBack = { nav.showNotifications = false }, modifier = modifier)
-        channel != null ->
-            ChannelScreen(
-                container,
-                channel,
-                onBack = { nav.channel = null },
-                onOpenPlaylist = { nav.playlist = it },
-                modifier = modifier,
-            )
+    val under = when {
+        nav.showPlaylists -> "videos playlists"
+        nav.showNotifications -> "videos notifications"
+        else -> "videos channel ${channel?.channelUrl?.value}"
+    }
+    ListThenDetail(nav.playlist, listKey = under, list = {
+        when {
+            nav.showPlaylists ->
+                PlaylistsListScreen(
+                    container,
+                    onOpen = { nav.playlist = it },
+                    onBack = { nav.showPlaylists = false },
+                    modifier = modifier,
+                )
+            nav.showNotifications ->
+                NotificationsScreen(
+                    notificationsViewModel,
+                    onBack = { nav.showNotifications = false },
+                    modifier = modifier
+                )
+            channel != null ->
+                ChannelScreen(
+                    container,
+                    channel,
+                    onBack = { nav.channel = null },
+                    onOpenPlaylist = { nav.playlist = it },
+                    modifier = modifier,
+                )
+        }
+    }) { playlist ->
+        PlaylistScreen(container, playlist, onBack = { nav.playlist = null }, modifier = modifier)
     }
 }
 

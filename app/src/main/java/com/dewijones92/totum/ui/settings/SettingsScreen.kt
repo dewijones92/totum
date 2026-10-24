@@ -43,6 +43,7 @@ import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
 import com.dewijones92.totum.diagnostics.diagnosticsNote
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
 
 /** One selectable video-quality cap for the per-network preference. */
@@ -71,58 +72,58 @@ private fun labelFor(height: Int): String =
 fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val prefs = container.appPreferences
     val settings by prefs.settings.collectAsStateWithLifecycle()
-    var showImportExport by rememberSaveable { mutableStateOf(false) }
-    var showDiagnostics by rememberSaveable { mutableStateOf(false) }
-    var showExsurge by rememberSaveable { mutableStateOf(false) }
-    var showDailyAlarms by rememberSaveable { mutableStateOf(false) }
+    var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
+    val subPage = subPageName?.let(SettingsSubPage::valueOf)
+    val open: (SettingsSubPage?) -> Unit = { subPageName = it?.name }
+    val close = { open(null) }
+    ListThenDetail(subPage, listKey = "settings", onBack = close, list = {
+        Surface(modifier = modifier.fillMaxSize()) {
+            // Scrolls: the screen already ran past the bottom of a phone once the
+            // SponsorBlock categories were added, and everything below was simply unreachable.
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                BackHeader(stringResource(R.string.settings), onBack)
+                QualitySection(settings, prefs)
+                FeedAndQueueSettings(settings, prefs)
+                NewUploadsSettings(container, settings)
+                SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
+                DownloadSettings(settings, prefs)
+                NavRow(
+                    label = stringResource(R.string.exsurge_settings_row),
+                    onClick = { open(SettingsSubPage.EXSURGE) }
+                )
+                NavRow(
+                    label = stringResource(R.string.dailyalarm_settings_row),
+                    onClick = { open(SettingsSubPage.DAILY_ALARMS) }
+                )
+                Text(
+                    text = stringResource(R.string.settings_subscriptions_section),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                NavRow(
+                    label = stringResource(R.string.settings_import_export),
+                    onClick = { open(SettingsSubPage.IMPORT_EXPORT) },
+                )
+                SectionTitle(stringResource(R.string.settings_diagnostics_section))
+                SkipCategorySection(settings.skipCategories, prefs::setSkipCategories)
 
-    if (showImportExport) {
-        ImportExportScreen(container, onBack = { showImportExport = false }, modifier = modifier)
-        return
-    }
-    if (showExsurge) {
-        ExsurgeSettingsScreen(container.exsurge, onBack = { showExsurge = false }, modifier = modifier)
-        return
-    }
-    if (showDailyAlarms) {
-        DailyAlarmsScreen(container.dailyAlarms, onBack = { showDailyAlarms = false }, modifier = modifier)
-        return
-    }
-    if (showDiagnostics) {
-        DiagnosticsScreen(onBack = { showDiagnostics = false }, modifier = modifier)
-        return
-    }
-
-    Surface(modifier = modifier.fillMaxSize()) {
-        // Scrolls: the screen already ran past the bottom of a phone once the
-        // SponsorBlock categories were added, and everything below was simply unreachable.
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.settings), onBack)
-            QualitySection(settings, prefs)
-            FeedAndQueueSettings(settings, prefs)
-            NewUploadsSettings(container, settings)
-            SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
-            DownloadSettings(settings, prefs)
-            NavRow(label = stringResource(R.string.exsurge_settings_row), onClick = { showExsurge = true })
-            NavRow(label = stringResource(R.string.dailyalarm_settings_row), onClick = { showDailyAlarms = true })
-            Text(
-                text = stringResource(R.string.settings_subscriptions_section),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            NavRow(
-                label = stringResource(R.string.settings_import_export),
-                onClick = { showImportExport = true },
-            )
-            SectionTitle(stringResource(R.string.settings_diagnostics_section))
-            SkipCategorySection(settings.skipCategories, prefs::setSkipCategories)
-
-            ViewDiagnosticsRow(onOpen = { showDiagnostics = true })
-            HomeServerRow(container)
-            CheckForContentRow(container)
-            DiagnosticsRow(container)
-            SectionTitle(stringResource(R.string.drive_backup_section))
-            DriveBackupRow(container.driveBackup)
+                ViewDiagnosticsRow(onOpen = { open(SettingsSubPage.DIAGNOSTICS) })
+                HomeServerRow(container)
+                CheckForContentRow(container)
+                DiagnosticsRow(container)
+                SectionTitle(stringResource(R.string.drive_backup_section))
+                DriveBackupRow(container.driveBackup)
+            }
+        }
+    }) { open ->
+        when (open) {
+            SettingsSubPage.IMPORT_EXPORT ->
+                ImportExportScreen(container, onBack = close, modifier = modifier)
+            SettingsSubPage.EXSURGE ->
+                ExsurgeSettingsScreen(container.exsurge, onBack = close, modifier = modifier)
+            SettingsSubPage.DAILY_ALARMS ->
+                DailyAlarmsScreen(container.dailyAlarms, onBack = close, modifier = modifier)
+            SettingsSubPage.DIAGNOSTICS -> DiagnosticsScreen(onBack = close, modifier = modifier)
         }
     }
 }
@@ -427,3 +428,5 @@ private fun QualityRow(label: String, current: Int, onSelect: (Int) -> Unit) {
         }
     }
 }
+
+private enum class SettingsSubPage { IMPORT_EXPORT, EXSURGE, DAILY_ALARMS, DIAGNOSTICS }
