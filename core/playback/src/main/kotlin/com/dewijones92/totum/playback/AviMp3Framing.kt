@@ -94,6 +94,7 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
     private var framesSinceAnchor = 0L
     private val header = MpegAudioUtil.Header()
     private val next = MpegAudioUtil.Header()
+    private val lockedTo = MpegAudioUtil.Header()
     private val scratch = ParsableByteArray()
     private var chunks = 0L
     private var frames = 0L
@@ -166,6 +167,7 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
         while (true) {
             val frameSize = frameAt(at) ?: break
             if (frameSize == NOT_A_FRAME) {
+                if (locked) anchorUs = C.TIME_UNSET
                 locked = false
                 skipped++
                 at++
@@ -180,6 +182,7 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
     private fun frameAt(at: Int): Int? {
         if (size - at < HEADER_BYTES) return null
         if (!header.setForHeaderData(word(at))) return NOT_A_FRAME
+        if (locked && !sameStream(header, lockedTo)) return NOT_A_FRAME
         val frameSize = header.frameSize
         if (!locked) {
             when (confirmed(at, frameSize)) {
@@ -193,8 +196,9 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
 
     private fun confirmed(at: Int, frameSize: Int): Boolean? {
         if (size - at < frameSize + HEADER_BYTES) return null
-        if (!next.setForHeaderData(word(at + frameSize))) return false
+        if (!next.setForHeaderData(word(at + frameSize)) || !sameStream(next, header)) return false
         locked = true
+        lockedTo.setForHeaderData(word(at))
         if (anchorUs == C.TIME_UNSET) {
             anchorUs = timeOfByte(at)
             framesSinceAnchor = 0
@@ -212,6 +216,9 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
         framesSinceAnchor++
         frames++
     }
+
+    private fun sameStream(a: MpegAudioUtil.Header, b: MpegAudioUtil.Header): Boolean =
+        a.version == b.version && a.sampleRate == b.sampleRate && a.channels == b.channels
 
     private fun timeOfByte(at: Int): Long {
         val chunk = chunkOffsets.indexOfLast { it <= at }.coerceAtLeast(0)

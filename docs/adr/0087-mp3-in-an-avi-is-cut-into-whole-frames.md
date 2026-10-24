@@ -26,8 +26,9 @@ files it makes play.
   extractor wrapped; the player's media sources and the cast audio path both use it. Every other container is
   untouched, and the subtitle and GOP settings are passed through to the wrapped factory.
 - On an AVI audio track whose format is `audio/mpeg`, `Mp3Framer` buffers the chunks and gives the decoder one
-  MP3 frame at a time: it looks for a header confirmed by the next frame's, skips anything else (the zero frame),
-  and times each frame from the chunk its first byte arrived in plus whole frames after it. A seek starts it again.
+  MP3 frame at a time: it looks for a header confirmed by the next frame's (same version, rate and channels), skips
+  anything else (the zero frame, a damaged stretch), and times each frame from the chunk its first byte arrived in
+  plus whole frames after it; after a damaged stretch it times from that chunk again. A seek starts it again.
 - Logged: `[avi]` when it starts re-framing, where the first frame was found, and the counts at each seek.
 
 ## Consequences

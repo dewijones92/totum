@@ -11,8 +11,9 @@ if [ "$(docker inspect -f '{{.State.Running}}' prowlarr 2>/dev/null || echo fals
     exit 0
 fi
 
-KEY=$(grep -oP '(?<=<ApiKey>)[^<]+' /var/lib/prowlarr/config/config.xml)
-IDS=$(docker exec -e K="$KEY" prowlarr curl -s -m 20 -H "X-Api-Key: $KEY" http://localhost:9696/api/v1/indexer \
+K=$(grep -oP '(?<=<ApiKey>)[^<]+' /var/lib/prowlarr/config/config.xml)
+export K
+IDS=$(docker exec -e K prowlarr sh -c 'printf "X-Api-Key: %s\n" "$K" | curl -s -m 20 -H @- http://localhost:9696/api/v1/indexer' \
     | python3 -c 'import json,sys
 print(",".join(str(i["id"]) for i in json.load(sys.stdin) if i.get("enable") and any(t for t in i.get("tags", []))))')
 if [ -z "$IDS" ]; then
@@ -21,8 +22,9 @@ if [ -z "$IDS" ]; then
 fi
 
 for ID in $(echo "$IDS" | tr ',' ' '); do
-    OUT=$(docker exec -e K="$KEY" prowlarr curl -s -m 170 -o /dev/null -w '%{http_code} %{time_total}' \
-        -H "X-Api-Key: $KEY" "http://localhost:9696/api/v1/search?query=$QUERY&type=search&indexerIds=$ID" || echo "000 0")
+    OUT=$(docker exec -e K -e QUERY="$QUERY" -e ID="$ID" prowlarr sh -c 'printf "X-Api-Key: %s\n" "$K" | curl -s -m 170 -o /dev/null \
+        -w "%{http_code} %{time_total}" -H @- \
+        "http://localhost:9696/api/v1/search?query=$QUERY&type=search&indexerIds=$ID"' || echo "000 0")
     CODE=${OUT%% *}
     SECS=${OUT#* }
     WHOLE=${SECS%.*}

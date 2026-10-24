@@ -21,7 +21,9 @@ Measured from the Pi: Cinemeta 0.08 s, Torrentio 0.08-0.1 s (42 streams for a fi
 ## Decision
 
 - `Torrentio` (`:core:data`) is one more source in `ProwlarrSearch.updates`, beside each Prowlarr indexer: it
-  takes part in "still searching …" and the merge, and a source that fails does not hide the others' results.
+  takes part in "still searching …" and the merge, and a source that fails (or throws) does not hide the others'
+  results. It is asked at once, not after the home server has listed its indexers, so a slow or unreachable Pi does
+  not hold it back; each of its two catalogues fails on its own.
 - It asks Cinemeta's movie and series catalogues in parallel and takes, from each, the first entry whose name holds
   every word of the search; a film lists `stream/movie/<id>`, a series `stream/series/<id>:<season>:<episode>`,
   the episode taken from an `SxxEyy` in the search and S01E01 otherwise. A year in the search (1900-2099) is left

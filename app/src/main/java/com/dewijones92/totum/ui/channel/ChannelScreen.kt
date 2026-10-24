@@ -188,7 +188,7 @@ internal fun ChannelContent(
                 },
             )
             ChannelTabs(state.tab, onSelectTab)
-            KeepsEachPlace(state.tab.name) {
+            KeepsEachPlace("$sourceKey ${state.tab.name}") {
                 when (state.tab) {
                     ChannelTab.VIDEOS, ChannelTab.SHORTS -> MediaItemTab(
                         if (state.tab == ChannelTab.SHORTS) shortsFilter else videosFilter,

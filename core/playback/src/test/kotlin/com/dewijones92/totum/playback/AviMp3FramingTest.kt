@@ -97,6 +97,19 @@ class AviMp3FramingTest {
     }
 
     @Test
+    fun `a damaged stretch mid-stream is skipped and the frames after it keep their own time`() {
+        val recording = Recording()
+        val framer = Mp3Framer(recording)
+        framer.format(mp3Format())
+        framer.chunk(frame(1) + frame(2), timeUs = 0)
+
+        framer.chunk(ByteArray(300) { 7 } + frame(3) + frame(4), timeUs = 2_000_000)
+
+        assertEquals(listOf(1, 2, 3, 4), recording.samples.map { it.bytes[HEADER.size].toInt() })
+        assertEquals(2_000_000 + skippedUs(300), recording.samples[2].timeUs)
+    }
+
+    @Test
     fun `anything that is not MP3 passes through untouched`() {
         val recording = Recording()
         val framer = Mp3Framer(recording)

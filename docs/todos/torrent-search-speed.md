@@ -49,3 +49,8 @@ Progress 2026-10-24:
   ([ADR 89](../adr/0089-a-result-without-a-magnet-is-resolved-when-chosen.md)); emulator: 19 1337x results, the
   magnet in 310 ms, playing 5.3 s after the tap.
 - ✅ A year in the search picks that year's film in Torrentio ("… 1968" had found nothing in 6.7 s).
+- ✅ Review fixes: answers are sent in the order they were combined (the last one always complete), Torrentio is
+  asked before the indexer list arrives, a throwing source is a failed source, the Pi warmer keeps the API key off
+  every command line (curl reads it on stdin).
+- ✅ Soak v0.1.707 vs 3ea8afad: 6/30 failed plays on both (emulator underruns and stalls), queue hand-overs
+  0/0/0 ms gapless on both; no regression.

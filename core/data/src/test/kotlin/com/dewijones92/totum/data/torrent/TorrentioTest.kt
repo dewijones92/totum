@@ -115,6 +115,54 @@ class TorrentioTest {
     }
 
     @Test
+    fun `one catalogue failing or answering nonsense does not hide the other`() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when {
+                request.target.startsWith("/catalog/movie/") -> ok(fixture("cinemeta-movie.json"))
+                request.target.startsWith("/catalog/series/") ->
+                    ok("""{"metas":[{"imdb_id":{"not":"a string"},"name":["nor","this"]}]}""")
+                request.target == "/stream/movie/tt0063350.json" -> ok(fixture("streams-movie.json"))
+                else -> MockResponse.Builder().code(500).build()
+            }
+        }
+
+        val found = torrentio().search("night of the living dead")
+
+        assertEquals(3, (found as TorrentSearchResult.Success).results.size)
+    }
+
+    @Test
+    fun `a number in a title that is not a year still finds that title`() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when {
+                request.target.startsWith("/catalog/movie/") -> ok(
+                    """{"metas":[{"imdb_id":"tt0000010","name":"The Space Film","releaseInfo":"1959"},""" +
+                        """{"imdb_id":"tt0000011","name":"The Space Film 2061","releaseInfo":"2016"}]}""",
+                )
+                request.target.startsWith("/catalog/series/") -> ok(fixture("cinemeta-series.json"))
+                request.target == "/stream/movie/tt0000011.json" -> ok(fixture("streams-movie.json"))
+                else -> MockResponse.Builder().code(404).build()
+            }
+        }
+
+        val found = torrentio().search("the space film 2061")
+
+        assertEquals(3, (found as TorrentSearchResult.Success).results.size)
+    }
+
+    @Test
+    fun `a search that is only an episode asks no catalogue`() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = ok(fixture("cinemeta-movie.json"))
+        }
+
+        val found = torrentio().search("S01E02")
+
+        assertEquals(TorrentSearchResult.Success(emptyList()), found)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
     fun `nothing in the catalogue is an empty answer, not a failure`() = runTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = ok(fixture("cinemeta-series.json"))

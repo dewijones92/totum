@@ -25,21 +25,29 @@ public class Torrentio(
     public suspend fun search(query: String): TorrentSearchResult {
         val started = TimeSource.Monotonic.markNow()
         val asked = Asked.of(query)
-        return try {
-            val results = coroutineScope {
-                listOf(MOVIE, SERIES).map { kind -> async { findAndList(kind, asked) } }.awaitAll().flatten()
-            }
-            Diag.log(
-                "torrent",
-                "torrentio \"$query\" -> ${results.size} stream(s) in ${started.elapsedNow().inWholeMilliseconds}ms " +
-                    "[title=\"${asked.title}\" year=${asked.year ?: "-"} episode=${asked.season}:${asked.episode}]",
-            )
-            TorrentSearchResult.Success(results)
-        } catch (e: IOException) {
-            Diag.warn("torrent", "torrentio \"$query\" could not be reached", e)
-            TorrentSearchResult.Failure(e.message ?: "Torrentio could not be reached")
+        val each = coroutineScope {
+            listOf(MOVIE, SERIES).map { kind -> async { listedOrNull(kind, asked) } }.awaitAll()
         }
+        if (each.all { it == null }) return TorrentSearchResult.Failure("Torrentio could not be reached")
+        val results = each.filterNotNull().flatten()
+        Diag.log(
+            "torrent",
+            "torrentio \"$query\" -> ${results.size} stream(s) in ${started.elapsedNow().inWholeMilliseconds}ms " +
+                "[title=\"${asked.title}\" year=${asked.year ?: "-"} episode=${asked.season}:${asked.episode}]",
+        )
+        return TorrentSearchResult.Success(results)
     }
+
+    private suspend fun listedOrNull(kind: String, asked: Asked): List<TorrentResult>? =
+        try {
+            findAndList(kind, asked)
+        } catch (e: IOException) {
+            Diag.warn("torrent", "torrentio $kind \"${asked.title}\" could not be reached", e)
+            null
+        } catch (e: IllegalArgumentException) {
+            Diag.warn("torrent", "torrentio $kind \"${asked.title}\" answered something unreadable", e)
+            null
+        }
 
     private suspend fun findAndList(kind: String, asked: Asked): List<TorrentResult> {
         val meta = catalogue(kind, asked) ?: return emptyList()
@@ -58,6 +66,7 @@ public class Torrentio(
 
     private suspend fun catalogue(kind: String, asked: Asked): Meta? {
         val title = asked.title
+        if (title.wordsOf().isEmpty()) return null
         val encoded = URLEncoder.encode(title, Charsets.UTF_8).replace("+", "%20")
         val body = get("$cinemetaBase/catalog/$kind/top/search=$encoded.json") ?: return null
         val metas = (runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject)
@@ -72,6 +81,7 @@ public class Torrentio(
         }
         val named = candidates.filter { it.name.wordsOf().containsAll(words) }
         val match = named.firstOrNull { asked.year != null && it.released.startsWith(asked.year) }
+            ?: asked.year?.let { year -> candidates.firstOrNull { it.name.wordsOf().containsAll(words + year) } }
             ?: named.firstOrNull()
         Diag.log(
             "torrent",
