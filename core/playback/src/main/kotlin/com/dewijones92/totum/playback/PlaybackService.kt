@@ -615,7 +615,7 @@ private const val MICROS_PER_MILLI = 1_000L
 // the ranged fetcher exactly as before, so the path that already works is untouched.
 @UnstableApi
 internal fun playbackSources(context: Context): DefaultMediaSourceFactory =
-    DefaultMediaSourceFactory(context)
+    DefaultMediaSourceFactory(context, totumExtractors())
         .setLoadErrorHandlingPolicy(DoNotRetryWhatSabrHasGivenUpOn())
         .setDataSourceFactory(
             RefusedSubtitlesLoadEmpty(

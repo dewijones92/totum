@@ -102,3 +102,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 84 | [Listen mode offers the picture when you start something that has one](0084-listen-offers-the-picture-when-you-start-it.md) | Accepted |
 | 85 | [The Pi back end lives in this repo](0085-the-pi-back-end-lives-in-this-repo.md) | Accepted |
 | 86 | [Torrentio is searched beside Prowlarr](0086-torrentio-beside-prowlarr.md) | Accepted |
+| 87 | [MP3 in an AVI is cut into whole frames before the decoder](0087-mp3-in-an-avi-is-cut-into-whole-frames.md) | Accepted |
