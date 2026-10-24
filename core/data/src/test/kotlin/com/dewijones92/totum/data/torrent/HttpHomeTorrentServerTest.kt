@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.HttpUrl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -113,12 +114,35 @@ class HttpHomeTorrentServerTest {
             lateDeadlineMs = 10_000
         ).searchUpdates("sintel").toList()
 
-        val first = answers.first() as TorrentSearchResult.Success
+        val first = answers.filterIsInstance<TorrentSearchResult.Success>().first { it.results.isNotEmpty() }
         assertEquals(listOf("Sintel 1080p"), first.results.map { it.title })
         assertTrue("still waiting for ${first.stillWaitingFor}", "1337x" in first.stillWaitingFor)
         val last = answers.last() as TorrentSearchResult.Success
         assertEquals(setOf("Sintel 1080p", "Sintel 720p"), last.results.map { it.title }.toSet())
         assertEquals(emptyList<String>(), last.stillWaitingFor)
+    }
+
+    @Test
+    fun `while only slow indexers have anything it says at once which ones it is still waiting for`() = runTest {
+        answering(threeIndexers) { id ->
+            when (id) {
+                "1" -> ok("[${result("White Lotus S01E01", 50, "The Pirate Bay")}]")
+                    .newBuilder().headersDelay(1, TimeUnit.SECONDS).build()
+                "3" -> ok("[${result("White Lotus S01E02", 9, "1337x")}]")
+                    .newBuilder().headersDelay(2, TimeUnit.SECONDS).build()
+                else -> ok("[]")
+            }
+        }
+        val torrents = serverWith(token = { "t" }, key = { "k" }, lateDeadlineMs = 10_000)
+
+        val started = System.nanoTime()
+        val first = withContext(Dispatchers.Default) { torrents.searchUpdates("white lotus").first() }
+        val tookMs = (System.nanoTime() - started) / NANOS_PER_MS
+
+        assertTrue("the first word took ${tookMs}ms", tookMs < SLOW_INDEXER_MS)
+        first as TorrentSearchResult.Success
+        assertEquals(emptyList<String>(), first.results.map { it.title })
+        assertEquals(setOf("The Pirate Bay", "1337x"), first.stillWaitingFor.toSet() - "YTS")
     }
 
     @Test
@@ -322,5 +346,10 @@ class HttpHomeTorrentServerTest {
         val prepared = serverWith(token = { "t" }, key = { "k" }).prepare("magnet:?xt=urn:btih:abc")
 
         assertEquals(emptyList<TorrentFile>(), prepared?.files)
+    }
+
+    private companion object {
+        const val NANOS_PER_MS = 1_000_000L
+        const val SLOW_INDEXER_MS = 800L
     }
 }

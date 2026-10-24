@@ -49,14 +49,15 @@ internal class ProwlarrSearch(
         }
         val answers = mutableMapOf<Indexer, Pair<TorrentSearchResult, Long>>()
         val lock = Mutex()
+        send(combined(known, answers))
         val asks = known.map { indexer ->
             launch {
                 val one = searchOne(query, indexer)
-                val (snapshot, everyone) = lock.withLock {
+                val snapshot = lock.withLock {
                     answers[indexer] = one to started.elapsedNow().inWholeMilliseconds
-                    combined(known, answers) to (answers.size == known.size)
+                    combined(known, answers)
                 }
-                if (snapshot.worthShowing(everyone)) send(snapshot)
+                send(snapshot)
             }
         }
         val allAnswered = withTimeoutOrNull(lateDeadlineMs) { asks.joinAll() } != null
@@ -192,9 +193,6 @@ private fun combined(
         else -> TorrentSearchResult.Success(emptyList(), waiting)
     }
 }
-
-private fun TorrentSearchResult.worthShowing(everyoneAnswered: Boolean): Boolean =
-    everyoneAnswered || (this is TorrentSearchResult.Success && results.isNotEmpty())
 
 private fun TorrentSearchResult.withoutWaiting(): TorrentSearchResult =
     if (this is TorrentSearchResult.Success) copy(stillWaitingFor = emptyList()) else this
