@@ -126,7 +126,7 @@ class HttpTest(unittest.TestCase):
 
 
 class OldAppSignInTest(unittest.TestCase):
-    def test_an_app_that_names_no_device_gets_the_old_token_until_it_is_retired(self):
+    def test_a_request_naming_no_device_gets_the_old_token_until_retired_and_then_mints_nothing(self):
         devices = server.Devices(os.path.join(tempfile.mkdtemp(), "devices.json"))
         retired = []
         gate = server.Gate(devices, "LEGACY", lambda: bool(retired))
@@ -139,9 +139,10 @@ class OldAppSignInTest(unittest.TestCase):
                 self.assertIn("token=LEGACY", reply.read().decode())
             self.assertEqual([], devices.listing())
             retired.append(True)
-            with urllib.request.urlopen(request) as reply:
-                self.assertNotIn("LEGACY", reply.read().decode())
-            self.assertEqual(1, len(devices.listing()))
+            with self.assertRaises(urllib.error.HTTPError) as refused:
+                urllib.request.urlopen(request)
+            self.assertEqual(400, refused.exception.code)
+            self.assertEqual([], devices.listing())
         finally:
             httpd.shutdown()
 

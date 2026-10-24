@@ -244,9 +244,12 @@ def handler_for(gate, devices, signin_secret, prowlarr_key):
                 if not signin_secret or not hmac.compare_digest(offered, signin_secret):
                     log("signin refused: it did not come through the Google-gated host")
                     return self._send(403)
-                if "device" not in query and gate.legacy_token and not gate.legacy_retired():
-                    log("signin from an app that names no device: given the old shared token, as before")
-                    return self._send(200, legacy_page(gate.legacy_token, prowlarr_key), "text/html; charset=utf-8")
+                if "device" not in query:
+                    if gate.legacy_token and not gate.legacy_retired():
+                        log("signin naming no device (an older app, or a browser's icon fetch): the old shared page")
+                        return self._send(200, legacy_page(gate.legacy_token, prowlarr_key), "text/html; charset=utf-8")
+                    log("signin naming no device refused: nothing minted")
+                    return self._send(400, b"Sign in from the Totum app: it names this device.")
                 token, device = devices.mint(query.get("device", [""])[0])
                 return self._send(200, signin_page(token, prowlarr_key, device), "text/html; charset=utf-8")
             if url.path == "/auth/devices":

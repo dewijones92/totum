@@ -16,6 +16,6 @@ then "Can you do layers 1 and 2". Decision and design: [ADR 90](../adr/0090-a-to
 - ✅ `server/totum-auth` on the Pi; the totum. gate asks it (old shared token still accepted).
 - ✅ The app sends its token only as a header (player, cast, OkHttp); links carry none; sign-in names the device;
   sign out per device.
-- ⏳ totumauth. sign-in switched to minting device tokens (after the server update is deployed).
+- ✅ totumauth. sign-in mints device tokens (17:09); an app naming no device still gets the old token meanwhile.
 - ⏳ Dewi updates and signs in again on his phone; then `retire-legacy` (the old token stops working everywhere).
 - Later, maybe: a list of signed-in devices in Settings with sign-out per device (today: the Pi CLI).
