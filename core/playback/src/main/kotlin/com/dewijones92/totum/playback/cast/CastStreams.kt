@@ -349,7 +349,17 @@ internal class CastStreams(
         val config = index?.let(session.subtitles::getOrNull) ?: return notFound()
         val reply = Upstream.get(config.uri.toString(), null)
         Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: upstream ${reply.status}")
-        return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
+        if (reply.status != Http.OK) {
+            return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
+        }
+        val cleaned = TvCaptions.clean(reply.body().use { it.readBytes() }.toString(Charsets.UTF_8))
+        Diag.log(
+            "cast",
+            "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, which places them itself: " +
+                "cue settings removed ${cleaned.settingsRemoved.ifEmpty { "none" }}, " +
+                "${cleaned.inlineTagsRemoved} word-timing tag(s) removed",
+        )
+        return HttpReply.Bytes(Http.OK, "text/vtt", cleaned.text.toByteArray(Charsets.UTF_8))
     }
 
     private fun videoPart(session: Session, what: String, range: String?): HttpReply? = when {

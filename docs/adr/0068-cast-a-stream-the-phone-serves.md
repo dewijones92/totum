@@ -61,6 +61,14 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 
 ## Consequences
 
+- **Captions are cleaned for the TV** (2026-10-24, report 0.1.707: "when casting the subtitles seem to go half off
+  screen"). YouTube's auto-generated WebVTT places every cue with `align:start position:0%` (and sometimes `line:`),
+  and word timings (`<00:00:00.560><c> word</c>`). The phone relayed it untouched; a receiver that centres the cue
+  box on its position draws half of each line off the left edge. `TvCaptions.clean` now strips cue settings and
+  word-timing tags, so the TV places captions with its own defaults (bottom centre); the relay logs what it removed,
+  so the next cast report shows whether those settings were there. Not seen on a real TV yet. `TvCaptionsTest`, red
+  first.
+
 - Review of 2026-10-23: only unicast routes count as a VPN carrying the TV's network (a VPN's excluded routes are
   `RTN_THROW`, which said "in the way" when it was not), and the hand-over, the TV's first request and the check
   update the warning under one lock (the check runs 12 s after the hand-over), so a request arriving mid-warning cannot leave it stuck. Neither has a unit test:
