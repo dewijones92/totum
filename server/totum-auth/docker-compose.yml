@@ -1,0 +1,30 @@
+# Per-device tokens for totum.<domain>: nginx asks /check before every request, and
+# totumauth.<domain> (Google-gated) asks /signin to mint a device's token. See server.py and ADR 90.
+# On bin_private with no host port, like Prowlarr: only nginx reaches it.
+name: totum-auth
+
+services:
+  totum-auth:
+    image: python:3.12-alpine
+    container_name: totum-auth
+    command: ["python", "-u", "/app/server.py"]
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+      - /var/lib/totum-auth:/data
+    environment:
+      DATA: /data
+      PORT: 8097
+      TOKEN_DAYS: 30
+    networks:
+      - bin_private
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8097/health', timeout=3)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+networks:
+  bin_private:
+    external: true

@@ -137,6 +137,7 @@ def check_no_cross_line_variables(workflow: dict) -> int:
 PYTHON_TEST_GLOBS = [
     "tools/ci/*_test.py",
     "**/src/test/python/*_test.py",
+    "server/*/*_test.py",
 ]
 
 
