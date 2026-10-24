@@ -32,4 +32,13 @@ class DownloadLabelsTest {
             downloadLabel(item("https://www.youtube.com/watch?v=s", MediaContentKind.MUSIC), audioOnly = true),
         )
     }
+
+    @Test
+    fun `a torrent's film or a video podcast is fetched whole, so it never says sound only`() {
+        val torrentFilm = item("https://home.test/ts/stream/Night.of.the.Living.Dead.1968.mkv?link=h&index=1&play")
+        val videoEpisode = item("https://feed.test/episode-12.mp4")
+
+        assertEquals(R.string.download_the_file, downloadLabel(torrentFilm, audioOnly = true))
+        assertEquals(R.string.download_the_file, downloadLabel(videoEpisode, audioOnly = true))
+    }
 }

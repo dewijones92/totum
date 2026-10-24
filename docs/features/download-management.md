@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-23
+updated: 2026-10-24
 ---
 
 # Managing downloads
@@ -197,7 +197,9 @@ red; verified on totum-api35 with a copy overwritten by junk in audio mode (copy
 The item menu's plain "Download" fetched sound only for a video, while the row's icon fetched the whole video. Labels
 now come from one rule (`downloadLabel`): 🎧 Download the sound only · 🎬 Download the video · 🎧 Download the song ·
 ⬇️ Download the whole file; the full player's menu offers both sound and video for a video; bulk, album and queue-group
-downloads say sound or in full.
+downloads say sound or in full. Since 2026-10-24 anything outside the YouTube pillar says "the whole file", picture or
+not: a torrent's film or a video podcast is one HTTP download that has no sound-only form, and its menu had said "🎧
+Download the sound only" while fetching the film (report 0.1.709).
 
 ## Choose episodes, and resuming (2026-10-23)
 
