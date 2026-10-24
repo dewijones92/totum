@@ -169,7 +169,7 @@ class ChunkedDataSourceTest {
     }
 
     @Test
-    fun `a slow local file is never re-asked`() {
+    fun `a slow local file is read in one go and is never cut into ranges or re-asked`() {
         var clock = 0L
         val server = DripsOnce(content(size = 3_000), dripBytes = 100, msPerDrip = 1_000, uri = LOCAL) { clock += it }
         val source = ChunkedDataSource(server, CHUNK, DripWatch(RangeSpeeds(), now = { clock }))
@@ -177,7 +177,7 @@ class ChunkedDataSourceTest {
         source.open(server.spec(position = 0))
 
         assertTrue(source.drain().contentEquals(server.content))
-        assertEquals("a file on the disk has no server to ask again: ${server.asked}", CHUNK, server.asked[1].first)
+        assertEquals("a file on the disk has no server to ask again: ${server.asked}", 1, server.asked.size)
     }
 
     /**

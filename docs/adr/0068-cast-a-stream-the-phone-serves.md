@@ -61,6 +61,13 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 
 ## Consequences
 
+- **Surround sound and downloads cast** (2026-10-24, report 0.1.721, "ali g not playing??"). A 5.1 track was
+  promised to the TV as stereo while the decoder gave six channels, so every audio segment failed ("decoder gives
+  48000Hz 6ch, stream promised 48000Hz 2ch"); the transcoder now mixes to the stream's channels (`PcmDownmix`: centre
+  and surrounds at -3 dB, LFE dropped, scaled so it cannot clip). And casting a downloaded copy failed before the
+  manifest: `ChunkedDataSource` cut the local file into ranges, and Media3's `MediaExtractorCompat` found no URI when it
+  reopened it (NullPointerException); local files are now read directly. Tests: `PcmDownmixTest`,
+  `CastingFivePointOneSoundTest`, `CastAudioFromADownloadTest` (each seen failing with the report's error).
 - **Captions are cleaned for the TV** (2026-10-24, report 0.1.707: "when casting the subtitles seem to go half off
   screen"). YouTube's auto-generated WebVTT places every cue with `align:start position:0%` (and sometimes `line:`),
   and word timings (`<00:00:00.560><c> word</c>`). The phone relayed it untouched; a receiver that centres the cue

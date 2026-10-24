@@ -52,9 +52,9 @@ internal class ChunkedDataSource(
 
     override fun open(dataSpec: DataSpec): Long {
         spec = dataSpec
-        direct = dataSpec.uri.isHierarchical && dataSpec.uri.getQueryParameter("sq") != null
-        if (direct) return upstream.open(dataSpec)
         remote = dataSpec.uri.scheme?.lowercase() in REMOTE_SCHEMES
+        direct = !remote || (dataSpec.uri.isHierarchical && dataSpec.uri.getQueryParameter("sq") != null)
+        if (direct) return upstream.open(dataSpec)
         val cursor = ChunkedRead(remainingFor(dataSpec), chunkBytes)
         read = cursor
         openNextRange(cursor)

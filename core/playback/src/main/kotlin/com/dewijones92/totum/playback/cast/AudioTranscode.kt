@@ -305,11 +305,13 @@ internal class AudioTranscode(
 
     private fun ptsUs() = inputSamples * TranscodePlan.MICROS / plan.format.sampleRate
 
+    private var mixedDown = false
+
     private fun trimmed(out: ByteBuffer, decoded: MediaFormat): ByteBuffer? {
         if (info.size <= 0) return null
         val channels = decoded.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
         val rate = decoded.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-        check(channels == plan.format.channels && rate == plan.format.sampleRate) {
+        check(rate == plan.format.sampleRate) {
             "decoder gives ${rate}Hz ${channels}ch, stream promised " +
                 "${plan.format.sampleRate}Hz ${plan.format.channels}ch"
         }
@@ -320,7 +322,16 @@ internal class AudioTranscode(
             if (skip >= info.size) return null
             out.position(info.offset + skip)
         }
-        return out.slice().order(ByteOrder.nativeOrder()).takeIf { it.hasRemaining() }
+        val pcm = out.slice().order(ByteOrder.nativeOrder()).takeIf { it.hasRemaining() } ?: return null
+        if (channels == plan.format.channels) return pcm
+        if (!mixedDown) {
+            mixedDown = true
+            Diag.log(
+                "cast",
+                "audio ${plan.label}: the decoder gives ${channels}ch, mixed to ${plan.format.channels}ch for the TV"
+            )
+        }
+        return PcmDownmix.toChannels(pcm, channels, plan.format.channels)
     }
 
     private fun copy(b: ByteBuffer): ByteBuffer =

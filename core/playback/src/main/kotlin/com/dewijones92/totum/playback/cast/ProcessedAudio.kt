@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback.cast
 
 import android.content.Context
 import android.media.MediaFormat
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.C
@@ -263,10 +264,7 @@ internal class ProcessedAudio(
         }
     }
 
-    private fun extractor() = MediaExtractorCompat(
-        totumExtractors(),
-        ChunkedDataSource.Factory(homeServerAware(DefaultDataSource.Factory(context))),
-    ).apply { setDataSource(source.toUri(), 0) }
+    private fun extractor() = castExtractor(context, source.toUri())
 
     private fun audioTrack(extractor: MediaExtractorCompat): Int =
         (0 until extractor.trackCount).firstOrNull {
@@ -298,3 +296,9 @@ internal class ProcessedAudio(
         val RATES = listOf(96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350)
     }
 }
+
+@UnstableApi
+internal fun castExtractor(context: Context, uri: Uri): MediaExtractorCompat = MediaExtractorCompat(
+    totumExtractors(),
+    ChunkedDataSource.Factory(homeServerAware(DefaultDataSource.Factory(context))),
+).apply { setDataSource(uri, 0) }

@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-10-23
+updated: 2026-10-24
 ---
 
 # Casting
@@ -90,3 +90,8 @@ remote, and "📱 Back to this phone" takes it back. See [ADR 81](../adr/0081-th
 If a VPN on the phone carries your home network, the TV cannot reach the phone. The cast card now says so straight
 away (🔒) instead of waiting for the TV to give up; turn the VPN off, or exclude Totum in the VPN app. ADR 68.
 
+## Surround sound and downloads (2026-10-24)
+
+A 5.1 film (The Apprentice, AAC 5.1) and a downloaded copy (Ali G Indahouse) both failed to cast: the first because
+the TV's stereo stream was fed six channels, the second because the cast audio path could not open a local file.
+Both fixed in ADR 68's consequences; the sound is mixed to stereo for the TV.
