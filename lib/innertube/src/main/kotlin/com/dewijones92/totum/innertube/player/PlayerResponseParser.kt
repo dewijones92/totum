@@ -72,7 +72,14 @@ public object PlayerResponseParser {
             ),
             details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),
             subtitles = root.captionTracks(),
+            accountStartMs = root.accountStartMs(),
         )
+    }
+
+    private fun JsonObject.accountStartMs(): Long? {
+        val start = ((this["playerConfig"] as? JsonObject)?.get("playbackStartConfig") as? JsonObject) ?: return null
+        val millis = (start["startPosition"] as? JsonObject)?.stringAt("streamTimeMillis")?.toLongOrNull()
+        return millis ?: start["startSeconds"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()?.times(MS_PER_SECOND)
     }
 
     private fun JsonObject.toDetails(describedBy: WatchNextDetails?): PlayerDetails? {
@@ -212,3 +219,5 @@ internal fun askingForVtt(base: String): String {
 private const val FMT_VTT = "fmt=vtt"
 
 private const val AUTO_MARK = "auto-generated"
+
+private const val MS_PER_SECOND = 1_000L

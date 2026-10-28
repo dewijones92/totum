@@ -6,6 +6,8 @@ import com.dewijones92.totum.domain.fake.InMemoryReconciledAccountProgress
 import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
@@ -47,7 +49,10 @@ class AccountResumePositionsTest {
         reconciled = reconciled,
         offline = { offline },
         now = { clock },
+        seen = seen,
     )
+
+    private val seen = MutableStateFlow<Map<String, AccountProgress>>(emptyMap())
 
     private val hour44 = 6_253_000L
 
@@ -90,6 +95,23 @@ class AccountResumePositionsTest {
         localPositions["abc"] = 1_000
 
         assertEquals(2_400_000L, positions().resumePositionMs(MediaItemId("abc")))
+    }
+
+    @Test
+    fun `a position seen in a list or a player answer resumes a video the history pages never listed`() = runTest {
+        seen.value = mapOf("IUmUz8ol9Ow" to AccountProgress(positionMs = 3_890_000, durationMs = 7_031_000))
+
+        assertEquals(3_890_000L, positions().resumePositionMs(MediaItemId("IUmUz8ol9Ow")))
+    }
+
+    @Test
+    fun `a position seen since beats the history page's rounded percent`() = runTest {
+        history.watched = mapOf("abc" to AccountProgress(positionMs = 2_400_000, durationMs = hour44))
+        seen.value = mapOf("abc" to AccountProgress(positionMs = 2_465_000, durationMs = hour44))
+        val positions = positions()
+
+        assertEquals(2_465_000L, positions.resumePositionMs(MediaItemId("abc")))
+        assertEquals(2_465_000L, positions.watched.first()["abc"]?.positionMs)
     }
 
     @Test

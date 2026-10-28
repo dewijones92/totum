@@ -133,6 +133,7 @@ public sealed interface PlayerResult {
         val subtitles: List<SubtitleTrack> = emptyList(),
         /** The client this was asked as — see [PlayerClient]; the default is the anonymous streams client. */
         val client: PlayerClient = PlayerClient.ANDROID,
+        val accountStartMs: Long? = null,
     ) : PlayerResult
 
     /**

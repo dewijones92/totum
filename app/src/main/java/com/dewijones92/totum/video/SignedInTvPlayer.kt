@@ -7,6 +7,8 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.parsed
+import com.dewijones92.totum.innertube.feeds.AccountProgress
+import com.dewijones92.totum.innertube.feeds.SeenProgress
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -55,6 +57,7 @@ class SignedInTvPlayer(
         val success = response as? InnerTubeResponse.Success
         val details = success?.parsed { body ->
             Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(body)}")
+            Diag.log("resolve", "dewidebug $videoId watch page progress ${progressKeys(body)}")
             WatchNextParser.details(body, videoId)
         }
         Diag.log(
@@ -94,6 +97,7 @@ class SignedInTvPlayer(
         val success = response as? InnerTubeResponse.Success
         val parsed = success?.parsed { body ->
             Diag.log("resolve", "dewidebug $videoId $client player response ${descriptionKeys(body)}")
+            Diag.log("resolve", "dewidebug $videoId $client player response progress ${progressKeys(body)}")
             PlayerResponseParser.parse(body)
         }
         if (parsed !is PlayerResult.Success) {
@@ -126,6 +130,7 @@ class SignedInTvPlayer(
             val described = describe() ?: WatchNextDetails(title = videoId, author = null, channelId = null)
             (success?.parsed { PlayerResponseParser.parse(it, described) } as? PlayerResult.Success)?.details
         }
+        accountStart(videoId, parsed.accountStartMs, details?.lengthSeconds)
         return parsed.copy(streaming = playable, details = details)
     }
 }
@@ -149,3 +154,47 @@ internal fun descriptionKeys(body: String): String {
         "$key x${found.size}: ${found.first().groupValues[2].replace('\n', ' ')}"
     }
 }
+
+private val PROGRESS_FIELDS = listOf(
+    "percentDurationWatched",
+    "startTimeSeconds",
+    "startSeconds",
+    "resume\\w*",
+    "watchProgress\\w*",
+    "lastWatched\\w*",
+    "playbackPosition\\w*",
+)
+
+private val PROGRESS_KEY = Regex(""""(${PROGRESS_FIELDS.joinToString("|")})"\s*:\s*(.{0,40})""")
+
+internal fun progressKeys(body: String): String {
+    val hits = PROGRESS_KEY.findAll(body).toList()
+    if (hits.isEmpty()) return "none"
+    val at = body.indexOf("\"startSeconds\"")
+    if (at >= 0) {
+        Diag.log(
+            "resolve",
+            "dewidebug startSeconds context: ${body.substring(
+                maxOf(0, at - CONTEXT_CHARS),
+                minOf(body.length, at + CONTEXT_CHARS)
+            )}"
+        )
+    }
+    return hits.groupBy { it.groupValues[1] }.entries.joinToString("; ") { (key, found) ->
+        "$key x${found.size}: ${found.first().groupValues[2].replace('\n', ' ')}"
+    }
+}
+
+private fun accountStart(videoId: String, accountStartMs: Long?, lengthSeconds: Long?) {
+    val startMs = accountStartMs?.takeIf { it > 0 }
+    val lengthMs = lengthSeconds?.times(MS_PER_S)
+    if (startMs == null || lengthMs == null) {
+        Diag.log("yt-sync", "$videoId: no account resume point to keep [start=$accountStartMs length=$lengthSeconds]")
+        return
+    }
+    Diag.log("yt-sync", "$videoId: the account resumes it at ${startMs}ms of ${lengthMs}ms (from its player answer)")
+    SeenProgress.saw(mapOf(videoId to AccountProgress(startMs, lengthMs)))
+}
+
+private const val MS_PER_S = 1_000L
+private const val CONTEXT_CHARS = 160

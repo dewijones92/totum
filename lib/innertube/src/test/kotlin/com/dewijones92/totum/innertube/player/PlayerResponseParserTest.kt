@@ -26,6 +26,23 @@ class PlayerResponseParserTest {
             .streaming
 
     @Test
+    fun `a signed-in answer names where the account would resume`() {
+        val body = fixture("player_sabr_android_sample.json").trimEnd().removeSuffix("}") +
+            ",\"playerConfig\":{\"playbackStartConfig\":{\"startSeconds\":3890," +
+            "\"startPosition\":{\"streamTimeMillis\":\"3890000\"}}}}"
+
+        assertEquals(3_890_000L, (PlayerResponseParser.parse(body) as PlayerResult.Success).accountStartMs)
+        assertEquals(
+            null,
+            (
+                PlayerResponseParser.parse(
+                    fixture("player_sabr_android_sample.json")
+                ) as PlayerResult.Success
+                ).accountStartMs
+        )
+    }
+
+    @Test
     fun `keeps the formats that have no URL, which is the point`() {
         val streaming = sabrSample()
 

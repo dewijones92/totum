@@ -12,8 +12,10 @@ import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -72,6 +74,7 @@ class AccountResumePositions(
     private val now: () -> Long = System::currentTimeMillis,
     private val staleAfterMs: Long = STALE_AFTER_MS,
     private val remoteWaitMs: Long = REMOTE_WAIT_MS,
+    private val seen: StateFlow<Map<String, AccountProgress>> = MutableStateFlow(emptyMap()),
 ) {
     private val guard = Mutex()
     private val _watched = MutableStateFlow<Map<String, AccountProgress>>(emptyMap())
@@ -83,10 +86,14 @@ class AccountResumePositions(
      * the resume of a tap. Report 0.1.477 (22 Aug): a video half-watched on the website showed
      * nothing in Totum's lists, because this map was only ever consulted at the moment of playing.
      */
-    val watched: StateFlow<Map<String, AccountProgress>> = _watched
+    val watched: Flow<Map<String, AccountProgress>> = combine(_watched, seen) { history, fresh -> history + fresh }
+
+    private fun known(itemId: MediaItemId): AccountProgress? = seen.value[itemId.value] ?: _watched.value[itemId.value]
+
+    fun knows(itemId: MediaItemId): Boolean = known(itemId) != null
 
     suspend fun overriddenBySeek(itemId: MediaItemId) {
-        val remoteMs = _watched.value[itemId.value]?.positionMs ?: return
+        val remoteMs = known(itemId)?.positionMs ?: return
         if (reconciled.reconciledMs(itemId) == remoteMs) return
         reconciled.reconcile(itemId, remoteMs)
         Diag.log("yt-sync", "seek overrides cached youtube=${remoteMs}ms for ${itemId.value}; it is now acted on")
@@ -105,7 +112,7 @@ class AccountResumePositions(
             Diag.log(
                 "yt-sync",
                 "resume ${itemId.value} from the start — finished here, whatever the account says " +
-                    "[youtube=${_watched.value[itemId.value]?.positionMs ?: "none"}]",
+                    "[youtube=${known(itemId)?.positionMs ?: "none"}]",
             )
             return null
         }
@@ -181,14 +188,14 @@ class AccountResumePositions(
     }
 
     private suspend fun remoteFor(itemId: MediaItemId): Pair<AccountProgress?, String?> {
-        if (offline()) return _watched.value[itemId.value] to "offline, so the account was not asked"
+        if (offline()) return known(itemId) to "offline, so the account was not asked"
         val fetch = refreshing()
         val note = if (fetch != null && withTimeoutOrNull(remoteWaitMs) { fetch.join() } == null) {
             "the account did not answer within ${remoteWaitMs}ms, so it was not waited for; it keeps loading"
         } else {
             null
         }
-        return _watched.value[itemId.value] to note
+        return known(itemId) to note
     }
 
     /**

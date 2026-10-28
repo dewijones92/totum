@@ -85,6 +85,10 @@ internal class DiagnosticSnapshot(
                 queue?.anchor?.let { "after an excursion: ${it.value} (index ${queue.place})" } ?: "the cursor"
             )
             put("queue.items", listedAround(entries, currentIndex, LISTED_BEFORE, LISTED_AFTER) { it.item.item.title })
+            put(
+                "queue.groups",
+                groupRunsAround(entries.map { it.group?.title }, currentIndex, LISTED_BEFORE, LISTED_AFTER)
+            )
         }
         runCatching { putDownloadState(entries, currentIndex) }
         runCatching { putSettings(live.settings()) }
@@ -247,6 +251,26 @@ internal fun <T> listedAround(
     val shown = entries.subList(from, to).joinToString(" | ", transform = describe)
     if (from == 0 && to == entries.size) return shown
     return "[items ${from + 1}-$to of ${entries.size}, around the playing one] $shown"
+}
+
+internal fun groupRunsAround(groups: List<String?>, current: Int, before: Int, after: Int): String {
+    val from = (current - before).coerceIn(0, groups.size)
+    val to = (maxOf(current, 0) + after).coerceIn(from, groups.size)
+    val runs = mutableListOf<Triple<Int, Int, String?>>()
+    for (i in from until to) {
+        val last = runs.lastOrNull()
+        if (last != null && last.third == groups[i]) {
+            runs[runs.lastIndex] = last.copy(second = i)
+        } else {
+            runs += Triple(i, i, groups[i])
+        }
+    }
+    val listed = runs.joinToString(" · ") { (start, end, title) ->
+        val span = if (start == end) "${start + 1}" else "${start + 1}-${end + 1}"
+        val playing = if (current in start..end) " (playing ${current + 1})" else ""
+        "$span ${title ?: "added by you"}$playing"
+    }
+    return "[items ${from + 1}-$to of ${groups.size}] $listed"
 }
 
 private fun playingFacts(listed: MediaItem?, state: PlaybackState?): String {

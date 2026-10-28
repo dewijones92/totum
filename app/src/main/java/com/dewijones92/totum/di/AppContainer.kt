@@ -133,6 +133,7 @@ import com.dewijones92.totum.innertube.channel.YouTubeChannel
 import com.dewijones92.totum.innertube.comments.HttpYouTubeComments
 import com.dewijones92.totum.innertube.comments.YouTubeComments
 import com.dewijones92.totum.innertube.feeds.HttpYouTubeFeeds
+import com.dewijones92.totum.innertube.feeds.SeenProgress
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 import com.dewijones92.totum.innertube.history.HttpYouTubeWatchHistory
 import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
@@ -618,6 +619,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             reconciled = reconciledAccountProgress,
             // Known before asking, so an offline play never even starts the read that used to hang it.
             offline = ::isOffline,
+            seen = SeenProgress.positions,
         )
     }
 
@@ -892,6 +894,20 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * signed out there is no account to teach. Both are silent no-ops rather than warnings,
      * because neither is a fault.
      */
+    private suspend fun learnAccountProgressOf(queued: PlayableItem) {
+        val handle = queued.handle as? PlayHandle.Video ?: return
+        val why = when {
+            !accountSubscriptions.signedIn.value -> "signed out"
+            accountResumePositions.knows(queued.item.id) -> "the account's position is already known"
+            realCopyFor(queued.item.id) != null -> "it is on the phone"
+            isOffline() -> "offline"
+            else -> null
+        }
+        if (why != null) return Diag.log("yt-sync", "not asking the account where ${queued.item.id.value} stands: $why")
+        Diag.log("yt-sync", "asking the account where ${queued.item.id.value} stands (queued by hand)")
+        videoResolver.prefetch(handle.watchUrl, queued.item.sourceId, queued.item.titleIsKnown)
+    }
+
     private suspend fun saveToWatchLater(queued: PlayableItem) {
         val handle = queued.handle as? PlayHandle.Video ?: return
         if (!accountSubscriptions.signedIn.value) {
@@ -1103,7 +1119,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             videoPlaybackLauncher,
             applicationScope,
             queueStore,
-            onQueuedByUser = ::saveToWatchLater,
+            onQueuedByUser = { queued ->
+                saveToWatchLater(queued)
+                learnAccountProgressOf(queued)
+            },
             // The same rule the video path uses, so Listen means one thing on both pillars.
             audioPreferred = ::audioPlaybackPreferred,
             // Asked per play, so an item downloaded after it was queued still plays from disk.

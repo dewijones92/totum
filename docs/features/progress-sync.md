@@ -29,6 +29,17 @@ updated: 2026-10-28
 > jump, the span is now the minute before the position rather than empty, so the report is never dropped while the
 > outbox marks it sent. Only a report under a second after the last is skipped.
 
+> ✨ **Progress for any video Totum is told about (2026-10-28, Dewi's choice).** Besides the three history pages,
+> the account's position now comes from two places that cost no extra request: **every list fetched as the
+> account** carries YouTube's own progress bar on each tile (subscriptions, recommended, playlists; read by
+> `VideoTileParser.parse` into `SeenProgress`), and **every signed-in player answer** names where the account
+> would resume (`playerConfig.playbackStartConfig`, the exact millisecond: Threads 3,890,000 against history's rounded
+> 3,867,050). A video queued **by hand, one at a time** is resolved ahead (one player request; bulk adds never do
+> this), so its row and its resume know the account's position before it plays. A seen position beats the history
+> page's. No per-row lookups while scrolling (Dewi's pick, for the polite-client rule). Logged `yt-sync <id>: the
+> account resumes it at …` and `asking the account where <id> stands (queued by hand)` / `not asking …: <why>`.
+> Tests: `PlayerResponseParserTest`, `VideoTileParserTest`, `AccountResumePositionsTest` (+2).
+
 > 🐛 **Only the first page of history was read. Fixed 2026-10-28.** Report 20261028T175734 (0.1.737), Dewi:
 > *"threads film in our app says I haven't seen it but I am half way through it in chrome"*. The account's watched
 > positions came from `FEhistory`'s first page alone, about 15 videos, and that day's soak on the emulator (signed in

@@ -27,4 +27,14 @@ class ListedAroundTest {
             listedAround(queue, current = -1, before = 2, after = 3) { it },
         )
     }
+
+    @Test
+    fun `the groups around the playing item are listed as runs, with the playing one marked`() {
+        val groups = listOf(null, null, "Peep Show S01", "Peep Show S01", "📥 New", "📥 New", "📥 New")
+
+        assertEquals(
+            "[items 3-7 of 7] 3-4 Peep Show S01 · 5-7 📥 New (playing 6)",
+            groupRunsAround(groups, current = 5, before = 3, after = 3),
+        )
+    }
 }

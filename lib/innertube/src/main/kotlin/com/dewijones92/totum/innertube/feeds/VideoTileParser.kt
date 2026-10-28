@@ -49,6 +49,7 @@ internal object VideoTileParser {
         // No token means the last page. A response that parsed but yielded no tiles is
         // also the end, whatever it claims, or "load more" would spin forever.
         val items = videos.values.toList()
+        SeenProgress.saw(positionsIn(root))
         return FeedResult.Success(Page(items, Continuations.find(root).takeIf { items.isNotEmpty() }))
     }
 
@@ -70,6 +71,11 @@ internal object VideoTileParser {
         val root = runCatching {
             json.parseToJsonElement(body)
         }.getOrNull() ?: return emptyMap<String, AccountProgress>() to null
+        val out = positionsIn(root)
+        return out to Continuations.find(root).takeIf { out.isNotEmpty() }
+    }
+
+    private fun positionsIn(root: JsonElement): Map<String, AccountProgress> {
         val out = LinkedHashMap<String, AccountProgress>()
         collectVideoTiles(root) { tile ->
             val id = tile.watchVideoId() ?: tile.stringAt("contentId")
@@ -83,7 +89,7 @@ internal object VideoTileParser {
                 out.putIfAbsent(id, AccountProgress(durationMs * percent / PERCENT, durationMs))
             }
         }
-        return out to Continuations.find(root).takeIf { out.isNotEmpty() }
+        return out
     }
 
     /** The resume overlay's percentage, when the tile carries one (i.e. it has been watched). */

@@ -352,4 +352,15 @@ class VideoTileParserTest {
     fun `unparseable json yields no positions rather than throwing`() {
         assertEquals(emptyMap<String, AccountProgress>(), VideoTileParser.watchedPositions("not json"))
     }
+
+    @Test
+    fun `an account feed reports the progress bars on its tiles`() {
+        SeenProgress.reset()
+
+        VideoTileParser.parse(historyFixture())
+
+        assertEquals(VideoTileParser.watchedPositions(historyFixture()), SeenProgress.positions.value)
+        assertTrue(SeenProgress.positions.value.isNotEmpty())
+        SeenProgress.reset()
+    }
 }
