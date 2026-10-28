@@ -109,6 +109,9 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   decoded frame matched the source (index at the front and at the end, B-frames), and a 60 s 720p file with its
   index after 21 MB of media played and seeked on the stand-in as the LG. `ChunkedDataSource` reports its address
   between two ranges, which Media3's extractor asks for when it seeks to an index at the end.
+- While casting, a torrent result whose name says XviD, DivX, AVI or AV1 says "🔊 Sound only on the TV" before it is
+  chosen (Dewi's pick beside the MP4 remux, 2026-10-28): a hint read from the name only, since the real answer needs
+  the file; `SoundOnlyByNameTest`, `TorrentSoundOnlyOnTheTvTest`.
 - **Handing over** (2026-10-22, on the real Ultra): the cast player is told to play *before* it is given the item,
   because it sends the receiver's load (with its autoplay) as soon as it has the item, and a play sent after that load
   did not stick: the TV sat paused. A replay for the TV's formats waits for the cast player to settle, takes position

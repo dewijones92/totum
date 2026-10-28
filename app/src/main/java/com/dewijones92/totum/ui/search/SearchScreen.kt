@@ -42,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,7 +58,9 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.playback.cast.soundOnlyOnTheTvByName
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.cast.LocalScreenControl
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
@@ -553,9 +556,22 @@ internal fun TorrentHitRow(
     modifier: Modifier = Modifier,
     onDownload: (() -> Unit)? = null,
 ) {
+    val casting = LocalScreenControl.current?.castDevice?.collectAsStateWithLifecycle()?.value
+    val soundOnly = casting?.let { soundOnlyOnTheTvByName(hit.title) }
     ListItem(
         headlineContent = { Text(hit.title) },
-        supportingContent = { hit.subtitle?.let { Text(it) } },
+        supportingContent = {
+            Column {
+                hit.subtitle?.let { Text(it) }
+                soundOnly?.let {
+                    Text(
+                        stringResource(R.string.torrent_sound_only_on_tv, it),
+                        color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.testTag(TORRENT_SOUND_ONLY_TAG),
+                    )
+                }
+            }
+        },
         leadingContent = {
             Icon(
                 imageVector = Icons.Outlined.Movie,
@@ -576,3 +592,5 @@ internal fun TorrentHitRow(
         modifier = modifier.clickable(onClick = onPlay),
     )
 }
+
+internal const val TORRENT_SOUND_ONLY_TAG = "torrent-sound-only"

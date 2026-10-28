@@ -36,6 +36,8 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
   re-encoded (H.264 and HEVC).
 - **Ordinary MP4s** (index at the end, not fragmented) cast with their picture too, repackaged the same way
   (2026-10-28).
+- **Said before you pick it:** while casting, a torrent result whose name says XviD, DivX, AVI or AV1 carries
+  "🔊 Sound only on the TV (XviD)", since no measured TV decodes those (`soundOnlyOnTheTvByName`, 2026-10-28).
 
 - **Live streams** cast: the phone relays the live segments (the TV cannot fetch them itself); sound as YouTube
   sends it, without Totum's boost yet ([ADR 69](../adr/0069-live-streams-play-a-manifest-totum-builds.md)).
