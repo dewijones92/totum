@@ -29,7 +29,7 @@ internal fun interface RangeReader {
     fun read(span: ByteSpan): ByteArray
 }
 
-internal class UnreadableLayout(message: String) : Exception(message)
+internal class UnreadableLayout(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 internal object StreamLayouts {
 

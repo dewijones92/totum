@@ -78,7 +78,7 @@ internal class CastStreams(
 
         @Volatile var layout: StreamLayout? = null
 
-        @Volatile var mkv: MkvVideo? = null
+        @Volatile var remuxed: RemuxedVideo? = null
 
         @Volatile var videoFile: File? = null
 
@@ -93,7 +93,7 @@ internal class CastStreams(
             Diag.log(
                 "cast",
                 "session $token ready: ${item.mediaId} " +
-                    "video=${rungs.describe() ?: layout?.describe() ?: mkv?.describe ?: "none"} " +
+                    "video=${rungs.describe() ?: layout?.describe() ?: remuxed?.describe ?: "none"} " +
                     "audio=processed ${audio.format.sampleRate}Hz boost=${boost()}",
             )
         }
@@ -123,16 +123,18 @@ internal class CastStreams(
                     val found = MkvVideo.probe(head) { span -> Upstream.bytes(url, span) }
                     when {
                         found == null -> noteNoPicture("an MKV with no video track")
-                        shows(found.codecs, found.height) -> mkv = found
+                        shows(found.codecs, found.height) -> remuxed = found
                     }
                 }
-                Mp4Layout.isMp4(head) && head.contains(ascii("vide")) ->
-                    layout = try {
-                        StreamLayouts.probe { span -> Upstream.bytes(url, span) }.takeIf { shows(it.codecs, it.height) }
-                    } catch (e: UnreadableLayout) {
-                        refuse("an MP4 Totum cannot stream to a TV yet (not fragmented)", e.message ?: "unreadable")
-                        null
-                    }
+                Mp4Layout.isMp4(
+                    head
+                ) -> when (val choice = Mp4Video.choose(head, { Upstream.bytes(url, it) }, item.mediaId)) {
+                    is Mp4Video.Companion.Choice.Fragmented ->
+                        layout = choice.layout.takeIf { shows(it.codecs, it.height) }
+                    is Mp4Video.Companion.Choice.Remuxed ->
+                        if (shows(choice.video.codecs, choice.video.height)) remuxed = choice.video
+                    Mp4Video.Companion.Choice.NoVideo -> noteNoPicture("an MP4 with no video track")
+                }
                 else -> noteNoPicture("audio only, or not a WebM, MP4 or MKV")
             }
         }
@@ -177,7 +179,8 @@ internal class CastStreams(
 
         fun remuxedPart(part: String): HttpReply {
             ready()
-            val source = mkv ?: return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no remuxed video".toByteArray())
+            val source = remuxed
+                ?: return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no remuxed video".toByteArray())
             val bytes = if (part == "init.mp4") {
                 source.init()
             } else {
@@ -204,7 +207,7 @@ internal class CastStreams(
                 durationMs,
                 ladder.takeIf { it.isNotEmpty() }?.let { CastVideo.Ladder(it) }
                     ?: layout?.let { CastVideo.Relayed(it, "video") }
-                    ?: mkv?.let {
+                    ?: remuxed?.let {
                         CastVideo.Segmented(
                             it.codecs,
                             it.width,

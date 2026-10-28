@@ -26,7 +26,7 @@ internal sealed interface CastVideo {
         val codecs: String,
         val width: Int,
         val height: Int,
-        val timeline: List<MkvVideo.Segment>,
+        val timeline: List<VideoSegment>,
         val initUrl: String,
         val mediaTemplate: String,
     ) : CastVideo

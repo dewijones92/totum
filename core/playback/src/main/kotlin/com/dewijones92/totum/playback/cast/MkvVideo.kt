@@ -11,30 +11,28 @@ package com.dewijones92.totum.playback.cast
 import java.io.ByteArrayOutputStream
 
 internal class MkvVideo private constructor(
-    val codecs: String,
-    val width: Int,
-    val height: Int,
+    override val codecs: String,
+    override val width: Int,
+    override val height: Int,
     private val sampleEntry: ByteArray,
     private val track: Long,
     private val cues: List<Cue>,
     private val end: Long,
     private val scaleNs: Long,
     private val frameMs: Long,
-    val durationMs: Long,
-) {
+    override val durationMs: Long,
+) : RemuxedVideo {
     data class Cue(val timeMs: Long, val offset: Long)
 
-    data class Segment(val startMs: Long, val durationMs: Long)
-
-    val timeline: List<Segment> = cues.mapIndexed { i, cue ->
-        Segment(cue.timeMs, ((cues.getOrNull(i + 1)?.timeMs ?: durationMs) - cue.timeMs).coerceAtLeast(frameMs))
+    override val timeline: List<VideoSegment> = cues.mapIndexed { i, cue ->
+        VideoSegment(cue.timeMs, ((cues.getOrNull(i + 1)?.timeMs ?: durationMs) - cue.timeMs).coerceAtLeast(frameMs))
     }
 
-    val describe: String get() = "$codecs ${width}x$height MKV, ${cues.size} cue(s), remuxed on demand"
+    override val describe: String get() = "$codecs ${width}x$height MKV, ${cues.size} cue(s), remuxed on demand"
 
-    fun init(): ByteArray = Fmp4.init("vide", MILLIS, sampleEntry, width, height)
+    override fun init(): ByteArray = Fmp4.init("vide", MILLIS, sampleEntry, width, height)
 
-    fun segment(n: Int, read: RangeReader): ByteArray {
+    override fun segment(n: Int, read: RangeReader): ByteArray {
         val from = cues[n].offset
         val to = cues.getOrNull(n + 1)?.offset ?: end
         val frames = Clusters.frames(read.read(ByteSpan(from, to - 1)), track, scaleNs)

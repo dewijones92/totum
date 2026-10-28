@@ -204,7 +204,7 @@ internal class ChunkedDataSource(
         runCatching { upstream.close() }
     }
 
-    override fun getUri(): Uri? = upstream.uri
+    override fun getUri(): Uri? = upstream.uri ?: spec?.uri
 
     override fun getResponseHeaders(): Map<String, List<String>> = upstream.responseHeaders
 

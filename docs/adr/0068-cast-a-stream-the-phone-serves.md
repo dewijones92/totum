@@ -2,7 +2,7 @@
 title: Casting plays a stream the phone serves, with Totum's own audio and the original video packets
 kind: adr
 status: accepted
-updated: 2026-10-21
+updated: 2026-10-28
 ---
 
 # 68. Casting plays a stream the phone serves, with Totum's own audio and the original video packets
@@ -100,8 +100,15 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   length-prefixed exactly as `avcC`/`hvcC` describe), decode times derived for B-frames, a signed `trun`; the manifest
   carries the cues as a `SegmentTimeline`. Every decoded frame of the remux matched the source in tests (HEVC and
   H.264, B-frames, open GOP, audio track first), and both TVs played a 2-minute HEVC MKV through the phone with no
-  jumps. Laced or compressed tracks, and MP4s that are not fragmented, go as sound only and say so; an audio-only
-  file sends no picture and no warning.
+  jumps. Laced or compressed tracks go as sound only and say so; an audio-only file sends no picture and no warning.
+- An **ordinary MP4** (not fragmented, its index anywhere, often at the end) is remuxed on demand the same way
+  (2026-10-28, Dewi's choice after *The Apprentice* cast sound only): `Mp4Video` finds `moov` by walking the top-level
+  boxes with ranged reads, takes the video track's sample tables (`stsz`, `stco`/`co64` + `stsc`, `stts`, `ctts`,
+  `stss`) and its sample entry as is, and serves keyframe-to-keyframe spans of at least 2 s as fMP4 segments through
+  the same `Fmp4.videoSegment` as Matroska (`RemuxedVideo` is the seam both implement). H.264 and HEVC only. Every
+  decoded frame matched the source (index at the front and at the end, B-frames), and a 60 s 720p file with its
+  index after 21 MB of media played and seeked on the stand-in as the LG. `ChunkedDataSource` reports its address
+  between two ranges, which Media3's extractor asks for when it seeks to an index at the end.
 - **Handing over** (2026-10-22, on the real Ultra): the cast player is told to play *before* it is given the item,
   because it sends the receiver's load (with its autoplay) as soon as it has the item, and a play sent after that load
   did not stick: the TV sat paused. A replay for the TV's formats waits for the cast player to settle, takes position

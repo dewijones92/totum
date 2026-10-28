@@ -4,16 +4,16 @@ package com.dewijones92.totum.playback.cast
 
 internal object Mp4Layout {
 
-    private class Box(val type: String, val start: Int, val dataStart: Int, val end: Int)
+    internal class Box(val type: String, val start: Int, val dataStart: Int, val end: Int)
 
     fun isMp4(head: ByteArray): Boolean = type(head, 4) in setOf("ftyp", "styp", "moov")
 
-    private fun type(bytes: ByteArray, at: Int): String =
+    internal fun type(bytes: ByteArray, at: Int): String =
         if (at + 4 > bytes.size) "" else String(bytes, at, 4, Charsets.ISO_8859_1)
 
-    private fun u32(bytes: ByteArray, at: Int): Long = Ebml.uint(bytes, at, 4)
+    internal fun u32(bytes: ByteArray, at: Int): Long = Ebml.uint(bytes, at, 4)
 
-    private fun boxes(bytes: ByteArray, from: Int, to: Int): Sequence<Box> = sequence {
+    internal fun boxes(bytes: ByteArray, from: Int, to: Int): Sequence<Box> = sequence {
         var at = from
         while (at + 8 <= to) {
             var size = u32(bytes, at)
@@ -31,7 +31,7 @@ internal object Mp4Layout {
         }
     }
 
-    private fun child(bytes: ByteArray, parent: Box, vararg path: String): Box? {
+    internal fun child(bytes: ByteArray, parent: Box, vararg path: String): Box? {
         var current: Box? = parent
         for (name in path) {
             val p = current ?: return null
@@ -67,7 +67,7 @@ internal object Mp4Layout {
         )
     }
 
-    private data class EntryFacts(
+    internal data class EntryFacts(
         val codecs: String,
         val width: Int?,
         val height: Int?,
@@ -89,7 +89,7 @@ internal object Mp4Layout {
     private fun inner(bytes: ByteArray, entry: Box, from: Int, name: String): ByteArray? =
         boxes(bytes, from, entry.end).firstOrNull { it.type == name }?.let { bytes.copyOfRange(it.dataStart, it.end) }
 
-    private fun sampleEntry(bytes: ByteArray, entry: Box): EntryFacts {
+    internal fun sampleEntry(bytes: ByteArray, entry: Box): EntryFacts {
         val visual = visuals[entry.type] ?: return audioEntry(bytes, entry)
         val at = entry.dataStart + VISUAL_WIDTH
         return EntryFacts(
@@ -117,7 +117,7 @@ internal object Mp4Layout {
         )
     }
 
-    private const val STSD_HEADER = 8
+    internal const val STSD_HEADER = 8
     private const val VISUAL_ENTRY = 78
     private const val VISUAL_WIDTH = 24
     private const val AUDIO_ENTRY = 28

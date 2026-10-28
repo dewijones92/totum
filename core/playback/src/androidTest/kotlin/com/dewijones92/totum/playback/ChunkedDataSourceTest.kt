@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
@@ -58,6 +59,22 @@ class ChunkedDataSourceTest {
         assertEquals(10_000, source.open(server.spec(position = 0)))
         assertTrue(source.drain().contentEquals(server.content))
         server.assertNothingAskedPastTheEnd()
+    }
+
+    @Test
+    fun `a source between two ranges still says where it is reading from`() {
+        val server = RangeServer(content(size = 3_000))
+        val source = ChunkedDataSource(server, CHUNK)
+        val spec = server.spec(position = 0)
+
+        source.open(spec)
+        val buffer = ByteArray(CHUNK.toInt())
+        var got = 0
+        while (got < CHUNK) got += source.read(buffer, got, CHUNK.toInt() - got)
+
+        assertEquals(spec.uri, source.uri)
+        source.close()
+        assertEquals(null, source.uri)
     }
 
     /** Small chunks, so there are many ranges for the offsets to drift in. */
@@ -250,7 +267,7 @@ class ChunkedDataSourceTest {
             isOpen = false
         }
 
-        override fun getUri() = null
+        override fun getUri(): Uri? = if (isOpen) Uri.parse(uri) else null
         override fun addTransferListener(transferListener: TransferListener) = Unit
     }
 

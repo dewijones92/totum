@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-10-24
+updated: 2026-10-28
 ---
 
 # Casting
@@ -34,6 +34,8 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 
 - **Torrents while streaming** cast with their picture: the MKV is repackaged into MP4 pieces as the TV asks, nothing
   re-encoded (H.264 and HEVC).
+- **Ordinary MP4s** (index at the end, not fragmented) cast with their picture too, repackaged the same way
+  (2026-10-28).
 
 - **Live streams** cast: the phone relays the live segments (the TV cannot fetch them itself); sound as YouTube
   sends it, without Totum's boost yet ([ADR 69](../adr/0069-live-streams-play-a-manifest-totum-builds.md)).
