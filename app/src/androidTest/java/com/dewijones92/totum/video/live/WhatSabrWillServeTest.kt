@@ -11,6 +11,7 @@ import com.dewijones92.totum.sabr.SabrFormat
 import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
 import com.dewijones92.totum.sabr.SabrTransport
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,6 +19,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -36,6 +38,9 @@ import org.junit.Test
  * serves would make it a monitor of someone else's policy.
  */
 class WhatSabrWillServeTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient()
 

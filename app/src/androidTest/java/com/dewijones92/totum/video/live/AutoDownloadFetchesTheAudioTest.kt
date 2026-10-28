@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -17,6 +18,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import java.io.File
 
@@ -37,6 +39,9 @@ import java.io.File
  * cost many times the data, and be the exact bug `fetchesAudioOnly` exists to prevent.
  */
 class AutoDownloadFetchesTheAudioTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val app = InstrumentationRegistry.getInstrumentation()
         .targetContext.applicationContext as TotumApplication

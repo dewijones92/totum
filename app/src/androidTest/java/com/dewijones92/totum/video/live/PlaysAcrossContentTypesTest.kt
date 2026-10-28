@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -52,6 +53,9 @@ import kotlin.math.abs
  * Each reports what it got, so a future run can tell "the picture came back" from "the sound went away".
  */
 class PlaysAcrossContentTypesTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     @get:Rule
     val activity = ActivityScenarioRule(MainActivity::class.java)

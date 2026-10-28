@@ -16,6 +16,7 @@ import com.dewijones92.totum.support.DeviceRadios.goOffline
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.hasNetwork
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -51,6 +52,9 @@ import org.junit.Test
  * everyone learns to ignore. The skip is visible in CI: the script greps the result XML for it.
  */
 class LiveDownloadedVideoOfflineTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     /** Foreground, or the platform refuses audio focus and nothing ever plays. */
     @get:Rule

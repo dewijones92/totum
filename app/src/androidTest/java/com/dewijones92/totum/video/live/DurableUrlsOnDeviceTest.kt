@@ -2,10 +2,12 @@ package com.dewijones92.totum.video.live
 
 import androidx.test.core.app.ApplicationProvider
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.support.YouTubeAnswers
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.chaquopy.ChaquopyYtDlpEngine
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import kotlin.time.Duration.Companion.minutes
 
@@ -32,6 +34,9 @@ import kotlin.time.Duration.Companion.minutes
  * the wrong module measured the wrong app.
  */
 class DurableUrlsOnDeviceTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val engine = ChaquopyYtDlpEngine(ApplicationProvider.getApplicationContext())
 

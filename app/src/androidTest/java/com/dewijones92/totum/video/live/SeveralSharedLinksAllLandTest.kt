@@ -8,6 +8,7 @@ import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -15,6 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -40,6 +42,9 @@ import org.junit.Test
  *   damage (a file written by two coroutines, and twice the data) is invisible afterwards.
  */
 class SeveralSharedLinksAllLandTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context: Context = instrumentation.targetContext

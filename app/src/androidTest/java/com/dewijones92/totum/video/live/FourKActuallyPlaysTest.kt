@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -19,6 +20,7 @@ import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -43,6 +45,9 @@ import org.junit.Test
  * the app owns — that raising the cap raises the pick ABOVE the default 1080 — plus picture and sound.
  */
 class FourKActuallyPlaysTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val app = context.applicationContext as TotumApplication

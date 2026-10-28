@@ -17,6 +17,7 @@ import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.StreamingData
 import com.dewijones92.totum.playback.SabrDataSource
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -28,6 +29,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
@@ -46,6 +48,9 @@ import java.util.concurrent.TimeUnit
  */
 @RunWith(AndroidJUnit4::class)
 class SabrPlaybackTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient()
 

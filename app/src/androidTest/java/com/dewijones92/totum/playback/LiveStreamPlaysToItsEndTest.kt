@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -46,6 +47,9 @@ import org.junit.Test
  * SKIPPED rather than failed when the service will not serve this machine.
  */
 class LiveStreamPlaysToItsEndTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     /** Foreground, or the platform refuses audio focus and nothing ever plays. */
     @get:Rule

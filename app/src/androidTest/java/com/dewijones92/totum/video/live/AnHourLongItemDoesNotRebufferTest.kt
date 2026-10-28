@@ -14,6 +14,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -42,6 +43,9 @@ import org.junit.Test
  * accepts a corpse.
  */
 class AnHourLongItemDoesNotRebufferTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     @get:Rule
     val activity = ActivityScenarioRule(MainActivity::class.java)

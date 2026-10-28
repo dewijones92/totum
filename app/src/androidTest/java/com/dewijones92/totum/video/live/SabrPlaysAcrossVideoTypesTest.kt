@@ -18,6 +18,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.playback.SabrDataSourceFactory
+import com.dewijones92.totum.support.YouTubeAnswers
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -25,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -50,6 +52,9 @@ import java.util.concurrent.TimeUnit
  * this repository has already been burnt by six times.
  */
 class SabrPlaysAcrossVideoTypesTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient()
     private val context = ApplicationProvider.getApplicationContext<Context>()

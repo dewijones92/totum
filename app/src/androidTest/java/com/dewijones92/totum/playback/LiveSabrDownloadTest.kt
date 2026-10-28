@@ -20,6 +20,7 @@ import com.dewijones92.totum.support.DeviceRadios.goOffline
 import com.dewijones92.totum.support.DeviceRadios.goOnline
 import com.dewijones92.totum.support.DeviceRadios.hasNetwork
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,9 @@ import java.io.File
  * trap as a comma, which this repo already learned the hard way. JVM tests have no such limit.
  */
 class LiveSabrDownloadTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     /** Foreground, or the platform refuses audio focus and nothing ever plays. */
     @get:Rule

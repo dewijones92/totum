@@ -222,6 +222,28 @@ def check_manual_tests_are_marked() -> int:
     return problems
 
 
+def check_live_tests_skip_when_youtube_refuses() -> int:
+    """
+    Every unattended live test carries the `YouTubeAnswers` rule, so YouTube refusing the home IP is a skip, not a red.
+
+    The nightly run was red for days in October 2026 with nothing broken: YouTube bot-blocked the address and
+    every live test failed asserting YouTube's policy. The rule probes once per run and turns that refusal, or
+    one met part-way, into a skip with the reason; any other failure stays red.
+    """
+    listed = [line.strip() for line in LIVE_LIST.read_text().splitlines()]
+    entries = [e for e in listed if e and not e.startswith("#") and not e.startswith("manual:")]
+    problems = 0
+    for entry in entries:
+        found = list(ROOT.glob(f"app/src/androidTest/**/{entry.rsplit('.', 1)[-1]}.kt"))
+        if found and "YouTubeAnswers()" not in found[0].read_text():
+            print(f"  PROBLEM: {entry} runs live but has no YouTubeAnswers rule")
+            print("    A day YouTube refuses the home IP turns it red without anything being broken.")
+            problems += 1
+    if not problems:
+        print(f"  ok: all {len(entries)} unattended live tests skip when YouTube refuses the address")
+    return problems
+
+
 # Where a line cap is still legitimate, spelled out EXACTLY, with the reason. Everything else in
 # the app WRAPS.
 #
@@ -433,6 +455,7 @@ def main() -> int:
         print("  ok: all live instrumented tests are registered")
     problems += check_live_list_expands()
     problems += check_manual_tests_are_marked()
+    problems += check_live_tests_skip_when_youtube_refuses()
     problems += check_python_tests()
     problems += check_no_cross_line_variables(workflow)
     problems += check_shell_syntax(workflow)

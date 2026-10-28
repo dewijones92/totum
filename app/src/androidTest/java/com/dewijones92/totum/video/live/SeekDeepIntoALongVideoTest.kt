@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.PlaybackWaits
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -43,6 +44,9 @@ import org.junit.Test
  * `LiveStreamPlaysToItsEndTest`'s job).
  */
 class SeekDeepIntoALongVideoTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     /** Foreground, or the platform refuses audio focus and nothing ever plays. */
     @get:Rule
