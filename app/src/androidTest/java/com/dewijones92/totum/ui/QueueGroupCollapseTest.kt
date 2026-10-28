@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onFirst
@@ -58,11 +59,15 @@ class QueueGroupCollapseTest {
      * Finding the header by its title does not work: merged semantics combine TEXT but not
      * ACTIONS, so the node carrying "Peep Show S01" has no click to perform.
      */
-    private fun toggleSeason() = composeTestRule
-        // Only the group's first header is tagged, so this is unambiguous even when the queue
-        // has split the season into separate runs — which this one has.
-        .onNodeWithTag(queueGroupHeaderTag(season.id))
-        .performClick()
+    private fun toggleSeason() {
+        composeTestRule.onAllNodes(hasScrollToNodeAction()).onFirst()
+            .performScrollToNode(hasTestTag(queueGroupHeaderTag(season.id)))
+        composeTestRule
+            // Only the group's first header is tagged, so this is unambiguous even when the queue
+            // has split the season into separate runs — which this one has.
+            .onNodeWithTag(queueGroupHeaderTag(season.id))
+            .performClick()
+    }
 
     private fun show() {
         val container = FakeAppContainer()
