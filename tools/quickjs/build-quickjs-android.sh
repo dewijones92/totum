@@ -15,7 +15,7 @@
 # yt-dlp supports: it looks for quickjs as a binary named `qjs`.
 set -euo pipefail
 
-VERSION=v0.15.1
+VERSION=v0.17.0
 WORK=/home/dewi/code/totum-quickjs-build
 SRC="$WORK/quickjs-${VERSION#v}"
 NDK=/home/dewi/code/android-sdk/ndk/28.2.13676358
