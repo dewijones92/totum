@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Kept as its own variable so Renovate can see and bump it (see renovate.json's
 # customManagers); buried inside a path it was invisible to dependency updates.
-VERSION=7.1.1
+VERSION=7.1.5
 WORK=/home/dewi/code/totum-ffmpeg-build
 SRC="$WORK/ffmpeg-$VERSION"
 NDK=/home/dewi/code/android-sdk/ndk/28.2.13676358
