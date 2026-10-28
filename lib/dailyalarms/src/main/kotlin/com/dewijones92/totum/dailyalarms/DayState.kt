@@ -58,6 +58,8 @@ public sealed interface AlarmEvent {
 
     public data class SetToday(val time: LocalTime) : AlarmEvent
 
+    public data class SetOn(val date: LocalDate, val time: LocalTime) : AlarmEvent
+
     public data object Decline : AlarmEvent
 
     public data object Change : AlarmEvent

@@ -8,9 +8,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.util.UUID
 
 interface DailyAlarmPorts {
     fun schedule(alarmId: String, at: Instant?, ring: Boolean)
@@ -36,11 +38,14 @@ interface DailyAlarmStore {
     fun saveAlarms(alarms: List<DailyAlarm>)
     fun loadStates(): Map<String, DayState>
     fun saveStates(states: Map<String, DayState>)
+    fun loadRecentTitles(): List<String>
+    fun saveRecentTitles(titles: List<String>)
 }
 
 class InMemoryDailyAlarmStore(
     var alarms: List<DailyAlarm> = listOf(DailyAlarm(id = DailyAlarmController.PICKUP_ID)),
     var states: Map<String, DayState> = emptyMap(),
+    var recentTitles: List<String> = emptyList(),
 ) : DailyAlarmStore {
     override fun loadAlarms() = alarms
     override fun saveAlarms(alarms: List<DailyAlarm>) {
@@ -50,17 +55,26 @@ class InMemoryDailyAlarmStore(
     override fun saveStates(states: Map<String, DayState>) {
         this.states = states
     }
+    override fun loadRecentTitles() = recentTitles
+    override fun saveRecentTitles(titles: List<String>) {
+        recentTitles = titles
+    }
 }
 
 data class DailyAlarmsView(
     val alarms: List<DailyAlarm>,
     val states: Map<String, DayState>,
     val nextWakes: Map<String, Instant?>,
+    val recentTitles: List<String> = emptyList(),
 ) {
+    val daily: List<DailyAlarm> get() = alarms.filterNot { it.isOneOff }
+    val oneOffs: List<DailyAlarm> get() = alarms.filter { it.isOneOff }.sortedBy { it.once?.atTime(it.defaultTime) }
+
     fun state(id: String): DayState = states[id] ?: DayState.Idle
     val ringing: Boolean get() = states.values.any { it is DayState.Ringing }
 }
 
+@Suppress("TooManyFunctions")
 class DailyAlarmController(
     private val store: DailyAlarmStore,
     private val ports: DailyAlarmPorts,
@@ -70,9 +84,10 @@ class DailyAlarmController(
 ) {
     private var alarms = store.loadAlarms().ifEmpty { listOf(DailyAlarm(id = PICKUP_ID)) }
     private var states = store.loadStates()
+    private var recentTitles = store.loadRecentTitles()
     private val wakes = mutableMapOf<String, Instant?>()
     private var lastEvent = "none"
-    private val _view = MutableStateFlow(DailyAlarmsView(alarms, states, wakes.toMap()))
+    private val _view = MutableStateFlow(DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles))
     val view: StateFlow<DailyAlarmsView> = _view.asStateFlow()
 
     val ringingNow: Boolean get() = _view.value.ringing
@@ -80,6 +95,8 @@ class DailyAlarmController(
     val diagnostics: Map<String, String>
         @Synchronized get() = buildMap {
             put("dailyAlarms.count", alarms.size.toString())
+            put("dailyAlarms.oneOffs", alarms.count { it.isOneOff }.toString())
+            put("dailyAlarms.recentTitles", recentTitles.size.toString())
             put("dailyAlarms.lastEvent", lastEvent)
             alarms.forEach { alarm ->
                 val key = "dailyAlarms.${alarm.id}"
@@ -157,6 +174,60 @@ class DailyAlarmController(
         result.effects.forEach { effect -> execute(alarm, effect) }
         wakes[alarm.id] = result.nextWake
         ports.schedule(alarm.id, result.nextWake, ring = result.state is DayState.Set)
+        if (alarm.isOneOff && result.state.finished) forget(alarm, result.state, source)
+    }
+
+    private val DayState.finished: Boolean get() = this is DayState.Done || this == DayState.Idle
+
+    private fun forget(alarm: DailyAlarm, state: DayState, source: String) {
+        alarms = alarms.filterNot { it.id == alarm.id }
+        states = states - alarm.id
+        wakes.remove(alarm.id)
+        store.saveAlarms(alarms)
+        store.saveStates(states)
+        ports.hideQuestion(alarm.id)
+        ports.schedule(alarm.id, null, ring = false)
+        Diag.log(
+            TAG,
+            "dewidebug dailyalarm ${alarm.id} one-off \"${alarm.label}\" removed from $source: it ended $state"
+        )
+    }
+
+    @Synchronized
+    fun addOneOff(title: String, date: LocalDate, time: LocalTime, source: String): Boolean {
+        val label = title.trim().ifEmpty { ONE_OFF_TITLE }
+        val now = localNow()
+        if (!date.atTime(time).isAfter(now)) {
+            Diag.log(
+                TAG,
+                "dewidebug dailyalarm one-off \"$label\" $date $time from $source refused: it is already $now"
+            )
+            return false
+        }
+        val alarm = DailyAlarm.oneOff(DailyAlarm.ONE_OFF_PREFIX + UUID.randomUUID(), label, date, time)
+        alarms = alarms + alarm
+        store.saveAlarms(alarms)
+        recentTitles = recentTitles.remembering(label)
+        store.saveRecentTitles(recentTitles)
+        lastEvent = "${alarm.id} one-off \"$label\" $date $time from $source at ${clock()}"
+        Diag.log(TAG, "dewidebug dailyalarm ${alarm.id} one-off \"$label\" for $date $time from $source")
+        run(alarm, AlarmEvent.SetOn(date, time), source)
+        publish()
+        return states[alarm.id] is DayState.Set
+    }
+
+    @Synchronized
+    fun cancelOneOff(alarmId: String, source: String) {
+        val alarm = alarms.firstOrNull { it.id == alarmId && it.isOneOff }
+        if (alarm == null) {
+            Diag.warn(TAG, "dewidebug dailyalarm cancel one-off from $source for unknown alarm $alarmId")
+            return
+        }
+        lastEvent = "$alarmId one-off cancelled from $source at ${clock()}"
+        val state = states[alarmId] ?: DayState.Idle
+        if (state is DayState.Ringing || state is DayState.Snoozed) ports.stopRinging(alarmId)
+        forget(alarm, DayState.Done(localNow().toLocalDate(), Outcome.CANCELLED), source)
+        publish()
     }
 
     private fun execute(alarm: DailyAlarm, effect: AlarmEffect) {
@@ -170,7 +241,7 @@ class DailyAlarmController(
     }
 
     private fun publish() {
-        _view.value = DailyAlarmsView(alarms, states, wakes.toMap())
+        _view.value = DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles)
         val board = board()
         ports.showBoard(board)
         ports.refreshBoardAt(board.refreshAt)
@@ -209,6 +280,7 @@ class DailyAlarmController(
     companion object {
         const val TAG = "DailyAlarm"
         const val PICKUP_ID = "pickup"
+        const val ONE_OFF_TITLE = "Alarm"
     }
 }
 
@@ -217,6 +289,7 @@ private val AlarmEvent.step: AlarmStep
         AlarmEvent.Tick -> AlarmStep.TICK
         is AlarmEvent.Answer -> AlarmStep.ANSWER
         is AlarmEvent.SetToday -> AlarmStep.SET_TODAY
+        is AlarmEvent.SetOn -> AlarmStep.SET_ON
         AlarmEvent.Decline -> AlarmStep.DECLINE
         AlarmEvent.Change -> AlarmStep.CHANGE
         AlarmEvent.Cancel -> AlarmStep.CANCEL

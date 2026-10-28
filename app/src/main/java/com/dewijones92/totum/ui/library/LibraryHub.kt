@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.History
@@ -48,6 +51,7 @@ internal fun LibraryHub(
     onOpenStarred: () -> Unit = {},
     downloads: DownloadsSummary = DownloadsSummary(),
     phoneAlbums: PhoneAlbums = PhoneAlbums(),
+    alarms: LibraryAlarms = LibraryAlarms(),
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
@@ -64,6 +68,7 @@ internal fun LibraryHub(
                     onOpenDownloads,
                     onOpenStarred,
                     downloads,
+                    alarms,
                 )
             }
             phoneAlbumsSection(phoneAlbums)
@@ -82,6 +87,7 @@ private fun LibraryTiles(
     onOpenDownloads: () -> Unit,
     onOpenStarred: () -> Unit,
     downloads: DownloadsSummary,
+    alarms: LibraryAlarms,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -106,15 +112,26 @@ private fun LibraryTiles(
                 Modifier.weight(1f).testTag(STARRED_TILE_TAG),
             )
         }
-        LibraryTile(
-            Icons.Outlined.DownloadForOffline,
-            R.string.library_downloads,
-            scheme.surfaceContainerHigh,
-            scheme.onSurface,
-            onOpenDownloads,
-            Modifier.fillMaxWidth().testTag(DOWNLOADS_TILE_TAG),
-            detail = downloads.describe(),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP), modifier = Modifier.height(IntrinsicSize.Max)) {
+            LibraryTile(
+                Icons.Outlined.DownloadForOffline,
+                R.string.library_downloads,
+                scheme.surfaceContainerHigh,
+                scheme.onSurface,
+                onOpenDownloads,
+                Modifier.weight(1f).fillMaxHeight().testTag(DOWNLOADS_TILE_TAG),
+                detail = downloads.describe(),
+            )
+            LibraryTile(
+                Icons.Outlined.Alarm,
+                R.string.alarms_tile,
+                scheme.secondaryContainer,
+                scheme.onSecondaryContainer,
+                alarms.onOpen,
+                Modifier.weight(1f).fillMaxHeight().testTag(ALARMS_TILE_TAG),
+                detail = alarms.detail,
+            )
+        }
         CollectionRows(onOpenPlaylists, onOpenSubscriptions, onOpenHistory, onOpenAccount)
     }
 }
@@ -211,3 +228,7 @@ private val TILE_GAP = 12.dp
 private val TILE_HEIGHT = 104.dp
 
 const val STARRED_TILE_TAG: String = "library-starred"
+
+data class LibraryAlarms(val detail: String? = null, val onOpen: () -> Unit = {})
+
+const val ALARMS_TILE_TAG = "library-alarms-tile"

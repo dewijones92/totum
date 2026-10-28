@@ -18,6 +18,7 @@ class DailyAlarmControllerTest {
     private val store = InMemoryDailyAlarmStore()
 
     private fun controller() = DailyAlarmController(store, ports, clock = { now }, zone = { zone })
+    private val monday = java.time.LocalDate.of(2026, 10, 5)
     private fun at(hour: Int, minute: Int = 0) {
         now = ZonedDateTime.of(2026, 10, 5, hour, minute, 0, 0, zone).toInstant()
     }
@@ -136,6 +137,56 @@ class DailyAlarmControllerTest {
         assertEquals(DayState.Idle, alarms.view.value.state("pickup"))
     }
 
+    @Test
+    fun `a one-off alarm rings with its title, then leaves the list and its title stays as a recent`() {
+        val alarms = controller()
+        at(10)
+        assertTrue(alarms.addOneOff("Deployed to production", monday, LocalTime.of(19, 0), "sheet"))
+        val once = alarms.view.value.oneOffs.single()
+        assertEquals(LocalTime.of(19, 0), ports.boards.last().nextToRing?.time)
+        assertEquals(listOf("pickup"), alarms.view.value.daily.map { it.id })
+        at(19)
+        alarms.dispatch(once.id, AlarmEvent.Tick, "alarm clock")
+        assertEquals(listOf("Deployed to production"), ports.ringLabels)
+        alarms.dispatch(once.id, AlarmEvent.Dismiss, "ring screen")
+        assertTrue(alarms.view.value.oneOffs.isEmpty())
+        assertEquals(listOf("Deployed to production"), alarms.view.value.recentTitles)
+        assertEquals(listOf("Deployed to production"), store.recentTitles)
+        assertEquals(once.id to null, ports.schedules.last())
+    }
+
+    @Test
+    fun `a one-off for a time already gone is refused and leaves nothing behind`() {
+        val alarms = controller()
+        at(20)
+        assertFalse(alarms.addOneOff("Late", monday, LocalTime.of(19, 0), "sheet"))
+        assertTrue(alarms.view.value.oneOffs.isEmpty())
+        assertTrue(store.alarms.none { it.isOneOff })
+    }
+
+    @Test
+    fun `cancelling a one-off removes it and keeps the daily alarms`() {
+        val alarms = controller()
+        at(10)
+        alarms.addOneOff("Bins", monday.plusDays(1), LocalTime.of(7, 0), "sheet")
+        alarms.cancelOneOff(alarms.view.value.oneOffs.single().id, "page")
+        assertTrue(alarms.view.value.oneOffs.isEmpty())
+        assertEquals(listOf("pickup"), alarms.view.value.alarms.map { it.id })
+    }
+
+    @Test
+    fun `a one-off survives a restart of the controller`() {
+        at(10)
+        controller().addOneOff("Bins", monday.plusDays(1), LocalTime.of(7, 0), "sheet")
+        val again = controller()
+        again.tickAll("startup")
+        assertEquals("Bins", again.view.value.oneOffs.single().label)
+        assertEquals(
+            DayState.Set(monday.plusDays(1), LocalTime.of(7, 0)),
+            again.view.value.state(again.view.value.oneOffs.single().id)
+        )
+    }
+
     private class RecordingPorts : DailyAlarmPorts {
         val schedules = mutableListOf<Pair<String, Instant?>>()
         var ringScheduled = false
@@ -161,7 +212,9 @@ class DailyAlarmControllerTest {
         override fun showBoard(board: AlarmBoard) {
             boards += board
         }
+        val ringLabels = mutableListOf<String>()
         override fun ring(alarm: DailyAlarm, time: LocalTime) {
+            ringLabels += alarm.label
             rings += time
         }
         override fun stopRinging(alarmId: String) = Unit

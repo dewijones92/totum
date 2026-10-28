@@ -60,7 +60,12 @@ private const val NOW_REFRESH_MS = 30_000L
 private class Today(val now: LocalDateTime, val set: (LocalTime) -> Unit, val cancel: () -> Unit)
 
 @Composable
-fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun DailyAlarmsScreen(
+    alarms: DailyAlarmController,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    startWithNewAlarm: Boolean = false,
+) {
     KeepScreenAwake("dailyalarm settings")
     val view by alarms.view.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -71,15 +76,23 @@ fun DailyAlarmsScreen(alarms: DailyAlarmController, onBack: () -> Unit, modifier
             value = alarms.localNow()
         }
     }
+    var adding by rememberSaveable { mutableStateOf(startWithNewAlarm) }
+    if (adding) NewAlarmSheet(alarms, view.recentTitles) { adding = false }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.dailyalarm_name), onBack)
+            BackHeader(stringResource(R.string.alarms_tile), onBack) { NewAlarmButton { adding = true } }
+            OneOffSection(view, alarms, now)
+            Text(
+                stringResource(R.string.dailyalarm_name),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+            )
             Text(
                 stringResource(R.string.dailyalarm_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
-            view.alarms.forEach { alarm ->
+            view.daily.forEach { alarm ->
                 val change: Change = { edit ->
                     alarms.update("settings") { list -> list.map { if (it.id == alarm.id) it.edit() else it } }
                 }

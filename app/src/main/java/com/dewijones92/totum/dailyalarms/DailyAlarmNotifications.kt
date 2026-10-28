@@ -115,12 +115,14 @@ class DailyAlarmNotifications(private val context: Context) {
         val skipped = board.firstSkipped
         when {
             set != null -> {
-                builder.addAction(
-                    action(
-                        context.getString(R.string.dailyalarm_change_at, hhmm(set.time)),
-                        DailyAlarmReceiver.pending(context, DailyAlarmReceiver.CHANGE, set.alarmId),
-                    ),
-                )
+                if (!DailyAlarm.isOneOffId(set.alarmId)) {
+                    builder.addAction(
+                        action(
+                            context.getString(R.string.dailyalarm_change_at, hhmm(set.time)),
+                            DailyAlarmReceiver.pending(context, DailyAlarmReceiver.CHANGE, set.alarmId),
+                        ),
+                    )
+                }
                 builder.addAction(
                     action(
                         context.getString(R.string.dailyalarm_cancel_at, hhmm(set.time)),

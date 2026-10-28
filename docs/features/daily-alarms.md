@@ -3,7 +3,7 @@ title: Daily alarms — asked each morning, rung by Totum
 kind: feature
 area: side-quest
 status: built 2026-10-07 — ships switched off; awaiting Dewi's first weekday
-updated: 2026-10-14
+updated: 2026-10-28
 ---
 
 # Daily alarms
@@ -71,3 +71,13 @@ time inside a laurel circle. See [ADR 34](../adr/0034-the-side-quests-look-roman
 
 The card's today line starts with an emoji per state: ⏳ waiting, ❓ asking, ✅ set for 17:30, 🔔 ringing,
 😴 snoozed until …, and per outcome 🏁 rang, 🚫 you said no, ✖️ cancelled, 🤷 no answer, ⚠️ missed.
+
+## One-off alarms (2026-10-28, ADR 91)
+
+**➕ New alarm** on the alarms page (now titled **Alarms**) opens a sheet: a title, your recent titles as chips,
++15 min · +30 min · +1 h · +2 h, a clock, Today · Tomorrow · a date. *"Deployed to production" at 19:00 tonight* is a
+title and a time. It rings like a daily alarm (full screen, tone, vibration, the voice saying its title and time,
+Snooze, Dismiss), shows on the pinned board (with Cancel), and leaves the list once it has rung, keeping its title as
+a recent. Also reachable from the app icon's long-press menu (**New alarm**), a **New alarm** Quick Settings tile, and
+an **Alarms** tile on the Library tab showing what rings next. Logged `dewidebug dailyalarm once-… one-off …`; reports
+carry `dailyAlarms.oneOffs` and `dailyAlarms.recentTitles` (counts only).

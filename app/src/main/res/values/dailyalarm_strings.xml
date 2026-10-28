@@ -29,7 +29,7 @@
     <string name="dailyalarm_ask_at">First ask</string>
     <string name="dailyalarm_last_ask">Last ask</string>
     <string name="dailyalarm_delete">Delete this alarm</string>
-    <string name="dailyalarm_add">Add an alarm</string>
+    <string name="dailyalarm_add">Add a daily alarm</string>
     <string name="dailyalarm_today_waiting">⏳ Today: waiting to ask</string>
     <string name="dailyalarm_today_asking">❓ Today: asked, no answer yet (ask %1$d)</string>
     <string name="dailyalarm_today_set">✅ Today: set for %1$s</string>
@@ -65,4 +65,27 @@
     <string name="dailyalarm_next_today">today</string>
     <string name="dailyalarm_next_tomorrow">tomorrow</string>
     <string name="dailyalarm_next_set">✅ set for %1$s</string>
+    <string name="oneoff_new">New alarm</string>
+    <string name="oneoff_new_long">Set a new alarm</string>
+    <string name="oneoff_title_hint">Title</string>
+    <string name="oneoff_recent">Recent</string>
+    <string name="oneoff_in_minutes">+%1$d min</string>
+    <string name="oneoff_in_hours">+%1$d h</string>
+    <string name="oneoff_pick_time">Pick a time</string>
+    <string name="oneoff_today">Today</string>
+    <string name="oneoff_tomorrow">Tomorrow</string>
+    <string name="oneoff_pick_date">Pick a date</string>
+    <string name="oneoff_when">⏰ %1$s %2$s</string>
+    <string name="oneoff_when_unset">⏳ Choose when it rings</string>
+    <string name="oneoff_set">Set alarm</string>
+    <string name="oneoff_gone">⌛ That time has already gone</string>
+    <string name="oneoff_set_done">✅ Alarm set for %1$s %2$s</string>
+    <string name="oneoff_section">One-off alarms</string>
+    <string name="oneoff_row_set">✅ Set for %1$s</string>
+    <string name="oneoff_cancel">Cancel</string>
+    <string name="oneoff_none">📭 No one-off alarms. ➕ New alarm sets one.</string>
+    <string name="oneoff_ok">OK</string>
+    <string name="alarms_tile">Alarms</string>
+    <string name="alarms_tile_next">⏰ Next: %1$s %2$s</string>
+    <string name="alarms_tile_none">📭 None set</string>
 </resources>

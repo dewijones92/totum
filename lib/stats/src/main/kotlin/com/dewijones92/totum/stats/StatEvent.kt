@@ -22,7 +22,7 @@ public enum class ExsurgeMove {
     TURN_OFF,
 }
 
-public enum class AlarmStep { TICK, ANSWER, SET_TODAY, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS }
+public enum class AlarmStep { TICK, ANSWER, SET_TODAY, SET_ON, DECLINE, CHANGE, CANCEL, SNOOZE, DISMISS }
 
 public enum class AlarmPhase { IDLE, ASKING, SET, RINGING, SNOOZED, DONE }
 

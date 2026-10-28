@@ -102,7 +102,7 @@ private class BoardRows(
 ) {
     fun rowFor(state: DayState): BoardRow? = when {
         state is DayState.Ringing -> row(state.date, state.time, RowStatus.Ringing, now)
-        state is DayState.Set && state.date == today -> row(today, state.time, RowStatus.Set)
+        state is DayState.Set && state.date >= today -> row(state.date, state.time, RowStatus.Set)
         state is DayState.Asking && state.date == today -> row(today, timeOn(today), RowStatus.Asking)
         state is DayState.Snoozed && state.date == today ->
             row(today, state.time, RowStatus.Snoozed(state.until), state.until)
@@ -114,6 +114,7 @@ private class BoardRows(
     fun nextAfterToday(): BoardRow? = next(handledToday = true)
 
     private fun next(handledToday: Boolean): BoardRow? {
+        if (alarm.isOneOff) return null
         val from = if (handledToday) today.plusDays(1) else today
         return (0..DAYS_A_WEEK)
             .map { from.plusDays(it.toLong()) }

@@ -106,3 +106,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 88 | [A page opened over a list keeps the list's place](0088-a-page-opened-over-a-list-keeps-its-place.md) | Accepted |
 | 89 | [A torrent result without a magnet is resolved when it is chosen](0089-a-result-without-a-magnet-is-resolved-when-chosen.md) | Accepted |
 | 90 | [Each device has its own home-server token, and no link carries one](0090-a-token-per-device-and-none-in-links.md) | Accepted |
+| 91 | [A one-off alarm is a daily alarm with a date](0091-a-one-off-alarm-is-a-daily-alarm-with-a-date.md) | Accepted |

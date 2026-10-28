@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_alarm"
+        android:enabled="true"
+        android:icon="@drawable/ic_dailyalarm"
+        android:shortcutShortLabel="@string/oneoff_new"
+        android:shortcutLongLabel="@string/oneoff_new_long">
+        <intent
+            android:action="com.dewijones92.totum.NEW_ALARM"
+            android:targetPackage="com.dewijones92.totum"
+            android:targetClass="com.dewijones92.totum.dailyalarms.DailyAlarmsActivity" />
+    </shortcut>
+</shortcuts>

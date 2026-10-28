@@ -12,9 +12,12 @@ public object AlarmCodec {
     }
     private val alarms = ListSerializer(DailyAlarm.serializer())
     private val states = MapSerializer(String.serializer(), DayState.serializer())
+    private val titles = ListSerializer(String.serializer())
 
     public fun encodeAlarms(list: List<DailyAlarm>): String = json.encodeToString(alarms, list)
     public fun decodeAlarms(text: String): List<DailyAlarm> = json.decodeFromString(alarms, text)
     public fun encodeStates(map: Map<String, DayState>): String = json.encodeToString(states, map)
     public fun decodeStates(text: String): Map<String, DayState> = json.decodeFromString(states, text)
+    public fun encodeTitles(list: List<String>): String = json.encodeToString(titles, list)
+    public fun decodeTitles(text: String): List<String> = json.decodeFromString(titles, text)
 }

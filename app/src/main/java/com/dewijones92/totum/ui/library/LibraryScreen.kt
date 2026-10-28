@@ -24,11 +24,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,6 +40,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.dailyalarms.DailyAlarmNotifications
+import com.dewijones92.totum.dailyalarms.DailyAlarmsActivity
+import com.dewijones92.totum.dailyalarms.dayPhrase
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.CleanupGroup
@@ -141,6 +147,14 @@ private fun LibraryHome(
     val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
     val failed by viewModel.failed.collectAsStateWithLifecycle()
     val albums by viewModel.albums.collectAsStateWithLifecycle()
+    val alarmsView by container.dailyAlarms.view.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val nextAlarm = remember(alarmsView) { container.dailyAlarms.board().nextToRing }
+    val resources = LocalResources.current
+    val alarmsDetail = nextAlarm?.let {
+        val day = resources.dayPhrase(it.date, container.dailyAlarms.localNow().toLocalDate())
+        stringResource(R.string.alarms_tile_next, DailyAlarmNotifications.hhmm(it.time), "$day · ${it.label}")
+    } ?: stringResource(R.string.alarms_tile_none)
     LibraryHub(
         onOpenPlaylists = onOpenPlaylists,
         onOpenHistory = onOpenHistory,
@@ -152,6 +166,10 @@ private fun LibraryHome(
         modifier = modifier,
         downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
+        alarms = LibraryAlarms(alarmsDetail) {
+            Diag.log("library", "dewidebug alarms tile opened the alarms page")
+            context.startActivity(DailyAlarmsActivity.intent(context))
+        },
     )
 }
 

@@ -13,4 +13,8 @@ class SharedPrefsDailyAlarmStore(context: Context) : DailyAlarmStore {
     override fun loadStates(): Map<String, DayState> = prefs.read("states", emptyMap(), AlarmCodec::decodeStates)
 
     override fun saveStates(states: Map<String, DayState>) = prefs.write("states", AlarmCodec.encodeStates(states))
+
+    override fun loadRecentTitles(): List<String> = prefs.read("recentTitles", emptyList(), AlarmCodec::decodeTitles)
+
+    override fun saveRecentTitles(titles: List<String>) = prefs.write("recentTitles", AlarmCodec.encodeTitles(titles))
 }

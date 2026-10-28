@@ -33,6 +33,7 @@ public object DailyAlarmMachine {
                 AlarmEvent.Tick -> tick(current)
                 is AlarmEvent.Answer -> answer(current, event.time)
                 is AlarmEvent.SetToday -> setToday(current, event.time)
+                is AlarmEvent.SetOn -> setOn(current, event.date, event.time)
                 AlarmEvent.Decline -> decline(current)
                 AlarmEvent.Change -> change(current)
                 AlarmEvent.Cancel -> cancel(current)
@@ -57,7 +58,11 @@ public object DailyAlarmMachine {
 
         private fun rolledOver(state: DayState): DayState = when (state) {
             is Asking -> if (state.date < today) Idle.also { effects += AlarmEffect.HideQuestion(id) } else state
-            is Set -> if (state.date < today) Idle.also { effects += AlarmEffect.HideSet(id) } else state
+            is Set -> if (state.date < today && !alarm.isOneOff) {
+                Idle.also { effects += AlarmEffect.HideSet(id) }
+            } else {
+                state
+            }
             is Done -> if (state.date < today) Idle else state
             Idle, is Ringing, is Snoozed -> state
         }
@@ -72,6 +77,7 @@ public object DailyAlarmMachine {
         }
 
         private fun startOfDay(): DayState {
+            if (alarm.isOneOff) return Idle
             if (today.dayOfWeek !in alarm.days || now.isBefore(on(today, alarm.askAt))) return Idle
             if (!now.isBefore(on(today, alarm.lastAskAt)) || !now.isBefore(ringAt(today))) {
                 notes += "started after the last ask: no alarm today"
@@ -106,6 +112,14 @@ public object DailyAlarmMachine {
             }
         }
 
+        private fun setOn(state: DayState, date: LocalDate, time: LocalTime): DayState = when (state) {
+            is Ringing, is Snoozed -> state.also { notes += "set on $date ignored while $state" }
+            Idle, is Asking, is Set, is Done -> {
+                notes += "set for $date (was $state)"
+                setFor(state, date, time)
+            }
+        }
+
         private fun answer(state: DayState, time: LocalTime): DayState {
             val date = when {
                 state is Asking -> state.date
@@ -133,8 +147,9 @@ public object DailyAlarmMachine {
             else -> state.also { notes += "decline ignored in $state" }
         }
 
-        private fun change(state: DayState): DayState = when (state) {
-            is Set -> {
+        private fun change(state: DayState): DayState = when {
+            alarm.isOneOff -> state.also { notes += "change ignored: a one-off alarm is changed from its page" }
+            state is Set -> {
                 effects += AlarmEffect.HideSet(id)
                 ask(Asking(state.date, asks = 1))
             }
@@ -186,7 +201,7 @@ public object DailyAlarmMachine {
         }
 
         private fun nextWake(state: DayState): Instant? = when (state) {
-            Idle, is Done -> nextOccurrence(alarm.days, { alarm.askAt }, now, zone)
+            Idle, is Done -> if (alarm.isOneOff) null else nextOccurrence(alarm.days, { alarm.askAt }, now, zone)
             is Asking -> if (state.last) ringAt(state.date) else minOf(nextAsk(state), ringAt(state.date))
             is Set -> on(state.date, state.time)
             is Ringing -> null

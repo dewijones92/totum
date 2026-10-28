@@ -93,6 +93,16 @@
             android:exported="false"
             android:foregroundServiceType="systemExempted" />
         <service
+            android:name=".dailyalarms.NewAlarmTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_dailyalarm"
+            android:label="@string/oneoff_new"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
             android:name=".dailyalarms.DailyAlarmTileService"
             android:exported="true"
             android:icon="@drawable/ic_dailyalarm"
@@ -117,7 +127,7 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:taskAffinity="com.dewijones92.totum.dailyalarms.screen"
-            android:label="@string/dailyalarm_name"
+            android:label="@string/alarms_tile"
             android:theme="@style/Theme.Totum" />
         <activity
             android:name=".dailyalarms.QuestionActivity"
@@ -149,6 +159,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
             <!-- Appear in the share sheet for a plain-text share (a URL from a browser/app). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

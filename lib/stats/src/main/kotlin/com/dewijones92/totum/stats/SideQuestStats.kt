@@ -105,7 +105,7 @@ public fun alarmTotals(events: List<StatEvent>, since: Long?): AlarmTotals {
     }
     return AlarmTotals(
         asked = changes.count { it.after == AlarmPhase.ASKING && it.before != AlarmPhase.ASKING },
-        yes = changes.count { it.event == AlarmStep.ANSWER || it.event == AlarmStep.SET_TODAY },
+        yes = changes.count { it.event in SAID_YES },
         no = changes.count { it.event == AlarmStep.DECLINE },
         rang = changes.count { it.after == AlarmPhase.RINGING && it.before != AlarmPhase.RINGING },
         snoozed = changes.count { it.event == AlarmStep.SNOOZE },
@@ -137,3 +137,5 @@ public fun useTotals(events: List<StatEvent>, since: Long?): UseTotals {
 }
 
 private const val NUDGE_ANSWER_MS = 15 * 60 * 1_000L
+
+private val SAID_YES = setOf(AlarmStep.ANSWER, AlarmStep.SET_TODAY, AlarmStep.SET_ON)
