@@ -55,7 +55,7 @@ public class HttpYouTubeSearch(
             Diag.log("search", "signed-in search refused ($response); falling back to anonymous")
             return null
         }
-        val page = response.body.toAccountPage(limit)
+        val page = response.parsed { it.toAccountPage(limit) }
         if (page.items.isEmpty()) {
             Diag.log("search", "signed-in search parsed to nothing; falling back to anonymous")
             return null

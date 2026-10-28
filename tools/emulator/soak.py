@@ -261,6 +261,28 @@ def compare(before_path, after_path):
 QUEUE_IDS = ["9bZkp7q19f0", "dQw4w9WgXcQ", "jNQXAC9IVRw", "YnI-e_S4ZNw"]
 
 
+HOLDS = "shared_prefs/totum_test_holds.xml"
+HOLD_XML = ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map>"
+            "<boolean name=\"hold_youtube_reports\" value=\"true\" /></map>")
+
+
+def hold_youtube_reports(on):
+    adb("shell", "am", "force-stop", PACKAGE)
+    if on:
+        subprocess.run([ADB, "shell", f"run-as {PACKAGE} sh -c 'cat > {HOLDS}'"], input=HOLD_XML, text=True, timeout=60)
+    else:
+        adb("shell", f"run-as {PACKAGE} rm -f {HOLDS}")
+    print(f"{time.strftime('%T')} reports to the YouTube account {'held' if on else 'released'} for this run", flush=True)
+
+
+def held(command, args):
+    hold_youtube_reports(True)
+    try:
+        return command(args)
+    finally:
+        hold_youtube_reports(False)
+
+
 def broadcast(action, *extras):
     adb("shell", "am", "broadcast", "-a", f"com.dewijones92.totum.{action}", "-p", PACKAGE, *extras)
 
@@ -381,9 +403,9 @@ def main():
     cmp_p.add_argument("after")
     args = parser.parse_args()
     if args.command == "run":
-        sys.exit(run(args))
+        sys.exit(held(run, args))
     if args.command == "queue":
-        sys.exit(queue_run(args))
+        sys.exit(held(queue_run, args))
     sys.exit(compare(args.before, args.after))
 
 

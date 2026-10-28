@@ -60,9 +60,6 @@ fun ImportExportScreen(container: AppContainer, onBack: () -> Unit, modifier: Mo
                 context.getString(R.string.backup_restored, subs, lists, positions)
             }
         },
-        restoring = stringResource(R.string.backup_restoring),
-        backingUp = stringResource(R.string.backup_making),
-        exporting = stringResource(R.string.export_working),
     )
     val viewModel: ImportExportViewModel =
         viewModel(factory = ImportExportViewModel.factory(container, messages))
@@ -73,6 +70,7 @@ fun ImportExportScreen(container: AppContainer, onBack: () -> Unit, modifier: Mo
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val exportDone = stringResource(R.string.import_export_export_done)
     val exportFailed = stringResource(R.string.import_export_export_failed)
+    val exporting = stringResource(R.string.export_working)
 
     val importPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -87,9 +85,12 @@ fun ImportExportScreen(container: AppContainer, onBack: () -> Unit, modifier: Mo
         ActivityResultContracts.CreateDocument("application/octet-stream"),
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
+        if (viewModel.busy(EXPORT_KEY)) return@rememberLauncherForActivityResult
         scope.launch {
-            val opml = viewModel.buildOpml()
-            val ok = withContext(Dispatchers.IO) { writeText(resolver, uri, opml) }
+            val ok = viewModel.shown(EXPORT_KEY, exporting) {
+                val opml = viewModel.buildOpml()
+                withContext(Dispatchers.IO) { writeText(resolver, uri, opml) }
+            }
             exportMessage = if (ok) exportDone else exportFailed
         }
     }
@@ -123,22 +124,31 @@ private fun BackupControls(
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
     var message by remember { mutableStateOf<String?>(null) }
+    val making = stringResource(R.string.backup_making)
+    val restoring = stringResource(R.string.backup_restoring)
     val written = stringResource(R.string.backup_written)
     val failed = stringResource(R.string.backup_failed)
     val backupPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
+        if (viewModel.busy(BACKUP_KEY)) return@rememberLauncherForActivityResult
         scope.launch {
-            val content = viewModel.buildBackup()
-            message = if (withContext(Dispatchers.IO) { writeText(resolver, uri, content) }) written else failed
+            val ok = viewModel.shown(BACKUP_KEY, making) {
+                val content = viewModel.buildBackup()
+                withContext(Dispatchers.IO) { writeText(resolver, uri, content) }
+            }
+            message = if (ok) written else failed
         }
     }
     val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
+        if (viewModel.busy(RESTORE_KEY)) return@rememberLauncherForActivityResult
         scope.launch {
-            val content = withContext(Dispatchers.IO) { readText(resolver, uri) }
-            message = if (content == null) failed else viewModel.restore(content)
+            message = viewModel.shown(RESTORE_KEY, restoring) {
+                val content = withContext(Dispatchers.IO) { readText(resolver, uri) }
+                if (content == null) failed else viewModel.restore(content)
+            }
         }
     }
     BackupSection(
@@ -271,3 +281,7 @@ private fun writeText(resolver: ContentResolver, uri: Uri, text: String): Boolea
         true
     }.getOrDefault(false)
 }
+
+private const val EXPORT_KEY = "export-opml"
+private const val BACKUP_KEY = "backup-file"
+private const val RESTORE_KEY = "restore-file"

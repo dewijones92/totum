@@ -82,6 +82,7 @@
     <string name="oneoff_set_done">✅ Alarm set for %1$s %2$s</string>
     <string name="oneoff_section">One-off alarms</string>
     <string name="oneoff_row_set">✅ Set for %1$s</string>
+    <string name="oneoff_row_missed">⚠️ Missed: the phone was off or asleep when it was due</string>
     <string name="oneoff_cancel">Cancel</string>
     <string name="oneoff_none">📭 No one-off alarms. ➕ New alarm sets one.</string>
     <string name="oneoff_ok">OK</string>

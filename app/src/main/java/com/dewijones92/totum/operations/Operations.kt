@@ -3,6 +3,7 @@ package com.dewijones92.totum.operations
 import com.dewijones92.totum.common.Diag
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -120,9 +122,9 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
         fun playing(): Boolean = live.value.firstOrNull { it.id == id }?.playing == true
     }
 
-    private companion object {
+    internal companion object {
         const val TAG = "ops"
-        const val ENDED_BUFFER = 16
+        private const val ENDED_BUFFER = 16
     }
 }
 
@@ -133,17 +135,24 @@ suspend fun Operations?.tracking(
     block: suspend (Operations.Progress?) -> OperationEnd,
 ): OperationEnd = this?.track(key, kind, subject) { block(it) } ?: block(null)
 
+@Suppress("TooGenericExceptionCaught")
 suspend fun <T> Operations?.showing(key: String, label: String, block: suspend () -> T): T {
     var answer: Result<T>? = null
     tracking(key, OperationKind.TASK, label) {
-        val got = runCatching { block() }
-        answer = got
-        val failure = got.exceptionOrNull()
-        if (failure == null) {
+        try {
+            answer = Result.success(block())
             OperationEnd.Done(1)
-        } else {
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Diag.warn(Operations.TAG, "\"$label\" failed", failure)
+            answer = Result.failure(failure)
             OperationEnd.Failed(failure.message ?: failure.javaClass.simpleName)
         }
     }
     return checkNotNull(answer) { "$label ended without an answer" }.getOrThrow()
+}
+
+suspend fun Operations?.showingEach(key: String, label: String, block: suspend () -> Unit) = coroutineScope {
+    launch { showing(key, label, block) }.join()
 }

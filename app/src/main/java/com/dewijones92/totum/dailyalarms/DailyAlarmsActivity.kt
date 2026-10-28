@@ -7,12 +7,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Modifier
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.theme.TotumTheme
 
 class DailyAlarmsActivity : ComponentActivity() {
+    private val newAlarmAsks = mutableIntStateOf(0)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm page asked again action=${intent.action}")
+        if (intent.action == ACTION_NEW_ALARM) newAlarmAsks.intValue++
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -29,6 +38,7 @@ class DailyAlarmsActivity : ComponentActivity() {
                     onBack = ::finish,
                     modifier = Modifier.safeDrawingPadding(),
                     startWithNewAlarm = startWithNewAlarm,
+                    newAlarmAsks = newAlarmAsks.intValue,
                 )
             }
         }
@@ -41,5 +51,6 @@ class DailyAlarmsActivity : ComponentActivity() {
             Intent(context, DailyAlarmsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         fun newAlarm(context: Context): Intent = intent(context).setAction(ACTION_NEW_ALARM)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

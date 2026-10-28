@@ -1389,7 +1389,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val watchHistorySync: WatchHistorySync by lazy {
-        WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope)
+        WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope, held = {
+            context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
+        })
     }
 
     /** Everything the account side of a report reads, kept in memory — see the class. */
@@ -1783,3 +1785,6 @@ private fun sendDiagnostics(
     // A test run is still suppressed either way; the flood came through this exact path.
     uploader.sendDiagnosticsNow()
 }
+
+private const val TEST_HOLDS_PREFS = "totum_test_holds"
+private const val HOLD_YOUTUBE_REPORTS = "hold_youtube_reports"

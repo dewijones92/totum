@@ -2,6 +2,8 @@ package com.dewijones92.totum.operations
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -75,6 +77,49 @@ class OperationsTest {
         advanceUntilIdle()
         assertEquals(OperationEnd.Failed("disk full"), ended.single().end)
         assertTrue(operations.running.value.isEmpty())
+        collector.cancel()
+    }
+
+    @Test
+    fun `cancelling work shown on the strip ends it as cancelled, not failed`() = runTest {
+        val ended = mutableListOf<Ended>()
+        val collector = launch { operations.ended.collect { ended += it } }
+        advanceUntilIdle()
+        val work = launch { operations.showing("restore", "Restoring a backup") { awaitCancellation() } }
+        advanceUntilIdle()
+
+        operations.cancel(operations.running.value.single().id)
+        advanceUntilIdle()
+
+        assertTrue(work.isCancelled)
+        assertTrue(ended.single().end is OperationEnd.Cancelled)
+        collector.cancel()
+    }
+
+    @Test
+    fun `cancelling one move shown from a long-lived collector leaves the collector listening`() = runTest {
+        val moves = MutableSharedFlow<Int>()
+        val done = mutableListOf<Int>()
+        val gate = CompletableDeferred<Unit>()
+        val collector = launch {
+            moves.collect { n ->
+                operations.showingEach("move", "Moving $n") {
+                    if (n == 1) gate.await()
+                    done += n
+                }
+            }
+        }
+        advanceUntilIdle()
+        moves.emit(1)
+        advanceUntilIdle()
+
+        operations.cancel(operations.running.value.single().id)
+        advanceUntilIdle()
+        moves.emit(2)
+        advanceUntilIdle()
+
+        assertTrue(collector.isActive)
+        assertEquals(listOf(2), done)
         collector.cancel()
     }
 

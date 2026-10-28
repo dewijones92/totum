@@ -7,7 +7,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
-import com.dewijones92.totum.operations.showing
+import com.dewijones92.totum.operations.showingEach
 import com.dewijones92.totum.playback.PlaybackState
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
@@ -88,7 +88,7 @@ private class CastMoves(private val container: AppContainer, private val moving:
         }
         container.applicationScope.launch {
             CastTarget.screens.map { it != null }.distinctUntilChanged().drop(1).collect { onTv ->
-                container.operations.showing("cast-move", moving(onTv)) { moved(onTv) }
+                container.operations.showingEach("cast-move", moving(onTv)) { moved(onTv) }
             }
         }
     }

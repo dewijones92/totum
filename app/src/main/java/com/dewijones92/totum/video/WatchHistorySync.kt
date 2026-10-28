@@ -34,6 +34,7 @@ internal class WatchHistorySync(
     private val drain: ProgressOutboxDrain,
     private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
+    private val held: () -> Boolean = { false },
 ) {
     fun start() {
         scope.launch {
@@ -60,6 +61,10 @@ internal class WatchHistorySync(
 
                 val due = videoId != lastVideoId || finished || now() - lastReportMs >= REPORT_INTERVAL_MS
                 if (!due) return@collect
+                if (held()) {
+                    decline(videoId, "a test run on this device holds reports to the YouTube account")
+                    return@collect
+                }
 
                 val firstForVideo = videoId != lastVideoId
                 lastVideoId = videoId

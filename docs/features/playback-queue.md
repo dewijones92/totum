@@ -15,7 +15,7 @@ still described in the code and in `offline-queue.md`.
 ## Gapless hand-over
 
 Since 2026-10-07 ([ADR 20](../adr/0020-gapless-queue-the-player-holds-the-next-item.md)): in an item's last
-45 s, on Wi-Fi or when the next item is downloaded, the next item is routed as usual and put in line in the
+75 s (45 s until 2026-10-28, now longer than the 60 s silent tail that can end an item early), on Wi-Fi or when the next item is downloaded, the next item is routed as usual and put in line in the
 player, which crosses over by itself with no rebuild; the queue then adopts it. Settings › Queue ›
 **Gapless queue** (on by default) turns it off. Not armed with auto-play next off or the sleep timer set to
 stop after this item. Every decision is a `dewidebug [gapless]` line.

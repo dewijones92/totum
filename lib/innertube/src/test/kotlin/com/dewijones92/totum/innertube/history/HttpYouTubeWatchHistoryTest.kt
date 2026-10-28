@@ -7,6 +7,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.auth.fake.FakeYouTubeAuth
 import com.dewijones92.totum.innertube.auth.fake.InMemoryTokenStore
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
+import com.dewijones92.totum.innertube.feeds.VideoTileParser
 import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import com.dewijones92.totum.innertube.player.SignatureTimestampSource
 import kotlinx.coroutines.runBlocking
@@ -42,6 +43,41 @@ class HttpYouTubeWatchHistoryTest {
             newNonce = { "NONCE0123456789" },
             statsHost = null,
         )
+    }
+
+    private fun historyFixture(): String =
+        checkNotNull(javaClass.getResourceAsStream("/history_tv_sample.json")) { "fixture missing" }
+            .bufferedReader().readText()
+
+    private fun historyOn(server: MockWebServer) = HttpYouTubeWatchHistory(
+        account = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore(TOKENS), nowEpochSeconds = { 0 }),
+        client = OkHttpClient(),
+        innerTube = InnerTubeClient(OkHttpClient(), browseUrl = server.url("/youtubei/v1/browse").toString()),
+        signatureTimestamps = SignatureTimestampSource { SignatureTimestamp(20662) },
+        newNonce = { "NONCE0123456789" },
+        statsHost = null,
+    )
+
+    @Test
+    fun `watched positions come from the first three pages of the account history`() = runBlocking {
+        val first = historyFixture()
+        val firstIds = VideoTileParser.watchedPositions(first).keys
+        fun page(n: Int, next: String?): String {
+            var body = first
+            if (n > 1) firstIds.forEach { id -> body = body.replace(id, "p$n${id.drop(2)}") }
+            val more = next?.let { ",\"continuations\":[{\"nextContinuationData\":{\"continuation\":\"$it\"}}]}" }
+                ?: "}"
+            return body.trimEnd().removeSuffix("}") + more
+        }
+        listOf(page(1, "PAGE2"), page(2, "PAGE3"), page(3, "PAGE4"), page(4, null)).forEach {
+            server.enqueue(MockResponse.Builder().code(200).body(it).build())
+        }
+
+        val watched = historyOn(server).watchedPositions()
+
+        assertEquals(firstIds.size * 3, watched.size)
+        assertTrue(watched.keys.containsAll(firstIds))
+        assertEquals(3, server.requestCount)
     }
 
     /** The `/player` reply that hands back this video's tracking URLs. */

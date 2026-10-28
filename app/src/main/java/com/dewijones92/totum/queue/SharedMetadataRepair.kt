@@ -47,8 +47,9 @@ internal class SharedMetadataRepair(
     }
 
     private suspend fun repairAll(candidates: List<PlayableItem>) {
+        val repaired = HashSet<MediaItemId>()
         while (true) {
-            val left = candidates.filter { (tries[it.item.id]?.count ?: 0) < MAX_TRIES }
+            val left = candidates.filter { it.item.id !in repaired && (tries[it.item.id]?.count ?: 0) < MAX_TRIES }
             if (left.isEmpty()) return
             val due = left.filter { (tries[it.item.id]?.nextAt ?: 0) <= now() }
             if (due.isEmpty()) {
@@ -58,7 +59,8 @@ internal class SharedMetadataRepair(
             awaitNetwork()
             due.forEach { item ->
                 if (repair(item)) {
-                    tries[item.item.id] = Tries(MAX_TRIES, Long.MAX_VALUE)
+                    repaired += item.item.id
+                    tries.remove(item.item.id)
                 } else {
                     failed(item.item.id)
                 }

@@ -119,13 +119,19 @@ class SharedMetadataRepairTest {
 
     @Test
     fun `a queue edit does not ask again about a video asked moments ago`() = runTest {
+        val other = MediaItemId("aqz-KE-bpKQ")
+        val otherUrl = HttpUrl.of("https://www.youtube.com/watch?v=${other.value}")
+        val second = PlayableItem(
+            placeholder.item.copy(id = other, title = placeholderTitleFor(other), mediaUrl = otherUrl),
+            PlayHandle.Video(otherUrl),
+        )
         val queue = MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(placeholder))))
-        var calls = 0
+        val asked = mutableListOf<String>()
         SharedMetadataRepair(
             queue,
             FakeDownloadManager(),
             {
-                calls++
+                asked += it.item.id.value
                 null
             },
             {},
@@ -135,13 +141,11 @@ class SharedMetadataRepairTest {
             now = { testScheduler.currentTime },
         ).start()
         runCurrent()
-        repeat(5) {
-            advanceTimeBy(1_000)
-            queue.value = queue.value.copy(currentIndex = it % 2)
-            runCurrent()
-        }
+        advanceTimeBy(1_000)
+        queue.value = QueueSnapshot(entries = listOf(QueueEntry(placeholder), QueueEntry(second)))
+        runCurrent()
 
-        assertEquals(1, calls)
+        assertEquals(listOf(id.value, other.value), asked)
     }
 
     @Test

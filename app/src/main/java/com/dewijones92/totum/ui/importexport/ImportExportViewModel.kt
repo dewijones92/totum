@@ -57,21 +57,23 @@ class ImportExportViewModel(
         }
     }
 
-    suspend fun buildOpml(): String = operations.showing("export-opml", messages.exporting) {
-        withContext(Dispatchers.Default) { importer.exportOpml() }
+    suspend fun buildOpml(): String = withContext(Dispatchers.Default) { importer.exportOpml() }
+
+    suspend fun buildBackup(): String {
+        val made = backup.create()
+        return withContext(Dispatchers.Default) { BackupCodec.encode(made) }
     }
 
-    suspend fun buildBackup(): String = operations.showing("backup-file", messages.backingUp) {
-        val made = backup.create()
-        withContext(Dispatchers.Default) { BackupCodec.encode(made) }
-    }
+    fun busy(key: String): Boolean = operations?.isRunning(key) == true
+
+    suspend fun <T> shown(key: String, label: String, block: suspend () -> T): T = operations.showing(key, label, block)
 
     /**
      * Applies a backup file and returns what to tell the user. A message rather than a
      * state because there is nothing to keep afterwards — the result is the library
      * itself, which every screen is already observing.
      */
-    suspend fun restore(content: String): String = operations.showing("restore-file", messages.restoring) {
+    suspend fun restore(content: String): String =
         when (val read = withContext(Dispatchers.Default) { BackupCodec.decode(content) }) {
             is BackupReadResult.Unreadable -> messages.unreadable
             is BackupReadResult.TooNew -> messages.tooNew
@@ -79,16 +81,12 @@ class ImportExportViewModel(
                 messages.restored(it.subscriptions, it.playlists, it.progressEntries)
             }
         }
-    }
 
     /** Strings supplied by the screen, so this stays free of Android resources. */
     class Messages(
         val unreadable: String,
         val tooNew: String,
         val restored: (Int, Int, Int) -> String,
-        val restoring: String,
-        val backingUp: String,
-        val exporting: String,
     )
 
     fun clearResult() {

@@ -2,6 +2,7 @@ package com.dewijones92.totum.innertube.feeds
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.common.isYouTubeChannelId
 import com.dewijones92.totum.innertube.browse.Badges
 import com.dewijones92.totum.innertube.browse.Continuations
@@ -63,8 +64,12 @@ internal object VideoTileParser {
      * came back 13, which is 12.6% rounded. `resumeFrom` in `:core:domain` is the one place that
      * decides what a number that coarse is allowed to do.
      */
-    fun watchedPositions(body: String): Map<String, AccountProgress> {
-        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() ?: return emptyMap()
+    fun watchedPositions(body: String): Map<String, AccountProgress> = watchedPage(body).first
+
+    fun watchedPage(body: String): Pair<Map<String, AccountProgress>, PageToken?> {
+        val root = runCatching {
+            json.parseToJsonElement(body)
+        }.getOrNull() ?: return emptyMap<String, AccountProgress>() to null
         val out = LinkedHashMap<String, AccountProgress>()
         collectVideoTiles(root) { tile ->
             val id = tile.watchVideoId() ?: tile.stringAt("contentId")
@@ -78,7 +83,7 @@ internal object VideoTileParser {
                 out.putIfAbsent(id, AccountProgress(durationMs * percent / PERCENT, durationMs))
             }
         }
-        return out
+        return out to Continuations.find(root).takeIf { out.isNotEmpty() }
     }
 
     /** The resume overlay's percentage, when the tile carries one (i.e. it has been watched). */

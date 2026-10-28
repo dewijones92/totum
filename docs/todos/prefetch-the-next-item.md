@@ -33,7 +33,8 @@ playable cannot silently get no preparation.
 | `Podcast` without one | nothing; an enclosure URL is already playable |
 | `LocalVideo` | nothing; it is already on the device |
 
-The 45s lead stays. It was chosen against a ~7s extraction and is a better fit for a 25s remux
+The 45s lead stayed until 2026-10-28, when it became 75 s with the gapless lead (ADR 20: the 60 s silent tail ended
+items before it). It was chosen against a ~7s extraction and is a better fit for a 25s remux
 than 30 would be — and unlike Layer 2 it pulls no media, so a longer lead costs nothing.
 
 **A separate class was written for this and deleted before it shipped.** It duplicated

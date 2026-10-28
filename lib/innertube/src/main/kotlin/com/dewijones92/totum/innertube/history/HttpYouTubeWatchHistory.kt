@@ -67,14 +67,30 @@ public class HttpYouTubeWatchHistory(
             Diag.log("yt-sync", "not reading watched positions: signed out")
             return emptyMap()
         }
-        val response = runCatching { innerTube.browse(BrowseTarget.Id(HISTORY_BROWSE_ID), token) }.getOrNull()
-        val success = response as? InnerTubeResponse.Success ?: run {
-            Diag.warn("yt-sync", "could not read watched positions: $response")
-            return emptyMap()
+        val out = LinkedHashMap<String, AccountProgress>()
+        var target: BrowseTarget? = BrowseTarget.Id(HISTORY_BROWSE_ID)
+        var pages = 0
+        while (target != null && pages < HISTORY_PAGES) {
+            val response = runCatching { innerTube.browse(target, token) }.getOrNull()
+            if (response !is InnerTubeResponse.Success) {
+                Diag.warn("yt-sync", "could not read watched positions (page ${pages + 1}): $response")
+                if (pages == 0) return emptyMap()
+                target = null
+            } else {
+                pages++
+                val (positions, next) = response.parsed { VideoTileParser.watchedPage(it) }
+                positions.forEach { (id, at) -> out.putIfAbsent(id, at) }
+                target = next?.let { BrowseTarget.Continuation(it.value) }
+            }
         }
-        return success.parsed { VideoTileParser.watchedPositions(it) }.also {
-            Diag.log("yt-sync", "YouTube knows a watched position for ${it.size} recent video(s)")
+        val listed = out.entries.joinToString { (id, at) ->
+            "$id=${at.positionMs / MS_PER_S}s/${at.durationMs / MS_PER_S}s"
         }
+        Diag.log(
+            "yt-sync",
+            "YouTube knows a watched position for ${out.size} recent video(s) over $pages page(s): $listed"
+        )
+        return out
     }
 
     private val sessions = mutableMapOf<String, Session>()
@@ -119,7 +135,7 @@ public class HttpYouTubeWatchHistory(
             Diag.warn("yt-sync", "$videoId tracking request failed: $response")
             return Tracking.None(SessionResult.Unavailable("tracking request failed: $response"))
         }
-        return trackingIn(videoId, response.body)
+        return response.parsed { trackingIn(videoId, it) }
     }
 
     /**
@@ -258,6 +274,8 @@ internal fun asAWatchPagePlay(url: String, host: String?): String {
 
 internal const val STATS_HOST: String = "https://www.youtube.com"
 private const val NONCE_LENGTH = 16
+private const val MS_PER_S = 1_000L
+private const val HISTORY_PAGES = 3
 private const val NONCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
 /** A client playback nonce: 16 chars of YouTube's cpn alphabet, like the web player. */

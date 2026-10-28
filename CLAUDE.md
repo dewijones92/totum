@@ -254,6 +254,11 @@ successor in line, because the queue's adoption cancelled the arming); local fil
 
 **Queue auto-download confounds a soak (2026-10-14):** each soak play leaves its video in the queue, so later runs inherit more undownloaded items and the queue auto-download fetches them during the plays (0 and 1 downloads in the two v0.1.606 runs, 3 and 5 in the two later runs of the new build, whose failures were 7 and 7 against 3 and 4). Check the header's other services for `DownloadKeepAliveService`, and clear the queue or switch queue auto-download off before every run.
 
+**A soak no longer reports its plays to Dewi's YouTube account (2026-10-28):** the emulator is signed in to his real
+account, so every soak play used to land in his YouTube history and push his own videos off the page the app reads.
+`soak.py run` and `soak.py queue` hold reports for their whole run (a prefs file, removed at the end); a run killed
+half-way leaves the hold on, so delete `shared_prefs/totum_test_holds.xml` with `run-as` if one dies.
+
 Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
 
 Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the

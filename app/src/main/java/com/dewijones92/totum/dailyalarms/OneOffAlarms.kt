@@ -131,6 +131,7 @@ private fun oneOffStatus(resources: Resources, state: DayState, date: LocalDate,
             R.string.dailyalarm_today_snoozed,
             DailyAlarmNotifications.hhmm(state.until.atZone(ZoneId.systemDefault()).toLocalTime()),
         )
+        is DayState.Done -> resources.getString(R.string.oneoff_row_missed)
         else -> resources.getString(R.string.oneoff_row_set, resources.dayPhrase(date, today))
     }
 

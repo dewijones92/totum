@@ -177,7 +177,8 @@ class DailyAlarmController(
         if (alarm.isOneOff && result.state.finished) forget(alarm, result.state, source)
     }
 
-    private val DayState.finished: Boolean get() = this is DayState.Done || this == DayState.Idle
+    private val DayState.finished: Boolean
+        get() = this == DayState.Idle || this is DayState.Done && outcome != Outcome.MISSED
 
     private fun forget(alarm: DailyAlarm, state: DayState, source: String) {
         alarms = alarms.filterNot { it.id == alarm.id }

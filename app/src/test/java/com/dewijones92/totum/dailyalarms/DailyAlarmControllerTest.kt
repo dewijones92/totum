@@ -165,6 +165,21 @@ class DailyAlarmControllerTest {
     }
 
     @Test
+    fun `a one-off missed while the phone was off stays on the page as missed until the next day`() {
+        val alarms = controller()
+        at(10)
+        alarms.addOneOff("Deployed to production", monday, LocalTime.of(19, 0), "sheet")
+        at(19, 40)
+        alarms.tickAll("boot")
+        val once = alarms.view.value.oneOffs.single()
+        assertEquals(DayState.Done(monday, Outcome.MISSED), alarms.view.value.state(once.id))
+
+        now = ZonedDateTime.of(2026, 10, 6, 7, 0, 0, 0, zone).toInstant()
+        alarms.tickAll("next morning")
+        assertTrue(alarms.view.value.oneOffs.isEmpty())
+    }
+
+    @Test
     fun `cancelling a one-off removes it and keeps the daily alarms`() {
         val alarms = controller()
         at(10)

@@ -223,13 +223,6 @@ def check_manual_tests_are_marked() -> int:
 
 
 def check_live_tests_skip_when_youtube_refuses() -> int:
-    """
-    Every unattended live test carries the `YouTubeAnswers` rule, so YouTube refusing the home IP is a skip, not a red.
-
-    The nightly run was red for days in October 2026 with nothing broken: YouTube bot-blocked the address and
-    every live test failed asserting YouTube's policy. The rule probes once per run and turns that refusal, or
-    one met part-way, into a skip with the reason; any other failure stays red.
-    """
     listed = [line.strip() for line in LIVE_LIST.read_text().splitlines()]
     entries = [e for e in listed if e and not e.startswith("#") and not e.startswith("manual:")]
     problems = 0

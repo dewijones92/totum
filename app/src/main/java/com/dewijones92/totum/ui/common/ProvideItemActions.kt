@@ -122,11 +122,8 @@ private class ContainerItemActions(
             open != null && artist != null -> {
                 {
                     Diag.log("nav", "go to ${artist.label} from \"${item.title}\"")
-                    if (credits.needsAsking(
-                            item
-                        )
-                    ) {
-                        scope.launch { open(credits.pageFor(item) ?: artist) }
+                    if (credits.needsAsking(item)) {
+                        scope.launch { credits.pageFor(item)?.let(open) }
                     } else {
                         open(artist)
                     }

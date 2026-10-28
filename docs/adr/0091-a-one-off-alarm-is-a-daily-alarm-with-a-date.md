@@ -26,9 +26,10 @@ title.
   question (`Idle` stays `Idle`, no next wake), ignores Change (it is edited from its page), keeps a `Set` for a later
   date across midnight, and a new event `SetOn(date, time)` sets it. The board lists a `Set` on any later date, not
   only today.
-- `DailyAlarmController.addOneOff` refuses a time already gone; once a one-off ends (rang, cancelled, missed or never
-  set) the controller removes it, unschedules it and keeps its title in `recentTitles` (newest first, eight, no
-  repeats ignoring case), which the sheet offers as chips.
+- `DailyAlarmController.addOneOff` refuses a time already gone; once a one-off ends (rang, cancelled or never set) the
+  controller removes it; a missed one (the phone off or asleep past its 30 min grace) stays on the page as "⚠️ Missed"
+  until the next day or until cancelled, so it does not vanish unseen. Removing one unschedules it; every one-off's
+  title is kept in `recentTitles` (newest first, eight, no repeats ignoring case), which the sheet offers as chips.
 - **The sheet** (`NewAlarmSheet`): title, recent titles, +15 min · +30 min · +1 h · +2 h (counted from the start of the
   current minute), a clock, Today · Tomorrow · a date; a time with no day chosen is today while it is still to come,
   else tomorrow (`OneOffWhen`). Set says "✅ Alarm set for 19:00 today".

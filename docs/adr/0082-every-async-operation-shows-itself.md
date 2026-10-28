@@ -64,7 +64,10 @@ Dewi, 2026-10-28: *"make sure there's loading spinners anytime I click something
 found the gap the HTTP and yt-dlp hooks leave: work that waits on the disk, the database or the system (SAF) showed
 nothing. One more kind, `OperationKind.TASK` ("⏳ <what it is doing>"), and one helper, `Operations.showing(key,
 label) { … }`, which runs a block as a strip entry and hands back its answer (a failure still ends the entry and is
-rethrown; `OperationsTest`). Now on the strip, each guarded against a second tap starting it again: Drive backup now
-and Drive restore, restoring a backup file, making one, exporting subscriptions, clean-up and album deletes (one queue
-pass, not one per item), bulk unsubscribe, moving playback to or from a screen (up to 15 s before), and looking up a
-song's artists. The decoding of backups and the Stats page's recompute moved off the main thread.
+rethrown; a Cancel ends it as cancelled; `OperationsTest`), and `showingEach` for a long-lived collector, which runs
+each entry in its own job so Cancel stops that one and not the collector. Now on the strip, with a second tap ignored
+while the first runs: Drive backup now and Drive restore, restoring a backup file, making one and exporting
+subscriptions (the file read or write included), clean-up and album deletes (one queue pass, not one per item), bulk
+unsubscribe, and looking up a song's artists (also kept for the session, so a second tap asks nothing). Moving playback
+to or from a screen (up to 15 s before) is shown too; it follows the cast session rather than a tap. The decoding of
+backups and the Stats page's recompute moved off the main thread.

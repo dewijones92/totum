@@ -25,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -65,6 +66,7 @@ fun DailyAlarmsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     startWithNewAlarm: Boolean = false,
+    newAlarmAsks: Int = 0,
 ) {
     KeepScreenAwake("dailyalarm settings")
     val view by alarms.view.collectAsStateWithLifecycle()
@@ -77,6 +79,7 @@ fun DailyAlarmsScreen(
         }
     }
     var adding by rememberSaveable { mutableStateOf(startWithNewAlarm) }
+    LaunchedEffect(newAlarmAsks) { if (newAlarmAsks > 0) adding = true }
     if (adding) NewAlarmSheet(alarms, view.recentTitles) { adding = false }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
