@@ -49,7 +49,7 @@ internal class SilentRun(private val sampleRate: Int, private val channels: Int)
     }
 }
 
-internal fun tailWindowMs(durationMs: Long): Long = minOf(LONGEST_TAIL_MS, durationMs / TAIL_SHARE)
+internal fun tailWindowMs(durationMs: Long): Long = minOf(LONGEST_SILENT_TAIL_MS, durationMs / TAIL_SHARE)
 
 internal fun endsOnSilentTail(positionMs: Long, durationMs: Long?, silentForMs: Long): Boolean {
     val duration = durationMs?.takeIf { it > 0 } ?: return false
@@ -58,7 +58,7 @@ internal fun endsOnSilentTail(positionMs: Long, durationMs: Long?, silentForMs: 
 }
 
 internal const val SILENT_FOR_MS = 5_000L
-private const val LONGEST_TAIL_MS = 60_000L
+public const val LONGEST_SILENT_TAIL_MS: Long = 60_000L
 private const val TAIL_SHARE = 10
 
 internal class SilentTailWatch(

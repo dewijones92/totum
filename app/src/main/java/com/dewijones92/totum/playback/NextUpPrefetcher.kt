@@ -85,10 +85,10 @@ internal class NextUpPrefetcher(
 
     private companion object {
         /**
-         * How long before the end to start. Comfortably longer than the ~7s extraction measured
-         * on a real device, so a slow one still finishes in time, and short enough that the URL
-         * it produces is nowhere near expiry when it is used.
+         * How long before the end to start: the gapless armer's lead, which is longer than the silent tail
+         * that can end an item early, and comfortably longer than the ~7s extraction measured on a real
+         * device, while short enough that the URL it produces is nowhere near expiry when it is used.
          */
-        const val LEAD_MS = 45_000L
+        const val LEAD_MS = GaplessArmer.LEAD_MS
     }
 }

@@ -61,9 +61,16 @@ class GaplessArmerTest {
     }
 
     @Test
-    fun `the next item is put in line once, in the last 45 seconds`() = runTest {
+    fun `the next item is put in line once, near the end`() = runTest {
         val armer = armer()
         repeat(3) { armer.consider(playing(positionMs = 560_000L + it * 1_000)) }
+
+        assertEquals(listOf("b" to true), arms)
+    }
+
+    @Test
+    fun `the next item is in line before a silent last minute can end this one early`() = runTest {
+        armer().consider(playing(positionMs = 600_000L - LONGEST_SILENT_TAIL_MS - 1_000))
 
         assertEquals(listOf("b" to true), arms)
     }

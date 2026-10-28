@@ -79,7 +79,7 @@ internal class GaplessArmer(
     }
 
     companion object {
-        const val LEAD_MS: Long = 45_000
+        const val LEAD_MS: Long = LONGEST_SILENT_TAIL_MS + 15_000
         const val SETTLED_AHEAD_MS: Long = 10_000
     }
 }

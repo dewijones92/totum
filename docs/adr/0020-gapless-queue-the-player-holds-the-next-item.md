@@ -2,7 +2,7 @@
 title: Gapless queue — the player holds the next item, and the queue adopts the crossover
 kind: adr
 status: accepted
-updated: 2026-10-07
+updated: 2026-10-28
 ---
 
 # 20. Gapless queue — the player holds the next item, and the queue adopts the crossover
@@ -31,7 +31,7 @@ controller). The queue still owns advancing; what changes is how the next item i
 
 ## Decision
 
-1. **Arm.** `GaplessArmer` watches the playing item. In its last 45 s it asks the queue to
+1. **Arm.** `GaplessArmer` watches the playing item. In its last 75 s (45 s until 2026-10-28) it asks the queue to
    `armNext(allowStream = !metered)`. The queue routes the next entry **through the same `decide()`
    and launcher stream choice as a real advance** and, instead of playing it, calls
    `PlaybackController.armNext(...)`, which adds it as the player's second playlist entry. Not armed
@@ -86,3 +86,13 @@ controller). The queue still owns advancing; what changes is how the next item i
   the resume point honoured, the setting off falls back, short items chaining).
 - Measured with `tools/emulator/soak.py queue` on `totum-api35`, real YouTube items, seeking to 40 s before
   each end: gapless off 4.6 / 3.7 / 4.4 s of silence at the three hand-overs, gapless on 0 / 0 / 0 s.
+
+## The lead outlasts the silent tail (2026-10-28)
+
+Report 20261026T194001 (0.1.725): *"why lots of buffering just now? it's meant to seamlessly go between items"*. An
+80-minute talk with a silent last minute: skip-silence cut it while the picture could not keep up (7.5 s of buffering
+at one position), then the silent-tail rule (ADR 58) ended the item 61 s before its end, before the 45 s arming
+window, so nothing was in line or even resolved, and the next video took 4.9 s to start. The arming lead, and the
+prefetcher's, are now the longest silent tail (`LONGEST_SILENT_TAIL_MS`, 60 s) plus 15 s, so the tail's seek to the
+end crosses into the armed next item (`GaplessArmerTest` "the next item is in line before a silent last minute can
+end this one early", red on the old lead).
