@@ -6,6 +6,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 
 /**
  * Fetches account video feeds by browsing the matching InnerTube id with a live token
@@ -31,7 +32,7 @@ public class HttpYouTubeFeeds(
         }
         val target = after?.let { BrowseTarget.Continuation(it.value) } ?: BrowseTarget.Id(feed.browseId)
         return when (val browsed = innerTube.browse(target, token)) {
-            is InnerTubeResponse.Success -> VideoTileParser.parse(browsed.body)
+            is InnerTubeResponse.Success -> browsed.parsed { VideoTileParser.parse(it) }
             InnerTubeResponse.Unauthorized -> FeedResult.SignedOut
             is InnerTubeResponse.Failure -> FeedResult.Failure(browsed.detail)
         }

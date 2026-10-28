@@ -6,6 +6,7 @@ import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.Continuations
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.innertube.feeds.LockupParser
 import com.dewijones92.totum.innertube.search.SearchResultsParser
@@ -60,7 +61,7 @@ public class HttpYouTubeChannel(
         val target = after?.let { BrowseTarget.Continuation(it.value) }
             ?: BrowseTarget.Id(channelId, params, query)
         return when (val response = innerTube.browseWeb(target)) {
-            is InnerTubeResponse.Success -> TabResult.Ok(parse(response.body))
+            is InnerTubeResponse.Success -> TabResult.Ok(response.parsed(parse))
             InnerTubeResponse.Unauthorized -> TabResult.Err("Unauthorized")
             is InnerTubeResponse.Failure -> TabResult.Err(response.detail)
         }

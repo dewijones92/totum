@@ -9,8 +9,8 @@ adb install -r "$apk" >/dev/null
 adb shell am force-stop $pkg
 adb shell monkey -p $pkg 1 >/dev/null 2>&1
 sleep 8
-ids="dQw4w9WgXcQ$(python3 -c "print(''.join(',perf%07d' % i for i in range(1, 1800)))")"
-adb shell am broadcast -a $pkg.DEBUG_QUEUE_PLAY_ALL -p $pkg --es ids "$ids" >/dev/null
+urls="$(python3 -c "print(','.join('http://10.0.2.2:8766/perf?i=%d' % i for i in range(1, 1800)))")"
+adb shell am broadcast -a $pkg.DEBUG_QUEUE_PLAY_ALL -p $pkg --es ids dQw4w9WgXcQ --es urls "$urls" >/dev/null
 sleep 15
 adb shell input tap 740 2270
 sleep 3

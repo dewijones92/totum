@@ -5,6 +5,7 @@ import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.music.firstObject
 import com.dewijones92.totum.innertube.music.parseMusicRoot
 import com.dewijones92.totum.innertube.music.str
@@ -55,8 +56,7 @@ public class HttpYouTubeActions(
     override suspend fun rating(videoId: String): VideoRating? {
         val token = (account.accessToken() as? AccessTokenResult.Available)?.token ?: return null
         val answer = innerTube.action(endpoints.next, """"videoId":"${escape(videoId)}"""", token)
-        val body = (answer as? InnerTubeResponse.Success)?.body ?: return null
-        val root = parseMusicRoot(body) ?: return null
+        val root = (answer as? InnerTubeResponse.Success)?.parsed { parseMusicRoot(it) } ?: return null
         val status = root.firstObject("likeButtonRenderer")?.str("likeStatus")
             ?: root.firstObject("likeStatusEntity")?.str("likeStatus")
         return when (status) {
@@ -92,7 +92,7 @@ public class HttpYouTubeActions(
 
     private suspend fun perform(url: String, fields: String, token: AccessToken): ActionResult =
         when (val response = innerTube.action(url, fields, token)) {
-            is InnerTubeResponse.Success -> response.body.actionOutcome()
+            is InnerTubeResponse.Success -> response.parsed { it.actionOutcome() }
             InnerTubeResponse.Unauthorized -> ActionResult.SignedOut
             is InnerTubeResponse.Failure -> ActionResult.Failure(response.detail)
         }

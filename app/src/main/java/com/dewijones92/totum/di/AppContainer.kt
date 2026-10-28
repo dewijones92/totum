@@ -127,6 +127,7 @@ import com.dewijones92.totum.innertube.auth.HttpYouTubeAuth
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.channel.HttpYouTubeChannel
 import com.dewijones92.totum.innertube.channel.YouTubeChannel
 import com.dewijones92.totum.innertube.comments.HttpYouTubeComments
@@ -1201,11 +1202,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         val flags = embedHostFlags.forVideo(videoId) ?: return null
         val stamp = runCatching { signatureTimestamps.current() }.getOrNull() ?: return null
         val response = innerTubeClient.playerAsEmbedded(videoId, visitor, stamp, flags)
-        val body = (response as? InnerTubeResponse.Success)?.body ?: run {
+        val success = response as? InnerTubeResponse.Success ?: run {
             Diag.log("resolve", "$videoId: the embedded player answered $response")
             return null
         }
-        return PlayerResponseParser.parse(body)
+        return success.parsed { PlayerResponseParser.parse(it) }
     }
 
     override val appPreferences: AppPreferences by lazy { SharedPrefsAppPreferences(context) }

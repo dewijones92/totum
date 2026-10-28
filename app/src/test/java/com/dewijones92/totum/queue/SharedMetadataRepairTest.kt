@@ -84,6 +84,7 @@ class SharedMetadataRepairTest {
             {},
             backgroundScope,
             retryDelayMs = 1_000,
+            now = { testScheduler.currentTime },
         ).start()
         runCurrent()
         assertTrue(learned.isEmpty())
@@ -91,6 +92,56 @@ class SharedMetadataRepairTest {
         runCurrent()
         assertEquals(listOf(resolved), learned)
         assertEquals(2, calls)
+    }
+
+    @Test
+    fun `a video that never resolves is asked five times with a growing gap, then left alone`() = runTest {
+        val asked = mutableListOf<Long>()
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(placeholder)))),
+            FakeDownloadManager(),
+            {
+                asked += testScheduler.currentTime
+                null
+            },
+            {},
+            {},
+            backgroundScope,
+            retryDelayMs = 1_000,
+            now = { testScheduler.currentTime },
+        ).start()
+        runCurrent()
+        advanceTimeBy(10_000_000)
+        runCurrent()
+
+        assertEquals(listOf(0L, 1_000L, 5_000L, 21_000L, 85_000L), asked)
+    }
+
+    @Test
+    fun `a queue edit does not ask again about a video asked moments ago`() = runTest {
+        val queue = MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(placeholder))))
+        var calls = 0
+        SharedMetadataRepair(
+            queue,
+            FakeDownloadManager(),
+            {
+                calls++
+                null
+            },
+            {},
+            {},
+            backgroundScope,
+            retryDelayMs = 30_000,
+            now = { testScheduler.currentTime },
+        ).start()
+        runCurrent()
+        repeat(5) {
+            advanceTimeBy(1_000)
+            queue.value = queue.value.copy(currentIndex = it % 2)
+            runCurrent()
+        }
+
+        assertEquals(1, calls)
     }
 
     @Test

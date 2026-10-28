@@ -2,7 +2,7 @@
 title: Renovate runs at weekends, merges only its own green PRs, and Media3 waits for a soak
 kind: adr
 status: accepted
-updated: 2026-10-14
+updated: 2026-10-28
 ---
 
 # 41. Renovate runs at weekends, merges only its own green PRs, and Media3 waits for a soak
@@ -36,3 +36,20 @@ Dewi's phone.
   this lands.
 - An auto-merged bump arrives as an ordinary release, so its effect shows in the next diagnostics report
   like any other change.
+
+## The policy, decided (2026-10-28)
+
+Dewi, 2026-10-28: *"decide now what the policy is"*: either a dependency merges by itself, or it waits to be looked
+at, and nothing sits in between.
+
+| Kind | What happens |
+|---|---|
+| Patch and minor updates of libraries, GitHub Actions, the Pi's Python packages and Docker images | Merged by Renovate once 3 days old and every CI check is green |
+| A security fix (Renovate's vulnerability alerts) | Raised at once, any day, without the 3-day age, and merged on green CI |
+| Majors, Kotlin + KSP, AGP, Chaquopy (`needs-review`), Media3 (`needs-soak`), FFmpeg and QuickJS (`needs-manual-rebuild`) | Held, with that label |
+
+**Held PRs are looked at at the start of every batch**, and each one is landed (with the soak or rebuild its label
+asks for) or closed with the reason; none waits longer than a batch. On 2026-10-28 Kotlin + KSP had waited since
+2026-10-17, and two green minor PRs (fastapi, uvicorn) had not merged by themselves: the dashboard had not been
+updated since 2026-10-24 15:52, so the hosted app had apparently not run since, which nothing here can see. Six
+more updates were rate-limited by `prConcurrentLimit: 5`, now 10.

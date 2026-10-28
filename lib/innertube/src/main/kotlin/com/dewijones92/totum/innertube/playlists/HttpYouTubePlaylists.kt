@@ -6,6 +6,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.feeds.FeedResult
 import com.dewijones92.totum.innertube.feeds.VideoTileParser
 // FeedResult.SignedOut is handled below; VideoTileParser never emits it, but the when must be exhaustive.
@@ -27,7 +28,7 @@ public class HttpYouTubePlaylists(
             is AccessTokenResult.Failure -> return PlaylistsResult.Failure(result.detail)
         }
         return when (val browsed = innerTube.browse(BrowseTarget.Id(PLAYLISTS_BROWSE_ID), token)) {
-            is InnerTubeResponse.Success -> PlaylistsResponseParser.parse(browsed.body)
+            is InnerTubeResponse.Success -> browsed.parsed { PlaylistsResponseParser.parse(it) }
             InnerTubeResponse.Unauthorized -> PlaylistsResult.SignedOut
             is InnerTubeResponse.Failure -> PlaylistsResult.Failure(browsed.detail)
         }
@@ -41,7 +42,7 @@ public class HttpYouTubePlaylists(
         }
         val target = after?.let { BrowseTarget.Continuation(it.value) } ?: BrowseTarget.Id(browseId)
         return when (val browsed = innerTube.browse(target, token)) {
-            is InnerTubeResponse.Success -> when (val parsed = VideoTileParser.parse(browsed.body)) {
+            is InnerTubeResponse.Success -> when (val parsed = browsed.parsed { VideoTileParser.parse(it) }) {
                 is FeedResult.Success -> PlaylistVideosResult.Success(parsed.page)
                 FeedResult.SignedOut -> PlaylistVideosResult.SignedOut
                 is FeedResult.Failure -> PlaylistVideosResult.Failure(parsed.detail)

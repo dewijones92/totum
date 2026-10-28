@@ -6,6 +6,7 @@ import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -51,9 +52,10 @@ class SignedInTvPlayer(
 
     private suspend fun describedByTheWatchPage(videoId: String, token: AccessToken): WatchNextDetails? {
         val response = runCatching { innerTubeClient.nextAsAccount(videoId, token) }.getOrNull()
-        val details = (response as? InnerTubeResponse.Success)?.body?.let { WatchNextParser.details(it, videoId) }
-        (response as? InnerTubeResponse.Success)?.body?.let {
-            Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(it)}")
+        val success = response as? InnerTubeResponse.Success
+        val details = success?.parsed { body ->
+            Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(body)}")
+            WatchNextParser.details(body, videoId)
         }
         Diag.log(
             "resolve",
@@ -89,9 +91,11 @@ class SignedInTvPlayer(
         request: suspend () -> InnerTubeResponse,
     ): PlayerResult.Success? {
         val response = runCatching { request() }.getOrNull()
-        val body = (response as? InnerTubeResponse.Success)?.body
-        val parsed = body?.let(PlayerResponseParser::parse)
-        body?.let { Diag.log("resolve", "dewidebug $videoId $client player response ${descriptionKeys(it)}") }
+        val success = response as? InnerTubeResponse.Success
+        val parsed = success?.parsed { body ->
+            Diag.log("resolve", "dewidebug $videoId $client player response ${descriptionKeys(body)}")
+            PlayerResponseParser.parse(body)
+        }
         if (parsed !is PlayerResult.Success) {
             // WHAT it said, not just that it failed. Concluding "refused" from a null was the
             // mistake that made age restriction look impossible for two rounds.
@@ -120,7 +124,7 @@ class SignedInTvPlayer(
         Diag.log("resolve", "$videoId as $client -> ${playable.directlyPlayable.size} fetchable format(s)")
         val details = parsed.details ?: run {
             val described = describe() ?: WatchNextDetails(title = videoId, author = null, channelId = null)
-            (PlayerResponseParser.parse(body, described) as? PlayerResult.Success)?.details
+            (success?.parsed { PlayerResponseParser.parse(it, described) } as? PlayerResult.Success)?.details
         }
         return parsed.copy(streaming = playable, details = details)
     }

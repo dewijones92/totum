@@ -4,6 +4,8 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.QueueStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.Instant
 
 /** [QueueStore] backed by Room, reusing the shared playable-item column mapping. */
@@ -11,6 +13,10 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
 
     override suspend fun load(): QueueSnapshot {
         val rows = dao.all()
+        return withContext(Dispatchers.Default) { snapshotOf(rows) }
+    }
+
+    private fun snapshotOf(rows: List<QueueEntity>): QueueSnapshot {
         // A row that can't be rebuilt (an unusable handle) is dropped, so the cursor
         // is derived from what survived rather than from the raw row positions.
         val kept = rows.mapNotNull { row ->
@@ -25,38 +31,39 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
     }
 
     override suspend fun save(snapshot: QueueSnapshot) {
-        dao.replaceAll(
-            snapshot.entries.mapIndexed { index, entry ->
-                val (type, handle) = entry.item.handle.typeAndHandle()
-                val media = entry.item.item
-                QueueEntity(
-                    position = index.toLong(),
-                    groupId = entry.group?.id,
-                    groupTitle = entry.group?.title,
-                    isCurrent = index == snapshot.currentIndex,
-                    itemId = media.id.value,
-                    title = media.title,
-                    author = media.author,
-                    publisher = media.publisher,
-                    thumbnailUrl = media.thumbnailUrl?.value,
-                    sourceId = media.sourceId.value,
-                    contentKind = media.contentKind.name,
-                    // The listing's own facts, or they are lost the moment the row is written -- see
-                    // PlaylistItemColumns.
-                    viewsText = media.viewsText,
-                    publishedText = media.publishedText,
-                    publishedAtEpochMs = media.publishedAt?.toEpochMilli(),
-                    durationMs = media.duration?.inWholeMilliseconds,
-                    sourceUrl = media.sourceUrl?.value,
-                    membersOnly = media.membersOnly,
-                    albumId = media.album?.id,
-                    albumTitle = media.album?.title,
-                    playbackType = type,
-                    handle = handle,
-                    mediaUrl = media.mediaUrl?.value,
-                    addedAtEpochMs = entry.addedAt?.toEpochMilli(),
-                )
-            },
-        )
+        dao.replaceAll(withContext(Dispatchers.Default) { rowsOf(snapshot) })
     }
+
+    private fun rowsOf(snapshot: QueueSnapshot): List<QueueEntity> =
+        snapshot.entries.mapIndexed { index, entry ->
+            val (type, handle) = entry.item.handle.typeAndHandle()
+            val media = entry.item.item
+            QueueEntity(
+                position = index.toLong(),
+                groupId = entry.group?.id,
+                groupTitle = entry.group?.title,
+                isCurrent = index == snapshot.currentIndex,
+                itemId = media.id.value,
+                title = media.title,
+                author = media.author,
+                publisher = media.publisher,
+                thumbnailUrl = media.thumbnailUrl?.value,
+                sourceId = media.sourceId.value,
+                contentKind = media.contentKind.name,
+                // The listing's own facts, or they are lost the moment the row is written -- see
+                // PlaylistItemColumns.
+                viewsText = media.viewsText,
+                publishedText = media.publishedText,
+                publishedAtEpochMs = media.publishedAt?.toEpochMilli(),
+                durationMs = media.duration?.inWholeMilliseconds,
+                sourceUrl = media.sourceUrl?.value,
+                membersOnly = media.membersOnly,
+                albumId = media.album?.id,
+                albumTitle = media.album?.title,
+                playbackType = type,
+                handle = handle,
+                mediaUrl = media.mediaUrl?.value,
+                addedAtEpochMs = entry.addedAt?.toEpochMilli(),
+            )
+        }
 }

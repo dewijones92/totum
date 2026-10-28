@@ -24,3 +24,31 @@ internal fun QueueSnapshot.movingTo(
     val cursor = reordered.indexOfFirst { it.item.item.id == cursorOn }
     return copy(entries = reordered, currentIndex = if (cursor >= 0) cursor else fallback)
 }
+
+internal fun QueueSnapshot.movingAll(ids: List<MediaItemId>, toTop: Boolean): QueueSnapshot {
+    val byId = entries.associateBy { it.item.item.id }
+    val chosen = ids.distinct().mapNotNull(byId::get)
+    if (chosen.isEmpty()) return this
+    val moving = chosen.mapTo(HashSet()) { it.item.item.id }
+    val rest = entries.filterNot { it.item.item.id in moving }
+    val reordered = if (toTop) chosen + rest else rest + chosen
+    val playing = current ?: return copy(entries = reordered)
+    return copy(entries = reordered, currentIndex = reordered.indexOfFirst { it === playing })
+}
+
+internal fun QueueSnapshot.removingAll(ids: Set<MediaItemId>): QueueSnapshot {
+    val kept = entries.filterNot { it.item.item.id in ids }
+    if (kept.size == entries.size) return this
+    val keptBefore = entries.take(currentIndex.coerceAtLeast(0)).count { it.item.item.id !in ids }
+    val cursor = when {
+        currentIndex !in entries.indices -> currentIndex
+        entries[currentIndex].item.item.id in ids -> keptBefore - 1
+        else -> keptBefore
+    }
+    return copy(entries = kept, currentIndex = cursor)
+}
+
+fun PlaybackQueue.removeAll(ids: Set<MediaItemId>) = reorder("remove x${ids.size}") { it.removingAll(ids) }
+
+fun PlaybackQueue.moveAll(ids: List<MediaItemId>, toTop: Boolean) =
+    reorder("move x${ids.size} to the ${if (toTop) "top" else "bottom"}") { it.movingAll(ids, toTop) }

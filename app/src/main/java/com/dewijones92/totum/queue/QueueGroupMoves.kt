@@ -14,19 +14,20 @@ fun PlaybackQueue.moveGroup(id: String, to: GroupDestination) =
     reorder("move group ${state.value.groupLabel(id)} to $to") { it.movingGroup(id, to) }
 
 internal fun List<QueueEntry>.blocks(): List<QueueBlock> {
-    val blocks = mutableListOf<QueueBlock>()
-    val byGroup = mutableMapOf<String, Int>()
+    val order = mutableListOf<Pair<String?, MutableList<QueueEntry>>>()
+    val byGroup = HashMap<String, MutableList<QueueEntry>>()
     forEach { entry ->
         val id = entry.group?.id
-        val at = id?.let(byGroup::get)
-        if (at != null) {
-            blocks[at] = blocks[at].copy(entries = blocks[at].entries + entry)
+        val members = id?.let(byGroup::get)
+        if (members != null) {
+            members += entry
         } else {
-            id?.let { byGroup[it] = blocks.size }
-            blocks += QueueBlock(id, listOf(entry))
+            val fresh = mutableListOf(entry)
+            id?.let { byGroup[it] = fresh }
+            order += id to fresh
         }
     }
-    return blocks
+    return order.map { (id, members) -> QueueBlock(id, members) }
 }
 
 internal fun QueueSnapshot.movingGroupPast(groupId: String, target: Int): QueueSnapshot {

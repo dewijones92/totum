@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.hasPlaceholderTitle
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlin.math.pow
 
 internal class SharedMetadataRepair(
     private val queue: StateFlow<QueueSnapshot>,
@@ -28,21 +30,50 @@ internal class SharedMetadataRepair(
     private val awaitNetwork: suspend () -> Unit,
     private val scope: CoroutineScope,
     private val retryDelayMs: Long = 30_000,
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
+    private class Tries(val count: Int, val nextAt: Long)
+
+    private val tries = HashMap<MediaItemId, Tries>()
+
     fun start() {
         scope.launch {
             combine(queue, downloads.observeRecords()) { snapshot, records ->
                 (snapshot.entries.map { it.item } + records.map { it.item })
                     .filter { it.item.hasPlaceholderTitle && it.handle is PlayHandle.Video }
                     .distinctBy { it.item.id }
-            }.distinctUntilChanged().collectLatest { candidates ->
-                var pending = candidates
-                while (pending.isNotEmpty()) {
-                    awaitNetwork()
-                    pending = pending.filter { item -> !repair(item) }
-                    if (pending.isNotEmpty()) delay(retryDelayMs)
+            }.distinctUntilChanged().collectLatest { candidates -> repairAll(candidates) }
+        }
+    }
+
+    private suspend fun repairAll(candidates: List<PlayableItem>) {
+        while (true) {
+            val left = candidates.filter { (tries[it.item.id]?.count ?: 0) < MAX_TRIES }
+            if (left.isEmpty()) return
+            val due = left.filter { (tries[it.item.id]?.nextAt ?: 0) <= now() }
+            if (due.isEmpty()) {
+                delay(left.minOf { tries.getValue(it.item.id).nextAt } - now())
+                continue
+            }
+            awaitNetwork()
+            due.forEach { item ->
+                if (repair(item)) {
+                    tries[item.item.id] = Tries(MAX_TRIES, Long.MAX_VALUE)
+                } else {
+                    failed(item.item.id)
                 }
             }
+        }
+    }
+
+    private fun failed(id: MediaItemId) {
+        val count = (tries[id]?.count ?: 0) + 1
+        val gap = retryDelayMs * BACK_OFF.pow(count - 1).toLong()
+        tries[id] = Tries(count, now() + gap)
+        if (count >= MAX_TRIES) {
+            Diag.log("metadata", "${id.value}: no title after $count tries; not asking YouTube again this session")
+        } else {
+            Diag.log("metadata", "${id.value}: title still unavailable (try $count of $MAX_TRIES); next in ${gap}ms")
         }
     }
 
@@ -54,7 +85,6 @@ internal class SharedMetadataRepair(
             }
             currentCoroutineContext().ensureActive()
             if (resolved == null) {
-                Diag.log("metadata", "${item.item.id.value}: title still unavailable; retrying in ${retryDelayMs}ms")
                 false
             } else {
                 downloads.learnFacts(resolved)
@@ -65,7 +95,7 @@ internal class SharedMetadataRepair(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            Diag.warn("metadata", "${item.item.id.value}: metadata repair failed; will retry", failure)
+            Diag.warn("metadata", "${item.item.id.value}: metadata repair failed", failure)
             false
         }
     }
@@ -89,3 +119,6 @@ internal fun startSharedMetadataRepair(
         scope = scope,
     ).start()
 }
+
+private const val MAX_TRIES = 5
+private const val BACK_OFF = 4.0

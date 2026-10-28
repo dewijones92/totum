@@ -6,6 +6,7 @@ import com.dewijones92.totum.innertube.browse.Continuations
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.SearchTarget
+import com.dewijones92.totum.innertube.browse.parsed
 import kotlinx.serialization.json.Json
 
 /** [YouTubeMusicSearch] over InnerTube's music search endpoint (WEB_REMIX client, no auth). */
@@ -16,7 +17,7 @@ public class HttpYouTubeMusicSearch(private val client: InnerTubeClient) : YouTu
     override suspend fun searchSongs(query: String, limit: Int, after: PageToken?): SearchSongsResult {
         val target = after?.let { SearchTarget.Continuation(it.value) } ?: SearchTarget.Query(query)
         return when (val response = client.searchMusic(target)) {
-            is InnerTubeResponse.Success -> SearchSongsResult.Success(response.body.toPage(limit))
+            is InnerTubeResponse.Success -> SearchSongsResult.Success(response.parsed { it.toPage(limit) })
             // Music search needs no token, so a refusal here is YouTube declining the request
             // rather than a sign-in problem — same reasoning as video search.
             InnerTubeResponse.Unauthorized -> SearchSongsResult.Failure("rejected")

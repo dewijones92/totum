@@ -2,7 +2,7 @@
 title: The UI does no work per playback tick
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-10-28
 ---
 
 # 61. The UI does no work per playback tick
@@ -84,3 +84,30 @@ and none with Library underneath. The 500 ms was the playback controller's posit
   for a moment), so a cut-off drag cannot freeze the bar (`SeekSurvivesATickTest`, both cases).
 - `rememberField`'s lambda must be a pure read of the state: it is applied to each emission, so one that read anything
   else would only refresh when playback state next changed.
+
+## Big queues and the main thread (2026-10-28)
+
+Dewi, 2026-10-28: with ~1,000 items in the queue the UI was slow, *"pausing and playing items … is slow and laggy"*,
+and moves in the queue. Measured on `totum-api35` with Perfetto (main-thread call-stack sampling at 500 Hz), a
+1,800-item queue in one group, six play/pause presses and three swipes: samples in queue code on the main thread
+133 → 22, all main-thread samples 736 → 483, frames over 50 ms 14 → 4.
+
+- **The queue list is laid out once per change of the queue, in one pass** (`queueRows`, `QueueLayout`). Each row
+  used to scan every row above it (`entries.take(index)`) and each group header filtered the whole queue, and the
+  whole DSL ran again on every play/pause because `isPlaying` was read at the top of the screen. `isPlaying` is now a
+  `State` read only by the rows that show it. `QueueLayoutTest` checks the new layout against the old scan on 300
+  random queues.
+- **Edits are single passes**: adding or playing-next many items, and removing or moving a selection, are one
+  mutation instead of one per item (`QueueBulkEditsTest` checks each against doing it one item at a time);
+  `blocks()` is linear.
+- **Off the main thread**: the queue's Room rows are mapped on `Dispatchers.Default` (`RoomQueueStore`); every
+  InnerTube response is parsed through `InnerTubeResponse.Success.parsed` on `Dispatchers.Default` (it was parsed on
+  the caller's thread in 22 places, often main, and a watch page is about 1 MB of JSON); Exsurge's flat-phone sensor
+  listener has its own thread and judges once per second of sensor time.
+- **No work per tick that is not needed**: the gapless armer asks the queue for its next item only near the end of an
+  item (`GaplessArmerTest`), and the cast end watch runs only while the TV plays.
+- **A queue of rows that never resolve no longer asks YouTube for ever**: the metadata repair tries a placeholder row
+  five times, 30 s, 2, 8 and 32 min apart, then leaves it for the session (`SharedMetadataRepairTest`). A test queue
+  of 1,800 made-up ids had YouTube answering 429.
+- The 30 s `[snapshot]` line says what the busy bar is waiting on (`busy bar on for N: […]`), so a bar that will not
+  go away can be read from a report.

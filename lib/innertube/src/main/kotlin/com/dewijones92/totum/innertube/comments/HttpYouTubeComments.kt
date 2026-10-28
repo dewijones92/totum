@@ -2,6 +2,7 @@ package com.dewijones92.totum.innertube.comments
 
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 
 /**
  * Reads a video's comments over two unauthenticated WEB `next` calls: fetch
@@ -13,15 +14,14 @@ public class HttpYouTubeComments(
 ) : YouTubeComments {
 
     override suspend fun forVideo(videoId: String): CommentsResult {
-        val watchPage = when (val result = innerTube.next(videoId)) {
-            is InnerTubeResponse.Success -> result.body
+        val found = when (val result = innerTube.next(videoId)) {
+            is InnerTubeResponse.Success -> result.parsed { CommentsResponseParser.findCommentsContinuation(it) }
             InnerTubeResponse.Unauthorized -> return CommentsResult.Failure("Unauthorized")
             is InnerTubeResponse.Failure -> return CommentsResult.Failure(result.detail)
         }
-        val continuation = CommentsResponseParser.findCommentsContinuation(watchPage)
-            ?: return CommentsResult.Disabled
+        val continuation = found ?: return CommentsResult.Disabled
         return when (val result = innerTube.nextContinuation(continuation)) {
-            is InnerTubeResponse.Success -> CommentsResponseParser.parseComments(result.body)
+            is InnerTubeResponse.Success -> result.parsed { CommentsResponseParser.parseComments(it) }
             InnerTubeResponse.Unauthorized -> CommentsResult.Failure("Unauthorized")
             is InnerTubeResponse.Failure -> CommentsResult.Failure(result.detail)
         }
@@ -29,7 +29,7 @@ public class HttpYouTubeComments(
 
     override suspend fun repliesFor(token: String): RepliesResult =
         when (val result = innerTube.nextContinuation(token)) {
-            is InnerTubeResponse.Success -> CommentsResponseParser.parseReplies(result.body)
+            is InnerTubeResponse.Success -> result.parsed { CommentsResponseParser.parseReplies(it) }
             InnerTubeResponse.Unauthorized -> RepliesResult.Failure("Unauthorized")
             is InnerTubeResponse.Failure -> RepliesResult.Failure(result.detail)
         }

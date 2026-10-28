@@ -4,6 +4,7 @@ import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.player.SignatureTimestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -591,3 +592,6 @@ public sealed interface InnerTubeResponse {
 
     public data class Failure(val detail: String) : InnerTubeResponse
 }
+
+public suspend fun <T> InnerTubeResponse.Success.parsed(read: (String) -> T): T =
+    withContext(Dispatchers.Default) { read(body) }

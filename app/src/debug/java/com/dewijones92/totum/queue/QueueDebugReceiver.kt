@@ -31,7 +31,7 @@ class QueueDebugReceiver : BroadcastReceiver() {
                 val appended = intent.getStringExtra("append").orEmpty().split(',').filter { it.isNotBlank() }.mapNotNull { id ->
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
-                }
+                }.plus(directItems(intent.getStringExtra("appendUrls"), offset = items.size))
                 val appendGroup = intent.getStringExtra("appendGroup")?.let { QueueGroup(id = "debug:$it", title = it) }
                 container.applicationScope.launch {
                     (items + appended).forEach { container.playbackProgressStore.setPlayed(it.item.id, false) }
@@ -74,8 +74,9 @@ class QueueDebugReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun directItems(urls: String?): List<PlayableItem> =
-        urls.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty).mapIndexed { index, address ->
+    private fun directItems(urls: String?, offset: Int = 0): List<PlayableItem> =
+        urls.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty).mapIndexed { at, address ->
+            val index = at + offset
             val url = HttpUrl.of(address)
             PlayableItem(
                 MediaItem(

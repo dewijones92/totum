@@ -7,6 +7,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.feeds.AccountProgress
 import com.dewijones92.totum.innertube.feeds.VideoTileParser
 import com.dewijones92.totum.innertube.player.PlaybackTracking
@@ -67,11 +68,11 @@ public class HttpYouTubeWatchHistory(
             return emptyMap()
         }
         val response = runCatching { innerTube.browse(BrowseTarget.Id(HISTORY_BROWSE_ID), token) }.getOrNull()
-        val body = (response as? InnerTubeResponse.Success)?.body ?: run {
+        val success = response as? InnerTubeResponse.Success ?: run {
             Diag.warn("yt-sync", "could not read watched positions: $response")
             return emptyMap()
         }
-        return VideoTileParser.watchedPositions(body).also {
+        return success.parsed { VideoTileParser.watchedPositions(it) }.also {
             Diag.log("yt-sync", "YouTube knows a watched position for ${it.size} recent video(s)")
         }
     }

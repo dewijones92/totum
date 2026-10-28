@@ -5,6 +5,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.innertube.playlists.PlaylistsResponseParser
 import com.dewijones92.totum.innertube.playlists.PlaylistsResult
@@ -40,7 +41,7 @@ public class HttpYouTubeMusicLibrary(
             is AccessTokenResult.Failure -> return LibraryResult.Failure(result.detail)
         }
         return when (val browsed = innerTube.browse(BrowseTarget.Id(browseId), token)) {
-            is InnerTubeResponse.Success -> LibraryResult.Success(read(browsed.body))
+            is InnerTubeResponse.Success -> LibraryResult.Success(browsed.parsed(read))
             InnerTubeResponse.Unauthorized -> LibraryResult.SignedOut
             is InnerTubeResponse.Failure -> LibraryResult.Failure(browsed.detail)
         }

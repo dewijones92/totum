@@ -11,6 +11,7 @@ import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.player.WatchNextParser
 
 class AccountChannel(
@@ -23,7 +24,7 @@ class AccountChannel(
         val token = (runCatching { account.accessToken() }.getOrNull() as? AccessTokenResult.Available)?.token
             ?: return null.also { Diag.log("nav", "$id: signed out, so the account cannot name its channel") }
         val response = runCatching { client.nextAsAccount(id, token) }.getOrNull()
-        val details = (response as? InnerTubeResponse.Success)?.body?.let { WatchNextParser.details(it, id) }
+        val details = (response as? InnerTubeResponse.Success)?.parsed { WatchNextParser.details(it, id) }
         val channelId = details?.channelId
         val url = channelId?.let(::youTubeChannelUrl) ?: return null.also {
             val said = response.toString().take(LOGGED_CHARS)

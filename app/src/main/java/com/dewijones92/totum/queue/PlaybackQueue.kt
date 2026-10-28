@@ -232,11 +232,7 @@ class PlaybackQueue(
     fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
-        mutate("add-to-end x${items.size}$label") { snapshot ->
-            items.fold(snapshot) { acc, item ->
-                acc.relocating(item) { without -> without.copy(entries = without.entries + QueueEntry(item, group)) }
-            }
-        }
+        mutate("add-to-end x${items.size}$label") { it.appendingAll(items, group) }
         mirroring.mirrorAll(items)
     }
 
@@ -256,8 +252,12 @@ class PlaybackQueue(
     fun playNextAll(items: List<PlayableItem>) {
         if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
         mutate("play-next x${items.size}") { snapshot ->
-            items.asReversed().fold(snapshot) { acc, item ->
-                acc.relocating(item) { without -> without.inserted(listOf(QueueEntry(item, null))) }
+            if (snapshot.anchor != null && items.any { it.item.id == snapshot.anchor }) {
+                items.asReversed().fold(snapshot) { acc, item ->
+                    acc.relocating(item) { without -> without.inserted(listOf(QueueEntry(item, null))) }
+                }
+            } else {
+                snapshot.insertingAllNext(items)
             }
         }
         mirroring.mirrorAll(items)
@@ -1102,6 +1102,30 @@ private fun QueueSnapshot.relocating(
 ): QueueSnapshot {
     if (current?.item?.item?.id == item.item.id) return adoptingRoutesFrom(listOf(item))
     return place(removing { it.item.item.id == item.item.id })
+}
+
+private fun QueueSnapshot.appendingAll(items: List<PlayableItem>, group: QueueGroup?): QueueSnapshot {
+    val playingId = current?.item?.item?.id
+    val adopted = items.filter { it.item.id == playingId }.fold(
+        this
+    ) { acc, item -> acc.adoptingRoutesFrom(listOf(item)) }
+    val lastAt = HashMap<MediaItemId, Int>()
+    items.forEachIndexed { index, item -> lastAt[item.item.id] = index }
+    val incoming = items.filterIndexed { index, item -> item.item.id != playingId && lastAt[item.item.id] == index }
+    if (incoming.isEmpty()) return adopted
+    val moving = incoming.mapTo(HashSet()) { it.item.id }
+    val without = adopted.removing { it.item.item.id in moving }
+    return without.copy(entries = without.entries + incoming.map { QueueEntry(it, group) })
+}
+
+private fun QueueSnapshot.insertingAllNext(items: List<PlayableItem>): QueueSnapshot {
+    val playingId = current?.item?.item?.id
+    val adopted = items.asReversed().filter { it.item.id == playingId }
+        .fold(this) { acc, item -> acc.adoptingRoutesFrom(listOf(item)) }
+    val seen = HashSet<MediaItemId>()
+    val incoming = items.filter { it.item.id != playingId && seen.add(it.item.id) }
+    if (incoming.isEmpty()) return adopted
+    return adopted.removing { it.item.item.id in seen }.inserted(incoming.map { QueueEntry(it, null) })
 }
 
 /**

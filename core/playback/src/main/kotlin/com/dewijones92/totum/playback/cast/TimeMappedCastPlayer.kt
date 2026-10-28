@@ -20,12 +20,20 @@ internal class TimeMappedCastPlayer(
     private val endWatch = object : Runnable {
         override fun run() {
             nudgeAtTheRealEnd()
-            handler.postDelayed(this, WATCH_MS)
+            if (cast.isPlaying) handler.postDelayed(this, WATCH_MS)
+        }
+    }
+
+    private val watchWhilePlaying = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            handler.removeCallbacks(endWatch)
+            if (isPlaying) handler.postDelayed(endWatch, WATCH_MS)
         }
     }
 
     init {
-        handler.postDelayed(endWatch, WATCH_MS)
+        cast.addListener(watchWhilePlaying)
+        if (cast.isPlaying) handler.postDelayed(endWatch, WATCH_MS)
     }
 
     private fun timeline(): CastTimeline? =
@@ -74,6 +82,7 @@ internal class TimeMappedCastPlayer(
     }
 
     fun stopWatching() {
+        cast.removeListener(watchWhilePlaying)
         handler.removeCallbacksAndMessages(null)
     }
 

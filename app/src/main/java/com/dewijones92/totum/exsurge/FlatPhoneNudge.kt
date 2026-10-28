@@ -9,6 +9,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Handler
+import android.os.HandlerThread
 import androidx.core.content.edit
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
@@ -40,8 +42,10 @@ class FlatPhoneNudge(
     private val stillness = FlatStillness()
     private var listening = false
     private var lastNudgeAt: Instant? = null
+    private var judgedAtMs = Long.MIN_VALUE / 2
     private var notYet = ThrottledChanges(NOT_YET_LOG_GAP_MS)
     private val glyph by lazy { Icon.createWithBitmap(SurgiusPainter.glyphBitmap(ICON_PX)) }
+    private val sensorThread by lazy { Handler(HandlerThread("flat-phone-nudge").apply { start() }.looper) }
 
     fun start() {
         if (accelerometer == null) {
@@ -65,11 +69,17 @@ class FlatPhoneNudge(
         if (wanted == listening) return
         listening = wanted
         if (wanted) {
-            stillness.reset()
-            val ok = sensors?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL, BATCH_US) == true
+            sensorThread.post { stillness.reset() }
+            val ok = sensors?.registerListener(
+                this,
+                accelerometer,
+                SensorManager.SENSOR_DELAY_NORMAL,
+                BATCH_US,
+                sensorThread,
+            ) == true
             Diag.log(
                 TAG,
-                "dewidebug flat-phone nudge listening=$ok (Exsurge off, in active hours) " +
+                "dewidebug flat-phone nudge listening=$ok on its own thread (Exsurge off, in active hours) " +
                     "sensor=${accelerometer?.name} wakeUp=${accelerometer?.isWakeUpSensor}",
             )
         } else {
@@ -83,7 +93,10 @@ class FlatPhoneNudge(
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        val flatFor = stillness.feed(event.values[0], event.values[1], event.values[2], event.timestamp / NANOS_PER_MS)
+        val atMs = event.timestamp / NANOS_PER_MS
+        val flatFor = stillness.feed(event.values[0], event.values[1], event.values[2], atMs)
+        if (atMs - judgedAtMs in 0 until JUDGE_EVERY_MS) return
+        judgedAtMs = atMs
         val now = clock()
         val muted = mutedOn(context) == now.atZone(zone()).toLocalDate()
         val decision = flatNudgeFor(exsurge.view.value.settings, flatFor, now, zone(), lastNudgeAt, muted)
@@ -168,6 +181,7 @@ class FlatPhoneNudge(
         private const val BUZZ_MS = 200L
         private const val CHECK_MS = 60_000L
         private const val BATCH_US = 30_000_000
+        private const val JUDGE_EVERY_MS = 1_000L
         private const val NANOS_PER_MS = 1_000_000L
         private const val MS_PER_S = 1_000L
         private const val ICON_PX = 96

@@ -9,6 +9,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.MusicNextTarget
 import com.dewijones92.totum.innertube.browse.MusicSearchFilter
 import com.dewijones92.totum.innertube.browse.SearchTarget
+import com.dewijones92.totum.innertube.browse.parsed
 
 public class HttpYouTubeMusicCatalogue(private val client: InnerTubeClient) : YouTubeMusicCatalogue {
 
@@ -68,13 +69,13 @@ private fun <T> String.paged(items: List<T>): Page<T> =
 
 private fun MusicListing.target(): BrowseTarget = BrowseTarget.Id(browseId, params)
 
-private inline fun <T> InnerTubeResponse.map(read: (String) -> T): MusicResult<T> = when (this) {
-    is InnerTubeResponse.Success -> MusicResult.Success(read(body))
+private suspend fun <T> InnerTubeResponse.map(read: (String) -> T): MusicResult<T> = when (this) {
+    is InnerTubeResponse.Success -> MusicResult.Success(parsed(read))
     InnerTubeResponse.Unauthorized -> MusicResult.Failure("rejected")
     is InnerTubeResponse.Failure -> MusicResult.Failure(detail)
 }
 
-private inline fun <T : Any> InnerTubeResponse.parse(what: String, read: (String) -> T?): MusicResult<T> =
+private suspend fun <T : Any> InnerTubeResponse.parse(what: String, read: (String) -> T?): MusicResult<T> =
     when (val mapped = map(read)) {
         is MusicResult.Failure -> mapped
         is MusicResult.Success -> mapped.value?.let { MusicResult.Success(it) }

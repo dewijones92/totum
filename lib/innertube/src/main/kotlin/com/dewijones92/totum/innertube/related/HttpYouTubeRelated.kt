@@ -2,6 +2,7 @@ package com.dewijones92.totum.innertube.related
 
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 
 /**
  * Reads a video's related / "up next" list from one unauthenticated WEB `next`
@@ -14,7 +15,7 @@ public class HttpYouTubeRelated(
 
     override suspend fun relatedTo(videoId: String): RelatedResult =
         when (val result = innerTube.next(videoId)) {
-            is InnerTubeResponse.Success -> RelatedVideosParser.parse(result.body)
+            is InnerTubeResponse.Success -> result.parsed { RelatedVideosParser.parse(it) }
             InnerTubeResponse.Unauthorized -> RelatedResult.Failure("Unauthorized")
             is InnerTubeResponse.Failure -> RelatedResult.Failure(result.detail)
         }

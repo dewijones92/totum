@@ -7,6 +7,7 @@ import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.BrowseTarget
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 
 /**
  * Fetches subscribed channels by browsing the account's `FEchannels` feed
@@ -66,7 +67,7 @@ public class HttpYouTubeSubscriptions(
     private suspend fun fetchPage(target: BrowseTarget, token: AccessToken): PageOutcome =
         when (val browsed = innerTube.browse(target, token)) {
             is InnerTubeResponse.Success ->
-                SubscriptionsResponseParser.parsePage(browsed.body)
+                browsed.parsed { SubscriptionsResponseParser.parsePage(it) }
                     ?.let(PageOutcome::Ready)
                     ?: PageOutcome.Broken("unparseable page")
             InnerTubeResponse.Unauthorized -> PageOutcome.SignedOut

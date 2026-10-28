@@ -54,8 +54,9 @@ import com.dewijones92.totum.queue.GroupDestination
 import com.dewijones92.totum.queue.GroupDownload
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.blocks
+import com.dewijones92.totum.queue.moveAll
 import com.dewijones92.totum.queue.moveGroup
-import com.dewijones92.totum.queue.queueGroupHeaderKey
+import com.dewijones92.totum.queue.removeAll
 import com.dewijones92.totum.queue.shuffleAndPlayGroup
 import com.dewijones92.totum.queue.shuffleGroup
 import com.dewijones92.totum.queue.shuffleTogether
@@ -110,7 +111,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val snapshot by queue.state.collectAsStateWithLifecycle()
     CountRecompositions("queue")
     val downloads = LocalDownloadStates.current
-    val isPlaying by container.playbackController.rememberField { it?.isPlaying == true }
+    val isPlaying = container.playbackController.rememberField { it?.isPlaying == true }
     val progress = container.playbackController.rememberField { it?.progress }
     val entries = snapshot.entries
     val scope = rememberCoroutineScope()
@@ -291,7 +292,7 @@ private data class QueueActions(
  * separately pushed the row emitter past its parameter limit — which is the limit doing its job.
  */
 private data class GroupCollapse(
-    private val collapsedIds: Set<String>,
+    val collapsedIds: Set<String>,
     private val onChange: (Set<String>) -> Unit,
 ) {
     fun isCollapsed(id: String): Boolean = id in collapsedIds
@@ -307,7 +308,7 @@ private data class GroupCollapse(
 private data class NowPlaying(
     val index: Int,
     val progress: State<Float?>,
-    val isPlaying: Boolean,
+    val isPlaying: State<Boolean>,
     val startingId: MediaItemId? = null,
 )
 
@@ -322,115 +323,81 @@ private data class NowPlaying(
  */
 private data class QueueAvailability(val offline: Boolean)
 
-private fun androidx.compose.foundation.lazy.LazyListScope.ungroupedHeading(
-    entries: List<QueueEntry>,
-    index: Int,
-    nowPlaying: NowPlaying,
-) {
-    if (entries[index].group != null || (index > 0 && entries[index - 1].group == null)) return
-    val run = entries.drop(index).takeWhile { it.group == null }.size
-    val playingHere = nowPlaying.index in index until index + run
-    item(key = "ungrouped-$index") { UngroupedHeader(run, playingHere, nowPlaying.isPlaying) }
-}
-
-@Suppress("LongParameterList")
-private fun androidx.compose.foundation.lazy.LazyListScope.groupHeaderItem(
-    entries: List<QueueEntry>,
-    index: Int,
-    group: QueueGroup,
-    isFirstRunOfGroup: Boolean,
-    nowPlaying: NowPlaying,
-    reorder: ReorderableLazyListState,
-    actions: QueueActions,
-    blockCount: Int,
-) {
-    val groups = actions.groups
-    val session = actions.dragSession
-    val run = entries.filter { it.group?.id == group.id }
-    val key = if (isFirstRunOfGroup) queueGroupHeaderKey(group.id) else "group-$index-${group.id}"
-    item(key = key) {
-        val header: @Composable (QueueRowDrag?) -> Unit = { drag ->
-            GroupHeader(
-                model = GroupHeaderModel(
-                    groupId = group.id,
-                    isFirstRun = isFirstRunOfGroup,
-                    title = group.title,
-                    count = run.size,
-                    collapsed = groups.isCollapsed(group.id),
-                    containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
-                    playing = nowPlaying.isPlaying,
-                    draggable = isFirstRunOfGroup && blockCount > 1,
-                    downloading = actions.groupDownloading(group.id),
-                ),
-                actions = actions.forGroup(group.id),
-                drag = drag,
-            )
-        }
-        if (isFirstRunOfGroup) {
-            ReorderableItem(
-                reorder,
-                key,
-                enabled = session.draggingGroup,
-                animateItemModifier = if (session.dragging) Modifier.animateItem() else Modifier,
-            ) { dragging ->
-                header(QueueRowDrag(this, dragging, key, session))
-            }
-        } else {
-            header(null)
-        }
-    }
-}
-
-/**
- * Emits the queue rows, inserting a header wherever the group tag changes — so a
- * run of entries from one "Play all" reads as a block and can be dropped together.
- */
 private fun androidx.compose.foundation.lazy.LazyListScope.itemsWithGroupHeaders(
-    entries: List<QueueEntry>,
+    layout: QueueLayout,
     nowPlaying: NowPlaying,
     availability: QueueAvailability,
     reorder: ReorderableLazyListState,
     actions: QueueActions,
 ) {
-    val groups = actions.groups
-    val blockCount = entries.blocks().size
     val session = actions.dragSession
-    val hasGroups = entries.any { it.group != null }
-    entries.forEachIndexed { index, entry ->
-        val group = entry.group
-        val startsRun = group != null && entries.getOrNull(index - 1)?.group?.id != group.id
-        // A group need not be contiguous — queueing something else mid-season splits it — so each
-        // RUN normally draws its own header. Collapsed, all of them are hidden together, and
-        // repeating "3 items hidden" once per run would be three lies about the same three items.
-        // So a collapsed group shows one header: the first run's.
-        val isFirstRunOfGroup = group != null && entries.take(index).none { it.group?.id == group.id }
-        val alreadyCollapsedAbove = group != null && groups.isCollapsed(group.id) && !isFirstRunOfGroup
-        val splitHeaderMidDrag = !isFirstRunOfGroup && session.dragging
-        if (startsRun && !alreadyCollapsedAbove && !splitHeaderMidDrag) {
-            groupHeaderItem(entries, index, group, isFirstRunOfGroup, nowPlaying, reorder, actions, blockCount)
-        }
-        if (hasGroups) ungroupedHeading(entries, index, nowPlaying)
-        // Hidden, not removed: the entry keeps its index, so reordering and "play this" still
-        // address the same item once it is shown again.
-        if (group != null && groups.isCollapsed(group.id)) return@forEachIndexed
-        val key = entry.item.item.id.value
-        item(key = key) {
-            ReorderableItem(
+    val entries = layout.entries
+    items(layout.rows, key = { it.key }, contentType = { it::class.simpleName }) { row ->
+        when (row) {
+            is QueueRowSpec.GroupHeading -> GroupHeadingRow(row, layout, nowPlaying, reorder, actions)
+            is QueueRowSpec.UngroupedHeading -> UngroupedHeader(
+                row.runSize,
+                nowPlaying.index in row.index until row.index + row.runSize,
+                nowPlaying.isPlaying.value,
+            )
+            is QueueRowSpec.Entry -> ReorderableItem(
                 reorder,
-                key,
+                row.key,
                 animateItemModifier = if (session.dragging) Modifier.animateItem() else Modifier,
             ) { dragging ->
                 QueueRow(
-                    entry,
-                    index,
+                    entries[row.index],
+                    row.index,
                     entries,
                     nowPlaying,
                     availability,
-                    QueueRowDrag(this, dragging, key, session),
-                    actions
+                    QueueRowDrag(this, dragging, row.key, session),
+                    actions,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.lazy.LazyItemScope.GroupHeadingRow(
+    row: QueueRowSpec.GroupHeading,
+    layout: QueueLayout,
+    nowPlaying: NowPlaying,
+    reorder: ReorderableLazyListState,
+    actions: QueueActions,
+) {
+    val entries = layout.entries
+    val group = row.group
+    val session = actions.dragSession
+    val header: @Composable (QueueRowDrag?) -> Unit = { drag ->
+        GroupHeader(
+            model = GroupHeaderModel(
+                groupId = group.id,
+                isFirstRun = row.isFirstRun,
+                title = group.title,
+                count = row.groupSize,
+                collapsed = actions.groups.isCollapsed(group.id),
+                containsNowPlaying = entries.getOrNull(nowPlaying.index)?.group?.id == group.id,
+                playing = nowPlaying.isPlaying.value,
+                draggable = row.isFirstRun && layout.blockCount > 1,
+                downloading = actions.groupDownloading(group.id),
+            ),
+            actions = actions.forGroup(group.id),
+            drag = drag,
+        )
+    }
+    if (row.isFirstRun) {
+        ReorderableItem(
+            reorder,
+            row.key,
+            enabled = session.draggingGroup,
+            animateItemModifier = if (session.dragging) Modifier.animateItem() else Modifier,
+        ) { dragging ->
+            header(QueueRowDrag(this, dragging, row.key, session))
+        }
+    } else {
+        header(null)
     }
 }
 
@@ -440,7 +407,7 @@ private fun FilterableQueue(
     entries: List<QueueEntry>,
     container: AppContainer,
     currentIndex: Int,
-    isPlaying: Boolean,
+    isPlaying: State<Boolean>,
     progress: State<Float?>,
     listState: LazyListState,
     reorder: ReorderableLazyListState,
@@ -474,11 +441,17 @@ private fun FilterableQueue(
                 LocalLongPressHeldElsewhere provides { actions.dragSession.grip.held },
             ) {
                 WatchForOverlappingRows(listState)
+                val dragging = actions.dragSession.dragging
+                val collapsedIds = actions.groups.collapsedIds
+                val blockCount = remember(entries) { entries.blocks().size }
+                val layout = remember(entries, collapsedIds, dragging, blockCount) {
+                    QueueLayout(entries, queueRows(entries, collapsedIds, dragging), blockCount)
+                }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }
                     itemsWithGroupHeaders(
+                        layout = layout,
                         availability = availability,
-                        entries = entries,
                         nowPlaying = nowPlaying,
                         reorder = reorder,
                         actions = actions,
@@ -497,25 +470,14 @@ private fun FilterableQueue(
     }
 }
 
-private fun queueBulkActions(queue: PlaybackQueue, ids: List<MediaItemId>, togetherTitle: String): List<BulkAction> {
-    fun indexOf(id: MediaItemId) = queue.state.value.entries.indexOfFirst { it.item.item.id == id }
-    return listOfNotNull(
+private fun queueBulkActions(queue: PlaybackQueue, ids: List<MediaItemId>, togetherTitle: String): List<BulkAction> =
+    listOfNotNull(
         BulkAction(R.string.queue_shuffle_together) { queue.shuffleTogether(ids.toSet(), togetherTitle) }
             .takeIf { ids.size > 1 },
-        BulkAction(R.string.queue_remove, confirm = R.plurals.queue_remove_confirm) {
-            ids.forEach { id -> queue.state.value.entries.firstOrNull { it.item.item.id == id }?.let(queue::remove) }
-        },
-        BulkAction(R.string.queue_move_to_top) {
-            ids.asReversed().forEach { id -> indexOf(id).takeIf { it > 0 }?.let { queue.move(it, 0) } }
-        },
-        BulkAction(R.string.queue_move_to_bottom) {
-            ids.forEach { id ->
-                val last = queue.state.value.entries.lastIndex
-                indexOf(id).takeIf { it in 0 until last }?.let { queue.move(it, last) }
-            }
-        },
+        BulkAction(R.string.queue_remove, confirm = R.plurals.queue_remove_confirm) { queue.removeAll(ids.toSet()) },
+        BulkAction(R.string.queue_move_to_top) { queue.moveAll(ids, toTop = true) },
+        BulkAction(R.string.queue_move_to_bottom) { queue.moveAll(ids, toTop = false) },
     )
-}
 
 @Composable
 private fun QueueRow(
@@ -529,7 +491,7 @@ private fun QueueRow(
 ) {
     val media = entry.item.item
     Column {
-        if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying)
+        if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying.value)
         val downloadState = downloadStateOf(media.id)
         MediaItemRow(
             item = media,

@@ -6,6 +6,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -261,11 +262,11 @@ class InnerTubePlayerStreams(
             Diag.warn("resolve", "second opinion for $videoId could not be fetched", failure)
             return null
         }
-        val body = (response as? InnerTubeResponse.Success)?.body ?: run {
+        val success = response as? InnerTubeResponse.Success ?: run {
             Diag.log("resolve", "second opinion for $videoId: $response")
             return null
         }
-        return when (val parsed = PlayerResponseParser.parse(body)) {
+        return when (val parsed = success.parsed { PlayerResponseParser.parse(it) }) {
             is PlayerResult.Success -> parsed.playable().also { botBackOff?.served("second opinion for $videoId") }
             is PlayerResult.Unplayable -> {
                 Diag.log("resolve", "second opinion for $videoId refused: ${parsed.reason}")

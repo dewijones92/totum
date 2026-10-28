@@ -11,7 +11,7 @@
   "schedule": [
     "every weekend"
   ],
-  "prConcurrentLimit": 5,
+  "prConcurrentLimit": 10,
   "minimumReleaseAge": "3 days",
   "packageRules": [
     {
@@ -21,6 +21,17 @@
         "minor"
       ],
       "automerge": true
+    },
+    {
+      "description": "Major versions never auto-merge: they are held, labelled needs-review, and looked at at the start of each batch (ADR 41).",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "needs-review"
+      ]
     },
     {
       "description": "One grouped PR for routine Gradle library bumps (versions live in the catalog).",
@@ -59,21 +70,33 @@
         "com.google.devtools.ksp**"
       ],
       "groupName": "kotlin + ksp",
-      "automerge": false
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "needs-review"
+      ]
     },
     {
       "description": "AGP updates gate on compileSdk compatibility — review manually.",
       "matchPackageNames": [
         "com.android.**"
       ],
-      "automerge": false
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "needs-review"
+      ]
     },
     {
       "description": "Chaquopy is pinned to the build-host Python minor (3.12) — review manually.",
       "matchPackageNames": [
         "com.chaquo.python**"
       ],
-      "automerge": false
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "needs-review"
+      ]
     },
     {
       "description": "Bumping a bundled binary means re-running its build script by hand and committing new .so files, which no CI job does — so these must never auto-merge.",
@@ -115,5 +138,17 @@
       "extractVersionTemplate": "^n(?<version>.+)$"
     }
   ],
-  "platformAutomerge": false
+  "platformAutomerge": false,
+  "vulnerabilityAlerts": {
+    "description": "A security fix does not wait for the weekend or the 3-day age: it is raised at once and merged on green CI (ADR 41, 2026-10-28).",
+    "schedule": [
+      "at any time"
+    ],
+    "minimumReleaseAge": null,
+    "automerge": true,
+    "labels": [
+      "dependencies",
+      "security"
+    ]
+  }
 }

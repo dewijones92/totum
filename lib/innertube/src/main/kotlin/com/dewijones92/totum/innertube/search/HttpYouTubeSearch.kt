@@ -8,6 +8,7 @@ import com.dewijones92.totum.innertube.browse.Continuations
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.SearchTarget
+import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.innertube.feeds.LockupParser
 import kotlinx.serialization.json.Json
@@ -38,7 +39,7 @@ public class HttpYouTubeSearch(
         val target = after?.let { SearchTarget.Continuation(it.value) } ?: SearchTarget.Query(query)
         asAccount(target, limit)?.let { return it }
         return when (val response = client.search(target)) {
-            is InnerTubeResponse.Success -> SearchVideosResult.Success(response.body.toPage(limit))
+            is InnerTubeResponse.Success -> SearchVideosResult.Success(response.parsed { it.toPage(limit) })
             // Search needs no token, so a 401/403 here is YouTube refusing the
             // request rather than a sign-in problem — report it as a failure.
             InnerTubeResponse.Unauthorized -> SearchVideosResult.Failure("rejected")

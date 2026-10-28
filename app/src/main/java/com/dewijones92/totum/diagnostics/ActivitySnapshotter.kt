@@ -1,5 +1,6 @@
 package com.dewijones92.totum.diagnostics
 
+import com.dewijones92.totum.common.Busy
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
@@ -92,7 +93,9 @@ internal class ActivitySnapshotter(
         val active = states.values.filterIsInstance<DownloadState.Downloading>()
         val failed = states.values.count { it is DownloadState.Failed }
         val queued = queue.state.value.entries.size
-        if (playing == null && active.isEmpty() && failed == 0) return null
+        val busy = Busy.work.value
+        val quiet = playing == null && active.isEmpty() && failed == 0
+        if (quiet && busy.isEmpty()) return null
 
         return buildString {
             if (playing != null) {
@@ -112,6 +115,13 @@ internal class ActivitySnapshotter(
             redraws?.let { append("; busy recompositions in the last ${intervalMs / MILLIS_PER_SEC}s: $it") }
             active.take(MAX_LISTED_DOWNLOADS).forEach { append(" [${it.percent()}]") }
             if (failed > 0) append("; failed=$failed")
+            if (busy.isNotEmpty()) {
+                append(
+                    "; busy bar on for ${busy.size}: ${busy.groupingBy { it }.eachCount().entries.take(
+                        MAX_LISTED_BUSY
+                    )}"
+                )
+            }
         }
     }
 
@@ -125,6 +135,7 @@ internal class ActivitySnapshotter(
         const val SNAPSHOT_INTERVAL_MS = 30_000L
         const val BUSY_RECOMPOSITIONS = 20L
         const val MAX_LISTED_DOWNLOADS = 3
+        const val MAX_LISTED_BUSY = 6
         const val PERCENT = 100
         const val BYTES_PER_MB = 1024 * 1024
         const val MILLIS_PER_SEC = 1_000

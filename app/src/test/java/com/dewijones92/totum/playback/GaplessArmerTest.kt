@@ -23,11 +23,12 @@ class GaplessArmerTest {
     private var metered = false
     private val arms = mutableListOf<Pair<String, Boolean>>()
     private val disarms = mutableListOf<String>()
+    private var asked = 0
 
     private fun TestScope.armer() = GaplessArmer(
         states = MutableStateFlow(null),
         line = object : GaplessLine {
-            override fun nextUp() = next
+            override fun nextUp() = next.also { asked++ }
             override fun armedNext() = armed
             override fun notNow() = notNow
             override fun metered() = metered
@@ -49,6 +50,14 @@ class GaplessArmerTest {
         armer().consider(playing(positionMs = 0))
 
         assertEquals(emptyList<Pair<String, Boolean>>(), arms)
+    }
+
+    @Test
+    fun `early in an item the queue is not asked what is next on every tick`() = runTest {
+        val armer = armer()
+        repeat(10) { armer.consider(playing(positionMs = it * 500L)) }
+
+        assertEquals(0, asked)
     }
 
     @Test

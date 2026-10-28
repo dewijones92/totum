@@ -40,6 +40,7 @@ internal class GaplessArmer(
             if (line.armedNext() != null) line.disarm(reason)
             return
         }
+        if (line.armedNext() == null && !due(state)) return
         val next = line.nextUp()
         takeBackIfStale(next)
         if (next != null && due(state) && fresh(state, next)) arm(state, next)
@@ -104,14 +105,16 @@ internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
     val line = object : GaplessLine {
         override fun nextUp() = queue.peekNext()
         override fun armedNext() = controller.armedNext
-        override fun notNow() = gaplessNotNow(
-            container.appPreferences.settings.value,
-            sleepsAfterPlaying = container.sleepTimer.stopsAfterItem
-                .let { it != null && it == controller.state.value?.itemId },
-            exploring = container.exploreMode.on.value,
-            lastOfItsGroup = controller.state.value?.itemId
-                ?.let { groupRestartIndex(queue.state.value, it) != null } == true,
-        )
+        override fun notNow() = container.appPreferences.settings.value.let { settings ->
+            gaplessNotNow(
+                settings,
+                sleepsAfterPlaying = container.sleepTimer.stopsAfterItem
+                    .let { it != null && it == controller.state.value?.itemId },
+                exploring = container.exploreMode.on.value,
+                lastOfItsGroup = settings.repeatMode.repeatsGroup && controller.state.value?.itemId
+                    ?.let { groupRestartIndex(queue.state.value, it) != null } == true,
+            )
+        }
         override fun metered() = metered()
         override suspend fun arm(allowStream: Boolean) = queue.armNext(allowStream)
         override fun disarm(reason: String) = controller.disarmNext(reason)
