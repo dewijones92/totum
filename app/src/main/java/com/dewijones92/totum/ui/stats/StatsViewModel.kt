@@ -35,10 +35,14 @@ import com.dewijones92.totum.stats.top
 import com.dewijones92.totum.stats.totals
 import com.dewijones92.totum.stats.useTotals
 import com.dewijones92.totum.stats.within
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -49,7 +53,9 @@ class StatsViewModel(
     private val exsurgeOn: () -> Boolean,
     private val now: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
+    private val computation: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
+    private var showing: Job? = null
 
     data class Page(
         val period: Period,
@@ -74,17 +80,22 @@ class StatsViewModel(
 
     fun reload() {
         viewModelScope.launch {
-            events = load()
+            events = withContext(computation) { load() }
             show(_page.value?.period ?: Period.WEEK)
         }
     }
 
     fun show(period: Period) {
+        showing?.cancel()
+        showing = viewModelScope.launch { _page.value = withContext(computation) { pageFor(period) } }
+    }
+
+    private fun pageFor(period: Period): Page {
         val at = now()
         val listens = events.filterIsInstance<StatEvent.Listen>()
         val inPeriod = listens.within(period, at, zone())
         val since = period.since(at, zone())?.toEpochMilli()
-        _page.value = Page(
+        return Page(
             period = period,
             totals = totals(inPeriod),
             bars = bars(inPeriod, period, at, zone()),
@@ -95,8 +106,9 @@ class StatsViewModel(
             nudges = nudgeTotals(events, since),
             alarms = alarmTotals(events, since),
             use = useTotals(events, since),
-        )
-        Diag.log("stats", "showing $period: ${inPeriod.size} listen(s) of ${listens.size}, ${events.size} event(s)")
+        ).also {
+            Diag.log("stats", "showing $period: ${inPeriod.size} listen(s) of ${listens.size}, ${events.size} event(s)")
+        }
     }
 
     fun openBar(bar: Bar) = open(bar.label, current().inBar(bar, zone()))

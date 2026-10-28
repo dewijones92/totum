@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.queue.QueueGroup
@@ -19,9 +20,13 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.suggestCleanup
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.removeAll
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +59,8 @@ class LibraryViewModel(
     private val now: () -> Instant = Instant::now,
     /** Injected so a test can drive the sizing pass; it is real disk IO in the app. */
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val operations: Operations? = null,
+    private val deleting: (Int) -> String = { "$it" },
 ) : TrackedViewModel("library") {
 
     /** A download with the space it actually occupies on disk. */
@@ -177,8 +184,9 @@ class LibraryViewModel(
         if (ids.isEmpty()) return
         val byId = downloaded.value.associateBy { it.item.id }
         val bytes = ids.sumOf { byId[it]?.sizeBytes ?: 0L }
-        val queued = queue.state.value.entries.filter { it.item.item.id in ids }
-        val dequeued = queued.count { queue.remove(it) != null }
+        val wanted = ids.toSet()
+        val dequeued = queue.state.value.entries.count { it.item.item.id in wanted }
+        if (dequeued > 0) queue.removeAll(wanted)
         Diag.log(
             "library",
             "clean-up $group: deleting ${ids.size} file(s), ${formatBytes(bytes)}, $dequeued taken out of the queue: " +
@@ -189,7 +197,7 @@ class LibraryViewModel(
                         "opened=${entry?.media?.openedAt ?: "never"})"
                 },
         )
-        viewModelScope.launch { ids.forEach { downloads.delete(it) } }
+        viewModelScope.deleteShown(operations, "clean-up:$group", deleting(ids.size), ids, downloads)
     }
 
     /** Songs on the phone gathered by album, for playing or removing a whole album at once. */
@@ -207,7 +215,13 @@ class LibraryViewModel(
 
     fun deleteAlbum(album: AlbumOnPhone) {
         Diag.log("library", "remove album from the phone \"${album.album.title}\": ${album.songs.size} files")
-        viewModelScope.launch { album.songs.forEach { downloads.delete(it.item.id) } }
+        viewModelScope.deleteShown(
+            operations,
+            "album:${album.key}",
+            deleting(album.songs.size),
+            album.songs.map { it.item.id },
+            downloads
+        )
     }
 
     /** Plays the local file, through the queue like every other tap. */
@@ -251,12 +265,15 @@ class LibraryViewModel(
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
+                val resources = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]?.resources
                 LibraryViewModel(
                     queue = container.playbackQueue,
                     downloads = container.downloadManager,
                     freeSpace = container::freeDownloadSpaceBytes,
                     playStates = container.playbackProgressStore.observeStates(),
                     locked = container.lockingDownloads.locks.locked,
+                    operations = container.operations,
+                    deleting = { n -> resources?.getQuantityString(R.plurals.deleting_downloads, n, n) ?: "$n" },
                 )
             }
         }
@@ -268,4 +285,15 @@ private fun cleanupLine(candidates: List<CleanupCandidate>, groups: List<Cleanup
     val undated = candidates.count { it.lastTouched == null }
     return "clean-up suggestions from ${candidates.size} download(s): $line " +
         "(no download or open date on $undated, so never called unopened; $locked locked, left out)"
+}
+
+private fun CoroutineScope.deleteShown(
+    operations: Operations?,
+    key: String,
+    label: String,
+    ids: List<MediaItemId>,
+    downloads: DownloadManager,
+) {
+    if (operations?.isRunning(key) == true) return Diag.log("library", "$key: already deleting; tap ignored")
+    launch { operations.showing(key, label) { ids.forEach { downloads.delete(it) } } }
 }

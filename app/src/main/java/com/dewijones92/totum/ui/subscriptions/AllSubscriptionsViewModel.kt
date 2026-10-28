@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.channel.ChannelCheckProgress
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
@@ -18,6 +19,8 @@ import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.latestUploadFirst
 import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.feeds.AccountFeed
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.ui.videos.FeedChoice
 import com.dewijones92.totum.ui.videos.cacheKey
 import kotlinx.coroutines.CoroutineDispatcher
@@ -44,26 +47,38 @@ class AllSubscriptionsViewModel(
     private val checkScope: CoroutineScope? = null,
     computation: CoroutineDispatcher = Dispatchers.Default,
     private val unsubscribeChannel: suspend (MediaSource.VideoChannel) -> Boolean = { false },
+    private val operations: Operations? = null,
+    private val unsubscribing: (Int) -> String = { "$it" },
 ) : ViewModel() {
 
     fun unsubscribe(sources: List<MediaSource>) {
-        (checkScope ?: viewModelScope).launch {
-            val channelsFailed = mutableListOf<String>()
-            sources.forEach { source ->
-                when (source) {
-                    is MediaSource.PodcastFeed -> podcasts.unsubscribe(source.id)
-                    is MediaSource.VideoChannel -> if (!unsubscribeChannel(source)) channelsFailed += source.title
-                }
-            }
-            val shows = sources.count { it is MediaSource.PodcastFeed }
-            val named = channelsFailed.take(FAILED_NAMED).joinToString(prefix = " [", postfix = "]")
-                .takeIf { channelsFailed.isNotEmpty() }.orEmpty()
-            Diag.log(
+        if (operations?.isRunning(UNSUBSCRIBE_KEY) == true) {
+            return Diag.log(
                 "subs",
-                "bulk unsubscribe: ${sources.size} (shows=$shows channels=${sources.size - shows} " +
-                    "channelsNotWrittenToAccount=${channelsFailed.size}$named)",
+                "bulk unsubscribe already running; tap ignored"
             )
         }
+        (checkScope ?: viewModelScope).launch {
+            operations.showing(UNSUBSCRIBE_KEY, unsubscribing(sources.size)) { unsubscribeNow(sources) }
+        }
+    }
+
+    private suspend fun unsubscribeNow(sources: List<MediaSource>) {
+        val channelsFailed = mutableListOf<String>()
+        sources.forEach { source ->
+            when (source) {
+                is MediaSource.PodcastFeed -> podcasts.unsubscribe(source.id)
+                is MediaSource.VideoChannel -> if (!unsubscribeChannel(source)) channelsFailed += source.title
+            }
+        }
+        val shows = sources.count { it is MediaSource.PodcastFeed }
+        val named = channelsFailed.take(FAILED_NAMED).joinToString(prefix = " [", postfix = "]")
+            .takeIf { channelsFailed.isNotEmpty() }.orEmpty()
+        Diag.log(
+            "subs",
+            "bulk unsubscribe: ${sources.size} (shows=$shows channels=${sources.size - shows} " +
+                "channelsNotWrittenToAccount=${channelsFailed.size}$named)",
+        )
     }
 
     val checking: StateFlow<ChannelCheckProgress?> = channelUploads?.progress ?: MutableStateFlow(null)
@@ -137,6 +152,7 @@ class AllSubscriptionsViewModel(
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
+                val resources = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]?.resources
                 AllSubscriptionsViewModel(
                     podcasts = container.podcastRepository,
                     channels = container.accountSubscriptions.channels,
@@ -144,8 +160,12 @@ class AllSubscriptionsViewModel(
                     channelUploads = container.channelLatestUploads,
                     checkScope = container.applicationScope,
                     unsubscribeChannel = { container.accountSubscriptions.setSubscribed(it, subscribed = false) },
+                    operations = container.operations,
+                    unsubscribing = { n -> resources?.getQuantityString(R.plurals.unsubscribing, n, n) ?: "$n" },
                 )
             }
         }
     }
 }
+
+private const val UNSUBSCRIBE_KEY = "bulk-unsubscribe"

@@ -100,8 +100,9 @@ class DriveBackup(
     }
 
     suspend fun restore(copy: BackupCopy, from: BackupFolder): BackupService.RestoreSummary? {
-        val text = from.read(copy.name) ?: return null.also { Diag.warn(TAG, "restore: ${copy.name} unreadable") }
-        return when (val parsed = BackupCodec.decode(text)) {
+        val text = withContext(Dispatchers.IO) { from.read(copy.name) }
+            ?: return null.also { Diag.warn(TAG, "restore: ${copy.name} unreadable") }
+        return when (val parsed = withContext(Dispatchers.Default) { BackupCodec.decode(text) }) {
             is BackupReadResult.Ok -> service.restore(parsed.backup.copy(queue = emptyList())).also {
                 Diag.log(TAG, "restored ${copy.name} from ${from.where}: $it")
             }

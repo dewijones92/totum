@@ -69,6 +69,14 @@ internal fun JsonObject?.linkedRuns(): List<LinkedRun> =
 internal fun List<LinkedRun>.idOf(prefix: String): String? =
     firstNotNullOfOrNull { run -> run.link?.browseId?.takeIf { it.startsWith(prefix) } }
 
+internal fun List<LinkedRun>.artistLinks(): List<ArtistLink> =
+    mapNotNull { run ->
+        run.link?.browseId?.takeIf {
+            it.startsWith(ARTIST_ID_PREFIX)
+        }?.let { ArtistLink(it, run.text.trim()) }
+    }
+        .distinctBy { it.browseId }
+
 internal fun List<LinkedRun>.titleOf(prefix: String): String? =
     firstOrNull { run -> run.link?.browseId?.startsWith(prefix) == true }?.text
 

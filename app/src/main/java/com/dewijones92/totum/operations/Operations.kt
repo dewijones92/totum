@@ -21,6 +21,7 @@ enum class OperationKind(val toastsResult: Boolean = true) {
     OPEN_PAGE(toastsResult = false),
     PREPARE_TORRENT,
     DOWNLOAD_BATCH,
+    TASK(toastsResult = false),
 }
 
 data class Operation(
@@ -131,3 +132,18 @@ suspend fun Operations?.tracking(
     subject: String,
     block: suspend (Operations.Progress?) -> OperationEnd,
 ): OperationEnd = this?.track(key, kind, subject) { block(it) } ?: block(null)
+
+suspend fun <T> Operations?.showing(key: String, label: String, block: suspend () -> T): T {
+    var answer: Result<T>? = null
+    tracking(key, OperationKind.TASK, label) {
+        val got = runCatching { block() }
+        answer = got
+        val failure = got.exceptionOrNull()
+        if (failure == null) {
+            OperationEnd.Done(1)
+        } else {
+            OperationEnd.Failed(failure.message ?: failure.javaClass.simpleName)
+        }
+    }
+    return checkNotNull(answer) { "$label ended without an answer" }.getOrThrow()
+}

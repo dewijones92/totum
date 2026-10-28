@@ -46,6 +46,7 @@ public data class MusicAlbum(
     public val thumbnailUrl: HttpUrl?,
     public val playlistId: String?,
     public val tracks: List<MusicSong>,
+    public val artists: List<ArtistLink> = emptyList(),
 ) {
     public val radio: RadioSeed? get() = playlistId?.let(RadioSeed::forPlaylist)
 }

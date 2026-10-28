@@ -19,6 +19,7 @@ import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.artistsPage
 import kotlinx.coroutines.flow.first
 
 sealed interface PinOutcome {
@@ -152,7 +153,10 @@ private suspend fun artistPage(catalogue: YouTubeMusicCatalogue, pin: Pin): PinO
     is Pin.Artist -> PinOutcome.Open(MusicPage.Artist(pin.browseId, pin.name))
     is Pin.ArtistSongs -> PinOutcome.Open(MusicPage.Artist(pin.artistId, pin.artist))
     is Pin.Album -> (catalogue.album(pin.browseId) as? MusicResult.Success)?.value
-        ?.let { album -> album.artist?.let { PinOutcome.Open(MusicPage.Artist(album.artistBrowseId, it)) } }
+        ?.let { album ->
+            artistsPage(album.artists, album.title, album.artist?.let { MusicPage.Artist(album.artistBrowseId, it) })
+        }
+        ?.let(PinOutcome::Open)
         ?: PinOutcome.Failed("the album names no artist")
     else -> null
 }

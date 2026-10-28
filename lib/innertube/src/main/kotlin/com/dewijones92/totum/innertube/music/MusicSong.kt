@@ -27,7 +27,10 @@ public data class MusicSong(
     public val playsText: String? = null,
     public val artistId: String? = null,
     public val albumId: String? = null,
+    public val artists: List<ArtistLink> = emptyList(),
 )
+
+public data class ArtistLink(public val browseId: String, public val name: String)
 
 public sealed interface SearchSongsResult {
     public data class Success(public val page: Page<MusicSong>) : SearchSongsResult

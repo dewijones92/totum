@@ -2,7 +2,7 @@
 title: Every async operation shows itself, and an artist's shuffle plays at once
 kind: adr
 status: accepted
-updated: 2026-10-23
+updated: 2026-10-28
 ---
 
 # 82. Every async operation shows itself, and an artist's shuffle plays at once
@@ -58,3 +58,13 @@ and then made it a rule: *"all async ops in this repo should have ui indicators 
   the button shows ⏸ inside a spinning ring, the video or artwork carries a "⏳ Loading…" card that counts the seconds
   after two, and the mini player uses the same rule, so buffering while paused no longer hides its Play button.
 
+## The taps that still waited in silence (2026-10-28)
+
+Dewi, 2026-10-28: *"make sure there's loading spinners anytime I click something and I'm waiting in the app"*. A sweep
+found the gap the HTTP and yt-dlp hooks leave: work that waits on the disk, the database or the system (SAF) showed
+nothing. One more kind, `OperationKind.TASK` ("⏳ <what it is doing>"), and one helper, `Operations.showing(key,
+label) { … }`, which runs a block as a strip entry and hands back its answer (a failure still ends the entry and is
+rethrown; `OperationsTest`). Now on the strip, each guarded against a second tap starting it again: Drive backup now
+and Drive restore, restoring a backup file, making one, exporting subscriptions, clean-up and album deletes (one queue
+pass, not one per item), bulk unsubscribe, moving playback to or from a screen (up to 15 s before), and looking up a
+song's artists. The decoding of backups and the Stats page's recompute moved off the main thread.

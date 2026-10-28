@@ -12,11 +12,14 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.importexport.ImportOutcome
 import com.dewijones92.totum.importexport.ImportSummary
 import com.dewijones92.totum.importexport.SubscriptionImporter
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.showing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Drives the Import / Export screen: runs an import off the main thread and
@@ -29,6 +32,7 @@ class ImportExportViewModel(
     private val messages: Messages,
     private val importer: SubscriptionImporter,
     val signedIn: StateFlow<Boolean>,
+    private val operations: Operations? = null,
 ) : ViewModel() {
 
     sealed interface State {
@@ -53,20 +57,27 @@ class ImportExportViewModel(
         }
     }
 
-    suspend fun buildOpml(): String = importer.exportOpml()
+    suspend fun buildOpml(): String = operations.showing("export-opml", messages.exporting) {
+        withContext(Dispatchers.Default) { importer.exportOpml() }
+    }
 
-    suspend fun buildBackup(): String = BackupCodec.encode(backup.create())
+    suspend fun buildBackup(): String = operations.showing("backup-file", messages.backingUp) {
+        val made = backup.create()
+        withContext(Dispatchers.Default) { BackupCodec.encode(made) }
+    }
 
     /**
      * Applies a backup file and returns what to tell the user. A message rather than a
      * state because there is nothing to keep afterwards — the result is the library
      * itself, which every screen is already observing.
      */
-    suspend fun restore(content: String): String = when (val read = BackupCodec.decode(content)) {
-        is BackupReadResult.Unreadable -> messages.unreadable
-        is BackupReadResult.TooNew -> messages.tooNew
-        is BackupReadResult.Ok -> backup.restore(read.backup).let {
-            messages.restored(it.subscriptions, it.playlists, it.progressEntries)
+    suspend fun restore(content: String): String = operations.showing("restore-file", messages.restoring) {
+        when (val read = withContext(Dispatchers.Default) { BackupCodec.decode(content) }) {
+            is BackupReadResult.Unreadable -> messages.unreadable
+            is BackupReadResult.TooNew -> messages.tooNew
+            is BackupReadResult.Ok -> backup.restore(read.backup).let {
+                messages.restored(it.subscriptions, it.playlists, it.progressEntries)
+            }
         }
     }
 
@@ -75,6 +86,9 @@ class ImportExportViewModel(
         val unreadable: String,
         val tooNew: String,
         val restored: (Int, Int, Int) -> String,
+        val restoring: String,
+        val backingUp: String,
+        val exporting: String,
     )
 
     fun clearResult() {
@@ -90,6 +104,7 @@ class ImportExportViewModel(
                     messages = messages,
                     importer = container.subscriptionImporter,
                     signedIn = container.accountSubscriptions.signedIn,
+                    operations = container.operations,
                 )
             }
         }

@@ -49,6 +49,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.TrackLikeHeart
+import com.dewijones92.totum.ui.common.artistsPage
 import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 
@@ -125,7 +126,9 @@ private fun AlbumHeader(album: MusicAlbum) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.run { if (artistId != null) primary else onSurfaceVariant },
                     modifier = if (artistId != null && openPage != null) {
-                        Modifier.clickable { openPage(MusicPage.Artist(artistId, artist)) }
+                        Modifier.clickable {
+                            artistsPage(album.artists, album.title, MusicPage.Artist(artistId, artist))?.let(openPage)
+                        }
                     } else {
                         Modifier
                     },

@@ -42,6 +42,43 @@ class OperationsTest {
     }
 
     @Test
+    fun `work shown on the strip is listed while it runs and hands back its answer`() = runTest {
+        val proceed = CompletableDeferred<Unit>()
+        var answer: String? = null
+        launch {
+            answer = operations.showing("restore", "Restoring a backup") {
+                proceed.await()
+                "12 restored"
+            }
+        }
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(OperationKind.TASK to "Restoring a backup"),
+            operations.running.value.map { it.kind to it.subject }
+        )
+        proceed.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals("12 restored", answer)
+        assertTrue(operations.running.value.isEmpty())
+    }
+
+    @Test
+    fun `work shown on the strip that fails leaves the strip and rethrows`() = runTest {
+        val ended = mutableListOf<Ended>()
+        val collector = launch { operations.ended.collect { ended += it } }
+        advanceUntilIdle()
+        val thrown = runCatching { operations.showing("x", "Deleting 3 downloads") { error("disk full") } }
+
+        assertEquals("disk full", thrown.exceptionOrNull()?.message)
+        advanceUntilIdle()
+        assertEquals(OperationEnd.Failed("disk full"), ended.single().end)
+        assertTrue(operations.running.value.isEmpty())
+        collector.cancel()
+    }
+
+    @Test
     fun `cancel stops the work and says whether anything was already playing`() = runTest {
         val ended = mutableListOf<Ended>()
         val collector = launch { operations.ended.collect { ended += it } }

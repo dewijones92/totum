@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalResources
+import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeVideoId
@@ -15,6 +17,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
+import com.dewijones92.totum.music.ArtistCredits
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -33,8 +36,11 @@ internal fun ProvideItemActions(
     val rowActions = rememberMediaItemActions(container)
     val scope = rememberCoroutineScope()
     val openMusicPage = LocalOpenMusicPage.current
+    val resources = LocalResources.current
     val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage) {
-        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage)
+        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage) { title ->
+            resources.getString(R.string.finding_artists, title)
+        }
     }
     val openSource: (MediaSource) -> Unit = remember(onOpenSource) {
         {
@@ -79,7 +85,10 @@ private class ContainerItemActions(
     private val scope: CoroutineScope,
     private val onOpenSource: (MediaSource) -> Unit,
     private val openMusicPage: ((MusicPage) -> Unit)?,
+    findingArtists: (String) -> String = { it },
 ) : ItemActions {
+    private val credits = ArtistCredits(container.musicCatalogue, container.operations, findingArtists)
+
     override fun queue(items: List<MediaItem>, next: Boolean) = rows.queueAll(items, next)
     override fun addToPlaylist(items: List<MediaItem>) = rows.addToPlaylist(items)
     override fun peek(item: MediaItem) = rows.peek(item)
@@ -113,7 +122,14 @@ private class ContainerItemActions(
             open != null && artist != null -> {
                 {
                     Diag.log("nav", "go to ${artist.label} from \"${item.title}\"")
-                    open(artist)
+                    if (credits.needsAsking(
+                            item
+                        )
+                    ) {
+                        scope.launch { open(credits.pageFor(item) ?: artist) }
+                    } else {
+                        open(artist)
+                    }
                 }
             }
             container.sourceLocator.canLocate(item) -> { { rows.goToSource(item, onOpenSource) } }

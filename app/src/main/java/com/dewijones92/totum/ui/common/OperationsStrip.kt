@@ -104,6 +104,7 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
     OperationKind.OPEN_PAGE -> stringResource(R.string.ops_open_page, operation.subject)
     OperationKind.PREPARE_TORRENT -> stringResource(R.string.ops_prepare_torrent, operation.subject)
     OperationKind.DOWNLOAD_BATCH -> stringResource(R.string.ops_download_batch, operation.subject)
+    OperationKind.TASK -> stringResource(R.string.ops_task, operation.subject)
 }
 
 @Composable
@@ -145,7 +146,7 @@ fun resultText(context: Context, ended: Ended): String = when (val end = ended.e
 }
 
 private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
-    OperationKind.SHUFFLE_ARTIST, OperationKind.SHUFFLE_SOURCES, OperationKind.OPEN_PAGE ->
+    OperationKind.SHUFFLE_ARTIST, OperationKind.SHUFFLE_SOURCES, OperationKind.OPEN_PAGE, OperationKind.TASK ->
         if (partial) R.plurals.ops_done_partial else R.plurals.ops_done
     OperationKind.PREPARE_TORRENT -> R.plurals.ops_torrent_ready
     OperationKind.DOWNLOAD_BATCH -> if (partial) R.plurals.ops_downloaded_partial else R.plurals.ops_downloaded

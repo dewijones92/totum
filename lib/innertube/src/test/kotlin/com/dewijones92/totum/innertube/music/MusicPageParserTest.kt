@@ -186,6 +186,28 @@ class MusicPageParserTest {
     }
 
     @Test
+    fun `a song credited to two artists keeps both, each with its own page`() {
+        val song = MusicPageParser.radio(fixture("radio-two-artists.json")).songs.first()
+
+        assertEquals(
+            listOf(
+                ArtistLink("UCqj1HtTq76Bo6rBXNwrF5Uw", "Nina Simone"),
+                ArtistLink("UCDjpW6k2Sfg_FTr1toLvffQ", "Bill Withers"),
+            ),
+            song.artists,
+        )
+        assertEquals("Nina Simone & Bill Withers", song.artist)
+        assertEquals("UCqj1HtTq76Bo6rBXNwrF5Uw", song.artistId)
+    }
+
+    @Test
+    fun `a song by one artist lists just that artist`() {
+        val song = MusicPageParser.radio(fixture("radio.json")).songs.first()
+
+        assertEquals(listOf(ArtistLink("UCqj1HtTq76Bo6rBXNwrF5Uw", "Nina Simone")), song.artists)
+    }
+
+    @Test
     fun `an album track knows its album and its artist`() {
         val track = requireNotNull(MusicPageParser.album(fixture("album.json"), "MPREb_ky8xEro8eK9")).tracks.first()
 

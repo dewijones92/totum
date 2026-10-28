@@ -350,6 +350,9 @@
     <string name="backup_written">✅ Backup saved.</string>
     <string name="backup_failed">❌ Couldn\'t read or write that file.</string>
     <string name="backup_too_new">⚠️ That backup was made by a newer version of Totum.</string>
+    <string name="backup_restoring">Restoring a backup</string>
+    <string name="backup_making">Making a backup</string>
+    <string name="export_working">Exporting your subscriptions</string>
     <string name="backup_restored">✅ Restored. Subscriptions: %1$d · Playlists: %2$d · Play positions: %3$d. Restart Totum to see a restored queue.</string>
     <string name="channel_tab_search">Search</string>
     <string name="channel_search_hint">Search this channel</string>
@@ -493,6 +496,8 @@
     <string name="section_albums">Albums</string>
     <string name="section_artists">Artists</string>
     <string name="section_singles">Singles and EPs</string>
+    <string name="music_which_artist">Which artist?</string>
+    <string name="finding_artists">Finding the artists of %1$s</string>
     <string name="section_top_songs">Top songs</string>
     <string name="section_similar_artists">Fans also like</string>
     <string name="music_kind_album">Album</string>
@@ -871,6 +876,8 @@
     <string name="drive_backup_loading">⏳ Looking for backups…</string>
     <string name="drive_backup_no_copies">📭 No backups found there</string>
     <string name="drive_backup_restored">✅ Restored: %1$s</string>
+    <string name="drive_backup_working">Backing up to your Drive</string>
+    <string name="drive_backup_restoring">Restoring from your Drive</string>
     <string name="drive_backup_restore_failed">❌ That backup could not be read</string>
     <string name="drive_backup_prompt_title">☁️ Back up to Google Drive?</string>
     <string name="drive_backup_prompt_body">Your subscriptions, playlists, groups, pins, history and settings, everything except downloads and the queue, kept in a Drive folder you choose.</string>
@@ -994,6 +1001,17 @@
     <string name="ops_open_page">⏳ Opening %1$s</string>
     <string name="ops_prepare_torrent">🧲 Preparing %1$s</string>
     <string name="ops_download_batch">⬇️ Downloading %1$s</string>
+    <string name="ops_task">⏳ %1$s</string>
+    <string name="cast_moving_to_tv">Moving playback to the screen</string>
+    <string name="cast_moving_to_phone">Moving playback back to the phone</string>
+    <plurals name="unsubscribing">
+        <item quantity="one">Unsubscribing from %d</item>
+        <item quantity="other">Unsubscribing from %d</item>
+    </plurals>
+    <plurals name="deleting_downloads">
+        <item quantity="one">Deleting %d download</item>
+        <item quantity="other">Deleting %d downloads</item>
+    </plurals>
     <plurals name="ops_step_downloads">
         <item quantity="one">📥 %1$d of %2$d on the phone</item>
         <item quantity="other">📥 %1$d of %2$d on the phone</item>

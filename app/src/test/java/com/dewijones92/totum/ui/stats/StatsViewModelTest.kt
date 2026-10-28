@@ -53,6 +53,7 @@ class StatsViewModelTest {
         exsurgeOn = { true },
         now = { now },
         zone = { ZoneId.of("Europe/London") },
+        computation = dispatcher,
     )
 
     @Test
@@ -65,6 +66,7 @@ class StatsViewModelTest {
         assertEquals(2, model.page.value?.totals?.all?.plays)
 
         model.show(Period.MONTH)
+        advanceUntilIdle()
         assertEquals(3, model.page.value?.totals?.all?.plays)
         assertEquals(listOf("Satie", "Chopin"), model.page.value?.top?.get(TopKind.ARTISTS)?.map { it.label })
     }
@@ -80,6 +82,7 @@ class StatsViewModelTest {
 
         model.closeDetail()
         model.show(Period.MONTH)
+        advanceUntilIdle()
         model.openTop(TopKind.ARTISTS, model.page.value!!.top.getValue(TopKind.ARTISTS).last())
         assertEquals("Chopin", model.detail.value?.listens?.single()?.author)
     }

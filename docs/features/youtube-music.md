@@ -3,7 +3,7 @@ title: YouTube Music
 kind: feature
 status: shipped
 area: music
-updated: 2026-10-14
+updated: 2026-10-28
 ---
 
 # YouTube Music: a Music tab, albums, artists, radio and your library
@@ -151,3 +151,14 @@ Every row now goes through `rowFacts`; a song shows 🎤 artist, 💿 album · y
 The year comes from the album, looked up once by `AlbumYears` (two at a time, saved in `files/album-years.txt`).
 Every item's menu has an ℹ️ **Details** section listing everything known (`itemDetails`). Tests:
 `SongFactsAndDetailsTest`.
+
+## Several artists (2026-10-28)
+
+Report 20261025T071549 (0.1.725): *"go to artist doesn't work well when there's multiple artists it should like give
+me a choice"*. The parsers keep every artist link a song or album credits (`ArtistLink`, from each run's own `UC…`
+page), not just the first. Go to artist on an album tile, the album page's artist line, or a song whose credit names
+several (", ", " & ", " and ", " x ", "feat.") opens **Which artist?**, a page listing each one; one artist opens its
+page as before. A queued or playing song stores one artist, so its credits are asked of YouTube Music when tapped
+(the song's radio, whose first entry is the song with its full byline), shown on the strip as "Finding the artists
+of …" and logged `nav artists of <id> …`. Tests: `MusicPageParserTest` (two-artist byline, derived from the real radio
+fixture).

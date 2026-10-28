@@ -15,6 +15,7 @@ internal object MusicPageParser {
         val subtitle = header.obj("subtitle").text().orEmpty().segments()
         val strapline = header.obj("straplineTextOne")
         val artistId = strapline?.firstBrowseLink()?.takeIf { it.pageType == ARTIST_PAGE }?.browseId
+        val artists = strapline.linkedRuns().artistLinks()
         val tracks = LinkedHashMap<String, MusicSong>()
         root.collectEach("musicShelfRenderer") { shelf ->
             shelf.collectEach(ROW) { row ->
@@ -24,7 +25,8 @@ internal object MusicPageParser {
                         song.copy(
                             album = song.album ?: title,
                             albumId = browseId,
-                            artistId = song.artistId ?: artistId
+                            artistId = song.artistId ?: artistId,
+                            artists = song.artists.ifEmpty { artists },
                         ),
                     )
                 }
@@ -42,6 +44,7 @@ internal object MusicPageParser {
             thumbnailUrl = art,
             playlistId = root.playlistIdOfAlbum(),
             tracks = tracks.values.toList(),
+            artists = artists,
         )
     }
 
@@ -148,6 +151,7 @@ internal object MusicPageParser {
             watchUrl = watchUrl,
             artistId = links.idOf(ARTIST_ID_PREFIX),
             albumId = links.idOf(ALBUM_ID_PREFIX),
+            artists = links.artistLinks(),
         )
     }
 

@@ -60,6 +60,9 @@ fun ImportExportScreen(container: AppContainer, onBack: () -> Unit, modifier: Mo
                 context.getString(R.string.backup_restored, subs, lists, positions)
             }
         },
+        restoring = stringResource(R.string.backup_restoring),
+        backingUp = stringResource(R.string.backup_making),
+        exporting = stringResource(R.string.export_working),
     )
     val viewModel: ImportExportViewModel =
         viewModel(factory = ImportExportViewModel.factory(container, messages))

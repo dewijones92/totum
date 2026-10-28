@@ -27,20 +27,34 @@ import com.dewijones92.totum.backup.drive.BackupCopy
 import com.dewijones92.totum.backup.drive.BackupFolder
 import com.dewijones92.totum.backup.drive.DriveBackup
 import com.dewijones92.totum.backup.drive.DriveBackupStatus
+import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.tracking
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun DriveBackupRow(drive: DriveBackup) {
+fun DriveBackupRow(drive: DriveBackup, operations: Operations? = null) {
     val status by drive.status.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val backingUp = stringResource(R.string.drive_backup_working)
+    val backUp: (String) -> Unit = { why ->
+        if (operations?.isRunning(DRIVE_BACKUP_KEY) != true) {
+            scope.launch {
+                operations.tracking(DRIVE_BACKUP_KEY, OperationKind.TASK, backingUp) {
+                    if (drive.backUpNow(why)) OperationEnd.Done(1) else OperationEnd.Failed(why)
+                }
+            }
+        }
+    }
     var restoring by remember { mutableStateOf(false) }
     var restored by remember { mutableStateOf<String?>(null) }
     val pickers = rememberDriveLocationPickers { location ->
         drive.chose(location)
-        scope.launch { drive.backUpNow("location chosen in Settings") }
+        backUp("location chosen in Settings")
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).testTag(DRIVE_BACKUP_TAG)) {
         Text(stringResource(R.string.drive_backup_title), style = MaterialTheme.typography.bodyLarge)
@@ -55,7 +69,7 @@ fun DriveBackupRow(drive: DriveBackup) {
                 TextButton(onClick = pickers.folder) { Text(stringResource(R.string.drive_backup_choose_folder)) }
                 TextButton(onClick = pickers.file) { Text(stringResource(R.string.drive_backup_choose_file)) }
             } else {
-                TextButton(onClick = { scope.launch { drive.backUpNow("Back up now") } }) {
+                TextButton(onClick = { backUp("Back up now") }) {
                     Text(stringResource(R.string.drive_backup_now))
                 }
                 TextButton(onClick = { restoring = true }) { Text(stringResource(R.string.drive_backup_restore)) }
@@ -64,7 +78,7 @@ fun DriveBackupRow(drive: DriveBackup) {
         }
     }
     if (restoring) {
-        RestoreDialog(drive, onDone = { summary ->
+        RestoreDialog(drive, operations, onDone = { summary ->
             restoring = false
             restored = summary
         })
@@ -72,8 +86,9 @@ fun DriveBackupRow(drive: DriveBackup) {
 }
 
 @Composable
-private fun RestoreDialog(drive: DriveBackup, onDone: (String?) -> Unit) {
+private fun RestoreDialog(drive: DriveBackup, operations: Operations?, onDone: (String?) -> Unit) {
     val scope = rememberCoroutineScope()
+    val restoringText = stringResource(R.string.drive_backup_restoring)
     var copies by remember { mutableStateOf<List<Pair<BackupCopy, BackupFolder>>?>(null) }
     val restoredText = stringResource(R.string.drive_backup_restored)
     val failedText = stringResource(R.string.drive_backup_restore_failed)
@@ -90,9 +105,15 @@ private fun RestoreDialog(drive: DriveBackup, onDone: (String?) -> Unit) {
                     else -> list.forEach { (copy, folder) ->
                         Text(
                             "${copy.name} · ${clock(copy.modifiedAtMs, "d MMM HH:mm")} · ${folder.where}",
-                            modifier = Modifier.fillMaxWidth().clickable {
+                            modifier = Modifier.fillMaxWidth().clickable(
+                                enabled = operations?.isRunning(DRIVE_RESTORE_KEY) != true,
+                            ) {
                                 scope.launch {
-                                    val summary = drive.restore(copy, folder)
+                                    var summary: BackupService.RestoreSummary? = null
+                                    operations.tracking(DRIVE_RESTORE_KEY, OperationKind.TASK, restoringText) {
+                                        summary = drive.restore(copy, folder)
+                                        if (summary != null) OperationEnd.Done(1) else OperationEnd.Failed(failedText)
+                                    }
                                     onDone(summary?.let { String.format(restoredText, it.readable()) } ?: failedText)
                                 }
                             }.padding(vertical = 10.dp),
@@ -125,3 +146,6 @@ const val DRIVE_BACKUP_TAG = "drive-backup"
 internal fun BackupService.RestoreSummary.readable(): String =
     "$subscriptions subscriptions, $playlists playlists, $groupMembers group members, " +
         "$history history items, $progressEntries positions"
+
+private const val DRIVE_BACKUP_KEY = "drive-backup"
+private const val DRIVE_RESTORE_KEY = "drive-restore"

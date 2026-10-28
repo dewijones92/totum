@@ -112,7 +112,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 CheckForContentRow(container)
                 DiagnosticsRow(container)
                 SectionTitle(stringResource(R.string.drive_backup_section))
-                DriveBackupRow(container.driveBackup)
+                DriveBackupRow(container.driveBackup, container.operations)
             }
         }
     }) { open ->

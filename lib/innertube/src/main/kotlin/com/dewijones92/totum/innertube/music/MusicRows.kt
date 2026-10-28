@@ -61,6 +61,7 @@ internal fun JsonObject.toSongOrNull(fallbackArt: HttpUrl? = null): MusicSong? {
         playsText = columns.getOrNull(PLAYS_COLUMN).text(),
         artistId = links.idOf(ARTIST_ID_PREFIX),
         albumId = links.idOf(ALBUM_ID_PREFIX),
+        artists = links.artistLinks(),
     )
 }
 
