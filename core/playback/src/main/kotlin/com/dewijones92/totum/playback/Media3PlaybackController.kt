@@ -100,8 +100,13 @@ public class Media3PlaybackController(
     override val screenWantsAnItem: Flow<Unit> = _screenWantsAnItem
 
     override fun refreshScreenPage() {
-        Diag.log("screen", "asking the service to refresh the PC screen page address")
-        withController { it.sendCustomCommand(SessionCommand(ACTION_SCREEN_REFRESH, Bundle.EMPTY), Bundle.EMPTY) }
+        Diag.log(
+            "screen",
+            "asking the service to refresh the PC screen page address (asked on ${Thread.currentThread().name})"
+        )
+        mainThread.post {
+            withController { it.sendCustomCommand(SessionCommand(ACTION_SCREEN_REFRESH, Bundle.EMPTY), Bundle.EMPTY) }
+        }
     }
 
     override fun playOnScreen(screenId: String?) {
@@ -879,6 +884,8 @@ public class Media3PlaybackController(
             bundleOf(EXTRA_SKIP_SILENCE_ENABLED to enabled),
         )
     }
+
+    private val mainThread = android.os.Handler(android.os.Looper.getMainLooper())
 
     private fun withController(command: (MediaController) -> Unit) {
         controller?.let(command) ?: pendingCommands.add(command)
