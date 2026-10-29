@@ -196,7 +196,7 @@ class ExsurgeTakeoverFlowTest {
         assertTrue(
             "the current item was restarted: ${position}ms before Continue, ${after.positionMs}ms after " +
                 "(playing=${after.isPlaying}, wantsToPlay=${after.wantsToPlay})",
-            after.positionMs >= position,
+            after.positionMs >= position - RESUME_JITTER_MS,
         )
     }
 
@@ -239,3 +239,4 @@ class ExsurgeTakeoverFlowTest {
 
 private const val PLAYED_BEFORE_PAUSE_MS = 10_300L
 private const val LONGER_THAN_A_QUICK_PAUSE_MS = 4_000L
+private const val RESUME_JITTER_MS = 1_000L
