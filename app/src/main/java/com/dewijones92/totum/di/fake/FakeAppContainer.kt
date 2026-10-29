@@ -59,6 +59,8 @@ import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.InMemoryExsurgeStore
 import com.dewijones92.totum.exsurge.NoExsurgePorts
+import com.dewijones92.totum.groups.GroupNews
+import com.dewijones92.totum.groups.InMemoryGroupNewsStore
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.YouTubeActions
 import com.dewijones92.totum.innertube.actions.fake.FakeYouTubeActions
@@ -171,6 +173,11 @@ class FakeAppContainer(
     override val videoPlaybackLauncher: VideoPlaybackLauncher =
         VideoPlaybackLauncher(videoResolver, playbackController, FakeYouTubeWatchHistory(), playHistoryStore),
     override val sleepTimer: SleepTimer = SleepTimer(playbackController, CoroutineScope(SupervisorJob())),
+    override val groupNews: GroupNews = GroupNews(
+        InMemoryGroupNewsStore(),
+        latest = { null },
+        notify = { _, _ -> false }
+    ),
     override val dailyAlarms: DailyAlarmController = DailyAlarmController(InMemoryDailyAlarmStore(), NoDailyAlarmPorts),
     override val exsurge: ExsurgeController = ExsurgeController(
         InMemoryExsurgeStore(),

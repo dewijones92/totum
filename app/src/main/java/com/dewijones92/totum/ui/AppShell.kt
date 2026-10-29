@@ -193,9 +193,12 @@ private fun BottomBar(
     onSkipNext: () -> Unit,
 ) {
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
+    val news by container.groupNews.states.collectAsStateWithLifecycle()
+    val fresh = news.values.sumOf { it.fresh.size }
+    val badges = if (fresh > 0) mapOf(TopLevelDestination.Library to fresh) else emptyMap()
     SteadyPlayback(
         container.playbackController
-    ) { state -> DockFor(state, starting, selected, onTogglePlayPause, onExpand, onSelect, onSkipNext) }
+    ) { state -> DockFor(state, starting, selected, onTogglePlayPause, onExpand, onSelect, onSkipNext, badges) }
 }
 
 @Suppress("LongParameterList")
@@ -208,6 +211,7 @@ private fun DockFor(
     onExpand: () -> Unit,
     onSelect: (TopLevelDestination) -> Unit,
     onSkipNext: () -> Unit,
+    badges: Map<TopLevelDestination, Int>,
 ) {
     Dock(
         state = state,
@@ -222,6 +226,7 @@ private fun DockFor(
         onTogglePlayPause = onTogglePlayPause,
         onExpand = onExpand,
         onSkipNext = onSkipNext,
+        badges = badges,
     )
 }
 

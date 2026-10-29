@@ -12,6 +12,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge
+import com.dewijones92.totum.groups.GroupNewsWorker
 import com.dewijones92.totum.notifications.NewContentWorker
 import com.dewijones92.totum.playback.startGapless
 import com.dewijones92.totum.settings.AppPreferences
@@ -21,6 +22,7 @@ import com.dewijones92.totum.stats.recordFinishedDownloads
 import com.dewijones92.totum.uploads.NewUploadsWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
@@ -53,6 +55,8 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         NewUploadsWorker.schedule(this)
+        GroupNewsWorker.schedule(this)
+        container.applicationScope.launch { container.groupNews.warm() }
         val metered = NetworkStatus(this)::isMetered
         container.applicationScope.launch {
             delay(UPLOADS_CHECK_DELAY_MS)
@@ -63,6 +67,10 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
             } else {
                 runCatching { container.newUploads.check("app opened") }
                     .onFailure { Diag.warn("uploads", "check on opening failed", it) }
+            }
+            if (warmEngineAfterLaunch) {
+                runCatching { container.groupNews.check(container.sourceGroupStore.observeGroups().first()) }
+                    .onFailure { Diag.warn("group", "group news check on opening failed", it) }
             }
         }
         container.exsurge.dispatch(ExsurgeEvent.Tick, "startup")

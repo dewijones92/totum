@@ -82,7 +82,10 @@ internal fun FeedSelector(
                 FilterChip(
                     selected = (state.selected as? FeedChoice.Group)?.group?.id == group.id,
                     onClick = { onSelectFeed(FeedChoice.Group(group)) },
-                    label = { Text(group.name) },
+                    label = {
+                        val fresh = state.newCounts[group.id.value] ?: 0
+                        Text(if (fresh > 0) stringResource(R.string.group_chip_new, group.name, fresh) else group.name)
+                    },
                 )
                 groupShuffle(group)
             }

@@ -26,9 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.dewijones92.totum.R
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.Starting
@@ -43,6 +45,7 @@ fun Dock(
     onExpand: () -> Unit,
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
+    badges: Map<TopLevelDestination, Int> = emptyMap(),
 ) {
     CountRecompositions("dock")
     Surface(
@@ -76,7 +79,7 @@ fun Dock(
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
-            DockNavigation(selected, onSelect)
+            DockNavigation(selected, onSelect, badges)
         }
     }
 }
@@ -88,7 +91,11 @@ internal fun dockColor(): Color {
 }
 
 @Composable
-private fun DockNavigation(selected: TopLevelDestination, onSelect: (TopLevelDestination) -> Unit) {
+private fun DockNavigation(
+    selected: TopLevelDestination,
+    onSelect: (TopLevelDestination) -> Unit,
+    badges: Map<TopLevelDestination, Int>,
+) {
     Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         modifier = Modifier
@@ -102,6 +109,7 @@ private fun DockNavigation(selected: TopLevelDestination, onSelect: (TopLevelDes
                 selected = destination == selected,
                 onClick = { onSelect(destination) },
                 modifier = Modifier.weight(1f),
+                badge = badges[destination] ?: 0,
             )
         }
     }
@@ -113,6 +121,7 @@ private fun DockItem(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    badge: Int = 0,
 ) {
     val scheme = MaterialTheme.colorScheme
     val pill by animateColorAsState(if (selected) scheme.primary else Color.Transparent, label = "dock-pill")
@@ -138,18 +147,34 @@ private fun DockItem(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
+                .pulsing(badge > 0, badge)
                 .size(width = PILL_WIDTH, height = PILL_HEIGHT)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 }
-                .background(pill, RoundedCornerShape(PILL_HEIGHT / 2)),
+                .background(
+                    if (badge > 0 && !selected) scheme.tertiaryContainer else pill,
+                    RoundedCornerShape(PILL_HEIGHT / 2)
+                ),
         ) {
             Icon(
                 imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
                 contentDescription = null,
                 tint = iconTint,
             )
+            if (badge > 0) {
+                Text(
+                    text = stringResource(R.string.dock_badge_new, badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = scheme.onError,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .background(scheme.error, RoundedCornerShape(PILL_HEIGHT / 2))
+                        .padding(horizontal = 4.dp)
+                        .testTag("dock-badge-${destination.name}"),
+                )
+            }
         }
         Text(
             text = label,

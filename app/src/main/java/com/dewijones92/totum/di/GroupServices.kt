@@ -11,4 +11,5 @@ import com.dewijones92.totum.data.group.SourceGroupStore
 class GroupServices(
     val store: SourceGroupStore,
     val feed: GroupFeed,
+    val news: com.dewijones92.totum.groups.GroupNews? = null,
 )

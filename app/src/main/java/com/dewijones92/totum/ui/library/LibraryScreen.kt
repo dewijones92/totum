@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,12 +73,14 @@ import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.group.GroupScreen
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 import com.dewijones92.totum.ui.stats.StatsScreen
 import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
+import kotlinx.coroutines.launch
 
 private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS }
 
@@ -89,45 +92,58 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
     // The id is a value class over a String, so it saves as one and needs no saver.
     var openPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
     val playlist = openPlaylistId?.let(::PlaylistId)
-    TrackPlace("library") { "page=${page.name.lowercase()} playlist=$openPlaylistId" }
+    var openGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+    TrackPlace("library") { "page=${page.name.lowercase()} playlist=$openPlaylistId group=$openGroupId" }
 
-    BackHandler(enabled = playlist != null || page != LibraryPage.HOME) {
-        Diag.log("nav", "back from library ${if (playlist != null) "playlist" else page.name.lowercase()}")
-        if (playlist != null) openPlaylistId = null else go(LibraryPage.HOME)
+    BackHandler(enabled = openGroupId != null || playlist != null || page != LibraryPage.HOME) {
+        val from = if (openGroupId != null) "group" else if (playlist != null) "playlist" else page.name.lowercase()
+        Diag.log("nav", "back from library $from")
+        if (openGroupId != null) {
+            openGroupId = null
+        } else if (playlist != null) {
+            openPlaylistId = null
+        } else {
+            go(
+                LibraryPage.HOME
+            )
+        }
     }
     val home = { go(LibraryPage.HOME) }
-    ListThenDetail(playlist, listKey = "library ${page.name.lowercase()}", list = {
-        ListThenDetail(page.takeIf { it != LibraryPage.HOME }, listKey = "library home", list = {
-            LibraryHome(
-                container,
-                onOpenPlaylists = { go(LibraryPage.PLAYLISTS) },
-                onOpenHistory = { go(LibraryPage.HISTORY) },
-                onOpenSubscriptions = { go(LibraryPage.SUBSCRIPTIONS) },
-                onOpenAccount = { go(LibraryPage.ACCOUNT) },
-                onOpenStats = { go(LibraryPage.STATS) },
-                onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
-                onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
-                modifier = modifier,
-            )
-        }) { open ->
-            when (open) {
-                LibraryPage.PLAYLISTS -> LocalPlaylistsScreen(
+    ListThenDetail(openGroupId, listKey = "library groups", list = {
+        ListThenDetail(playlist, listKey = "library ${page.name.lowercase()}", list = {
+            ListThenDetail(page.takeIf { it != LibraryPage.HOME }, listKey = "library home", list = {
+                LibraryHome(
                     container,
-                    onBack = home,
-                    onOpen = { openPlaylistId = it.value },
+                    onOpenPlaylists = { go(LibraryPage.PLAYLISTS) },
+                    onOpenHistory = { go(LibraryPage.HISTORY) },
+                    onOpenSubscriptions = { go(LibraryPage.SUBSCRIPTIONS) },
+                    onOpenAccount = { go(LibraryPage.ACCOUNT) },
+                    onOpenStats = { go(LibraryPage.STATS) },
+                    onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
+                    onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
+                    onOpenGroup = { openGroupId = it },
                     modifier = modifier,
                 )
-                LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = home, modifier = modifier)
-                LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = home, modifier = modifier)
-                LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = home)
-                LibraryPage.STATS -> StatsScreen(container, onBack = home, modifier = modifier)
-                LibraryPage.DOWNLOADS -> DownloadsScreen(container, onBack = home, modifier = modifier)
-                LibraryPage.HOME -> Unit
+            }) { open ->
+                when (open) {
+                    LibraryPage.PLAYLISTS -> LocalPlaylistsScreen(
+                        container,
+                        onBack = home,
+                        onOpen = { openPlaylistId = it.value },
+                        modifier = modifier,
+                    )
+                    LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = home, modifier = modifier)
+                    LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = home, modifier = modifier)
+                    LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = home)
+                    LibraryPage.STATS -> StatsScreen(container, onBack = home, modifier = modifier)
+                    LibraryPage.DOWNLOADS -> DownloadsScreen(container, onBack = home, modifier = modifier)
+                    LibraryPage.HOME -> Unit
+                }
             }
+        }) { open ->
+            LocalPlaylistDetailScreen(container, open, onBack = { openPlaylistId = null }, modifier = modifier)
         }
-    }) { open ->
-        LocalPlaylistDetailScreen(container, open, onBack = { openPlaylistId = null }, modifier = modifier)
-    }
+    }) { id -> GroupScreen(container, id, onBack = { openGroupId = null }, modifier = modifier) }
 }
 
 @Composable
@@ -140,8 +156,12 @@ private fun LibraryHome(
     onOpenStats: () -> Unit,
     onOpenDownloads: () -> Unit,
     onOpenStarred: () -> Unit,
+    onOpenGroup: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val groupList by container.sourceGroupStore.observeGroups().collectAsStateWithLifecycle(initialValue = emptyList())
+    val news by container.groupNews.states.collectAsStateWithLifecycle()
+    val groupScope = rememberCoroutineScope()
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
     val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
     val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
@@ -170,6 +190,27 @@ private fun LibraryHome(
             Diag.log("library", "dewidebug alarms tile opened the alarms page")
             context.startActivity(DailyAlarmsActivity.intent(context))
         },
+        groups = LibraryGroups(
+            groups = groupList.map {
+                LibraryGroup(
+                    it.id.value,
+                    it.name,
+                    it.members.size,
+                    news[it.id.value]?.fresh?.size ?: 0
+                )
+            },
+            onOpen = { id ->
+                Diag.log("library", "group $id opened from its tile")
+                onOpenGroup(id)
+            },
+            onCreate = { name ->
+                groupScope.launch {
+                    val id = container.sourceGroupStore.create(name)
+                    Diag.log("library", "group \"$name\" (${id.value}) created from the Library; opening it")
+                    onOpenGroup(id.value)
+                }
+            },
+        ),
     )
 }
 

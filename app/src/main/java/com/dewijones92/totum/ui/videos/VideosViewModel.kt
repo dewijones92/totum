@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -77,6 +78,7 @@ class VideosViewModel(
         val selected: FeedChoice? = null,
         /** Dewi's own groups, offered as chips beside the account feeds. */
         val groups: List<SourceGroup> = emptyList(),
+        val newCounts: Map<String, Int> = emptyMap(),
         val feedLoading: Boolean = false,
         val feedError: Boolean = false,
         /** Pull-to-refresh in progress (keeps content visible, unlike [feedLoading]). */
@@ -149,6 +151,7 @@ class VideosViewModel(
         val signedIn: Boolean,
         val sort: MediaSort,
         val groups: List<SourceGroup>,
+        val newCounts: Map<String, Int> = emptyMap(),
     )
 
     private val feedView = combine(
@@ -156,8 +159,10 @@ class VideosViewModel(
         accountSubscriptions.signedIn,
         sort,
         groups.store.observeGroups(),
-        ::FeedView,
-    )
+        groups.news?.states ?: flowOf(emptyMap()),
+    ) { feed, signedIn, sort, all, news ->
+        FeedView(feed, signedIn, sort, all, news.mapValues { it.value.fresh.size })
+    }
 
     val uiState: StateFlow<UiState> = combine(
         accountSubscriptions.channels,
@@ -174,6 +179,7 @@ class VideosViewModel(
             signedIn = view.signedIn,
             selected = view.feed.selected,
             groups = view.groups,
+            newCounts = view.newCounts,
             feedLoading = view.feed.loading,
             feedError = view.feed.error,
             refreshing = refreshing,
@@ -191,6 +197,7 @@ class VideosViewModel(
         feedState.update { it.copy(selected = choice, error = false) }
         if (choice == null) return
         Diag.log("feed", "selected ${choice.describe()}")
+        if (choice is FeedChoice.Group) viewModelScope.launch { groups.news?.opened(choice.group.id) }
         viewModelScope.launch {
             feedState.update { it.copy(loading = true) }
             showCached(choice)
@@ -451,7 +458,7 @@ class VideosViewModel(
                         feeds = container.youTubeFeeds,
                         actions = container.youTubeActions,
                     ),
-                    groups = GroupServices(container.sourceGroupStore, container.groupFeed),
+                    groups = GroupServices(container.sourceGroupStore, container.groupFeed, container.groupNews),
                     feedCache = container.feedCache,
                     subscriptionShorts = SubscriptionShorts(container.youTubeChannel),
                 )

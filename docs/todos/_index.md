@@ -30,7 +30,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [One-off alarms, set in two taps](one-off-alarms.md) | side-quest | high | built 2026-10-28 (ADR 91) |
 | [Nightly reminders (close the fridge) and a one-tap alarm page](reminders-and-one-tap-alarm-page.md) | side-quest | high | built 2026-10-29 (ADR 92) |
 | [Watch the phone's current item on the PC from a private-area tile](pc-screen-from-the-private-area.md) | casting | high | built 2026-10-29 (ADR 93) |
-| [Group feeds done properly: date order, new marker, notifications, a Library tile](group-feeds-done-properly.md) | video | high | decided 2026-10-29 |
+| [Group feeds done properly: date order, new marker, notifications, a Library tile](group-feeds-done-properly.md) | video | high | built 2026-10-29 (ADRs 94, 95) |
 | [Torrent search answers fast and never gives up early](torrent-search-speed.md) | search/torrents/pi | high | decided 2026-10-24, in progress |
 | [A token per device for the home server, none in links](home-server-per-device-tokens.md) | torrents/pi/security | high | in progress |
 | [Confirm big destructive actions](confirm-big-actions.md) | queue/ui | high | done 2026-10-22 (clear queue/history, delete downloads, remove group: hold to confirm) |

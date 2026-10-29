@@ -989,6 +989,35 @@
     <string name="screen_menu">Play on a PC screen</string>
     <string name="screen_play_on">🖥️ Play on %1$s</string>
     <string name="screen_back_to_phone">📱 Back to this phone</string>
+    <string name="group_news_channel">New in your groups</string>
+    <string name="group_section">Groups</string>
+    <string name="dock_badge_new">🆕 %1$d</string>
+    <string name="group_new">New group</string>
+    <string name="group_name">Name</string>
+    <string name="group_edit">Edit group</string>
+    <string name="group_refresh">Refresh</string>
+    <string name="group_save_name">Save</string>
+    <string name="group_channels">Channels</string>
+    <string name="group_find_channel">Add a subscribed channel: type its name</string>
+    <string name="group_delete">🗑️ Delete group</string>
+    <string name="group_delete_confirm">Delete %1$s? Its channels stay subscribed.</string>
+    <string name="group_no_members">📭 No channels in this group yet.</string>
+    <string name="group_add_channels">➕ Add channels</string>
+    <string name="group_loading">⏳ Loading %1$s…</string>
+    <string name="group_loading_strip">Loading %1$s</string>
+    <string name="group_new_since">🆕 New since you last looked (%1$d)</string>
+    <string name="group_earlier">Earlier</string>
+    <string name="group_item_new">🆕 New</string>
+    <string name="group_chip_new">%1$s · 🆕 %2$d</string>
+    <plurals name="group_tile_new">
+        <item quantity="one">🆕 %d new</item>
+        <item quantity="other">🆕 %d new</item>
+    </plurals>
+    <plurals name="group_tile_channels">
+        <item quantity="one">📺 %d channel</item>
+        <item quantity="other">📺 %d channels</item>
+    </plurals>
+    <string name="group_news_title">🆕 %1$s</string>
     <string name="screen_ready_channel">Ready for your PC</string>
     <string name="screen_ready_title">🖥️ Ready for your PC</string>
     <string name="screen_ready_text">📱 Open Dewi\'s Totum in your private area, then ▶️ Watch here, to watch what is playing on your PC.</string>

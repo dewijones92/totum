@@ -52,10 +52,12 @@ internal fun LibraryHub(
     downloads: DownloadsSummary = DownloadsSummary(),
     phoneAlbums: PhoneAlbums = PhoneAlbums(),
     alarms: LibraryAlarms = LibraryAlarms(),
+    groups: LibraryGroups = LibraryGroups(),
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { ScreenHeader(stringResource(R.string.destination_library)) }
+            item { GroupTiles(groups) }
             pinnedSection()
             recentlySection()
             item {
@@ -97,7 +99,7 @@ private fun LibraryTiles(
         Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
             LibraryTile(
                 Icons.Outlined.BarChart,
-                R.string.stats_tile,
+                stringResource(R.string.stats_tile),
                 scheme.tertiary,
                 scheme.onTertiary,
                 onOpenStats,
@@ -105,7 +107,7 @@ private fun LibraryTiles(
             )
             LibraryTile(
                 Icons.Filled.Star,
-                R.string.library_starred,
+                stringResource(R.string.library_starred),
                 scheme.primary,
                 scheme.onPrimary,
                 onOpenStarred,
@@ -115,7 +117,7 @@ private fun LibraryTiles(
         Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP), modifier = Modifier.height(IntrinsicSize.Max)) {
             LibraryTile(
                 Icons.Outlined.DownloadForOffline,
-                R.string.library_downloads,
+                stringResource(R.string.library_downloads),
                 scheme.surfaceContainerHigh,
                 scheme.onSurface,
                 onOpenDownloads,
@@ -124,7 +126,7 @@ private fun LibraryTiles(
             )
             LibraryTile(
                 Icons.Outlined.Alarm,
-                R.string.alarms_tile,
+                stringResource(R.string.alarms_tile),
                 scheme.secondaryContainer,
                 scheme.onSecondaryContainer,
                 alarms.onOpen,
@@ -148,7 +150,7 @@ private fun CollectionRows(
         Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
             LibraryTile(
                 Icons.AutoMirrored.Filled.PlaylistPlay,
-                R.string.playlists_title,
+                stringResource(R.string.playlists_title),
                 scheme.secondaryContainer,
                 scheme.onSecondaryContainer,
                 onOpenPlaylists,
@@ -156,7 +158,7 @@ private fun CollectionRows(
             )
             LibraryTile(
                 Icons.Outlined.Subscriptions,
-                R.string.all_subscriptions_title,
+                stringResource(R.string.all_subscriptions_title),
                 scheme.primaryContainer,
                 scheme.onPrimaryContainer,
                 onOpenSubscriptions,
@@ -166,7 +168,7 @@ private fun CollectionRows(
         Row(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
             LibraryTile(
                 Icons.Outlined.History,
-                R.string.history_title,
+                stringResource(R.string.history_title),
                 scheme.tertiaryContainer,
                 scheme.onTertiaryContainer,
                 onOpenHistory,
@@ -176,7 +178,7 @@ private fun CollectionRows(
             // so it doesn't earn a permanent tab (the queue does).
             LibraryTile(
                 Icons.Outlined.AccountCircle,
-                R.string.destination_account,
+                stringResource(R.string.destination_account),
                 scheme.surfaceContainerHighest,
                 scheme.onSurface,
                 onOpenAccount,
@@ -187,9 +189,9 @@ private fun CollectionRows(
 }
 
 @Composable
-private fun LibraryTile(
+internal fun LibraryTile(
     icon: ImageVector,
-    titleRes: Int,
+    title: String,
     container: Color,
     content: Color,
     onOpen: () -> Unit,
@@ -207,7 +209,7 @@ private fun LibraryTile(
     ) {
         Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(28.dp))
         Text(
-            text = stringResource(titleRes),
+            text = title,
             style = MaterialTheme.typography.titleMedium,
             color = content,
             modifier = Modifier.padding(top = 12.dp),

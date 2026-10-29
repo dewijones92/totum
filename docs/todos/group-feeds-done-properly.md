@@ -3,7 +3,7 @@ title: Group feeds done properly — date order, new marker, notifications, a Li
 kind: todo
 area: video
 priority: high
-status: decided 2026-10-29, in progress
+status: built 2026-10-29 (ADRs 94, 95), awaiting Dewi on the phone
 updated: 2026-10-29
 ---
 
@@ -31,3 +31,5 @@ Backpacker Ben's 20, then Carry On Cat's 20, then Bald and Bankrupt's 20 (Carry 
 **Ground truth for the check:** each channel's RSS (`/feeds/videos.xml?channel_id=`) gives exact publish times for its
 newest 15 (Shorts and live included); merged, those are exact down to the point where the busiest channel's 15th
 falls off (2026-06-14, item 31, on 2026-10-29).
+
+**Done:** dates [ADR 94](../adr/0094-a-groups-dates-come-from-the-feed-then-each-videos-own-day.md); new marker, notifications, Library tile and page, CRUD [ADR 95](../adr/0095-groups-say-whats-new-and-live-in-the-library.md).

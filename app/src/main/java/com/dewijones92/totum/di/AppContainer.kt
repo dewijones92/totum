@@ -119,6 +119,9 @@ import com.dewijones92.totum.downloads.PrefsDownloadLocks
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
+import com.dewijones92.totum.groups.FileGroupNewsStore
+import com.dewijones92.totum.groups.GroupNews
+import com.dewijones92.totum.groups.GroupNewsNotifier
 import com.dewijones92.totum.groups.PublishDays
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
@@ -351,6 +354,7 @@ interface AppContainer {
     val channelLatestUploads: ChannelLatestUploads
 
     val sourceGroupStore: SourceGroupStore
+    val groupNews: GroupNews
 
     /** Reads a group's members as one newest-first feed, across both pillars. */
     val groupFeed: GroupFeed
@@ -667,6 +671,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val playbackController: PlaybackController by lazy { playbackControllerOf(this, context) }
 
     private val textFetcher by lazy { OkHttpTextFetcher(httpClient) }
+    override val groupNews: GroupNews by lazy {
+        GroupNews(
+            FileGroupNewsStore(File(context.filesDir, "group_news.json")),
+            latest = latestUploads::of,
+            notify = GroupNewsNotifier(context)::notify,
+        )
+    }
+
     private val publishDays by lazy {
         PublishDays(File(context.filesDir, "publish_days.json"), PublishDays.asking(innerTubeClient))
     }
@@ -1089,7 +1101,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
                 appUpdate = appUpdate::diagnostics,
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
-                backup = { driveBackup.diagnostics() },
+                backup = { driveBackup.diagnostics() + groupNews.diagnostics() },
                 screen = { screenReadiness?.diagnostics().orEmpty() },
                 groupDownloads = { groupDownloads },
             ),
