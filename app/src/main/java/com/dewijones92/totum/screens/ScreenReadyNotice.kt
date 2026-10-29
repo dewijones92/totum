@@ -17,13 +17,12 @@ import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 
-fun startScreenReady(context: Context, wakeThePage: () -> Unit): ScreenReadiness {
+fun startScreenReady(context: Context): ScreenReadiness {
     val app = context.applicationContext
     val manager = app.getSystemService(NotificationManager::class.java)
     val readiness = ScreenReadiness { ready, why ->
         Diag.log(TAG, "PC screen ${if (ready) "ready: posting the notice" else "not ready: notice cleared"} ($why)")
         if (ready) {
-            wakeThePage()
             manager.notify(NOTICE_ID, notice(app, manager))
         } else {
             manager.cancel(NOTICE_ID)
@@ -49,21 +48,18 @@ fun startScreenReady(context: Context, wakeThePage: () -> Unit): ScreenReadiness
     app.getSystemService(ConnectivityManager::class.java).registerNetworkCallback(
         NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(),
         object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                synchronized(wifiNetworks) { wifiNetworks += network }
+            override fun onAvailable(network: Network) = synchronized(wifiNetworks) {
+                wifiNetworks += network
                 readiness.wifi(true)
             }
 
-            override fun onLost(network: Network) {
-                val left = synchronized(wifiNetworks) {
-                    wifiNetworks -= network
-                    wifiNetworks.isNotEmpty()
-                }
-                readiness.wifi(left)
+            override fun onLost(network: Network) = synchronized(wifiNetworks) {
+                wifiNetworks -= network
+                readiness.wifi(wifiNetworks.isNotEmpty())
             }
         },
     )
-    if (synchronized(wifiNetworks) { wifiNetworks.isEmpty() }) readiness.wifi(false)
+    synchronized(wifiNetworks) { if (wifiNetworks.isEmpty()) readiness.wifi(false) }
     return readiness
 }
 

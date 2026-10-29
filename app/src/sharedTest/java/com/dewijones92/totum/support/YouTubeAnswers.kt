@@ -14,6 +14,7 @@ import org.junit.runners.model.Statement
 class YouTubeAnswers : TestRule {
 
     override fun apply(base: Statement, description: Description): Statement = object : Statement() {
+        @Suppress("TooGenericExceptionCaught")
         override fun evaluate() {
             refusal?.let {
                 say("dewidebug ${description.methodName} skipped: YouTube refuses this address ($it)")

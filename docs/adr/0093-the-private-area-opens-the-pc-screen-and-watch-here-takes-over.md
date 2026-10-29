@@ -36,10 +36,20 @@ private area.
 - **Ready while charging on Wi-Fi.** The page server lives as long as the app's process (the app holds its media
   controller for its whole life, and the always-pinned alarm board keeps the process up), and charging keeps Android
   out of Doze. `ScreenReadiness` (power connected/disconnected, any Wi-Fi network) posts a minimum-importance
-  "🖥️ Ready for your PC" notice while both hold, clears it otherwise, and makes sure the player and its page server
-  exist. No new foreground service.
+  "🖥️ Ready for your PC" notice while both hold and clears it otherwise. It does not start anything: the server is
+  up because the process is. No new foreground service.
 - **The tile** is one card on `privatearea.333133333.xyz` (dot-files on the Pi) linking to the existing
   `https://crashlog.333133333.xyz/screen` redirect.
+
+## Amended 2026-10-29 (batch review)
+
+- Nothing the queue can play (an empty queue, an item refused) hands straight back to the phone
+  (`PlaybackQueue.playForAScreen`), and the page says "⚠️ Nothing started here: is the queue on your phone empty?"
+  after 20 s; until then the button stays disabled, so a second press cannot fetch the same item twice.
+- Watch here on a second screen while another plays stops the first and moves the item and its place to the second
+  (it used to leave the first playing with no remote and send the second only "play").
+- The request for an item goes only to Totum's own controllers (as the queue-skip buttons do), not a broadcast to
+  System UI and Bluetooth; the TV player is watched too, so the page's title follows a cast.
 
 ## Consequences
 
@@ -49,7 +59,8 @@ private area.
 - If the process is ever killed while charging, nothing answers until Totum starts again; the board's foreground
   service makes that rare.
 - Tests: `ScreenLinkTest` (watch, refused stranger, now-playing in state and hello), `ScreenReadinessTest`,
-  `PlayCurrentForAScreenTest`; end to end with `WATCH=1 tools/cast-bench/screen/screen.sh` (headless Edge presses the
+  `PlayCurrentForAScreenTest` (current, next, and the empty queue handing back); the two-screen hand-over was checked
+  with two headless Edge pages, not by a test; end to end with `WATCH=1 tools/cast-bench/screen/screen.sh` (headless Edge presses the
   button). Verified 2026-10-29 on totum-api35: nothing loaded → the queue's current item (Threads, from 1:09:59) played
   in Edge at 960×720 with English captions; with something loaded the page named it and Watch here carried on from the
   phone's place; unplugging cleared the notice and plugging in brought it back.

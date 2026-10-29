@@ -9,7 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.operations.showingEach
 import com.dewijones92.totum.playback.PlaybackState
-import com.dewijones92.totum.queue.playCurrentOrNext
+import com.dewijones92.totum.queue.playForAScreen
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -71,7 +71,7 @@ fun startCastScreens(container: AppContainer, context: Context) {
     CastTarget.watch(context)
     container.applicationScope.launch {
         container.playbackController.screenWantsAnItem.collect {
-            container.playbackQueue.playCurrentOrNext("the PC screen's Watch here, with nothing loaded")
+            container.playbackQueue.playForAScreen(container.playbackController::playOnScreen)
         }
     }
     CastMoves(

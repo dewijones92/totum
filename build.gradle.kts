@@ -77,6 +77,7 @@ subprojects {
       "src/test/kotlin",
       "src/androidTest/java",
       "src/androidTest/kotlin",
+      "src/sharedTest/java",
     )
     parallel = true
     autoCorrect = true

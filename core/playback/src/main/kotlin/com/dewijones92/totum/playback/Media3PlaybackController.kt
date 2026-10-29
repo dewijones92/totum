@@ -720,7 +720,6 @@ public class Media3PlaybackController(
 
     @OptIn(UnstableApi::class)
     private fun switchListener() = object : MediaController.Listener {
-
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
             castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
             _castDevice.value = castDeviceName

@@ -1103,7 +1103,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
         announceScreens(this, httpClient)
-        screenReadiness = startScreenReady(context) { playbackController.screens.value }
+        screenReadiness = startScreenReady(context)
         startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,

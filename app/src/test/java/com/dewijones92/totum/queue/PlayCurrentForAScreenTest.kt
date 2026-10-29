@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,6 +62,26 @@ class PlayCurrentForAScreenTest {
 
         assertTrue(queue.playCurrentOrNext("test"))
         assertEquals("e2", playing())
+    }
+
+    @Test
+    fun `with an empty queue Watch here hands back to the phone rather than leaving the PC waiting`() = runTest(
+        dispatcher
+    ) {
+        val backs = mutableListOf<String?>()
+
+        assertFalse(queue.playForAScreen { backs += it })
+        assertEquals(listOf<String?>(null), backs)
+    }
+
+    @Test
+    fun `with something to play the screen keeps it`() = runTest(dispatcher) {
+        queue.enqueueAll(listOf("e1").map(::episode))
+        advanceUntilIdle()
+        val backs = mutableListOf<String?>()
+
+        assertTrue(queue.playForAScreen { backs += it })
+        assertTrue(backs.isEmpty())
     }
 
     @Test

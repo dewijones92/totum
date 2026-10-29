@@ -362,6 +362,7 @@ public class PlaybackService : MediaSessionService() {
             .setTrackSelector(TotumCastTrackSelector())
             .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
+        screens?.observe(cast)
         remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
                 override fun onCastSessionAvailable() {
@@ -411,14 +412,27 @@ public class PlaybackService : MediaSessionService() {
             switchTo = ::switchTo,
             current = { currentPlayer },
             hasItem = { (currentPlayer?.currentMediaItem ?: lastHandoffItem) != null },
-            wantsAnItem = {
-                val ask = SessionCommand(ACTION_SCREEN_WANTS_AN_ITEM, Bundle.EMPTY)
-                mediaSession?.broadcastCustomCommand(ask, Bundle.EMPTY)
-            },
+            wantsAnItem = { askTheAppForAnItem() },
         ),
     ).also { pc ->
         pc.observe(localPlayer)
         pc.observe(pc.player)
+    }
+
+    @UnstableApi
+    private fun askTheAppForAnItem() {
+        val session = mediaSession ?: return
+        val apps = session.connectedControllers.filter {
+            it.packageName == packageName && !session.isMediaNotificationController(it)
+        }
+        Diag.log("screen", "asking ${apps.size} app controller(s) for the queue's current item")
+        apps.forEach {
+            session.sendCustomCommand(
+                it,
+                SessionCommand(ACTION_SCREEN_WANTS_AN_ITEM, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
+        }
     }
 
     /** Hands the current item + position to [target] and points the session at it (local ↔ cast). */

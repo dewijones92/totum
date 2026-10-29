@@ -991,7 +991,7 @@
     <string name="screen_back_to_phone">📱 Back to this phone</string>
     <string name="screen_ready_channel">Ready for your PC</string>
     <string name="screen_ready_title">🖥️ Ready for your PC</string>
-    <string name="screen_ready_text">Open 📱 Dewi\'s Totum in your private area, then ▶️ Watch here, to watch what is playing on your PC.</string>
+    <string name="screen_ready_text">📱 Open Dewi\'s Totum in your private area, then ▶️ Watch here, to watch what is playing on your PC.</string>
     <string name="ops_shuffle_artist">🔀 Shuffling all of %1$s</string>
     <string name="ops_shuffle_sources">🔀 Shuffling all of %1$s</string>
     <plurals name="ops_found">

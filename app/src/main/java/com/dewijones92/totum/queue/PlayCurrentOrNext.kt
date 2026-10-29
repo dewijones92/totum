@@ -15,3 +15,12 @@ suspend fun PlaybackQueue.playCurrentOrNext(why: String): Boolean {
     )
     return played
 }
+
+suspend fun PlaybackQueue.playForAScreen(playOn: (String?) -> Unit): Boolean {
+    val played = playCurrentOrNext("the PC screen's Watch here, with nothing loaded")
+    if (!played) {
+        Diag.log("screen", "Watch here found nothing the queue could play; back to the phone")
+        playOn(null)
+    }
+    return played
+}

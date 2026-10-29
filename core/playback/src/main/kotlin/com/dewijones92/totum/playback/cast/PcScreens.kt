@@ -85,6 +85,14 @@ internal class PcScreens(
             return
         }
         val named = link.present().firstOrNull { it.id == id }
+        val from = screen.screenId
+        if (session.current() === player && from != null && from != id) {
+            Diag.log(
+                TAG,
+                "moving from screen $from to $id: the first screen stops, the second takes the item and its place"
+            )
+            session.switchTo(session.phone)
+        }
         screen.screenId = id
         status.connected(CastTv(named?.name ?: "the PC", screenProfile(named)))
         Diag.log(TAG, "playing on screen ${named?.name} ($id) [codecs=${named?.codecs}]")

@@ -63,20 +63,33 @@
       ? (now.playing ? '▶️ ' : '⏸️ ') + 'On your phone: ' + now.title + (now.by ? ' · ' + now.by : '')
       : '📭 Nothing playing on the phone. Watch here plays the queue’s current item.';
     watch.hidden = !greeted || !!(now && now.here);
+    if (now && now.here) { asked = 0; watch.disabled = false; }
   }
+  let asked = 0;
   watch.addEventListener('click', async () => {
     unlock();
     watch.disabled = true;
+    asked = Date.now();
     say('⏳ Asking your phone to play here…');
     try {
       const reply = await api('watch', { id });
-      say(reply.ok ? '📱 Your phone is handing over…' : '⚠️ Your phone said no (' + reply.status + '); try again');
+      if (reply.ok) {
+        say('📱 Your phone is handing over…');
+      } else {
+        say('⚠️ Your phone said no (' + reply.status + '); try again');
+        watch.disabled = false;
+      }
     } catch (e) {
       say('⚠️ Cannot reach your phone: ' + e.message);
-    } finally {
       watch.disabled = false;
     }
   });
+  setInterval(() => {
+    if (!asked || Date.now() - asked < 20000) return;
+    asked = 0;
+    watch.disabled = false;
+    if (!stage.classList.contains('on')) say('⚠️ Nothing started here: is the queue on your phone empty?');
+  }, 1000);
   const api = (path, params) => {
     const q = new URLSearchParams(Object.assign({ key }, params));
     return fetch('/screen/' + path + '?' + q.toString(), { cache: 'no-store' });
