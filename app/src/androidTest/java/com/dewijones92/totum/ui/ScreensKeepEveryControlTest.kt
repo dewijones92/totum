@@ -3,11 +3,13 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -51,6 +53,14 @@ class ScreensKeepEveryControlTest {
         mediaUrl = HttpUrl.of("https://x.test/$id.mp3"),
     )
 
+    private fun tapInList(label: String) {
+        val named = hasText(label, substring = true) or hasContentDescription(label, substring = true)
+        val tile = named and hasClickAction()
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(tile)
+        composeTestRule.onNode(tile, useUnmergedTree = false).performClick()
+        composeTestRule.waitForIdle()
+    }
+
     private fun tap(label: String) {
         composeTestRule.onNode(
             (hasText(label, substring = true) or hasContentDescription(label, substring = true)) and hasClickAction(),
@@ -75,11 +85,11 @@ class ScreensKeepEveryControlTest {
             }
         }
 
-        tap(context.getString(R.string.playlists_title))
-        tap(context.getString(R.string.all_subscriptions_title))
-        tap(context.getString(R.string.history_title))
-        tap(context.getString(R.string.destination_account))
-        tap(context.getString(R.string.library_downloads))
+        tapInList(context.getString(R.string.playlists_title))
+        tapInList(context.getString(R.string.all_subscriptions_title))
+        tapInList(context.getString(R.string.history_title))
+        tapInList(context.getString(R.string.destination_account))
+        tapInList(context.getString(R.string.library_downloads))
 
         assertEquals(listOf("playlists", "subscriptions", "history", "account", "downloads"), opened)
     }
