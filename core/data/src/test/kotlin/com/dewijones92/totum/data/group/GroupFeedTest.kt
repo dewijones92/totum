@@ -105,6 +105,83 @@ class GroupFeedTest {
         assertEquals(0, asked)
     }
 
+    @Test
+    fun `channel pages that only give an age still merge newest first across channels`() = runTest {
+        val now = Instant.parse("2026-10-29T12:00:00Z")
+        val ben = MediaSource.VideoChannel(SourceId("ben"), "Ben", HttpUrl.of("https://www.youtube.com/channel/UCben"))
+        val cat = MediaSource.VideoChannel(SourceId("cat"), "Cat", HttpUrl.of("https://www.youtube.com/channel/UCcat"))
+        fun aged(id: String, source: SourceId, text: String) =
+            MediaItem(
+                id = MediaItemId(id),
+                sourceId = source,
+                title = id,
+                publishedAt = null,
+                publishedText = text,
+                duration = null
+            )
+        val feed = GroupFeed(
+            ChannelSourceItems(
+                pageOf = { source ->
+                    if (source.id == ben.id) {
+                        listOf(aged("ben-new", ben.id, "4 days ago"), aged("ben-old", ben.id, "3 weeks ago"))
+                    } else {
+                        listOf(aged("cat-new", cat.id, "3 days ago"), aged("cat-old", cat.id, "2 weeks ago"))
+                    }
+                },
+                feedOf = { null },
+                clock = { now },
+            ),
+        )
+
+        val merged = feed.itemsFor(SourceGroup(SourceGroupId("travel"), "Travel", listOf(ben, cat)))
+
+        assertEquals(listOf("cat-new", "ben-new", "cat-old", "ben-old"), merged.map { it.id.value })
+    }
+
+    @Test
+    fun `older videos take their real publish day and sit correctly among the other channels`() = runTest {
+        val now = Instant.parse("2026-10-29T12:00:00Z")
+        val cat = MediaSource.VideoChannel(SourceId("cat"), "Cat", HttpUrl.of("https://www.youtube.com/channel/UCcat"))
+        val bald = MediaSource.VideoChannel(
+            SourceId("bald"),
+            "Bald",
+            HttpUrl.of("https://www.youtube.com/channel/UCbald")
+        )
+        fun aged(id: String, source: SourceId, text: String) =
+            MediaItem(
+                id = MediaItemId(id),
+                sourceId = source,
+                title = id,
+                publishedAt = null,
+                publishedText = text,
+                duration = null
+            )
+        val days = mapOf("cat-may" to java.time.LocalDate.of(2026, 5, 14))
+        val feed = GroupFeed(
+            ChannelSourceItems(
+                pageOf = { source ->
+                    if (source.id == cat.id) {
+                        listOf(aged("cat-jun", cat.id, "4 months ago"), aged("cat-may", cat.id, "4 months ago"))
+                    } else {
+                        listOf(aged("bald-jun", bald.id, "4 months ago"))
+                    }
+                },
+                feedOf = { source ->
+                    when (source.id) {
+                        cat.id -> listOf(item("cat-jun", cat.id, "2026-06-14T15:29:00Z"))
+                        else -> listOf(item("bald-jun", bald.id, "2026-06-02T16:30:00Z"))
+                    }
+                },
+                dayOf = { id -> days[id.value] },
+                clock = { now },
+            ),
+        )
+
+        val merged = feed.itemsFor(SourceGroup(SourceGroupId("travel"), "Travel", listOf(cat, bald)))
+
+        assertEquals(listOf("cat-jun", "bald-jun", "cat-may"), merged.map { it.id.value })
+    }
+
     private fun item(title: String, sourceId: SourceId, publishedAt: String?) = MediaItem(
         id = MediaItemId(title),
         sourceId = sourceId,

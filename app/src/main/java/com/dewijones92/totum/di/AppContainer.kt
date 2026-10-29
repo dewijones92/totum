@@ -119,6 +119,7 @@ import com.dewijones92.totum.downloads.PrefsDownloadLocks
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
+import com.dewijones92.totum.groups.PublishDays
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
 import com.dewijones92.totum.innertube.actions.YouTubeActions
@@ -223,6 +224,7 @@ import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.uploads.LatestUploads
 import com.dewijones92.totum.uploads.NewUploads
 import com.dewijones92.totum.uploads.newUploadsOf
 import com.dewijones92.totum.video.AccountChannel
@@ -578,7 +580,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val transcripts: TranscriptLoader by lazy { TranscriptLoader(textFetcher) }
 
     override val newUploads: NewUploads by lazy {
-        newUploadsOf(this, textFetcher, shufflePages, File(context.filesDir, "new_uploads.json"))
+        newUploadsOf(this, latestUploads, File(context.filesDir, "new_uploads.json"))
     }
 
     internal val shufflePages by lazy { AppSourcePages(youTubeChannel, channelRepository, podcastRepository) }
@@ -665,6 +667,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val playbackController: PlaybackController by lazy { playbackControllerOf(this, context) }
 
     private val textFetcher by lazy { OkHttpTextFetcher(httpClient) }
+    private val publishDays by lazy {
+        PublishDays(File(context.filesDir, "publish_days.json"), PublishDays.asking(innerTubeClient))
+    }
+    val latestUploads: LatestUploads by lazy { LatestUploads(textFetcher, podcastRepository, shufflePages) }
 
     override val podcastSearchSource: SearchSource by lazy {
         ItunesPodcastSearchSource(textFetcher)
@@ -1179,7 +1185,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         // shape as RoutedDownloadStrategy, deliberately.
         GroupFeed(
             RoutedSourceItems(
-                video = ChannelSourceItems(channelRepository),
+                video = ChannelSourceItems(channelRepository, latestUploads::feedOf, publishDays::dayOf),
                 podcast = PodcastSourceItems(podcastRepository),
             ),
         )

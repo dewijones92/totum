@@ -4,7 +4,7 @@ kind: todo
 area: video
 priority: high
 status: shipped
-updated: 2026-07-30
+updated: 2026-10-29
 ---
 
 # Groups of sources
@@ -54,3 +54,13 @@ to 20 items and rendered. That is the case that used to return nothing.
   the feed sorts by date, which is the point of the feature — and group order is the
   order they were created, which is fine for the handful of chips a person makes. If
   either ever matters it needs a `position` column and drag handles; it does not yet.
+
+## The merge never merged (found 2026-10-29)
+
+The status above said "shipped", and the chips and picker were, but the merged feed was not what it claimed: channel
+pages give only an age, so every item was undated and "newest first" was each channel's block in turn. Found by
+checking Dewi's Backpacker Ben / Carry On Cat / Bald and Bankrupt group against their RSS feeds; fixed by
+[ADR 94](../adr/0094-a-groups-dates-come-from-the-feed-then-each-videos-own-day.md). The rest of the follow-up (new
+marker, notifications, a Library tile, CRUD from the group page) is
+[group-feeds-done-properly](group-feeds-done-properly.md).
+

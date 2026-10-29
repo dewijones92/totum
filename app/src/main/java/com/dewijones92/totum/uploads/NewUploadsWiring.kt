@@ -31,13 +31,15 @@ class LatestUploads(
     private val pages: SourcePages,
 ) {
     suspend fun of(source: MediaSource): List<MediaItem>? = when (source) {
-        is MediaSource.VideoChannel -> source.youTubeChannelId?.let { feed(source, it) }
-            ?: pages.page(source, SourcePart.UPLOADS, after = null)?.items
+        is MediaSource.VideoChannel -> feedOf(source) ?: pages.page(source, SourcePart.UPLOADS, after = null)?.items
         is MediaSource.PodcastFeed -> when (val preview = podcasts.preview(source.feedUrl)) {
             is PreviewResult.Loaded -> preview.episodes
             is PreviewResult.Failed -> null.also { Diag.warn(TAG, "\"${source.title}\" feed: ${preview.detail}") }
         }
     }
+
+    suspend fun feedOf(source: MediaSource.VideoChannel): List<MediaItem>? =
+        source.youTubeChannelId?.let { feed(source, it) }
 
     private suspend fun feed(source: MediaSource.VideoChannel, channelId: String): List<MediaItem>? =
         when (val fetched = fetcher.fetch(ChannelFeedParser.feedUrlFor(channelId))) {
@@ -81,8 +83,8 @@ class FileUploadsStore(private val file: File) : UploadsStore {
     }
 }
 
-fun newUploadsOf(c: AppContainer, fetcher: HttpTextFetcher, pages: SourcePages, file: File): NewUploads = NewUploads(
-    latest = LatestUploads(fetcher, c.podcastRepository, pages)::of,
+fun newUploadsOf(c: AppContainer, latest: LatestUploads, file: File): NewUploads = NewUploads(
+    latest = latest::of,
     queue = QueueForUploads(c.playbackQueue),
     inboxSources = { inboxSourcesOf(c) },
     store = FileUploadsStore(file),
