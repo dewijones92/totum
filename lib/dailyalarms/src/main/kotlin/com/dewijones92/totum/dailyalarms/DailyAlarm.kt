@@ -8,6 +8,7 @@ import com.dewijones92.totum.reminders.LocalTimeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -25,10 +26,24 @@ public data class DailyAlarm(
     val lastAskAt: LocalTime = DEFAULT_LAST_ASK_AT,
     val snoozeMinutes: Int = DEFAULT_SNOOZE_MINUTES,
     val once: LocalDate? = null,
+    val kind: AlarmKind = AlarmKind.ALARM,
 ) {
     public fun timeOn(day: DayOfWeek): LocalTime = dayTimes[day] ?: defaultTime
 
     public val isOneOff: Boolean get() = once != null
+
+    public val isReminder: Boolean get() = kind == AlarmKind.REMINDER
+
+    public fun retimed(time: LocalTime): DailyAlarm {
+        val shift = Duration.between(defaultTime, time)
+        return copy(
+            defaultTime = time,
+            dayTimes = dayTimes.mapValues { (_, own) -> own.plus(shift) },
+            choices = choices.map { it.plus(shift) }.distinct(),
+        )
+    }
+
+    public fun nudged(minutes: Long): DailyAlarm = retimed(defaultTime.plusMinutes(minutes))
 
     public companion object {
         public fun oneOff(id: String, title: String, date: LocalDate, time: LocalTime): DailyAlarm = DailyAlarm(
@@ -40,6 +55,36 @@ public data class DailyAlarm(
             choices = listOf(time),
             once = date,
         )
+
+        public fun oneOff(id: String, title: String, date: LocalDate, time: LocalTime, kind: AlarmKind): DailyAlarm =
+            oneOff(id, title, date, time).copy(
+                kind = kind,
+                snoozeMinutes = if (kind == AlarmKind.REMINDER) REMINDER_NAG_MINUTES else DEFAULT_SNOOZE_MINUTES,
+            )
+
+        public fun repeating(
+            id: String,
+            title: String,
+            kind: AlarmKind,
+            days: Set<DayOfWeek>,
+            time: LocalTime,
+        ): DailyAlarm = DailyAlarm(
+            id = id,
+            label = title,
+            enabled = true,
+            days = days,
+            defaultTime = time,
+            choices = if (kind == AlarmKind.REMINDER) listOf(time) else DailyAlarm(id).retimed(time).choices,
+            snoozeMinutes = if (kind == AlarmKind.REMINDER) REMINDER_NAG_MINUTES else DEFAULT_SNOOZE_MINUTES,
+            kind = kind,
+        )
+
+        public const val FRIDGE_ID: String = "fridge"
+        public const val REMINDER_NAG_MINUTES: Int = 10
+        public const val REMINDER_NUDGES: Int = 6
+        public val EVERY_DAY: Set<DayOfWeek> = DayOfWeek.entries.toSet()
+        public val FRIDGE: DailyAlarm
+            get() = repeating(FRIDGE_ID, "Close the fridge", AlarmKind.REMINDER, EVERY_DAY, LocalTime.of(21, 0))
 
         public const val ONE_OFF_PREFIX: String = "once-"
 
@@ -60,6 +105,12 @@ public data class DailyAlarm(
             LocalTime.of(18, 0),
         )
     }
+}
+
+@Serializable
+public enum class AlarmKind {
+    ALARM,
+    REMINDER,
 }
 
 public fun List<String>.remembering(title: String, keep: Int = DailyAlarm.RECENT_TITLES): List<String> {

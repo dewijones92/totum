@@ -45,6 +45,10 @@ class AndroidDailyAlarmPorts(
         RingService.start(context, alarm.id, time)
     }
 
+    override fun remind(alarm: DailyAlarm, time: LocalTime, nudge: Int) = notifications.remind(alarm, time, nudge)
+
+    override fun stopReminding(alarmId: String) = notifications.hideReminder(alarmId)
+
     override fun stopRinging(alarmId: String) {
         RingService.stop(context)
         interruption().release()

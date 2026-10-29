@@ -3,6 +3,7 @@ package com.dewijones92.totum.dailyalarms
 import com.dewijones92.totum.dailyalarms.DayState.Asking
 import com.dewijones92.totum.dailyalarms.DayState.Done
 import com.dewijones92.totum.dailyalarms.DayState.Idle
+import com.dewijones92.totum.dailyalarms.DayState.Reminding
 import com.dewijones92.totum.dailyalarms.DayState.Ringing
 import com.dewijones92.totum.dailyalarms.DayState.Set
 import com.dewijones92.totum.dailyalarms.DayState.Snoozed
@@ -25,6 +26,7 @@ public object DailyAlarmMachine {
         private val notes = mutableListOf<String>()
         private val today: LocalDate = now.atZone(zone).toLocalDate()
         private val id = alarm.id
+        private val dayStart: LocalTime = if (alarm.isReminder) LocalTime.MIDNIGHT else alarm.askAt
 
         fun handle(state: DayState, event: AlarmEvent): AlarmResult {
             if (!alarm.enabled) return disabled(state)
@@ -47,6 +49,7 @@ public object DailyAlarmMachine {
             when (state) {
                 Idle, is Done -> Unit
                 is Ringing, is Snoozed -> effects += AlarmEffect.StopRinging(id)
+                is Reminding -> effects += AlarmEffect.StopReminding(id)
                 is Asking, is Set -> {
                     effects += AlarmEffect.HideQuestion(id)
                     effects += AlarmEffect.HideSet(id)
@@ -57,14 +60,29 @@ public object DailyAlarmMachine {
         }
 
         private fun rolledOver(state: DayState): DayState = when (state) {
-            is Asking -> if (state.date < today) Idle.also { effects += AlarmEffect.HideQuestion(id) } else state
+            is Asking -> rolledOverAsking(state)
             is Set -> if (state.date < today && !alarm.isOneOff) {
                 Idle.also { effects += AlarmEffect.HideSet(id) }
             } else {
                 state
             }
             is Done -> if (state.date < today) Idle else state
+            is Reminding -> rolledOverReminding(state)
             Idle, is Ringing, is Snoozed -> state
+        }
+
+        private fun rolledOverAsking(state: Asking): DayState {
+            if (state.date >= today && !alarm.isReminder) return state
+            effects += AlarmEffect.HideQuestion(id)
+            if (alarm.isReminder) notes += "now a reminder: the question is put away"
+            return Idle
+        }
+
+        private fun rolledOverReminding(state: Reminding): DayState {
+            if (state.date >= today && alarm.isReminder) return state
+            effects += AlarmEffect.StopReminding(id)
+            notes += "reminder from ${state.date} put away after ${state.nudges} nudge(s), never marked done"
+            return Idle
         }
 
         private fun tick(state: DayState): DayState = when (state) {
@@ -73,12 +91,19 @@ public object DailyAlarmMachine {
             is Set -> ringIfDue(state)
             is Ringing -> state
             is Snoozed -> if (now.isBefore(state.until)) state else ring(state.date, state.time)
+            is Reminding -> nudgeIfDue(state)
             is Done -> state
         }
 
         private fun startOfDay(): DayState {
             if (alarm.isOneOff) return Idle
-            if (today.dayOfWeek !in alarm.days || now.isBefore(on(today, alarm.askAt))) return Idle
+            if (today.dayOfWeek !in alarm.days || now.isBefore(on(today, dayStart))) return Idle
+            if (alarm.isReminder) {
+                val time = alarm.timeOn(today.dayOfWeek)
+                notes += "reminder: no question, set for $time"
+                effects += AlarmEffect.ShowSet(id, time)
+                return ringIfDue(Set(today, time))
+            }
             if (!now.isBefore(on(today, alarm.lastAskAt)) || !now.isBefore(ringAt(today))) {
                 notes += "started after the last ask: no alarm today"
                 return Done(today, Outcome.UNANSWERED)
@@ -105,7 +130,7 @@ public object DailyAlarmMachine {
         }
 
         private fun setToday(state: DayState, time: LocalTime): DayState = when (state) {
-            is Ringing, is Snoozed -> state.also { notes += "set today ignored while $state" }
+            is Ringing, is Snoozed, is Reminding -> state.also { notes += "set today ignored while $state" }
             Idle, is Asking, is Set, is Done -> {
                 notes += "set from the page (was $state)"
                 setFor(state, today, time)
@@ -113,7 +138,7 @@ public object DailyAlarmMachine {
         }
 
         private fun setOn(state: DayState, date: LocalDate, time: LocalTime): DayState = when (state) {
-            is Ringing, is Snoozed -> state.also { notes += "set on $date ignored while $state" }
+            is Ringing, is Snoozed, is Reminding -> state.also { notes += "set on $date ignored while $state" }
             Idle, is Asking, is Set, is Done -> {
                 notes += "set for $date (was $state)"
                 setFor(state, date, time)
@@ -149,6 +174,7 @@ public object DailyAlarmMachine {
 
         private fun change(state: DayState): DayState = when {
             alarm.isOneOff -> state.also { notes += "change ignored: a one-off alarm is changed from its page" }
+            alarm.isReminder -> state.also { notes += "change ignored: a reminder never asks" }
             state is Set -> {
                 effects += AlarmEffect.HideSet(id)
                 ask(Asking(state.date, asks = 1))
@@ -176,10 +202,27 @@ public object DailyAlarmMachine {
         }
 
         private fun ring(date: LocalDate, time: LocalTime): DayState {
+            if (alarm.isReminder) return nudge(Reminding(date, time, nudges = 0, next = null))
             effects += AlarmEffect.Ring(id, alarm.label, time)
             notes += "ringing for $time"
             return Ringing(date, time)
         }
+
+        private fun nudgeIfDue(state: Reminding): DayState {
+            val due = state.next ?: return state
+            return if (now.isBefore(due)) state else nudge(state)
+        }
+
+        private fun nudge(state: Reminding): Reminding {
+            val nudges = state.nudges + 1
+            effects += AlarmEffect.Remind(id, alarm.label, state.time, nudges)
+            val next = if (nudges < DailyAlarm.REMINDER_NUDGES) now + nagGap() else null
+            notes += "reminding for ${state.time}: nudge $nudges of ${DailyAlarm.REMINDER_NUDGES}, " +
+                "next=${next ?: "none"}"
+            return state.copy(nudges = nudges, next = next)
+        }
+
+        private fun nagGap(): Duration = Duration.ofMinutes(alarm.snoozeMinutes.toLong())
 
         private fun snooze(state: DayState): DayState = when (state) {
             is Ringing -> {
@@ -187,6 +230,12 @@ public object DailyAlarmMachine {
                 val until = now + Duration.ofMinutes(alarm.snoozeMinutes.toLong())
                 notes += "snoozed until $until"
                 Snoozed(state.date, state.time, until)
+            }
+            is Reminding -> {
+                effects += AlarmEffect.StopReminding(id)
+                val until = now + nagGap()
+                notes += "reminder snoozed until $until"
+                state.copy(next = until)
             }
             else -> state.also { notes += "snooze ignored in $state" }
         }
@@ -197,15 +246,21 @@ public object DailyAlarmMachine {
                 notes += "dismissed"
                 Done(today, Outcome.RANG)
             }
+            is Reminding -> {
+                effects += AlarmEffect.StopReminding(id)
+                notes += "reminder done after ${state.nudges} nudge(s)"
+                Done(state.date, Outcome.RANG)
+            }
             else -> state.also { notes += "dismiss ignored in $state" }
         }
 
         private fun nextWake(state: DayState): Instant? = when (state) {
-            Idle, is Done -> if (alarm.isOneOff) null else nextOccurrence(alarm.days, { alarm.askAt }, now, zone)
+            Idle, is Done -> if (alarm.isOneOff) null else nextOccurrence(alarm.days, { dayStart }, now, zone)
             is Asking -> if (state.last) ringAt(state.date) else minOf(nextAsk(state), ringAt(state.date))
             is Set -> on(state.date, state.time)
             is Ringing -> null
             is Snoozed -> state.until
+            is Reminding -> state.next
         }
 
         private fun nextAsk(state: Asking): Instant {

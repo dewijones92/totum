@@ -24,5 +24,6 @@ fun dailyAlarmController(
         SharedPrefsDailyAlarmStore(context),
         AndroidDailyAlarmPorts(context) { interruption },
         record = record,
+        seeds = listOf(DailyAlarm.FRIDGE),
     )
 }

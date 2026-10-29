@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.dewijones92.totum.theme.TotumTheme
 import org.junit.Assert.assertEquals
@@ -37,8 +38,8 @@ class NewAlarmSheetTest {
 
         composeTestRule.onNodeWithTag(NEW_ALARM_TAG).performClick()
         composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).performTextInput("Deployed to production")
-        composeTestRule.onNodeWithText("+15 min").performClick()
-        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performClick()
+        composeTestRule.onNodeWithText("+15 min").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().performClick()
 
         val once = alarms.view.value.oneOffs.single()
         assertEquals("Deployed to production", once.label)
@@ -52,8 +53,8 @@ class NewAlarmSheetTest {
 
         composeTestRule.onNodeWithTag(NEW_ALARM_TAG).performClick()
         composeTestRule.onNodeWithText("Bins out").performClick()
-        composeTestRule.onNodeWithText("+1 h").performClick()
-        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performClick()
+        composeTestRule.onNodeWithText("+1 h").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().performClick()
 
         assertEquals("Bins out", alarms.view.value.oneOffs.single().label)
     }

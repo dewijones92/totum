@@ -202,6 +202,118 @@ class DailyAlarmControllerTest {
         )
     }
 
+    @Test
+    fun `the fridge reminder is added once, and stays deleted once you delete it`() {
+        val first =
+            DailyAlarmController(store, ports, clock = { now }, zone = { zone }, seeds = listOf(DailyAlarm.FRIDGE))
+        assertEquals(listOf("pickup", "fridge"), first.view.value.alarms.map { it.id })
+        assertEquals(setOf("fridge"), store.seeded)
+        first.remove("fridge", "page")
+        val again =
+            DailyAlarmController(store, ports, clock = { now }, zone = { zone }, seeds = listOf(DailyAlarm.FRIDGE))
+        assertEquals(listOf("pickup"), again.view.value.alarms.map { it.id })
+    }
+
+    @Test
+    fun `a reminder nags through the reminder port, never the alarm clock, until Done`() {
+        val alarms =
+            DailyAlarmController(store, ports, clock = { now }, zone = { zone }, seeds = listOf(DailyAlarm.FRIDGE))
+        alarms.tickAll("startup")
+        assertFalse("a reminder is not an alarm clock", ports.ringScheduled)
+        at(21)
+        alarms.dispatch("fridge", AlarmEvent.Tick, "alarm")
+        at(21, 10)
+        alarms.dispatch("fridge", AlarmEvent.Tick, "alarm")
+        assertEquals(listOf(1, 2), ports.nudges)
+        assertTrue(ports.rings.isEmpty())
+        assertEquals(RowStatus.Reminding, ports.boards.last().rows.first { it.alarmId == "fridge" }.status)
+        alarms.dispatch("fridge", AlarmEvent.Dismiss, "notification")
+        assertEquals(listOf("fridge"), ports.reminderStops)
+        assertEquals(DayState.Done(monday, Outcome.RANG), alarms.view.value.state("fridge"))
+    }
+
+    @Test
+    fun `a new repeating alarm or reminder starts switched on`() {
+        val alarms = controller()
+        at(10)
+        val bins = alarms.addRepeating(
+            "Bins out",
+            AlarmKind.REMINDER,
+            setOf(java.time.DayOfWeek.MONDAY),
+            LocalTime.of(19, 0),
+            "sheet"
+        )
+        assertTrue(bins.enabled)
+        assertEquals(DayState.Set(monday, LocalTime.of(19, 0)), alarms.view.value.state(bins.id))
+        assertEquals(listOf("Bins out"), alarms.view.value.recentTitles)
+    }
+
+    @Test
+    fun `a new usual time moves today's set time too`() {
+        val alarms = controller()
+        alarms.update("test") { list -> list.map { it.copy(enabled = true) } }
+        at(9)
+        alarms.tickAll("alarm")
+        alarms.dispatch("pickup", AlarmEvent.Answer(LocalTime.of(17, 30)), "notification")
+        assertEquals(DayState.Set(monday, LocalTime.of(17, 30)), alarms.view.value.state("pickup"))
+        assertTrue(alarms.retime("pickup", LocalTime.of(18, 0), "page"))
+        assertEquals(LocalTime.of(18, 0), alarms.view.value.alarms.single().defaultTime)
+        assertEquals(DayState.Set(monday, LocalTime.of(18, 0)), alarms.view.value.state("pickup"))
+    }
+
+    @Test
+    fun `moving the usual time to one already gone today drops today's set time rather than keeping the old one`() {
+        val alarms = DailyAlarmController(
+            store,
+            ports,
+            clock = { now },
+            zone = { zone },
+            seeds = listOf(DailyAlarm.FRIDGE)
+        )
+        at(10, 53)
+        alarms.tickAll("startup")
+        assertEquals(DayState.Set(monday, LocalTime.of(21, 0)), alarms.view.value.state("fridge"))
+        assertTrue(alarms.retime("fridge", LocalTime.of(10, 5), "page"))
+        assertEquals(DayState.Done(monday, Outcome.CANCELLED), alarms.view.value.state("fridge"))
+        at(21)
+        alarms.tickAll("alarm")
+        assertTrue("it must not still nag at the old 21:00", ports.nudges.isEmpty())
+    }
+
+    @Test
+    fun `a one-off can be moved and renamed, but not into the past`() {
+        val alarms = controller()
+        at(10)
+        alarms.addOneOff("Deploy", monday, LocalTime.of(19, 0), "sheet")
+        val id = alarms.view.value.oneOffs.single().id
+        assertTrue(alarms.retime(id, LocalTime.of(20, 0), "page"))
+        assertEquals(DayState.Set(monday, LocalTime.of(20, 0)), alarms.view.value.state(id))
+        assertFalse(alarms.retime(id, LocalTime.of(9, 0), "page"))
+        assertEquals(DayState.Set(monday, LocalTime.of(20, 0)), alarms.view.value.state(id))
+        alarms.rename(id, "Deployed to production", "page")
+        assertEquals("Deployed to production", alarms.view.value.oneOffs.single().label)
+    }
+
+    @Test
+    fun `an undone delete brings the alarm back as it was`() {
+        val alarms = controller()
+        val removed = alarms.remove("pickup", "page")!!
+        assertTrue(alarms.view.value.alarms.isEmpty())
+        alarms.restore(removed, "undo")
+        assertEquals(listOf(DailyAlarm(id = "pickup")), alarms.view.value.alarms)
+    }
+
+    @Test
+    fun `a one-off reminder nags rather than rings`() {
+        val alarms = controller()
+        at(10)
+        alarms.addOneOff("Call the vet", monday, LocalTime.of(11, 0), "sheet", AlarmKind.REMINDER)
+        at(11)
+        alarms.tickAll("alarm")
+        assertEquals(listOf(1), ports.nudges)
+        assertTrue(ports.rings.isEmpty())
+    }
+
     private class RecordingPorts : DailyAlarmPorts {
         val schedules = mutableListOf<Pair<String, Instant?>>()
         var ringScheduled = false
@@ -233,5 +345,13 @@ class DailyAlarmControllerTest {
             rings += time
         }
         override fun stopRinging(alarmId: String) = Unit
+        val nudges = mutableListOf<Int>()
+        val reminderStops = mutableListOf<String>()
+        override fun remind(alarm: DailyAlarm, time: LocalTime, nudge: Int) {
+            nudges += nudge
+        }
+        override fun stopReminding(alarmId: String) {
+            reminderStops += alarmId
+        }
     }
 }

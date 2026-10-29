@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-23
+updated: 2026-10-29
 ---
 
 # Testing
@@ -96,7 +96,8 @@ instead).
 | YouTube progress: a signed-in player answer's resume point and account-list progress bars feed the rows and resume, and beat history's rounded percent | JVM unit | `PlayerResponseParserTest`, `VideoTileParserTest`, `AccountResumePositionsTest` |
 | YouTube progress: watched positions are read from three pages of the account history | JVM unit (MockWebServer) | `HttpYouTubeWatchHistoryTest` "watched positions come from the first three pages…" |
 | Live YouTube tests skip, with the reason, when YouTube refuses the address (bot check or 429), probed once per run or met part-way; any other failure stays red | instrumented rule + preflight | `support/YouTubeAnswers` on all 15 unattended live classes; preflight `check_live_tests_skip_when_youtube_refuses` |
-| One-off alarms: set for a date, ring with their title, never ask, survive midnight, refuse a gone time, leave the list once rung, keep recent titles; the ➕ sheet sets one in three taps | JVM unit + instrumented | `:lib:dailyalarms` `OneOffAlarmTest`, `OneOffWhenTest`; `DailyAlarmControllerTest` (4 one-off cases); `NewAlarmSheetTest` |
+| One-off alarms: set for a date, ring with their title, never ask, survive midnight, refuse a gone time, leave the list once rung, keep recent titles; the ➕ sheet sets one in three taps | JVM unit + instrumented | `:lib:dailyalarms` `OneOffAlarmTest`, `OneOffWhenTest`; `DailyAlarmControllerTest` (5 one-off cases; this said 4); `NewAlarmSheetTest` |
+| Reminders and the one-tap page: a reminder never asks, is set from midnight, nags every N minutes up to six, Done/Snooze/overnight put-away, the late-start grace, kind switches mid-question and mid-nag, board row and no herald, old JSON reads as an alarm; retime moves day times and choices, ±15; the fridge seeded once and never back after a delete; nags go through the reminder port, never the alarm clock; new repeating ones start on; retime moves or (when gone) cancels today; one-offs moved and renamed; delete and undo; on the device: tap the time opens the clock (and typing), ±15, day toggles, delete + Undo, the sheet makes an every-day reminder, a one-off renamed | JVM unit + instrumented | `:lib:dailyalarms` `ReminderTest` (15), `RetimeTest` (3); `DailyAlarmControllerTest` (8 new; the gone-time cancel seen failing first); `AlarmPageEditTest` (7) |
 | Big queues: the list layout is one pass and matches the old scan; bulk add, play next, remove and move match one-at-a-time; gapless does not walk the queue per tick; metadata repair gives up after five spaced tries; InnerTube parses off the caller's thread | JVM unit | `QueueLayoutTest`, `QueueBulkEditsTest`, `GaplessArmerTest`, `SharedMetadataRepairTest`, `ParsedOffTheCallerTest` |
 | Casting: an ordinary MP4 (index at the front or the end) is remuxed into fMP4 segments, every frame in order and the timeline whole; a ranged source still names its address between ranges | JVM unit + instrumented | `:core:playback` `Mp4RemuxTest` (fixtures `avc-bframes-moov-faststart.mp4`, `avc-bframes-moov-end.mp4`, ffmpeg testsrc), `ChunkedDataSourceTest` "a source between two ranges still says where it is reading from" |
 | Casting: the TV is given the Wi-Fi (else Ethernet) address, never a VPN's; a TV that fetches nothing is reported, the item queued behind the playing one never trips it | JVM unit | `:core:playback` `CastAddressTest` (all three seen failing on the old first-Wi-Fi rule), `CastReachTest` |

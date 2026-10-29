@@ -35,6 +35,15 @@ public sealed interface DayState {
     public data class Snoozed(val date: LocalDate, val time: LocalTime, val until: Instant) : DayState
 
     @Serializable
+    @SerialName("reminding")
+    public data class Reminding(
+        val date: LocalDate,
+        val time: LocalTime,
+        val nudges: Int,
+        val next: Instant?
+    ) : DayState
+
+    @Serializable
     @SerialName("done")
     public data class Done(val date: LocalDate, val outcome: Outcome) : DayState
 }
@@ -88,6 +97,10 @@ public sealed interface AlarmEffect {
     public data class Ring(val alarmId: String, val label: String, val time: LocalTime) : AlarmEffect
 
     public data class StopRinging(val alarmId: String) : AlarmEffect
+
+    public data class Remind(val alarmId: String, val label: String, val time: LocalTime, val nudge: Int) : AlarmEffect
+
+    public data class StopReminding(val alarmId: String) : AlarmEffect
 }
 
 public data class AlarmResult(

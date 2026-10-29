@@ -1,9 +1,9 @@
 ---
-title: Daily alarms — asked each morning, rung by Totum
+title: Daily alarms and reminders — asked each morning or nagging until done, rung by Totum
 kind: feature
 area: side-quest
-status: built 2026-10-07 — ships switched off; awaiting Dewi's first weekday
-updated: 2026-10-28
+status: built 2026-10-07 — ships switched off; reminders and the one-tap page built 2026-10-29, the fridge reminder on by default
+updated: 2026-10-29
 ---
 
 # Daily alarms
@@ -26,7 +26,8 @@ my toddler?"* Decisions: [ADR 18](../adr/0018-daily-alarms.md), built on the rem
 | Exsurge at the same time | The alarm wins; Exsurge holds its takeover and voice until it is dismissed |
 
 - **Several alarms**, each with its own label, days, usual time, **a time per weekday**, time choices,
-  first and last ask. Settings → **Daily alarms**, and a Quick Settings tile showing today's state.
+  first and last ask. Settings → **Daily alarms**, and a Quick Settings tile showing today's state (the first alarm
+  that is not a reminder).
 - Ships with "Pick up time" 17:30, **switched off**.
 
 **The screen stays awake** (Dewi, 2026-10-08) on the ringing screen, the morning question and the alarm
@@ -37,7 +38,8 @@ settings, at the phone's normal brightness, through the kit's `KeepScreenAwake`.
 - `lib/dailyalarms/` — `DailyAlarm`, `DailyAlarmMachine` (per-day states), `spokenLine`, `AlarmCodec`.
 - `app/…/dailyalarms/` — `DailyAlarmController`, `AndroidDailyAlarmPorts`, `RingService`, `QuestionActivity`,
   `RingActivity`, `DailyAlarmNotifications`, `DailyAlarmReceiver`, `DailyAlarmTileService`,
-  `DailyAlarmsScreen` / `DailyAlarmsActivity`.
+  `DailyAlarmsScreen` / `DailyAlarmsActivity`, `AlarmCard`, `AlarmEditor`, `OneOffSection`, `NewAlarmSheet`,
+  `NewAlarmChoice`.
 - The reminder kit: `lib/reminders/`, `app/…/reminders/kit/`.
 
 ## Diagnostics
@@ -81,3 +83,30 @@ Snooze, Dismiss), shows on the pinned board (with Cancel), and leaves the list o
 a recent. Also reachable from the app icon's long-press menu (**New alarm**), a **New alarm** Quick Settings tile, and
 an **Alarms** tile on the Library tab showing what rings next. Logged `dewidebug dailyalarm once-… one-off …`; reports
 carry `dailyAlarms.oneOffs` and `dailyAlarms.recentTitles` (counts only).
+
+## Reminders and the one-tap page (2026-10-29, ADR 92)
+
+**Ask (Dewi):** a nightly *close the fridge* at 21:00, on the same board as the alarms, configurable; and changing or
+adding a time without the five-tap trip through Edit.
+
+- **🔔 Reminders** are daily alarms of a second kind: no morning question; at the time a heads-up with a sound
+  (channel *Reminders*) saying *🔔 Close the fridge · ⏰ 21:00 · reminder 1 of 6*, with **✅ Done** and **Snooze 10 min**;
+  again every 10 minutes (a setting under ⚙️ More: 5/10/15/30) up to six times, then it stays up silently until Done
+  or the next day. On the board: *21:00 Close the fridge · today · 📌 reminder*, then *🔔 now, until done* with
+  **✅ Close the fridge: done**; while set, **Skip 21:00**. No status-bar alarm-clock icon and no ten-minute herald.
+- **Close the fridge** at 21:00 every day is added once, switched on. Delete it and it stays deleted.
+- **The card:** tap the big time and the clock opens (⌨️ Type it switches the dial to typing); **−15 / +15** beside
+  it; tap a day initial to switch that day; **Skip today**, **✅ Done** or **Remind me after all** for a reminder,
+  **Set for today** for an alarm; ⚙️ More for the title, ⏰ Alarm / 🔔 Reminder, each day's time, the question's
+  choices and ask times (alarms) or the nag interval (reminders), and 🗑️ Delete with **Undo**. A new usual time moves
+  every day's own time and the choices by the same amount, and today's set time too (or cancels today, when the new
+  time has already gone).
+- **➕ New alarm** is the only add: a title, ⏰ Alarm / 🔔 Reminder, **Once / Every day / Weekdays / Choose days**; Once
+  keeps the +15 min … chips and the day, the others take a time. New ones start switched on. The old
+  "Add a daily alarm" button (an alarm switched off at 17:30) is gone.
+- **One-offs:** tap the time or the title to change it; a time already gone is refused.
+- **Logs:** `dewidebug dailyalarm seeds offered=… alreadySeeded=… adding=…`, `… <id> retimed A -> B …`, `… retime moves
+  today's state: …` (with why), `… reminder <id> "<title>" for 21:00: nudge n of 6, posted=…`, `… <id> new REMINDER …`,
+  `… deleted from page (undo offered)` / `restored from undo`, `… new sheet Set: NewAlarmChoice(…)`. Reports carry each
+  alarm's `kind` in `dailyAlarms.<id>.settings` and the `reminding` state in `.state`.
+

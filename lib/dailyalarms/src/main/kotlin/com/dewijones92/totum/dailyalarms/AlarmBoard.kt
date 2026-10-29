@@ -14,6 +14,8 @@ public sealed interface RowStatus {
 
     public data object Ringing : RowStatus
 
+    public data object Reminding : RowStatus
+
     public data object Skipped : RowStatus
 
     public data class Upcoming(val asksAt: LocalTime) : RowStatus
@@ -26,6 +28,7 @@ public data class BoardRow(
     val time: LocalTime,
     val status: RowStatus,
     val at: Instant,
+    val kind: AlarmKind = AlarmKind.ALARM,
 )
 
 public sealed interface BoardHeading {
@@ -52,7 +55,9 @@ public data class AlarmBoard(
         get() = (heading as? BoardHeading.Next)?.row
 
     public fun heralds(now: Instant): BoardRow? =
-        nextToRing?.takeIf { !now.isBefore(it.at.minus(HERALD)) && now.isBefore(it.at) }
+        nextToRing?.takeIf {
+            it.kind == AlarmKind.ALARM && !now.isBefore(it.at.minus(HERALD)) && now.isBefore(it.at)
+        }
 
     public val firstSkipped: BoardRow?
         get() = rows.firstOrNull { it.status is RowStatus.Skipped }
@@ -65,7 +70,8 @@ public fun alarmBoard(alarms: List<DailyAlarm>, states: Map<String, DayState>, n
         .mapNotNull { BoardRows(it, now, today, zone).rowFor(states[it.id] ?: DayState.Idle) }
         .sortedWith(compareBy({ it.at }, { it.label }))
     val heading = heading(alarms, rows, today)
-    val herald = (heading as? BoardHeading.Next)?.row?.at?.minus(HERALD)?.takeIf { it.isAfter(now) }
+    val herald = (heading as? BoardHeading.Next)?.row
+        ?.takeIf { it.kind == AlarmKind.ALARM }?.at?.minus(HERALD)?.takeIf { it.isAfter(now) }
     val refreshAt = listOfNotNull(today.plusDays(1).atStartOfDay(zone).toInstant(), herald).min()
     return AlarmBoard(rows, today, heading, refreshAt)
 }
@@ -92,7 +98,8 @@ private fun heading(alarms: List<DailyAlarm>, rows: List<BoardRow>, today: Local
     }
 }
 
-private fun RowStatus.rings(): Boolean = this is RowStatus.Set || this is RowStatus.Snoozed || this is RowStatus.Ringing
+private fun RowStatus.rings(): Boolean =
+    this is RowStatus.Set || this is RowStatus.Snoozed || this is RowStatus.Ringing || this is RowStatus.Reminding
 
 private class BoardRows(
     private val alarm: DailyAlarm,
@@ -100,7 +107,10 @@ private class BoardRows(
     private val today: LocalDate,
     private val zone: ZoneId,
 ) {
-    fun rowFor(state: DayState): BoardRow? = when {
+    fun rowFor(state: DayState): BoardRow? =
+        if (state is DayState.Reminding) row(state.date, state.time, RowStatus.Reminding, now) else settledRow(state)
+
+    private fun settledRow(state: DayState): BoardRow? = when {
         state is DayState.Ringing -> row(state.date, state.time, RowStatus.Ringing, now)
         state is DayState.Set && state.date >= today -> row(state.date, state.time, RowStatus.Set)
         state is DayState.Asking && state.date == today -> row(today, timeOn(today), RowStatus.Asking)
@@ -123,7 +133,7 @@ private class BoardRows(
     }
 
     private fun row(date: LocalDate, time: LocalTime, status: RowStatus, at: Instant = on(date, time)) =
-        BoardRow(alarm.id, alarm.label, date, time, status, at)
+        BoardRow(alarm.id, alarm.label, date, time, status, at, alarm.kind)
 
     private fun timeOn(date: LocalDate): LocalTime = alarm.timeOn(date.dayOfWeek)
 

@@ -2,7 +2,7 @@
 title: A one-off alarm is a daily alarm with a date
 kind: adr
 status: accepted
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 
 # 91. A one-off alarm is a daily alarm with a date
@@ -23,7 +23,7 @@ title.
 - **No second alarm system.** A one-off alarm is a `DailyAlarm` with `once` set (`DailyAlarm.oneOff`, id prefix
   `once-`): the same store, state machine (`DailyAlarmMachine`), board notification, ring service, ring screen, snooze,
   voice (`spokenLine` says its title), stats and diagnostics. The machine treats it as never asking a morning
-  question (`Idle` stays `Idle`, no next wake), ignores Change (it is edited from its page), keeps a `Set` for a later
+  question (`Idle` stays `Idle`, no next wake), ignores Change (its time and title are changed by tapping them on the page, since ADR 92; until then it could only be cancelled), keeps a `Set` for a later
   date across midnight, and a new event `SetOn(date, time)` sets it. The board lists a `Set` on any later date, not
   only today.
 - `DailyAlarmController.addOneOff` refuses a time already gone; once a one-off ends (rang, cancelled or never set) the
@@ -42,5 +42,7 @@ title.
 
 - The one-off and the daily alarms cannot drift apart: a ringing fix serves both.
 - The static shortcut counts towards the launcher's limit beside the dynamic Recently shortcuts.
-- Tests: `OneOffAlarmTest` and `OneOffWhenTest` (`:lib:dailyalarms`), four controller tests, `NewAlarmSheetTest`
-  on the device.
+- Tests: `OneOffAlarmTest` and `OneOffWhenTest` (`:lib:dailyalarms`), five controller tests (this said four; there
+  were five), `NewAlarmSheetTest` on the device.
+- Since [ADR 92](0092-a-reminder-is-a-daily-alarm-that-nags-and-every-time-is-one-tap.md) the ➕ sheet also makes
+  repeating alarms and reminders, and a one-off can be a reminder.
