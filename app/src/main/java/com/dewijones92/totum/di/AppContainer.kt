@@ -210,6 +210,8 @@ import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
 import com.dewijones92.totum.screens.ScreenAnnouncer
+import com.dewijones92.totum.screens.ScreenReadiness
+import com.dewijones92.totum.screens.startScreenReady
 import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
@@ -1082,10 +1084,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 appUpdate = appUpdate::diagnostics,
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
                 backup = { driveBackup.diagnostics() },
+                screen = { screenReadiness?.diagnostics().orEmpty() },
                 groupDownloads = { groupDownloads },
             ),
         )
     }
+
+    @Volatile
+    private var screenReadiness: ScreenReadiness? = null
 
     private fun diagnosticState(): Map<String, String> = diagnosticSnapshot.capture()
 
@@ -1097,6 +1103,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
         announceScreens(this, httpClient)
+        screenReadiness = startScreenReady(context) { playbackController.screens.value }
         startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,

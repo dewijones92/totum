@@ -108,3 +108,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 90 | [Each device has its own home-server token, and no link carries one](0090-a-token-per-device-and-none-in-links.md) | Accepted |
 | 91 | [A one-off alarm is a daily alarm with a date](0091-a-one-off-alarm-is-a-daily-alarm-with-a-date.md) | Accepted |
 | 92 | [A reminder is a daily alarm that nags, and every time is one tap away](0092-a-reminder-is-a-daily-alarm-that-nags-and-every-time-is-one-tap.md) | Accepted |
+| 93 | [The private area opens the PC screen, and Watch here takes over](0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md) | Accepted |

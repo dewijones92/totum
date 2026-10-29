@@ -3,7 +3,7 @@ title: Watch the phone's current item on the PC from a private-area tile
 kind: todo
 area: casting
 priority: high
-status: decided 2026-10-29, not started
+status: built 2026-10-29 (ADR 93), awaiting Dewi on the PC
 updated: 2026-10-29
 ---
 
@@ -26,3 +26,7 @@ only answers while the playback service runs.
 - Nothing playing: play the **queue's current item** from its saved position.
 - A **"📱 Dewi's Totum"** tile on the private area landing page (dot-files on the Pi; read its CLAUDE.md first,
   commit there, show the diff) linking to the existing `/screen` redirect.
+
+**Done:** [ADR 93](../adr/0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md). Still to see:
+Dewi's own PC and phone (the emulator stood in for the phone, a headless Edge for the PC).
+

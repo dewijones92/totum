@@ -36,6 +36,7 @@ import com.dewijones92.totum.playback.cast.CastStatus
 import com.dewijones92.totum.playback.cast.CastStreams
 import com.dewijones92.totum.playback.cast.CastTv
 import com.dewijones92.totum.playback.cast.PcScreens
+import com.dewijones92.totum.playback.cast.ScreenSession
 import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.dewijones92.totum.playback.cast.TotumCastTrackSelector
@@ -50,6 +51,7 @@ import com.google.common.util.concurrent.ListenableFuture
  * increments below surface as skip buttons in the notification and on the
  * lock screen.
  */
+@Suppress("TooManyFunctions")
 public class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
@@ -354,14 +356,7 @@ public class PlaybackService : MediaSessionService() {
             tvs = castStatus,
         )
         castStreams = streams
-        screens = PcScreens(
-            streams,
-            castStatus,
-            localPlayer,
-            ::switchTo,
-            PcScreens.keyIn(getSharedPreferences(SCREEN_PREFS, MODE_PRIVATE)),
-            page = { assets.open(SCREEN_PAGE).use { it.readBytes() } },
-        )
+        screens = screensFor(streams, localPlayer)
         val remote = RemoteCastPlayer.Builder(this)
             .setMediaItemConverter(TotumCastConverter(streams))
             .setTrackSelector(TotumCastTrackSelector())
@@ -405,6 +400,27 @@ public class PlaybackService : MediaSessionService() {
         }
     }
 
+    @UnstableApi
+    private fun screensFor(streams: CastStreams, localPlayer: Player): PcScreens = PcScreens(
+        streams,
+        castStatus,
+        PcScreens.keyIn(getSharedPreferences(SCREEN_PREFS, MODE_PRIVATE)),
+        page = { assets.open(SCREEN_PAGE).use { it.readBytes() } },
+        session = ScreenSession(
+            phone = localPlayer,
+            switchTo = ::switchTo,
+            current = { currentPlayer },
+            hasItem = { (currentPlayer?.currentMediaItem ?: lastHandoffItem) != null },
+            wantsAnItem = {
+                val ask = SessionCommand(ACTION_SCREEN_WANTS_AN_ITEM, Bundle.EMPTY)
+                mediaSession?.broadcastCustomCommand(ask, Bundle.EMPTY)
+            },
+        ),
+    ).also { pc ->
+        pc.observe(localPlayer)
+        pc.observe(pc.player)
+    }
+
     /** Hands the current item + position to [target] and points the session at it (local ↔ cast). */
     @UnstableApi
     private fun switchTo(target: Player) {
@@ -437,6 +453,7 @@ public class PlaybackService : MediaSessionService() {
         }
         currentPlayer = target
         mediaSession?.player = target
+        screens?.nowPlaying(target)
         Diag.log(
             "cast",
             "player -> ${when {
@@ -549,6 +566,7 @@ internal const val EXTRA_PRELOAD_AUDIO_URI: String = "audio_uri"
 internal const val EXTRA_PRELOAD_SUBTITLES: String = "subtitles"
 internal const val ACTION_PLAY_ON_SCREEN: String = "com.dewijones92.totum.PLAY_ON_SCREEN"
 internal const val EXTRA_SCREEN_ID: String = "screen_id"
+internal const val ACTION_SCREEN_WANTS_AN_ITEM: String = "com.dewijones92.totum.SCREEN_WANTS_AN_ITEM"
 private const val SCREEN_PAGE = "screen.html"
 private const val SCREEN_PREFS = "totum_screen"
 internal const val ACTION_SILENCE_MODE: String = "com.dewijones92.totum.SILENCE_MODE"

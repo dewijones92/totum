@@ -17,6 +17,8 @@ internal data class ScreenReport(
     val load: Long? = null,
 )
 
+internal data class NowPlaying(val title: String, val by: String?, val playing: Boolean, val onScreen: String?)
+
 internal data class Screen(
     val id: String,
     val name: String,
@@ -44,6 +46,12 @@ internal class ScreenLink(
     @Volatile
     var onScreensChanged: (List<Screen>) -> Unit = {}
 
+    @Volatile
+    var onWatch: (String) -> Unit = {}
+
+    @Volatile
+    var nowPlaying: NowPlaying? = null
+
     fun present(): List<Screen> = screens.values.filter { clock() - it.seenAtMs < GONE_AFTER_MS }.sortedBy { it.name }
 
     fun send(screenId: String, command: String): Long = lock.withLock {
@@ -69,6 +77,7 @@ internal class ScreenLink(
             "/screen/hello" -> hello(query, request.from)
             "/screen/poll" -> poll(query)
             "/screen/state" -> state(query)
+            "/screen/watch" -> watch(query, request.from)
             else -> json(Http.NOT_FOUND, """{"error":"no such call"}""")
         }
     }
@@ -85,7 +94,7 @@ internal class ScreenLink(
             onScreensChanged(present())
         }
         val after = lock.withLock { sent[id]?.lastOrNull()?.first ?: 0L }
-        return json(Http.OK, """{"id":${quoted(id)},"after":$after}""")
+        return json(Http.OK, """{"id":${quoted(id)},"after":$after,"now":${nowJson(nowPlaying, id)}}""")
     }
 
     private fun poll(query: Map<String, String>): HttpReply {
@@ -120,7 +129,23 @@ internal class ScreenLink(
         )
         report.error?.let { Diag.warn(TAG, "screen $id reports an error: $it") }
         onReport(id, report)
-        return HttpReply.Bytes(Http.NO_CONTENT, "text/plain", ByteArray(0), NO_CACHE)
+        return json(Http.OK, """{"now":${nowJson(nowPlaying, id)}}""")
+    }
+
+    private fun watch(query: Map<String, String>, from: String): HttpReply {
+        val id = query["id"] ?: return json(Http.CLIENT_ERROR, """{"error":"no id"}""")
+        val screen = screens[id]
+        if (screen == null) {
+            Diag.warn(TAG, "Watch here from $from for screen $id, which has not said hello; refused")
+            return json(Http.NOT_FOUND, """{"error":"say hello first"}""")
+        }
+        touch(id)
+        Diag.log(
+            TAG,
+            "Watch here pressed on \"${screen.name}\" ($id) from $from; now=${nowPlaying ?: "nothing on the phone"}"
+        )
+        onWatch(id)
+        return json(Http.OK, """{"asked":true}""")
     }
 
     private fun touch(id: String) {
@@ -138,6 +163,12 @@ internal class ScreenLink(
         const val NAME_CHARS = 40
         val NO_CACHE = mapOf("Cache-Control" to "no-store")
     }
+}
+
+private fun nowJson(now: NowPlaying?, id: String): String {
+    if (now == null) return "null"
+    return """{"title":${quoted(now.title)},"by":${now.by?.let(::quoted) ?: "null"},""" +
+        """"playing":${now.playing},"here":${now.onScreen == id}}"""
 }
 
 internal fun quoted(text: String): String = buildString {

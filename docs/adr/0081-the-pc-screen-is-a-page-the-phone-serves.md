@@ -2,7 +2,7 @@
 title: The PC screen is a page the phone serves, found through a Pi bookmark
 kind: adr
 status: accepted
-updated: 2026-10-23
+updated: 2026-10-29
 ---
 
 # 81. The PC screen is a page the phone serves, found through a Pi bookmark
@@ -71,3 +71,11 @@ content. He chose "the Pi bookmark finds the phone".
 - Each `load` carries a number, the page echoes it in its reports, and `ScreenPlayer` ignores a report about an older
   load (`reportIsCurrent`), so the previous item's "ended" can no longer skip the new one. Tests: `ScreenReportsTest`,
   `ScreenLinkTest`.
+
+## Amended 2026-10-29: Watch here, from the private area (ADR 93)
+
+The page now names what the phone is playing and has a **▶️ Watch here** button that moves playback to it (or plays
+the queue's current item when the phone has nothing loaded); a "📱 Dewi's Totum" tile on the private area opens it;
+the phone says "🖥️ Ready for your PC" while charging on Wi-Fi. The PC no longer has to be picked on the phone. See
+[ADR 93](0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md).
+

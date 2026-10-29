@@ -19,14 +19,21 @@
     color: #fff; font-size: 26px; cursor: pointer; text-align: center; }
   #tap.on { display: grid; }
   #status { position: fixed; left: 16px; bottom: 12px; font-size: 14px; color: #bbb; opacity: .8; }
+  #now { font-size: 22px; color: var(--ink); margin: 18px 0 12px; overflow-wrap: anywhere; }
+  #watch { font: inherit; font-size: 26px; font-weight: 600; color: #fff; background: var(--accent); border: 0;
+    border-radius: 12px; padding: 16px 36px; cursor: pointer; margin: 6px 0 14px; }
+  #watch:disabled { opacity: .6; cursor: wait; }
+  #watch[hidden] { display: none; }
 </style>
 </head>
 <body>
 <div id="wait">
   <div>
-    <h1>📺 Waiting for Totum…</h1>
-    <p id="who">Connecting to your phone</p>
-    <p>Pick this screen in Totum's cast menu to play here.</p>
+    <h1>📺 Totum on this screen</h1>
+    <p id="who">⏳ Connecting to your phone</p>
+    <p id="now"></p>
+    <button id="watch" hidden>▶️ Watch here</button>
+    <p>Or pick this screen in Totum's 🖥️ menu on the phone.</p>
   </div>
 </div>
 <div id="stage"><video id="video" playsinline></video></div>
@@ -49,6 +56,27 @@
   let player = null;
 
   const say = (text) => { status.textContent = text; };
+  const nowEl = document.getElementById('now');
+  const watch = document.getElementById('watch');
+  function showNow(now) {
+    nowEl.textContent = now
+      ? (now.playing ? '▶️ ' : '⏸️ ') + 'On your phone: ' + now.title + (now.by ? ' · ' + now.by : '')
+      : '📭 Nothing playing on the phone. Watch here plays the queue’s current item.';
+    watch.hidden = !greeted || !!(now && now.here);
+  }
+  watch.addEventListener('click', async () => {
+    unlock();
+    watch.disabled = true;
+    say('⏳ Asking your phone to play here…');
+    try {
+      const reply = await api('watch', { id });
+      say(reply.ok ? '📱 Your phone is handing over…' : '⚠️ Your phone said no (' + reply.status + '); try again');
+    } catch (e) {
+      say('⚠️ Cannot reach your phone: ' + e.message);
+    } finally {
+      watch.disabled = false;
+    }
+  });
   const api = (path, params) => {
     const q = new URLSearchParams(Object.assign({ key }, params));
     return fetch('/screen/' + path + '?' + q.toString(), { cache: 'no-store' });
@@ -129,6 +157,7 @@
     localStorage.setItem('totumScreenId', id);
     greeted = true;
     document.getElementById('who').textContent = '✅ Connected as “' + name + '”';
+    showNow(body.now);
   }
 
   async function pollForever() {
@@ -160,7 +189,7 @@
       buffering: buffering ? 1 : 0,
       ended: video.ended ? 1 : 0,
       error: lastError,
-    }).catch(() => {});
+    }).then((reply) => reply.ok ? reply.json() : null).then((body) => { if (body) showNow(body.now); }).catch(() => {});
     lastError = '';
   }, 1000);
 

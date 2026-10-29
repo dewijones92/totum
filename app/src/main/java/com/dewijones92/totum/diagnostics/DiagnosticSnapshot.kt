@@ -45,6 +45,7 @@ internal class DiagnosticSnapshot(
         val appUpdate: () -> Map<String, String> = { emptyMap() },
         val polite: () -> Map<String, String> = { emptyMap() },
         val backup: () -> Map<String, String> = { emptyMap() },
+        val screen: () -> Map<String, String> = { emptyMap() },
         val groupDownloads: () -> GroupDownloads? = { null },
     )
 
@@ -98,6 +99,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.appUpdate()) }
         runCatching { putAll(live.polite()) }
         runCatching { putAll(live.backup()) }
+        runCatching { putAll(live.screen()) }
         runCatching { putAll(PlaybackCacheReport.state()) }
     }
 

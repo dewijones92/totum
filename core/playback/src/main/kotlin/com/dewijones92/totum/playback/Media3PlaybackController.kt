@@ -96,6 +96,8 @@ public class Media3PlaybackController(
 
     private val _screens = MutableStateFlow(ScreenTargets())
     override val screens: StateFlow<ScreenTargets> = _screens
+    private val _screenWantsAnItem = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val screenWantsAnItem: Flow<Unit> = _screenWantsAnItem
 
     override fun playOnScreen(screenId: String?) {
         Diag.log("screen", if (screenId == null) "back to the phone" else "play on screen $screenId")
@@ -718,6 +720,7 @@ public class Media3PlaybackController(
 
     @OptIn(UnstableApi::class)
     private fun switchListener() = object : MediaController.Listener {
+
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
             castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
             _castDevice.value = castDeviceName
@@ -748,6 +751,14 @@ public class Media3PlaybackController(
             command: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            if (command.customAction == ACTION_SCREEN_WANTS_AN_ITEM) {
+                Diag.log(
+                    "screen",
+                    "the PC screen wants something to play and the phone has nothing loaded; " +
+                        "delivered=${_screenWantsAnItem.tryEmit(Unit)}",
+                )
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (command.customAction == ACTION_QUEUE_SKIP_REQUEST) {
                 val direction = args.getString(EXTRA_SKIP_DIRECTION)
                     ?.let { name -> SkipDirection.entries.firstOrNull { it.name == name } }

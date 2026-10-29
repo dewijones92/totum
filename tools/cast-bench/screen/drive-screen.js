@@ -1,8 +1,9 @@
 // The PC screen in a headless Edge: opens the receiver page the phone serves, clicks once (as a person must, to
-// allow sound), then reports the video every 2 s. Run on Windows: node drive-screen.js <page-url> [seconds]
+// allow sound), then reports the video every 2 s. Run on Windows: node drive-screen.js <page-url> [seconds] [watch]
+// With "watch" it photographs the waiting page and presses its ▶️ Watch here, as Dewi does from the private area.
 const { chromium } = require('playwright-core');
 
-const [, , pageUrl, secondsArg = '60'] = process.argv;
+const [, , pageUrl, secondsArg = '60', mode = 'click'] = process.argv;
 const t0 = Date.now();
 const say = (o) => console.log(JSON.stringify({ t: ((Date.now() - t0) / 1000).toFixed(1), ...o }));
 
@@ -14,7 +15,15 @@ const say = (o) => console.log(JSON.stringify({ t: ((Date.now() - t0) / 1000).to
   await tab.goto(pageUrl);
   await tab.waitForFunction(() => document.getElementById('who').textContent.includes('Connected'), null, { timeout: 20000 });
   say({ step: 'connected', who: await tab.textContent('#who') });
-  await tab.mouse.click(640, 360);
+  if (mode === 'watch') {
+    await tab.waitForFunction(() => !document.getElementById('watch').hidden, null, { timeout: 20000 });
+    say({ step: 'waiting page', now: await tab.textContent('#now') });
+    await tab.screenshot({ path: 'shots/screen-wait.png' });
+    await tab.click('#watch');
+    say({ step: 'pressed Watch here' });
+  } else {
+    await tab.mouse.click(640, 360);
+  }
   const until = Date.now() + Number(secondsArg) * 1000;
   while (Date.now() < until) {
     const v = await tab.evaluate(() => {

@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import java.time.Instant
 
 /**
@@ -34,6 +35,8 @@ public interface PlaybackController {
     public val screens: StateFlow<ScreenTargets>
 
     public fun playOnScreen(screenId: String?)
+
+    public val screenWantsAnItem: Flow<Unit> get() = emptyFlow()
 
     /**
      * Emits when the current stream died in a way a freshly-resolved URL would fix.
