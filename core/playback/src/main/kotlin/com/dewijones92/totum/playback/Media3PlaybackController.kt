@@ -99,6 +99,11 @@ public class Media3PlaybackController(
     private val _screenWantsAnItem = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val screenWantsAnItem: Flow<Unit> = _screenWantsAnItem
 
+    override fun refreshScreenPage() {
+        Diag.log("screen", "asking the service to refresh the PC screen page address")
+        withController { it.sendCustomCommand(SessionCommand(ACTION_SCREEN_REFRESH, Bundle.EMPTY), Bundle.EMPTY) }
+    }
+
     override fun playOnScreen(screenId: String?) {
         Diag.log("screen", if (screenId == null) "back to the phone" else "play on screen $screenId")
         withController {
@@ -160,6 +165,9 @@ public class Media3PlaybackController(
             {
                 val connected = future.get()
                 controller = connected
+                val pageKnown = connected.sessionExtras.getString(CastStatus.EXTRA_SCREEN_PAGE) != null
+                Diag.log("cast", "connected: reading the session's starting extras (screen page known=$pageKnown)")
+                applySessionExtras(connected, connected.sessionExtras)
                 // The stored rate, before anything is played. Without this the speed button reads
                 // 1x on a cold start until the first play() lands — the app appearing to have
                 // forgotten a setting it had not.
@@ -718,31 +726,36 @@ public class Media3PlaybackController(
         }
     }
 
+    private fun applySessionExtras(controller: MediaController, extras: Bundle) {
+        castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
+        _castDevice.value = castDeviceName
+        val refused = extras.getBundle(CastStatus.EXTRA_CAST_REFUSED)
+        castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
+        val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
+        castSentHeights = sent?.keySet()?.associateWith { sent.getInt(it) }.orEmpty()
+        val fetching = extras.getBundle(CastStatus.EXTRA_CAST_FETCH_HEIGHT)
+        castFetchHeights = fetching?.keySet()?.associateWith { fetching.getInt(it) }.orEmpty()
+        castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
+            CastProblem.entries.firstOrNull { it.name == name }
+        }
+        val screens = extras.getBundle(CastStatus.EXTRA_SCREENS)
+        _screens.value = ScreenTargets(
+            present = screens?.keySet()?.map { ScreenTarget(it, screens.getString(it).orEmpty()) }.orEmpty(),
+            pageUrl = extras.getString(CastStatus.EXTRA_SCREEN_PAGE),
+        )
+        Diag.log(
+            "cast",
+            "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
+                "problem=${castProblem ?: "none"} fetching=$castFetchHeights " +
+                "screenPage=${_screens.value.pageUrl?.substringBefore('#') ?: "none"}",
+        )
+        _state.value = controller.currentPlaybackState()
+    }
+
     @OptIn(UnstableApi::class)
     private fun switchListener() = object : MediaController.Listener {
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
-            castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
-            _castDevice.value = castDeviceName
-            val refused = extras.getBundle(CastStatus.EXTRA_CAST_REFUSED)
-            castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
-            val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
-            castSentHeights = sent?.keySet()?.associateWith { sent.getInt(it) }.orEmpty()
-            val fetching = extras.getBundle(CastStatus.EXTRA_CAST_FETCH_HEIGHT)
-            castFetchHeights = fetching?.keySet()?.associateWith { fetching.getInt(it) }.orEmpty()
-            castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
-                CastProblem.entries.firstOrNull { it.name == name }
-            }
-            val screens = extras.getBundle(CastStatus.EXTRA_SCREENS)
-            _screens.value = ScreenTargets(
-                present = screens?.keySet()?.map { ScreenTarget(it, screens.getString(it).orEmpty()) }.orEmpty(),
-                pageUrl = extras.getString(CastStatus.EXTRA_SCREEN_PAGE),
-            )
-            Diag.log(
-                "cast",
-                "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
-                    "problem=${castProblem ?: "none"} fetching=$castFetchHeights",
-            )
-            _state.value = controller.currentPlaybackState()
+            applySessionExtras(controller, extras)
         }
 
         override fun onCustomCommand(

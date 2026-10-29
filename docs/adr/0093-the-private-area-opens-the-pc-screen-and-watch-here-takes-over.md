@@ -51,6 +51,15 @@ private area.
 - The request for an item goes only to Totum's own controllers (as the queue-skip buttons do), not a broadcast to
   System UI and Bluetooth; the TV player is watched too, so the page's title follows a cast.
 
+## Amended 2026-10-29 (from Dewi's report on 0.1.749): the Pi kept an old address
+
+Dewi's bookmark opened an old "Waiting for Totum" page: the Pi held `…138`, the phone served at `…85`, and the phone
+had logged "no PC screen page to tell the Pi about". The address reaches the app in the media session's extras, and
+Media3 reports only *changes*; the address set while the service started, before the app's controller connected, was
+never seen. The controller now applies the session's starting extras on connect, and whenever the phone becomes ready
+on Wi-Fi (charging) the app asks the service to re-read its address (`refreshScreenPage`), so a new address is
+announced. The cast status line now names the page address.
+
 ## Consequences
 
 - The flow is: private area → 📱 Dewi's Totum → ▶️ Watch here; the phone becomes the remote, as with the TV.

@@ -22,6 +22,7 @@ import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceGroup
 import kotlinx.coroutines.CancellationException
@@ -67,15 +68,16 @@ class GroupNewsNotifier(private val context: Context) {
                 NotificationManager.IMPORTANCE_DEFAULT
             ),
         )
-        val open = item.mediaUrl?.let { url ->
-            PendingIntent.getActivity(
-                context,
-                item.id.value.hashCode(),
-                Intent(Intent.ACTION_VIEW, url.value.toUri(), context, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-        }
+        val watch = item.mediaUrl?.takeIf { it.youTubeVideoId() != null }
+        val intent = watch?.let { Intent(Intent.ACTION_VIEW, it.value.toUri(), context, MainActivity::class.java) }
+            ?: Intent(context, MainActivity::class.java)
+        Diag.log(TAG, "notification for \"${item.title}\" opens ${if (watch != null) "the video" else "the app"}")
+        val open = PendingIntent.getActivity(
+            context,
+            item.id.value.hashCode(),
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_new_content)
             .setContentTitle(context.getString(R.string.group_news_title, item.author ?: group.name))

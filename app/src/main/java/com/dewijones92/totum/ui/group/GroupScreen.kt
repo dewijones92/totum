@@ -53,11 +53,20 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
     }
     group ?: return
     val resources = LocalResources.current
-    var since by remember(groupId) { mutableStateOf<Instant?>(null) }
+    var sinceMs by rememberSaveable(groupId) { mutableStateOf<Long?>(null) }
+    var openedHere by rememberSaveable(groupId) { mutableStateOf(false) }
     var items by remember(groupId) { mutableStateOf<List<MediaItem>?>(null) }
     var loads by remember { mutableIntStateOf(0) }
     var editing by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(groupId) { since = container.groupNews.opened(group.id) }
+    LaunchedEffect(groupId) {
+        if (openedHere) return@LaunchedEffect
+        sinceMs = container.groupNews.opened(group.id)?.toEpochMilli()
+        openedHere = true
+        Diag.log(
+            "group",
+            "\"${group.name}\" page opened; new since ${sinceMs?.let(Instant::ofEpochMilli) ?: "never looked"}"
+        )
+    }
     LaunchedEffect(groupId, group.members, loads) {
         if (group.members.isEmpty()) return@LaunchedEffect
         val label = resources.getString(R.string.group_loading_strip, group.name)
@@ -82,7 +91,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
                     stringResource(R.string.group_loading, group.name),
                     modifier = Modifier.padding(16.dp),
                 )
-                else -> GroupList(container, shown, since)
+                else -> GroupList(container, shown, sinceMs?.let(Instant::ofEpochMilli))
             }
         }
     }

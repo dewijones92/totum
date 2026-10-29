@@ -123,6 +123,7 @@ import com.dewijones92.totum.groups.FileGroupNewsStore
 import com.dewijones92.totum.groups.GroupNews
 import com.dewijones92.totum.groups.GroupNewsNotifier
 import com.dewijones92.totum.groups.PublishDays
+import com.dewijones92.totum.groups.diagnostics
 import com.dewijones92.totum.importexport.SubscriptionImporter
 import com.dewijones92.totum.innertube.actions.HttpYouTubeActions
 import com.dewijones92.totum.innertube.actions.YouTubeActions
@@ -1121,7 +1122,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
         announceScreens(this, httpClient)
-        screenReadiness = startScreenReady(context)
+        screenReadiness = startScreenReady(context) { playbackController.refreshScreenPage() }
         startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,

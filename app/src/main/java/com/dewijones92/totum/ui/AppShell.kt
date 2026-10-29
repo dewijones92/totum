@@ -194,7 +194,8 @@ private fun BottomBar(
 ) {
     val starting by container.playbackQueue.starting.collectAsStateWithLifecycle()
     val news by container.groupNews.states.collectAsStateWithLifecycle()
-    val fresh = news.values.sumOf { it.fresh.size }
+    val groups by container.sourceGroupStore.observeGroups().collectAsStateWithLifecycle(initialValue = emptyList())
+    val fresh = groups.sumOf { news[it.id.value]?.fresh?.size ?: 0 }
     val badges = if (fresh > 0) mapOf(TopLevelDestination.Library to fresh) else emptyMap()
     SteadyPlayback(
         container.playbackController

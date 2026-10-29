@@ -72,10 +72,93 @@ class GroupNewsTest {
 
     @Test
     fun `what was new last time is known at start-up, before any check`() = runTest {
-        val saved = InMemoryGroupNewsStore(mapOf("travel" to GroupNewsState(seenAt = 1L, fresh = listOf("a", "b"))))
+        val saved =
+            InMemoryGroupNewsStore(
+                mapOf("travel" to GroupNewsState(seenAt = 1L, freshBy = mapOf("ben" to listOf("a", "b"))))
+            )
         val started = GroupNews(saved, latest = { null }, notify = { _, _ -> true }, clock = { now })
         started.warm()
         assertEquals(2, started.newCount(group.id))
+    }
+
+    @Test
+    fun `a deleted group's count is forgotten, so no badge is left behind`() = runTest {
+        news.check(listOf(group))
+        upload("fresh", "2026-10-29T15:00:00Z")
+        now = Instant.parse("2026-10-29T16:00:00Z")
+        news.check(listOf(group))
+        assertEquals(1, news.newCount(group.id))
+
+        news.check(emptyList())
+
+        assertEquals(0, news.states.value.values.sumOf { it.fresh.size })
+    }
+
+    @Test
+    fun `a channel that cannot be read keeps what it already had new`() = runTest {
+        var reachable = true
+        val flaky =
+            GroupNews(
+                store,
+                latest = { if (reachable) uploads.toList() else null },
+                notify = { _, _ -> true },
+                clock = { now }
+            )
+        flaky.check(listOf(group))
+        upload("fresh", "2026-10-29T15:00:00Z")
+        now = Instant.parse("2026-10-29T16:00:00Z")
+        flaky.check(listOf(group))
+        reachable = false
+        flaky.check(listOf(group))
+        assertEquals(1, flaky.newCount(group.id))
+    }
+
+    @Test
+    fun `opening the group while a check is reading does not bring the count back`() = runTest {
+        lateinit var racing: GroupNews
+        racing = GroupNews(
+            InMemoryGroupNewsStore(),
+            latest = {
+                racing.opened(group.id)
+                uploads.toList()
+            },
+            notify = { _, _ -> true },
+            clock = { now },
+        )
+        racing.check(listOf(group))
+        upload("fresh", "2026-10-29T15:00:00Z")
+        now = Instant.parse("2026-10-29T16:00:00Z")
+        racing.check(listOf(group))
+        assertEquals(0, racing.newCount(group.id))
+    }
+
+    @Test
+    fun `a channel added to an old group only counts what it uploads after joining`() = runTest {
+        news.check(listOf(group))
+        now = Instant.parse("2026-10-29T16:00:00Z")
+        val cat = MediaSource.VideoChannel(SourceId("cat"), "Cat", HttpUrl.of("https://www.youtube.com/channel/UCcat"))
+        val catUploads =
+            listOf(
+                MediaItem(
+                    MediaItemId("cat-old"),
+                    cat.id,
+                    "cat-old",
+                    Instant.parse("2026-10-29T13:00:00Z"),
+                    duration = null
+                )
+            )
+        val withCat = GroupNews(
+            store,
+            latest = { source -> if (source.id == cat.id) catUploads else uploads.toList() },
+            notify = { _, item ->
+                notified += item.id.value
+                true
+            },
+            clock = { now },
+        )
+        withCat.check(listOf(group.copy(sources = group.sources + cat)))
+        assertEquals(emptyList<String>(), notified)
+        assertEquals(0, withCat.newCount(group.id))
     }
 
     @Test

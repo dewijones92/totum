@@ -22,7 +22,7 @@ internal class ScreenSession(
 internal class PcScreens(
     private val streams: CastStreams,
     private val status: CastStatus,
-    key: String,
+    private val key: String,
     page: () -> ByteArray,
     private val session: ScreenSession,
 ) {
@@ -39,6 +39,12 @@ internal class PcScreens(
         val base = streams.serveScreens()
         status.screenPage(base?.let { "$it/screen#key=$key" })
         Diag.log(TAG, "the PC screen page is served at ${base ?: "no Wi-Fi address yet"}/screen")
+    }
+
+    fun refreshPage() {
+        val base = streams.serveScreens()
+        status.screenPage(base?.let { "$it/screen#key=$key" })
+        Diag.log(TAG, "screen page address refreshed: ${base ?: "no Wi-Fi address"}/screen")
     }
 
     fun watch(id: String) {

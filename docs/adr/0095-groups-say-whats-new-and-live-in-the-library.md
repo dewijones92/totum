@@ -41,6 +41,19 @@ any network; Shorts and live included (ADR 94's feed brings them).
   red "🆕 N" badge on a highlighted pill and pulses, and a group tile with new videos pulses too (`Modifier.pulsing`):
   four beats when the count appears or changes, then still (ADR 61: nothing animates for ever).
 
+## Amended 2026-10-29 (batch review)
+
+- A group's news is forgotten when the group is gone (each check prunes, and the badge counts only existing groups);
+  before, a deleted group's "🆕 N" stayed on the Library button for good.
+- New videos are kept per channel: a channel that cannot be read keeps what it had new (and cancellation is not
+  swallowed), and counts are worked out under the lock against the latest "last opened", so opening the group during
+  a check no longer brings the count back.
+- A channel added to an older group gets its own first look (`joined`), so its back catalogue is not announced.
+- The page's "since" is saved with the page, so the 🆕 markers survive switching tabs.
+- Publish-day lookups run four at a time and at most 25 per channel; the day cache is written atomically and remembers
+  "no day given"; a podcast's notification opens the app (only a YouTube watch link can play straight from one);
+  deleting a group runs in the app's scope so leaving the page cannot cancel it.
+
 ## Consequences
 
 - One RSS request per member per hour (~6 KB each), through the polite gate.
@@ -49,5 +62,6 @@ any network; Shorts and live included (ADR 94's feed brings them).
 - Verified on totum-api35 with the real channels: create, add three channels by search, rename; with `seenAt` set to
   20 Oct the check found 3 new and posted 3 notifications, the tile showed "🆕 3 new", the page showed the divider and
   markers, and tapping a notification played that video.
-- Tests: `GroupNewsTest` (first look, new once and counted, opening clears, never opened, a failed post retried, the
-  saved count known at start-up).
+- Tests: `GroupNewsTest` (10: first look, new once and counted, opening clears, never opened, a failed post retried,
+  the saved count known at start-up, a deleted group forgotten, an unreadable channel keeps its new, opening during a
+  check, a channel joining an old group; the four review cases seen failing first).

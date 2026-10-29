@@ -38,6 +38,8 @@ public interface PlaybackController {
 
     public val screenWantsAnItem: Flow<Unit> get() = emptyFlow()
 
+    public fun refreshScreenPage() {}
+
     /**
      * Emits when the current stream died in a way a freshly-resolved URL would fix.
      *

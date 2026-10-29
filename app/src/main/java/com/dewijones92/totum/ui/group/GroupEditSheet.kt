@@ -88,7 +88,7 @@ internal fun GroupEditSheet(container: AppContainer, group: SourceGroup, onDismi
     if (confirmingDelete) {
         DeleteConfirm(group.name, onClose = { confirmingDelete = false }) {
             Diag.log("group", "\"${group.name}\" deleted from its page (${group.members.size} channels)")
-            scope.launch { store.delete(group.id) }
+            container.applicationScope.launch { store.delete(group.id) }
             onDismiss()
             onDeleted()
         }

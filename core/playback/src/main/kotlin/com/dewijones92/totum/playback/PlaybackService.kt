@@ -233,6 +233,7 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_QUEUE_PREVIOUS, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_QUEUE_NEXT, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PLAY_ON_SCREEN, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_SCREEN_REFRESH, Bundle.EMPTY))
                         .build(),
                 )
                 .build()
@@ -257,9 +258,7 @@ public class PlaybackService : MediaSessionService() {
                 switchButton.onCommand(session, controller, customCommand.customAction, args)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
-            if (customCommand.customAction == ACTION_PLAY_ON_SCREEN) {
-                val id = args.getString(EXTRA_SCREEN_ID)
-                screens?.play(id) ?: Diag.warn("screen", "asked to play on screen $id, but screens are not set up")
+            if (screenCommand(customCommand.customAction, args)) {
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_PRELOAD_NEXT) {
@@ -417,6 +416,18 @@ public class PlaybackService : MediaSessionService() {
     ).also { pc ->
         pc.observe(localPlayer)
         pc.observe(pc.player)
+    }
+
+    @UnstableApi
+    private fun screenCommand(action: String, args: Bundle): Boolean {
+        val pc = screens
+        when (action) {
+            ACTION_SCREEN_REFRESH -> pc?.refreshPage()
+            ACTION_PLAY_ON_SCREEN -> pc?.play(args.getString(EXTRA_SCREEN_ID))
+            else -> return false
+        }
+        if (pc == null) Diag.warn("screen", "asked $action, but screens are not set up")
+        return true
     }
 
     @UnstableApi
@@ -580,6 +591,7 @@ internal const val EXTRA_PRELOAD_AUDIO_URI: String = "audio_uri"
 internal const val EXTRA_PRELOAD_SUBTITLES: String = "subtitles"
 internal const val ACTION_PLAY_ON_SCREEN: String = "com.dewijones92.totum.PLAY_ON_SCREEN"
 internal const val EXTRA_SCREEN_ID: String = "screen_id"
+internal const val ACTION_SCREEN_REFRESH: String = "com.dewijones92.totum.SCREEN_REFRESH"
 internal const val ACTION_SCREEN_WANTS_AN_ITEM: String = "com.dewijones92.totum.SCREEN_WANTS_AN_ITEM"
 private const val SCREEN_PAGE = "screen.html"
 private const val SCREEN_PREFS = "totum_screen"

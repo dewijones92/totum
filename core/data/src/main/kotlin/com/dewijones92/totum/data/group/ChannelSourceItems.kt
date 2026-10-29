@@ -6,9 +6,12 @@ import com.dewijones92.totum.data.channel.ChannelVideosResult
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -32,6 +35,17 @@ public class ChannelSourceItems(
         dayOf: suspend (MediaItemId) -> LocalDate?,
     ) : this(pageOf = { channel -> pageOf(channels, channel) }, feedOf = feedOf, dayOf = dayOf)
 
+    private val lookups = Semaphore(LOOKUPS_AT_ONCE)
+
+    private suspend fun dayOrNull(id: MediaItemId): LocalDate? = try {
+        dayOf(id)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+        Diag.warn("group", "publish day of ${id.value} could not be found", failure)
+        null
+    }
+
     override suspend fun itemsFor(source: MediaSource): List<MediaItem> {
         val channel = source as? MediaSource.VideoChannel ?: return emptyList()
         val page = pageOf(channel)
@@ -40,7 +54,8 @@ public class ChannelSourceItems(
             .getOrNull()
         val fed = feed.orEmpty().mapTo(mutableSetOf()) { it.id }
         val days = coroutineScope {
-            page.filter { it.id !in fed }.map { item -> async { item to runCatching { dayOf(item.id) }.getOrNull() } }
+            page.filter { it.id !in fed }.take(LOOKUPS_PER_CHANNEL)
+                .map { item -> async { item to lookups.withPermit { dayOrNull(item.id) } } }
                 .awaitAll()
         }
         val byDay = days.mapNotNull { (item, day) ->
@@ -60,6 +75,8 @@ public class ChannelSourceItems(
 }
 
 private val NOON: LocalTime = LocalTime.NOON
+private const val LOOKUPS_AT_ONCE = 4
+private const val LOOKUPS_PER_CHANNEL = 25
 
 private suspend fun pageOf(channels: ChannelRepository, channel: MediaSource.VideoChannel): List<MediaItem> =
     when (val result = channels.fetchChannelVideos(channel.channelUrl)) {

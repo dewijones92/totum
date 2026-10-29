@@ -17,12 +17,13 @@ import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 
-fun startScreenReady(context: Context): ScreenReadiness {
+fun startScreenReady(context: Context, onReady: () -> Unit = {}): ScreenReadiness {
     val app = context.applicationContext
     val manager = app.getSystemService(NotificationManager::class.java)
     val readiness = ScreenReadiness { ready, why ->
         Diag.log(TAG, "PC screen ${if (ready) "ready: posting the notice" else "not ready: notice cleared"} ($why)")
         if (ready) {
+            onReady()
             manager.notify(NOTICE_ID, notice(app, manager))
         } else {
             manager.cancel(NOTICE_ID)

@@ -24,25 +24,23 @@ class PublishDays(
     private var days: MutableMap<String, String>? = null
 
     suspend fun dayOf(id: MediaItemId): LocalDate? {
-        known(id)?.let { return it }
-        val day = runCatching { ask(id) }
-            .onFailure { Diag.warn(TAG, "publish day of ${id.value} could not be asked", it) }
-            .getOrNull()
-        Diag.log(TAG, "publish day of ${id.value}: ${day ?: "not found"} (asked YouTube once; kept for good)")
-        if (day != null) remember(id, day)
+        val known = lock.withLock { loaded()[id.value] }
+        if (known != null) return if (known == NONE) null else runCatching { LocalDate.parse(known) }.getOrNull()
+        val day = ask(id)
+        Diag.log(TAG, "publish day of ${id.value}: ${day ?: "not given"} (asked YouTube once; kept for good)")
+        remember(id, day?.toString() ?: NONE)
         return day
     }
 
-    private suspend fun known(id: MediaItemId): LocalDate? = lock.withLock {
-        loaded()[id.value]?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    }
-
-    private suspend fun remember(id: MediaItemId, day: LocalDate) = lock.withLock {
+    private suspend fun remember(id: MediaItemId, value: String) = lock.withLock {
         val all = loaded()
-        all[id.value] = day.toString()
+        all[id.value] = value
         withContext(Dispatchers.IO) {
-            runCatching { file.writeText(json.encodeToString(serializer, all)) }
-                .onFailure { Diag.warn(TAG, "publish days could not be saved", it) }
+            runCatching {
+                val temp = File(file.parentFile, "${file.name}.tmp")
+                temp.writeText(json.encodeToString(serializer, all))
+                check(temp.renameTo(file)) { "rename failed" }
+            }.onFailure { Diag.warn(TAG, "publish days could not be saved", it) }
         }
     }
 
@@ -56,6 +54,7 @@ class PublishDays(
 
     companion object {
         private const val TAG = "group"
+        private const val NONE = "-"
         private val json = Json { ignoreUnknownKeys = true }
         private val serializer = MapSerializer(String.serializer(), String.serializer())
 

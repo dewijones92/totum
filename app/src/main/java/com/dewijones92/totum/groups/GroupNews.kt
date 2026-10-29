@@ -5,6 +5,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.SourceGroupId
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,9 +29,12 @@ class InMemoryGroupNewsStore(private var states: Map<String, GroupNewsState> = e
 @Serializable
 data class GroupNewsState(
     val seenAt: Long? = null,
-    val fresh: List<String> = emptyList(),
+    val freshBy: Map<String, List<String>> = emptyMap(),
     val notified: List<String> = emptyList(),
-)
+    val joined: Map<String, Long> = emptyMap(),
+) {
+    val fresh: List<String> get() = freshBy.values.flatten().distinct()
+}
 
 class GroupNews(
     private val store: GroupNewsStore,
@@ -45,6 +49,7 @@ class GroupNews(
 
     suspend fun check(groups: List<SourceGroup>) {
         Diag.log(TAG, "checking ${groups.size} group(s) for new videos")
+        forgetAllBut(groups)
         groups.forEach { group -> check(group) }
     }
 
@@ -52,11 +57,11 @@ class GroupNews(
         val all = states()
         val before = all[id.value]
         val now = clock()
-        put(all + (id.value to (before ?: GroupNewsState()).copy(seenAt = now.toEpochMilli(), fresh = emptyList())))
+        put(all + (id.value to (before ?: GroupNewsState()).copy(seenAt = now.toEpochMilli(), freshBy = emptyMap())))
         Diag.log(
             TAG,
             "group ${id.value} opened: ${before?.fresh?.size ?: 0} new cleared, " +
-                "last looked ${before?.seenAt?.let(Instant::ofEpochMilli) ?: "never"}"
+                "last looked ${before?.seenAt?.let(Instant::ofEpochMilli) ?: "never"}",
         )
         before?.seenAt?.let(Instant::ofEpochMilli)
     }
@@ -68,45 +73,87 @@ class GroupNews(
 
     fun newCount(id: SourceGroupId): Int = _states.value[id.value]?.fresh?.size ?: 0
 
-    fun diagnostics(): Map<String, String> =
-        _states.value.mapKeys {
-            "groups.news.${it.key}"
-        }.mapValues { (_, s) -> "fresh=${s.fresh.size} notified=${s.notified.size} seenAt=${s.seenAt}" }
+    private suspend fun forgetAllBut(groups: List<SourceGroup>) = lock.withLock {
+        val keep = groups.mapTo(mutableSetOf()) { it.id.value }
+        val all = states()
+        val gone = all.keys - keep
+        if (gone.isNotEmpty()) {
+            Diag.log(TAG, "forgetting news of ${gone.size} group(s) that no longer exist: $gone")
+            put(all - gone)
+        }
+    }
 
     private suspend fun check(group: SourceGroup) {
-        val seen = lock.withLock { states()[group.id.value]?.seenAt }
-        if (seen == null) {
-            lock.withLock { put(states() + (group.id.value to GroupNewsState(seenAt = clock().toEpochMilli()))) }
-            Diag.log(TAG, "\"${group.name}\": first look; only videos after now will count as new")
-            return
-        }
-        val since = Instant.ofEpochMilli(seen)
-        val items = group.members.flatMap { member ->
-            runCatching { latest(member) }.onFailure { Diag.warn(TAG, "\"${member.title}\" could not be read", it) }
-                .getOrNull().orEmpty()
-        }.distinctBy { it.id }
-        val fresh = items.filter { it.publishedAt?.isAfter(since) == true }.sortedByDescending { it.publishedAt }
-        lock.withLock {
-            val state = states()[group.id.value] ?: GroupNewsState(seenAt = seen)
-            val told = state.notified.toMutableList()
-            fresh.filter { it.id.value !in told }.forEach { item ->
-                val delivered = notify(group, item)
-                Diag.log(TAG, "\"${group.name}\": new \"${item.title}\" (${item.publishedAt}) notified=$delivered")
-                if (delivered) told += item.id.value
+        val first = lock.withLock {
+            val state = states()[group.id.value]
+            if (state?.seenAt == null) {
+                val now = clock().toEpochMilli()
+                put(
+                    states() + (
+                        group.id.value to GroupNewsState(
+                            seenAt = now,
+                            joined = group.members.associate {
+                                it.id.value to now
+                            }
+                        )
+                        )
+                )
+                true
+            } else {
+                false
             }
-            put(
-                states() + (
-                    group.id.value to state.copy(fresh = fresh.map { it.id.value }, notified = told.takeLast(KEEP))
-                    )
-            )
         }
-        Diag.log(TAG, "\"${group.name}\": ${items.size} latest, ${fresh.size} new since $since")
+        if (first) return Diag.log(TAG, "\"${group.name}\": first look; only videos after now will count as new")
+        val read = group.members.associate { member -> member.id.value to readOrNull(member) }
+        lock.withLock { settle(group, read) }
+    }
+
+    private suspend fun readOrNull(member: MediaSource): List<MediaItem>? = try {
+        latest(member)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+        Diag.warn(TAG, "\"${member.title}\" could not be read; keeping what it had new", failure)
+        null
+    }
+
+    private suspend fun settle(group: SourceGroup, read: Map<String, List<MediaItem>?>) {
+        val state = states()[group.id.value] ?: return
+        val seen = state.seenAt ?: return
+        val now = clock().toEpochMilli()
+        val joining = group.members.filter { it.id.value !in state.joined }
+        val joined = state.joined + joining.associate { it.id.value to now }
+        val freshItems = mutableListOf<MediaItem>()
+        val freshBy = read.mapValues { (member, items) ->
+            if (items == null) return@mapValues state.freshBy[member].orEmpty()
+            val since = Instant.ofEpochMilli(maxOf(seen, joined[member] ?: seen))
+            items.filter { it.publishedAt?.isAfter(since) == true }.also { freshItems += it }.map { it.id.value }
+        }.filterValues { it.isNotEmpty() }
+        val told = state.notified.toMutableList()
+        val unannounced = freshItems.distinctBy { it.id }.filter { it.id.value !in told }
+        unannounced.sortedByDescending { it.publishedAt }.forEach { item ->
+            val delivered = notify(group, item)
+            Diag.log(TAG, "\"${group.name}\": new \"${item.title}\" (${item.publishedAt}) notified=$delivered")
+            if (delivered) told += item.id.value
+        }
+        val next = state.copy(freshBy = freshBy, notified = told.takeLast(KEEP), joined = joined)
+        put(states() + (group.id.value to next))
+        val unreadable = read.count { it.value == null }
+        Diag.log(
+            TAG,
+            "\"${group.name}\": ${freshBy.values.sumOf { it.size }} new since ${Instant.ofEpochMilli(seen)} " +
+                "($unreadable of ${read.size} member(s) unreadable, ${joining.size} joined now)",
+        )
     }
 
     private suspend fun states(): Map<String, GroupNewsState> {
         if (!loaded) {
-            _states.value = runCatching { store.load() }.getOrElse {
-                Diag.warn(TAG, "group news could not be read; starting again", it)
+            _states.value = try {
+                store.load()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                Diag.warn(TAG, "group news could not be read; starting again", failure)
                 emptyMap()
             }
             loaded = true
@@ -124,3 +171,8 @@ class GroupNews(
         const val KEEP = 500
     }
 }
+
+fun GroupNews.diagnostics(): Map<String, String> = states.value.mapKeys { "groups.news.${it.key}" }
+    .mapValues { (_, s) ->
+        "fresh=${s.fresh.size} notified=${s.notified.size} seenAt=${s.seenAt} members=${s.joined.size}"
+    }
