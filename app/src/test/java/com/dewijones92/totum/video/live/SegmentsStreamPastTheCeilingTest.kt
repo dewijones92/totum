@@ -5,6 +5,7 @@ import com.dewijones92.totum.sabr.SabrClientInfo
 import com.dewijones92.totum.sabr.SabrSegments
 import com.dewijones92.totum.sabr.SabrTrackKind
 import com.dewijones92.totum.sabr.SabrTransport
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -12,6 +13,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Rule
 import org.junit.Test
 import java.util.Base64
 import java.util.concurrent.TimeUnit
@@ -35,6 +37,9 @@ import java.util.concurrent.TimeUnit
  * therefore never runs in CI.
  */
 class SegmentsStreamPastTheCeilingTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient.Builder().callTimeout(TIMEOUT_S, TimeUnit.SECONDS).build()
 

@@ -11,6 +11,7 @@ import com.dewijones92.totum.sabr.SabrSessions
 import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
 import com.dewijones92.totum.sabr.SabrTransport
+import com.dewijones92.totum.support.YouTubeAnswers
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,6 +20,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
@@ -44,6 +46,9 @@ import java.util.concurrent.TimeUnit
  * what quality YouTube would serve today versus what we ask for.
  */
 class SabrServesWhatWeChooseTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient.Builder()
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)

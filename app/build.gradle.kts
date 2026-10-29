@@ -7,6 +7,10 @@ plugins {
 // compileSdk/minSdk, Java level, and lint policy come from the root build's androidDefaults.
 android {
     namespace = "com.dewijones92.totum"
+    sourceSets {
+        getByName("test").kotlin.directories += "src/sharedTest/java"
+        getByName("androidTest").kotlin.directories += "src/sharedTest/java"
+    }
     defaultConfig {
         applicationId = "com.dewijones92.totum"
         targetSdk = libs.versions.targetSdk.get().toInt()

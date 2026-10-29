@@ -20,6 +20,7 @@ import com.dewijones92.totum.sabr.SabrTransport
 import com.dewijones92.totum.sabr.UmpPart
 import com.dewijones92.totum.sabr.UmpReader
 import com.dewijones92.totum.sabr.VideoPlaybackAbrRequest
+import com.dewijones92.totum.support.YouTubeAnswers
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -29,6 +30,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Rule
 import org.junit.Test
 import java.util.Base64
 import java.util.concurrent.TimeUnit
@@ -61,6 +63,9 @@ import java.util.concurrent.TimeUnit
  * `videoId` as the one used in DASH/SABR requests. So the binding is a parameter here, not a guess.
  */
 class DoesAPoTokenLiftTheCeilingTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient.Builder()
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)

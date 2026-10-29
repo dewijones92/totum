@@ -232,8 +232,17 @@ def check_live_tests_skip_when_youtube_refuses() -> int:
             print(f"  PROBLEM: {entry} runs live but has no YouTubeAnswers rule")
             print("    A day YouTube refuses the home IP turns it red without anything being broken.")
             problems += 1
+    jvm = sorted(ROOT.glob("app/src/test/**/video/live/*Test.kt"))
+    for test in jvm:
+        if "YouTubeAnswers()" not in test.read_text():
+            print(f"  PROBLEM: {test.relative_to(ROOT)} runs in the nightly JVM live phase but has no YouTubeAnswers rule")
+            print("    A day YouTube refuses the home IP turns it red without anything being broken.")
+            problems += 1
     if not problems:
-        print(f"  ok: all {len(entries)} unattended live tests skip when YouTube refuses the address")
+        print(
+            f"  ok: all {len(entries)} unattended live tests and {len(jvm)} JVM live tests "
+            "skip when YouTube refuses the address"
+        )
     return problems
 
 

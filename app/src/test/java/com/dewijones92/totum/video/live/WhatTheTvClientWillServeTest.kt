@@ -8,9 +8,11 @@ import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
 import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.SignatureTimestamp
+import com.dewijones92.totum.support.YouTubeAnswers
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assume.assumeTrue
+import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +44,9 @@ import java.util.concurrent.TimeUnit
  * ```
  */
 class WhatTheTvClientWillServeTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient.Builder()
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)

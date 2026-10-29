@@ -10,6 +10,7 @@ import com.dewijones92.totum.sabr.SabrStream
 import com.dewijones92.totum.sabr.SabrTrackKind
 import com.dewijones92.totum.sabr.SabrTransport
 import com.dewijones92.totum.sabr.UmpReader
+import com.dewijones92.totum.support.YouTubeAnswers
 import com.dewijones92.totum.video.SabrResolve
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,6 +20,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.After
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
@@ -59,6 +61,9 @@ import java.util.concurrent.TimeUnit
  * everything after that is an assertion.
  */
 class SabrCarriesAWholeStreamTest {
+
+    @get:Rule
+    val youTube = YouTubeAnswers()
 
     private val http = OkHttpClient.Builder()
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)

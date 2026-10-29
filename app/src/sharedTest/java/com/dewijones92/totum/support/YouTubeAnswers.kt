@@ -1,6 +1,5 @@
 package com.dewijones92.totum.support
 
-import android.util.Log
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -17,7 +16,7 @@ class YouTubeAnswers : TestRule {
     override fun apply(base: Statement, description: Description): Statement = object : Statement() {
         override fun evaluate() {
             refusal?.let {
-                Log.w(TAG, "dewidebug ${description.methodName} skipped: YouTube refuses this address ($it)")
+                say("dewidebug ${description.methodName} skipped: YouTube refuses this address ($it)")
                 throw AssumptionViolatedException("YouTube refuses this address today, so nothing can be measured: $it")
             }
             try {
@@ -27,20 +26,18 @@ class YouTubeAnswers : TestRule {
             } catch (failure: Throwable) {
                 val said = generateSequence(failure) { it.cause }.mapNotNull { it.message }.joinToString(" | ")
                 if (!BLOCKED.containsMatchIn(said)) throw failure
-                Log.w(
-                    TAG,
-                    "dewidebug ${description.methodName} skipped: YouTube refused part-way (${said.take(SAID_CHARS)})"
-                )
+                say("dewidebug ${description.methodName} skipped: YouTube refused part-way (${said.take(SAID_CHARS)})")
                 throw AssumptionViolatedException("YouTube refused part-way: ${said.take(SAID_CHARS)}", failure)
             }
         }
     }
 
     companion object {
-        private const val TAG = "dewidebug"
         private const val PROBE_ID = "aqz-KE-bpKQ"
         private const val SAID_CHARS = 300
         private val BLOCKED = Regex("not a bot|too many requests|HTTP 429|bot check", RegexOption.IGNORE_CASE)
+
+        private fun say(line: String) = System.err.println(line)
 
         val refusal: String? by lazy {
             val answer = runCatching { runBlocking { InnerTubeClient(OkHttpClient()).player(PROBE_ID) } }
@@ -52,7 +49,7 @@ class YouTubeAnswers : TestRule {
                 is InnerTubeResponse.Failure -> response.detail
                 else -> null
             }
-            Log.i(TAG, "dewidebug YouTube probe for live tests: ${said ?: "answers"}")
+            say("dewidebug YouTube probe for live tests: ${said ?: "answers"}")
             said?.takeIf { BLOCKED.containsMatchIn(it) }
         }
     }
