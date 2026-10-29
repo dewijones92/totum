@@ -27,13 +27,20 @@ public class ChannelSourceItems(
     private val feedOf: suspend (MediaSource.VideoChannel) -> List<MediaItem>?,
     private val dayOf: suspend (MediaItemId) -> LocalDate? = { null },
     private val clock: () -> Instant = Instant::now,
+    private val accountProgressOf: suspend (MediaSource.VideoChannel) -> Unit = {},
 ) : SourceItems {
 
     public constructor(
         channels: ChannelRepository,
         feedOf: suspend (MediaSource.VideoChannel) -> List<MediaItem>?,
         dayOf: suspend (MediaItemId) -> LocalDate?,
-    ) : this(pageOf = { channel -> pageOf(channels, channel) }, feedOf = feedOf, dayOf = dayOf)
+        accountProgressOf: suspend (MediaSource.VideoChannel) -> Unit,
+    ) : this(
+        pageOf = { channel -> pageOf(channels, channel) },
+        feedOf = feedOf,
+        dayOf = dayOf,
+        accountProgressOf = accountProgressOf,
+    )
 
     private val lookups = Semaphore(LOOKUPS_AT_ONCE)
 
@@ -46,8 +53,27 @@ public class ChannelSourceItems(
         null
     }
 
-    override suspend fun itemsFor(source: MediaSource): List<MediaItem> {
-        val channel = source as? MediaSource.VideoChannel ?: return emptyList()
+    private suspend fun readAccountProgress(channel: MediaSource.VideoChannel) = try {
+        accountProgressOf(channel)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+        Diag.warn(
+            "group",
+            "\"${channel.title}\" account progress could not be read; rows show local progress only",
+            failure,
+        )
+    }
+
+    override suspend fun itemsFor(source: MediaSource): List<MediaItem> = coroutineScope {
+        val channel = source as? MediaSource.VideoChannel ?: return@coroutineScope emptyList()
+        val progress = async { readAccountProgress(channel) }
+        val items = itemsOf(channel)
+        progress.await()
+        items
+    }
+
+    private suspend fun itemsOf(channel: MediaSource.VideoChannel): List<MediaItem> {
         val page = pageOf(channel)
         val feed = runCatching { feedOf(channel) }
             .onFailure { Diag.warn("group", "\"${channel.title}\" feed could not be read; page dates only", it) }

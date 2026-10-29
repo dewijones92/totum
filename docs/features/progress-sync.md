@@ -3,7 +3,7 @@ title: Two-way progress sync with YouTube
 kind: feature
 status: both halves shipped; the app's plays reached YouTube as fully watched until 2026-10-23, fixed
 area: video
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 
 # Two-way progress sync with YouTube
@@ -48,6 +48,10 @@ updated: 2026-10-28
 > (`HttpYouTubeWatchHistoryTest`, red on one page). A test run can hold reports to the account: `soak.py` writes
 > `shared_prefs/totum_test_holds.xml` before its first pass and deletes it at the end, and the app logs
 > `not reporting <id> to YouTube: a test run on this device holds reports to the YouTube account`.
+
+> ✅ **A group's rows get their marks from each channel, 2026-10-29.** A group read its channels anonymously, so
+> only videos still in the history's three pages had a mark. Each member's channel is now also browsed as the account
+> and its tiles feed `SeenProgress` ([ADR 96](../adr/0096-a-group-asks-the-account-how-far-each-video-was-watched.md)).
 
 > 🐛 **YouTube's 10% is a floor, not a position. Fixed 2026-09-23.** Report 0.1.514, Dewi: *"why
 > downloaded files have position of like 5% in to the video? please fix?"*. Five videos played for a

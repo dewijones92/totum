@@ -3,7 +3,7 @@ title: Group feeds done properly — date order, new marker, notifications, a Li
 kind: todo
 area: video
 priority: high
-status: built 2026-10-29 (ADRs 94, 95), awaiting Dewi on the phone
+status: built 2026-10-29 (ADRs 94, 95, 96), awaiting Dewi on the phone
 updated: 2026-10-29
 ---
 
@@ -33,3 +33,5 @@ newest 15 (Shorts and live included); merged, those are exact down to the point 
 falls off (2026-06-14, item 31, on 2026-10-29).
 
 **Done:** dates [ADR 94](../adr/0094-a-groups-dates-come-from-the-feed-then-each-videos-own-day.md); new marker, notifications, Library tile and page, CRUD [ADR 95](../adr/0095-groups-say-whats-new-and-live-in-the-library.md).
+Watched marks on a group's rows (Dewi's "I watched some of these in Chrome"): each channel is asked as the account,
+[ADR 96](../adr/0096-a-group-asks-the-account-how-far-each-video-was-watched.md).

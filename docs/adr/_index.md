@@ -111,3 +111,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 93 | [The private area opens the PC screen, and Watch here takes over](0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md) | Accepted |
 | 94 | [A group's dates come from the channel feed, then each video's own publish day](0094-a-groups-dates-come-from-the-feed-then-each-videos-own-day.md) | Accepted |
 | 95 | [Groups say what's new, notify each new video, and live in the Library](0095-groups-say-whats-new-and-live-in-the-library.md) | Accepted |
+| 96 | [A group asks the account how far each of its videos was watched](0096-a-group-asks-the-account-how-far-each-video-was-watched.md) | Accepted |

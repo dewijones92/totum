@@ -16,6 +16,7 @@ public interface YouTubeFeeds {
     public suspend fun subscriptionsFeed(after: PageToken? = null): FeedResult
     public suspend fun watchLater(after: PageToken? = null): FeedResult
     public suspend fun history(after: PageToken? = null): FeedResult
+    public suspend fun channel(channelId: String): FeedResult
 }
 
 /** The feeds, named so callers don't hard-code InnerTube browse ids. */

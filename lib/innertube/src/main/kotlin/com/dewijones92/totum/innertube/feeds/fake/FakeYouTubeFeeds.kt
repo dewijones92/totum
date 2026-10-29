@@ -32,6 +32,14 @@ public class FakeYouTubeFeeds(
     override suspend fun watchLater(after: PageToken?): FeedResult = fetch(AccountFeed.WATCH_LATER, after)
     override suspend fun history(after: PageToken?): FeedResult = fetch(AccountFeed.HISTORY, after)
 
+    public val channelsBrowsed: MutableList<String> = mutableListOf()
+    public var channels: MutableMap<String, FeedResult> = mutableMapOf()
+
+    override suspend fun channel(channelId: String): FeedResult {
+        channelsBrowsed += channelId
+        return channels[channelId] ?: default
+    }
+
     private suspend fun fetch(feed: AccountFeed, after: PageToken?): FeedResult {
         requested += feed to after
         if (after == null) deferred[feed]?.let { return it.await() }

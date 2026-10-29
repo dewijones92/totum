@@ -120,6 +120,7 @@ import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
 import com.dewijones92.totum.groups.FileGroupNewsStore
+import com.dewijones92.totum.groups.GroupAccountProgress
 import com.dewijones92.totum.groups.GroupNews
 import com.dewijones92.totum.groups.GroupNewsNotifier
 import com.dewijones92.totum.groups.PublishDays
@@ -1198,7 +1199,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         // shape as RoutedDownloadStrategy, deliberately.
         GroupFeed(
             RoutedSourceItems(
-                video = ChannelSourceItems(channelRepository, latestUploads::feedOf, publishDays::dayOf),
+                video = ChannelSourceItems(
+                    channelRepository,
+                    latestUploads::feedOf,
+                    publishDays::dayOf,
+                    GroupAccountProgress(youTubeFeeds)::read,
+                ),
                 podcast = PodcastSourceItems(podcastRepository),
             ),
         )

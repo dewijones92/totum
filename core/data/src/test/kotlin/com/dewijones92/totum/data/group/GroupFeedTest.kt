@@ -182,6 +182,28 @@ class GroupFeedTest {
         assertEquals(listOf("cat-jun", "bald-jun", "cat-may"), merged.map { it.id.value })
     }
 
+    @Test
+    fun `each channel's account progress is read with the group, and a failure there loses nothing`() = runTest {
+        val ben = MediaSource.VideoChannel(SourceId("ben"), "Ben", HttpUrl.of("https://www.youtube.com/channel/UCben"))
+        val cat = MediaSource.VideoChannel(SourceId("cat"), "Cat", HttpUrl.of("https://www.youtube.com/channel/UCcat"))
+        val asked = mutableListOf<SourceId>()
+        val feed = GroupFeed(
+            ChannelSourceItems(
+                pageOf = { source -> listOf(item("${source.id.value}-1", source.id, "2026-10-01T00:00:00Z")) },
+                feedOf = { null },
+                accountProgressOf = { source ->
+                    asked += source.id
+                    if (source.id == cat.id) error("signed-in browse failed")
+                },
+            ),
+        )
+
+        val merged = feed.itemsFor(SourceGroup(SourceGroupId("travel"), "Travel", listOf(ben, cat)))
+
+        assertEquals(setOf(ben.id, cat.id), asked.toSet())
+        assertEquals(setOf("ben-1", "cat-1"), merged.map { it.id.value }.toSet())
+    }
+
     private fun item(title: String, sourceId: SourceId, publishedAt: String?) = MediaItem(
         id = MediaItemId(title),
         sourceId = sourceId,
