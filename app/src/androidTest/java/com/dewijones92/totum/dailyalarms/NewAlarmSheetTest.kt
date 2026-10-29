@@ -1,6 +1,8 @@
 package com.dewijones92.totum.dailyalarms
 
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -38,8 +40,10 @@ class NewAlarmSheetTest {
 
         composeTestRule.onNodeWithTag(NEW_ALARM_TAG).performClick()
         composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).performTextInput("Deployed to production")
+        composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).assertTextContains("Deployed to production")
         composeTestRule.onNodeWithText("+15 min").performScrollTo().performClick()
-        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().performClick()
+        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().assertIsEnabled().performClick()
+        composeTestRule.waitForIdle()
 
         val once = alarms.view.value.oneOffs.single()
         assertEquals("Deployed to production", once.label)
