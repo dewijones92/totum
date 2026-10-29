@@ -97,9 +97,10 @@ class ReminderTest {
     }
 
     @Test
-    fun `started after its time it still nags within half an hour, but not later`() {
+    fun `started after its time it still nags within its nag hour, but not later`() {
         val late = run(Idle, AlarmEvent.Tick, at(21, 5))
         assertTrue(late.state is Reminding)
+        assertTrue(run(Idle, AlarmEvent.Tick, at(21, 45)).state is Reminding)
         val tooLate = run(Idle, AlarmEvent.Tick, at(22))
         assertEquals(Done(monday, Outcome.MISSED), tooLate.state)
         assertTrue(tooLate.effects.none { it is AlarmEffect.Remind })
@@ -150,6 +151,57 @@ class ReminderTest {
         val result = run(nagging, AlarmEvent.Tick, at(21, 12), fridge.copy(kind = AlarmKind.ALARM))
         assertTrue(result.effects.contains(AlarmEffect.StopReminding("fridge")))
         assertTrue(result.effects.none { it is AlarmEffect.Remind })
+    }
+
+    @Test
+    fun `snoozing the last nudge gives one more, still counted six of six`() {
+        val last = Reminding(monday, LocalTime.of(21, 0), nudges = 6, next = null)
+        val snoozed = run(last, AlarmEvent.Snooze, at(21, 52)).state
+        val again = run(snoozed, AlarmEvent.Tick, at(22, 2))
+        assertEquals(listOf(6), again.effects.filterIsInstance<AlarmEffect.Remind>().map { it.nudge })
+        assertEquals(Reminding(monday, LocalTime.of(21, 0), nudges = 6, next = null), again.state)
+    }
+
+    @Test
+    fun `an alarm earlier than its first ask is set from midnight and rings without asking`() {
+        val early = DailyAlarm.repeating("wake", "Wake up", AlarmKind.ALARM, DailyAlarm.WEEKDAYS, LocalTime.of(7, 0))
+        val night = run(Idle, AlarmEvent.Tick, at(0, 1), early)
+        assertEquals(Set(monday, LocalTime.of(7, 0)), night.state)
+        assertTrue(night.effects.none { it is AlarmEffect.ShowQuestion })
+        val ring = run(night.state, AlarmEvent.Tick, at(7), early)
+        assertTrue(ring.effects.any { it is AlarmEffect.Ring })
+    }
+
+    @Test
+    fun `an alarm that asks first still asks`() {
+        val result = run(Idle, AlarmEvent.Tick, at(8), DailyAlarm(id = "pickup", enabled = true))
+        assertTrue(result.state is DayState.Asking)
+    }
+
+    @Test
+    fun `a reminder set all day does not hide an alarm that is asking or skipped`() {
+        val pickup = DailyAlarm(id = "pickup", enabled = true)
+        val set = DayState.Set(monday, LocalTime.of(21, 0))
+        val asking =
+            alarmBoard(
+                listOf(pickup, fridge),
+                mapOf("pickup" to DayState.Asking(monday, 1), "fridge" to set),
+                at(10),
+                zone
+            )
+        assertEquals(BoardHeading.AskingToday, asking.heading)
+        val declined = mapOf("pickup" to Done(monday, Outcome.DECLINED), "fridge" to set)
+        val skipped = alarmBoard(listOf(pickup, fridge), declined, at(10), zone)
+        assertEquals("fridge", skipped.nextToRing?.alarmId)
+        assertEquals("pickup", skipped.firstSkipped?.alarmId)
+        val ringsFirst =
+            alarmBoard(
+                listOf(pickup, fridge),
+                mapOf("pickup" to DayState.Set(monday, LocalTime.of(17, 30)), "fridge" to set),
+                at(10),
+                zone
+            )
+        assertEquals("pickup", ringsFirst.nextToRing?.alarmId)
     }
 
     @Test

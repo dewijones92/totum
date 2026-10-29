@@ -26,7 +26,11 @@ public object DailyAlarmMachine {
         private val notes = mutableListOf<String>()
         private val today: LocalDate = now.atZone(zone).toLocalDate()
         private val id = alarm.id
-        private val dayStart: LocalTime = if (alarm.isReminder) LocalTime.MIDNIGHT else alarm.askAt
+        private val grace: Duration = if (alarm.isReminder) {
+            Duration.ofMinutes(alarm.snoozeMinutes.toLong() * DailyAlarm.REMINDER_NUDGES)
+        } else {
+            LATE_RING_GRACE
+        }
 
         fun handle(state: DayState, event: AlarmEvent): AlarmResult {
             if (!alarm.enabled) return disabled(state)
@@ -72,9 +76,9 @@ public object DailyAlarmMachine {
         }
 
         private fun rolledOverAsking(state: Asking): DayState {
-            if (state.date >= today && !alarm.isReminder) return state
+            if (state.date >= today && alarm.asksOn(state.date.dayOfWeek)) return state
             effects += AlarmEffect.HideQuestion(id)
-            if (alarm.isReminder) notes += "now a reminder: the question is put away"
+            if (state.date >= today) notes += "no longer asks (a reminder, or rings before its first ask): put away"
             return Idle
         }
 
@@ -97,10 +101,15 @@ public object DailyAlarmMachine {
 
         private fun startOfDay(): DayState {
             if (alarm.isOneOff) return Idle
-            if (today.dayOfWeek !in alarm.days || now.isBefore(on(today, dayStart))) return Idle
-            if (alarm.isReminder) {
+            val day = today.dayOfWeek
+            if (day !in alarm.days || now.isBefore(on(today, alarm.dayStartsAt(day)))) return Idle
+            if (!alarm.asksOn(today.dayOfWeek)) {
                 val time = alarm.timeOn(today.dayOfWeek)
-                notes += "reminder: no question, set for $time"
+                notes += if (alarm.isReminder) {
+                    "reminder: no question, set for $time"
+                } else {
+                    "rings at $time, before its first ask at ${alarm.askAt}: set without asking"
+                }
                 effects += AlarmEffect.ShowSet(id, time)
                 return ringIfDue(Set(today, time))
             }
@@ -194,7 +203,7 @@ public object DailyAlarmMachine {
             val due = on(state.date, state.time)
             if (now.isBefore(due)) return state
             effects += AlarmEffect.HideSet(id)
-            if (!now.isBefore(due + LATE_RING_GRACE)) {
+            if (!now.isBefore(due + grace)) {
                 notes += "missed: woke at $now, ${Duration.between(due, now).toMinutes()} min after ${state.time}"
                 return Done(state.date, Outcome.MISSED)
             }
@@ -214,7 +223,7 @@ public object DailyAlarmMachine {
         }
 
         private fun nudge(state: Reminding): Reminding {
-            val nudges = state.nudges + 1
+            val nudges = minOf(state.nudges + 1, DailyAlarm.REMINDER_NUDGES)
             effects += AlarmEffect.Remind(id, alarm.label, state.time, nudges)
             val next = if (nudges < DailyAlarm.REMINDER_NUDGES) now + nagGap() else null
             notes += "reminding for ${state.time}: nudge $nudges of ${DailyAlarm.REMINDER_NUDGES}, " +
@@ -255,7 +264,7 @@ public object DailyAlarmMachine {
         }
 
         private fun nextWake(state: DayState): Instant? = when (state) {
-            Idle, is Done -> if (alarm.isOneOff) null else nextOccurrence(alarm.days, { dayStart }, now, zone)
+            Idle, is Done -> if (alarm.isOneOff) null else nextOccurrence(alarm.days, alarm::dayStartsAt, now, zone)
             is Asking -> if (state.last) ringAt(state.date) else minOf(nextAsk(state), ringAt(state.date))
             is Set -> on(state.date, state.time)
             is Ringing -> null

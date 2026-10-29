@@ -163,7 +163,9 @@ class DailyAlarmNotifications(private val context: Context) {
             .setDeleteIntent(DailyAlarmReceiver.pending(context, DailyAlarmReceiver.REPOST, DailyAlarmReceiver.BOARD))
         context.addBoardActions(builder, board)
         builder.addAction(context.alarmAction(context.getString(R.string.dailyalarm_open), context.openAlarmSettings()))
-        val countdown = next?.takeUnless { it.status is RowStatus.Ringing || it.status is RowStatus.Reminding }?.at
+        val countdown = next?.takeUnless {
+            it.status is RowStatus.Ringing || it.status is RowStatus.Reminding || it.kind == AlarmKind.REMINDER
+        }?.at
         val chip = if (board.heading == BoardHeading.AskingToday) {
             context.getString(R.string.dailyalarm_board_chip_asking)
         } else {
@@ -260,13 +262,15 @@ private fun Context.boardLine(row: BoardRow, today: LocalDate): String {
         )
         RowStatus.Ringing -> getString(R.string.dailyalarm_board_ringing)
         RowStatus.Skipped -> getString(R.string.dailyalarm_board_skipped)
-        is RowStatus.Upcoming -> if (row.kind == AlarmKind.REMINDER) {
-            getString(R.string.reminder_board_set)
-        } else {
-            getString(R.string.dailyalarm_board_asks, DailyAlarmNotifications.hhmm(state.asksAt))
-        }
+        is RowStatus.Upcoming -> upcomingLine(row, state.asksAt)
     }
     return getString(R.string.dailyalarm_board_row, DailyAlarmNotifications.hhmm(row.time), row.label, day, status)
+}
+
+private fun Context.upcomingLine(row: BoardRow, asksAt: LocalTime?): String = when {
+    row.kind == AlarmKind.REMINDER -> getString(R.string.reminder_board_set)
+    asksAt == null -> getString(R.string.dailyalarm_board_no_ask)
+    else -> getString(R.string.dailyalarm_board_asks, DailyAlarmNotifications.hhmm(asksAt))
 }
 
 private fun Context.openAlarmSettings(): PendingIntent = PendingIntent.getActivity(
@@ -280,8 +284,8 @@ private const val OPEN_SETTINGS_CODE = 7397
 
 private fun Context.addBoardActions(builder: Notification.Builder, board: AlarmBoard) {
     val next = board.nextToRing
-    val set = next?.takeIf { it.status is RowStatus.Set }
     val skipped = board.firstSkipped
+    val set = next?.takeIf { it.status is RowStatus.Set && (it.kind == AlarmKind.ALARM || skipped == null) }
     val reminding = board.rows.firstOrNull { it.status is RowStatus.Reminding }
     when {
         reminding != null -> builder.addAction(

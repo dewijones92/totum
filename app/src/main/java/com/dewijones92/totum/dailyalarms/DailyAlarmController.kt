@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -99,6 +100,7 @@ class DailyAlarmController(
     private var states = store.loadStates()
     private var recentTitles = store.loadRecentTitles()
     private val wakes = mutableMapOf<String, Instant?>()
+    private val removedStates = mutableMapOf<String, DayState>()
     private var lastEvent = "none"
     private val _view = MutableStateFlow(DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles))
     val view: StateFlow<DailyAlarmsView> = _view.asStateFlow()
@@ -348,44 +350,55 @@ class DailyAlarmController(
             Diag.warn(TAG, "dewidebug dailyalarm retime $time from $source for unknown alarm $alarmId")
             return false
         }
-        val state = states[alarmId] ?: DayState.Idle
-        val date = alarm.once
-        if (date != null && !date.atTime(time).isAfter(localNow())) {
+        val date = alarm.once ?: return shift(alarmId, Duration.between(alarm.defaultTime, time).toMinutes(), source)
+        if (!date.atTime(time).isAfter(localNow())) {
             Diag.log(TAG, "dewidebug dailyalarm $alarmId retime one-off to $date $time from $source refused: gone")
             return false
         }
-        val moved = if (date != null) alarm.copy(defaultTime = time, choices = listOf(time)) else alarm.retimed(time)
-        alarms = alarms.map { if (it.id == alarmId) moved else it }
-        store.saveAlarms(alarms)
-        lastEvent = "$alarmId retimed ${alarm.defaultTime} -> $time from $source at ${clock()}"
-        Diag.log(
-            TAG,
-            "dewidebug dailyalarm $alarmId retimed ${alarm.defaultTime} -> $time from $source " +
-                "(dayTimes ${alarm.dayTimes} -> ${moved.dayTimes}; today was $state)",
-        )
-        val event = todayAfterRetime(moved, state)
-        val why = when (event) {
-            null -> "no (not set for today)"
-            AlarmEvent.Cancel -> "cancels today's ${(state as? DayState.Set)?.time}: the new time has already gone"
-            else -> "$event"
-        }
-        Diag.log(TAG, "dewidebug dailyalarm $alarmId retime moves today's state: $why")
-        run(moved, event ?: AlarmEvent.Tick, source)
-        publish()
+        move(alarm, alarm.copy(defaultTime = time, choices = listOf(time)), AlarmEvent.SetOn(date, time), source)
         return true
     }
 
-    private fun todayAfterRetime(moved: DailyAlarm, state: DayState): AlarmEvent? {
-        val date = moved.once
-        val today = localNow().toLocalDate()
-        return when {
-            date != null -> AlarmEvent.SetOn(date, moved.defaultTime)
-            state is DayState.Set && state.date == today -> {
-                val newToday = moved.timeOn(today.dayOfWeek)
-                if (newToday.isAfter(localNow().toLocalTime())) AlarmEvent.SetToday(newToday) else AlarmEvent.Cancel
-            }
-            else -> null
+    @Synchronized
+    fun shift(alarmId: String, minutes: Long, source: String): Boolean {
+        val alarm = alarms.firstOrNull { it.id == alarmId && !it.isOneOff }
+        if (alarm == null) {
+            Diag.warn(TAG, "dewidebug dailyalarm shift $minutes min from $source for unknown daily alarm $alarmId")
+            return false
         }
+        val state = states[alarmId] ?: DayState.Idle
+        val now = localNow()
+        val event = when {
+            state !is DayState.Set || state.date != now.toLocalDate() -> null
+            state.time.plusMinutes(
+                minutes
+            ).isAfter(now.toLocalTime()) -> AlarmEvent.SetToday(state.time.plusMinutes(minutes))
+            else -> AlarmEvent.Cancel
+        }
+        Diag.log(
+            TAG,
+            "dewidebug dailyalarm $alarmId shifted $minutes min from $source; today was $state, so " +
+                when (event) {
+                    null -> "today is left alone (not set for today)"
+                    AlarmEvent.Cancel -> "today is cancelled: ${state.let { it as DayState.Set }.time} moved has gone"
+                    else -> "today moves: $event"
+                },
+        )
+        move(alarm, alarm.nudged(minutes), event ?: AlarmEvent.Tick, source)
+        return true
+    }
+
+    private fun move(alarm: DailyAlarm, moved: DailyAlarm, event: AlarmEvent, source: String) {
+        alarms = alarms.map { if (it.id == alarm.id) moved else it }
+        store.saveAlarms(alarms)
+        lastEvent = "${alarm.id} retimed ${alarm.defaultTime} -> ${moved.defaultTime} from $source at ${clock()}"
+        Diag.log(
+            TAG,
+            "dewidebug dailyalarm ${alarm.id} retimed ${alarm.defaultTime} -> ${moved.defaultTime} from $source " +
+                "(dayTimes ${alarm.dayTimes} -> ${moved.dayTimes}; choices ${moved.choices})",
+        )
+        run(moved, event, source)
+        publish()
     }
 
     @Synchronized
@@ -402,6 +415,7 @@ class DailyAlarmController(
     @Synchronized
     fun remove(alarmId: String, source: String): DailyAlarm? {
         val alarm = alarms.firstOrNull { it.id == alarmId } ?: return null
+        states[alarmId]?.let { removedStates[alarmId] = it }
         update(source) { list -> list.filterNot { it.id == alarmId } }
         Diag.log(TAG, "dewidebug dailyalarm $alarmId \"${alarm.label}\" deleted from $source (undo offered)")
         return alarm
@@ -410,7 +424,9 @@ class DailyAlarmController(
     @Synchronized
     fun restore(alarm: DailyAlarm, source: String) {
         if (alarms.any { it.id == alarm.id }) return
-        Diag.log(TAG, "dewidebug dailyalarm ${alarm.id} \"${alarm.label}\" restored from $source")
+        val day = removedStates.remove(alarm.id)
+        Diag.log(TAG, "dewidebug dailyalarm ${alarm.id} \"${alarm.label}\" restored from $source with its day $day")
+        if (day != null) states = states + (alarm.id to day)
         update(source) { it + alarm }
     }
 

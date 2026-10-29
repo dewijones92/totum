@@ -18,7 +18,7 @@ public sealed interface RowStatus {
 
     public data object Skipped : RowStatus
 
-    public data class Upcoming(val asksAt: LocalTime) : RowStatus
+    public data class Upcoming(val asksAt: LocalTime?) : RowStatus
 }
 
 public data class BoardRow(
@@ -86,17 +86,21 @@ public fun DailyAlarm.nextRing(state: DayState, now: Instant, zone: ZoneId): Nex
 }
 
 private fun heading(alarms: List<DailyAlarm>, rows: List<BoardRow>, today: LocalDate): BoardHeading {
-    val next = rows.firstOrNull { it.status.rings() }
+    val next = rows.firstOrNull { it.status.rings() && !it.isWaitingReminder }
+    val nextReminder = rows.firstOrNull { it.status.rings() }
     val todays = rows.filter { it.date == today }
     return when {
         alarms.isEmpty() -> BoardHeading.NoAlarms
         alarms.none { it.enabled } -> BoardHeading.AlarmsOff
         next != null -> BoardHeading.Next(next)
         todays.any { it.status is RowStatus.Asking } -> BoardHeading.AskingToday
+        nextReminder != null -> BoardHeading.Next(nextReminder)
         todays.any { it.status is RowStatus.Upcoming } -> BoardHeading.LaterToday
         else -> BoardHeading.NothingToday
     }
 }
+
+private val BoardRow.isWaitingReminder: Boolean get() = kind == AlarmKind.REMINDER && status is RowStatus.Set
 
 private fun RowStatus.rings(): Boolean =
     this is RowStatus.Set || this is RowStatus.Snoozed || this is RowStatus.Ringing || this is RowStatus.Reminding
@@ -129,7 +133,9 @@ private class BoardRows(
         return (0..DAYS_A_WEEK)
             .map { from.plusDays(it.toLong()) }
             .firstOrNull { date -> date.dayOfWeek in alarm.days && (date != today || now.isBefore(ringAt(today))) }
-            ?.let { date -> row(date, timeOn(date), RowStatus.Upcoming(alarm.askAt)) }
+            ?.let { date ->
+                row(date, timeOn(date), RowStatus.Upcoming(alarm.askAt.takeIf { alarm.asksOn(date.dayOfWeek) }))
+            }
     }
 
     private fun row(date: LocalDate, time: LocalTime, status: RowStatus, at: Instant = on(date, time)) =

@@ -34,6 +34,10 @@ public data class DailyAlarm(
 
     public val isReminder: Boolean get() = kind == AlarmKind.REMINDER
 
+    public fun asksOn(day: DayOfWeek): Boolean = !isReminder && askAt.isBefore(timeOn(day))
+
+    public fun dayStartsAt(day: DayOfWeek): LocalTime = if (asksOn(day)) askAt else LocalTime.MIDNIGHT
+
     public fun retimed(time: LocalTime): DailyAlarm {
         val shift = Duration.between(defaultTime, time)
         return copy(

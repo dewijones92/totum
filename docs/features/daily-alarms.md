@@ -91,16 +91,21 @@ adding a time without the five-tap trip through Edit.
 
 - **🔔 Reminders** are daily alarms of a second kind: no morning question; at the time a heads-up with a sound
   (channel *Reminders*) saying *🔔 Close the fridge · ⏰ 21:00 · reminder 1 of 6*, with **✅ Done** and **Snooze 10 min**;
-  again every 10 minutes (a setting under ⚙️ More: 5/10/15/30) up to six times, then it stays up silently until Done
-  or the next day. On the board: *21:00 Close the fridge · today · 📌 reminder*, then *🔔 now, until done* with
+  again every 10 minutes (a setting under ⚙️ More: 5/10/15/30) up to six times; the pop-up can be swiped away (it comes
+  back with the next nudge), and the board row stays until Done or the next day. Started late (a reboot, an update)
+  it still nags within that hour. On the board: *21:00 Close the fridge · today · 📌 reminder*, then *🔔 now, until done* with
   **✅ Close the fridge: done**; while set, **Skip 21:00**. No status-bar alarm-clock icon and no ten-minute herald.
 - **Close the fridge** at 21:00 every day is added once, switched on. Delete it and it stays deleted.
+- **An alarm earlier than its first ask** (say 07:00 with the 08:00 ask) rings without asking, set from midnight;
+  the board says *⏰ rings, no question*.
+- **The board heading** stays on an asking or set alarm; a reminder set for tonight only heads it when nothing else
+  is on, and has no countdown.
 - **The card:** tap the big time and the clock opens (⌨️ Type it switches the dial to typing); **−15 / +15** beside
   it; tap a day initial to switch that day; **Skip today**, **✅ Done** or **Remind me after all** for a reminder,
   **Set for today** for an alarm; ⚙️ More for the title, ⏰ Alarm / 🔔 Reminder, each day's time, the question's
-  choices and ask times (alarms) or the nag interval (reminders), and 🗑️ Delete with **Undo**. A new usual time moves
-  every day's own time and the choices by the same amount, and today's set time too (or cancels today, when the new
-  time has already gone).
+  choices and ask times (alarms) or the nag interval (reminders), and 🗑️ Delete with **Undo**. −15/+15 and the clock (which opens on
+  the shown time) move the usual time, every day's own time, the choices and today's set time by the same amount (or
+  cancel today, when the moved time has already gone). Undo brings back the alarm and its day.
 - **➕ New alarm** is the only add: a title, ⏰ Alarm / 🔔 Reminder, **Once / Every day / Weekdays / Choose days**; Once
   keeps the +15 min … chips and the day, the others take a time. New ones start switched on. The old
   "Add a daily alarm" button (an alarm switched off at 17:30) is gone.

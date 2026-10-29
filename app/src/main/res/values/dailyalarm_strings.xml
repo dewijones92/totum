@@ -53,6 +53,7 @@
     <string name="dailyalarm_board_snoozed">😴 snoozed till %1$s</string>
     <string name="dailyalarm_board_ringing">🔔 ringing</string>
     <string name="dailyalarm_board_skipped">🚫 skipped</string>
+    <string name="dailyalarm_board_no_ask">⏰ rings, no question</string>
     <string name="dailyalarm_board_asks">⏳ asks %1$s</string>
     <string name="dailyalarm_board_chip_asking">❓ Asking</string>
     <string name="dailyalarm_change_at">Change %1$s</string>

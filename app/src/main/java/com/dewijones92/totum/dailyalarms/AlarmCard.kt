@@ -38,6 +38,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.theme.LocalLaurel
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
@@ -114,7 +115,6 @@ private fun NameAndSwitch(alarm: DailyAlarm, change: Change) {
 private fun CardTime(alarm: DailyAlarm, next: NextRing?, now: LocalDateTime, alarms: DailyAlarmController) {
     val laurel = LocalLaurel.current
     var picking by remember { mutableStateOf(false) }
-    val retime: (LocalTime) -> Unit = { time -> alarms.retime(alarm.id, time, "page") }
     val shown = next?.time ?: alarm.defaultTime
     val day = next?.let {
         when (it.date) {
@@ -146,19 +146,19 @@ private fun CardTime(alarm: DailyAlarm, next: NextRing?, now: LocalDateTime, ala
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(
-                    onClick = { retime(alarm.defaultTime.minusMinutes(NUDGE_MINUTES)) },
+                    onClick = { alarms.shift(alarm.id, -NUDGE_MINUTES, "page") },
                     modifier = Modifier.testTag("dailyalarm-earlier-${alarm.id}"),
                 ) { Text(stringResource(R.string.dailyalarm_earlier, NUDGE_MINUTES.toInt())) }
                 OutlinedButton(
-                    onClick = { retime(alarm.defaultTime.plusMinutes(NUDGE_MINUTES)) },
+                    onClick = { alarms.shift(alarm.id, NUDGE_MINUTES, "page") },
                     modifier = Modifier.testTag("dailyalarm-later-${alarm.id}"),
                 ) { Text(stringResource(R.string.dailyalarm_later, NUDGE_MINUTES.toInt())) }
             }
         }
     }
     if (picking) {
-        TimePickDialog(stringResource(R.string.dailyalarm_time), alarm.defaultTime, {
-            retime(it)
+        TimePickDialog(stringResource(R.string.dailyalarm_time), shown, {
+            alarms.shift(alarm.id, Duration.between(shown, it).toMinutes(), "page")
             picking = false
         }) { picking = false }
     }

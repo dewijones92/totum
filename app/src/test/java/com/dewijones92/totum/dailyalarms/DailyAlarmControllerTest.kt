@@ -295,6 +295,30 @@ class DailyAlarmControllerTest {
     }
 
     @Test
+    fun `plus fifteen on a day answered for another time moves that time by fifteen`() {
+        val alarms = controller()
+        alarms.update("test") { list -> list.map { it.copy(enabled = true) } }
+        at(9)
+        alarms.tickAll("alarm")
+        alarms.dispatch("pickup", AlarmEvent.Answer(LocalTime.of(18, 0)), "notification")
+        alarms.shift("pickup", 15, "page")
+        assertEquals(LocalTime.of(17, 45), alarms.view.value.alarms.single().defaultTime)
+        assertEquals(DayState.Set(monday, LocalTime.of(18, 15)), alarms.view.value.state("pickup"))
+    }
+
+    @Test
+    fun `an undone delete brings back the day too`() {
+        val alarms = controller()
+        alarms.update("test") { list -> list.map { it.copy(enabled = true) } }
+        at(9)
+        alarms.tickAll("alarm")
+        alarms.dispatch("pickup", AlarmEvent.Answer(LocalTime.of(17, 30)), "notification")
+        val removed = alarms.remove("pickup", "page")!!
+        alarms.restore(removed, "undo")
+        assertEquals(DayState.Set(monday, LocalTime.of(17, 30)), alarms.view.value.state("pickup"))
+    }
+
+    @Test
     fun `an undone delete brings the alarm back as it was`() {
         val alarms = controller()
         val removed = alarms.remove("pickup", "page")!!
