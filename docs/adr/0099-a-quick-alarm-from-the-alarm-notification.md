@@ -22,8 +22,11 @@ used; a full alarm; the clock dial on screen straight away; presets managed on t
 
 ## Decision
 
-- **⚡ Quick alarm is an action on the alarm board notification**, in every state (the board uses at most two others),
-  opening `QuickAlarmActivity`, which shows over the lock screen like the question screen.
+- **⚡ Quick alarm is an action on the alarm board notification**, in every state, opening `QuickAlarmActivity`,
+  which shows over the lock screen like the question screen. Android shows three actions, and a set alarm already
+  has Change and Cancel, so the board's actions are the state's, then ⚡, then Open only while there is room
+  (`boardActions`, `MAX_ACTIONS_SHOWN`); tapping the notification opens the alarms page anyway. The first push
+  (v0.1.761) posted four, and Android dropped Open; `DailyAlarmDeviceTest` caught it in CI.
 - **The screen**: preset chips (the last one used first and chosen), the shared clock dial (`TimeDial`, now also the
   body of `TimePickDialog`) starting 15 minutes ahead, "⏰ Rings 09:26 today, in 27 min", and ✅ Set. Long-press a
   preset to rename or delete it; ➕ Preset adds one and chooses it.
@@ -40,4 +43,5 @@ used; a full alarm; the clock dial on screen straight away; presets managed on t
   `quick presets <change> -> [...]`; reports carry `dailyAlarms.quickPresets`.
 - Verified on totum-api35: ⚡ on the board beside Skip and Open, the screen with the stairs chosen, Set made a one-off
   and an alarm clock at the time shown.
-- Tests: `QuickPresetsTest` (`:lib:dailyalarms`), four controller tests, `QuickAlarmScreenTest` on the device.
+- Tests: `QuickPresetsTest` (`:lib:dailyalarms`), four controller tests, `QuickAlarmScreenTest` on the device,
+  `DailyAlarmDeviceTest` (the board's actions, three at most).

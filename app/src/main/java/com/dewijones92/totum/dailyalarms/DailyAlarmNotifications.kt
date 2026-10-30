@@ -161,8 +161,9 @@ class DailyAlarmNotifications(private val context: Context) {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setContentIntent(context.openAlarmSettings())
             .setDeleteIntent(DailyAlarmReceiver.pending(context, DailyAlarmReceiver.REPOST, DailyAlarmReceiver.BOARD))
-        context.addBoardActions(builder, board)
-        builder.addAction(context.alarmAction(context.getString(R.string.dailyalarm_open), context.openAlarmSettings()))
+        val actions = context.boardActions(board)
+        val open = context.alarmAction(context.getString(R.string.dailyalarm_open), context.openAlarmSettings())
+        (actions + open).take(MAX_ACTIONS_SHOWN).forEach(builder::addAction)
         val countdown = next?.takeUnless {
             it.status is RowStatus.Ringing || it.status is RowStatus.Reminding || it.kind == AlarmKind.REMINDER
         }?.at
@@ -282,28 +283,28 @@ private fun Context.openAlarmSettings(): PendingIntent = PendingIntent.getActivi
 
 private const val OPEN_SETTINGS_CODE = 7397
 
-private fun Context.addBoardActions(builder: Notification.Builder, board: AlarmBoard) {
+private fun Context.boardActions(board: AlarmBoard): List<Notification.Action> = buildList {
     val next = board.nextToRing
     val skipped = board.firstSkipped
     val set = next?.takeIf { it.status is RowStatus.Set && (it.kind == AlarmKind.ALARM || skipped == null) }
     val reminding = board.rows.firstOrNull { it.status is RowStatus.Reminding }
     when {
-        reminding != null -> builder.addAction(
+        reminding != null -> add(
             alarmAction(
                 getString(R.string.reminder_done_named, reminding.label),
-                DailyAlarmReceiver.pending(this, DailyAlarmReceiver.DISMISS, reminding.alarmId),
+                DailyAlarmReceiver.pending(this@boardActions, DailyAlarmReceiver.DISMISS, reminding.alarmId),
             ),
         )
         set != null -> {
             if (!DailyAlarm.isOneOffId(set.alarmId) && set.kind == AlarmKind.ALARM) {
-                builder.addAction(
+                add(
                     alarmAction(
                         getString(R.string.dailyalarm_change_at, DailyAlarmNotifications.hhmm(set.time)),
-                        DailyAlarmReceiver.pending(this, DailyAlarmReceiver.CHANGE, set.alarmId),
+                        DailyAlarmReceiver.pending(this@boardActions, DailyAlarmReceiver.CHANGE, set.alarmId),
                     ),
                 )
             }
-            builder.addAction(
+            add(
                 alarmAction(
                     getString(
                         if (set.kind == AlarmKind.REMINDER) {
@@ -313,27 +314,29 @@ private fun Context.addBoardActions(builder: Notification.Builder, board: AlarmB
                         },
                         DailyAlarmNotifications.hhmm(set.time),
                     ),
-                    DailyAlarmReceiver.pending(this, DailyAlarmReceiver.CANCEL, set.alarmId),
+                    DailyAlarmReceiver.pending(this@boardActions, DailyAlarmReceiver.CANCEL, set.alarmId),
                 ),
             )
         }
-        skipped != null -> builder.addAction(
+        skipped != null -> add(
             alarmAction(
                 getString(R.string.dailyalarm_set_after_all),
-                QuestionActivity.pending(this, skipped.alarmId),
+                QuestionActivity.pending(this@boardActions, skipped.alarmId),
             ),
         )
-        board.heading == BoardHeading.AlarmsOff -> builder.addAction(
+        board.heading == BoardHeading.AlarmsOff -> add(
             alarmAction(
                 getString(R.string.dailyalarm_turn_on),
-                DailyAlarmReceiver.pending(this, DailyAlarmReceiver.TURN_ON, DailyAlarmReceiver.BOARD),
+                DailyAlarmReceiver.pending(this@boardActions, DailyAlarmReceiver.TURN_ON, DailyAlarmReceiver.BOARD),
             ),
         )
     }
-    builder.addAction(alarmAction(getString(R.string.quick_alarm), QuickAlarmActivity.pending(this)))
+    add(alarmAction(getString(R.string.quick_alarm), QuickAlarmActivity.pending(this@boardActions)))
 }
 
 private fun Context.alarmIcon(): Icon = Icon.createWithResource(this, R.drawable.ic_dailyalarm)
 
 private fun Context.alarmAction(label: String, intent: PendingIntent): Notification.Action =
     Notification.Action.Builder(alarmIcon(), label, intent).build()
+
+private const val MAX_ACTIONS_SHOWN = 3

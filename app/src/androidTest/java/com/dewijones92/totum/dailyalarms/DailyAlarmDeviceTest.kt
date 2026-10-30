@@ -63,7 +63,10 @@ class DailyAlarmDeviceTest {
         val lines = posted.extras.getCharSequence("android.bigText").toString().lines()
         assertTrue(lines[0], lines[0].startsWith("17:30 Pick up time"))
         assertTrue(lines[1], lines[1].startsWith("18:00 Gym bag"))
-        assertEquals(listOf("Change 17:30", "Cancel 17:30", "Open"), posted.actions.map { it.title.toString() })
+        assertEquals(
+            listOf("Change 17:30", "Cancel 17:30", "⚡ Quick alarm"),
+            posted.actions.map { it.title.toString() }
+        )
         assertTrue("pinned by a foreground service", posted.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
         assertTrue("swiping it away puts it back", posted.deleteIntent?.isBroadcast == true)
         val channel = manager.getNotificationChannel(posted.channelId)
@@ -104,7 +107,7 @@ class DailyAlarmDeviceTest {
 
         val posted = waitFor(DailyAlarmNotifications.BOARD_ID, titled = "⚪ Alarms off")
         assertEquals("⚪ Alarms off", posted?.extras?.getString("android.title"))
-        assertEquals(listOf("Turn on", "Open"), posted!!.actions.map { it.title.toString() })
+        assertEquals(listOf("Turn on", "⚡ Quick alarm", "Open"), posted!!.actions.map { it.title.toString() })
         assertTrue("still pinned", posted.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
     }
 
