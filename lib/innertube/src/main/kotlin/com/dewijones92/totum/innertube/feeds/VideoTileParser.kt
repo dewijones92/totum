@@ -1,5 +1,6 @@
 package com.dewijones92.totum.innertube.feeds
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
@@ -30,12 +31,16 @@ internal object VideoTileParser {
     private const val VIDEO_CONTENT_TYPE = "TILE_CONTENT_TYPE_VIDEO"
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun parse(body: String): FeedResult {
+    fun parse(body: String, leaveOutShelves: Set<String> = emptySet()): FeedResult {
         val root = runCatching { json.parseToJsonElement(body) }.getOrNull()
             ?: return FeedResult.Failure("Unparseable feed response")
         val videos = LinkedHashMap<String, FeedVideo>()
-        collectVideoTiles(root) { tile ->
+        var leftOut = 0
+        collectVideoTiles(root, leaveOutShelves, onLeftOut = { leftOut++ }) { tile ->
             tile.toFeedVideo()?.let { videos.putIfAbsent(it.videoId, it) }
+        }
+        if (leaveOutShelves.isNotEmpty()) {
+            Diag.log("feed", "left out $leftOut tile(s) in shelves named $leaveOutShelves; ${videos.size} kept")
         }
         // A Shorts SHELF, when YouTube sends one. This is how SmartTube gets Shorts into a TV
         // feed (`BrowseService2.getShortsTV` reads the same subscriptions response and pulls the
@@ -102,16 +107,32 @@ internal object VideoTileParser {
         }
     }
 
-    private fun collectVideoTiles(node: JsonElement, onTile: (JsonObject) -> Unit) {
+    private fun collectVideoTiles(
+        node: JsonElement,
+        leaveOutShelves: Set<String> = emptySet(),
+        onLeftOut: () -> Unit = {},
+        onTile: (JsonObject) -> Unit,
+    ) {
         when (node) {
             is JsonObject -> {
                 val tile = node["tileRenderer"] as? JsonObject
                 if (tile != null && tile.stringAt("contentType") == VIDEO_CONTENT_TYPE) onTile(tile)
-                node.values.forEach { collectVideoTiles(it, onTile) }
+                val shelf = node["shelfRenderer"] as? JsonObject
+                if (shelf != null && shelf.headerTitle() in leaveOutShelves) {
+                    collectVideoTiles(shelf, onTile = { onLeftOut() })
+                    return
+                }
+                node.values.forEach { collectVideoTiles(it, leaveOutShelves, onLeftOut, onTile) }
             }
-            is JsonArray -> node.forEach { collectVideoTiles(it, onTile) }
+            is JsonArray -> node.forEach { collectVideoTiles(it, leaveOutShelves, onLeftOut, onTile) }
             else -> Unit
         }
+    }
+
+    private fun JsonObject.headerTitle(): String? {
+        val lockup = (this["headerRenderer"] as? JsonObject)?.get("shelfHeaderRenderer") as? JsonObject
+        val avatar = (lockup?.get("avatarLockup") as? JsonObject)?.get("avatarLockupRenderer") as? JsonObject
+        return (avatar?.get("title") as? JsonObject)?.readText()
     }
 
     private fun JsonObject.toFeedVideo(): FeedVideo? {

@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.PageToken
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -28,29 +29,39 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 public object Continuations {
 
-    private val TOKEN_HOLDERS = listOf("continuationCommand", "nextContinuationData", "reloadContinuationData")
+    private val NEXT_PAGE_HOLDERS = listOf("continuationCommand", "nextContinuationData")
+    private const val RELOAD_HOLDER = "reloadContinuationData"
 
     /** Filter chips; their tokens replace the results rather than continuing them. */
     private val NOT_THE_NEXT_PAGE = setOf("chipCloudRenderer", "chipBarViewModel", "showEngagementPanelEndpoint")
 
     public fun find(root: JsonElement): PageToken? {
-        var found: String? = null
-        walk(root) { found = it }
-        return found?.let(::PageToken)
+        var next: String? = null
+        var reload: String? = null
+        walk(root, onNext = { next = it }, onReload = { reload = it })
+        return (next ?: reload)?.let(::PageToken)
     }
 
-    private fun walk(node: JsonElement, onToken: (String) -> Unit) {
+    private fun walk(node: JsonElement, onNext: (String) -> Unit, onReload: (String) -> Unit) {
         when (node) {
             is JsonObject -> {
-                TOKEN_HOLDERS.forEach { holder ->
-                    (node[holder] as? JsonObject)?.tokenField()?.let(onToken)
+                NEXT_PAGE_HOLDERS.forEach { holder ->
+                    (node[holder] as? JsonObject)?.tokenField()?.let(onNext)
                 }
-                node.forEach { (key, value) -> if (key !in NOT_THE_NEXT_PAGE) walk(value, onToken) }
+                (node[RELOAD_HOLDER] as? JsonObject)?.tokenField()?.let(onReload)
+                node.forEach { (key, value) ->
+                    if (key !in NOT_THE_NEXT_PAGE && !(key == "tabRenderer" && value.isUnselectedTab())) {
+                        walk(value, onNext, onReload)
+                    }
+                }
             }
-            is JsonArray -> node.forEach { walk(it, onToken) }
+            is JsonArray -> node.forEach { walk(it, onNext, onReload) }
             else -> Unit
         }
     }
+
+    private fun JsonElement.isUnselectedTab(): Boolean =
+        (this as? JsonObject)?.get("selected")?.jsonPrimitive?.booleanOrNull == false
 
     /** `continuationCommand` calls it `token`; the older renderers call it `continuation`. */
     private fun JsonObject.tokenField(): String? =

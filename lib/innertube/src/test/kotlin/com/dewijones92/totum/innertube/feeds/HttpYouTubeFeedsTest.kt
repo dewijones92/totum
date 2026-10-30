@@ -71,6 +71,32 @@ class HttpYouTubeFeedsTest {
     }
 
     @Test
+    fun `the subscriptions feed is the date-ordered grid, without the Most relevant shelf`() = runBlocking {
+        val body = checkNotNull(javaClass.getResourceAsStream("/subscriptions_tv_sample.json")) { "missing" }
+            .bufferedReader().readText()
+        server.enqueue(MockResponse.Builder().code(200).body(body).build())
+
+        val page = (feeds().subscriptionsFeed() as FeedResult.Success).page
+
+        assertEquals(
+            listOf("newest00001", "newest00002", "newest00003", "newest00004", "relevant002"),
+            page.items.map { it.videoId },
+        )
+        assertEquals("ALL-NEXT", page.next?.value)
+    }
+
+    @Test
+    fun `another feed keeps every shelf`() = runBlocking {
+        val body = checkNotNull(javaClass.getResourceAsStream("/subscriptions_tv_sample.json")) { "missing" }
+            .bufferedReader().readText()
+        server.enqueue(MockResponse.Builder().code(200).body(body).build())
+
+        val page = (feeds().recommended() as FeedResult.Success).page
+
+        assertTrue(page.items.any { it.videoId == "relevant001" })
+    }
+
+    @Test
     fun `signed out without a token`() = runBlocking {
         assertEquals(FeedResult.SignedOut, feeds(signedIn = false).recommended())
     }

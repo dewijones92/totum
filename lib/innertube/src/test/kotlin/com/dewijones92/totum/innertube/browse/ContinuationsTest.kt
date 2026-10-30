@@ -106,6 +106,26 @@ class ContinuationsTest {
     }
 
     @Test
+    fun `a TV subscriptions response pages its All tab, not the last channel's tab`() {
+        val body = checkNotNull(javaClass.getResourceAsStream("/subscriptions_tv_sample.json")) { "missing" }
+            .bufferedReader().readText()
+
+        assertEquals("ALL-NEXT", find(body)?.value)
+    }
+
+    @Test
+    fun `a next page wins over a reload of the same page, wherever it sits`() {
+        val token = find(
+            """
+            {"content":{"list":{"continuations":[{"nextContinuationData":{"continuation":"next"}}]}},
+             "continuation":{"reloadContinuationData":{"continuation":"reload"}}}
+            """.trimIndent(),
+        )
+
+        assertEquals("next", token?.value)
+    }
+
+    @Test
     fun `a blank token is treated as absent rather than crashing`() {
         val body = """{"continuationItemRenderer":{"continuationEndpoint":{"continuationCommand":{"token":""}}}}"""
 

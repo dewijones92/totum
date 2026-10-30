@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # Testing
@@ -113,6 +113,7 @@ instead).
 | Group feeds merge newest first for real (ADR 94): feed dates win, ages fill in without breaking a channel's own order, Shorts/live from the feed kept, older videos take their real publish day; checked live against RSS + watch pages (60 items, 0 wrong days, 0 inversions) | JVM unit + device probe | `:core:data` `GroupDatesTest` (4), `GroupFeedTest` (2 new, both seen failing first) |
 | Group news (ADR 95): first look announces nothing, a new video is notified once and counted, opening clears and returns since when, a failed post is retried; on the device: create, add by search, rename, 3 new found and notified from a back-dated last look, the tile, divider and 🆕 markers, a notification plays its video | JVM unit + emulator | `:app` `GroupNewsTest` (6, three seen failing on a stub first). Not yet a Compose test of `GroupScreen` or the pulse; both checked on the emulator (badge within 5 s of a cold start) |
 | A group's watched marks (ADR 96): each member's channel browsed as the account and its progress seen; every member asked, a failure there loses no items; on the device the Travel Group showed ✓, a bar and the 10% dot from Dewi's account | JVM unit + device | `:lib:innertube` `HttpYouTubeFeedsTest`; `:core:data` `GroupFeedTest` |
+| The subscriptions feed (ADR 97): the All tab's token, not a channel tab's; a next page over a reload; the date grid without Most relevant; other feeds keep every shelf; on the device 96 of RSS's newest 100, 2,700 paged distinct and in date order | JVM unit + device | `:lib:innertube` `ContinuationsTest`, `HttpYouTubeFeedsTest` |
 | Exsurge off stays off and reminds once when active hours start | JVM unit | `:app` `ExsurgeControllerTest`, `:lib:exsurge` `OffReminderTest` |
 | A live YouTube stream plays a manifest (YouTube's HLS, or one Totum builds from the live head), starts at the edge, and is known as live | JVM unit | `:app` `ALiveStreamPlaysItsManifestTest` (seen failing, both tests), `:lib:innertube` `LiveDashTest`, `:core:playback` `ResumeRewindTest` live case (seen failing: expected 0 but was 179449, the device's own number), `:core:domain` `WithStreamFromTest` live case; on the emulator a 24/7 stream played at real time with no stalls (the `Range`-header hang was found and proved from the laptop) |
 | Back on a podcast page returns to the list | instrumented | `:app` `BackFromPodcastPageTest` — it quit the app |

@@ -1,0 +1,279 @@
+{
+ "contents": {
+  "tvBrowseRenderer": {
+   "content": {
+    "tvSecondaryNavRenderer": {
+     "sections": [
+      {
+       "tvSecondaryNavSectionRenderer": {
+        "tabs": [
+         {
+          "tabRenderer": {
+           "title": "All",
+           "selected": true,
+           "tabIdentifier": "FEsubscriptions",
+           "content": {
+            "tvSurfaceContentRenderer": {
+             "content": {
+              "sectionListRenderer": {
+               "contents": [
+                {
+                 "shelfRenderer": {
+                  "content": {
+                   "horizontalListRenderer": {
+                    "items": [
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "relevant001"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Picked for you"
+                         }
+                        }
+                       }
+                      }
+                     },
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "relevant002"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Also picked"
+                         }
+                        }
+                       }
+                      }
+                     }
+                    ]
+                   }
+                  },
+                  "headerRenderer": {
+                   "shelfHeaderRenderer": {
+                    "avatarLockup": {
+                     "avatarLockupRenderer": {
+                      "title": {
+                       "runs": [
+                        {
+                         "text": "Most relevant"
+                        }
+                       ]
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                },
+                {
+                 "shelfRenderer": {
+                  "content": {
+                   "horizontalListRenderer": {
+                    "items": [
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "newest00001"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Newest"
+                         }
+                        }
+                       }
+                      }
+                     },
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "newest00002"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Second newest"
+                         }
+                        }
+                       }
+                      }
+                     },
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "newest00003"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Third newest"
+                         }
+                        }
+                       }
+                      }
+                     }
+                    ]
+                   }
+                  }
+                 }
+                },
+                {
+                 "shelfRenderer": {
+                  "content": {
+                   "horizontalListRenderer": {
+                    "items": [
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "newest00004"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Fourth newest"
+                         }
+                        }
+                       }
+                      }
+                     },
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                       "onSelectCommand": {
+                        "watchEndpoint": {
+                         "videoId": "relevant002"
+                        }
+                       },
+                       "metadata": {
+                        "tileMetadataRenderer": {
+                         "title": {
+                          "simpleText": "Also picked"
+                         }
+                        }
+                       }
+                      }
+                     }
+                    ]
+                   }
+                  }
+                 }
+                },
+                {
+                 "shelfRenderer": {
+                  "content": {
+                   "horizontalListRenderer": {
+                    "items": [
+                     {
+                      "tileRenderer": {
+                       "contentType": "TILE_CONTENT_TYPE_SHORTS",
+                       "contentId": "ashort00001",
+                       "onSelectCommand": {
+                        "reelWatchEndpoint": {
+                         "videoId": "ashort00001"
+                        }
+                       }
+                      }
+                     }
+                    ]
+                   }
+                  },
+                  "headerRenderer": {
+                   "shelfHeaderRenderer": {
+                    "avatarLockup": {
+                     "avatarLockupRenderer": {
+                      "title": {
+                       "runs": [
+                        {
+                         "text": "Shorts"
+                        }
+                       ]
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               ],
+               "continuations": [
+                {
+                 "nextContinuationData": {
+                  "continuation": "ALL-NEXT"
+                 }
+                }
+               ]
+              }
+             },
+             "continuation": {
+              "reloadContinuationData": {
+               "continuation": "ALL-RELOAD"
+              }
+             }
+            }
+           }
+          }
+         },
+         {
+          "tabRenderer": {
+           "title": "Channel One",
+           "selected": false,
+           "tabIdentifier": "FEsubscriptions",
+           "content": {
+            "tvSurfaceContentRenderer": {
+             "continuation": {
+              "reloadContinuationData": {
+               "continuation": "CHANNEL-ONE"
+              }
+             }
+            }
+           }
+          }
+         },
+         {
+          "tabRenderer": {
+           "title": "Channel Two",
+           "selected": false,
+           "tabIdentifier": "FEsubscriptions",
+           "content": {
+            "tvSurfaceContentRenderer": {
+             "continuation": {
+              "reloadContinuationData": {
+               "continuation": "CHANNEL-TWO"
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

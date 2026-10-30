@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # Architecture decision records
@@ -112,3 +112,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 94 | [A group's dates come from the channel feed, then each video's own publish day](0094-a-groups-dates-come-from-the-feed-then-each-videos-own-day.md) | Accepted |
 | 95 | [Groups say what's new, notify each new video, and live in the Library](0095-groups-say-whats-new-and-live-in-the-library.md) | Accepted |
 | 96 | [A group asks the account how far each of its videos was watched](0096-a-group-asks-the-account-how-far-each-video-was-watched.md) | Accepted |
+| 97 | [The subscriptions feed is the All tab's date grid, paged by its own token](0097-the-subscriptions-feed-is-the-all-tabs-date-grid.md) | Accepted |

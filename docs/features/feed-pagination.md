@@ -3,10 +3,15 @@ title: Feed pagination (infinite scroll)
 kind: feature
 status: shipped
 area: video
-updated: 2026-07-25
+updated: 2026-10-30
 ---
 
 # Feeds no longer stop at page one
+
+> 🐛 **Subscriptions paged the wrong tab, and led with YouTube's picks. Fixed 2026-10-30.** The TV answer has one tab
+> per channel after "All"; taking the last token paged the last channel's old videos as page 2, and the feed ended at
+> 78 with 16 of the newest 100. Now the selected tab is paged and the "Most relevant" shelf is left out: 96 of 100
+> against RSS, 2,700 paged in date order. [ADR 97](../adr/0097-the-subscriptions-feed-is-the-all-tabs-date-grid.md).
 
 Every YouTube feed in the app showed roughly one screenful and then simply ended. It
 didn't look broken — a short list looks like a short list — which is why this was the
