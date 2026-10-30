@@ -63,6 +63,7 @@ import com.dewijones92.totum.data.source.DefaultSourceLocator
 import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
+import com.dewijones92.totum.data.torrent.Apibay
 import com.dewijones92.totum.data.torrent.HomeServerAuthInterceptor
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
@@ -1696,6 +1697,7 @@ private fun homeTorrentServerOf(prefs: AppPreferences, httpClient: OkHttpClient)
         prowlarrApiKey = { prefs.settings.value.prowlarrApiKey },
         token = { prefs.settings.value.homeServerToken },
         torrentio = Torrentio(httpClient),
+        apibay = Apibay(httpClient),
     )
 }
 

@@ -136,10 +136,21 @@ private fun onePerTorrent(results: List<TorrentResult>): List<TorrentResult> {
             is TorrentLink.Magnet -> INFO_HASH.find(link.uri)?.groupValues?.get(1)?.lowercase() ?: link.uri
             is TorrentLink.ViaIndexer -> link.path
         }
-        val kept = best[key]
-        if (kept == null || result.seeders > kept.seeders) best[key] = result
+        best[key] = best[key]?.let { kept -> mergedFacts(kept, result) } ?: result
     }
     return best.values.toList()
+}
+
+private fun mergedFacts(a: TorrentResult, b: TorrentResult): TorrentResult {
+    val (base, other) = if (b.seeders > a.seeders) b to a else a to b
+    val standing = listOf(base, other).minBy { it.uploader.ordinal }
+    return base.copy(
+        uploader = standing.uploader,
+        uploaderName = standing.uploaderName ?: base.uploaderName ?: other.uploaderName,
+        leechers = base.leechers ?: other.leechers,
+        publishedAt = base.publishedAt ?: other.publishedAt,
+        fileCount = base.fileCount ?: other.fileCount,
+    )
 }
 
 private fun TorrentSearchResult.withoutWaiting(): TorrentSearchResult =

@@ -5,6 +5,7 @@ import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.pictureOfFileName
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.time.Instant
 
 /**
  * The home server's torrent facilities: search one thing, stream another.
@@ -98,7 +99,14 @@ public data class TorrentResult(
     public val seeders: Int,
     public val sizeBytes: Long,
     public val indexer: String?,
+    public val leechers: Int? = null,
+    public val publishedAt: Instant? = null,
+    public val fileCount: Int? = null,
+    public val uploader: Uploader = Uploader.UNKNOWN,
+    public val uploaderName: String? = null,
 )
+
+public enum class Uploader { VIP, TRUSTED, OFFICIAL, MEMBER, UNKNOWN }
 
 /**
  * A torrent the server has read the metadata for, and the files inside it.

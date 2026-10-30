@@ -63,6 +63,7 @@ public class HttpHomeTorrentServer(
     private val lateDeadlineMs: Long = LATE_DEADLINE_MS,
     private val clock: () -> Long = System::currentTimeMillis,
     private val torrentio: Torrentio? = null,
+    private val apibay: Apibay? = null,
 ) : HomeTorrentServer {
 
     private val prowlarr = ProwlarrSearch(
@@ -72,7 +73,10 @@ public class HttpHomeTorrentServer(
         token,
         lateDeadlineMs,
         clock,
-        alsoAsk = listOfNotNull(torrentio?.let { NamedSearch(Torrentio.NAME, it::search) }),
+        alsoAsk = listOfNotNull(
+            torrentio?.let { NamedSearch(Torrentio.NAME, it::search) },
+            apibay?.let { NamedSearch(Apibay.NAME, it::search) },
+        ),
     )
 
     private val torrServerBase get() = "$base/ts"

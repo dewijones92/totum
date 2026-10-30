@@ -1,12 +1,15 @@
 package com.dewijones92.totum.data.search
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentResult
 import com.dewijones92.totum.data.torrent.TorrentSearchResult
+import com.dewijones92.totum.data.torrent.TorrentTrust
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 
 /**
  * The home server's torrents, as ordinary search results.
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.map
  */
 public class TorrentSearchSource(
     private val server: HomeTorrentServer,
+    private val now: () -> Instant = Instant::now,
 ) : SearchSource {
 
     override suspend fun search(query: SearchQuery, limit: Int, after: PageToken?): SearchOutcome {
@@ -45,20 +49,43 @@ public class TorrentSearchSource(
      * decision, so it lives with the other presentation decisions instead of being re-derived by
      * every implementation of the port.
      */
-    private fun List<TorrentResult>.toHits(limit: Int): List<SearchHit> =
-        sortedByDescending { it.seeders }
+    private fun List<TorrentResult>.toHits(limit: Int): List<SearchHit> {
+        val judged = map { it to TorrentTrust.of(it, now()) }
+        val shown = judged.sortedWith(
+            compareBy<Pair<TorrentResult, TorrentTrust>> { it.second.flagged }
+                .thenByDescending { it.first.seeders }
+        )
             .take(limit)
-            .map { torrent ->
-                SearchHit.Torrent(
-                    title = torrent.title,
-                    subtitle = torrent.describe(),
-                    artworkUrl = null,
-                    link = torrent.link,
-                    seeders = torrent.seeders,
-                    sizeBytes = torrent.sizeBytes,
-                    indexer = torrent.indexer,
-                )
-            }
+        logTrust(judged, shown)
+        return shown.map { (torrent, trust) ->
+            SearchHit.Torrent(
+                title = torrent.title,
+                subtitle = torrent.describe(),
+                artworkUrl = null,
+                link = torrent.link,
+                seeders = torrent.seeders,
+                sizeBytes = torrent.sizeBytes,
+                indexer = torrent.indexer,
+                trust = trust.chips,
+                flagged = trust.flagged,
+            )
+        }
+    }
+
+    private fun logTrust(judged: List<Judged>, shown: List<Judged>) {
+        if (judged.isEmpty()) return
+        val standings = judged.groupingBy { TorrentTrust.standing(it.first) }.eachCount()
+            .entries.joinToString { "${it.key}=${it.value}" }
+        val flagged = judged.filter { it.second.flagged }
+        val sortedDown = flagged.take(FLAGGED_NAMED).joinToString("; ") { (torrent, trust) ->
+            "\"${torrent.title}\" (${torrent.seeders} seeders): ${trust.flags.joinToString()}"
+        }
+        Diag.log(
+            "torrent",
+            "trust of ${judged.size} result(s), ${shown.size} shown: uploaders $standings; " +
+                "${flagged.size} flagged and sorted down" + if (flagged.isEmpty()) "" else ": $sortedDown",
+        )
+    }
 
     /** Seeders and size ARE the decision, so they are the subtitle rather than a detail view. */
     private fun TorrentResult.describe(): String =
@@ -67,5 +94,8 @@ public class TorrentSearchSource(
 
     private companion object {
         const val BYTES_PER_GB = 1_000_000_000.0
+        const val FLAGGED_NAMED = 3
     }
 }
+
+private typealias Judged = Pair<TorrentResult, TorrentTrust>

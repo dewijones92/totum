@@ -39,6 +39,28 @@ class TorrentSearchSourceTest {
     }
 
     @Test
+    fun `a flagged result is marked and listed after the others, even with more seeders`() = runTest {
+        server.results = listOf(result("Some Film 2026 HDCAM", 500), result("Some Film 2026 1080p", 40))
+
+        val hits = (source.search(SearchQuery("x"), limit = 10, after = null) as SearchOutcome.Success)
+            .page.items.filterIsInstance<SearchHit.Torrent>()
+
+        assertEquals(listOf("Some Film 2026 1080p", "Some Film 2026 HDCAM"), hits.map { it.title })
+        assertEquals(listOf(false, true), hits.map { it.flagged })
+        assertTrue(hits.last().trust.first(), hits.last().trust.first().startsWith("⚠️ Looks like a cinema recording"))
+        assertTrue(hits.first().trust.any { it.startsWith("❔") })
+    }
+
+    @Test
+    fun `flagged results go down before the cap, so they cannot crowd out the rest`() = runTest {
+        server.results = (1..3).map { result("Copy $it CAM", 100 + it) } + result("The real one", 5)
+
+        val hits = (source.search(SearchQuery("x"), limit = 2, after = null) as SearchOutcome.Success).page.items
+
+        assertEquals("The real one", hits.first().title)
+    }
+
+    @Test
     fun `results come back best-seeded first`() = runTest {
         server.results = listOf(result("thin", 2), result("healthy", 40), result("middling", 9))
 

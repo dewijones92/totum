@@ -41,6 +41,7 @@ class HttpHomeTorrentServerTest {
         key: () -> String,
         lateDeadlineMs: Long = 2_000,
         torrentio: Boolean = false,
+        apibay: Boolean = false,
     ): HttpHomeTorrentServer {
         val base = server.url("").toString().trimEnd('/')
         return HttpHomeTorrentServer(
@@ -50,6 +51,7 @@ class HttpHomeTorrentServerTest {
             token = token,
             lateDeadlineMs = lateDeadlineMs,
             torrentio = if (torrentio) Torrentio(OkHttpClient(), cinemetaBase = base, torrentioBase = base) else null,
+            apibay = if (apibay) Apibay(OkHttpClient(), base = base) else null,
         )
     }
 
@@ -210,6 +212,43 @@ class HttpHomeTorrentServerTest {
         val copies = found.results.filter { sameHash.lowercase() in it.link.toString().lowercase() }
         assertEquals(listOf(58), copies.map { it.seeders })
         assertEquals(3, found.results.size)
+    }
+
+    @Test
+    fun `a Prowlarr result takes its uploader's standing from The Pirate Bay's API for the same torrent`() = runTest {
+        val sameHash = "C".repeat(40)
+        answering(
+            threeIndexers,
+            catalogue = { path ->
+                if (path.startsWith("/q.php")) {
+                    ok(
+                        """[{"id":"9","name":"Night of the Living Dead 1968","info_hash":"$sameHash",""" +
+                            """"leechers":"4","seeders":"50","size":"1","num_files":"2","username":"someone",""" +
+                            """"added":"0","status":"vip"}]""",
+                    )
+                } else {
+                    MockResponse.Builder().code(404).build()
+                }
+            },
+        ) { id ->
+            if (id == "1") {
+                ok(
+                    """[{"title":"Night of the Living Dead 1968","guid":"magnet:?xt=urn:btih:$sameHash",""" +
+                        """"seeders":58,"size":1,"indexer":"The Pirate Bay"}]""",
+                )
+            } else {
+                ok("[]")
+            }
+        }
+
+        val found = serverWith(token = { "t" }, key = { "k" }, apibay = true)
+            .search("night of the living dead") as TorrentSearchResult.Success
+
+        val merged = found.results.single()
+        assertEquals(58, merged.seeders)
+        assertEquals(Uploader.VIP, merged.uploader)
+        assertEquals("someone", merged.uploaderName)
+        assertEquals(4, merged.leechers)
     }
 
     @Test

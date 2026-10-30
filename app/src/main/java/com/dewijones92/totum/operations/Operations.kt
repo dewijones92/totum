@@ -39,7 +39,7 @@ data class Operation(
 )
 
 sealed interface OperationEnd {
-    data class Done(val count: Int, val partial: Boolean = false) : OperationEnd
+    data class Done(val count: Int, val partial: Boolean = false, val note: String? = null) : OperationEnd
     data object Nothing : OperationEnd
     data class Failed(val why: String) : OperationEnd
     data class Cancelled(val playing: Boolean) : OperationEnd

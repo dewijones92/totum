@@ -71,6 +71,8 @@ public sealed interface SearchHit {
         public val seeders: Int,
         public val sizeBytes: Long,
         public val indexer: String?,
+        public val trust: List<String> = emptyList(),
+        public val flagged: Boolean = false,
     ) : SearchHit
 
     /**

@@ -22,6 +22,7 @@ import com.dewijones92.totum.data.torrent.PreparedTorrent
 import com.dewijones92.totum.data.torrent.TorrentEpisodes
 import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
+import com.dewijones92.totum.data.torrent.TorrentTrust
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
@@ -381,7 +382,9 @@ class SearchViewModel(
         operations.tracking("torrent:${hit.link.hashCode()}", OperationKind.PREPARE_TORRENT, hit.title) {
             prepared = server.prepare(hit.link)?.also { torrents?.subtitles?.remember(it) }
             items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
-            if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size)
+            val warning = prepared?.let { TorrentTrust.filesWarning(it.files) }
+            warning?.let { Diag.warn("search", "\"${hit.title}\": $it") }
+            if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size, note = warning)
         }
         return prepared to items
     }

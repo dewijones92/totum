@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-10-24
+updated: 2026-10-30
 ---
 
 # Torrents (public-domain film & TV)
@@ -39,6 +39,28 @@ read afterwards and the whole path was there. **A status nobody re-checks is wor
 
 Nothing above the `HomeTorrentServer` port knows a torrent is involved. That is the point: the
 pillar reaches the UI as one more `SearchHit`, one more queue item, one more thing that plays.
+
+## Trust badges (2026-10-30)
+
+Dewi: *"in Pirate Bay there's like green skulls and pink skulls … Can we put something similar in
+ours? … general."* Every result now carries chips that say whether it looks trustworthy
+(`TorrentTrust` in `:core:data`, shown by `TrustChips` under the subtitle; ADR 101):
+
+| Chip | From |
+|---|---|
+| `💚 VIP uploader (name)`, `💗 Trusted uploader`, `👤 Ordinary uploader`, `❔ Uploader unknown` | The Pirate Bay's own API (`Apibay`, `apibay.org/q.php`), asked beside Torrentio on every search; its results merge with Prowlarr's by info hash, and the merge keeps the strongest standing from any copy. Prowlarr's TPB definition drops the status (every result reads `indexerFlags: ["freeleech"]`) |
+| `💚 Official YTS release` | the YTS indexer, through Prowlarr or Torrentio |
+| `🏷️ AMIABLE release` | a short built-in list of known release groups, read from the name |
+| `🌱 Well seeded (104 seeding, 15 leeching) · 8 year(s) old`, `🌿 Some seeders`, `🥀 Few/No seeders` | seeders, and Prowlarr's or apibay's leechers and date (now parsed) |
+| `⚠️ Looks like a cinema recording (HDCAM)`, `⚠️ Looks fake: 80 MB for 1080p`, `⚠️ Its name mentions a program (.exe)` / `a password` | red flags from the name and size; a flagged result is listed after the others, before the cap of eight |
+
+Once a torrent is prepared, a program among its files (`.exe`, `.scr`, `.msi` …) is named in the
+result toast ("⚠️ It also holds 1 program(s) (…); only its video is played"); its video still plays.
+A 1337x result with no magnet has no info hash until chosen, so it reads `❔ Uploader unknown`.
+The trail logs `trust of N result(s) …: uploaders VIP=…; K flagged and sorted down: …` per update and
+`apibay "<query>" -> N result(s) … [uploaders: …]` per search. Measured on the emulator
+(2026-10-30, "night of the living dead 1968"): apibay answered in 395 ms with 48 results, and all 48
+Pirate Bay results took a standing (24 VIP, 9 trusted, 15 member).
 
 ## Speed (measured 2026-10-08, emulator against the Pi)
 

@@ -563,6 +563,7 @@ internal fun TorrentHitRow(
         supportingContent = {
             Column {
                 hit.subtitle?.let { Text(it) }
+                if (hit.trust.isNotEmpty()) TrustChips(hit.trust)
                 soundOnly?.let {
                     Text(
                         stringResource(R.string.torrent_sound_only_on_tv, it),

@@ -57,6 +57,10 @@ private fun JsonObject.toResult(): TorrentResult? {
         seeders = this["seeders"]?.jsonPrimitive?.intOrNull ?: 0,
         sizeBytes = this["size"]?.jsonPrimitive?.longOrNull ?: 0,
         indexer = this["indexer"]?.jsonPrimitive?.contentOrNull,
+        leechers = this["leechers"]?.jsonPrimitive?.intOrNull,
+        publishedAt = this["publishDate"]?.jsonPrimitive?.contentOrNull
+            ?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() },
+        fileCount = this["files"]?.jsonPrimitive?.intOrNull,
     )
 }
 
