@@ -69,6 +69,7 @@ import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.Torrentio
+import com.dewijones92.totum.data.torrent.TorrentsSeen
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
@@ -322,6 +323,7 @@ interface AppContainer {
     /** Adds a torrent to the home server and turns it into queue items; null when unconfigured. */
     val homeTorrentServer: HomeTorrentServer?
     val torrentSubtitles: TorrentSidecarSubtitles?
+    val torrentsSeen: TorrentsSeen?
 
     /** Whether automatic downloads may run on the current connection — see the implementation. */
     fun autoDownloadAllowedNow(): Boolean
@@ -699,6 +701,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * therefore a property of the HTTP client rather than something this class knows about.
      */
     override val homeTorrentServer: HomeTorrentServer? by lazy { homeTorrentServerOf(appPreferences, httpClient) }
+    override val torrentsSeen: TorrentsSeen? by lazy { TorrentsSeen(File(context.filesDir, "torrents-seen.json")) }
+
     override val torrentSubtitles: TorrentSidecarSubtitles? by lazy {
         homeTorrentServer?.let(
             ::TorrentSidecarSubtitles

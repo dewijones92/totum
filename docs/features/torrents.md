@@ -62,6 +62,31 @@ The trail logs `trust of N result(s) …: uploaders VIP=…; K flagged and sorte
 (2026-10-30, "night of the living dead 1968"): apibay answered in 395 ms with 48 results, and all 48
 Pirate Bay results took a standing (24 VIP, 9 trusted, 15 member).
 
+## What you've watched, and quality (2026-10-30)
+
+Dewi: *"Have I viewed some of the video before … multiple videos in a folder. Have I viewed one? Am I
+half in the middle of one? … I trust you."* (The choices below are Claude's, on that delegation.)
+
+- **Progress on every result** (`TorrentProgress.chips`, read per row through `LocalTorrentProgress`):
+  a torrent file is the item `torrent:<info hash>:<file index>`, so its saved position is matched by
+  the result's hash: `✅ Watched`, `▶️ 34 of 96 min`, or for a pack `✅ 3 of 10 watched` and
+  `▶️ S01E04: 12 min in`. A different copy of something played (matched by the name's words up to
+  its year or episode, plus that) says `👀 You've played another copy of this`; that is how a 1337x
+  result, which has no hash until chosen, is still recognised.
+- **What has been opened is remembered** (`TorrentsSeen`, `files/torrents-seen.json`, the latest
+  500): hash, name and each playable file's label, written when a torrent is prepared, so a pack's
+  progress can name the episode and count the whole.
+- **Tapping resumes** (`TorrentProgress.resumeAt`, `PlaybackQueue.playAll(startAt)`): the queue is
+  the whole torrent in order as before, but play starts at the file in progress, else the first
+  unwatched after the last watched, else the first; logged as `starting at file N of M (…) — W
+  watched, S started`.
+- **The episode picker** marks each file `✅ watched` or `▶️ 12 min in` beside its download state.
+- **Quality chip** read from the name: resolution, source, codec, HDR / Dolby Vision, Atmos and
+  5.1/7.1, e.g. `🎞️ 4K · WEB · HEVC · Dolby Vision · Atmos · 5.1`.
+
+Seen on totum-api35 (2026-10-30): the YTS copy of a public-domain film read `▶️ 2 of 96 min` after
+two minutes' play, the 1337x copy of the same film `👀 You've played another copy of this`.
+
 ## Speed (measured 2026-10-08, emulator against the Pi)
 
 - **Search asks each indexer on its own, in parallel, and streams** (`ProwlarrSearch.updates`,

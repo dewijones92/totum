@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.search
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -55,5 +56,19 @@ class TorrentTrustChipsTest {
             useUnmergedTree = true
         ).assertExists()
         composeTestRule.onAllNodesWithTag(TORRENT_TRUST_TAG, useUnmergedTree = true).assertCountEquals(2)
+    }
+
+    @Test
+    fun aTorrentAlreadyWatchedSaysSoAboveItsTrustChips() {
+        composeTestRule.setContent {
+            TotumTheme {
+                CompositionLocalProvider(LocalTorrentProgress provides { listOf("▶️ 34 of 96 min") }) {
+                    TorrentHitRow(hit("Public Domain Film 1968 1080p", listOf("💚 VIP uploader")), onPlay = {})
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("▶️ 34 of 96 min", useUnmergedTree = true).assertExists()
+        composeTestRule.onNodeWithText("💚 VIP uploader", useUnmergedTree = true).assertExists()
     }
 }

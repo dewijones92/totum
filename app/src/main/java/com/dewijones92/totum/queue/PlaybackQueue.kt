@@ -62,7 +62,7 @@ import kotlin.random.Random
 // The queue's whole command surface (add/insert/remove/reorder/jump/advance), each a
 // small operation over one list plus a cursor. Splitting it would scatter the single
 // owner of queue order, which is the point of the class.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class PlaybackQueue(
     private val controller: PlaybackController,
     private val launcher: VideoPlaybackLauncher,
@@ -312,13 +312,19 @@ class PlaybackQueue(
      * first. Deliberately does not replace the queue — an unwanted run is one
      * "remove these" away, whereas a replaced queue is gone. No-op if empty.
      */
-    fun playAll(items: List<PlayableItem>, group: QueueGroup? = null, byYou: Boolean = true) {
+    fun playAll(
+        items: List<PlayableItem>,
+        group: QueueGroup? = null,
+        byYou: Boolean = true,
+        startAt: MediaItemId? = null,
+    ) {
         if (items.isEmpty()) return
         // Distinct within the run as well as against the queue: a caller can legitimately hand
         // over a list with repeats (a feed showing the same video twice), and re-opening the
         // shorts reel hands over the whole run again every time.
         val run = items.distinctBy { it.item.id }
         val ids = run.map { it.item.id }.toSet()
+        val start = run.firstOrNull { it.item.id == startAt } ?: run.first()
         var index = NOTHING_PLAYING
         mutate("play-all(${run.size})") { snapshot ->
             // The playing item is refreshed in place and NOT re-inserted. It is exempt from the
@@ -333,9 +339,9 @@ class PlaybackQueue(
                 .let { now -> if (group != null && playing in ids) now.regrouping(playing, group) else now }
                 // Where the run's first item ACTUALLY ended up, rather than assuming it was
                 // inserted after the cursor: it may be the entry the cursor is already on.
-                .also { now -> index = now.entries.indexOfFirst { it.item.item.id == run.first().item.id } }
+                .also { now -> index = now.entries.indexOfFirst { it.item.item.id == start.item.id } }
         }
-        scope.launch { if (playAt(index) && byYou) pictureOffers.started(run.first(), "play all") }
+        scope.launch { if (playAt(index) && byYou) pictureOffers.started(start, "play all") }
     }
 
     /**

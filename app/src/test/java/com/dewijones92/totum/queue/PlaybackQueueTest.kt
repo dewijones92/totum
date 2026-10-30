@@ -279,6 +279,17 @@ class PlaybackQueueTest {
         assertEquals(listOf("a", "b"), q.state.value.entries.map { it.item.item.id.value })
     }
 
+    @Test
+    fun `play all can start part-way through its run, keeping the run in order`() = runTest(dispatcher) {
+        val q = queue()
+
+        q.playAll(listOf(podcast("e1"), podcast("e2"), podcast("e3")), startAt = MediaItemId("e2"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("e1", "e2", "e3"), q.state.value.entries.map { it.item.item.id.value })
+        assertEquals("e2", q.state.value.current?.item?.item?.id?.value)
+    }
+
     /** A queue already polluted by the old behaviour repairs itself rather than staying broken. */
     @Test
     fun `a saved queue containing duplicates is repaired on load`() = runTest(dispatcher) {

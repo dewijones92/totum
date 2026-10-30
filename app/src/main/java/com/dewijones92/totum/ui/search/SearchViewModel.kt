@@ -19,14 +19,19 @@ import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.asSection
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.PreparedTorrent
+import com.dewijones92.totum.data.torrent.SeenTorrent
 import com.dewijones92.totum.data.torrent.TorrentEpisodes
 import com.dewijones92.totum.data.torrent.TorrentPlayables
+import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.TorrentTrust
+import com.dewijones92.totum.data.torrent.TorrentsSeen
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.downloads.EpisodeDownloads
@@ -51,6 +56,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
@@ -66,13 +72,21 @@ class TorrentServices(
     val search: SearchSource,
     val server: HomeTorrentServer,
     val subtitles: TorrentSidecarSubtitles? = null,
+    val seen: TorrentsSeen? = null,
+    val playStates: suspend () -> Map<MediaItemId, PlayState> = { emptyMap() },
 ) {
     companion object {
         /** Null unless BOTH are configured, so a half-set-up server is absent rather than odd. */
         fun from(container: AppContainer): TorrentServices? {
             val search = container.torrentSearchSource ?: return null
             val server = container.homeTorrentServer ?: return null
-            return TorrentServices(search, server, container.torrentSubtitles)
+            return TorrentServices(
+                search,
+                server,
+                container.torrentSubtitles,
+                container.torrentsSeen,
+                playStates = { container.playbackProgressStore.observeStates().first() },
+            )
         }
     }
 }
@@ -191,6 +205,13 @@ class SearchViewModel(
 
     init {
         viewModelScope.launch { searched.collect { results.value = it } }
+    }
+
+    val torrentsSeen: StateFlow<Map<String, SeenTorrent>> =
+        torrents?.seen?.records ?: MutableStateFlow(emptyMap())
+
+    init {
+        torrents?.seen?.let { seen -> viewModelScope.launch { seen.load() } }
     }
 
     val uiState: StateFlow<UiState> = combine(
@@ -380,7 +401,10 @@ class SearchViewModel(
         var prepared: PreparedTorrent? = null
         var items: List<PlayableItem> = emptyList()
         operations.tracking("torrent:${hit.link.hashCode()}", OperationKind.PREPARE_TORRENT, hit.title) {
-            prepared = server.prepare(hit.link)?.also { torrents?.subtitles?.remember(it) }
+            prepared = server.prepare(hit.link)?.also {
+                torrents?.subtitles?.remember(it)
+                torrents?.seen?.remember(it)
+            }
             items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
             val warning = prepared?.let { TorrentTrust.filesWarning(it.files) }
             warning?.let { Diag.warn("search", "\"${hit.title}\": $it") }
@@ -408,7 +432,17 @@ class SearchViewModel(
                 launch { server.warmVideo(prepared, first) }
                 launch { server.warmAudio(server.audioStream(prepared, first)) }
             }
-            queue.playAll(items, QueueGroup(id = prepared.hash, title = prepared.name))
+            val states = torrents?.playStates?.invoke().orEmpty()
+            val startAt = TorrentProgress.resumeAt(items.map { it.item.id }, states)
+            val first = items.indexOfFirst { it.item.id == startAt }
+            Diag.log(
+                "search",
+                "\"${hit.title}\": starting at file ${first + 1} of ${items.size} " +
+                    "(\"${items.getOrNull(first)?.item?.title}\") — " +
+                    "${items.count { states[it.item.id]?.isPlayed == true }} watched, " +
+                    "${items.count { states[it.item.id] is PlayState.InProgress }} started",
+            )
+            queue.playAll(items, QueueGroup(id = prepared.hash, title = prepared.name), startAt = startAt)
             playAttempt.value = PlayAttempt()
         }
     }

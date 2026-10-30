@@ -34,7 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +55,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.map
 import com.dewijones92.totum.data.search.toSource
+import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
@@ -67,6 +70,7 @@ import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LocalOpenSource
+import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -101,36 +105,46 @@ fun SearchScreen(
     var browsingChannel by rememberSaveable(stateSaver = VideoChannelSaver) {
         mutableStateOf<MediaSource.VideoChannel?>(null)
     }
+    val seen by viewModel.torrentsSeen.collectAsStateWithLifecycle()
+    val plays = LocalPlayStates.current
+    val progressOf = remember(seen, plays) {
+        {
+                hit: SearchHit.Torrent ->
+            TorrentProgress.chips(hit.title, hit.link, plays.value, seen)
+        }
+    }
     ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {
-        SearchContent(
-            state = state,
-            onSearch = viewModel::search,
-            onQueryChange = viewModel::onQueryChange,
-            onSubscribe = viewModel::subscribe,
-            onPlayVideo = viewModel::playVideo,
-            onPlaySong = viewModel::playSong,
-            onPlayTorrent = viewModel::playTorrent,
-            onDownloadTorrent = viewModel::downloadTorrent,
-            onRemoveHistory = viewModel::removeHistory,
-            onClearHistory = viewModel::clearHistory,
-            actions = actions,
-            more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
-            onGoToChannel = { item ->
-                actions.goToSource(item) { source ->
-                    (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
-                }
-            },
-            modifier = modifier,
-            header = SearchHeader(
-                title,
-                onBack,
-                viewModel.lastQuery,
-                hint = stringResource(
-                    if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint
+        CompositionLocalProvider(LocalTorrentProgress provides progressOf) {
+            SearchContent(
+                state = state,
+                onSearch = viewModel::search,
+                onQueryChange = viewModel::onQueryChange,
+                onSubscribe = viewModel::subscribe,
+                onPlayVideo = viewModel::playVideo,
+                onPlaySong = viewModel::playSong,
+                onPlayTorrent = viewModel::playTorrent,
+                onDownloadTorrent = viewModel::downloadTorrent,
+                onRemoveHistory = viewModel::removeHistory,
+                onClearHistory = viewModel::clearHistory,
+                actions = actions,
+                more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
+                onGoToChannel = { item ->
+                    actions.goToSource(item) { source ->
+                        (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
+                    }
+                },
+                modifier = modifier,
+                header = SearchHeader(
+                    title,
+                    onBack,
+                    viewModel.lastQuery,
+                    hint = stringResource(
+                        if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint
+                    ),
                 ),
-            ),
-            idle = idle,
-        )
+                idle = idle,
+            )
+        }
     }) { channel ->
         ChannelFromSearch(container, channel, onBack = { browsingChannel = null }, modifier)
     }
@@ -558,12 +572,13 @@ internal fun TorrentHitRow(
 ) {
     val casting = LocalScreenControl.current?.castDevice?.collectAsStateWithLifecycle()?.value
     val soundOnly = casting?.let { soundOnlyOnTheTvByName(hit.title) }
+    val progress = LocalTorrentProgress.current(hit)
     ListItem(
         headlineContent = { Text(hit.title) },
         supportingContent = {
             Column {
                 hit.subtitle?.let { Text(it) }
-                if (hit.trust.isNotEmpty()) TrustChips(hit.trust)
+                if (progress.isNotEmpty() || hit.trust.isNotEmpty()) TrustChips(progress + hit.trust)
                 soundOnly?.let {
                     Text(
                         stringResource(R.string.torrent_sound_only_on_tv, it),
@@ -593,5 +608,7 @@ internal fun TorrentHitRow(
         modifier = modifier.clickable(onClick = onPlay),
     )
 }
+
+internal val LocalTorrentProgress = compositionLocalOf<(SearchHit.Torrent) -> List<String>> { { emptyList() } }
 
 internal const val TORRENT_SOUND_ONLY_TAG = "torrent-sound-only"

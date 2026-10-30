@@ -984,6 +984,8 @@
     <string name="episodes_state_on_phone">✅ on the phone</string>
     <string name="episodes_state_downloading">⏳ downloading</string>
     <string name="episodes_state_failed">❌ failed</string>
+    <string name="episodes_state_watched">✅ watched</string>
+    <string name="episodes_state_started">▶️ %1$d min in</string>
     <string name="queue_group_download_pick">⬇️ Choose episodes to download…</string>
     <string name="torrent_download_episodes">Download episodes</string>
     <string name="torrent_sound_only_on_tv">🔊 Sound only on the TV (%1$s)</string>

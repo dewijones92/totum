@@ -105,4 +105,14 @@ class TorrentTrustTest {
         )
         assertNull(TorrentTrust.filesWarning(files.take(2)))
     }
+
+    @Test
+    fun `the quality is read from the name`() {
+        assertEquals("🎞️ 1080p · BluRay · H.264", TorrentTrust.of(result(), now).quality)
+        assertEquals(
+            "4K · WEB · HEVC · Dolby Vision · Atmos · 5.1",
+            TorrentTrust.qualityOf("Some Film 2026 2160p WEB-DL DDP5.1 Atmos DV HEVC-GROUP"),
+        )
+        assertNull(TorrentTrust.qualityOf("Some Film 2026"))
+    }
 }

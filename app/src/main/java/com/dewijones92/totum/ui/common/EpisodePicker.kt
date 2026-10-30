@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.startsTicked
 import com.dewijones92.totum.settings.DownloadChoice
@@ -42,6 +43,7 @@ internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManage
         mutableStateOf(current.items.filter { startsTicked(it, known[it.item.id], choice) }.map { it.item.id }.toSet())
     }
     val onPhone = current.items.count { known[it.item.id] is DownloadState.Downloaded }
+    val plays = LocalPlayStates.current
     AlertDialog(
         onDismissRequest = episodes::dismiss,
         modifier = Modifier.testTag(EPISODE_PICKER_TAG),
@@ -59,7 +61,8 @@ internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManage
                 LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
                     items(current.items, key = { it.item.id.value }) { item ->
                         val id = item.item.id
-                        val note = stateNote(known[id])
+                        val note = listOfNotNull(stateNote(known[id]), playNote(plays.value[id]))
+                            .joinToString(" · ").ifEmpty { null }
                         LabelledCheckbox(
                             id in ticked,
                             if (note == null) item.item.title else "${item.item.title} · $note"
@@ -112,4 +115,12 @@ private fun stateNote(state: DownloadState?): String? = when (state) {
     else -> null
 }
 
+@Composable
+private fun playNote(state: PlayState?): String? = when (state) {
+    is PlayState.Played -> stringResource(R.string.episodes_state_watched)
+    is PlayState.InProgress -> stringResource(R.string.episodes_state_started, state.positionMs / MS_PER_MINUTE)
+    else -> null
+}
+
+private const val MS_PER_MINUTE = 60_000L
 private val LIST_MAX_HEIGHT = 320.dp
