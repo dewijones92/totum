@@ -102,4 +102,33 @@ class TorrentProgressTest {
         assertEquals("some show s01e02", TorrentProgress.keyOf("Some Show S01E02 720p WEB"))
         assertEquals(null, TorrentProgress.keyOf("1080p only"))
     }
+
+    @Test
+    fun `a pack opened before this build, one episode played, is not called watched`() {
+        val states = mapOf(id(3) to PlayState.Played)
+        assertEquals(listOf("✅ 1 watched"), TorrentProgress.chips("Show S01", magnet, states, emptyMap()))
+    }
+
+    @Test
+    fun `the chip names the same file the tap would resume`() {
+        val states = mapOf(id(3) to PlayState.InProgress(60_000L, null), id(1) to PlayState.InProgress(120_000L, null))
+        assertEquals(
+            listOf("▶️ S01E02: 2 min in"),
+            TorrentProgress.chips("Show S01", magnet, states, mapOf(hash to pack()))
+        )
+    }
+
+    @Test
+    fun `under a minute in says so`() {
+        val film = mapOf(hash to pack(name = "Film 1968", files = 1))
+        assertEquals(
+            listOf("▶️ under a minute of 96 min"),
+            TorrentProgress.chips(
+                "Film 1968",
+                magnet,
+                mapOf(id(0) to PlayState.InProgress(20_000L, 96 * 60_000L)),
+                film
+            ),
+        )
+    }
 }

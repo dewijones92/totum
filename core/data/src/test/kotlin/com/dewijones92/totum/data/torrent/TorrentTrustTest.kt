@@ -115,4 +115,43 @@ class TorrentTrustTest {
         )
         assertNull(TorrentTrust.qualityOf("Some Film 2026"))
     }
+
+    @Test
+    fun `words that are part of a film's own title raise no flag`() {
+        listOf(
+            "The Bat 1959 1080p BluRay x264",
+            "Hall Pass 2011 1080p BluRay",
+            "Cam 2018 1080p WEB",
+            "The Pass 2016 720p",
+        ).forEach { title ->
+            assertFalse(
+                title,
+                TorrentTrust.of(result(title = title, sizeBytes = 2_000_000_000), now).flagged
+            )
+        }
+        assertTrue(TorrentTrust.of(result(title = "Some Film 2026 1080p setup.exe"), now).flagged)
+        assertTrue(TorrentTrust.of(result(title = "Some Film 2026 HDCAM x264"), now).flagged)
+    }
+
+    @Test
+    fun `a single episode is not too small at a size an episode really is`() {
+        assertFalse(
+            TorrentTrust.of(result(title = "Some Show S01E01 1080p x265-MeGusta", sizeBytes = 250_000_000), now).flagged
+        )
+        assertFalse(
+            TorrentTrust.of(result(title = "Film 1968 4K Restoration 1080p", sizeBytes = 900_000_000), now).flagged
+        )
+    }
+
+    @Test
+    fun `a release group is read from the release's tag, not from a word of the title`() {
+        assertNull(TorrentTrust.groupOf("Winter's Bone 2010 1080p BluRay x264"))
+        assertNull(TorrentTrust.groupOf("Aeon Flux 2005 720p BluRay"))
+        assertEquals("FLUX", TorrentTrust.groupOf("Some Film 2024 1080p WEB-DL DDP5.1 H.264-FLUX"))
+    }
+
+    @Test
+    fun `a word of the title is not read as the source`() {
+        assertEquals("DVD", TorrentTrust.qualityOf("Charlotte's Web 1973 DVDRip"))
+    }
 }

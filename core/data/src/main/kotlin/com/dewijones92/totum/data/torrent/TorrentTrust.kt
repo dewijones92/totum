@@ -71,31 +71,27 @@ public data class TorrentTrust(
         }
 
         internal fun flagsOf(result: TorrentResult): List<String> = buildList {
-            val words = result.title.split(SEPARATORS).filter { it.isNotEmpty() }
-            words.firstOrNull { it.uppercase() in CAMERA_COPIES }?.let {
-                add("⚠️ Looks like a cinema recording ($it)")
-            }
-            words.firstOrNull { it.lowercase() in PROGRAMS }?.let { add("⚠️ Its name mentions a program (.$it)") }
-            if (PASSWORD.containsMatchIn(result.title)) add("⚠️ Its name mentions a password")
+            val tail = ReleaseName(result.title).tail
+            tail.firstOrNull { it.uppercase() in CAMERA_COPIES }?.let { add("⚠️ Looks like a cinema recording ($it)") }
+            tail.firstOrNull { it.lowercase() in TITLE_PROGRAMS }?.let { add("⚠️ Its name mentions a program (.$it)") }
+            if (tail.any { it.lowercase() in PASSWORDS }) add("⚠️ Its name mentions a password")
             tooSmall(result)?.let(::add)
         }
 
         private fun tooSmall(result: TorrentResult): String? {
             if (result.sizeBytes <= 0) return null
-            val (quality, floor) = SMALLEST.entries.firstOrNull { (quality, _) ->
-                Regex("""\b$quality\b""", RegexOption.IGNORE_CASE).containsMatchIn(result.title)
-            }?.toPair() ?: return null
-            if (result.sizeBytes >= floor) return null
+            val name = ReleaseName(result.title)
+            val tail = name.tail.map(String::lowercase)
+            val (quality, floor) = SMALLEST.firstOrNull { (quality, _) -> quality.lowercase() in tail } ?: return null
+            val enough = if (name.singleEpisode) floor / EPISODE_SHARE else floor
+            if (result.sizeBytes >= enough) return null
             return "⚠️ Looks fake: ${result.sizeBytes / BYTES_PER_MB} MB for $quality"
         }
 
         internal fun qualityOf(title: String): String? {
-            val words = title.split(SEPARATORS).filter { it.isNotEmpty() }.map { it.lowercase() }
-            fun first(table: List<Pair<Set<String>, String>>) = table.firstOrNull { (names, _) ->
-                words.any {
-                    it in names
-                }
-            }?.second
+            val words = ReleaseName(title).tail.map(String::lowercase)
+            fun first(table: List<Pair<Set<String>, String>>) =
+                table.firstOrNull { (names, _) -> words.any { it in names } }?.second
             val audio = listOfNotNull(
                 first(listOf(setOf("atmos") to "Atmos")),
                 CHANNELS.find(title)?.value?.let { if (it.startsWith("7")) "7.1" else "5.1" },
@@ -105,14 +101,18 @@ public data class TorrentTrust(
         }
 
         internal fun groupOf(title: String): String? {
-            val words = title.split(SEPARATORS).filter { it.isNotEmpty() }
-            val tail = Regex("""-([A-Za-z0-9]+)\W*$""").find(title.trim())?.groupValues?.get(1)
-            return (listOfNotNull(tail) + words.reversed()).firstNotNullOfOrNull { word ->
-                KNOWN_GROUPS.firstOrNull { it.equals(word, ignoreCase = true) }
+            val tagged = listOfNotNull(GROUP_TAIL.find(title.trim())?.groupValues?.get(1)) +
+                BRACKETED.findAll(title).map { it.groupValues[1] }.toList().reversed()
+            return tagged.firstNotNullOfOrNull { word ->
+                KNOWN_GROUPS.firstOrNull {
+                    it.equals(
+                        word,
+                        ignoreCase = true
+                    )
+                }
             }
         }
 
-        private val SEPARATORS = Regex("""[\s.\-_\[\]()]+""")
         private val CHANNELS = Regex("""(?<![0-9])[57][. ]1(?![0-9])""")
         private val RESOLUTIONS = listOf(
             setOf("2160p", "4k", "uhd") to "4K",
@@ -138,15 +138,19 @@ public data class TorrentTrust(
             setOf("hdr", "hdr10", "hdr10+", "hdr10plus") to "HDR",
         )
         private val OFFICIAL_SITES = listOf("YTS")
-        private val CAMERA_COPIES = setOf("CAM", "CAMRIP", "HDCAM", "TS", "HDTS", "TELESYNC", "TELECINE", "HDTC", "TC")
-        private val PROGRAMS = setOf("exe", "scr", "msi", "bat", "cmd", "lnk", "apk")
-        private val PASSWORD = Regex("""\bpass(word)?\b""", RegexOption.IGNORE_CASE)
+        private val CAMERA_COPIES = setOf("CAM", "CAMRIP", "HDCAM", "TS", "HDTS", "TELESYNC", "HDTC", "TC")
+        private val PROGRAMS = setOf("exe", "scr", "msi", "bat", "cmd", "lnk", "apk", "vbs", "js", "ps1", "jar", "com")
+        private val TITLE_PROGRAMS = setOf("exe", "msi", "bat", "cmd", "lnk", "apk", "vbs", "ps1", "jar")
+        private val PASSWORDS = setOf("password", "passwd", "pass")
+        private val GROUP_TAIL = Regex("""-([A-Za-z0-9]+)\W*$""")
+        private val BRACKETED = Regex("""\[([A-Za-z0-9]+)]""")
+        private const val EPISODE_SHARE = 4
         private const val BYTES_PER_MB = 1_000_000L
-        private val SMALLEST = linkedMapOf(
+        private val SMALLEST = listOf(
             "2160p" to 1_000 * BYTES_PER_MB,
-            "4K" to 1_000 * BYTES_PER_MB,
             "1080p" to 300 * BYTES_PER_MB,
             "720p" to 150 * BYTES_PER_MB,
+            "4K" to 1_000 * BYTES_PER_MB,
         )
         private val KNOWN_GROUPS = listOf(
             "YTS", "YIFY", "RARBG", "EZTV", "EZTVx", "TGx", "SPARKS", "GECKOS", "AMIABLE", "FGT", "NTb", "NTG",

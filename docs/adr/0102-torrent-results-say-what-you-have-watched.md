@@ -31,11 +31,20 @@ a result said nothing about what had been played, and a tap always started at th
 - The episode picker shows each file's watched / started state.
 - A quality chip is read from the name (resolution, source, codec, HDR, audio).
 
+- Rows read a per-hash index of torrent progress built once in a `derivedStateOf`
+  (`TorrentProgress.indexOf`), not the whole play-state map, so another item's position save (every
+  5 s while anything plays) recomposes no torrent row (ADR 61); the seen names' title keys are
+  computed once per change of the seen records.
+- A pack with no record (opened before this build, or fallen out of the 500) is never called
+  "Watched" from one played file: it reads "✅ 1 watched". The chip names the lowest-numbered file in
+  progress, the same one a tap resumes; under a minute in reads "under a minute". A tap warms the file
+  it will play, not the first.
+
 ## Consequences
 
 - A result never played on this phone but watched elsewhere says nothing (torrent positions are not
   synced to any account).
 - The "another copy" match is by name, so two different films sharing a title and year would match;
   it says "another copy", never "watched".
-- Tests: `TorrentProgressTest` (7), `TorrentsSeenTest` (3), the quality case in `TorrentTrustTest`,
+- Tests: `TorrentProgressTest` (10), `TorrentsSeenTest` (3), the quality case in `TorrentTrustTest`,
   `PlaybackQueueTest` (start part-way), `TorrentTrustChipsTest` on the device.

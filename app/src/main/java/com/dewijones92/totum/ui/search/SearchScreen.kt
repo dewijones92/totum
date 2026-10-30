@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,10 +108,12 @@ fun SearchScreen(
     }
     val seen by viewModel.torrentsSeen.collectAsStateWithLifecycle()
     val plays = LocalPlayStates.current
-    val progressOf = remember(seen, plays) {
+    val played by remember(plays) { derivedStateOf { TorrentProgress.indexOf(plays.value) } }
+    val seenKeys = remember(seen) { TorrentProgress.keysOf(seen) }
+    val progressOf = remember(seen, seenKeys, played) {
         {
                 hit: SearchHit.Torrent ->
-            TorrentProgress.chips(hit.title, hit.link, plays.value, seen)
+            TorrentProgress.chips(hit.title, hit.link, played, seen, seenKeys)
         }
     }
     ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {

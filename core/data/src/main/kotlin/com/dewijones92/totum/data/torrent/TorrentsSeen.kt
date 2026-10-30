@@ -54,7 +54,6 @@ public class TorrentsSeen(
 
     private suspend fun loadOnce() {
         if (loaded) return
-        loaded = true
         all.value = withContext(Dispatchers.IO) {
             runCatching {
                 if (!file.exists()) {
@@ -67,6 +66,7 @@ public class TorrentsSeen(
                 emptyList()
             }
         }.associateBy { it.hash }
+        loaded = true
         Diag.log("torrent", "torrents seen: ${all.value.size} loaded")
     }
 

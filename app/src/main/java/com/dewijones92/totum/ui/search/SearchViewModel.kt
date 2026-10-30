@@ -428,13 +428,14 @@ class SearchViewModel(
             // first HLS segment takes ~25s while ffmpeg waits on the swarm, so if this is left
             // until Listen is pressed it is 25 seconds of spinner; started here it overlaps the
             // queueing and the video that plays first.
-            TorrentEpisodes.playableInOrder(prepared!!.files).firstOrNull()?.let { first ->
-                launch { server.warmVideo(prepared, first) }
-                launch { server.warmAudio(server.audioStream(prepared, first)) }
-            }
             val states = torrents?.playStates?.invoke().orEmpty()
             val startAt = TorrentProgress.resumeAt(items.map { it.item.id }, states)
             val first = items.indexOfFirst { it.item.id == startAt }
+            val playable = TorrentEpisodes.playableInOrder(prepared!!.files)
+            (playable.getOrNull(first) ?: playable.firstOrNull())?.let { file ->
+                launch { server.warmVideo(prepared, file) }
+                launch { server.warmAudio(server.audioStream(prepared, file)) }
+            }
             Diag.log(
                 "search",
                 "\"${hit.title}\": starting at file ${first + 1} of ${items.size} " +

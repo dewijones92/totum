@@ -31,7 +31,16 @@ flagged results marked and sorted down, and the phone asking apibay itself (no P
   (YTS counts as official), release group, health. `TorrentSearchSource` lists flagged results after
   the rest **before** the cap, and logs the standings and what it sorted down.
 - After preparing, `TorrentTrust.filesWarning` names any program among the files in the result toast
-  (`OperationEnd.Done.note`).
+  (`OperationEnd.Done.note`), **first**, since Android 12+ shows a text toast's first two lines only.
+- **Flags, quality and the release group are read from the release's tail** (`ReleaseName`: the
+  words from the first year, episode or quality marker on), never from the title itself: the batch
+  review found "The Bat (1959)" flagged as a `.bat`, "Hall Pass" as a password, "Cam (2018)" as a
+  cinema copy, "Winter's Bone" as a BONE release and "Charlotte's Web" as a WEB source. The group
+  comes only from a `-GROUP` tail or a `[GROUP]` tag. A single episode (`SxxEyy`) has a quarter of
+  the size floor, and an explicit `1080p` beats a "4K" mention. Telecine is not a flag (silent-film
+  transfers say it).
+- The merge keeps a magnet that carries trackers (`&tr=`) over one that does not (apibay's), whichever
+  copy has more seeders.
 
 ## Consequences
 

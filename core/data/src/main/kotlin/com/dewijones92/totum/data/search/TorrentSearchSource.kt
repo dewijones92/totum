@@ -38,7 +38,8 @@ public class TorrentSearchSource(
 
     private fun TorrentSearchResult.asOutcome(limit: Int): SearchOutcome = when (this) {
         is TorrentSearchResult.Failure -> SearchOutcome.Failure(detail, slow)
-        is TorrentSearchResult.Success -> SearchOutcome.Success(Page.last(results.toHits(limit)), stillWaitingFor)
+        is TorrentSearchResult.Success ->
+            SearchOutcome.Success(Page.last(results.toHits(limit, final = stillWaitingFor.isEmpty())), stillWaitingFor)
     }
 
     /**
@@ -49,14 +50,14 @@ public class TorrentSearchSource(
      * decision, so it lives with the other presentation decisions instead of being re-derived by
      * every implementation of the port.
      */
-    private fun List<TorrentResult>.toHits(limit: Int): List<SearchHit> {
+    private fun List<TorrentResult>.toHits(limit: Int, final: Boolean): List<SearchHit> {
         val judged = map { it to TorrentTrust.of(it, now()) }
         val shown = judged.sortedWith(
             compareBy<Pair<TorrentResult, TorrentTrust>> { it.second.flagged }
                 .thenByDescending { it.first.seeders }
         )
             .take(limit)
-        logTrust(judged, shown)
+        if (final) logTrust(judged, shown)
         return shown.map { (torrent, trust) ->
             SearchHit.Torrent(
                 title = torrent.title,

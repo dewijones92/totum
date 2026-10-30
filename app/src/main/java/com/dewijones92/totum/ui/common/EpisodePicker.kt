@@ -12,6 +12,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +62,8 @@ internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManage
                 LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
                     items(current.items, key = { it.item.id.value }) { item ->
                         val id = item.item.id
-                        val note = listOfNotNull(stateNote(known[id]), playNote(plays.value[id]))
+                        val played by remember(plays, id) { derivedStateOf { plays.value[id] } }
+                        val note = listOfNotNull(stateNote(known[id]), playNote(played))
                             .joinToString(" · ").ifEmpty { null }
                         LabelledCheckbox(
                             id in ticked,

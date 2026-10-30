@@ -133,12 +133,12 @@ fun OperationResultToasts(operations: Operations) {
 }
 
 fun resultText(context: Context, ended: Ended): String = when (val end = ended.end) {
-    is OperationEnd.Done -> context.resources.getQuantityString(
+    is OperationEnd.Done -> end.note?.let { "$it\n" }.orEmpty() + context.resources.getQuantityString(
         doneText(ended.kind, end.partial),
         end.count,
         end.count,
         ended.subject,
-    ) + end.note?.let { "\n$it" }.orEmpty()
+    )
     OperationEnd.Nothing -> context.getString(R.string.ops_nothing, ended.subject)
     is OperationEnd.Failed -> context.getString(R.string.ops_failed, ended.subject, end.why)
     is OperationEnd.Cancelled ->

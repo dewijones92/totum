@@ -83,6 +83,10 @@ half in the middle of one? … I trust you."* (The choices below are Claude's, o
 - **The episode picker** marks each file `✅ watched` or `▶️ 12 min in` beside its download state.
 - **Quality chip** read from the name: resolution, source, codec, HDR / Dolby Vision, Atmos and
   5.1/7.1, e.g. `🎞️ 4K · WEB · HEVC · Dolby Vision · Atmos · 5.1`.
+- Red flags, quality and the release group are read only from the release's tail (after the year,
+  episode or quality marker), so a title's own words ("The Bat", "Hall Pass", "Cam", "Charlotte's
+  Web") raise nothing; a single episode's size floor is a quarter of a film's (ADR 101, after the
+  batch review).
 
 Seen on totum-api35 (2026-10-30): the YTS copy of a public-domain film read `▶️ 2 of 96 min` after
 two minutes' play, the 1337x copy of the same film `👀 You've played another copy of this`.

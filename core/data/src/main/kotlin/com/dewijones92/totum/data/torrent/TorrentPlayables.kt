@@ -1,7 +1,6 @@
 package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.domain.MediaItem
-import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
@@ -38,7 +37,7 @@ public object TorrentPlayables {
                 item = MediaItem(
                     // The hash and file index together, so the same episode is the same item
                     // across restarts — which is what lets play-position and history work.
-                    id = MediaItemId("torrent:${torrent.hash}:${file.index}"),
+                    id = TorrentProgress.itemId(torrent.hash, file.index),
                     sourceId = SOURCE,
                     title = titleFor(torrent, file),
                     publishedAt = null,
