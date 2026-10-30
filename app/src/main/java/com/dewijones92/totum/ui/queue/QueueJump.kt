@@ -25,18 +25,10 @@ import com.dewijones92.totum.data.queue.QueueSnapshot
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-internal fun estimatedListIndex(entries: List<QueueEntry>, target: Int, collapsed: Set<String>): Int {
-    var items = 0
-    val seen = mutableSetOf<String>()
-    for ((at, entry) in entries.withIndex()) {
-        val group = entry.group?.id
-        val startsRun = group != null && entries.getOrNull(at - 1)?.group?.id != group
-        val firstRun = group != null && seen.add(group)
-        if (startsRun && (group !in collapsed || firstRun)) items++
-        if (at == target) return items
-        if (group == null || group !in collapsed) items++
-    }
-    return items
+internal fun playingRowIndex(entries: List<QueueEntry>, target: Int, collapsed: Set<String>): Int {
+    val row = queueRows(entries, collapsed, dragging = false)
+        .indexOfFirst { it is QueueRowSpec.Entry && it.index == target }
+    return ROWS_ABOVE_THE_QUEUE + row.coerceAtLeast(0)
 }
 
 private fun LazyListState.isFullyShown(key: Any): Boolean {
@@ -47,18 +39,18 @@ private fun LazyListState.isFullyShown(key: Any): Boolean {
 internal fun toggledAll(groups: Set<String>, collapsed: Set<String>): Set<String> =
     if (groups.all { it in collapsed }) collapsed - groups else collapsed + groups
 
-internal suspend fun LazyListState.jumpTo(estimate: Int, key: Any, why: String, onlyIfHidden: Boolean = false) {
+internal suspend fun LazyListState.jumpTo(row: Int, key: Any, why: String, onlyIfHidden: Boolean = false) {
     if (onlyIfHidden && isFullyShown(key)) {
         Diag.log("queue", "the playing item is already on screen ($why); not scrolling")
         return
     }
-    scrollToItem(estimate.coerceAtLeast(0))
+    scrollToItem(row.coerceAtLeast(0))
     val exact = layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
     if (exact != null) scrollToItem(exact)
     Diag.log(
         "queue",
-        "jumped to the playing item ($why): estimate $estimate, " +
-            (exact?.let { "found at $it" } ?: "not on screen after the estimate"),
+        "jumped to the playing item ($why): row $row, " +
+            (exact?.let { "found at $it" } ?: "not on screen after scrolling there"),
     )
 }
 
@@ -81,7 +73,7 @@ internal fun rememberJumpToPlaying(
         }
         scope.launch {
             withFrameNanos { }
-            listState.jumpTo(estimatedListIndex(now, at, shown), entry.item.item.id.value, why, onlyIfHidden)
+            listState.jumpTo(playingRowIndex(now, at, shown), entry.item.item.id.value, why, onlyIfHidden)
         }
     }
     LaunchedEffect(Unit) {
@@ -110,5 +102,6 @@ internal fun CollapseAllButton(allCollapsed: Boolean, onClick: () -> Unit) {
     }
 }
 
+internal const val ROWS_ABOVE_THE_QUEUE = 1
 const val JUMP_TO_PLAYING_TAG = "queue-jump-to-playing"
 const val COLLAPSE_ALL_TAG = "queue-collapse-all"
