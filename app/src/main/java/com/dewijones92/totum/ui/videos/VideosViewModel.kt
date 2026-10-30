@@ -87,7 +87,7 @@ class VideosViewModel(
         val canLoadMore: Boolean = false,
         /** A further page is in flight — drives the footer spinner and blocks re-asking. */
         val loadingMore: Boolean = false,
-        val sort: MediaSort = MediaSort.DEFAULT,
+        val sort: MediaSort = FEED_DEFAULT_SORT,
     )
 
     sealed interface Subscribing {
@@ -106,7 +106,7 @@ class VideosViewModel(
     private val subscribing = MutableStateFlow<Subscribing>(Subscribing.Idle)
     private val resolving = MutableStateFlow<String?>(null)
     private val refreshing = MutableStateFlow(false)
-    private val sort = MutableStateFlow(MediaSort.DEFAULT)
+    private val sort = MutableStateFlow(FEED_DEFAULT_SORT)
 
     private data class FeedState(
         val selected: FeedChoice? = null,
@@ -116,6 +116,7 @@ class VideosViewModel(
         /** Where the next page starts; null once the feed has no more to give. */
         val next: PageToken? = null,
         val loadingMore: Boolean = false,
+        val waitingShorts: List<MediaItem> = emptyList(),
     )
 
     private val feedState = MutableStateFlow(FeedState())
@@ -279,12 +280,29 @@ class VideosViewModel(
             feedState.update { state ->
                 // Only if the user is still looking at the feed that asked. Otherwise the Shorts
                 // belong to a list nobody is showing any more.
-                if (state.selected != choice) {
-                    Diag.log("shorts", "dropping ${fetched.size} Short(s) — the feed changed while they loaded")
-                    state
-                } else {
-                    Diag.log("shorts", "threading ${fetched.size} Short(s) into ${choice.describe()}")
-                    state.copy(videos = interleaveShorts(state.videos, fetched))
+                val known = state.videos.mapTo(HashSet()) { it.id }
+                val fresh = fetched.filter { it.id !in known }
+                when {
+                    state.selected != choice -> {
+                        Diag.log("shorts", "dropping ${fetched.size} Short(s) — the feed changed while they loaded")
+                        state
+                    }
+                    state.next == null -> {
+                        Diag.log(
+                            "shorts",
+                            "adding ${fresh.size} Short(s) below the ${state.videos.size} row(s) of " +
+                                "${choice.describe()}: no more pages, and rows already loaded never move",
+                        )
+                        state.copy(videos = state.videos + fresh)
+                    }
+                    else -> {
+                        Diag.log(
+                            "shorts",
+                            "holding ${fresh.size} Short(s) for the next page of ${choice.describe()}, " +
+                                "so the ${state.videos.size} row(s) already loaded never move",
+                        )
+                        state.copy(waitingShorts = fresh)
+                    }
                 }
             }
         }
@@ -359,10 +377,15 @@ class VideosViewModel(
                     // in a LazyColumn key is a crash, not a cosmetic problem.
                     val existing = current.videos.map { it.id }.toSet()
                     val fresh = result.page.items.map { it.toMediaItem(feed) }.filter { it.id !in existing }
+                    val shorts = current.waitingShorts.filter { it.id !in existing }
+                    if (shorts.isNotEmpty()) {
+                        Diag.log("shorts", "threading ${shorts.size} held Short(s) into the new page of ${fresh.size}")
+                    }
                     current.copy(
-                        videos = current.videos + fresh,
+                        videos = current.videos + interleaveShorts(fresh, shorts),
                         next = result.page.next,
                         loadingMore = false,
+                        waitingShorts = emptyList(),
                     )
                 }
                 FeedResult.SignedOut -> {
@@ -466,3 +489,5 @@ class VideosViewModel(
         }
     }
 }
+
+internal val FEED_DEFAULT_SORT: MediaSort = MediaSort.AS_LISTED

@@ -3,10 +3,12 @@ title: Sort and filter
 kind: feature
 area: ui
 status: shipped
-updated: 2026-10-16
+updated: 2026-10-30
 ---
 
 # Sort and filter
+
+> ✅ **The Videos tab sorts "As listed" by default, 2026-10-30**, so a new page never re-sorts the rows already loaded. [ADR 98](../adr/0098-a-feed-never-moves-rows-already-loaded.md).
 
 One control on every list header (the sort icon, with a badge counting active filters) opens one sheet: **Sort by**
 (as listed, newest, oldest, added newest, added oldest, title A–Z, channel or show A–Z, longest, shortest) and **Show

@@ -214,6 +214,37 @@ class ShortsReachTheFeedTest {
         assertEquals(List(10) { "v$it" }, videos.map { it.id.value })
     }
 
+    @Test
+    fun `late shorts never move the rows already loaded, they go into the next page`() = runTest(dispatcher) {
+        feeds.results[AccountFeed.SUBSCRIPTIONS] =
+            FeedResult.Success(Page(List(10) { video("v$it") }, PageToken("p2")))
+        feeds.pages["p2"] = FeedResult.Success(Page.last(List(10) { video("w$it") }))
+        val model = viewModel()
+        backgroundScope.launch { model.uiState.collect {} }
+        advanceUntilIdle()
+        model.select(FeedChoice.Account(AccountFeed.SUBSCRIPTIONS))
+        advanceUntilIdle()
+
+        assertEquals(List(10) { "v$it" }, model.uiState.value.videos.map { it.id.value })
+
+        model.loadMore()
+        advanceUntilIdle()
+
+        val ids = model.uiState.value.videos.map { it.id.value }
+        assertEquals(List(10) { "v$it" }, ids.take(10))
+        assertTrue("the Shorts arrive with the next page: $ids", ids.drop(10).containsAll(listOf("s1", "s2")))
+        assertEquals(List(10) { "w$it" }, ids.drop(10).filter { it.startsWith("w") })
+    }
+
+    @Test
+    fun `with no more pages, late shorts are added at the bottom`() = runTest(dispatcher) {
+        val model = loadedFeed()
+        advanceUntilIdle()
+
+        val ids = model.uiState.value.videos.map { it.id.value }
+        assertEquals(List(10) { "v$it" } + listOf("s1", "s2"), ids)
+    }
+
     /** Off by default, so previews and every other feed test are unaffected by a second network. */
     @Test
     fun `without a shorts source the feed is exactly as before`() = runTest(dispatcher) {

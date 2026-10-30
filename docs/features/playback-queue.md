@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-23
+updated: 2026-10-30
 ---
 
 # Playback queue
@@ -116,11 +116,16 @@ See [current phone findings](../todos/playback-defects-0.1.601.md).
 
 Dewi asked for a button to scroll the queue to the playing item, and one to collapse every group. The header has
 ⌖ (jump), which also runs each time the Queue tab opens, and a collapse-all / expand-all toggle shown when the queue
-has groups. Jumping expands the playing item's group if it is collapsed, scrolls to its estimated position
-(`estimatedListIndex`: rows and group headers above it, collapsed groups counted as one header), then settles on
-the row by its key. The collapsed set now lives above the header, so the toggle and the list share it.
-Logged: `jumped to the playing item (…): estimate N, found at M`. Tests: `EstimatedListIndexTest`. Verified on
-`totum-api35` with a 12-item queue on item 10: the tab opened on "Now playing".
+has groups. Jumping expands the playing item's group if it is collapsed, scrolls to the row the list draws for it
+(`playingRowIndex`, taken from `queueRows` itself), then settles on the row by its key. The collapsed set now lives
+above the header, so the toggle and the list share it. Logged: `jumped to the playing item (…): row N, found at M`.
+
+> 🐛 **The jump missed in a long queue. Fixed 2026-10-30.** Report 20261030T080734-101ffbf8 (v0.1.755, 5,739 items):
+> *"when I press the target icon … it doesn't scroll down"*, logged `estimate 62, not on screen after the estimate`.
+> The estimate was a second copy of the list's layout that never learnt the "➕ Added by you" headings (ADR 62) or the
+> top spacer, so it fell one row short per ungrouped run above the playing item. It now comes from `queueRows`.
+> Tests: `PlayingRowIndexTest` (rows worked out by hand, seen red: row 0 for row 2) and `JumpToPlayingLandsOnItTest`
+> on the device (20 runs above the playing item: old code `estimate 99, not on screen`, now `row 121, found at 121`).
 
 ## A tap that cannot play says so (2026-10-15)
 

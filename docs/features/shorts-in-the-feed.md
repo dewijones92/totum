@@ -3,10 +3,12 @@ title: Shorts and live streams in the feed
 kind: feature
 status: shipped
 area: video
-updated: 2026-08-16
+updated: 2026-10-30
 ---
 
 # Shorts and live streams in the feed
+
+> ✅ **Late Shorts no longer move rows, 2026-10-30.** They wait for the next page and are threaded through it, or go at the bottom when there is none. [ADR 98](../adr/0098-a-feed-never-moves-rows-already-loaded.md).
 
 Dewi, 2026-08-16: *"I want YouTube Shorts, YouTube live streams, YouTube videos to be all treated
 the same … always displayed everywhere but just tagged."*

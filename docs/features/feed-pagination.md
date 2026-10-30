@@ -8,6 +8,8 @@ updated: 2026-10-30
 
 # Feeds no longer stop at page one
 
+> ✅ **Rows already loaded never move, 2026-10-30**: default sort As listed, late Shorts held for the next page, and a log line when rows on screen move. [ADR 98](../adr/0098-a-feed-never-moves-rows-already-loaded.md).
+
 > 🐛 **Subscriptions paged the wrong tab, and led with YouTube's picks. Fixed 2026-10-30.** The TV answer has one tab
 > per channel after "All"; taking the last token paged the last channel's old videos as page 2, and the feed ended at
 > 78 with 16 of the newest 100. Now the selected tab is paged and the "Most relevant" shelf is left out: 96 of 100

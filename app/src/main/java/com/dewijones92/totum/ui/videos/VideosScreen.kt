@@ -434,6 +434,7 @@ private fun ChannelsAndVideos(
         shown.size,
         onLoadMore,
     )
+    ReportRowsMovingOnScreen("videos", listState, shown)
     SelectableMediaList(
         "videos",
         state.videos,

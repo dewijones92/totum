@@ -157,6 +157,34 @@ class VideosPagingTest {
         assertTrue(model.uiState.value.canLoadMore)
     }
 
+    @Test
+    fun `a new page never moves the rows already loaded, with the default sort`() = runTest(dispatcher) {
+        feeds.results[AccountFeed.RECOMMENDED] = FeedResult.Success(
+            Page(
+                listOf(
+                    video("a", publishedText = "2 years ago"),
+                    video("live"),
+                    video("b", publishedText = "3 days ago"),
+                ),
+                PageToken("page-2"),
+            ),
+        )
+        feeds.pages["page-2"] = FeedResult.Success(
+            Page.last(listOf(video("c", publishedText = "1 hour ago"), video("d", publishedText = "5 years ago"))),
+        )
+
+        val model = viewModel()
+        backgroundScope.launch { model.uiState.collect {} }
+        model.select(FeedChoice.Account(AccountFeed.RECOMMENDED))
+        advanceUntilIdle()
+        val firstPage = model.uiState.value.videos.map { it.title }
+        model.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Video a", "Video live", "Video b"), firstPage)
+        assertEquals(firstPage + listOf("Video c", "Video d"), model.uiState.value.videos.map { it.title })
+    }
+
     /**
      * Scrolling down must not lose the facts under each title.
      *
