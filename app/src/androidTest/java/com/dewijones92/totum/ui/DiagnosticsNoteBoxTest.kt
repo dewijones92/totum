@@ -58,7 +58,9 @@ class DiagnosticsNoteBoxTest {
         // Two nodes read "Send diagnostics" now — the row behind and the dialog's button. The
         // dialog's is the last one added, and clicking the row would prove nothing.
         compose.onAllNodesWithText(SEND).onLast().performClick()
-        compose.waitForIdle()
+        compose.waitUntil(REPORT_WRITTEN_MS) {
+            compose.onAllNodesWithText(SAVED, substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
 
         val written = DiagnosticsStore.pending(context).firstOrNull { it !in before }
         assertTrue("tapping Send wrote no report", written != null)
@@ -81,5 +83,7 @@ class DiagnosticsNoteBoxTest {
     private companion object {
         const val SEND = "Send diagnostics"
         const val TYPED = "tapped the WarFronts video and it jumped to another one"
+        const val REPORT_WRITTEN_MS = 10_000L
+        const val SAVED = "Diagnostics saved"
     }
 }

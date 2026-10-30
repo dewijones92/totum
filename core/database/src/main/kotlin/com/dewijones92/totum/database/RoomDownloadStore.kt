@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -29,15 +30,15 @@ public class RoomDownloadStore(
 
     override fun observeAll(): Flow<Map<MediaItemId, DownloadState>> =
         dao.observeAll().map { rows -> rows.associate { MediaItemId(it.itemId) to it.toState() } }
-            .flowOn(Dispatchers.Default)
+            .flowOn(Dispatchers.Default).conflate()
 
     override fun observeDownloaded(): Flow<List<DownloadedMedia>> =
-        dao.observeAll().map { rows -> rows.mapNotNull { it.toDownloaded() } }.flowOn(Dispatchers.Default)
+        dao.observeAll().map { rows -> rows.mapNotNull { it.toDownloaded() } }.flowOn(Dispatchers.Default).conflate()
 
     override fun observeRecords(): Flow<List<DownloadRecord>> =
         dao.observeAll().map { rows ->
             rows.mapNotNull { row -> playlistItemFrom(row)?.let { DownloadRecord(it, row.toState()) } }
-        }.flowOn(Dispatchers.Default)
+        }.flowOn(Dispatchers.Default).conflate()
 
     override suspend fun get(id: MediaItemId): DownloadState =
         dao.get(id.value)?.toState() ?: DownloadState.NotDownloaded

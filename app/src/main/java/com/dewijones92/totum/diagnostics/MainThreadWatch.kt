@@ -19,7 +19,9 @@ internal class MainThreadWatch(
 
     fun start(application: Application) {
         application.registerActivityLifecycleCallbacks(this)
-        thread(name = "main-watch", isDaemon = true) { watch() }
+        thread(name = "main-watch", isDaemon = true) {
+            runCatching { watch() }.onFailure { Diag.warn("main", "the main-thread watch stopped", it) }
+        }
         Diag.log(
             "main",
             "watching the main thread while a screen is shown: " +

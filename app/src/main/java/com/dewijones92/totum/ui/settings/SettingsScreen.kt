@@ -46,6 +46,7 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -255,10 +256,12 @@ private fun ViewDiagnosticsRow(onOpen: () -> Unit) {
     }
 }
 
+private val diagnosticsSaving = MutableStateFlow(false)
+
 @Composable
 private fun DiagnosticsRow(container: AppContainer) {
     var sent by rememberSaveable { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
+    val saving by diagnosticsSaving.collectAsStateWithLifecycle()
     var asking by rememberSaveable { mutableStateOf(false) }
     val fallback = stringResource(R.string.settings_diagnostics_note)
 
@@ -266,20 +269,19 @@ private fun DiagnosticsRow(container: AppContainer) {
         DiagnosticsNoteDialog(
             onDismiss = { asking = false },
             onSend = { typed, screenshots ->
-                // The label says SAVED, not sent, and that is the whole point: this line runs
-                // before the upload coroutine has even started, so "Diagnostics sent" was a
+                // The label says SAVED, not sent, and that is the whole point: it is set once the
+                // report is written, before the upload has even started, so "Diagnostics sent" was a
                 // claim the app could not possibly have checked — and offline, or on a 5xx, it
                 // was simply false. What HAS happened by here is true and is what matters: the
                 // report is written to disk, and every launch retries it until the sink accepts
                 // it. Dewi has to be able to believe this row; it is the one he uses to tell us
                 // something is wrong.
                 asking = false
-                saving = true
+                diagnosticsSaving.value = true
                 container.applicationScope.launch {
-                    withContext(
-                        Dispatchers.IO
-                    ) { container.sendDiagnostics(diagnosticsNote(typed, fallback), screenshots) }
-                    saving = false
+                    val note = diagnosticsNote(typed, fallback)
+                    withContext(Dispatchers.IO) { container.sendDiagnostics(note, screenshots) }
+                    diagnosticsSaving.value = false
                     sent = true
                 }
             },

@@ -37,13 +37,14 @@ class MainThreadStallsTest {
         assertTrue(
             line,
             line.startsWith(
-                "the main thread stalled 2100ms; in 4 sample(s) it was 3× at android.os.BinderProxy.transactNative:7"
+                "the main thread stalled 2100ms; in 4 sample(s) it was " +
+                    "3× at android.os.BinderProxy.transactNative(F.kt:7)"
             )
         )
         assertTrue(
             line,
-            "QueueAutoDownloader.refused:7" in line &&
-                "1× at com.dewijones92.totum.ui.queue.QueueScreenKt.QueueRow:7" in line,
+            "QueueAutoDownloader.refused(F.kt:7)" in line &&
+                "1× at com.dewijones92.totum.ui.queue.QueueScreenKt.QueueRow(F.kt:7)" in line,
         )
         assertEquals("1", Vitals.snapshot()["main.stalls"])
         assertEquals("2100", Vitals.snapshot()["main.worstStallMs"])
@@ -59,7 +60,8 @@ class MainThreadStallsTest {
         assertEquals(1, lines.size)
         assertTrue(
             lines.single(),
-            "in 1 sample(s) it was 1× at com.dewijones92.totum.ui.queue.QueueScreenKt.QueueRow:7" in lines.single()
+            "in 1 sample(s) it was 1× at com.dewijones92.totum.ui.queue.QueueScreenKt.QueueRow(F.kt:7)" in
+                lines.single()
         )
         assertEquals("1", Vitals.snapshot()["main.stalls"])
     }
@@ -86,10 +88,31 @@ class MainThreadStallsTest {
     @Test
     fun `where keeps the top frame and the app's own frames below it, platform frames left out`() {
         assertEquals(
-            "android.os.BinderProxy.transactNative:7 < " +
-                "com.dewijones92.totum.playback.ActiveNetworkKt.activeNetworkIsMetered:7 < " +
-                "com.dewijones92.totum.queue.QueueAutoDownloader.refused:7",
+            "at android.os.BinderProxy.transactNative(F.kt:7) < " +
+                "at com.dewijones92.totum.playback.ActiveNetworkKt.activeNetworkIsMetered(F.kt:7) < " +
+                "at com.dewijones92.totum.queue.QueueAutoDownloader.refused(F.kt:7)",
             MainThreadStalls.where(binder),
+        )
+    }
+
+    @Test
+    fun `the app's own frames are kept however many library frames sit above them`() {
+        val compose = (1..20).map { "androidx.compose.runtime.Composer$it.run" }.toTypedArray()
+        val where = MainThreadStalls.where(stack(*compose, "com.dewijones92.totum.ui.queue.QueueScreenKt.QueueRow"))
+        assertTrue(where, where.endsWith("at com.dewijones92.totum.ui.queue.QueueScreenKt.QueueRow(F.kt:7)"))
+    }
+
+    @Test
+    fun `the worst stall keeps where it was, even when it was not logged`() {
+        stalls.ended(stalledMs = 500, nowMs = 0)
+        stalls.sampled(binder)
+        stalls.ended(stalledMs = 3_000, nowMs = 1_000)
+
+        assertEquals(1, lines.size)
+        assertTrue(
+            Vitals.snapshot()["main.worstStall"].orEmpty().contains(
+                "stalled 3000ms; in 1 sample(s) it was 1× at android.os.BinderProxy"
+            )
         )
     }
 }

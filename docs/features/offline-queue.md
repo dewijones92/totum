@@ -108,7 +108,7 @@ queue change; Dewi's queue held 5,739 items, so each crossover, play-instead and
 UI for about two seconds while the pass asked the same question eleven thousand times about items it
 was only going to pass over (held groups, already on the phone). Now an item is judged first, and the
 network is asked only when it is about to be fetched; a failed item asks before its retry is counted,
-so a pass on mobile data does not use up its retries. On totum-api35 with 5,740 items, Wi-Fi only on
+so a failed item met by a disallowed network mid-pass keeps its retries for when the network is allowed again. On totum-api35 with 5,740 items, Wi-Fi only on
 and four presses of ⏭, main-thread samples in the downloader went from 226 to 39 and in the network
 check from 177 to 6. The `pass done` line now says how long the pass took, and counts only the items
 it actually asked for.

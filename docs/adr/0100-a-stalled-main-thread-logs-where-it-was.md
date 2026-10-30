@@ -26,13 +26,18 @@ thread) is fixed alongside this; the next freeze should name itself.
   ping to the main looper every 100 ms while at least one activity is started, and parks while none
   is, so it costs nothing in the background.
 - A late ping makes it sample `Looper.getMainLooper().thread.stackTrace` every 100 ms until the ping
-  runs. `MainThreadStalls` (pure, unit-tested) tallies where each sample was: the top frame plus up
-  to six frames below it that are not the platform's (`java.`, `android.`, `com.android.` …), so a
-  binder call reads with the app code that made it.
-- A stall of 400 ms or more is one `[main]` warning with its length, sample count and the three
+  runs. `MainThreadStalls` (pure, unit-tested) tallies where each sample was: the top frame, up to
+  ten frames below it that are not the platform's (`java.`, `android.`, `com.android.` …), and up to
+  three of Totum's own wherever they are (so a stall deep in Compose still names the screen), each as
+  `at class.method(File:line)` so the stock R8 `retrace` reads it.
+- A stall of about 400 ms or more is one `[main]` warning with its length, sample count and the three
   places seen most; stalls within 10 s of a logged one are counted into the next line. Vitals:
-  `main.stalls`, `main.worstStallMs`, `main.lastStall`.
-- Release frames are R8 names, retraced with the `totum-mapping.txt` each release already ships.
+  `main.stalls`, `main.worstStallMs`, `main.lastStall`, and `main.worstStall` (the worst one's
+  places, so a bad stall inside the quiet window is still located).
+- Release frames are R8 names (in a release build app and library frames cannot be told apart by
+  name), retraced with the `totum-mapping.txt` each release already ships; the recipe is in
+  `docs/features/crash-reporting.md`.
+- The watch thread catches anything it throws and logs it: a diagnostic must never crash the app.
 
 ## Consequences
 
@@ -41,4 +46,4 @@ thread) is fixed alongside this; the next freeze should name itself.
 - An ANR-length stall is logged when it ends; one that ends in the process being killed is not.
 - On the swiftshader emulator, render-thread waits appear as stalls; read the top frame before
   blaming app code.
-- Tests: `MainThreadStallsTest` (5).
+- Tests: `MainThreadStallsTest` (7). The watcher thread itself (parking, pings) has no test.

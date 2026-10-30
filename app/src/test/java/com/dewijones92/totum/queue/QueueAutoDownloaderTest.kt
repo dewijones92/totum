@@ -218,11 +218,35 @@ class QueueAutoDownloaderTest {
         assertEquals(2, downloads.requested.count { it.first.value == "a" })
     }
 
-    /**
-     * The reason a permanently-failed item is skipped does not change between passes, and
-     * the report buffer is bounded: three such videos repeated theirs on every queue change
-     * and took 14% of a 387-event report (0.1.229) saying nothing new.
-     */
+    @Test
+    fun `a failed item waiting on a disallowed network keeps its retries`() = runTest(dispatcher) {
+        var asked = 0
+        var dropsAfterTheFirstQuestion = true
+        repeat(3) { round -> downloads.download(item("pad$round"), audioOnly = true) }
+        downloads.requested.clear()
+        downloads.setFailed(MediaItemId("a"), "Unable to connect: timeout")
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { !dropsAfterTheFirstQuestion || asked++ % 2 == 0 },
+            maxAttempts = 2,
+            maxParallel = 1,
+        ).start()
+        repeat(3) { round ->
+            queue.value = QueueSnapshot(listOf(entry("a"), entry("pad$round")))
+            advanceUntilIdle()
+        }
+        assertTrue(downloads.requested.isEmpty())
+
+        dropsAfterTheFirstQuestion = false
+        queue.value = QueueSnapshot(listOf(entry("a")))
+        advanceUntilIdle()
+
+        assertEquals(listOf("a"), downloads.requested.map { it.first.value })
+    }
+
     @Test
     fun `the network is asked about only before a fetch, not for every item a pass passes over`() = runTest(
         dispatcher
@@ -276,6 +300,11 @@ class QueueAutoDownloaderTest {
         assertTrue(lines.first().contains("300 item(s)") && lines.first().contains("\"Peep Show\" 300"))
     }
 
+    /**
+     * The reason a permanently-failed item is skipped does not change between passes, and
+     * the report buffer is bounded: three such videos repeated theirs on every queue change
+     * and took 14% of a 387-event report (0.1.229) saying nothing new.
+     */
     @Test
     fun `a permanent failure is explained once, however many passes it survives`() = runTest(dispatcher) {
         val lines = mutableListOf<String>()

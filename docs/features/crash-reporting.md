@@ -163,12 +163,22 @@ Report 0.1.762 had a two-second freeze after every queue change, and nothing in 
 main thread was doing: a report carried no frame timing at all, so the freeze showed only as a gap
 between log lines. `MainThreadWatch` now pings the main thread every 100 ms while a Totum screen is
 started (it waits, costing nothing, while none is). When a ping is late it samples the main thread's
-stack every 100 ms until the ping runs, and a stall of 400 ms or more becomes one `[main]` warning:
-how long, how many samples, and the three places it was seen most, each the top frame plus the
-first app frames below it (`android.os.BinderProxy.transactNative:… < …QueueAutoDownloader.refused:…`).
-Stalls within 10 s of a logged one are counted into the next line rather than logged one by one,
-and the vitals carry `main.stalls`, `main.worstStallMs` and `main.lastStall`. In a release build the
-app frames are R8 names; retrace them with the `totum-mapping.txt` shipped beside that release's APK.
+stack every 100 ms until the ping runs, and a stall of about 400 ms or more (400–500 ms, since a
+stall can begin up to a tick before the ping it delays) becomes one `[main]` warning: how long, how
+many samples, and the three places it was seen most. A place is the top frame, then up to ten frames
+below it that are not the platform's, then up to three of Totum's own (`com.dewijones92.`, in a debug
+build), each printed as `at class.method(File:line)` and joined by ` < `. Stalls within 10 s of a
+logged one are counted into the next line; the vitals carry `main.stalls`, `main.worstStallMs`,
+`main.lastStall` and `main.worstStall` (the worst one's places, logged or not).
+
+In a release build every app and library frame is an R8 name (`c55.a`), so read a line by retracing
+it with the `totum-mapping.txt` shipped beside that release's APK:
+
+```bash
+grep -o 'the main thread stalled.*' report.txt | sed 's/ < /\n/g; s/; [0-9]*× /\n/g; s/ it was [0-9]*× /\n/' > stalls.txt
+~/code/android-sdk/cmdline-tools/latest/bin/retrace totum-mapping.txt stalls.txt
+```
+
 On the swiftshader emulator, long frames waiting on the render thread (`postAndWait`) show up as
 stalls too: they are real waits, but the emulator's, not the app's. See ADR 100.
 
