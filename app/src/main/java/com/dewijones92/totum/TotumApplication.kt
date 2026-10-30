@@ -10,6 +10,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
+import com.dewijones92.totum.diagnostics.MainThreadWatch
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge
 import com.dewijones92.totum.groups.GroupNewsWorker
@@ -33,6 +34,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         // First thing, so a crash during the rest of startup is still captured.
         container.installCrashReporting()
+        MainThreadWatch().start(this)
         signHomeServerRequests(container.appPreferences)
         // Fetch the latest yt-dlp in the background so YouTube-breaking changes
         // self-heal; the download applies on the next start.

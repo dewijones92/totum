@@ -3,7 +3,7 @@ title: Offline queue
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-08-31
+updated: 2026-10-30
 ---
 
 # Offline queue
@@ -97,9 +97,21 @@ resource) drops the part. The signed-in YouTube fallback route is deliberately c
 format, and splicing two formats produces a file that will never play and that no retry can
 detect.
 
-**The gate is read before every item.** It used to be read once per pass, and a pass is the whole
+**The gate is read before every fetch.** It used to be read once per pass, and a pass is the whole
 queue — so a queue that started on Wi-Fi carried on over mobile data for the rest of it, and
 switching automatic downloads off only took effect on the next one.
+
+**Before every fetch, not every item (2026-10-30, report 0.1.762).** Until then it was read before
+every item the pass looked at, fetched or not. With Wi-Fi only on, the network question is two
+binder calls to Android's connectivity service, made on the main thread, and a pass runs after every
+queue change; Dewi's queue held 5,739 items, so each crossover, play-instead and play-next froze the
+UI for about two seconds while the pass asked the same question eleven thousand times about items it
+was only going to pass over (held groups, already on the phone). Now an item is judged first, and the
+network is asked only when it is about to be fetched; a failed item asks before its retry is counted,
+so a pass on mobile data does not use up its retries. On totum-api35 with 5,740 items, Wi-Fi only on
+and four presses of ⏭, main-thread samples in the downloader went from 226 to 39 and in the network
+check from 177 to 6. The `pass done` line now says how long the pass took, and counts only the items
+it actually asked for.
 
 The pass also runs under `collectLatest` now, so dragging something to the top of the queue takes
 effect at once instead of after the pass in flight finishes. Cancelling a pass costs nothing: the
@@ -145,7 +157,8 @@ tidy is not the app's call.
   is what a person actually reads.
 - `QueueAutoDownloaderTest` — that lanes are used and that the limit holds, that one lane still
   means one at a time, that a never-settling download does not wedge the queue, and that dropping
-  onto a disallowed network stops a pass part-way.
+  onto a disallowed network stops a pass part-way, and that the network is asked about only before a
+  fetch (a 5,000-item held group plus one new item asks at most twice).
 - `DefaultDownloadManagerTest` — two callers claiming one item start one download, and a download
   interrupted by the app stopping is left retryable with its request intact. The first needs a
   store that commits a moment late, as Room does; against a synchronous one the race is unreachable

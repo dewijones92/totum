@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-10-15
+updated: 2026-10-30
 ---
 
 # Crash reporting
@@ -156,6 +156,21 @@ ineffective guard.
 Most of this project's bugs weren't crashes — they were wrong behaviour. **Settings →
 Diagnostics → "Send diagnostics"** sends the same report with no crash involved, which is
 how a "this played the audio-only file as a video" report gets diagnosed.
+
+## A frozen main thread says where it was (2026-10-30)
+
+Report 0.1.762 had a two-second freeze after every queue change, and nothing in it said what the
+main thread was doing: a report carried no frame timing at all, so the freeze showed only as a gap
+between log lines. `MainThreadWatch` now pings the main thread every 100 ms while a Totum screen is
+started (it waits, costing nothing, while none is). When a ping is late it samples the main thread's
+stack every 100 ms until the ping runs, and a stall of 400 ms or more becomes one `[main]` warning:
+how long, how many samples, and the three places it was seen most, each the top frame plus the
+first app frames below it (`android.os.BinderProxy.transactNative:… < …QueueAutoDownloader.refused:…`).
+Stalls within 10 s of a logged one are counted into the next line rather than logged one by one,
+and the vitals carry `main.stalls`, `main.worstStallMs` and `main.lastStall`. In a release build the
+app frames are R8 names; retrace them with the `totum-mapping.txt` shipped beside that release's APK.
+On the swiftshader emulator, long frames waiting on the render thread (`postAndWait`) show up as
+stalls too: they are real waits, but the emulator's, not the app's. See ADR 100.
 
 ## A note on log volume
 

@@ -26,12 +26,12 @@ class QueueDebugReceiver : BroadcastReceiver() {
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
                 }
-                    .plus(directItems(intent.getStringExtra("urls")))
+                    .plus(directItems(intent.getStringExtra("urls"), times = intent.getIntExtra("urlsTimes", 1)))
                 val group = intent.getStringExtra("group")?.let { QueueGroup(id = "debug:$it", title = it) }
                 val appended = intent.getStringExtra("append").orEmpty().split(',').filter { it.isNotBlank() }.mapNotNull { id ->
                     val url = HttpUrl.of("https://www.youtube.com/watch?v=$id")
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
-                }.plus(directItems(intent.getStringExtra("appendUrls"), offset = items.size))
+                }.plus(directItems(intent.getStringExtra("appendUrls"), offset = items.size, times = intent.getIntExtra("appendTimes", 1)))
                 val appendGroup = intent.getStringExtra("appendGroup")?.let { QueueGroup(id = "debug:$it", title = it) }
                 container.applicationScope.launch {
                     (items + appended).forEach { container.playbackProgressStore.setPlayed(it.item.id, false) }
@@ -74,8 +74,10 @@ class QueueDebugReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun directItems(urls: String?, offset: Int = 0): List<PlayableItem> =
-        urls.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty).mapIndexed { at, address ->
+    private fun directItems(urls: String?, offset: Int = 0, times: Int = 1): List<PlayableItem> =
+        urls.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty).let { listed ->
+            if (times <= 1) listed else (1..times).flatMap { copy -> listed.map { "$it${if ('?' in it) '&' else '?'}copy=$copy" } }
+        }.mapIndexed { at, address ->
             val index = at + offset
             val url = HttpUrl.of(address)
             PlayableItem(

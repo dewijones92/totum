@@ -224,6 +224,33 @@ class QueueAutoDownloaderTest {
      * and took 14% of a 387-event report (0.1.229) saying nothing new.
      */
     @Test
+    fun `the network is asked about only before a fetch, not for every item a pass passes over`() = runTest(
+        dispatcher
+    ) {
+        var networkAsked = 0
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = {
+                networkAsked++
+                true
+            },
+            groupAllows = { false },
+        ).start()
+        val peep = QueueGroup("shuffle:peep", "Peep Show")
+        downloads.download(item("done"), audioOnly = true)
+        downloads.requested.clear()
+
+        queue.value = QueueSnapshot((1..5_000).map { entry("p$it").copy(group = peep) } + entry("done") + entry("new"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("new"), downloads.requested.map { it.first.value })
+        assertTrue("asked $networkAsked times for one fetch", networkAsked <= 2)
+    }
+
+    @Test
     fun `a big held-back group is one summary line, not a line per item`() = runTest(dispatcher) {
         val lines = mutableListOf<String>()
         val previous = Diag.sink

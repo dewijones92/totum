@@ -128,6 +128,7 @@ class QueueAutoDownloader(
         ordered.forEach { waiting.trySend(it) }
         waiting.close()
         val started = AtomicInteger()
+        val passStartedAt = System.nanoTime()
         heldThisPass.clear()
         // Announced only when there is something outstanding AND the picture has changed since the
         // last announcement. The queue emits on every edit and every advance, often twice for one
@@ -146,18 +147,17 @@ class QueueAutoDownloader(
             repeat(lanes) {
                 launch {
                     for (entry in waiting) {
-                        // Read before EVERY item, not once at the top of the pass: read once, a
-                        // queue that started on Wi-Fi carried on over mobile data for the rest of
-                        // the pass, and switching the setting off only took effect on the next one.
-                        if (refused()) return@launch
-                        started.incrementAndGet()
-                        download(entry, states)
+                        if (!download(entry, states, started)) return@launch
                     }
                 }
             }
         }
         if (started.get() > 0) {
-            Diag.log("download", "pass done: asked for ${started.get()} of ${ordered.size} queued item(s)")
+            Diag.log(
+                "download",
+                "pass done: asked for ${started.get()} of ${ordered.size} queued item(s) " +
+                    "in ${(System.nanoTime() - passStartedAt) / NANOS_PER_MS}ms",
+            )
         }
         val held = heldThisPass.entries.sortedByDescending { it.value }.joinToString { "\"${it.key}\" ${it.value}" }
         if (held.isEmpty()) lastHeld = null
@@ -210,10 +210,12 @@ class QueueAutoDownloader(
      * 20:58:31, and the attempt that worked came at 20:58:37 only because he happened to reorder
      * an entry. Nothing else would have asked again this session.
      */
-    private suspend fun download(entry: QueueEntry, states: Map<*, DownloadState>) {
+    @Suppress("ReturnCount")
+    private suspend fun download(entry: QueueEntry, states: Map<*, DownloadState>, started: AtomicInteger): Boolean {
         val item = entry.item.item
         var state = states[item.id]
         while (true) {
+            if (state is DownloadState.Failed && refused()) return false
             val skip = skipReason(entry, state)
             if (skip != null) {
                 // Said ONCE per item, not on every queue change. Three permanently-failed
@@ -226,8 +228,13 @@ class QueueAutoDownloader(
                 } else if (skip.isNotEmpty() && explained.add(item.id)) {
                     Diag.log("download", "not fetching \"${item.title}\": $skip")
                 }
-                return
+                return true
             }
+            // Asked before EVERY fetch, not once at the top of the pass: read once, a queue that
+            // started on Wi-Fi carried on over mobile data for the rest of the pass, and switching
+            // the setting off only took effect on the next one.
+            if (refused()) return false
+            started.incrementAndGet()
             // Reaching here with a failure in hand means skipReason has just decided this one is
             // worth another go, and counted it. The retry number and the reason both go in the
             // trail, because "it downloaded" and "it downloaded on the third go, 30 seconds late"
@@ -245,8 +252,8 @@ class QueueAutoDownloader(
             }
             // The whole entry, handle included, so the video route gets its watch URL.
             downloads.download(entry.item, audioOnly = true)
-            state = awaitSettled(item.id) ?: return
-            if (state !is DownloadState.Failed) return
+            state = awaitSettled(item.id) ?: return true
+            if (state !is DownloadState.Failed) return true
         }
     }
 
@@ -355,5 +362,7 @@ class QueueAutoDownloader(
          * `Network(detail=ERROR: unable to download video data: HTTP Error 403: Forbidden)` is 78.
          */
         const val REASON_CHARS = 120
+
+        const val NANOS_PER_MS = 1_000_000L
     }
 }
