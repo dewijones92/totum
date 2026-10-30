@@ -39,9 +39,10 @@ class NewAlarmSheetTest {
         val alarms = pageAt(hour = 18, minute = 47)
 
         composeTestRule.onNodeWithTag(NEW_ALARM_TAG).performClick()
+        composeTestRule.onNodeWithText("+15 min").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("19:02", substring = true).assertExists()
         composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).performTextInput("Deployed to production")
         composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).assertTextContains("Deployed to production")
-        composeTestRule.onNodeWithText("+15 min").performScrollTo().performClick()
         composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().assertIsEnabled().performClick()
         composeTestRule.waitForIdle()
 
