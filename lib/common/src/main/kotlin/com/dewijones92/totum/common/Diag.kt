@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * A rolling in-memory trail of what the app just did, sent with a crash so the failure
@@ -37,12 +38,14 @@ public object Breadcrumbs {
     private const val MAX_ENTRIES = 5_000
 
     private val entries = ConcurrentLinkedDeque<Entry>()
+    private val count = AtomicInteger()
 
     public data class Entry(val atEpochMs: Long, val tag: String, val message: String)
 
     public fun record(tag: String, message: String) {
         val now = System.currentTimeMillis()
         entries.addLast(Entry(now, tag, message))
+        count.incrementAndGet()
         trim(now)
     }
 
@@ -52,18 +55,25 @@ public object Breadcrumbs {
      * count protects a line that age would have.
      */
     private fun trim(now: Long) {
-        while (entries.size > MAX_ENTRIES) entries.pollFirst()
-        while (entries.size > MIN_ENTRIES) {
+        while (count.get() > MAX_ENTRIES) dropOldest()
+        while (count.get() > MIN_ENTRIES) {
             val oldest = entries.peekFirst() ?: return
             if (now - oldest.atEpochMs <= RETENTION_MS) return
-            entries.pollFirst()
+            dropOldest()
         }
+    }
+
+    private fun dropOldest() {
+        if (entries.pollFirst() != null) count.decrementAndGet() else count.set(0)
     }
 
     /** Oldest first, so a report reads top-to-bottom as a story. */
     public fun snapshot(): List<Entry> = entries.toList()
 
-    public fun clear(): Unit = entries.clear()
+    public fun clear() {
+        entries.clear()
+        count.set(0)
+    }
 
     public fun formatTime(epochMs: Long): String =
         TIME_FORMAT.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))

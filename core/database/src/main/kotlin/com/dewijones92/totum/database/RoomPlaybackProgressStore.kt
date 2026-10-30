@@ -5,7 +5,9 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -110,6 +112,7 @@ public class RoomPlaybackProgressStore(
 
     override fun observeStates(): Flow<Map<MediaItemId, PlayState>> =
         dao.observeAll().map { rows -> rows.associate { MediaItemId(it.mediaItemId) to it.playState() } }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun setPlayed(itemId: MediaItemId, played: Boolean): Unit = writes.withLock {
         // Read-then-write like [save], and it races the position ticker without the guard: marking

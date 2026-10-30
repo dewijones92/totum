@@ -358,6 +358,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | Downloads hold the process open, as a real foreground service, and let it go afterwards | `DownloadsHoldTheProcessOpenTest` | every commit (emulator, no network) — Android's own rules about which processes keep running; a JVM test can say nothing about it |
 | Automatic downloads stop the moment the network or the setting says so, mid-pass | `QueueAutoDownloaderTest` | every commit |
 | The auto-download pass asks the network gate only before a fetch, never for each item it passes over (the 0.1.762 two-second freeze); a stalled main thread is logged with where it was (ADR 100) | `QueueAutoDownloaderTest.the network is asked about only before a fetch…`, `MainThreadStallsTest` (5) | every commit |
+| A podcast feed is parsed off the thread that asked for it | `PodcastFeedParsedOffTheCallerTest` | every commit |
 | "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
 | The stream held for the next item is the stream that then plays — not a second guess at it | `ThePreloadIsTheStreamThatPlaysTest` | every commit |
 | Subtitle tracks reach the player and a choice sticks | `SubtitlesArriveAndRenderTest` | live phase — the plumbing was unit-tested at both ends and the middle (a real resolve handing tracks to a real ExoPlayer) by nothing |

@@ -45,6 +45,9 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** One selectable video-quality cap for the per-network preference. */
 private data class QualityOption(val label: String, val height: Int)
@@ -255,6 +258,7 @@ private fun ViewDiagnosticsRow(onOpen: () -> Unit) {
 @Composable
 private fun DiagnosticsRow(container: AppContainer) {
     var sent by rememberSaveable { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
     var asking by rememberSaveable { mutableStateOf(false) }
     val fallback = stringResource(R.string.settings_diagnostics_note)
 
@@ -269,9 +273,15 @@ private fun DiagnosticsRow(container: AppContainer) {
                 // report is written to disk, and every launch retries it until the sink accepts
                 // it. Dewi has to be able to believe this row; it is the one he uses to tell us
                 // something is wrong.
-                container.sendDiagnostics(diagnosticsNote(typed, fallback), screenshots)
                 asking = false
-                sent = true
+                saving = true
+                container.applicationScope.launch {
+                    withContext(
+                        Dispatchers.IO
+                    ) { container.sendDiagnostics(diagnosticsNote(typed, fallback), screenshots) }
+                    saving = false
+                    sent = true
+                }
             },
         )
     }
@@ -280,13 +290,17 @@ private fun DiagnosticsRow(container: AppContainer) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !sent) { asking = true }
+            .clickable(enabled = !sent && !saving) { asking = true }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = stringResource(
-                    if (sent) R.string.settings_diagnostics_sent else R.string.settings_diagnostics_send,
+                    when {
+                        sent -> R.string.settings_diagnostics_sent
+                        saving -> R.string.settings_diagnostics_saving
+                        else -> R.string.settings_diagnostics_send
+                    },
                 ),
                 style = MaterialTheme.typography.bodyLarge,
             )

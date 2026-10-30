@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # Backlog
@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send) |
 | [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | ⏳ partly done 2026-10-22 (Subscriptions, queue groups) |
 | [Exsurge off never summons; one nudge a day](exsurge-off-never-summons.md) | side-quest | high | done 2026-10-22 (ADR 71) |
 | [Rewind without buffering, for everything](instant-rewind-cache.md) | playback | high | built 2026-10-22 (ADR 72: 1 GB playback cache) |

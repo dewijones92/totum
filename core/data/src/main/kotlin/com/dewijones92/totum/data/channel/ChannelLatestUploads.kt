@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.net.HttpTextFetcher
 import com.dewijones92.totum.domain.MediaItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -17,6 +18,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -155,7 +157,7 @@ public class ChannelLatestUploads(
             is FetchResult.Failure -> Outcome.Failed(fetched.detail)
             is FetchResult.Success -> {
                 bytes.addAndGet(fetched.body.length.toLong())
-                val uploads = ChannelFeedParser.uploads(fetched.body)
+                val uploads = withContext(Dispatchers.Default) { ChannelFeedParser.uploads(fetched.body) }
                 if (uploads == null) {
                     Outcome.Failed("not a channel feed")
                 } else {

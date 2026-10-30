@@ -19,8 +19,10 @@ import com.dewijones92.totum.domain.PublisherChoice
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.domain.publisherFor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import java.time.Clock
 
 public class DefaultPodcastRepository(
@@ -84,21 +86,23 @@ public class DefaultPodcastRepository(
                 return Loaded.Unreachable(fetched.detail)
             }
         }
-        val parsed = when (val result = parser.parse(body)) {
-            is RssParseResult.Success -> result.feed
-            is RssParseResult.Failure -> {
-                Diag.warn("subs", "$purpose: unparseable feed $feedUrl: ${result.detail}")
-                return Loaded.Invalid(result.detail)
+        return withContext(Dispatchers.Default) {
+            val parsed = when (val result = parser.parse(body)) {
+                is RssParseResult.Success -> result.feed
+                is RssParseResult.Failure -> {
+                    Diag.warn("subs", "$purpose: unparseable feed $feedUrl: ${result.detail}")
+                    return@withContext Loaded.Invalid(result.detail)
+                }
             }
+            val source = parsed.toMediaSource(id, feedUrl)
+            val decisions = mutableListOf<PublisherChoice>()
+            val items = parsed.episodes.mapIndexed { index, episode ->
+                val chapters = if (remoteChapters) resolveChapters(episode, index) else episode.chapters
+                episode.toMediaItem(source, index, parsed, chapters, decisions)
+            }
+            Diag.log("podcast", parsed.namingDecision(decisions))
+            Loaded.Feed(source, items)
         }
-        val source = parsed.toMediaSource(id, feedUrl)
-        val decisions = mutableListOf<PublisherChoice>()
-        val items = parsed.episodes.mapIndexed { index, episode ->
-            val chapters = if (remoteChapters) resolveChapters(episode, index) else episode.chapters
-            episode.toMediaItem(source, index, parsed, chapters, decisions)
-        }
-        Diag.log("podcast", parsed.namingDecision(decisions))
-        return Loaded.Feed(source, items)
     }
 
     override suspend fun unsubscribe(id: SourceId) {

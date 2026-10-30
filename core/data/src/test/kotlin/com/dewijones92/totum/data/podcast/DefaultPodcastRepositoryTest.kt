@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.podcast
 
 import com.dewijones92.totum.common.Breadcrumbs
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.subscription.SubscriptionStore
@@ -8,8 +9,10 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -18,6 +21,7 @@ import org.junit.Test
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.Executors
 
 class DefaultPodcastRepositoryTest {
 
@@ -358,5 +362,29 @@ private class InMemoryPodcastStore : SubscriptionStore {
     override suspend fun removeSource(id: SourceId) {
         removed += id
         subscriptions.value = subscriptions.value.filterNot { it.source.id == id }
+    }
+}
+
+class PodcastFeedParsedOffTheCallerTest {
+
+    @Test
+    fun `a feed is parsed and mapped off the thread that asked for it`() {
+        val xml = checkNotNull(javaClass.getResource("/sample-feed.xml")).readText()
+        val main = Executors.newSingleThreadExecutor { Thread(it, "pretend-main") }
+        val namedOn = mutableListOf<String>()
+        val previous = Diag.sink
+        Diag.sink = Diag.Sink { _, tag, _, _ ->
+            if (tag == "podcast") synchronized(namedOn) { namedOn += Thread.currentThread().name }
+        }
+        try {
+            runBlocking(main.asCoroutineDispatcher()) {
+                DefaultPodcastRepository(fetcher = { FetchResult.Success(xml) }, store = InMemoryPodcastStore())
+                    .subscribe(HttpUrl.of("https://podcast.example.com/feed.xml"))
+            }
+        } finally {
+            Diag.sink = previous
+            main.shutdown()
+        }
+        assertTrue("named on $namedOn", namedOn.isNotEmpty() && namedOn.none { it.startsWith("pretend-main") })
     }
 }
