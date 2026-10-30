@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,25 +27,10 @@ import java.time.LocalTime
 @Composable
 fun TimePickDialog(title: String, initial: LocalTime, onPick: (LocalTime) -> Unit, onDismiss: () -> Unit) {
     val state = rememberTimePickerState(initial.hour, initial.minute, is24Hour = true)
-    var typing by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (typing) {
-                    TimeInput(state, modifier = Modifier.testTag("time-input"))
-                } else {
-                    TimePicker(state, modifier = Modifier.testTag("time-picker"))
-                }
-                TextButton(onClick = { typing = !typing }, modifier = Modifier.testTag("time-picker-mode")) {
-                    Text(stringResource(if (typing) R.string.time_picker_dial else R.string.time_picker_type))
-                }
-            }
-        },
+        text = { TimeDial(state) },
         confirmButton = {
             TextButton(
                 onClick = { onPick(LocalTime.of(state.hour, state.minute)) },
@@ -55,4 +41,20 @@ fun TimePickDialog(title: String, initial: LocalTime, onPick: (LocalTime) -> Uni
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimeDial(state: TimePickerState) {
+    var typing by rememberSaveable { mutableStateOf(false) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (typing) {
+            TimeInput(state, modifier = Modifier.testTag("time-input"))
+        } else {
+            TimePicker(state, modifier = Modifier.testTag("time-picker"))
+        }
+        TextButton(onClick = { typing = !typing }, modifier = Modifier.testTag("time-picker-mode")) {
+            Text(stringResource(if (typing) R.string.time_picker_dial else R.string.time_picker_type))
+        }
+    }
 }

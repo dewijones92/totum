@@ -330,6 +330,7 @@ private fun Context.addBoardActions(builder: Notification.Builder, board: AlarmB
             ),
         )
     }
+    builder.addAction(alarmAction(getString(R.string.quick_alarm), QuickAlarmActivity.pending(this)))
 }
 
 private fun Context.alarmIcon(): Icon = Icon.createWithResource(this, R.drawable.ic_dailyalarm)

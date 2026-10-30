@@ -114,3 +114,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 96 | [A group asks the account how far each of its videos was watched](0096-a-group-asks-the-account-how-far-each-video-was-watched.md) | Accepted |
 | 97 | [The subscriptions feed is the All tab's date grid, paged by its own token](0097-the-subscriptions-feed-is-the-all-tabs-date-grid.md) | Accepted |
 | 98 | [A feed never moves the rows already loaded](0098-a-feed-never-moves-rows-already-loaded.md) | Accepted |
+| 99 | [A quick alarm from the alarm notification, with saved presets](0099-a-quick-alarm-from-the-alarm-notification.md) | Accepted |

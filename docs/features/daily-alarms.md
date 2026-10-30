@@ -3,7 +3,7 @@ title: Daily alarms and reminders — asked each morning or nagging until done, 
 kind: feature
 area: side-quest
 status: built 2026-10-07 — ships switched off; reminders and the one-tap page built 2026-10-29, the fridge reminder on by default
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # Daily alarms
@@ -114,4 +114,11 @@ adding a time without the five-tap trip through Edit.
   today's state: …` (with why), `… reminder <id> "<title>" for 21:00: nudge n of 6, posted=…`, `… <id> new REMINDER …`,
   `… deleted from page (undo offered)` / `restored from undo`, `… new sheet Set: NewAlarmChoice(…)`. Reports carry each
   alarm's `kind` in `dailyAlarms.<id>.settings` and the `reminding` state in `.state`.
+
+## ⚡ Quick alarm (2026-10-30, ADR 99)
+
+The alarm notification has ⚡ Quick alarm: a screen over the lock screen with saved presets (🏃 Run up and down the
+stairs ×5 to start; the last one used is chosen; long-press to rename or delete, ➕ to add) and the clock dial, 15
+minutes ahead. ✅ Set makes a one-off alarm at that time (tomorrow if it has gone) that rings full screen.
+[ADR 99](../adr/0099-a-quick-alarm-from-the-alarm-notification.md).
 

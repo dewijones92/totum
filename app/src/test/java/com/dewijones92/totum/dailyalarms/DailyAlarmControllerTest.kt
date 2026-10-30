@@ -207,7 +207,7 @@ class DailyAlarmControllerTest {
         val first =
             DailyAlarmController(store, ports, clock = { now }, zone = { zone }, seeds = listOf(DailyAlarm.FRIDGE))
         assertEquals(listOf("pickup", "fridge"), first.view.value.alarms.map { it.id })
-        assertEquals(setOf("fridge"), store.seeded)
+        assertTrue("fridge" in store.seeded)
         first.remove("fridge", "page")
         val again =
             DailyAlarmController(store, ports, clock = { now }, zone = { zone }, seeds = listOf(DailyAlarm.FRIDGE))
@@ -377,5 +377,47 @@ class DailyAlarmControllerTest {
         override fun stopReminding(alarmId: String) {
             reminderStops += alarmId
         }
+    }
+
+    @Test
+    fun `a quick alarm rings at the next 9 26 as a one-off, and its preset goes first`() {
+        at(9, 0)
+        val alarms = controller()
+        alarms.addPreset("💧 Drink water", "test")
+
+        val at = alarms.setQuickAlarm(QuickPresets.STAIRS, LocalTime.of(9, 26), "quick screen")
+
+        assertEquals(monday.atTime(9, 26), at)
+        val once = alarms.view.value.oneOffs.single()
+        assertEquals(QuickPresets.STAIRS, once.label)
+        assertEquals(AlarmKind.ALARM, once.kind)
+        assertEquals(DayState.Set(monday, LocalTime.of(9, 26)), alarms.view.value.state(once.id))
+        assertEquals(listOf(QuickPresets.STAIRS, "💧 Drink water"), alarms.view.value.presets)
+    }
+
+    @Test
+    fun `a quick alarm for a time already gone today rings tomorrow`() {
+        at(10, 0)
+        val alarms = controller()
+
+        assertEquals(
+            monday.plusDays(1).atTime(9, 26),
+            alarms.setQuickAlarm("Stairs", LocalTime.of(9, 26), "quick screen")
+        )
+    }
+
+    @Test
+    fun `the stairs preset is there once, and deleting it is not undone by a restart`() {
+        assertEquals(QuickPresets.FIRST, controller().view.value.presets)
+        controller().deletePreset(QuickPresets.STAIRS, "test")
+
+        assertEquals(emptyList<String>(), controller().view.value.presets)
+    }
+
+    @Test
+    fun `presets are renamed and kept across a restart`() {
+        controller().renamePreset(QuickPresets.STAIRS, "🏃 Stairs ×10", "test")
+
+        assertEquals(listOf("🏃 Stairs ×10"), controller().view.value.presets)
     }
 }

@@ -137,6 +137,13 @@
             android:showWhenLocked="true"
             android:theme="@style/Theme.Totum" />
         <activity
+            android:name=".dailyalarms.QuickAlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dewijones92.totum.dailyalarms.quick"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.Totum" />
+        <activity
             android:name=".dailyalarms.RingActivity"
             android:exported="false"
             android:excludeFromRecents="true"

@@ -48,6 +48,8 @@ interface DailyAlarmStore {
     fun saveRecentTitles(titles: List<String>)
     fun loadSeeded(): Set<String>
     fun saveSeeded(ids: Set<String>)
+    fun loadPresets(): List<String>
+    fun savePresets(titles: List<String>)
 }
 
 class InMemoryDailyAlarmStore(
@@ -55,6 +57,7 @@ class InMemoryDailyAlarmStore(
     var states: Map<String, DayState> = emptyMap(),
     var recentTitles: List<String> = emptyList(),
     var seeded: Set<String> = emptySet(),
+    var presets: List<String> = emptyList(),
 ) : DailyAlarmStore {
     override fun loadAlarms() = alarms
     override fun saveAlarms(alarms: List<DailyAlarm>) {
@@ -72,6 +75,10 @@ class InMemoryDailyAlarmStore(
     override fun saveSeeded(ids: Set<String>) {
         seeded = ids
     }
+    override fun loadPresets() = presets
+    override fun savePresets(titles: List<String>) {
+        presets = titles
+    }
 }
 
 data class DailyAlarmsView(
@@ -79,6 +86,7 @@ data class DailyAlarmsView(
     val states: Map<String, DayState>,
     val nextWakes: Map<String, Instant?>,
     val recentTitles: List<String> = emptyList(),
+    val presets: List<String> = emptyList(),
 ) {
     val daily: List<DailyAlarm> get() = alarms.filterNot { it.isOneOff }
     val oneOffs: List<DailyAlarm> get() = alarms.filter { it.isOneOff }.sortedBy { it.once?.atTime(it.defaultTime) }
@@ -99,10 +107,11 @@ class DailyAlarmController(
     private var alarms = seeded(store.loadAlarms().ifEmpty { listOf(DailyAlarm(id = PICKUP_ID)) }, seeds)
     private var states = store.loadStates()
     private var recentTitles = store.loadRecentTitles()
+    private var presets = seededPresets()
     private val wakes = mutableMapOf<String, Instant?>()
     private val removedStates = mutableMapOf<String, DayState>()
     private var lastEvent = "none"
-    private val _view = MutableStateFlow(DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles))
+    private val _view = MutableStateFlow(DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles, presets))
     val view: StateFlow<DailyAlarmsView> = _view.asStateFlow()
 
     val ringingNow: Boolean get() = _view.value.ringing
@@ -129,6 +138,7 @@ class DailyAlarmController(
             put("dailyAlarms.count", alarms.size.toString())
             put("dailyAlarms.oneOffs", alarms.count { it.isOneOff }.toString())
             put("dailyAlarms.recentTitles", recentTitles.size.toString())
+            put("dailyAlarms.quickPresets", presets.joinToString(" | ").ifEmpty { "none" })
             put("dailyAlarms.lastEvent", lastEvent)
             alarms.forEach { alarm ->
                 val key = "dailyAlarms.${alarm.id}"
@@ -257,6 +267,44 @@ class DailyAlarmController(
     }
 
     @Synchronized
+    fun setQuickAlarm(title: String, time: LocalTime, source: String): LocalDateTime? {
+        val at = OneOffWhen.at(localNow(), time, null)
+        val set = addOneOff(title, at.toLocalDate(), at.toLocalTime(), source)
+        Diag.log(TAG, "dewidebug dailyalarm quick alarm \"$title\" for $at from $source: set=$set")
+        if (!set) return null
+        if (title.isNotBlank()) changePresets("used \"$title\"", source) { it.usedPreset(title) }
+        return at
+    }
+
+    @Synchronized
+    fun addPreset(title: String, source: String) = changePresets("added \"$title\"", source) { it.addedPreset(title) }
+
+    @Synchronized
+    fun renamePreset(old: String, new: String, source: String) =
+        changePresets("renamed \"$old\" to \"$new\"", source) { it.renamedPreset(old, new) }
+
+    @Synchronized
+    fun deletePreset(title: String, source: String) =
+        changePresets("deleted \"$title\"", source) { it.deletedPreset(title) }
+
+    private fun changePresets(what: String, source: String, change: (List<String>) -> List<String>) {
+        presets = change(presets)
+        store.savePresets(presets)
+        Diag.log(TAG, "dewidebug dailyalarm quick presets $what from $source -> $presets")
+        publish()
+    }
+
+    private fun seededPresets(): List<String> {
+        val done = store.loadSeeded()
+        if (PRESETS_SEED in done) return store.loadPresets()
+        val first = QuickPresets.FIRST
+        store.savePresets(first)
+        store.saveSeeded(done + PRESETS_SEED)
+        Diag.log(TAG, "dewidebug dailyalarm quick presets seeded once: $first")
+        return first
+    }
+
+    @Synchronized
     fun cancelOneOff(alarmId: String, source: String) {
         val alarm = alarms.firstOrNull { it.id == alarmId && it.isOneOff }
         if (alarm == null) {
@@ -284,7 +332,7 @@ class DailyAlarmController(
     }
 
     private fun publish() {
-        _view.value = DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles)
+        _view.value = DailyAlarmsView(alarms, states, wakes.toMap(), recentTitles, presets)
         val board = board()
         ports.showBoard(board)
         ports.refreshBoardAt(board.refreshAt)
@@ -437,6 +485,7 @@ class DailyAlarmController(
 
     companion object {
         const val TAG = "DailyAlarm"
+        const val PRESETS_SEED = "quick-presets"
         const val PICKUP_ID = "pickup"
         const val ONE_OFF_TITLE = "Alarm"
         const val REMINDER_TITLE = "Reminder"
