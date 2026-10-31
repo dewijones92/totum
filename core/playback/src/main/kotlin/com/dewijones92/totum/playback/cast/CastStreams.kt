@@ -298,7 +298,13 @@ internal class CastStreams(
                     "$mediaId: the film's own subtitles are not saved yet; saving them now for the next cast"
                 )
                 Thread(
-                    { EmbeddedSubtitles.prepare(context, file).also { preparing.remove(file.path) } },
+                    {
+                        try {
+                            EmbeddedSubtitles.prepare(context, file)
+                        } finally {
+                            preparing.remove(file.path)
+                        }
+                    },
                     "embedded-subs"
                 )
                     .start()

@@ -42,7 +42,7 @@ class OfflineSummaryTest {
     fun aFullyDownloadedQueueSaysSoPlainly() {
         show(OfflineReadiness(ready = 12, downloading = 0, waiting = 0, unavailableOffline = 0))
 
-        composeTestRule.onNodeWithText("✅ All 12 ready to play offline").assertIsDisplayed()
+        composeTestRule.onNodeWithText("📥 All 12 ready to play offline").assertIsDisplayed()
     }
 
     /**

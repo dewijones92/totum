@@ -569,7 +569,7 @@
     <string name="pin_home_unsupported">⚠️ This home screen does not take shortcuts; \"%1$s\" is pinned in the app</string>
     <string name="pin_could_not_play">❌ Couldn\'t play \"%1$s\" right now</string>
     <string name="pinned_title">📌 Pinned</string>
-    <string name="pin_gone">🤷 That shortcut is no longer pinned in Totum</string>
+    <string name="pin_gone">📭 That shortcut is no longer pinned in Totum</string>
     <string name="music_play">Play</string>
     <string name="music_shuffle">Shuffle</string>
     <string name="music_shuffle_all_songs">Shuffle all songs</string>
@@ -684,8 +684,8 @@
          this with no signal?" at a glance, which a per-row glyph never could. Plurals rather
          than "item(s)", because the whole point of this line is that it reads like a sentence. -->
     <plurals name="queue_offline_ready_all">
-        <item quantity="one">✅ Ready to play offline</item>
-        <item quantity="other">✅ All %1$d ready to play offline</item>
+        <item quantity="one">📥 Ready to play offline</item>
+        <item quantity="other">📥 All %1$d ready to play offline</item>
     </plurals>
     <!-- Shown when the queue holds something the automatic downloads will never fetch — a film,
          whose only audio-only form is a live stream that cannot be stored. Downloading it by hand
@@ -922,7 +922,7 @@
     <string name="drive_backup_restored">✅ Restored: %1$s</string>
     <string name="drive_backup_working">Backing up to your Drive</string>
     <string name="drive_backup_restoring">Restoring from your Drive</string>
-    <string name="drive_backup_restore_failed">❌ That backup could not be read</string>
+    <string name="drive_backup_restore_failed">❌ Couldn\'t read that backup</string>
     <string name="drive_backup_prompt_title">☁️ Back up to Google Drive?</string>
     <string name="drive_backup_prompt_body">Your subscriptions, playlists, groups, pins, history and settings, everything except downloads and the queue, kept in a Drive folder you choose.</string>
     <string name="drive_backup_prompt_restore_title">☁️ Restore from your Drive backup?</string>
@@ -936,8 +936,8 @@
         <item quantity="other">📎 %d screenshots attached</item>
     </plurals>
     <plurals name="settings_diagnostics_screenshots_partly">
-        <item quantity="one">⚠️ %1$d screenshot attached, %2$d could not be read</item>
-        <item quantity="other">⚠️ %1$d screenshots attached, %2$d could not be read</item>
+        <item quantity="one">⚠️ %1$d screenshot attached, %2$d couldn\'t be read</item>
+        <item quantity="other">⚠️ %1$d screenshots attached, %2$d couldn\'t be read</item>
     </plurals>
     <string name="polite_slow_down_title">🐢 YouTube says slow down</string>
     <string name="polite_slow_down_detail">Every YouTube call waits until %1$s (%2$s)</string>
@@ -954,7 +954,7 @@
     <string name="dailyalarm_today_time">⏰ %1$s</string>
     <string name="dailyalarm_today_time_chosen">✅ %1$s</string>
     <string name="dailyalarm_today_answer_now">Answer now: tap a time, or Not today. No need to wait for the question.</string>
-    <string name="dailyalarm_today_answer_off">It is switched off. Tap a time to turn it on for today.</string>
+    <string name="dailyalarm_today_answer_off">⏸️ It is switched off. Tap a time to turn it on for today.</string>
     <string name="dailyalarm_set_today_gone">⌛ That time has already gone today</string>
     <string name="shuffle_all">Shuffle all</string>
     <string name="details_show">Details</string>
@@ -1115,8 +1115,8 @@
         <item quantity="other">✅ %2$s: %1$d downloaded</item>
     </plurals>
     <plurals name="ops_downloaded_partial">
-        <item quantity="one">⚠️ %2$s: 1 downloaded; some failed (Retry on the Downloads page)</item>
-        <item quantity="other">⚠️ %2$s: %1$d downloaded; some failed (Retry on the Downloads page)</item>
+        <item quantity="one">⚠️ %2$s: 1 downloaded; some failed (Try again on the Downloads page)</item>
+        <item quantity="other">⚠️ %2$s: %1$d downloaded; some failed (Try again on the Downloads page)</item>
     </plurals>
     <string name="ops_playing">▶️ Already playing; the rest is shuffled in as it arrives</string>
     <string name="ops_cancel">Cancel</string>
@@ -1126,8 +1126,8 @@
         <item quantity="other">✅ %2$s: %1$d shuffled in</item>
     </plurals>
     <plurals name="ops_done_partial">
-        <item quantity="one">⚠️ %2$s: 1 shuffled in; some could not be read</item>
-        <item quantity="other">⚠️ %2$s: %1$d shuffled in; some could not be read</item>
+        <item quantity="one">⚠️ %2$s: 1 shuffled in; some couldn\'t be read</item>
+        <item quantity="other">⚠️ %2$s: %1$d shuffled in; some couldn\'t be read</item>
     </plurals>
     <string name="ops_nothing">📭 %1$s: nothing found to play</string>
     <string name="ops_failed">❌ %1$s: %2$s</string>

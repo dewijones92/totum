@@ -359,7 +359,6 @@ public class Media3PlaybackController(
         scope.launch {
             // An explicit position wins: a re-resolved stream knows exactly where the dead
             // one stopped, which is finer-grained than the periodically-saved progress.
-            skipSilence = speedStore.skipSilence()
             val tuned = tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))
             val start = when {
                 LocalManifests.isLive(uri) -> StartChoice(
@@ -634,7 +633,6 @@ public class Media3PlaybackController(
         }
         val behind = itemContext.id
         scope.launch {
-            skipSilence = speedStore.skipSilence()
             val start =
                 startChoiceFor(item, tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence)))
             Diag.log("gapless", "${item.id.value} would start at ${start.positionMs}ms if armed: ${start.why}")

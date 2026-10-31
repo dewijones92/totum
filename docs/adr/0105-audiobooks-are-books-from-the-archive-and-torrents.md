@@ -86,3 +86,5 @@ Prowlarr's own User-Agent.
   `MusicPlaysPlainTest` (book tuning), `ProwlarrSearchTest`, `ApibayTest`, `HttpHomeTorrentServerTest`,
   `TorrentSearchSourceTest`, `TorrentEpisodesTest`, `TorrentPlayablesTest`, `WhereToResumeTest`,
   `BookPlayerTest`, `SearchStreamsPerSectionTest`, and `AudiobookSectionsTest` on the device.
+
+- Amended 2026-10-31: when no indexer lists category 3030, the audiobook search asks every indexer with the category filter rather than none; the log says so.

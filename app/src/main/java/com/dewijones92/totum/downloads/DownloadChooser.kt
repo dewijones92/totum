@@ -2,6 +2,7 @@ package com.dewijones92.totum.downloads
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.offersDownloadChoice
@@ -31,8 +32,13 @@ class DownloadChooser(
         videoOnly: Boolean = false,
     ) {
         if (!item.offersDownloadChoice(pillar)) {
-            Diag.log(TAG, "\"${item.title}\" is one file, with no sound or video to choose; downloading it whole")
-            start(item, null)
+            val song = item.contentKind == MediaContentKind.MUSIC
+            Diag.log(
+                TAG,
+                "\"${item.title}\" has no sound-or-video choice; downloading " +
+                    if (song) "its sound, as every song is" else "the whole file",
+            )
+            start(item, DownloadChoice.Sound.takeIf { song })
             return
         }
         val remembered = prefs.settings.value.downloadChoice?.takeIf { !videoOnly || it is DownloadChoice.Video }

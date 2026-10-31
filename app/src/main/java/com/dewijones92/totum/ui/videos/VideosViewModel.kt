@@ -330,16 +330,16 @@ class VideosViewModel(
         is FeedChoice.Group -> "group \"${group.name}\" (${group.members.size} sources)"
     }
 
-    /**
-     * Pull-to-refresh: reload the subscription list and re-fetch the current
-     * feed, keeping the visible content until the new data arrives (a transient
-     * failure is swallowed rather than replacing the list with an error).
-     */
     fun fetchNew() {
         Diag.log("feed", "fetch new asked for ${feedState.value.selected?.describe() ?: "nothing selected"}")
         refresh()
     }
 
+    /**
+     * Pull-to-refresh: reload the subscription list and re-fetch the current
+     * feed, keeping the visible content until the new data arrives (a transient
+     * failure is swallowed rather than replacing the list with an error).
+     */
     fun refresh() {
         if (refreshing.value) return
         viewModelScope.launch {

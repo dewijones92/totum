@@ -20,9 +20,12 @@ episodes that the six-hourly refresh (`NewContentWorker`) had already fetched sa
 
 - One rule for the dock (`TabNews`): a tab wears "🆕 N" for what arrived since you last looked at it, and the tab
   you are on wears none (the Library's badge now also hides while you are on the Library; its tiles say the same).
-- **Podcasts:** N is the episodes published after the Podcasts tab was last opened or left (`TabSeenStore`, one
-  timestamp per tab in `totum_tab_seen` prefs). Audiobook chapters never count. A tab never looked at (a fresh
-  install, or the first run of this build) starts from now, so it never shows every episode ever.
+- **Podcasts:** N is the episodes that **arrived** since the Podcasts tab was last opened or left, however long ago
+  they were published: the ids of the last 60 days' episodes are kept when you look (`TabSeenStore`,
+  `totum_tab_seen` prefs), and an episode not among them counts. (First built by publish time, which missed an
+  episode published before you looked and fetched after, the six-hourly refresh's ordinary case; the Opus review
+  caught it the same day.) Audiobook chapters never count. A tab never looked at (a fresh install, or the first
+  run of this build) starts from what is there once the episodes have loaded, so it never shows every episode ever.
 - **Videos:** no badge, by choice: the Videos feed is hidden until asked (ADR 19) and a count would be the pull that
   feature exists to remove. **Music** and **Queue** have nothing that arrives by itself, so no badge.
 - Logged: when a tab is looked at and what it cleared, and the count whenever it is above zero.

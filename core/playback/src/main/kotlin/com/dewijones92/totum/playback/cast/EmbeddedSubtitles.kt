@@ -31,7 +31,14 @@ public object EmbeddedSubtitles {
             .map { Kept(it, it.nameWithoutExtension.substringAfter('-', UNKNOWN)) }
     }
 
-    public fun prepare(context: Context, source: File): Int {
+    public fun prepare(context: Context, source: File): Int = synchronized(lockFor(source)) {
+        runCatching { prepareNow(context, source) }.getOrElse {
+            Diag.warn("subtitles", "saving ${source.name}'s own subtitles failed; it is tried again next time", it)
+            0
+        }
+    }
+
+    private fun prepareNow(context: Context, source: File): Int {
         if (isDone(context, source)) return kept(context, source).size
         val bin = File(context.applicationInfo.nativeLibraryDir)
         val ffprobe = File(bin, BundledBinaries.FFPROBE)
@@ -120,4 +127,8 @@ public object EmbeddedSubtitles {
             }
         }
     }
+
+    private val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+    private fun lockFor(source: File): Any = locks.getOrPut(source.absolutePath) { Any() }
 }

@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -200,29 +201,39 @@ private fun rememberNewEpisodes(container: AppContainer, selected: TopLevelDesti
     val context = LocalContext.current
     val store = remember { TabSeenStore(context.applicationContext) }
     val seen by store.seen.collectAsStateWithLifecycle()
-    val episodes by container.podcastRepository.observeEpisodes().collectAsStateWithLifecycle(
-        initialValue = emptyList()
-    )
+    val loaded by container.podcastRepository.observeEpisodes()
+        .collectAsStateWithLifecycle<List<com.dewijones92.totum.domain.MediaItem>?>(initialValue = null)
+    val episodes = loaded
+    val current by rememberUpdatedState(episodes)
     val podcastsSeen = seen[TopLevelDestination.Podcasts]
-    LaunchedEffect(podcastsSeen) {
+    LaunchedEffect(podcastsSeen == null, episodes == null) {
+        val now = current ?: return@LaunchedEffect
         if (podcastsSeen == null) {
             store.markSeen(
                 TopLevelDestination.Podcasts,
-                Instant.now(),
+                TabNews.recentIds(now, Instant.now()),
                 "first run, so nothing is new yet"
             )
         }
     }
     DisposableEffect(selected) {
-        if (selected == TopLevelDestination.Podcasts) store.markSeen(selected, Instant.now(), "tab opened")
-        onDispose {
-            if (selected == TopLevelDestination.Podcasts) store.markSeen(selected, Instant.now(), "tab left")
+        fun look(why: String) {
+            val now = current ?: return
+            if (selected == TopLevelDestination.Podcasts) {
+                store.markSeen(
+                    selected,
+                    TabNews.recentIds(now, Instant.now()),
+                    why
+                )
+            }
         }
+        look("tab opened")
+        onDispose { look("tab left") }
     }
-    val count = TabNews.newEpisodes(episodes, podcastsSeen)
+    val count = TabNews.newEpisodes(episodes.orEmpty(), podcastsSeen, Instant.now())
     LaunchedEffect(
         count
-    ) { if (count > 0) Diag.log("nav", "Podcasts badge: $count new episode(s) since $podcastsSeen") }
+    ) { if (count > 0) Diag.log("nav", "Podcasts badge: $count episode(s) arrived since last looked") }
     return count
 }
 

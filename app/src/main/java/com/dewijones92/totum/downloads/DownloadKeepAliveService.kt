@@ -54,11 +54,7 @@ internal class DownloadKeepAliveService : Service() {
     }
 
     private fun arrived() {
-        val release = synchronized(lock) {
-            if (pendingStarts > 0) pendingStarts--
-            (releaseWhenStarted && pendingStarts == 0).also { if (it) releaseWhenStarted = false }
-        }
-        if (release) {
+        if (book.arrived()) {
             Diag.log("downloads", "the hold was released before the service started; letting go now it has")
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -83,35 +79,20 @@ internal class DownloadKeepAliveService : Service() {
         var holdingProcess: Boolean = false
             private set
 
+        private val book = HoldBook()
+
         /**
          * Starts or stops the hold. Never throws: a refusal is a downgrade in reliability, never a
          * crash, and it is logged rather than swallowed so a report can say it happened.
          */
-        private val lock = Any()
-        private var pendingStarts = 0
-        private var releaseWhenStarted = false
-
         fun hold(context: Context, holding: Boolean) {
             val intent = Intent(context, DownloadKeepAliveService::class.java)
             runCatching {
-                synchronized(lock) {
-                    when {
-                        holding -> {
-                            releaseWhenStarted = false
-                            pendingStarts++
-                            ContextCompat.startForegroundService(context, intent)
-                        }
-                        pendingStarts > 0 -> {
-                            releaseWhenStarted = true
-                            Diag.log(
-                                "downloads",
-                                "hold released before the service started ($pendingStarts start(s) pending); " +
-                                    "it lets go once started, since stopping it sooner crashes the app",
-                            )
-                        }
-                        else -> context.stopService(intent)
-                    }
-                }
+                book.hold(
+                    holding,
+                    start = { ContextCompat.startForegroundService(context, intent) },
+                    stop = { context.stopService(intent) },
+                )
             }.onFailure {
                 Diag.warn("downloads", "could not ${if (holding) "start" else "stop"} the download hold", it)
             }

@@ -110,6 +110,23 @@ class DownloadChooserTest {
     }
 
     @Test
+    fun `a song is always its sound, whatever video choice is remembered, alone or in a selection`() = runTest {
+        val rig = Rig(this)
+        rig.prefs.setDownloadChoice(DownloadChoice.Video(720))
+        val song = video.copy(
+            id = MediaItemId("song"),
+            contentKind = com.dewijones92.totum.domain.MediaContentKind.MUSIC
+        )
+
+        rig.chooser.request(song)
+        rig.chooser.requestAllRemembered(listOf(song.copy(id = MediaItemId("song2"))))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(0, rig.asked.size)
+        assertEquals(listOf(MediaItemId("song") to true, MediaItemId("song2") to true), rig.downloads.requested)
+    }
+
+    @Test
     fun `the choice survives being stored`() {
         listOf(DownloadChoice.Sound, DownloadChoice.Video(null), DownloadChoice.Video(1080)).forEach {
             assertEquals(it, DownloadChoice.parse(it.stored))

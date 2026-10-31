@@ -91,13 +91,17 @@ internal class ProwlarrSearch(
         alsoAsk = also,
     )
 
+    private companion object Wording {
+        const val NONE_LIST_IT = "every indexer, since none lists the category,"
+    }
+
     private fun homeSources(listed: List<Indexer>?, category: TorrentCategory): List<NamedSearch> {
         val carrying = listed?.filter { category.newznab == null || category.newznab in it.categories }
         if (listed != null && category != TorrentCategory.ANY) {
             Diag.log(
                 "torrent",
                 "${category.name.lowercase()} search asks " +
-                    "${carrying?.joinToString { it.name }?.ifEmpty { "no indexer" }} " +
+                    "${carrying?.joinToString { it.name }?.ifEmpty { NONE_LIST_IT }} " +
                     "(${listed.size - carrying.orEmpty().size} indexer(s) carry no ${category.newznab})",
             )
         }
