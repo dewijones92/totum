@@ -15,6 +15,9 @@ import { Hono, type Context } from 'hono';
 import { ZodError, z } from 'zod';
 import type { FakeConnector } from './connectors/fake.ts';
 import type { EnableBankingFlow } from './consent/enable-banking-flow.ts';
+import type { MonzoApi } from './connectors/monzo.ts';
+import type { SettingsStore } from './store/settings.ts';
+import { randomBytes } from 'node:crypto';
 import { buildHealthReport, type HealthDeps } from './health.ts';
 import { isTrusted } from './http/ip.ts';
 import { EMAIL_HEADER, judgeOwner } from './http/owner.ts';
@@ -44,6 +47,8 @@ export interface AppDeps {
   >;
   fake?: FakeConnector;
   enableBanking?: EnableBankingFlow;
+  settings: SettingsStore;
+  monzo?: { api: MonzoApi; redirectUrl: string };
   remoteAddress?: (c: Context) => string | undefined;
 }
 
@@ -312,6 +317,68 @@ export function createApp(deps: AppDeps): Hono {
     if (conn) void engine.run(conn, outcome.renewed ? 'consent renewed' : 'just connected');
     return c.redirect(
       `/connections?connected=${encodeURIComponent(outcome.label)}&renewed=${outcome.renewed ? '1' : '0'}`,
+      302,
+    );
+  });
+
+  const monzoApi = () => {
+    if (!deps.monzo) throw new HttpError(409, 'Monzo needs PUBLIC_URL set on the server');
+    return deps.monzo;
+  };
+
+  app.get('/api/monzo/status', (c) =>
+    c.json({
+      available: deps.monzo !== undefined,
+      configured: deps.settings.getSecret('monzo-client') !== undefined,
+      redirectUrl: deps.monzo?.redirectUrl ?? null,
+    }),
+  );
+
+  app.post('/api/monzo/credentials', async (c) => {
+    monzoApi();
+    const body = z
+      .object({ clientId: z.string().trim().min(1), clientSecret: z.string().trim().min(1) })
+      .parse(await c.req.json());
+    deps.settings.setSecret('monzo-client', body);
+    log.info('dewidebug monzo developer client saved (encrypted)');
+    return c.json({ configured: true });
+  });
+
+  app.post('/api/monzo/start', (c) => {
+    const m = monzoApi();
+    const state = randomBytes(18).toString('base64url');
+    deps.settings.set(`monzo-state:${state}`, { createdAt: clock().toISOString() });
+    log.info('dewidebug monzo consent starting');
+    return c.json({ url: m.api.authUrl(state) });
+  });
+
+  app.get('/api/monzo/callback', async (c) => {
+    const m = monzoApi();
+    const state = c.req.query('state') ?? '';
+    const pending = deps.settings.get(`monzo-state:${state}`);
+    deps.settings.delete(`monzo-state:${state}`);
+    const code = c.req.query('code');
+    if (pending === undefined || !code) {
+      log.warn(
+        { hasState: state !== '', hasCode: Boolean(code) },
+        'dewidebug monzo callback refused',
+      );
+      return c.redirect(
+        `/connections?failed=${encodeURIComponent('Monzo sign-in was not started here or has expired. Start again.')}`,
+        302,
+      );
+    }
+    const secrets = await m.api.exchange(code, clock());
+    const existing = connections.list().find((x) => x.kind === 'monzo');
+    const id = existing
+      ? (connections.update(existing.id, { secrets }), existing.id)
+      : connections.create({ kind: 'monzo', label: 'Monzo', secrets }, clock().toISOString());
+    log.info(
+      { id, renewed: existing !== undefined },
+      'dewidebug monzo connected; waiting for in-app approval',
+    );
+    return c.redirect(
+      `/connections?connected=Monzo&renewed=${existing ? '1' : '0'}&approve=monzo&id=${encodeURIComponent(id)}`,
       302,
     );
   });

@@ -119,6 +119,21 @@ export const strings = {
     backConnected: (name: string) => `✅ ${name} connected: first sync running`,
     backRenewed: (name: string) => `✅ ${name} consent renewed for another 90 days`,
     backFailed: (why: string) => `❌ Not connected: ${why}`,
+    monzoTitle: '🏦 Monzo',
+    monzoNeedsUrl: '⚙️ Monzo needs the server’s public address (PUBLIC_URL) set.',
+    monzoSetupHint:
+      '💡 One-off: at developers.monzo.com create a Confidential OAuth client with this redirect URL, then paste its client ID and secret here (stored encrypted).',
+    monzoRedirect: (url: string) => `🔗 Redirect URL: ${url}`,
+    clientId: '🆔 Client ID',
+    clientSecret: '🔑 Client secret',
+    save: '💾 Save',
+    saving: '⏳ Saving…',
+    monzoConnect: '➡️ Connect Monzo',
+    monzoGoing: '⏳ Opening Monzo…',
+    monzoApprove:
+      '📱 Now approve Aerarium in the Monzo app (a notification asks once), then press the button below within 5 minutes: Monzo only shares your full history in that window.',
+    monzoApproved: '✅ I’ve approved it: sync now',
+    monzoSyncing: '⏳ First sync running, see 🩺 Health',
   },
   common: {
     error: (message: string) => `❌ ${message}`,

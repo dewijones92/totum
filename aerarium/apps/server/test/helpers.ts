@@ -4,6 +4,7 @@ import { openMemoryDb } from '../src/store/db.ts';
 import { wire } from '../src/wire.ts';
 import type { Connector } from '../src/connectors/types.ts';
 import type { EnableBankingClient } from '../src/connectors/enable-banking.ts';
+import type { FetchLike } from '../src/http/read-only.ts';
 
 export function testApp(
   opts: {
@@ -12,6 +13,8 @@ export function testApp(
     fakeProviders?: boolean;
     connectors?: Connector[];
     enableBanking?: { client: EnableBankingClient; maxConsentDays: number };
+    publicUrl?: string;
+    monzoFetch?: FetchLike;
     now?: () => Date;
   } = {},
 ) {
@@ -29,6 +32,8 @@ export function testApp(
     manualStaleDays: 90,
     ...(opts.connectors ? { connectors: opts.connectors } : {}),
     ...(opts.enableBanking ? { enableBanking: opts.enableBanking } : {}),
+    ...(opts.publicUrl ? { publicUrl: opts.publicUrl } : {}),
+    ...(opts.monzoFetch ? { monzoFetch: opts.monzoFetch } : {}),
     clock,
     remoteAddress: () => opts.ip ?? '172.21.0.5',
   });

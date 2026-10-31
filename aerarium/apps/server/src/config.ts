@@ -16,6 +16,7 @@ const Env = z.object({
   TRUSTED_CIDRS: csv.default(['127.0.0.0/8', '::1/128']),
   OWNER_EMAIL: z.string().default(''),
   SECRETS_KEY_FILE: z.string().default(''),
+  PUBLIC_URL: z.string().default(''),
   EB_APPLICATION_ID: z.string().default(''),
   EB_PRIVATE_KEY_FILE: z.string().default(''),
   EB_REDIRECT_URL: z.string().default(''),

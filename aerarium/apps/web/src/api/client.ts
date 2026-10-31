@@ -77,6 +77,22 @@ export const api = {
     request('/api/eb/start', z.object({ url: z.string() }), json('POST', { name, country })),
   reconnect: (id: string) =>
     request(`/api/connections/${enc(id)}/reconnect`, z.object({ url: z.string() }), json('POST')),
+  monzoStatus: () =>
+    request(
+      '/api/monzo/status',
+      z.object({
+        available: z.boolean(),
+        configured: z.boolean(),
+        redirectUrl: z.string().nullable(),
+      }),
+    ),
+  monzoCredentials: (clientId: string, clientSecret: string) =>
+    request(
+      '/api/monzo/credentials',
+      z.object({ configured: z.boolean() }),
+      json('POST', { clientId, clientSecret }),
+    ),
+  monzoStart: () => request('/api/monzo/start', z.object({ url: z.string() }), json('POST')),
   syncNow: (id: string) => request(`/api/connections/${enc(id)}/sync`, SyncStarted, json('POST')),
   transactions: (query: { account?: string; since?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

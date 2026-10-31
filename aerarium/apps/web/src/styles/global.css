@@ -364,3 +364,14 @@ select {
   margin-bottom: 8px;
   color: var(--warn);
 }
+
+.mono-line {
+  grid-column: 1 / -1;
+  font-family: ui-monospace, Consolas, monospace;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.note-panel {
+  border: 2px solid var(--brand);
+  background: var(--brand-soft);
+}

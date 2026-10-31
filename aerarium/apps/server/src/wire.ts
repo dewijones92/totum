@@ -12,6 +12,8 @@ import { NetWorthDaysStore } from './store/net-worth-days.ts';
 import { SettingsStore } from './store/settings.ts';
 import { EnableBankingFlow } from './consent/enable-banking-flow.ts';
 import { EnableBankingConnector, type EnableBankingClient } from './connectors/enable-banking.ts';
+import { MonzoApi, MonzoClientCredentials, MonzoConnector } from './connectors/monzo.ts';
+import type { FetchLike } from './http/read-only.ts';
 import { TransactionsStore } from './store/transactions.ts';
 import { SyncEngine } from './sync/engine.ts';
 import { Scheduler } from './sync/scheduler.ts';
@@ -29,6 +31,8 @@ export interface WireOptions {
   manualStaleDays: number;
   connectors?: readonly Connector[];
   enableBanking?: { client: EnableBankingClient; maxConsentDays: number };
+  publicUrl?: string;
+  monzoFetch?: FetchLike;
   clock?: () => Date;
   remoteAddress?: (c: Context) => string | undefined;
 }
@@ -39,7 +43,23 @@ export function wire(o: WireOptions) {
   const connections = new ConnectionsStore(o.db, o.secrets);
   const transactions = new TransactionsStore(o.db);
   const netWorthDays = new NetWorthDaysStore(o.db);
-  const settings = new SettingsStore(o.db);
+  const settings = new SettingsStore(o.db, o.secrets);
+  const monzoRedirect = o.publicUrl ? `${o.publicUrl.replace(/\/$/, '')}/api/monzo/callback` : null;
+  const monzo = monzoRedirect
+    ? new MonzoApi(
+        () => {
+          const stored = settings.getSecret('monzo-client');
+          const parsed = MonzoClientCredentials.safeParse(
+            typeof stored === 'object' && stored !== null
+              ? { ...stored, redirectUrl: monzoRedirect }
+              : null,
+          );
+          return parsed.success ? parsed.data : null;
+        },
+        o.log,
+        o.monzoFetch,
+      )
+    : undefined;
   const fake = o.fakeProviders ? new FakeConnector() : undefined;
   const eb = o.enableBanking
     ? {
@@ -56,6 +76,7 @@ export function wire(o: WireOptions) {
   const all: Connector[] = [
     ...(o.connectors ?? []),
     ...(eb ? [eb.connector] : []),
+    ...(monzo ? [new MonzoConnector(monzo, o.log)] : []),
     ...(fake ? [fake] : []),
   ];
   const engine = new SyncEngine({
@@ -93,6 +114,8 @@ export function wire(o: WireOptions) {
     health: { databaseFile: o.databaseFile, manualStaleDays: o.manualStaleDays },
     ...(fake ? { fake } : {}),
     ...(eb ? { enableBanking: eb.flow } : {}),
+    settings,
+    ...(monzo && monzoRedirect ? { monzo: { api: monzo, redirectUrl: monzoRedirect } } : {}),
     ...(o.staticDir ? { staticDir: o.staticDir } : {}),
     ...(o.remoteAddress ? { remoteAddress: o.remoteAddress } : {}),
   });

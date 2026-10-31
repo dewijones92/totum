@@ -22,13 +22,16 @@ if (secrets.ephemeral) {
 }
 
 const enableBanking =
-  config.EB_APPLICATION_ID && config.EB_PRIVATE_KEY_FILE && config.EB_REDIRECT_URL
+  config.EB_APPLICATION_ID &&
+  config.EB_PRIVATE_KEY_FILE &&
+  (config.EB_REDIRECT_URL || config.PUBLIC_URL)
     ? {
         client: new EnableBankingClient(
           {
             applicationId: config.EB_APPLICATION_ID,
             privateKeyPem: readFileSync(config.EB_PRIVATE_KEY_FILE, 'utf8'),
-            redirectUrl: config.EB_REDIRECT_URL,
+            redirectUrl:
+              config.EB_REDIRECT_URL || `${config.PUBLIC_URL.replace(/\/$/, '')}/api/eb/callback`,
           },
           log,
         ),
@@ -48,6 +51,7 @@ const { app, scheduler, connections } = wire({
   manualStaleDays: config.MANUAL_STALE_DAYS,
   connectors: [new Trading212Connector(log)],
   ...(enableBanking ? { enableBanking } : {}),
+  ...(config.PUBLIC_URL ? { publicUrl: config.PUBLIC_URL } : {}),
   ...(config.STATIC_DIR ? { staticDir: config.STATIC_DIR } : {}),
 });
 
@@ -61,7 +65,7 @@ log.info(
     fakeProviders: config.FAKE_PROVIDERS === '1',
     openBanking: enableBanking
       ? 'on'
-      : 'off (EB_APPLICATION_ID, EB_PRIVATE_KEY_FILE or EB_REDIRECT_URL missing)',
+      : 'off (EB_APPLICATION_ID, EB_PRIVATE_KEY_FILE or PUBLIC_URL missing)',
     connections: connections.synced().map((c) => ({ id: c.id, kind: c.kind })),
     runsInterruptedByLastShutdown: abandoned,
   },

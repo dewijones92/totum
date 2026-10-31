@@ -162,17 +162,124 @@ function ConnectBank() {
   );
 }
 
+function ConnectMonzo() {
+  const status = useAsync(() => api.monzoStatus(), 'monzo-status');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (e: SyntheticEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.monzoCredentials(clientId, clientSecret);
+      console.info('dewidebug monzo client saved');
+      setClientSecret('');
+      status.reload();
+    } catch (err) {
+      setError(strings.common.error(err instanceof Error ? err.message : String(err)));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const go = async () => {
+    setBusy(true);
+    try {
+      const { url } = await api.monzoStart();
+      console.info('dewidebug monzo consent starting');
+      window.location.assign(url);
+    } catch (err) {
+      setError(strings.common.error(err instanceof Error ? err.message : String(err)));
+      setBusy(false);
+    }
+  };
+
+  const s = status.data;
+  return (
+    <div className="panel">
+      <h2>{strings.connections.monzoTitle}</h2>
+      {s && !s.available ? <p className="muted">{strings.connections.monzoNeedsUrl}</p> : null}
+      {s?.available && !s.configured ? (
+        <form className="add-form" onSubmit={(e) => void save(e)}>
+          <p className="muted">{strings.connections.monzoSetupHint}</p>
+          {s.redirectUrl ? (
+            <p className="mono-line">{strings.connections.monzoRedirect(s.redirectUrl)}</p>
+          ) : null}
+          <label>
+            <span>{strings.connections.clientId}</span>
+            <input
+              required
+              autoComplete="off"
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value);
+              }}
+            />
+          </label>
+          <label>
+            <span>{strings.connections.clientSecret}</span>
+            <input
+              required
+              type="password"
+              autoComplete="off"
+              value={clientSecret}
+              onChange={(e) => {
+                setClientSecret(e.target.value);
+              }}
+            />
+          </label>
+          <button type="submit" disabled={busy}>
+            {busy ? strings.connections.saving : strings.connections.save}
+          </button>
+        </form>
+      ) : null}
+      {s?.configured ? (
+        <button type="button" disabled={busy} onClick={() => void go()}>
+          {busy ? strings.connections.monzoGoing : strings.connections.monzoConnect}
+        </button>
+      ) : null}
+      {error ? <p className="error">{error}</p> : null}
+    </div>
+  );
+}
+
+function MonzoApprove({ id }: { id: string }) {
+  const [started, setStarted] = useState(false);
+  return (
+    <div className="panel note-panel">
+      <p>{strings.connections.monzoApprove}</p>
+      <button
+        type="button"
+        disabled={started}
+        onClick={() => {
+          setStarted(true);
+          console.info('dewidebug monzo approved, syncing', { id });
+          void api.syncNow(id);
+        }}
+      >
+        {started ? strings.connections.monzoSyncing : strings.connections.monzoApproved}
+      </button>
+    </div>
+  );
+}
+
 function ReturnNote() {
   const params = new URLSearchParams(useSearch());
   const connected = params.get('connected');
   const failed = params.get('failed');
+  const approveId = params.get('approve') === 'monzo' ? params.get('id') : null;
   if (connected) {
     return (
-      <p className="note-ok">
-        {params.get('renewed') === '1'
-          ? strings.connections.backRenewed(connected)
-          : strings.connections.backConnected(connected)}
-      </p>
+      <>
+        {approveId ? <MonzoApprove id={approveId} /> : null}
+        <p className="note-ok">
+          {params.get('renewed') === '1'
+            ? strings.connections.backRenewed(connected)
+            : strings.connections.backConnected(connected)}
+        </p>
+      </>
     );
   }
   if (failed) return <p className="error">{strings.connections.backFailed(failed)}</p>;
@@ -212,6 +319,7 @@ export function ConnectionsPage({ onChange }: { onChange: () => void }) {
         ))}
       </ul>
       <ConnectBank />
+      <ConnectMonzo />
       <AddTrading212 onAdded={changed} />
     </section>
   );
