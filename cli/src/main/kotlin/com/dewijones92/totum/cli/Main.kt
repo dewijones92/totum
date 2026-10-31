@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli
 
+import com.dewijones92.totum.cli.serve.serveAsk
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.ytdlp.ExtractionResult
@@ -20,7 +21,7 @@ import kotlin.system.exitProcess
 internal fun main(args: Array<String>) {
     // Silent unless asked: a tool you pipe into another tool must not narrate onto stderr by
     // default, but when something will not play the trail is the whole diagnosis.
-    if (System.getenv("TOTUM_VERBOSE") != null) {
+    if (System.getenv("TOTUM_VERBOSE") != null || args.firstOrNull() == "serve") {
         Diag.sink = Diag.Sink { _, tag, message, error ->
             System.err.println("[$tag] $message${error?.let { " — $it" } ?: ""}")
         }
@@ -49,6 +50,7 @@ internal class Cli(
         is Command.Search -> search(command)
         is Command.Resolve -> resolve(command)
         is Command.Play -> play(command)
+        is Command.Serve -> serveAsk(command.port, out)
     }
 
     private suspend fun play(command: Command.Play): Int {
@@ -218,12 +220,15 @@ private val USAGE = """
       totum resolve <url|words> [--json]   print the stream, do not play it
       totum search <words> [--limit=N]     list what a phrase finds
       totum doctor                     check this machine has what it needs
+      totum serve [--port=8770]        run the home server's ✨ Ask service (needs claude)
       totum version
 
     Environment:
       TOTUM_PLAYER   command to play with (default: the first of ${PlayerCommand.CANDIDATES.joinToString(", ")} on PATH)
       TOTUM_PYTHON   python to run the extractor with (default: python3)
       TOTUM_VERBOSE  set to anything to print what it is doing to stderr
+      TOTUM_CLAUDE   claude to ask with, for serve (default: claude)
+      TOTUM_ASK_MODEL  the model serve asks (default: haiku)
 
     Needs python3 with yt-dlp installed, and a media player.
 """.trimIndent()

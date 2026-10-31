@@ -90,7 +90,7 @@ private const val FREE_BOOKS = "free books"
 private const val BOOK_TORRENTS = "audiobook torrents"
 
 @Composable
-private fun BookHitRow(
+internal fun BookHitRow(
     hit: SearchHit.Book,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,

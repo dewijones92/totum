@@ -426,7 +426,7 @@ private fun ResultsList(
 }
 
 @Composable
-private fun PodcastHitRow(
+internal fun PodcastHitRow(
     hit: SearchHit.Podcast,
     subscribed: Boolean,
     onSubscribe: () -> Unit,
@@ -468,7 +468,7 @@ private fun PodcastHitRow(
  * no resolved stream yet, so offering "download" here would promise something it can't do.
  */
 @Composable
-private fun VideoHitRow(
+internal fun VideoHitRow(
     hit: SearchHit.Video,
     resolving: Boolean,
     onPlay: () -> Unit,

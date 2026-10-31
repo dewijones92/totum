@@ -115,4 +115,10 @@ class CommandParsingTest {
     private companion object {
         const val URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
     }
+
+    @Test
+    fun `serve listens on 8770 unless told otherwise`() {
+        assertEquals(Command.Serve(8770), parse(listOf("serve")))
+        assertEquals(Command.Serve(9000), parse(listOf("serve", "--port=9000")))
+    }
 }

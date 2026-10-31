@@ -14,9 +14,18 @@ public object ReleaseQuality {
             first(listOf(setOf("atmos") to "Atmos")),
             CHANNELS.find(title)?.value?.let { if (it.startsWith("7")) "7.1" else "5.1" },
         )
-        val parts = listOfNotNull(first(RESOLUTIONS), first(SOURCES), first(CODECS), first(HDR)) + audio
+        val depth = if (isTenBitHevc(title)) "10-bit" else null
+        val parts = listOfNotNull(first(RESOLUTIONS), first(SOURCES), first(CODECS), depth, first(HDR)) + audio
         return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
     }
+
+    public fun isTenBitHevc(title: String): Boolean {
+        val words = ReleaseName(title).tail.map(String::lowercase)
+        return words.any { it in HEVC } && TEN_BIT.containsMatchIn(title)
+    }
+
+    private val HEVC = setOf("x265", "h265", "hevc")
+    private val TEN_BIT = Regex("""(?i)(?<![0-9])10[ .-]?bits?\b|\bhi10p?\b|\bmain ?10\b""")
 
     private val CHANNELS = Regex("""(?<![0-9])[57][. ]1(?![0-9])""")
     private val RESOLUTIONS = listOf(

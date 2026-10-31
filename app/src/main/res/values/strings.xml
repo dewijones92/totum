@@ -1093,6 +1093,37 @@
     <string name="ops_prepare_torrent">🧲 Preparing %1$s</string>
     <string name="ops_download_batch">⬇️ Downloading %1$s</string>
     <string name="ops_task">⏳ %1$s</string>
+    <string name="ops_ask">✨ Asking: %1$s</string>
+    <plurals name="ops_ask_done">
+        <item quantity="one">✅ %1$d pick ready to confirm: %2$s</item>
+        <item quantity="other">✅ %1$d picks ready to confirm: %2$s</item>
+    </plurals>
+    <string name="ask_title">✨ Ask</string>
+    <string name="ask_action">Ask for something to download</string>
+    <string name="ask_hint">What would you like? A Gruffalo film for a toddler…</string>
+    <string name="ask_refine_hint">Change it: something newer, shorter, funnier…</string>
+    <string name="ask_speak">Speak</string>
+    <string name="ask_send">Ask</string>
+    <string name="ask_speech_prompt">What would you like?</string>
+    <string name="ask_start_over">🔄 Start over</string>
+    <string name="ask_you_said">🗣️ %1$s</string>
+    <string name="ask_asking">✨ Asking the home server… (up to a minute)</string>
+    <string name="ask_searching">🔍 Looking for copies…</string>
+    <string name="ask_vetting">🕵️ Checking they\'re the right ones…</string>
+    <string name="ask_checking_copy">⏳ Checking this copy…</string>
+    <string name="ask_failed">❌ No answer</string>
+    <string name="ask_unavailable">📭 Ask needs the home server. Sign in to it in Settings first.</string>
+    <string name="ask_already">✅ Already got it</string>
+    <string name="ask_no_copy">📭 No copy found</string>
+    <string name="ask_none_right">❔ No copy looked right</string>
+    <string name="ask_all_copies">🔍 All copies</string>
+    <plurals name="ask_skipped">
+        <item quantity="one">❌ %d copy skipped</item>
+        <item quantity="other">❌ %d copies skipped</item>
+    </plurals>
+    <string name="ask_skipped_line">%1$s: %2$s</string>
+    <string name="ask_shortcut_short">✨ Ask</string>
+    <string name="ask_shortcut_long">✨ Ask for something to download</string>
     <string name="cast_moving_to_tv">Moving playback to the screen</string>
     <string name="cast_moving_to_phone">Moving playback back to the phone</string>
     <plurals name="unsubscribing">

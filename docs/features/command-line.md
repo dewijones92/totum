@@ -3,7 +3,7 @@ title: Totum on the command line
 kind: feature
 status: shipped
 area: cli
-updated: 2026-08-09
+updated: 2026-10-31
 ---
 
 # `totum "jazz live stream"`
@@ -48,6 +48,12 @@ provably the same code. Needs Java 17+, `python3` with `yt-dlp`, and `mpv`, `vlc
 Found by running it: `curl -fsSL … | sh` **exits 0 even when curl fails**, because the exit status
 is the shell's and the shell got no input. That is why the release notes fetch then run, rather
 than piping — and why the `main()` wrapper is there regardless.
+
+### `totum serve`
+
+Runs the home server's ✨ Ask service on port 8770 (`--port=N`): `POST /ask`, `POST /vet`, `GET /job/{id}`,
+`GET /health`. It asks Claude Code headlessly (`TOTUM_CLAUDE`, default `claude`; `TOTUM_ASK_MODEL`, default
+`haiku`) and logs every call's time, turns and cost to stderr. On the Pi it runs in `server/totum-fetch`. ADR 109.
 
 ### `totum doctor`
 

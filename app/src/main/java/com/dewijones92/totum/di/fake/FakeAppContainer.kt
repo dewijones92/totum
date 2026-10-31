@@ -6,6 +6,8 @@ import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.InMemoryDailyAlarmStore
 import com.dewijones92.totum.dailyalarms.NoDailyAlarmPorts
+import com.dewijones92.totum.data.ask.AskCopies
+import com.dewijones92.totum.data.ask.AskService
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.InMemoryChannelLatestStore
@@ -146,6 +148,8 @@ class FakeAppContainer(
     },
     /** Null by default: previews and most tests have no home server, which is the common case. */
     override val torrentSearchSource: SearchSource? = null,
+    override val askService: AskService? = null,
+    override val askCopies: AskCopies = AskCopies({ emptyList() }),
     override val homeTorrentServer: HomeTorrentServer? = null,
     override val torrentSubtitles: TorrentSidecarSubtitles? = null,
     override val torrentsSeen: TorrentsSeen? = null,

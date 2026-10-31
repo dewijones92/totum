@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -9,14 +10,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.ui.ask.ASK_ACTION_TAG
 import com.dewijones92.totum.ui.cast.CastButton
 
 internal val LocalOpenSearch = staticCompositionLocalOf<(() -> Unit)?> { null }
+
+internal val LocalOpenAsk = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 internal val LocalCastingTo = compositionLocalOf<String?> { null }
 
@@ -27,6 +32,14 @@ fun SearchAction() {
     val open = LocalOpenSearch.current ?: return
     IconButton(onClick = open) {
         Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.destination_search))
+    }
+}
+
+@Composable
+fun AskAction() {
+    val open = LocalOpenAsk.current ?: return
+    IconButton(onClick = open, modifier = Modifier.testTag(ASK_ACTION_TAG)) {
+        Icon(Icons.Outlined.AutoAwesome, contentDescription = stringResource(R.string.ask_action))
     }
 }
 

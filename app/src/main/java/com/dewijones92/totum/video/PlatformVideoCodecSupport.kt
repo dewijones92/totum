@@ -1,5 +1,6 @@
 package com.dewijones92.totum.video
 
+import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import com.dewijones92.totum.common.Diag
 import android.media.MediaFormat as AndroidMediaFormat
@@ -68,3 +69,12 @@ public class PlatformVideoCodecSupport : VideoCodecSupport {
         }
     }
 }
+
+fun decodesTenBitHevc(): Boolean = runCatching {
+    MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+        .filter { !it.isEncoder && AndroidMediaFormat.MIMETYPE_VIDEO_HEVC in it.supportedTypes }
+        .any { info ->
+            info.getCapabilitiesForType(AndroidMediaFormat.MIMETYPE_VIDEO_HEVC).profileLevels
+                .any { it.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 }
+        }
+}.getOrDefault(false).also { Diag.log("codec", "10-bit HEVC decoder on this phone: $it") }

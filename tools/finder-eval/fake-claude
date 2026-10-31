@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Stands in for `claude -p` in tests: answers in Claude Code's JSON envelope, never calls anything."""
+import json, re, sys
+
+args = sys.argv[1:]
+message = args[args.index("-p") + 1] if "-p" in args else ""
+schema = args[args.index("--json-schema") + 1] if "--json-schema" in args else ""
+if "verdicts" in schema:
+    verdicts = []
+    item = -1
+    for line in message.splitlines():
+        if line.startswith("Item "):
+            item = int(line.split(":")[0].split()[1])
+            title = re.search(r'"(.*?)( \(\d{4}\))?"', line).group(1)
+        m = re.match(r"\s+copy (\d+): (.*)", line)
+        if m:
+            name = m.group(2)
+            ok = all(w in name.lower().replace(".", " ") for w in title.lower().split()) and not re.search(r"\b(ita|french|stage|2 \(|forever|musical)\b", name.lower())
+            verdicts.append({"item": item, "copy": int(m.group(1)), "ok": ok, "reason": "fake judge"})
+    out = {"verdicts": verdicts}
+else:
+    request = re.search(r"Newest request: (.*)", message).group(1)
+    out = {"suggestions": [
+        {"kind": "film", "title": "Night of the Living Dead", "year": 1968, "why": f"fake answer to: {request}",
+         "searchWords": "Night of the Living Dead 1968", "alreadyHave": False},
+        {"kind": "film", "title": "Nosferatu", "year": 1922, "why": "fake", "searchWords": "Nosferatu 1922", "alreadyHave": False},
+        {"kind": "podcast", "title": "The Rest Is History", "year": None, "why": "fake", "searchWords": "The Rest Is History", "alreadyHave": False},
+    ]}
+print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "num_turns": 1,
+                  "total_cost_usd": 0.0, "duration_api_ms": 1, "modelUsage": {"fake": {}},
+                  "structured_output": out, "result": ""}))

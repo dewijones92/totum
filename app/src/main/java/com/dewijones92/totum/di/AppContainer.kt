@@ -20,6 +20,10 @@ import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.dailyAlarmController
+import com.dewijones92.totum.data.ask.AskCopies
+import com.dewijones92.totum.data.ask.AskKind
+import com.dewijones92.totum.data.ask.AskService
+import com.dewijones92.totum.data.ask.HttpAskService
 import com.dewijones92.totum.data.audiobook.ArchiveBookSearchSource
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
@@ -259,6 +263,7 @@ import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoQuality
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.WatchHistorySync
+import com.dewijones92.totum.video.decodesTenBitHevc
 import com.dewijones92.totum.ytdlp.InteractiveFirstEngine
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.chaquopy.ChaquopyYtDlpEngine
@@ -324,6 +329,8 @@ interface AppContainer {
      * instead of showing an error for a feature nobody has set up.
      */
     val torrentSearchSource: SearchSource?
+    val askService: AskService?
+    val askCopies: AskCopies
 
     /** Adds a torrent to the home server and turns it into queue items; null when unconfigured. */
     val homeTorrentServer: HomeTorrentServer?
@@ -717,9 +724,28 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    override val torrentSearchSource: SearchSource? by lazy {
-        homeTorrentServer?.let(::TorrentSearchSource)
+    override val askService: AskService? by lazy {
+        appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
+            HttpAskService(httpClient, "https://totum.$base/fetch", { appPreferences.settings.value.homeServerToken })
+        }
     }
+
+    override val askCopies: AskCopies by lazy {
+        AskCopies({ kind ->
+            when (kind) {
+                AskKind.FILM, AskKind.SERIES -> listOfNotNull(torrentSearchSource)
+                AskKind.YOUTUBE -> listOf(videoSearchSource)
+                AskKind.PODCAST -> listOf(podcastSearchSource)
+                AskKind.AUDIOBOOK -> listOfNotNull(audiobookSearchSource, audiobookTorrentSource)
+            }
+        })
+    }
+
+    override val torrentSearchSource: SearchSource? by lazy {
+        homeTorrentServer?.let { TorrentSearchSource(it, prefersTenBitHevc = { tenBitHevc }) }
+    }
+
+    private val tenBitHevc: Boolean by lazy { decodesTenBitHevc() }
 
     override val videoSearchSource: SearchSource by lazy {
         // InnerTube first (it carries upload dates and needs no Python); the

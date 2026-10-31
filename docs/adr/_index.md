@@ -124,3 +124,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 106 | [A torrent wears its poster, from its site or its IMDb id](0106-a-torrent-wears-its-poster.md) | Accepted |
 | 107 | [A tab says what is new since you last looked at it](0107-a-tab-says-what-is-new-since-you-looked.md) | Accepted |
 | 108 | [Consistent everywhere, with its exceptions recorded](0108-consistent-everywhere-and-its-recorded-exceptions.md) | Accepted |
+| 109 | [✨ Ask: Haiku picks what, the app finds and ranks which copy](0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md) | Accepted |

@@ -19,6 +19,8 @@ internal sealed interface Command {
 
     /** Reports whether the machine has what this needs, and what to do if not. */
     data object Doctor : Command
+
+    data class Serve(val port: Int) : Command
 }
 
 /** A URL to play, or words to search for. Told apart once, here. */
@@ -55,6 +57,7 @@ private fun command(words: List<String>, flags: Set<String>): Command {
         "help" -> Command.Help()
         "version" -> Command.Version
         "doctor" -> Command.Doctor
+        "serve" -> Command.Serve(portFrom(flags))
         // No sub-command: `totum <url>` and `totum jazz live stream` both mean play. The
         // shortest thing you can type should be the thing you do most.
         else -> words.play(flags, name)
@@ -87,7 +90,11 @@ private fun limitFrom(flags: Set<String>): Int =
         ?.coerceIn(1, MAX_RESULTS)
         ?: DEFAULT_RESULTS
 
+private fun portFrom(flags: Set<String>): Int =
+    flags.firstOrNull { it.startsWith("--port=") }?.removePrefix("--port=")?.toIntOrNull() ?: DEFAULT_PORT
+
 private val HELP_FLAGS = setOf("-h", "--help")
 private val VERSION_FLAGS = setOf("-V", "--version")
 private const val DEFAULT_RESULTS = 10
 private const val MAX_RESULTS = 50
+private const val DEFAULT_PORT = 8770

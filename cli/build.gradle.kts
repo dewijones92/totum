@@ -17,7 +17,9 @@ dependencies {
     implementation(project(":lib:common"))
     implementation(project(":lib:ytdlp"))
     implementation(project(":lib:ytdlp-process"))
+    implementation(project(":core:data"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

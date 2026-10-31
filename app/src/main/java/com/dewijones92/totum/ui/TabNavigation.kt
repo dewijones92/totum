@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
@@ -19,13 +21,17 @@ import androidx.compose.ui.Modifier
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.navigation.TopLevelDestination
+import com.dewijones92.totum.ui.ask.AskRequests
+import com.dewijones92.totum.ui.ask.AskScreen
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.music.MusicPageScreen
 import com.dewijones92.totum.ui.search.SearchScreen
 
 @Stable
-internal class TabNavigation(searching: Boolean = false) {
+internal class TabNavigation(searching: Boolean = false, asking: Boolean = false) {
     var showSearch by mutableStateOf(searching)
+        private set
+    var showAsk by mutableStateOf(asking)
         private set
     val pages = mutableStateListOf<MusicPage>()
     var onSearchOpened: () -> Unit = {}
@@ -35,6 +41,18 @@ internal class TabNavigation(searching: Boolean = false) {
         pages.clear()
         showSearch = true
         onSearchOpened()
+    }
+
+    fun openAsk(from: String) {
+        Diag.log("nav", "ask opened from $from (search=$showSearch, music pages open=${pages.size})")
+        pages.clear()
+        showSearch = false
+        showAsk = true
+    }
+
+    fun closeAsk() {
+        Diag.log("nav", "ask closed")
+        showAsk = false
     }
 
     fun closeSearch() {
@@ -65,15 +83,19 @@ internal class TabNavigation(searching: Boolean = false) {
     }
 
     fun tabChosen() {
-        if (showSearch || pages.isNotEmpty()) {
-            Diag.log("nav", "tab chosen: closing search=$showSearch and ${pages.size} music page(s)")
+        if (showSearch || showAsk || pages.isNotEmpty()) {
+            Diag.log("nav", "tab chosen: closing search=$showSearch ask=$showAsk and ${pages.size} music page(s)")
         }
         showSearch = false
+        showAsk = false
         pages.clear()
     }
 
     companion object {
-        val Saver: Saver<TabNavigation, Boolean> = Saver(save = { it.showSearch }, restore = { TabNavigation(it) })
+        val Saver: Saver<TabNavigation, List<Boolean>> = Saver(
+            save = { listOf(it.showSearch, it.showAsk) },
+            restore = { TabNavigation(searching = it[0], asking = it.getOrElse(1) { false }) },
+        )
     }
 }
 
@@ -82,6 +104,17 @@ internal fun rememberTabNavigation(): TabNavigation = rememberSaveable(saver = T
 
 @Composable
 internal fun TabOverlays(container: AppContainer, tabs: TabNavigation) {
+    val askRequested by AskRequests.requested.collectAsState()
+    LaunchedEffect(askRequested) {
+        askRequested?.let { from ->
+            tabs.openAsk(from)
+            AskRequests.consumed()
+        }
+    }
+    BackHandler(enabled = tabs.showAsk && !tabs.showSearch && tabs.pages.isEmpty()) { tabs.closeAsk() }
+    if (tabs.showAsk) {
+        Surface(Modifier.fillMaxSize()) { AskScreen(container, onBack = tabs::closeAsk) }
+    }
     BackHandler(enabled = tabs.showSearch && tabs.pages.isEmpty()) { tabs.closeSearch() }
     if (tabs.showSearch) {
         Surface(Modifier.fillMaxSize()) { SearchScreen(container, onBack = tabs::closeSearch) }

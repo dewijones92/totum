@@ -11,6 +11,7 @@ deployed the same way.
 | `torrserver/` | Streams a torrent's files with real seeking, plus its `/torrents` watchdog timer. | gluetun's netns |
 | `totum-audio/` | Audio-only HLS of a TorrServer stream (`/audio/<hash>/<index>/index.m3u8`), about 2.1 MB a minute against 15.2 for the video. | gluetun's netns |
 | `totum-auth/` | A token per device: nginx asks it before every request to `totum.`; `totumauth.` (Google-gated) mints them ([ADR 90](../docs/adr/0090-a-token-per-device-and-none-in-links.md)). | `bin_private` |
+| `totum-fetch/` | `totum serve` (the CLI) with Claude Code: ✨ Ask's jobs at `totum./fetch/` behind the device token ([ADR 109](../docs/adr/0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md)). Built from a release: `TOTUM_VERSION=0.1.N docker compose up -d --build`. Claude's sign-in is `CLAUDE_CODE_OAUTH_TOKEN` in `/var/lib/totum-fetch/claude.env` (600). | `bin_private` |
 
 State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver`, `/var/lib/torrserver-watchdog` and
 `/var/lib/totum-auth`, and is covered by the Pi's `pi-state-backup`.

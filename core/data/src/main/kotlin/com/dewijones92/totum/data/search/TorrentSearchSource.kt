@@ -30,6 +30,7 @@ public class TorrentSearchSource(
     private val server: HomeTorrentServer,
     private val now: () -> Instant = Instant::now,
     private val category: TorrentCategory = TorrentCategory.ANY,
+    private val prefersTenBitHevc: () -> Boolean = { true },
 ) : SearchSource {
 
     override suspend fun search(query: SearchQuery, limit: Int, after: PageToken?): SearchOutcome {
@@ -61,11 +62,21 @@ public class TorrentSearchSource(
         if (final && books > 0) Diag.log("torrent", "$books audiobook result(s) left to the audiobook section")
         val judged = withSharedPosters(filter { category != TorrentCategory.ANY || !it.audiobook })
             .map { it to TorrentTrust.of(it, now()) }
+        val tenBitFirst = prefersTenBitHevc()
         val shown = judged.sortedWith(
             compareBy<Pair<TorrentResult, TorrentTrust>> { it.second.flagged }
+                .thenByDescending { healthBand(it.first.seeders) }
+                .thenByDescending { tenBitFirst && ReleaseQuality.isTenBitHevc(it.first.title) }
                 .thenByDescending { it.first.seeders }
         )
             .take(limit)
+        if (final && tenBitFirst) {
+            val tenBit = judged.count { ReleaseQuality.isTenBitHevc(it.first.title) }
+            Diag.log(
+                "torrent",
+                "10-bit HEVC preferred within each health band: $tenBit of ${judged.size} result(s) are"
+            )
+        }
         if (final) logTrust(judged, shown)
         if (final) logPosters(judged.map { it.first })
         return shown.map { (torrent, trust) ->
@@ -106,7 +117,10 @@ public class TorrentSearchSource(
         (if (seedersReported) "$seeders seeders · " else "") + "%.2f GB".format(sizeBytes / BYTES_PER_GB) +
             (indexer?.let { " · $it" } ?: "")
 
+    private fun healthBand(seeders: Int): Int = HEALTH_BANDS.count { seeders >= it }
+
     private companion object {
+        val HEALTH_BANDS = listOf(1, 5, 20)
         const val BYTES_PER_GB = 1_000_000_000.0
         const val FLAGGED_NAMED = 3
         val TRUSTED = setOf(Uploader.VIP, Uploader.TRUSTED, Uploader.OFFICIAL)

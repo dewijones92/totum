@@ -11,6 +11,7 @@ import com.dewijones92.totum.ui.cast.LocalScreenControl
 import com.dewijones92.totum.ui.cast.rememberCastingTo
 import com.dewijones92.totum.ui.common.LocalCastingTo
 import com.dewijones92.totum.ui.common.LocalExpandPlayer
+import com.dewijones92.totum.ui.common.LocalOpenAsk
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.LocalQueueSkip
@@ -38,6 +39,7 @@ internal fun ProvideShellLocals(
         // Peeking opens the player, and the shell is what owns "open".
         LocalExpandPlayer provides openPlayer,
         LocalOpenSearch provides rememberSearchOpener(tabs, selected),
+        LocalOpenAsk provides remember(tabs) { { tabs.openAsk("the ✨ button") } },
         LocalCastingTo provides rememberCastingTo(container.playbackController),
         LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener(closeFullPlayer) },
         LocalRecentSearches provides container.recentSearches,

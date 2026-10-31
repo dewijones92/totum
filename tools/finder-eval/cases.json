@@ -1,0 +1,54 @@
+{
+  "asks": [
+    {"id": "gruffalo", "turns": ["download a popular film related to the Gruffalo that my toddler would like"], "kinds": ["film"], "expect": ["The Gruffalo", "The Gruffalo's Child", "Room on the Broom", "Stick Man", "The Snail and the Whale", "Zog", "The Highway Rat", "Tabby McTat", "Superworm", "The Smeds and the Smoos"], "kids": true},
+    {"id": "gruffalo-have", "turns": ["download a popular film related to the Gruffalo that my toddler would like"], "have": ["The Gruffalo (2009)", "The Gruffalo's Child (2011)"], "kinds": ["film"], "expect": ["Room on the Broom", "Stick Man", "The Snail and the Whale", "Zog", "The Highway Rat", "Tabby McTat", "Superworm", "The Smeds and the Smoos", "Zog and the Flying Doctors"], "avoid": ["The Gruffalo", "The Gruffalo's Child"], "kids": true},
+    {"id": "gruffalo-newer", "turns": ["a popular film related to the Gruffalo that my toddler would like", "something newer"], "kinds": ["film"], "expect": ["Superworm", "The Smeds and the Smoos", "Zog and the Flying Doctors", "The Snail and the Whale", "Tabby McTat"], "minYear": 2018, "kids": true},
+    {"id": "fish-pixar", "turns": ["a Pixar film about fish for my four year old"], "kinds": ["film"], "expect": ["Finding Nemo", "Finding Dory"], "kids": true},
+    {"id": "bluey-like", "turns": ["something like Peppa Pig but for a slightly older child"], "kinds": ["series"], "expect": ["Bluey", "Hey Duggee", "Sarah & Duck", "Ben and Holly's Little Kingdom", "Puffin Rock"], "kids": true},
+    {"id": "shrek", "turns": ["Shrek"], "kinds": ["film"], "expect": ["Shrek"]},
+    {"id": "bw-horror", "turns": ["a classic black and white horror film"], "kinds": ["film"], "expect": ["Night of the Living Dead", "Nosferatu", "Dracula", "Frankenstein", "Psycho", "The Haunting", "Bride of Frankenstein", "Cat People", "The Innocents", "The Wolf Man", "Freaks", "The Invisible Man", "King Kong"]},
+    {"id": "sitcom", "turns": ["a funny British sitcom from the 2000s"], "kinds": ["series"], "expect": ["Peep Show", "The Office", "The IT Crowd", "Gavin & Stacey", "The Inbetweeners", "Spaced", "Black Books", "The Thick of It", "Extras", "Green Wing", "Phoenix Nights", "Outnumbered"]},
+    {"id": "moon-doc", "turns": ["a documentary about the Moon landing"], "kinds": ["film", "series", "youtube"], "expect": ["Apollo 11", "In the Shadow of the Moon", "For All Mankind", "Moonwalk One", "The Last Man on the Moon", "Armstrong"]},
+    {"id": "attenborough", "turns": ["the latest David Attenborough series"], "kinds": ["series"], "expect": ["Planet Earth III", "Asia", "Mammals", "Secret Garden", "Ocean", "Wild Isles", "A Perfect Planet", "Green Planet", "The Green Planet", "Kingdom"]},
+    {"id": "wimbledon", "turns": ["highlights of the last Wimbledon men's final"], "kinds": ["youtube"], "expect": ["Wimbledon", "Final"]},
+    {"id": "miss-rachel", "turns": ["Miss Rachel songs for toddlers"], "kinds": ["youtube"], "expect": ["Ms Rachel", "Miss Rachel", "Songs for Littles"], "kids": true},
+    {"id": "roman-podcast", "turns": ["a podcast about Roman history"], "kinds": ["podcast"], "expect": ["The History of Rome", "The Rest Is History", "Emperors of Rome", "Fall of Rome", "Rome", "The Roman History Show", "History of Byzantium"]},
+    {"id": "latin-podcast", "turns": ["a podcast to help me learn Latin"], "kinds": ["podcast"], "expect": ["Latin", "Quomodo Dicitur", "Lingua Latina"]},
+    {"id": "hobbit-book", "turns": ["an audiobook of The Hobbit"], "kinds": ["audiobook"], "expect": ["The Hobbit"]},
+    {"id": "free-classic-book", "turns": ["a free classic adventure audiobook my wife and I could listen to on a long drive"], "kinds": ["audiobook"], "expect": ["Treasure Island", "The Count of Monte Cristo", "Around the World in Eighty Days", "The Three Musketeers", "Twenty Thousand Leagues", "Robinson Crusoe", "The Hound of the Baskervilles", "Kidnapped", "The Thirty-Nine Steps", "King Solomon's Mines", "Journey to the Centre of the Earth", "The Lost World", "Moonfleet"]}
+  ],
+  "vets": [
+    {"suggestion": {"kind": "film", "title": "The Gruffalo", "year": 2009, "why": "the original", "searchWords": "The Gruffalo 2009"},
+     "copies": [
+       {"name": "The.Gruffalo.2009.1080p.BluRay.x264-HANDJOB", "ok": true},
+       {"name": "The Gruffalo (2009) 720p WEB-DL x265 10bit HEVC", "ok": true},
+       {"name": "The Gruffalos Child 2011 1080p BluRay", "ok": false},
+       {"name": "Il Gruffalo 2009 ITA DVDRip XviD", "ok": false},
+       {"name": "The Gruffalo Live On Stage 2019 Tall Stories", "ok": false},
+       {"name": "Gruffalo Collection 5 Films 2009-2019 1080p", "ok": false}
+     ]},
+    {"suggestion": {"kind": "film", "title": "Night of the Living Dead", "year": 1968, "why": "classic", "searchWords": "Night of the Living Dead 1968"},
+     "copies": [
+       {"name": "Night.of.the.Living.Dead.1968.REMASTERED.1080p.BluRay.X264-AMIABLE", "ok": true},
+       {"name": "Night of the Living Dead (1990) 1080p BrRip x264 YIFY", "ok": false},
+       {"name": "Night of the Living Dead 3D 2006 DVDRip", "ok": false},
+       {"name": "Night Of The Living Dead 1968 Colorized 720p", "ok": true},
+       {"name": "La Notte dei Morti Viventi 1968 ITA AC3", "ok": false}
+     ]},
+    {"suggestion": {"kind": "film", "title": "Shrek", "year": 2001, "why": "favourite", "searchWords": "Shrek 2001"},
+     "copies": [
+       {"name": "Shrek.2001.1080p.BluRay.x265.10bit.AAC5.1-Tigole", "ok": true},
+       {"name": "Shrek 2 (2004) 1080p BluRay", "ok": false},
+       {"name": "Shrek the Musical 2013 720p", "ok": false},
+       {"name": "Shrek 2001 FRENCH 1080p BluRay x264", "ok": false},
+       {"name": "Shrek Forever After 2010 1080p", "ok": false},
+       {"name": "Shrek (2001) [2160p] [4K] [WEB] [5.1] [YTS.MX]", "ok": true}
+     ]},
+    {"suggestion": {"kind": "youtube", "title": "Wimbledon 2025 Men's Final Highlights", "year": 2025, "why": "the final", "searchWords": "Wimbledon 2025 men's final highlights"},
+     "copies": [
+       {"name": "Sinner vs Alcaraz | Final Highlights | Wimbledon 2025", "detail": "Wimbledon · 12:34", "ok": true},
+       {"name": "Reacting to the Wimbledon 2025 final!! (insane)", "detail": "TennisFanTV · 22:10", "ok": false},
+       {"name": "Djokovic vs Alcaraz | Final Highlights | Wimbledon 2024", "detail": "Wimbledon · 11:50", "ok": false}
+     ]}
+  ]
+}
