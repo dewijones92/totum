@@ -6,6 +6,12 @@ import {
   ManualBalance,
   NewManualAccount,
   NewTrading212,
+  Category,
+  categorise,
+  findTransfers,
+  outgoings as computeOutgoings,
+  type OutgoingsDto,
+  type TransactionDto,
   type Connection,
   type Dashboard,
   type Healthz,
@@ -188,17 +194,55 @@ export function createApp(deps: AppDeps): Hono {
     return c.json(accounts.balanceHistory(id));
   });
 
+  const recentTransactions = () => {
+    const since = new Date(clock().getTime() - 800 * 86_400_000).toISOString().slice(0, 10);
+    return transactions.list({ since, limit: 50_000 });
+  };
+
   app.get('/api/transactions', (c) => {
     const limit = z.coerce.number().int().min(1).max(5000).default(500).parse(c.req.query('limit'));
     const accountId = c.req.query('account');
-    const since = c.req.query('since');
-    return c.json(
-      transactions.list({
-        limit,
-        ...(accountId ? { accountId } : {}),
-        ...(since ? { since } : {}),
-      }),
-    );
+    const category = c.req.query('category') ? Category.parse(c.req.query('category')) : undefined;
+    const q = (c.req.query('q') ?? '').trim().toLowerCase();
+    const all = recentTransactions();
+    const transfers = findTransfers(all);
+    const byId = new Map(accounts.list().map((a) => [a.id, a]));
+    const rows: TransactionDto[] = [];
+    for (const t of all) {
+      if (rows.length >= limit) break;
+      if (accountId && t.accountId !== accountId) continue;
+      const cat = transfers.has(t.id) ? 'transfer' : categorise(t);
+      if (category && cat !== category) continue;
+      if (q && !`${t.description} ${t.counterparty ?? ''}`.toLowerCase().includes(q)) continue;
+      const a = byId.get(t.accountId);
+      rows.push({
+        ...t,
+        accountName: a?.name ?? '—',
+        owner: a?.owner ?? 'mine',
+        category: cat,
+        transfer: transfers.has(t.id),
+      });
+    }
+    return c.json(rows);
+  });
+
+  app.get('/api/outgoings', (c) => {
+    const o = computeOutgoings(recentTransactions(), clock().toISOString().slice(0, 10));
+    const byId = new Map(accounts.list().map((a) => [a.id, a]));
+    const enrich = (r: (typeof o.recurring)[number]) => {
+      const a = byId.get(r.accountId);
+      return { ...r, accountName: a?.name ?? '—', owner: a?.owner ?? ('mine' as const) };
+    };
+    const recurring = o.recurring.map(enrich);
+    const body: OutgoingsDto = {
+      monthlyMinor: o.monthlyMinor,
+      jointMonthlyMinor: recurring
+        .filter((r) => !r.lapsed && r.owner === 'joint')
+        .reduce((s, r) => s + r.monthlyMinor, 0),
+      recurring,
+      dueSoon: o.dueSoon.map(enrich),
+    };
+    return c.json(body);
   });
 
   app.get('/api/connections', (c) => {

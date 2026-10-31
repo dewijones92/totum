@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { Account, Connection, IsoDate, SyncRun } from './domain.ts';
+import { Account, Connection, IsoDate, Owner, SyncRun } from './domain.ts';
+import { Category, Recurring } from './analysis.ts';
 import { Minor } from './money.ts';
 
 export const NetWorthDto = z.object({
@@ -33,6 +34,10 @@ export const SyncRunsDto = z.array(SyncRun);
 export const TransactionDto = z.object({
   id: z.string(),
   accountId: z.string(),
+  accountName: z.string(),
+  owner: Owner,
+  category: Category,
+  transfer: z.boolean(),
   bookedOn: IsoDate,
   minor: z.number().int(),
   currency: z.string(),
@@ -54,3 +59,14 @@ export const NewTrading212 = z.object({
   accountName: z.string().trim().min(1).max(80).default('Trading 212'),
 });
 export type NewTrading212 = z.infer<typeof NewTrading212>;
+
+export const RecurringDto = Recurring.extend({ accountName: z.string(), owner: Owner });
+export type RecurringDto = z.infer<typeof RecurringDto>;
+
+export const OutgoingsDto = z.object({
+  monthlyMinor: z.number().int(),
+  jointMonthlyMinor: z.number().int(),
+  recurring: z.array(RecurringDto),
+  dueSoon: z.array(RecurringDto),
+});
+export type OutgoingsDto = z.infer<typeof OutgoingsDto>;

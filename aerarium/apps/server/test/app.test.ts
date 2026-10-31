@@ -120,10 +120,23 @@ describe('synced connections', () => {
     const card = accounts.find((a) => a.name === 'Example Card')!;
     const patched = await t.call('PATCH', `/api/accounts/${card.id}`, { owner: 'joint' });
     expect(patched.body).toMatchObject({ owner: 'joint', ownerConfirmed: true });
-    expect(((await t.call('GET', '/api/transactions')).body as unknown[]).length).toBe(1);
+    const txs = (await t.call('GET', '/api/transactions')).body as {
+      category: string;
+      transfer: boolean;
+      owner: string;
+    }[];
+    expect(txs.length).toBe(24);
+    expect(txs.filter((x) => x.transfer)).toHaveLength(2);
+    expect(txs.some((x) => x.category === 'energy')).toBe(true);
+    const out = (await t.call('GET', '/api/outgoings')).body as {
+      monthlyMinor: number;
+      recurring: { payee: string; priceChange: unknown }[];
+    };
+    expect(out.monthlyMinor).toBe(16_500);
+    expect(out.recurring.map((r) => r.payee)).toEqual(['Example Energy']);
     const conns = (await t.call('GET', '/api/connections')).body;
     expect(conns).toMatchObject([
-      { id, lastRun: { outcome: 'ok', accountsSeen: 2, transactionsAdded: 1 } },
+      { id, lastRun: { outcome: 'ok', accountsSeen: 2, transactionsAdded: 24 } },
     ]);
     expect(JSON.stringify(conns)).not.toContain('shh');
   });

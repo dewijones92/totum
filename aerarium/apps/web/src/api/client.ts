@@ -1,6 +1,8 @@
 import {
   Account,
   ConnectionsDto,
+  OutgoingsDto,
+  type Category,
   Dashboard,
   HealthReport,
   SyncRunsDto,
@@ -94,11 +96,22 @@ export const api = {
     ),
   monzoStart: () => request('/api/monzo/start', z.object({ url: z.string() }), json('POST')),
   syncNow: (id: string) => request(`/api/connections/${enc(id)}/sync`, SyncStarted, json('POST')),
-  transactions: (query: { account?: string; since?: string; limit?: number } = {}) => {
+  outgoings: () => request('/api/outgoings', OutgoingsDto),
+  transactions: (
+    query: {
+      account?: string;
+      since?: string;
+      limit?: number;
+      q?: string;
+      category?: Category;
+    } = {},
+  ) => {
     const q = new URLSearchParams();
     if (query.account) q.set('account', query.account);
     if (query.since) q.set('since', query.since);
     if (query.limit) q.set('limit', String(query.limit));
+    if (query.q) q.set('q', query.q);
+    if (query.category) q.set('category', query.category);
     return request(`/api/transactions?${q.toString()}`, TransactionsDto);
   },
 };

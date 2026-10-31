@@ -1,4 +1,12 @@
-import type { AccountKind, HealthReason, HealthState, Owner, SourceKind } from '@aerarium/shared';
+import type {
+  AccountKind,
+  Cadence,
+  Category,
+  HealthReason,
+  HealthState,
+  Owner,
+  SourceKind,
+} from '@aerarium/shared';
 
 export const names = {
   app: 'Aerarium',
@@ -8,6 +16,8 @@ export const strings = {
   nav: {
     dashboard: '🏛️ Overview',
     accounts: '🗂️ Accounts',
+    transactions: '🧾 Transactions',
+    outgoings: '📤 Outgoings',
     connections: '🔌 Connections',
     health: '🩺 Health',
   },
@@ -135,6 +145,60 @@ export const strings = {
     monzoApproved: '✅ I’ve approved it: sync now',
     monzoSyncing: '⏳ First sync running, see 🩺 Health',
   },
+  transactions: {
+    title: '🧾 Transactions',
+    search: '🔎 Search',
+    allAccounts: '🗂️ All accounts',
+    allCategories: '🏷️ All categories',
+    none: '📭 No transactions match.',
+    loading: '⏳ Loading transactions…',
+    transfer: '🔁 Between your accounts',
+    showing: (n: number) => `📄 Showing the latest ${String(n)}`,
+  },
+  outgoings: {
+    title: '📤 Outgoings',
+    monthly: '📅 Regular payments a month',
+    jointPart: (amount: string) => `👥 of which from joint accounts: ${amount}`,
+    dueSoon: '⏰ Due in the next two weeks',
+    nothingDue: '✅ Nothing due in the next two weeks.',
+    all: '🔁 Regular payments found',
+    none: '📭 No regular payments found yet: they appear once a payee has been paid a few times on a regular rhythm.',
+    lapsed: '💤 Stopped',
+    next: (date: string) => `📅 Next about ${date}`,
+    last: (date: string) => `🕒 Last ${date}`,
+    rise: (pct: number, from: string, to: string) => `⚠️ Up ${String(pct)}%: ${from} → ${to}`,
+    fall: (pct: number, from: string, to: string) =>
+      `📉 Down ${String(Math.abs(pct))}%: ${from} → ${to}`,
+    perMonth: (amount: string) => `📆 ${amount} a month`,
+    times: (n: number) => `🔢 Seen ${String(n)} times`,
+    loading: '⏳ Working out your regular payments…',
+  },
+  cadences: {
+    weekly: '🗓️ Weekly',
+    monthly: '🗓️ Monthly',
+    quarterly: '🗓️ Quarterly',
+    yearly: '🗓️ Yearly',
+  } satisfies Record<Cadence, string>,
+  categories: {
+    income: '💼 Income',
+    interest: '💰 Interest',
+    transfer: '🔁 Transfer',
+    housing: '🏠 Housing',
+    energy: '⚡ Energy',
+    water: '💧 Water',
+    telecoms: '📶 Broadband & mobile',
+    'council-tax': '🏛️ Council tax',
+    insurance: '🛡️ Insurance',
+    childcare: '👶 Childcare',
+    groceries: '🛒 Groceries',
+    'eating-out': '🍽️ Eating out',
+    transport: '🚆 Transport',
+    shopping: '🛍️ Shopping',
+    subscriptions: '🔁 Subscriptions',
+    cash: '💵 Cash',
+    fees: '🧾 Fees',
+    other: '📦 Other',
+  } satisfies Record<Category, string>,
   common: {
     error: (message: string) => `❌ ${message}`,
     retry: '🔄 Try again',
@@ -198,6 +262,7 @@ export const tips = {
   namePlaceholder: 'e.g. Easy access saver',
   history: 'Net worth over time',
   bankSearch: 'Bank name',
+  txSearch: 'Payee or description',
 };
 
 export const units = {

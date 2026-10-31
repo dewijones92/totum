@@ -20,3 +20,4 @@ Pyramid: many vitest unit tests (pure analysis, connectors against fake provider
 | E2E   | `e2e/overview.spec.ts` | `/healthz`; a typed-in balance reaches net worth and an update moves it                                                |
 | E2E   | `e2e/health.spec.ts`   | a fake source that fails shows its error on the health page, recovers on Sync now, and its accounts reach the overview |
 | E2E   | `e2e/whose.spec.ts`    | a newly synced account is flagged on the overview, asks "Mine or Joint?", and Joint becomes a tag                      |
+| E2E   | `e2e/money.spec.ts`    | a monthly bill appears on Outgoings with its 10% rise; the feed searches and tags a card repayment as a transfer       |
