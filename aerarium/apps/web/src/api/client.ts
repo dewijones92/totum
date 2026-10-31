@@ -9,6 +9,7 @@ import {
   type AccountPatch,
   type ManualBalance,
   type NewManualAccount,
+  type NewTrading212,
 } from '@aerarium/shared';
 import { z } from 'zod';
 
@@ -61,6 +62,9 @@ export const api = {
   health: () => request('/api/health', HealthReport),
   connections: () => request('/api/connections', ConnectionsDto),
   runs: (id: string) => request(`/api/connections/${enc(id)}/runs`, SyncRunsDto),
+  connectTrading212: (input: NewTrading212) =>
+    request('/api/connections/trading212', z.object({ id: z.string() }), json('POST', input)),
+  disconnect: (id: string) => request(`/api/connections/${enc(id)}`, z.undefined(), json('DELETE')),
   syncNow: (id: string) => request(`/api/connections/${enc(id)}/sync`, SyncStarted, json('POST')),
   transactions: (query: { account?: string; since?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

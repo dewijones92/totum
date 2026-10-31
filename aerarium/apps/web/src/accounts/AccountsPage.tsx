@@ -159,6 +159,7 @@ function AccountRow({ account, onChange }: { account: Account; onChange: () => v
     <li className="account-row" data-testid={`account-${account.name}`}>
       <div className="account-main">
         <b>{account.name}</b>
+        {account.owner === 'joint' ? <span className="tag">{strings.accounts.joint}</span> : null}
         <span className="muted">
           {strings.kinds[account.kind]} ·{' '}
           {manual ? strings.accounts.typedIn : strings.accounts.synced}

@@ -1,5 +1,6 @@
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { AccountsPage } from './accounts/AccountsPage.tsx';
+import { ConnectionsPage } from './connections/ConnectionsPage.tsx';
 import { DashboardPage } from './dashboard/DashboardPage.tsx';
 import { HealthBar } from './health/HealthBar.tsx';
 import { HealthPage } from './health/HealthPage.tsx';
@@ -9,6 +10,7 @@ import { names, strings, tips } from './strings.ts';
 const NAV: { href: string; label: string }[] = [
   { href: '/', label: strings.nav.dashboard },
   { href: '/accounts', label: strings.nav.accounts },
+  { href: '/connections', label: strings.nav.connections },
   { href: '/health', label: strings.nav.health },
 ];
 
@@ -42,6 +44,9 @@ export function App() {
           </Route>
           <Route path="/accounts">
             <AccountsPage onChange={health.reload} />
+          </Route>
+          <Route path="/connections">
+            <ConnectionsPage onChange={health.reload} />
           </Route>
           <Route path="/health">
             <HealthPage health={health} />

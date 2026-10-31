@@ -46,3 +46,11 @@ export const SyncStarted = z.object({
   outcome: z.enum(['started', 'busy', 'no-connector']),
 });
 export type SyncStarted = z.infer<typeof SyncStarted>;
+
+export const NewTrading212 = z.object({
+  keyId: z.string().trim().min(1),
+  secret: z.string().trim().min(1),
+  accountKind: z.enum(['isa-stocks', 'investment', 'pension']).default('isa-stocks'),
+  accountName: z.string().trim().min(1).max(80).default('Trading 212'),
+});
+export type NewTrading212 = z.infer<typeof NewTrading212>;

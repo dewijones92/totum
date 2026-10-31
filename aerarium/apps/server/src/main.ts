@@ -5,6 +5,7 @@ import { createLogger } from './log.ts';
 import { SecretBox } from './secret-box.ts';
 import { openDb } from './store/db.ts';
 import { wire } from './wire.ts';
+import { Trading212Connector } from './connectors/trading212.ts';
 
 const config = loadConfig();
 const log = createLogger(config.LOG_LEVEL);
@@ -28,6 +29,7 @@ const { app, scheduler, connections } = wire({
   ownerEmail: config.OWNER_EMAIL,
   fakeProviders: config.FAKE_PROVIDERS === '1',
   manualStaleDays: config.MANUAL_STALE_DAYS,
+  connectors: [new Trading212Connector(log)],
   ...(config.STATIC_DIR ? { staticDir: config.STATIC_DIR } : {}),
 });
 

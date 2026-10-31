@@ -5,6 +5,7 @@ import {
   computeNetWorth,
   ManualBalance,
   NewManualAccount,
+  NewTrading212,
   type Connection,
   type Dashboard,
   type Healthz,
@@ -219,6 +220,26 @@ export function createApp(deps: AppDeps): Hono {
     if (engine.isRunning(conn.id)) return c.json({ outcome: 'busy' } satisfies SyncStarted, 202);
     void engine.run(conn, 'asked for in the app');
     return c.json({ outcome: 'started' } satisfies SyncStarted, 202);
+  });
+
+  app.post('/api/connections/trading212', async (c) => {
+    const input = NewTrading212.parse(await c.req.json());
+    const id = connections.create(
+      {
+        kind: 'trading212',
+        label: input.accountName,
+        config: { accountKind: input.accountKind, accountName: input.accountName },
+        secrets: { keyId: input.keyId, secret: input.secret },
+      },
+      clock().toISOString(),
+    );
+    log.info(
+      { id, accountKind: input.accountKind },
+      'dewidebug trading212 connected; first sync starting',
+    );
+    const conn = connections.get(id);
+    if (conn) void engine.run(conn, 'just connected');
+    return c.json({ id }, 201);
   });
 
   app.delete('/api/connections/:id', (c) => {

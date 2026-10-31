@@ -8,6 +8,7 @@ export const strings = {
   nav: {
     dashboard: '🏛️ Overview',
     accounts: '🗂️ Accounts',
+    connections: '🔌 Connections',
     health: '🩺 Health',
   },
   health: {
@@ -81,6 +82,23 @@ export const strings = {
     synced: '🔌 Synced automatically',
     typedIn: '✍️ Typed in',
     joint: '👥 Joint',
+  },
+  connections: {
+    title: '🔌 Connections',
+    hint: '🔒 Everything here is read-only: Aerarium can look, never move money.',
+    none: '📭 Nothing connected yet.',
+    remove: '🗑️ Disconnect',
+    confirmRemove: '⚠️ Disconnect this and remove its accounts and history from Aerarium?',
+    t212Title: '📈 Add Trading 212',
+    t212Hint:
+      '💡 In the Trading 212 app: Settings → API → generate a key with read-only permissions. Paste its key ID and secret here; they are stored encrypted.',
+    keyId: '🆔 API key ID',
+    secret: '🔑 API secret',
+    accountName: '🏷️ Name',
+    accountKind: '🗃️ Type',
+    connect: '🔌 Connect',
+    connecting: '⏳ Connecting…',
+    connected: '✅ Connected: the first sync is running, see 🩺 Health',
   },
   common: {
     error: (message: string) => `❌ ${message}`,
