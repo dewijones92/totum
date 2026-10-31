@@ -6,6 +6,8 @@ import {
   ManualBalance,
   NewManualAccount,
   NewTrading212,
+  NewIsaSubscription,
+  NewKeyDate,
   Category,
   categorise,
   findTransfers,
@@ -25,6 +27,7 @@ import type { EnableBankingFlow } from './consent/enable-banking-flow.ts';
 import type { MonzoApi } from './connectors/monzo.ts';
 import type { SettingsStore } from './store/settings.ts';
 import { maybeWeekly, type WeeklyDeps } from './notify/weekly.ts';
+import type { Nudges } from './notify/nudges.ts';
 import { randomBytes } from 'node:crypto';
 import { isTrusted } from './http/ip.ts';
 import { EMAIL_HEADER, judgeOwner } from './http/owner.ts';
@@ -50,6 +53,7 @@ export interface AppDeps {
   engine: SyncEngine;
   healthReport: () => HealthReport;
   weekly: WeeklyDeps;
+  nudges: Nudges;
   fake?: FakeConnector;
   enableBanking?: EnableBankingFlow;
   settings: SettingsStore;
@@ -427,6 +431,24 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   app.get('/api/health', (c) => c.json(deps.healthReport()));
+
+  app.get('/api/nudges', (c) => c.json(deps.nudges.compute(clock())));
+  app.get('/api/key-dates', (c) => c.json(deps.nudges.keyDates()));
+  app.post('/api/key-dates', async (c) =>
+    c.json(deps.nudges.addKeyDate(NewKeyDate.parse(await c.req.json())), 201),
+  );
+  app.delete('/api/key-dates/:id', (c) => {
+    if (!deps.nudges.removeKeyDate(c.req.param('id'))) throw new HttpError(404, 'No such date');
+    return c.body(null, 204);
+  });
+  app.get('/api/isa-subscriptions', (c) => c.json(deps.nudges.isaManual()));
+  app.post('/api/isa-subscriptions', async (c) =>
+    c.json(deps.nudges.addIsa(NewIsaSubscription.parse(await c.req.json())), 201),
+  );
+  app.delete('/api/isa-subscriptions/:id', (c) => {
+    if (!deps.nudges.removeIsa(c.req.param('id'))) throw new HttpError(404, 'No such ISA payment');
+    return c.body(null, 204);
+  });
 
   app.get('/api/reports', (c) => c.json(deps.weekly.reports.list(104)));
 

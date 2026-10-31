@@ -14,3 +14,4 @@ updated: 2026-10-31
 | [Transactions and outgoings](transactions-and-outgoings.md)       | shipped                                                     |
 | [Alerts](alerts.md)                                               | in progress (health changes and large transactions shipped) |
 | [Weekly money report](weekly-report.md)                           | shipped (story and tax-year review to come)                 |
+| [Reminders and money nudges](reminders.md)                        | shipped                                                     |

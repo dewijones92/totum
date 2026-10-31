@@ -3,6 +3,7 @@ import type {
   Cadence,
   Category,
   HealthReason,
+  KeyDateKind,
   HealthState,
   Owner,
   SourceKind,
@@ -19,6 +20,7 @@ export const strings = {
     transactions: '🧾 Transactions',
     outgoings: '📤 Outgoings',
     reports: '📊 Reports',
+    reminders: '⏰ Reminders',
     connections: '🔌 Connections',
     health: '🩺 Health',
   },
@@ -201,6 +203,50 @@ export const strings = {
       `🧾 ${used} of your ${allowance} Personal Savings Allowance`,
     older: '🗂️ Earlier weeks',
   },
+  reminders: {
+    title: '⏰ Reminders',
+    comingUp: '⏰ Coming up',
+    nothing: '✅ Nothing coming up.',
+    keyDate: (title: string, days: number, date: string) =>
+      days === 0
+        ? `📅 ${title} is today (${date})`
+        : `📅 ${title} in ${String(days)} day${days === 1 ? '' : 's'} (${date})`,
+    consent: (label: string, days: number, date: string) =>
+      days < 0
+        ? `🔑 ${label}: bank consent ended ${date}, reconnect`
+        : `🔑 ${label}: bank consent ends in ${String(days)} days (${date})`,
+    idle: (amount: string, name: string, days: number) =>
+      `💤 At least ${amount} has sat in ${name} for ${String(days)} days earning nothing`,
+    isaTitle: '🛡️ ISA allowance this tax year',
+    isaUsed: (used: string, allowance: string) => `🛡️ ${used} of ${allowance} used`,
+    isaLeft: (left: string, days: number) => `⏳ ${left} left, ${String(days)} days until 5 April`,
+    isaCashCap: (cap: string) =>
+      `💡 From this tax year cash ISAs are capped at ${cap} for under-65s`,
+    isaDetected: '🔎 Found in your connected ISAs',
+    isaManual: '✍️ Typed in by you',
+    isaAdd: '➕ Add an ISA payment Aerarium cannot see',
+    isaAmount: '💷 Amount',
+    isaDate: '📅 Date',
+    isaNote: '🏷️ Note',
+    dates: '📅 Key dates',
+    datesHint:
+      '💡 Renewals, ISA or bond maturities, a fixed rate ending, the MOT: Aerarium reminds you here and on Matrix.',
+    addDate: '➕ Add a date',
+    dateTitle: '🏷️ What',
+    dateKind: '🗃️ Kind',
+    dateWhen: '📅 When',
+    remindDays: '⏰ Remind days before',
+    add: '✅ Add',
+    remove: '🗑️ Remove',
+    noDates: '📭 No key dates yet.',
+    kinds: {
+      renewal: '🔁 Renewal',
+      maturity: '🏁 Maturity',
+      'fixed-rate-end': '📉 Fixed rate ends',
+      mot: '🚗 MOT',
+      other: '📌 Other',
+    } satisfies Record<KeyDateKind, string>,
+  },
   cadences: {
     weekly: '🗓️ Weekly',
     monthly: '🗓️ Monthly',
@@ -295,6 +341,7 @@ export const tips = {
   history: 'Net worth over time',
   bankSearch: 'Bank name',
   txSearch: 'Payee or description',
+  dateTitlePlaceholder: 'e.g. Home insurance renews',
 };
 
 export const units = {

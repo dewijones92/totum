@@ -74,11 +74,10 @@ export function categorise(t: Pick<TxIn, 'description' | 'counterparty' | 'minor
 const DAY = 86_400_000;
 const days = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) / DAY;
 
-export function findTransfers(txs: readonly TxIn[], windowDays = 3): Set<string> {
-  const paired = new Set<string>();
-  const credits = txs.filter((t) => t.minor > 0);
+export function pairTransfers(txs: readonly TxIn[], windowDays = 3): Map<string, TxIn> {
+  const partner = new Map<string, TxIn>();
   const byAmount = new Map<string, TxIn[]>();
-  for (const c of credits) {
+  for (const c of txs.filter((t) => t.minor > 0)) {
     const key = `${c.currency}:${String(c.minor)}`;
     const list = byAmount.get(key) ?? [];
     list.push(c);
@@ -92,17 +91,21 @@ export function findTransfers(txs: readonly TxIn[], windowDays = 3): Set<string>
     const match = candidates
       .filter(
         (c) =>
-          !paired.has(c.id) &&
+          !partner.has(c.id) &&
           c.accountId !== d.accountId &&
           days(c.bookedOn, d.bookedOn) <= windowDays,
       )
       .sort((a, b) => days(a.bookedOn, d.bookedOn) - days(b.bookedOn, d.bookedOn))[0];
     if (match) {
-      paired.add(match.id);
-      paired.add(d.id);
+      partner.set(match.id, d);
+      partner.set(d.id, match);
     }
   }
-  return paired;
+  return partner;
+}
+
+export function findTransfers(txs: readonly TxIn[], windowDays = 3): Set<string> {
+  return new Set(pairTransfers(txs, windowDays).keys());
 }
 
 export function payeeKey(t: Pick<TxIn, 'description' | 'counterparty'>): string {

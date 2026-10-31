@@ -20,6 +20,7 @@ import { Scheduler } from './sync/scheduler.ts';
 import { Snapshots } from './store/snapshot.ts';
 import { ReportsStore } from './store/reports.ts';
 import { maybeWeekly, type WeeklyDeps } from './notify/weekly.ts';
+import { Nudges } from './notify/nudges.ts';
 import { buildHealthReport } from './health.ts';
 import { LogOnlyNotifier, type Notifier } from './notify/notifier.ts';
 import { describeLarge, HealthWatcher } from './notify/watchers.ts';
@@ -43,6 +44,7 @@ export interface WireOptions {
   notifier?: Notifier;
   snapshotsDir?: string;
   personalSavingsAllowance?: number;
+  idleThresholdMinor?: number;
   largeTransactionMinor?: number;
   clock?: () => Date;
   remoteAddress?: (c: Context) => string | undefined;
@@ -109,6 +111,16 @@ export function wire(o: WireOptions) {
   const notifier = o.notifier ?? new LogOnlyNotifier(o.log);
   const publicUrl = (o.publicUrl ?? '').replace(/\/$/, '');
   const healthWatcher = new HealthWatcher({ settings, notifier, log: o.log, publicUrl });
+  const nudges = new Nudges({
+    accounts,
+    connections,
+    transactions,
+    settings,
+    notifier,
+    log: o.log,
+    publicUrl,
+    idleThresholdMinor: o.idleThresholdMinor ?? 300_000,
+  });
   const weekly: WeeklyDeps = {
     accounts,
     transactions,
@@ -164,6 +176,7 @@ export function wire(o: WireOptions) {
     afterTick: async () => {
       await healthWatcher.check(healthReport());
       await maybeWeekly(weekly, clock());
+      await nudges.notifyNew(clock());
     },
     afterRun: alertLarge,
   });
@@ -182,6 +195,7 @@ export function wire(o: WireOptions) {
     engine,
     healthReport,
     weekly,
+    nudges,
     ...(fake ? { fake } : {}),
     ...(eb ? { enableBanking: eb.flow } : {}),
     settings,

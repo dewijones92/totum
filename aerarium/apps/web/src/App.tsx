@@ -3,6 +3,7 @@ import { AccountsPage } from './accounts/AccountsPage.tsx';
 import { ConnectionsPage } from './connections/ConnectionsPage.tsx';
 import { OutgoingsPage } from './outgoings/OutgoingsPage.tsx';
 import { ReportsPage } from './reports/ReportsPage.tsx';
+import { RemindersPage } from './reminders/RemindersPage.tsx';
 import { TransactionsPage } from './transactions/TransactionsPage.tsx';
 import { DashboardPage } from './dashboard/DashboardPage.tsx';
 import { HealthBar } from './health/HealthBar.tsx';
@@ -16,6 +17,7 @@ const NAV: { href: string; label: string }[] = [
   { href: '/transactions', label: strings.nav.transactions },
   { href: '/outgoings', label: strings.nav.outgoings },
   { href: '/reports', label: strings.nav.reports },
+  { href: '/reminders', label: strings.nav.reminders },
   { href: '/connections', label: strings.nav.connections },
   { href: '/health', label: strings.nav.health },
 ];
@@ -59,6 +61,9 @@ export function App() {
           </Route>
           <Route path="/reports">
             <ReportsPage />
+          </Route>
+          <Route path="/reminders">
+            <RemindersPage />
           </Route>
           <Route path="/connections">
             <ConnectionsPage onChange={health.reload} />

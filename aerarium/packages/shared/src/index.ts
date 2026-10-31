@@ -5,3 +5,4 @@ export * from './money.ts';
 export * from './net-worth.ts';
 export * from './analysis.ts';
 export * from './report.ts';
+export * from './nudges.ts';

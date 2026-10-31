@@ -3,6 +3,12 @@ import {
   ConnectionsDto,
   OutgoingsDto,
   WeeklyReport,
+  IsaAllowance,
+  IsaSubscription,
+  KeyDate,
+  Reminder,
+  type NewIsaSubscription,
+  type NewKeyDate,
   type Category,
   Dashboard,
   HealthReport,
@@ -97,6 +103,16 @@ export const api = {
     ),
   monzoStart: () => request('/api/monzo/start', z.object({ url: z.string() }), json('POST')),
   syncNow: (id: string) => request(`/api/connections/${enc(id)}/sync`, SyncStarted, json('POST')),
+  nudges: () =>
+    request('/api/nudges', z.object({ reminders: z.array(Reminder), isa: IsaAllowance })),
+  keyDates: () => request('/api/key-dates', z.array(KeyDate)),
+  addKeyDate: (input: NewKeyDate) => request('/api/key-dates', KeyDate, json('POST', input)),
+  removeKeyDate: (id: string) =>
+    request(`/api/key-dates/${enc(id)}`, z.undefined(), json('DELETE')),
+  addIsa: (input: NewIsaSubscription) =>
+    request('/api/isa-subscriptions', IsaSubscription, json('POST', input)),
+  removeIsa: (id: string) =>
+    request(`/api/isa-subscriptions/${enc(id)}`, z.undefined(), json('DELETE')),
   reports: () => request('/api/reports', z.array(WeeklyReport)),
   makeReport: () => request('/api/reports/run', WeeklyReport, json('POST')),
   outgoings: () => request('/api/outgoings', OutgoingsDto),

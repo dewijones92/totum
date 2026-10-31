@@ -5,6 +5,7 @@ import { strings } from '../strings.ts';
 import { formatBalance } from '../ui/format.ts';
 import { useAsync } from '../ui/use-async.ts';
 import { Sparkline } from './Sparkline.tsx';
+import { ReminderList } from '../reminders/ReminderLine.tsx';
 
 const ORDER = AccountKind.options;
 
@@ -17,6 +18,7 @@ function groupByKind(accounts: readonly Account[]): [AccountKind, Account[]][] {
 
 export function DashboardPage() {
   const { data, error, loading, reload } = useAsync(() => api.dashboard(), 'dashboard');
+  const nudges = useAsync(() => api.nudges(), 'dashboard-nudges');
   if (error) {
     return (
       <section>
@@ -55,6 +57,13 @@ export function DashboardPage() {
       ) : null}
       {nw.leftOut.length > 0 ? (
         <p className="muted">{strings.dashboard.leftOut(nw.leftOut.length)}</p>
+      ) : null}
+      {nudges.data && nudges.data.reminders.length > 0 ? (
+        <>
+          <h2>{strings.reminders.comingUp}</h2>
+          <ReminderList items={nudges.data.reminders.slice(0, 4)} />
+          <Link href="/reminders">{strings.nav.reminders}</Link>
+        </>
       ) : null}
       <h2>{strings.dashboard.history}</h2>
       {data.history.length > 1 ? (
