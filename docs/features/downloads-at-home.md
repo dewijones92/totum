@@ -21,6 +21,8 @@ copies it over the next time it is on Wi-Fi. ADR 110.
 - Any item's menu, once it is at home: 📥 Copy to the phone now (any network), 🗑️ Delete from the phone, keep at home
   (it then stays home until copied again by hand), 🏠 Delete at home (keep on the phone). Rows say "🏠 Also at home".
 - Settings → Downloads → 🏠 Copy home downloads to the phone (on by default; off keeps everything home until asked).
+- A finished torrent (film or episode) is filed into Jellyfin's movies or series library by Haiku, into the show's
+  existing season folder, and Jellyfin is told; the app still plays, copies and deletes it there (ADR 111).
 - Deleting the download deletes both copies. Under 20 GB free at home a job is refused with the reason.
 
 ## Seams

@@ -1,5 +1,12 @@
 package com.dewijones92.totum.cli.serve
 
+import com.dewijones92.totum.cli.Command
+import com.dewijones92.totum.cli.serve.filing.FileCheck
+import com.dewijones92.totum.cli.serve.filing.Filing
+import com.dewijones92.totum.cli.serve.filing.FolderLibrary
+import com.dewijones92.totum.cli.serve.filing.Jellyfin
+import com.dewijones92.totum.cli.serve.filing.LibraryFiler
+import com.dewijones92.totum.cli.serve.filing.Shelf
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
@@ -17,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.KSerializer
+import okhttp3.OkHttpClient
 import java.io.File
 import java.net.InetSocketAddress
 import java.util.UUID
@@ -146,8 +154,53 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         downloadDir = File(System.getenv("TOTUM_DOWNLOADS") ?: "${System.getProperty("user.home")}/totum-downloads"),
         scope = this,
         rewrites = rewritesFrom(System.getenv("TOTUM_REWRITE")),
+        filer = filerFromEnv(brain),
     )
     AskServer(brain, this, HomeRoutes(home)).start(port)
     out("totum serve: listening on $port")
     awaitCancellation()
+}
+
+internal suspend fun fileCheck(command: Command.FileCheck, out: (String) -> Unit): Int {
+    val paths = FileCheck.listing(File(command.listing))
+    val brain = ClaudeCodeBrain(
+        claude = System.getenv("TOTUM_CLAUDE") ?: "claude",
+        model = System.getenv("TOTUM_ASK_MODEL") ?: "haiku",
+    )
+    val check = FileCheck(paths) { request, library ->
+        if (command.rulesOnly) Filing.byRules(request.name, library, request.from) else brain.file(request)
+    }
+    val samples = check.samples(command.samples, command.seed)
+    val by = if (command.rulesOnly) "by rules" else "with ${System.getenv("TOTUM_ASK_MODEL") ?: "haiku"}"
+    out("filing ${samples.size} sample(s) $by")
+    val results = check.run(samples)
+    val report = FileCheck.report(if (command.rulesOnly) "rules" else "brain", results)
+    command.out?.let { File(it).writeText(report) }
+    out(FileCheck.summary(if (command.rulesOnly) "rules" else "brain", results))
+    return 0
+}
+
+internal fun filerFromEnv(brain: Brain, env: (String) -> String? = System::getenv): LibraryFiler? {
+    val movies = env("TOTUM_LIBRARY_MOVIES") ?: return null
+    val series = env("TOTUM_LIBRARY_SERIES") ?: return null
+    val jellyfin = env("TOTUM_JELLYFIN_URL")?.let { url ->
+        env("TOTUM_JELLYFIN_KEY")?.let { key ->
+            Jellyfin(
+                OkHttpClient(),
+                url,
+                key,
+                mapOf(
+                    Shelf.MOVIES to (env("TOTUM_JELLYFIN_MOVIES") ?: "/data/movies"),
+                    Shelf.SERIES to (env("TOTUM_JELLYFIN_SERIES") ?: "/data/tvshows"),
+                ),
+            )
+        }
+    }
+    val told = if (jellyfin != null) "will be told" else "not configured"
+    Diag.log("filing", "filing finished torrents into $movies and $series; Jellyfin $told")
+    return LibraryFiler(
+        FolderLibrary(mapOf(Shelf.MOVIES to File(movies), Shelf.SERIES to File(series))),
+        jellyfin,
+        brain::file
+    )
 }

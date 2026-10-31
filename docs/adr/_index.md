@@ -126,3 +126,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 108 | [Consistent everywhere, with its exceptions recorded](0108-consistent-everywhere-and-its-recorded-exceptions.md) | Accepted |
 | 109 | [✨ Ask: Haiku picks what, the app finds and ranks which copy](0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md) | Accepted |
 | 110 | [Downloads at home: the Pi fetches with the app's own code](0110-downloads-at-home-the-pi-fetches-with-the-apps-own-code.md) | Accepted |
+| 111 | [Finished torrents at home are filed into Jellyfin by Haiku](0111-finished-torrents-at-home-are-filed-into-jellyfin.md) | Accepted |

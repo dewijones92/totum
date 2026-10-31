@@ -55,6 +55,16 @@ Runs the home server's ✨ Ask service on port 8770 (`--port=N`): `POST /ask`, `
 `GET /health`, and downloads at home (`/jobs`, `/files/{id}`, `/account`, ADR 110). It asks Claude Code headlessly (`TOTUM_CLAUDE`, default `claude`; `TOTUM_ASK_MODEL`, default
 `haiku`) and logs every call's time, turns and cost to stderr. On the Pi it runs in `server/totum-fetch`. ADR 109.
 
+With `TOTUM_LIBRARY_MOVIES` and `TOTUM_LIBRARY_SERIES` set it files each finished torrent into that library, and with
+`TOTUM_JELLYFIN_URL`/`TOTUM_JELLYFIN_KEY` it tells Jellyfin (ADR 111).
+
+### `totum file-check <listing> [--samples=N] [--seed=S] [--rules] [--out=report.md]`
+
+A dry run of that filing against a real library listing (`find movies series -printf "%y\t%u:%g\t%m\t%s\t%p\n"`
+run in the folder holding both): each sampled video is hidden (a film's own folder with it) and Haiku, or the rules
+with `--rules`, says where it goes; the report scores the library, the show or film folder and the exact folder.
+Nothing on disk is touched.
+
 ### `totum doctor`
 
 ```

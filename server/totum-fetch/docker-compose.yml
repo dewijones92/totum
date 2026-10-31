@@ -16,7 +16,7 @@ services:
       TZ: GMT0BST,M3.5.0/1,M10.5.0
     volumes:
       - /var/lib/totum-fetch/home:/home/totum
-      - /home/pi/ext_files/media/totum:/downloads
+      - /home/pi/ext_files/media:/media
     networks:
       - bin_private
     restart: unless-stopped

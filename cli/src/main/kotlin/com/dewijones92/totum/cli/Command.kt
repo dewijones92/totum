@@ -21,6 +21,14 @@ internal sealed interface Command {
     data object Doctor : Command
 
     data class Serve(val port: Int) : Command
+
+    data class FileCheck(
+        val listing: String,
+        val samples: Int,
+        val seed: Int,
+        val rulesOnly: Boolean,
+        val out: String?,
+    ) : Command
 }
 
 /** A URL to play, or words to search for. Told apart once, here. */
@@ -47,6 +55,7 @@ internal fun parse(args: List<String>): Command {
 private fun command(words: List<String>, flags: Set<String>): Command {
     val name = words.firstOrNull() ?: return Command.Help()
     val rest = words.drop(1)
+    PLAIN[name]?.let { return it }
     return when (name) {
         "play" -> rest.play(flags, "play")
         "resolve" -> rest.asTarget()?.let { Command.Resolve(it, json = "--json" in flags) }
@@ -54,10 +63,8 @@ private fun command(words: List<String>, flags: Set<String>): Command {
         "search" -> rest.joinToString(" ").ifBlank { null }
             ?.let { Command.Search(it, limitFrom(flags)) }
             ?: Command.Help("search needs something to search for")
-        "help" -> Command.Help()
-        "version" -> Command.Version
-        "doctor" -> Command.Doctor
         "serve" -> Command.Serve(portFrom(flags))
+        "file-check" -> fileCheck(rest, flags)
         // No sub-command: `totum <url>` and `totum jazz live stream` both mean play. The
         // shortest thing you can type should be the thing you do most.
         else -> words.play(flags, name)
@@ -90,6 +97,20 @@ private fun limitFrom(flags: Set<String>): Int =
         ?.coerceIn(1, MAX_RESULTS)
         ?: DEFAULT_RESULTS
 
+private fun fileCheck(rest: List<String>, flags: Set<String>): Command {
+    val listing = rest.firstOrNull() ?: return Command.Help("file-check needs a listing file")
+    return Command.FileCheck(
+        listing,
+        intFlag(flags, "--samples=") ?: DEFAULT_SAMPLES,
+        intFlag(flags, "--seed=") ?: 1,
+        "--rules" in flags,
+        flags.firstOrNull { it.startsWith("--out=") }?.removePrefix("--out="),
+    )
+}
+
+private fun intFlag(flags: Set<String>, prefix: String): Int? =
+    flags.firstOrNull { it.startsWith(prefix) }?.removePrefix(prefix)?.toIntOrNull()
+
 private fun portFrom(flags: Set<String>): Int =
     flags.firstOrNull { it.startsWith("--port=") }?.removePrefix("--port=")?.toIntOrNull() ?: DEFAULT_PORT
 
@@ -98,3 +119,9 @@ private val VERSION_FLAGS = setOf("-V", "--version")
 private const val DEFAULT_RESULTS = 10
 private const val MAX_RESULTS = 50
 private const val DEFAULT_PORT = 8770
+private const val DEFAULT_SAMPLES = 40
+private val PLAIN: Map<String, Command> = mapOf(
+    "help" to Command.Help(),
+    "version" to Command.Version,
+    "doctor" to Command.Doctor
+)

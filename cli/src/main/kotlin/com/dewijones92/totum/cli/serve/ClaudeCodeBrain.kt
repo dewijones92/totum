@@ -1,5 +1,7 @@
 package com.dewijones92.totum.cli.serve
 
+import com.dewijones92.totum.cli.serve.filing.FilePlan
+import com.dewijones92.totum.cli.serve.filing.FileRequest
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJson
@@ -42,6 +44,15 @@ internal class ClaudeCodeBrain(
         Prompts.VET_SCHEMA,
         tools = "",
         VetAnswer.serializer(),
+    )
+
+    override suspend fun file(request: FileRequest): FilePlan = ask(
+        "file",
+        Prompts.FILE_SYSTEM,
+        Prompts.fileMessage(request),
+        Prompts.FILE_SCHEMA,
+        tools = "WebSearch",
+        FilePlan.serializer(),
     )
 
     @Suppress("LongParameterList")

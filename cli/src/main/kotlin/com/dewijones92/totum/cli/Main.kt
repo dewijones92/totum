@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli
 
+import com.dewijones92.totum.cli.serve.fileCheck
 import com.dewijones92.totum.cli.serve.serveAsk
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
@@ -51,6 +52,7 @@ internal class Cli(
         is Command.Resolve -> resolve(command)
         is Command.Play -> play(command)
         is Command.Serve -> serveAsk(command.port, out)
+        is Command.FileCheck -> fileCheck(command, out)
     }
 
     private suspend fun play(command: Command.Play): Int {

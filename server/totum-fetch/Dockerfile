@@ -17,7 +17,8 @@ RUN test -n "$TOTUM_VERSION" \
  && tar -xzf totum-cli.tar.gz -C /opt \
  && rm totum-cli.tar.gz totum-cli.tar.gz.sha256
 
-RUN useradd --create-home --uid 10870 totum \
+RUN (userdel --remove ubuntu 2>/dev/null || true) \
+ && useradd --create-home --uid 1000 totum \
  && python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir "yt-dlp[default]" \
  && chown -R totum:totum /opt/venv
@@ -27,6 +28,8 @@ ENV HOME=/home/totum \
     TOTUM_PYTHON=/opt/venv/bin/python \
     TOTUM_JS_RUNTIME=node:/usr/bin/node \
     TOTUM_DATA=/home/totum/.totum \
-    TOTUM_DOWNLOADS=/downloads
+    TOTUM_DOWNLOADS=/media/totum \
+    TOTUM_LIBRARY_MOVIES=/media/videos/movies \
+    TOTUM_LIBRARY_SERIES=/media/videos/series
 EXPOSE 8770
 CMD ["sh", "-c", "/opt/venv/bin/pip install -q -U 'yt-dlp[default]' || echo 'yt-dlp update failed; using the installed one'; exec /opt/totum/bin/totum serve --port=8770"]

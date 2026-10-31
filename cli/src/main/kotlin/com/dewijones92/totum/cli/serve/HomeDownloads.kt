@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve
 
+import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.backup.toBackup
@@ -74,6 +75,7 @@ internal class HomeDownloads(
     scope: CoroutineScope,
     private val rewrites: Rewrites = Rewrites(emptyList()),
     private val freeFloorBytes: Long = FREE_FLOOR_BYTES,
+    private val filer: LibraryFiler? = null,
 ) : Home {
     private val http = OkHttpClient.Builder().readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS).build()
     private val engine = ProcessYtDlpEngine()
@@ -92,9 +94,11 @@ internal class HomeDownloads(
     private val decodersOf = ConcurrentHashMap<String, List<PhoneDecoder>>(loadDecoders(decodersFile))
     private val resolvers = ConcurrentHashMap<List<PhoneDecoder>, VideoResolver>()
 
+    private val store = JsonDownloadStore(File(dataDir, "downloads.json"))
+
     private val manager: DownloadManager = DefaultDownloadManager(
         downloadDir = downloadDir,
-        store = JsonDownloadStore(File(dataDir, "downloads.json")),
+        store = store,
         strategy = object : DownloadStrategy {
             override fun download(item: PlayableItem, target: File, audioOnly: Boolean) =
                 strategyFor(item).download(item, target, audioOnly)
@@ -104,6 +108,10 @@ internal class HomeDownloads(
         },
         scope = scope,
     )
+
+    init {
+        HomeFiling(store, downloadDir, filer).start(scope, manager.observeRecords())
+    }
 
     private fun strategyFor(item: PlayableItem): DownloadStrategy = videoAndPodcastDownloads(
         engine = engine,

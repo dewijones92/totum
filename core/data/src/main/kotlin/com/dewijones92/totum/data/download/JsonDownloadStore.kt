@@ -103,6 +103,10 @@ public class JsonDownloadStore(private val file: File, private val now: () -> In
         return found
     }
 
+    public suspend fun relocate(id: MediaItemId, path: String): Unit = change { all ->
+        all.map { row -> if (row.item.itemId == id.value && row.state == DOWNLOADED) row.copy(path = path) else row }
+    }
+
     override suspend fun rememberSkipSegments(id: MediaItemId, segments: List<SkipSegment>): Unit = Unit
 
     private suspend fun change(edit: (List<Row>) -> List<Row>) = lock.withLock {

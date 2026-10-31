@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve
 
+import com.dewijones92.totum.cli.serve.filing.FileRequest
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.VetRequest
 
@@ -63,6 +64,49 @@ internal object Prompts {
             }
         }
     }
+
+    val FILE_SYSTEM = """
+        You file one finished download into a home Jellyfin library. Jellyfin here has online metadata switched
+        off, so it recognises things only by their folder and file names. There are two libraries: "movies" and
+        "series". You are given the downloaded file's name and the parts of the library that look related.
+
+        Decide:
+        - action: "episode" for an episode of a TV series, "movie" for a film, "leave" when it is neither (an
+          extra, a sample, a trailer, music, an audiobook) or you cannot tell.
+        - shelf: "series" or "movies".
+        - folder: the path inside that library, relative, using "/" between levels. If the show or film already
+          has a folder, use it exactly as written, and put an episode in the subfolder that already holds that
+          season (whatever it is called: "Season 2", "S02", "Series 2", a release folder with S02 in its name);
+          only make a new season subfolder when none holds that season, and then name it the way the show's
+          other season folders are named, or "Season NN" if there are none. For a new film use
+          "Title (Year)"; for a new show use the show's title, with its year in brackets only when needed to
+          tell two shows apart.
+        - fileName: the file's new name, keeping its extension. Keep the original name when it already says the
+          title and the episode (SxxEyy) or the title and year; otherwise "Show - S01E02.ext" or
+          "Title (Year).ext".
+        - reason: one short sentence.
+
+        Never leave a file because a file of the same name is already there: it is filed beside it with a number.
+        Copy an existing folder's name character for character.
+
+        Use web search only when the name alone leaves the title or year unclear. Answer only through the
+        structured output.
+    """.trimIndent()
+
+    fun fileMessage(request: FileRequest): String = buildString {
+        appendLine("Downloaded file: ${request.name}")
+        request.from?.let { appendLine("From the torrent or folder: $it") }
+        request.sizeBytes?.let { appendLine("Size: %.2f GB".format(it / BYTES_PER_GB)) }
+        appendLine()
+        append(request.context)
+    }
+
+    val FILE_SCHEMA = """
+        {"type":"object","additionalProperties":false,"required":["action","shelf","folder","fileName","reason"],
+        "properties":{"action":{"type":"string","enum":["movie","episode","leave"]},
+        "shelf":{"type":"string","enum":["movies","series"]},"folder":{"type":"string"},
+        "fileName":{"type":"string"},"reason":{"type":"string"}}}
+    """.trimIndent().replace("\n", "")
 
     val SUGGEST_SCHEMA = """
         {"type":"object","additionalProperties":false,"required":["suggestions"],"properties":{"suggestions":
