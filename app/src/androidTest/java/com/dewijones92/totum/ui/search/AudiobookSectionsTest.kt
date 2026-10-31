@@ -1,10 +1,14 @@
 package com.dewijones92.totum.ui.search
 
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchSection
@@ -92,10 +96,17 @@ class AudiobookSectionsTest {
         )
         composeTestRule.setContent {
             TotumTheme {
-                LazyColumn { bookSections(results, "war of the worlds", TorrentShelf(), BookSections({}, {}, {})) }
+                LazyColumn(Modifier.testTag(LIST)) {
+                    bookSections(results, "war of the worlds", TorrentShelf(), BookSections({}, {}, {}))
+                }
             }
         }
 
+        composeTestRule.onNodeWithTag(LIST).performScrollToNode(hasText("⬇️ Show 4 more"))
         composeTestRule.onNodeWithText("⬇️ Show 4 more").assertExists()
+    }
+
+    private companion object {
+        const val LIST = "books-list"
     }
 }
