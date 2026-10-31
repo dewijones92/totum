@@ -52,7 +52,7 @@ than piping — and why the `main()` wrapper is there regardless.
 ### `totum serve`
 
 Runs the home server's ✨ Ask service on port 8770 (`--port=N`): `POST /ask`, `POST /vet`, `GET /job/{id}`,
-`GET /health`. It asks Claude Code headlessly (`TOTUM_CLAUDE`, default `claude`; `TOTUM_ASK_MODEL`, default
+`GET /health`, and downloads at home (`/jobs`, `/files/{id}`, `/account`, ADR 110). It asks Claude Code headlessly (`TOTUM_CLAUDE`, default `claude`; `TOTUM_ASK_MODEL`, default
 `haiku`) and logs every call's time, turns and cost to stderr. On the Pi it runs in `server/totum-fetch`. ADR 109.
 
 ### `totum doctor`

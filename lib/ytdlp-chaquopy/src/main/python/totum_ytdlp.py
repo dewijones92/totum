@@ -91,12 +91,14 @@ def _extractor_args(po_token=None, clients=None):
 # Dewi's phone. Its default runtime is deno, which is not something you ship to a phone at
 # ~100MB; quickjs is the smallest of the four it supports, at about a megabyte.
 _JS_RUNTIME_PATH = None
+_JS_RUNTIME_NAME = "quickjs"
 
 
-def configure_js_runtime(qjs_path):
+def configure_js_runtime(qjs_path, name="quickjs"):
     """Point yt-dlp at the bundled `qjs`. Called once at engine construction."""
-    global _JS_RUNTIME_PATH
+    global _JS_RUNTIME_PATH, _JS_RUNTIME_NAME
     _JS_RUNTIME_PATH = qjs_path
+    _JS_RUNTIME_NAME = name
 
 
 def _js_runtimes():
@@ -108,7 +110,7 @@ def _js_runtimes():
     """
     if not _JS_RUNTIME_PATH:
         return {}
-    return {"quickjs": {"path": _JS_RUNTIME_PATH}}
+    return {_JS_RUNTIME_NAME: {"path": _JS_RUNTIME_PATH}}
 
 
 # ON FOR EXTRACTION TOO, deliberately — and this comment used to say the opposite, which is
@@ -968,11 +970,28 @@ def _main(argv):
         return search(args[0], int(args[1]))
     if command == "channel":
         return channel(args[0], int(args[1]))
+    if command == "solve_n":
+        return solve_n(json.loads(args[0]), args[1])
+    if command == "solve_sig":
+        return solve_sig(json.loads(args[0]), args[1])
+    if command == "download":
+        return download(args[0], args[1], args[2] or None, _ProgressLines(), args[3] or None, args[4])
     return json.dumps({"ok": False, "kind": "extractor", "detail": "unknown command " + command})
 
 
+class _ProgressLines:
+    def onProgress(self, downloaded, total, eta):
+        print("PROGRESS " + json.dumps([downloaded, total, eta]), flush=True)
+
+
 if __name__ == "__main__":
+    import os
     import sys
+
+    _runtime = os.environ.get("TOTUM_JS_RUNTIME", "")
+    if ":" in _runtime:
+        _name, _path = _runtime.split(":", 1)
+        configure_js_runtime(_path, _name)
 
     # Written to stdout as one line; yt-dlp's own chatter goes to stderr and is ignored, which
     # is why the caller must not merge the two streams.

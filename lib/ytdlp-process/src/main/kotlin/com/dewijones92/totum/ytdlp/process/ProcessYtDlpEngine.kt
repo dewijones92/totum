@@ -7,14 +7,18 @@ import com.dewijones92.totum.ytdlp.DownloadEvent
 import com.dewijones92.totum.ytdlp.DownloadRequest
 import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
+import com.dewijones92.totum.ytdlp.FfmpegMerge
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.bridge.parseChannel
+import com.dewijones92.totum.ytdlp.bridge.parseDownloadCompletion
 import com.dewijones92.totum.ytdlp.bridge.parseExtraction
 import com.dewijones92.totum.ytdlp.bridge.parseSearch
+import com.dewijones92.totum.ytdlp.bridge.parseSolvedN
 import com.dewijones92.totum.ytdlp.bridge.parseVersions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.io.File
 
 /**
  * The engine on a desktop: the same bridge script, run as a subprocess against the system
@@ -25,12 +29,13 @@ import kotlinx.coroutines.flow.flow
  * JS-runtime handling, the shape of the JSON — and all of it lives in `totum_ytdlp.py`, which
  * this runs unchanged. The only difference is how Python is reached.
  *
- * What the desktop gets for free: a real JavaScript runtime, so yt-dlp solves its own `n`
- * parameters and the whole quality ladder is available without the QuickJS machinery the phone
- * needs.
+ * The JavaScript runtime is named by `TOTUM_JS_RUNTIME` (`deno:/usr/local/bin/deno`); without it
+ * yt-dlp runs with none, and its URLs may not play.
  */
+@Suppress("TooManyFunctions")
 public class ProcessYtDlpEngine(
     private val runner: CommandRunner = SystemCommandRunner(),
+    private val ffmpeg: String = System.getenv("TOTUM_FFMPEG") ?: "ffmpeg",
 ) : YtDlpEngine {
 
     override suspend fun versions(): EngineVersions = parseVersions(run("versions"))
@@ -55,20 +60,38 @@ public class ProcessYtDlpEngine(
             else -> parseChannel(url, output)
         }
 
-    /**
-     * Not needed here, and saying so rather than pretending.
-     *
-     * `n` is solved by yt-dlp itself on a desktop, because there is a real JavaScript runtime.
-     * The phone has none, which is the only reason this is on the interface at all.
-     */
-    override suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String> {
-        Diag.log("engine", "solveN not needed off Android — yt-dlp solves its own with a real JS runtime")
-        return emptyMap()
-    }
+    override suspend fun solveN(challenges: List<String>, playerUrl: String): Map<String, String> =
+        parseSolvedN(run("solve_n", challenges.asJsonArray(), playerUrl))
 
-    /** Downloading is the app's job; the CLI streams. Refused loudly rather than half-built. */
+    override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
+        parseSolvedN(run("solve_sig", challenges.asJsonArray(), playerUrl))
+
+    override suspend fun mergeStreams(video: File, audio: File, output: File): String? =
+        FfmpegMerge.merge(ffmpeg, video, audio, output)
+
     override fun download(request: DownloadRequest): Flow<DownloadEvent> = flow {
-        emit(DownloadEvent.Failed(ExtractionResult.Failure.Extractor("this engine does not download")))
+        emit(DownloadEvent.Started(request.url))
+        Diag.log("download", "extracting for download: ${request.url.value}")
+        var last = ""
+        runner.lines(
+            listOf(
+                "download",
+                request.url.value,
+                request.targetDirectory.absolutePath,
+                request.formatId.orEmpty(),
+                "",
+                request.sponsorBlockCategories.joinToString(","),
+            ),
+        ).collect { line ->
+            if (line.startsWith(PROGRESS)) {
+                val (done, total, eta) = line.removePrefix(PROGRESS).trim('[', ']').split(',')
+                    .map { it.trim().toLongOrNull() ?: 0 }
+                emit(DownloadEvent.Progress(done, total.takeIf { it > 0 }, eta))
+            } else {
+                last = line
+            }
+        }
+        emit(parseDownloadCompletion(request.url, last) { File(it) })
     }
 
     private suspend fun run(vararg args: String): String = runner.run(args.toList())
@@ -80,3 +103,8 @@ public class ProcessYtDlpEngine(
             null
         }
 }
+
+private fun List<String>.asJsonArray(): String =
+    joinToString(",", "[", "]") { "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"") + "\"" }
+
+private const val PROGRESS = "PROGRESS "

@@ -46,16 +46,31 @@ public fun interface VideoCodecSupport {
  * old order stands, because software AV1 is worse than hardware AVC in every way.
  */
 internal fun String?.codecPreference(hardware: Boolean = false): Int {
-    val codec = this?.lowercase() ?: return UNKNOWN
-    val rank = when {
-        codec.startsWith("av01") || codec.startsWith("av1") -> if (hardware) FIRST else LAST
-        codec.startsWith("vp9") || codec.startsWith("vp09") -> SECOND
-        codec.startsWith("hev") || codec.startsWith("h265") -> THIRD
-        codec.startsWith("avc") || codec.startsWith("h264") -> if (hardware) LAST else FIRST
-        else -> return UNKNOWN
+    val rank = when (VideoCodecFamily.of(this)) {
+        VideoCodecFamily.AV1 -> if (hardware) FIRST else LAST
+        VideoCodecFamily.VP9 -> SECOND
+        VideoCodecFamily.HEVC -> THIRD
+        VideoCodecFamily.AVC -> if (hardware) LAST else FIRST
+        VideoCodecFamily.VP8, null -> return UNKNOWN
     }
     // Anything in hardware beats anything that is not, whatever the codec.
     return if (hardware) rank else SOFTWARE_PENALTY + rank
+}
+
+enum class VideoCodecFamily(private val prefixes: List<String>) {
+    AVC(listOf("avc", "h264")),
+    HEVC(listOf("hev", "hvc", "h265")),
+    VP9(listOf("vp9", "vp09")),
+    VP8(listOf("vp8", "vp08")),
+    AV1(listOf("av01", "av1")),
+    ;
+
+    companion object {
+        fun of(codec: String?): VideoCodecFamily? {
+            val c = codec?.lowercase() ?: return null
+            return entries.firstOrNull { family -> family.prefixes.any(c::startsWith) }
+        }
+    }
 }
 
 private const val FIRST = 0

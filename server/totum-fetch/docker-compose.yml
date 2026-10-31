@@ -10,11 +10,13 @@ services:
     container_name: totum-fetch
     env_file:
       - /var/lib/totum-fetch/claude.env
+      - /var/lib/totum-fetch/fetch.env
     environment:
       TOTUM_ASK_MODEL: haiku
       TZ: GMT0BST,M3.5.0/1,M10.5.0
     volumes:
       - /var/lib/totum-fetch/home:/home/totum
+      - /home/pi/ext_files/media/totum:/downloads
     networks:
       - bin_private
     restart: unless-stopped

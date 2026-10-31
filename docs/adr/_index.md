@@ -125,3 +125,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 107 | [A tab says what is new since you last looked at it](0107-a-tab-says-what-is-new-since-you-looked.md) | Accepted |
 | 108 | [Consistent everywhere, with its exceptions recorded](0108-consistent-everywhere-and-its-recorded-exceptions.md) | Accepted |
 | 109 | [✨ Ask: Haiku picks what, the app finds and ranks which copy](0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md) | Accepted |
+| 110 | [Downloads at home: the Pi fetches with the app's own code](0110-downloads-at-home-the-pi-fetches-with-the-apps-own-code.md) | Accepted |

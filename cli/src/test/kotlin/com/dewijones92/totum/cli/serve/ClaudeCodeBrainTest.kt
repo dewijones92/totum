@@ -109,4 +109,22 @@ class ClaudeCodeBrainTest {
         assertTrue("  copy 0: Shrek.2001.1080p · 2.00 GB" in text)
         assertTrue("  copy 1: Shrek 2 2004" in text)
     }
+
+    @Test
+    fun `a home server not signed in to Claude says so once, without retrying`() = runTest {
+        var attempts = 0
+        val brain = ClaudeCodeBrain(run = { _, _ ->
+            attempts++
+            ProcessResult(
+                1,
+                """{"type":"result","subtype":"success","is_error":true,""" +
+                    """"result":"Not logged in · Please run /login"}""",
+                "",
+                timedOut = false,
+            )
+        })
+        val failure = runCatching { brain.suggest(gruffalo) }.exceptionOrNull()
+        assertEquals("The home server isn't signed in to Claude yet", failure?.message)
+        assertEquals(1, attempts)
+    }
 }

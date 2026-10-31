@@ -1,12 +1,17 @@
 package com.dewijones92.totum.ytdlp.process
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.ytdlp.DownloadEvent
+import com.dewijones92.totum.ytdlp.DownloadRequest
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.VideoSearchResult
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * The desktop engine, without needing a Python on the machine.
@@ -83,10 +88,44 @@ class ProcessYtDlpEngineTest {
     }
 
     @Test
-    fun `solving n is a no-op off Android, and says so rather than pretending`() = runTest {
-        // A desktop yt-dlp has a real JavaScript runtime and solves its own.
-        assertTrue(engine { "" }.solveN(listOf("challenge"), "player.js").isEmpty())
-        assertTrue("and it must not have run anything", asked.isEmpty())
+    fun `n and signatures are solved by the bridge, with the challenges as JSON`() = runTest {
+        val e = engine { """{"ok": true, "solved": {"a\"b": "x"}}""" }
+        assertEquals(mapOf("a\"b" to "x"), e.solveN(listOf("a\"b"), "player.js"))
+        e.solveSignatures(listOf("s"), "player.js")
+        assertEquals(listOf("solve_n", "[\"a\\\"b\"]", "player.js"), asked[0])
+        assertEquals(listOf("solve_sig", "[\"s\"]", "player.js"), asked[1])
+    }
+
+    @Test
+    fun `a download streams its progress and ends with the file`() = runTest {
+        val lines = mutableListOf<List<String>>()
+        val e = ProcessYtDlpEngine(
+            object : CommandRunner {
+                override suspend fun run(args: List<String>) = error("not used")
+                override fun lines(args: List<String>) = flowOf(
+                    "PROGRESS [100, 1000, 9]",
+                    "PROGRESS [1000, 1000, 0]",
+                    """{"ok": true, "filepath": "/d/x.mkv"}""",
+                ).also { lines += args }
+            },
+        )
+        val events = e.download(DownloadRequest(HttpUrl.of(URL), File("/d"), formatId = "bv*+ba/b")).toList()
+        assertEquals(listOf("download", URL, "/d", "bv*+ba/b", "", ""), lines.single())
+        assertEquals(DownloadEvent.Progress(100, 1000, 9), events[1])
+        assertEquals(DownloadEvent.Completed(File("/d/x.mkv")), events.last())
+    }
+
+    @Test
+    fun `a refused download says why, so another route can be tried`() = runTest {
+        val e = ProcessYtDlpEngine(
+            object : CommandRunner {
+                override suspend fun run(args: List<String>) = error("not used")
+                override fun lines(args: List<String>) =
+                    flowOf("""{"ok": false, "kind": "extractor", "detail": "Sign in to confirm you're not a bot"}""")
+            },
+        )
+        val last = e.download(DownloadRequest(HttpUrl.of(URL), File("/d"))).toList().last()
+        assertTrue(last.toString(), (last as DownloadEvent.Failed).reason.toString().contains("not a bot"))
     }
 
     @Test

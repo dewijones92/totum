@@ -2,6 +2,9 @@ package com.dewijones92.totum.ytdlp.process
 
 import com.dewijones92.totum.common.Diag
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -14,8 +17,9 @@ import java.util.concurrent.TimeUnit
  * the pyramid have a wide base here instead of one slow live test.
  */
 public fun interface CommandRunner {
-    /** @throws IllegalStateException when the command could not be run or failed. */
     public suspend fun run(args: List<String>): String
+
+    public fun lines(args: List<String>): Flow<String> = flow { run(args).lines().forEach { emit(it) } }
 }
 
 /**
@@ -69,6 +73,24 @@ public class SystemCommandRunner(
             err.delete()
         }
     }
+
+    override fun lines(args: List<String>): Flow<String> = flow {
+        val command = listOf(python, script.absolutePath) + args
+        Diag.log("engine", "streaming ${command.take(COMMAND_CHARS).joinToString(" ")}")
+        val err = File.createTempFile("totum-err", ".txt")
+        val process = ProcessBuilder(command).redirectError(err).start()
+        try {
+            process.inputStream.bufferedReader().useLines { all -> all.forEach { emit(it) } }
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                val said = err.readText().trim().takeLast(ERROR_CHARS)
+                error("the extractor failed (exit ${process.exitValue()}): $said")
+            }
+        } finally {
+            process.destroy()
+            err.delete()
+        }
+    }.flowOn(Dispatchers.IO)
 
     private companion object {
         /** Long enough for a slow extraction on a bad connection, short enough not to hang a shell. */

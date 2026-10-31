@@ -57,16 +57,13 @@ public class PlatformVideoCodecSupport : VideoCodecSupport {
     }
 
     /** yt-dlp's codec string → the Android MIME type; null when unrecognised. */
-    private fun String?.toMimeType(): String? {
-        val codec = this?.lowercase() ?: return null
-        return when {
-            codec.startsWith("avc") || codec.startsWith("h264") -> AndroidMediaFormat.MIMETYPE_VIDEO_AVC
-            codec.startsWith("hev") || codec.startsWith("h265") -> AndroidMediaFormat.MIMETYPE_VIDEO_HEVC
-            codec.startsWith("vp9") || codec.startsWith("vp09") -> AndroidMediaFormat.MIMETYPE_VIDEO_VP9
-            codec.startsWith("vp8") || codec.startsWith("vp08") -> AndroidMediaFormat.MIMETYPE_VIDEO_VP8
-            codec.startsWith("av01") || codec.startsWith("av1") -> AndroidMediaFormat.MIMETYPE_VIDEO_AV1
-            else -> null
-        }
+    private fun String?.toMimeType(): String? = when (VideoCodecFamily.of(this)) {
+        VideoCodecFamily.AVC -> AndroidMediaFormat.MIMETYPE_VIDEO_AVC
+        VideoCodecFamily.HEVC -> AndroidMediaFormat.MIMETYPE_VIDEO_HEVC
+        VideoCodecFamily.VP9 -> AndroidMediaFormat.MIMETYPE_VIDEO_VP9
+        VideoCodecFamily.VP8 -> AndroidMediaFormat.MIMETYPE_VIDEO_VP8
+        VideoCodecFamily.AV1 -> AndroidMediaFormat.MIMETYPE_VIDEO_AV1
+        null -> null
     }
 }
 

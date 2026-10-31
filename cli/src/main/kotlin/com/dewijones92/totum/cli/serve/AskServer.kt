@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.KSerializer
+import java.io.File
 import java.net.InetSocketAddress
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -24,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal class AskServer(
     private val brain: Brain,
     private val scope: CoroutineScope,
+    private val home: HomeRoutes? = null,
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
     concurrent: Int = CONCURRENT,
@@ -47,6 +49,7 @@ internal class AskServer(
             method == "POST" && path == "/ask" -> start(exchange, "ask", AskRequest.serializer()) { brain.suggest(it) }
             method == "POST" && path == "/vet" -> start(exchange, "vet", VetRequest.serializer()) { brain.vet(it) }
             method == "GET" && path.startsWith("/job/") -> job(exchange, path.removePrefix("/job/"))
+            home != null && home.handles(path) -> home.handle(exchange, method, path)
             else -> exchange.reply(NOT_FOUND, """{"error":"no such route: $method $path"}""")
         }
     }
@@ -135,7 +138,13 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         claude = System.getenv("TOTUM_CLAUDE") ?: "claude",
         model = System.getenv("TOTUM_ASK_MODEL") ?: "haiku",
     )
-    AskServer(brain, this).start(port)
+    val home = HomeDownloads(
+        dataDir = File(System.getenv("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum"),
+        downloadDir = File(System.getenv("TOTUM_DOWNLOADS") ?: "${System.getProperty("user.home")}/totum-downloads"),
+        scope = this,
+        rewrites = rewritesFrom(System.getenv("TOTUM_REWRITE")),
+    )
+    AskServer(brain, this, HomeRoutes(home)).start(port)
     out("totum serve: listening on $port")
     awaitCancellation()
 }

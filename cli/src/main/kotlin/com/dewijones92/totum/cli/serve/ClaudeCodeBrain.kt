@@ -72,6 +72,9 @@ internal class ClaudeCodeBrain(
             val tookMs = System.currentTimeMillis() - started
             try {
                 return@withContext parse(what, result, tookMs, serializer)
+            } catch (e: NotSignedIn) {
+                Diag.warn("ask", "$what: claude is not signed in on this machine; not retrying")
+                throw e
             } catch (e: BrainFailure) {
                 Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS failed after ${tookMs}ms: ${e.message}")
                 last = e
@@ -89,8 +92,14 @@ internal class ClaudeCodeBrain(
             )
     }
 
+    private fun signedIn(envelope: JsonObject): JsonObject {
+        val said = envelope["result"]?.jsonPrimitive?.content.orEmpty()
+        if (NOT_LOGGED_IN.containsMatchIn(said)) throw NotSignedIn()
+        return envelope
+    }
+
     private fun <T> parse(what: String, result: ProcessResult, tookMs: Long, serializer: KSerializer<T>): T {
-        val envelope = envelope(result, tookMs)
+        val envelope = signedIn(envelope(result, tookMs))
         val isError = envelope["is_error"]?.jsonPrimitive?.booleanOrNull == true
         Diag.log("ask", "$what by claude in ${tookMs}ms: ${envelope.summary()}")
         val structured = envelope["structured_output"] as? JsonObject
@@ -115,6 +124,7 @@ internal class ClaudeCodeBrain(
         const val TIMEOUT_MS = 150_000L
         const val ATTEMPTS = 2
         const val LOGGED = 300
+        val NOT_LOGGED_IN = Regex("(?i)not logged in|/login|invalid api key")
     }
 }
 

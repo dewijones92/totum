@@ -10,4 +10,6 @@ internal interface Brain {
     suspend fun vet(request: VetRequest): VetAnswer
 }
 
-internal class BrainFailure(message: String) : Exception(message)
+internal open class BrainFailure(message: String) : Exception(message)
+
+internal class NotSignedIn : BrainFailure("The home server isn't signed in to Claude yet")

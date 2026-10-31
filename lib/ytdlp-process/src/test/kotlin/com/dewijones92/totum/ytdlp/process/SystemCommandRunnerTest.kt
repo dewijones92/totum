@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ytdlp.process
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -100,5 +101,22 @@ class SystemCommandRunnerTest {
         assertTrue("it must exist on disk for python to run it", unpacked.isFile)
         assertTrue("and be the real script", unpacked.readText().contains("def extract("))
         assertEquals("unpacking twice must not move it", unpacked, BridgeScript.onDisk())
+    }
+
+    @Test
+    fun `a streamed run hands over each line as it comes, without stderr`() = runTest {
+        val lines = runner("""echo "PROGRESS [1, 2, 3]"; echo noise >&2; echo '{"ok": true}'""")
+            .lines(listOf("download")).toList()
+
+        assertEquals(listOf("PROGRESS [1, 2, 3]", """{"ok": true}"""), lines)
+    }
+
+    @Test
+    fun `a streamed run that fails raises with its stderr`() = runTest {
+        val failure = runCatching { runner("echo partial; echo broken >&2; exit 3").lines(emptyList()).toList() }
+            .exceptionOrNull()
+
+        assertTrue(failure?.message.orEmpty(), failure?.message.orEmpty().contains("exit 3"))
+        assertTrue(failure?.message.orEmpty().contains("broken"))
     }
 }

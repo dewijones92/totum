@@ -11,6 +11,7 @@ import com.dewijones92.totum.ytdlp.DownloadEvent
 import com.dewijones92.totum.ytdlp.DownloadRequest
 import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
+import com.dewijones92.totum.ytdlp.FfmpegMerge
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.bridge.AUTO_CAPTION_LANGUAGES
@@ -123,22 +124,9 @@ public class ChaquopyYtDlpEngine(
             }
         }
 
-    override suspend fun mergeStreams(video: File, audio: File, output: File): String? = withContext(Dispatchers.IO) {
-        val ffmpeg = ffmpegLocation?.let { File(it, "ffmpeg") } ?: return@withContext "ffmpeg is not bundled"
-        val log = File(output.parentFile, "${output.name}.ffmpeg.log")
-        val process = ProcessBuilder(
-            ffmpeg.absolutePath, "-y", "-nostdin", "-loglevel", "error",
-            "-i", video.absolutePath, "-i", audio.absolutePath,
-            "-map", "0:v:0", "-map", "1:a:0", "-c", "copy", "-f", "matroska", output.absolutePath,
-        ).redirectErrorStream(true).redirectOutput(log).start()
-        val finished = process.waitFor(MERGE_TIMEOUT_MINUTES, java.util.concurrent.TimeUnit.MINUTES)
-        val said = log.takeIf { it.exists() }?.readText()?.take(MERGE_LOG_CHARS).orEmpty().also { log.delete() }
-        when {
-            !finished -> "ffmpeg did not finish in $MERGE_TIMEOUT_MINUTES min".also { process.destroyForcibly() }
-            process.exitValue() != 0 -> "ffmpeg exited ${process.exitValue()}: $said"
-            !output.exists() || output.length() == 0L -> "ffmpeg wrote nothing"
-            else -> null
-        }
+    override suspend fun mergeStreams(video: File, audio: File, output: File): String? {
+        val ffmpeg = ffmpegLocation?.let { File(it, "ffmpeg") } ?: return "ffmpeg is not bundled"
+        return FfmpegMerge.merge(ffmpeg.absolutePath, video, audio, output)
     }
 
     override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
@@ -219,6 +207,3 @@ private const val ID_CHARS = 11
 public interface ProgressListener {
     public fun onProgress(downloadedBytes: Long, totalBytes: Long, etaSeconds: Long)
 }
-
-private const val MERGE_TIMEOUT_MINUTES = 10L
-private const val MERGE_LOG_CHARS = 400

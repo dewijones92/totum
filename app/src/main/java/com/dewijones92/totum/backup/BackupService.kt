@@ -8,6 +8,8 @@ import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.BackupPlaylist
 import com.dewijones92.totum.data.backup.BackupProgress
 import com.dewijones92.totum.data.backup.BackupSubscription
+import com.dewijones92.totum.data.backup.toBackup
+import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.group.SourceGroupStore
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
@@ -15,18 +17,12 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.subscription.SubscriptionStore
-import com.dewijones92.totum.domain.AlbumRef
-import com.dewijones92.totum.domain.MediaContentKind
-import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayState
-import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.domain.canonicalItemId
-import com.dewijones92.totum.domain.persisted
-import com.dewijones92.totum.domain.playHandleFrom
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.stars.STARRED_PLAYLIST
@@ -34,7 +30,6 @@ import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.Instant
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Gathers everything worth keeping into a [Backup], and puts it back.
@@ -218,56 +213,6 @@ private fun PlayState.toBackup(id: MediaItemId): BackupProgress? = when (this) {
     PlayState.Unplayed -> null
     is PlayState.InProgress -> BackupProgress(id.value, positionMs, durationMs)
     PlayState.Played -> BackupProgress(id.value, positionMs = 0, completedAtEpochMs = 1)
-}
-
-internal fun PlayableItem.toBackup(): BackupItem {
-    val (playbackType, handle) = this.handle.persisted()
-    return BackupItem(
-        itemId = item.id.value,
-        sourceId = item.sourceId.value,
-        title = item.title,
-        author = item.author,
-        publisher = item.publisher,
-        thumbnailUrl = item.thumbnailUrl?.value,
-        mediaUrl = item.mediaUrl?.value,
-        contentKind = item.contentKind.name,
-        playbackType = playbackType,
-        handle = handle,
-        durationMs = item.duration?.inWholeMilliseconds,
-        sourceUrl = item.sourceUrl?.value,
-        membersOnly = item.membersOnly,
-        albumId = item.album?.id,
-        albumTitle = item.album?.title,
-        publishedAtMs = item.publishedAt?.toEpochMilli(),
-        publishedText = item.publishedText,
-        viewsText = item.viewsText,
-    )
-}
-
-/** Null when the stored handle cannot be rebuilt — a restored row that plays nothing is worse than none. */
-internal fun BackupItem.toPlayable(): PlayableItem? {
-    val playback = playHandleFrom(playbackType, handle) ?: return null
-    return PlayableItem(
-        MediaItem(
-            id = MediaItemId(canonicalItemId(itemId)),
-            sourceId = SourceId(sourceId),
-            title = title,
-            publishedAt = publishedAtMs?.let(java.time.Instant::ofEpochMilli),
-            publishedText = publishedText,
-            viewsText = viewsText,
-            duration = durationMs?.milliseconds,
-            author = author,
-            publisher = publisher,
-            thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
-            mediaUrl = mediaUrl?.let(HttpUrl::parse),
-            membersOnly = membersOnly,
-            sourceUrl = sourceUrl?.let(HttpUrl::parse),
-            contentKind = runCatching { MediaContentKind.valueOf(contentKind) }
-                .getOrDefault(MediaContentKind.STANDARD),
-            album = albumTitle?.let { AlbumRef(albumId, it) },
-        ),
-        playback,
-    )
 }
 
 /** Null for a URL that no longer parses, rather than a subscription that can never load. */

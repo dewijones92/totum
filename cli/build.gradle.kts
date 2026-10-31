@@ -1,6 +1,7 @@
 // The desktop front end. Same libraries as the app, no Android anywhere near it.
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     application
 }
 
@@ -18,6 +19,8 @@ dependencies {
     implementation(project(":lib:ytdlp"))
     implementation(project(":lib:ytdlp-process"))
     implementation(project(":core:data"))
+    implementation(project(":core:video"))
+    implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
 

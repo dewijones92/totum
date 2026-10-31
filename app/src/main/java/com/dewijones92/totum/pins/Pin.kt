@@ -1,9 +1,9 @@
 package com.dewijones92.totum.pins
 
-import com.dewijones92.totum.backup.toBackup
-import com.dewijones92.totum.backup.toPlayable
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.BackupItem
+import com.dewijones92.totum.data.backup.toBackup
+import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
