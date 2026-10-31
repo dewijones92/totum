@@ -25,8 +25,17 @@ public class SharedPrefsPlaybackSpeedStore(context: Context) : PlaybackSpeedStor
         prefs.edit { putFloat(KEY_SPEED, speed) }
     }
 
+    override suspend fun skipSilence(): Boolean = withContext(Dispatchers.IO) {
+        prefs.getBoolean(KEY_SKIP_SILENCE, false)
+    }
+
+    override suspend fun saveSkipSilence(on: Boolean): Unit = withContext(Dispatchers.IO) {
+        prefs.edit { putBoolean(KEY_SKIP_SILENCE, on) }
+    }
+
     private companion object {
         /** Deliberately not a SourceId, so it cannot collide with the old per-source entries. */
         const val KEY_SPEED = "speed"
+        const val KEY_SKIP_SILENCE = "skipSilence"
     }
 }

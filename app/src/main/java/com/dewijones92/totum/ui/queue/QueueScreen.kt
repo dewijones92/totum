@@ -143,15 +143,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onShuffleGroups = shuffleGroupsOrNull(container, snapshot.upNext, ask),
                 onJump = jump.takeIf { snapshot.currentIndex in entries.indices },
                 groups = groupIds to collapsedGroups,
-                onCollapseAll = {
-                    collapsedGroups = toggledAll(groupIds, collapsedGroups).also {
-                        Diag.log(
-                            "queue",
-                            "collapse all: ${it.size} of ${groupIds.size} group(s) now collapsed; " +
-                                "the playing item stays shown in its group",
-                        )
-                    }
-                },
+                onCollapseAll = { collapsedGroups = collapseAllLogged(groupIds, collapsedGroups) },
                 onSort = { order: MediaSort -> sortWithUndo(order, null) }.takeIf { snapshot.upNext.size > 1 },
                 filters = queueFilters,
             )
@@ -309,10 +301,22 @@ private data class GroupCollapse(
 
     fun toggle(id: String) {
         val collapsing = id !in collapsedIds
-        Diag.log("queue", "${if (collapsing) "collapsed" else "expanded"} group $id (${collapsedIds.size} collapsed before)")
+        Diag.log(
+            "queue",
+            "${if (collapsing) "collapsed" else "expanded"} group $id (${collapsedIds.size} collapsed before)"
+        )
         onChange(if (collapsing) collapsedIds + id else collapsedIds - id)
     }
 }
+
+private fun collapseAllLogged(groups: Set<String>, collapsed: Set<String>): Set<String> =
+    toggledAll(groups, collapsed).also {
+        Diag.log(
+            "queue",
+            "collapse all: ${it.size} of ${groups.size} group(s) now collapsed; " +
+                "the playing item stays shown in its group",
+        )
+    }
 
 /** Where the cursor is and how far through that item playback has got. */
 private data class NowPlaying(

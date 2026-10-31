@@ -176,7 +176,14 @@ public class Media3PlaybackController(
                 // The stored rate, before anything is played. Without this the speed button reads
                 // 1x on a cold start until the first play() lands — the app appearing to have
                 // forgotten a setting it had not.
-                scope.launch { userSpeed = speedStore.speed().coerceIn(MIN_SPEED, MAX_SPEED) }
+                scope.launch {
+                    userSpeed = speedStore.speed().coerceIn(MIN_SPEED, MAX_SPEED)
+                    skipSilence = speedStore.skipSilence()
+                    Diag.log(
+                        "playback",
+                        "saved choices on connect: ${userSpeed}x, skip-silence ${if (skipSilence) "on" else "off"}"
+                    )
+                }
                 scope.launch { silenceMode.collect { mode -> applySilenceMode(connected, mode) } }
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
@@ -349,6 +356,7 @@ public class Media3PlaybackController(
         scope.launch {
             // An explicit position wins: a re-resolved stream knows exactly where the dead
             // one stopped, which is finer-grained than the periodically-saved progress.
+            skipSilence = speedStore.skipSilence()
             val tuned = tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence))
             val start = when {
                 LocalManifests.isLive(uri) -> StartChoice(
@@ -623,6 +631,7 @@ public class Media3PlaybackController(
         }
         val behind = itemContext.id
         scope.launch {
+            skipSilence = speedStore.skipSilence()
             val start =
                 startChoiceFor(item, tuningFor(item.contentKind, PlaybackChoices(speedStore.speed(), skipSilence)))
             Diag.log("gapless", "${item.id.value} would start at ${start.positionMs}ms if armed: ${start.why}")
@@ -883,6 +892,7 @@ public class Media3PlaybackController(
     override fun setSkipSilence(enabled: Boolean) {
         if (tuning.keepsSkipSilence) {
             skipSilence = enabled
+            scope.launch { speedStore.saveSkipSilence(enabled) }
         } else {
             Diag.log(
                 "playback",

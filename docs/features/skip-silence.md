@@ -3,13 +3,21 @@ title: Skip-silence that actually skips
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-06
+updated: 2026-10-31
 ---
 
 # Skip-silence that actually skips
 
 **Ask (Dewi, 2026-09-25):** *"get silence skip as good as other apps such as pipepipe that actually
 skip silences properly"*.
+
+> 🐛 **It turned itself off on every restart. Fixed 2026-10-31.** Report 20261031T075258-0a131e26 (v0.1.779):
+> *"I just restarted the app and weirdly skipped silences turned off by itself"*. The on/off choice lived only in
+> `Media3PlaybackController` (`private var skipSilence = false`), never saved, while the speed beside it was. It is now
+> kept in the same store as the speed (`PlaybackSpeedStore.skipSilence`, `SharedPrefsPlaybackSpeedStore`), read before
+> every play and on connect (`saved choices on connect: 2.0x, skip-silence on`), and saved when you change it on talk.
+> A song or a book chapter still never changes it (ADR 105). Test: `SkipSilenceSurvivesARestartTest` (device), seen red
+> first with exactly the reported symptom.
 
 ## It did nothing, and said it was working
 

@@ -23,6 +23,10 @@ public interface PlaybackSpeedStore {
 
     /** Records [speed] as the chosen speed. Called only from a deliberate change in the UI. */
     public suspend fun save(speed: Float)
+
+    public suspend fun skipSilence(): Boolean = false
+
+    public suspend fun saveSkipSilence(on: Boolean) {}
 }
 
 /** Default store that remembers nothing — everything plays at [DEFAULT_PLAYBACK_SPEED]. */

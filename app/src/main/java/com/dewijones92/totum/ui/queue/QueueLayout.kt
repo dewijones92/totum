@@ -50,12 +50,13 @@ internal fun queueRows(
             ungroupedRunEnd = end
             rows += QueueRowSpec.UngroupedHeading(index, end - index + 1, "ungrouped-$index")
         }
-        if (group == null || group.id !in collapsed || index == playing) {
-            rows += QueueRowSpec.Entry(index, entry.item.item.id.value)
-        }
+        if (shown(group, collapsed, index == playing)) rows += QueueRowSpec.Entry(index, entry.item.item.id.value)
     }
     return rows
 }
+
+private fun shown(group: QueueGroup?, collapsed: Set<String>, playing: Boolean): Boolean =
+    group == null || group.id !in collapsed || playing
 
 private fun runStartOf(entries: List<QueueEntry>, playing: Int): Int {
     val group = entries.getOrNull(playing)?.group ?: return -1
