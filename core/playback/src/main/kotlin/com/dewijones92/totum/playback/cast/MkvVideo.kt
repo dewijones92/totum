@@ -21,6 +21,7 @@ internal class MkvVideo private constructor(
     private val scaleNs: Long,
     private val frameMs: Long,
     override val durationMs: Long,
+    private val clock: FrameClock,
 ) : RemuxedVideo {
     data class Cue(val timeMs: Long, val offset: Long)
 
@@ -28,9 +29,10 @@ internal class MkvVideo private constructor(
         VideoSegment(cue.timeMs, ((cues.getOrNull(i + 1)?.timeMs ?: durationMs) - cue.timeMs).coerceAtLeast(frameMs))
     }
 
-    override val describe: String get() = "$codecs ${width}x$height MKV, ${cues.size} cue(s), remuxed on demand"
+    override val describe: String
+        get() = "$codecs ${width}x$height MKV, ${cues.size} cue(s), remuxed on demand, timed at ${clock.describe}"
 
-    override fun init(): ByteArray = Fmp4.init("vide", MILLIS, sampleEntry, width, height)
+    override fun init(): ByteArray = Fmp4.init("vide", clock.timescale, sampleEntry, width, height)
 
     override fun segment(n: Int, read: RangeReader): ByteArray {
         val from = cues[n].offset
@@ -43,11 +45,10 @@ internal class MkvVideo private constructor(
                 "MKV segment $n does not start on a keyframe"
             )
         }
-        return Fmp4.videoSegment(n + 1, frames, frameMs)
+        return Fmp4.videoSegment(n + 1, frames, frameMs, clock)
     }
 
     companion object {
-        private const val MILLIS = 1000L
         private const val NANOS_PER_MS = 1_000_000L
         private const val DEFAULT_SCALE_NS = 1_000_000L
         private const val FALLBACK_FRAME_MS = 40L
@@ -83,6 +84,7 @@ internal class MkvVideo private constructor(
                 end = minOf(segmentEnd, cuesAt.takeIf { it > cues.last().offset } ?: segmentEnd),
                 scaleNs = scale,
                 frameMs = video.defaultDurationNs?.let { (it + NANOS_PER_MS / 2) / NANOS_PER_MS } ?: FALLBACK_FRAME_MS,
+                clock = FrameClock.of(video.defaultDurationNs),
                 durationMs = (units * scale / NANOS_PER_MS).toLong(),
             )
         }
@@ -251,15 +253,16 @@ internal object Fmp4 {
             u32(RESOLUTION_72_DPI) + u32(0) + u16(1) + ByteArray(32) + u16(DEPTH_COLOUR) + u16(0xFFFF) + config,
     )
 
-    fun videoSegment(sequence: Int, frames: List<VideoFrame>, frameMs: Long): ByteArray {
-        val dts = frames.map { it.ptsMs }.sorted()
+    fun videoSegment(sequence: Int, frames: List<VideoFrame>, frameMs: Long, clock: FrameClock): ByteArray {
+        val pts = frames.map { clock.ticks(it.ptsMs) }
+        val dts = pts.sorted()
         val entries = ByteArrayOutputStream()
         frames.forEachIndexed { i, frame ->
-            val duration = if (i + 1 < dts.size) dts[i + 1] - dts[i] else frameMs
+            val duration = if (i + 1 < dts.size) dts[i + 1] - dts[i] else clock.frameTicks(frameMs)
             entries.write(u32(duration.coerceAtLeast(1)))
             entries.write(u32(frame.bytes.size.toLong()))
             entries.write(u32(if (frame.key) KEY_SAMPLE else DEPENDENT_SAMPLE))
-            entries.write(u32((frame.ptsMs - dts[i]) and 0xFFFFFFFFL))
+            entries.write(u32((pts[i] - dts[i]) and 0xFFFFFFFFL))
         }
         val tfhd = Boxes.full("tfhd", 0, TFHD_DEFAULT_BASE_IS_MOOF, u32(TRACK_ID))
         val tfdt = Boxes.full("tfdt", 1, 0, u64(dts.first()))

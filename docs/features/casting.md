@@ -96,6 +96,16 @@ Nothing to tap on the phone. While the phone is charging on Wi-Fi it shows a qui
 Logs: `[screen] Watch here pressed …`, `Watch here on screen …: moving what the phone has …` or `… the queue is asked …`,
 `[queue] the PC screen's Watch here …: played=…`, `PC screen ready/not ready (charging=… wifi=…)`.
 
+## On the home VPN (2026-10-31)
+
+On `wg-home` the TV now fetches through the Pi (`192.168.0.19:18766` → the phone's `10.13.13.2:8765`), which Totum
+advertises by itself; the 🔒 strip below is for any other VPN. ADR 68, dot-files ADR 7.
+
+## Even frame timing (2026-10-31)
+
+The TV is given each frame at the film's own rate (1001 ticks of 24000 for 23.976 fps), not the source's
+millisecond-rounded gaps (41/42 ms), which judder at 60 Hz. ADR 68.
+
 ## A VPN in the way (2026-10-23)
 
 If a VPN on the phone carries your home network, the TV cannot reach the phone. The cast card now says so straight

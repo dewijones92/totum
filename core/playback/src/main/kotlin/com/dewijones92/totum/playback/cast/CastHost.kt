@@ -51,15 +51,25 @@ internal class CastHost(private val context: Context) {
             Diag.warn("cast", "no IPv4 address on Wi-Fi or Ethernet (a VPN's does not count) to advertise to the TV")
             return null
         }
-        vpnInTheWay = CastAddress.vpnCarries(address, networks)
-        if (vpnInTheWay) {
-            Diag.warn(
+        return reachableBase(address, port, networks)
+    }
+
+    private fun reachableBase(address: String, port: Int, networks: List<CastNetwork>): String {
+        val relay = CastAddress.relayFor(address, networks)?.takeIf { port == CastStreams.PORT }
+        vpnInTheWay = relay == null && CastAddress.vpnCarries(address, networks)
+        when {
+            relay != null -> Diag.log(
+                "cast",
+                "the home VPN routes $address's network, so the TV is given the Pi's relay ${relay.baseUrl}, " +
+                    "which reaches this phone at ${relay.viaTunnelAddress}:$port through the tunnel",
+            )
+            vpnInTheWay -> Diag.warn(
                 "cast",
                 "a VPN routes $address's network, so the TV's requests may be answered into the tunnel and never " +
                     "reach it; turning the VPN off, or excluding Totum from it, lets the TV fetch",
             )
         }
-        return "http://$address:$port"
+        return relay?.baseUrl ?: "http://$address:$port"
     }
 
     private fun override(): String? {

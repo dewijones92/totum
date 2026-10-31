@@ -14,6 +14,7 @@ internal class Mp4Video private constructor(
     private val segments: List<IntRange>,
     private val frameMs: Long,
     override val durationMs: Long,
+    private val clock: FrameClock,
 ) : RemuxedVideo {
 
     internal class Samples(
@@ -33,7 +34,7 @@ internal class Mp4Video private constructor(
         get() = "$codecs ${width}x$height MP4, ${samples.size.size} frame(s) in ${segments.size} segment(s), " +
             "remuxed on demand"
 
-    override fun init(): ByteArray = Fmp4.init("vide", MILLIS, sampleEntry, width, height)
+    override fun init(): ByteArray = Fmp4.init("vide", clock.timescale, sampleEntry, width, height)
 
     override fun segment(n: Int, read: RangeReader): ByteArray {
         val range = segments[n]
@@ -47,13 +48,12 @@ internal class Mp4Video private constructor(
             val at = (samples.offset[i] - first).toInt()
             VideoFrame(samples.ptsMs[i], samples.key[i], bytes.copyOfRange(at, at + samples.size[i]))
         }
-        return Fmp4.videoSegment(n + 1, frames, frameMs)
+        return Fmp4.videoSegment(n + 1, frames, frameMs, clock)
     }
 
     private fun startMs(range: IntRange): Long = range.minOf { samples.ptsMs[it] }
 
     companion object {
-        private const val MILLIS = 1000L
         private const val MIN_SEGMENT_MS = 2_000L
         private const val MAX_TOP_BOXES = 64
         private const val MAX_MOOV_BYTES = 64L * 1024 * 1024
@@ -96,12 +96,14 @@ internal class Mp4Video private constructor(
             val samples = SampleTables.read(moov, stbl, timescale, shift)
             if (samples.size.isEmpty()) throw UnreadableLayout("MP4 video track has no samples")
             val frameMs = SampleTables.typicalFrameMs(moov, stbl, timescale)
+            val clock = FrameClock.of(SampleTables.constantFrameNs(moov, stbl, timescale))
             val durationMs = samples.ptsMs.max() + frameMs
             val segments = segmentsAt(samples)
             Diag.log(
                 "cast",
                 "MP4 video ${entry.type} ${facts.width}x${facts.height}: ${samples.size.size} frames, " +
-                    "${samples.key.count { it }} keyframes, ${segments.size} segment(s), index ${moov.size / 1024}KB",
+                    "${samples.key.count { it }} keyframes, ${segments.size} segment(s), " +
+                    "index ${moov.size / 1024}KB, timed at ${clock.describe}",
             )
             return Mp4Video(
                 codecs = facts.codecs,
@@ -112,6 +114,7 @@ internal class Mp4Video private constructor(
                 segments = segments,
                 frameMs = frameMs,
                 durationMs = durationMs,
+                clock = clock,
             )
         }
 
@@ -213,6 +216,19 @@ internal object SampleTables {
         return Mp4Video.Samples(offsets, sizes, pts, key)
     }
 
+    fun constantFrameNs(moov: ByteArray, stbl: Mp4Layout.Box, timescale: Long): Long? {
+        val stts = Mp4Layout.child(moov, stbl, "stts") ?: return null
+        val entries = Mp4Layout.u32(moov, stts.dataStart + 4).toInt()
+        val runs = (0 until entries).map {
+            Mp4Layout.u32(moov, stts.dataStart + 8 + it * 8) to Mp4Layout.u32(moov, stts.dataStart + 12 + it * 8)
+        }
+        val total = runs.sumOf { it.first }
+        val (count, delta) = runs.maxByOrNull { it.first } ?: return null
+        return (delta * 1_000_000_000L / timescale).takeIf {
+            total > 0 && count * CONSTANT_SHARE >= total * (CONSTANT_SHARE - 1)
+        }
+    }
+
     fun typicalFrameMs(moov: ByteArray, stbl: Mp4Layout.Box, timescale: Long): Long {
         val stts = Mp4Layout.child(moov, stbl, "stts") ?: return FALLBACK_FRAME_MS
         val entries = Mp4Layout.u32(moov, stts.dataStart + 4).toInt()
@@ -301,4 +317,5 @@ internal object SampleTables {
     }
 
     private const val FALLBACK_FRAME_MS = 40L
+    private const val CONSTANT_SHARE = 100L
 }

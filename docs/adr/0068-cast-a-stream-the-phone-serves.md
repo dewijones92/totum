@@ -223,3 +223,25 @@ address line logs each VPN's routes, `CastAddress.vpnCarries` checks them, and w
 says so at once (🔒 "A VPN on this phone is carrying your home network … turn it off, or exclude Totum in the VPN app"),
 clearing by itself if the TV fetches after all. Not yet proven on his phone: the next report's route list will show
 whether this VPN covers 192.168.0.x. Tests: `VpnInTheWayTest`.
+
+## Amended 2026-10-31: casting on the home VPN goes through the Pi
+
+Full-tunnel on `wg-home`, the phone answers the TV into the tunnel from its Wi-Fi address, and WireGuard drops
+anything from the phone peer not sourced `10.13.13.2`, so the TV got nothing (report 0.1.698). The Pi now
+publishes `192.168.0.19:18766` on the LAN and forwards it to the phone's tunnel address `10.13.13.2:8765`
+(dot-files ADR 7). When a VPN covers the TV's network and the phone's tunnel address is `10.13.13.2`, Totum gives
+the TV that relay instead of its Wi-Fi address (`CastAddress.relayFor`) and logs it; the 🔒 strip stays for any
+other VPN, or when the cast server could not get port 8765. Tests: `VpnInTheWayTest` (+2). Not covered: the PureVPN
+profile (`wg-vpn`).
+
+## Amended 2026-10-31: frames are timed at the film's own rate
+
+Dewi's Matrix cast juddered on both TVs with no buffering. The file (`ffprobe` on the real MKV): HEVC Main,
+1920×800, 24000/1001 fps, timestamps in whole milliseconds, so frame gaps of 41 and 42 ms (339 and 140 in 20 s).
+Both on-demand repackagers wrote the video at a 1000 Hz clock and copied those uneven gaps to the TV (the MP4 one
+also truncated each time to a millisecond). Now a `FrameClock` from the source's declared constant rate (MKV
+`DefaultDuration`, MP4 `stts` when one delta covers 99% of samples) times the fMP4: exact for 23.976, 24, 25,
+29.97, 30, 48, 50, 59.94 and 60 fps (e.g. 1001 ticks of 24000), 1000 ticks of the measured rate for any other
+constant rate (a silent film at 18 fps), and the millisecond clock when no rate is declared. Tests:
+`FrameClockTest`, `MkvRemuxTest`, `Mp4RemuxTest`.
+

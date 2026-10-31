@@ -26,6 +26,36 @@ class VpnInTheWayTest {
     }
 
     @Test
+    fun `on the home VPN the TV is sent to the Pi's relay, which reaches the phone through the tunnel`() {
+        val home = vpn("0.0.0.0/0")
+
+        assertEquals(
+            "http://192.168.0.19:18766",
+            CastAddress.relayFor("192.168.0.85", listOf(wifi, home))?.baseUrl,
+        )
+    }
+
+    @Test
+    fun `another VPN, or none, has no relay`() {
+        val other =
+            CastNetwork(
+                wifi = false,
+                ethernet = false,
+                vpn = true,
+                ipv4 = listOf("10.8.0.5"),
+                routes = listOf("0.0.0.0/0")
+            )
+
+        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi, other)))
+        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi)))
+        assertEquals(
+            "a home VPN that leaves the LAN alone needs none",
+            null,
+            CastAddress.relayFor("192.168.0.85", listOf(wifi, vpn("10.13.13.0/24")))
+        )
+    }
+
+    @Test
     fun `the strip names the VPN as soon as the stream is handed over, and clears once the TV fetches`() {
         val said = mutableListOf<CastProblem?>()
         val tvs = object : CastTvPort {

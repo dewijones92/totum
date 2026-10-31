@@ -36,7 +36,7 @@ class Mp4RemuxTest {
 
     private fun ByteArray.u64(at: Int): Long = (u32(at) shl 32) or u32(at + 4)
 
-    private fun frames(segment: ByteArray): List<Frame> {
+    private fun frames(segment: ByteArray, timescale: Long = 1000): List<Frame> {
         val tfdt = segment.boxes("tfdt").single()
         var dts = segment.u64(tfdt + 8)
         val trun = segment.boxes("trun").single()
@@ -47,7 +47,7 @@ class Mp4RemuxTest {
             val size = segment.u32(at + 4)
             val key = segment.u32(at + 8) == 0x02000000L
             val offset = segment.u32(at + 12).toInt()
-            Frame(dts + offset, size, key).also { dts += duration }
+            Frame((dts + offset) * 1000 / timescale, size, key).also { dts += duration }
         }
     }
 
@@ -55,7 +55,9 @@ class Mp4RemuxTest {
         assertTrue(video.codecs, video.codecs.startsWith("avc1."))
         assertEquals(320 to 180, video.width to video.height)
         assertEquals(3, segments.size)
-        val all = segments.flatMap(::frames)
+        val timescale = video.init().let { it.u32(it.boxes("mdhd").single() + 4 + 4 + 4 + 4) }
+        assertEquals("a 25 fps film is timed at 1000 ticks a frame of 25000", 25_000L, timescale)
+        val all = segments.flatMap { frames(it, timescale) }
         assertEquals(150, all.size)
         assertEquals(31_682L, all.sumOf { it.size })
         segments.forEach { assertTrue("a segment opens on a keyframe", frames(it).first().key) }

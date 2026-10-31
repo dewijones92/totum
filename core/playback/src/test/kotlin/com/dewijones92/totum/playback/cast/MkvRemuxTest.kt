@@ -48,8 +48,11 @@ class MkvRemuxTest {
     fun `segments sit end to end on the cue timeline`() {
         val (mkv, segments) = remux("hevc-audio-first.mkv")
 
-        val decodeStarts = segments.map { it.u64(it.boxes("tfdt").single() + 8) }
-        assertEquals(mkv.timeline.map { it.startMs }, decodeStarts)
+        val timescale = mkv.init().let { it.u32(it.boxes("mdhd").single() + 4 + 4 + 4 + 4) }
+        val decodeStartsMs = segments.map { it.u64(it.boxes("tfdt").single() + 8) * 1000 / timescale }
+        mkv.timeline.map { it.startMs }.zip(decodeStartsMs).forEach { (cue, decode) ->
+            assertTrue("cue at $cue ms, segment decodes from $decode ms", kotlin.math.abs(cue - decode) <= 1)
+        }
         assertEquals(mkv.durationMs, mkv.timeline.sumOf { it.durationMs })
     }
 
