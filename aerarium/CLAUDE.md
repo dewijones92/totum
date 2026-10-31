@@ -27,7 +27,8 @@ sections do **not** apply here. Where this file and the root disagree about Aera
   but the reads and token calls each connector declares
   ([ADR 0002](docs/adr/0002-read-only-everywhere.md)).
 - **Owner only.** The Google gate admits more than one person, so the server also refuses any
-  `X-Forwarded-Email` that is not `OWNER_EMAIL` ([ADR 0005](docs/adr/0005-owner-only-behind-the-gate.md)).
+  `X-Forwarded-Email` that is not `OWNER_EMAIL`, and only accepts connections from nginx's own address
+  (`TRUSTED_HOSTS`) ([ADR 0005](docs/adr/0005-owner-only-behind-the-gate.md)).
 - **Money is integer minor units plus a currency**, never a float.
 - **Joint is always labelled.** Wherever an account, transaction, bill or total appears, a joint account carries
   the 👥 Joint tag, and totals say whether they include joint money. A newly synced account is asked about once

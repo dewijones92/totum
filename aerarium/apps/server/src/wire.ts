@@ -33,6 +33,8 @@ export interface WireOptions {
   log: Logger;
   version: string;
   trustedCidrs: readonly string[];
+  trustedHosts?: readonly string[];
+  resolveHost?: (host: string) => Promise<string[]>;
   ownerEmail: string;
   staticDir?: string;
   fakeProviders: boolean;
@@ -196,6 +198,8 @@ export function wire(o: WireOptions) {
     log: o.log,
     version: o.version,
     trustedCidrs: o.trustedCidrs,
+    ...(o.trustedHosts ? { trustedHosts: o.trustedHosts } : {}),
+    ...(o.resolveHost ? { resolveHost: o.resolveHost } : {}),
     ownerEmail: o.ownerEmail,
     clock,
     schedulerLastTickAt: () => scheduler.lastTickAt(),

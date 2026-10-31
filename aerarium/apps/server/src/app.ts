@@ -29,7 +29,7 @@ import type { SettingsStore } from './store/settings.ts';
 import { maybeWeekly, type WeeklyDeps } from './notify/weekly.ts';
 import type { Nudges } from './notify/nudges.ts';
 import { randomBytes } from 'node:crypto';
-import { isTrusted } from './http/ip.ts';
+import { TrustedPeers } from './http/trusted-peers.ts';
 import { EMAIL_HEADER, judgeOwner } from './http/owner.ts';
 import type { Logger } from './log.ts';
 import type { AccountsStore } from './store/accounts.ts';
@@ -42,6 +42,8 @@ export interface AppDeps {
   log: Logger;
   version: string;
   trustedCidrs: readonly string[];
+  trustedHosts?: readonly string[];
+  resolveHost?: (host: string) => Promise<string[]>;
   ownerEmail: string;
   staticDir?: string;
   clock: () => Date;
@@ -83,6 +85,12 @@ const today = (d: Date): string => d.toISOString().slice(0, 10);
 export function createApp(deps: AppDeps): Hono {
   const { log, accounts, connections, transactions, engine, clock } = deps;
   const remoteAddress = deps.remoteAddress ?? remoteFromConnInfo;
+  const peers = new TrustedPeers({
+    cidrs: deps.trustedCidrs,
+    hosts: deps.trustedHosts ?? [],
+    log,
+    ...(deps.resolveHost ? { resolve: deps.resolveHost } : {}),
+  });
   const app = new Hono();
 
   app.onError((error, c) => {
@@ -121,7 +129,7 @@ export function createApp(deps: AppDeps): Hono {
 
   app.use('*', async (c: Context, next) => {
     const ip = remoteAddress(c);
-    if (!isTrusted(ip, deps.trustedCidrs)) {
+    if (!(await peers.allows(ip))) {
       log.warn({ ip, path: c.req.path }, 'dewidebug refused: request not from a trusted network');
       return c.text('Forbidden', 403);
     }

@@ -14,6 +14,7 @@ const Env = z.object({
   STATIC_DIR: z.string().default(''),
   APP_VERSION: z.string().default('dev'),
   TRUSTED_CIDRS: csv.default(['127.0.0.0/8', '::1/128']),
+  TRUSTED_HOSTS: csv.default([]),
   OWNER_EMAIL: z.string().default(''),
   SECRETS_KEY_FILE: z.string().default(''),
   PUBLIC_URL: z.string().default(''),

@@ -15,7 +15,11 @@ means "Dewi".
 
 ## Decision
 
-- The server answers only requests from the trusted nginx network (`TRUSTED_CIDRS`); it publishes no host port.
+- The server answers only requests from nginx itself: `TRUSTED_HOSTS=nginx_dewi` is resolved through Docker's DNS
+  (cached 30 s, re-checked when an unknown address appears, refused if it does not resolve), plus loopback in
+  `TRUSTED_CIDRS`. It publishes no host port. (Until 2026-10-31 it trusted the whole `bin_private` subnet, which
+  16 containers share, so any of them could have sent a forged `X-Forwarded-Email`; found by review. A spoofed
+  source address cannot complete a TCP handshake, so pinning the address is enough without a shared secret.)
 - nginx passes the signed-in email as `X-Forwarded-Email` (always overwriting whatever a browser sent).
   With `OWNER_EMAIL` set, any other email, or none, gets `403 🔒 Aerarium is private to its owner.`
 - `/healthz` stays open (it carries only `ok`, the version and the scheduler's last tick) so deploys can check it.
