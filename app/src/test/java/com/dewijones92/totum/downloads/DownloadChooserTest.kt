@@ -82,6 +82,20 @@ class DownloadChooserTest {
     }
 
     @Test
+    fun `a torrent's film is one file, so nothing is asked and nothing offered it cannot keep`() = runTest {
+        val rig = Rig(this)
+        val film = video.copy(
+            id = MediaItemId("torrent:h:1"),
+            mediaUrl = HttpUrl.of("https://home.test/ts/stream/Night.of.the.Living.Dead.1968.mkv?link=h&index=1&play"),
+        )
+        rig.chooser.request(film)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(0, rig.asked.size)
+        assertEquals(listOf(MediaItemId("torrent:h:1") to false), rig.downloads.requested)
+    }
+
+    @Test
     fun `the choice survives being stored`() {
         listOf(DownloadChoice.Sound, DownloadChoice.Video(null), DownloadChoice.Video(1080)).forEach {
             assertEquals(it, DownloadChoice.parse(it.stored))

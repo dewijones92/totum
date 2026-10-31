@@ -4,7 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
-import com.dewijones92.totum.domain.offersListenAndWatch
+import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.DownloadChoice
@@ -30,8 +30,8 @@ class DownloadChooser(
         askAnyway: Boolean = false,
         videoOnly: Boolean = false,
     ) {
-        if (!item.offersListenAndWatch(pillar)) {
-            Diag.log(TAG, "\"${item.title}\" has no picture to choose about; downloading the file")
+        if (!item.offersDownloadChoice(pillar)) {
+            Diag.log(TAG, "\"${item.title}\" is one file, with no sound or video to choose; downloading it whole")
             start(item, null)
             return
         }

@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PendingAccountProgress
+import com.dewijones92.totum.domain.isNearlyFinished
 import com.dewijones92.totum.playback.PlaybackController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ internal class WatchHistorySync(
                 }
 
                 val videoId = state.itemId.value
-                val finished = (durationMs - state.positionMs) / MILLIS_PER_SEC < FINISH_THRESHOLD_SEC
+                val finished = isNearlyFinished(state.positionMs, durationMs)
                 if (finished && videoId == finishedVideoId) return@collect
 
                 val due = videoId != lastVideoId || finished || now() - lastReportMs >= REPORT_INTERVAL_MS
@@ -112,8 +113,6 @@ internal class WatchHistorySync(
     }
 
     private companion object {
-        const val MILLIS_PER_SEC = 1000f
         const val REPORT_INTERVAL_MS = 15_000L
-        const val FINISH_THRESHOLD_SEC = 15f
     }
 }

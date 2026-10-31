@@ -70,9 +70,11 @@ import com.dewijones92.totum.ui.cast.LocalScreenControl
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
+import com.dewijones92.totum.ui.common.FollowMark
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LocalOpenSource
+import com.dewijones92.totum.ui.common.LocalRowFollowing
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -445,8 +447,13 @@ private fun PodcastHitRow(
         )
         Spacer(Modifier.width(12.dp))
         HitTitles(hit.title, hit.subtitle, Modifier.weight(1f))
-        TextButton(onClick = onSubscribe, enabled = !subscribed) {
-            Text(stringResource(if (subscribed) R.string.subscribed else R.string.subscribe))
+        val mark = LocalRowFollowing.current?.markForSource(hit.toSource(), subscribed)
+        if (mark != null) {
+            FollowMark(mark)
+        } else {
+            TextButton(onClick = onSubscribe, enabled = !subscribed) {
+                Text(stringResource(if (subscribed) R.string.subscribed else R.string.subscribe))
+            }
         }
     }
 }

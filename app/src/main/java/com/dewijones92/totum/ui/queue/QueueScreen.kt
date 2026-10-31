@@ -237,12 +237,8 @@ private fun rememberQueueActions(
         onMove = queue::move,
         // A manual retry: the queue fetches audio by itself, but a failed
         // or skipped fetch otherwise leaves no way to ask again.
-        onDownload = { item ->
-            scope.launch { container.downloadManager.download(item, audioOnly = true) }
-        },
-        onDownloadVideo = { item ->
-            scope.launch { container.downloadManager.download(item, audioOnly = false) }
-        },
+        onDownload = { item -> container.downloadChooser.request(item) },
+        onDownloadVideo = { item -> container.downloadChooser.request(item, videoOnly = true) },
         groups = GroupCollapse(
             collapsedIds = collapsedGroups,
             onChange = onCollapsedChange,

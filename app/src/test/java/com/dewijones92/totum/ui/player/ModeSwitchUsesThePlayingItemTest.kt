@@ -80,6 +80,7 @@ class ModeSwitchUsesThePlayingItemTest {
         copies[MediaItemId("current")] = LocalCopy("/downloads/current.mkv")
         queue.peek(video("current"))
         controller.seekTo(POSITION)
+        val announced = mutableListOf<String>()
         val rows = MediaItemActions(
             queue,
             {},
@@ -92,13 +93,18 @@ class ModeSwitchUsesThePlayingItemTest {
                 )
             },
             object : UiEffects {
-                override fun announce(message: String) = Unit
+                override fun announce(message: String) {
+                    announced += message
+                }
                 override fun expandPlayer() = Unit
+                override fun modeMessage(audio: Boolean) = if (audio) "🎧 Audio mode on" else "📺 Video mode on"
             },
         )
 
         rows.switchMode(video("current").item, toAudio = true, audioOnMessage = "", videoOnMessage = "")
         advanceUntilIdle()
+
+        assertEquals(listOf("🎧 Audio mode on"), announced)
 
         assertEquals(POSITION, controller.lastStartPositionMs)
         assertEquals("/downloads/current.mkv", controller.lastLocalPath)

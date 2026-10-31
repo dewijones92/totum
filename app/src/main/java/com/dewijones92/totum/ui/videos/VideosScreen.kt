@@ -467,7 +467,6 @@ private fun ChannelsAndVideos(
                         onAddToQueue = { actions.addToQueue(video) },
                         onAddToPlaylist = { actions.addToPlaylist(video) },
                         onPeek = { actions.peek(video) },
-                        onDownloadVideo = { onDownload(video) },
                         onSwitchMode = { onSwitchMode(video) },
                         audioMode = actions.audioMode,
                         onGoToSource = { onGoToChannel(video) },

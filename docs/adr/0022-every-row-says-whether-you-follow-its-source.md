@@ -64,3 +64,8 @@ subscribed to the channel"*. He chose, from options put to him:
   unsubscribe from a row and its result, and a "kept" at the question.
 - Covered by `FollowingTest` (19), `SourceFollowingTest` (10), `SubscriptionsFetchedOnceTest` (loaded flag)
   and `FollowMarkTest` (instrumented).
+
+## Amended 2026-10-31
+
+- A file from a torrent carries no mark, like a book chapter: it came from no channel or show (it showed ❔).
+- A podcast show in Search wears the same ✅/➕ mark instead of its own Subscribe button.

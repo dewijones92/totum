@@ -17,6 +17,15 @@ import org.junit.Test
 class VideoPresenceTest {
 
     @Test
+    fun `a paused film from a torrent waits for its picture, as a paused video does`() {
+        assertEquals(
+            VideoPresence.WAITING,
+            state(kind = MediaKind.PODCAST, hasPictureTrack = true).videoPresence(),
+        )
+        assertEquals(VideoPresence.SETTLED_ON_AUDIO, state(kind = MediaKind.PODCAST).videoPresence())
+    }
+
+    @Test
     fun `a playing video is showing video`() {
         assertEquals(VideoPresence.SHOWING_VIDEO, state(hasVideo = true, isPlaying = true).videoPresence())
     }
@@ -129,6 +138,7 @@ class VideoPresenceTest {
         isBuffering: Boolean = false,
         isPlaying: Boolean = false,
         kind: MediaKind = MediaKind.VIDEO,
+        hasPictureTrack: Boolean = false,
     ) = PlaybackState(
         itemId = MediaItemId("abc123"),
         title = "t",
@@ -141,5 +151,6 @@ class VideoPresenceTest {
         speed = 1f,
         hasVideo = hasVideo,
         isBuffering = isBuffering,
+        hasPictureTrack = hasPictureTrack,
     )
 }

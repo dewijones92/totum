@@ -5,6 +5,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.settings.DownloadChoice
 
 /**
  * Everything you can do to a media item, available to any row without the screen wiring it.
@@ -41,6 +42,9 @@ internal interface ItemActions {
 
     /** Opens the item's album page, or null when it names no album or nothing can open one. */
     fun albumLink(item: MediaItem): (() -> Unit)? = null
+
+    /** The remembered sound-or-video choice, so a menu can say what Download will do. */
+    val downloadChoice: DownloadChoice? get() = null
 
     /** True while the app is in listen-only mode, so a row can label its switch action. */
     val audioMode: Boolean

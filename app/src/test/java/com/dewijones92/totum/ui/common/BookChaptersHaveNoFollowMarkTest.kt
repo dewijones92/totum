@@ -30,4 +30,12 @@ class BookChaptersHaveNoFollowMarkTest {
         assertNull(rows.markFor(item(MediaContentKind.AUDIOBOOK), MediaKind.PODCAST))
         assertNotNull(rows.markFor(item(MediaContentKind.STANDARD), MediaKind.PODCAST))
     }
+
+    @Test
+    fun `a file from a torrent has no follow mark either, it came from no channel or show`() {
+        val film = item(
+            MediaContentKind.STANDARD
+        ).copy(sourceId = com.dewijones92.totum.data.torrent.TorrentPlayables.SOURCE)
+        assertNull(rows.markFor(film, MediaKind.PODCAST))
+    }
 }

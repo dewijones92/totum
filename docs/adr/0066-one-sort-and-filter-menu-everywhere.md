@@ -2,7 +2,7 @@
 title: One sort and filter menu everywhere; a queue sort changes the play order
 kind: adr
 status: accepted
-updated: 2026-10-16
+updated: 2026-10-31
 ---
 
 # 66. One sort and filter menu everywhere; a queue sort changes the play order
@@ -54,3 +54,8 @@ sorts within each group; queue filters are view only.
   `AQueueEntryRemembersWhenItWasAddedTest`, `DownloadsMigrationTest.aRowQueuedBeforeV28HasNoAddedDateRatherThanAnInventedOne`,
   `TheQueueTitleIsNeverSqueezedTest`, `AScreenTitleNeverBreaksAWordTest` (both seen failing on the old headers).
 - Logs: `sort` (chosen, with the previous order; filters changed), `queue` (sorted which group by what, undone, kept).
+
+## Recorded 2026-10-31
+
+- The queue's sort sheet ticks "As listed" after a sort, by design: a queue sort is an action that reorders the
+  queue (with Undo), not a view, so afterwards the queue *is* as listed. Raised by the consistency audit; kept.

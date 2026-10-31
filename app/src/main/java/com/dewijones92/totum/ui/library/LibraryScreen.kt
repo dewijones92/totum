@@ -61,9 +61,7 @@ import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
-import com.dewijones92.totum.ui.common.ItemActions
 import com.dewijones92.totum.ui.common.ListThenDetail
-import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.SelectableMediaList
@@ -308,7 +306,6 @@ internal fun DownloadsContent(
     cleanup: Cleanup = Cleanup(),
     sections: Sections = Sections(),
 ) {
-    val actions = LocalItemActions.current
     val retrying = failed.count { it.retry != null }
     val stopped = failed.size - retrying
     var chosen by rememberSaveable(sections.current) { mutableStateOf(sections.current?.name) }
@@ -351,7 +348,7 @@ internal fun DownloadsContent(
                     cleanupSection(cleanup) { reviewing = it }
                     filterField(listFilter, shown.size, downloaded.size, hosted = true)
                     items(shown, key = { it.item.id.value }) { entry ->
-                        FinishedRow(entry, actions, onPlay, onDelete, onAddToPlaylist)
+                        FinishedRow(entry, onPlay, onDelete, onAddToPlaylist)
                     }
                 }
             }
@@ -363,7 +360,6 @@ internal fun DownloadsContent(
 @Composable
 private fun FinishedRow(
     entry: LibraryViewModel.Entry,
-    actions: ItemActions?,
     onPlay: (LibraryViewModel.Entry) -> Unit,
     onDelete: (LibraryViewModel.Entry) -> Unit,
     onAddToPlaylist: (LibraryViewModel.Entry) -> Unit,
@@ -386,9 +382,6 @@ private fun FinishedRow(
         onDownload = { },
         onDeleteDownload = { onDelete(entry) },
         onAddToPlaylist = { onAddToPlaylist(entry) },
-        // An audio-only copy of a video is still missing the picture,
-        // and Library is exactly where you'd notice.
-        onDownloadVideo = actions?.let { { it.download(entry.item, audioOnly = false) } },
     )
 }
 

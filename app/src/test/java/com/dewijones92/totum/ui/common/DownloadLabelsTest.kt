@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.settings.DownloadChoice
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -22,14 +23,15 @@ class DownloadLabelsTest {
     )
 
     @Test
-    fun `every download says what it will fetch`() {
+    fun `every download says what it will fetch, from the remembered choice`() {
         val video = item("https://www.youtube.com/watch?v=abc")
-        assertEquals(R.string.download_the_sound, downloadLabel(video, audioOnly = true))
-        assertEquals(R.string.download_the_video, downloadLabel(video, audioOnly = false))
-        assertEquals(R.string.download_the_file, downloadLabel(item("https://feed.test/ep1.mp3"), audioOnly = true))
+        assertEquals(R.string.download_the_sound, downloadLabel(video, DownloadChoice.Sound))
+        assertEquals(R.string.download_the_video, downloadLabel(video, DownloadChoice.Video(720)))
+        assertEquals(R.string.download_choose, downloadLabel(video, null))
+        assertEquals(R.string.download_the_file, downloadLabel(item("https://feed.test/ep1.mp3"), DownloadChoice.Sound))
         assertEquals(
             R.string.download_the_song,
-            downloadLabel(item("https://www.youtube.com/watch?v=s", MediaContentKind.MUSIC), audioOnly = true),
+            downloadLabel(item("https://www.youtube.com/watch?v=s", MediaContentKind.MUSIC), DownloadChoice.Sound),
         )
     }
 
@@ -38,7 +40,7 @@ class DownloadLabelsTest {
         val torrentFilm = item("https://home.test/ts/stream/Night.of.the.Living.Dead.1968.mkv?link=h&index=1&play")
         val videoEpisode = item("https://feed.test/episode-12.mp4")
 
-        assertEquals(R.string.download_the_file, downloadLabel(torrentFilm, audioOnly = true))
-        assertEquals(R.string.download_the_file, downloadLabel(videoEpisode, audioOnly = true))
+        assertEquals(R.string.download_the_file, downloadLabel(torrentFilm, DownloadChoice.Sound))
+        assertEquals(R.string.download_the_file, downloadLabel(videoEpisode, DownloadChoice.Sound))
     }
 }

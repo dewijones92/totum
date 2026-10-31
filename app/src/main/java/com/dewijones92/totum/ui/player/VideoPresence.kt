@@ -47,14 +47,14 @@ internal enum class VideoPresence {
 }
 
 /**
- * A podcast can never grow a picture, so it settles even while paused; anything else has to be
- * seen playing. That asymmetry is what keeps a stumbling video in fullscreen while still letting
- * a paused episode out of it.
+ * A podcast with no picture track can never grow a picture, so it settles even while paused;
+ * anything else (a video, a torrent's film, a video podcast) has to be seen playing. That asymmetry
+ * is what keeps a stumbling video in fullscreen while still letting a paused episode out of it.
  */
 internal fun PlaybackState.videoPresence(): VideoPresence = when {
     hasVideo -> VideoPresence.SHOWING_VIDEO
     isBuffering -> VideoPresence.WAITING
-    kind == MediaKind.PODCAST -> VideoPresence.SETTLED_ON_AUDIO
+    kind == MediaKind.PODCAST && !hasPictureTrack -> VideoPresence.SETTLED_ON_AUDIO
     isPlaying -> VideoPresence.SETTLED_ON_AUDIO
     else -> VideoPresence.WAITING
 }

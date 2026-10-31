@@ -3,6 +3,7 @@ package com.dewijones92.totum.database
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.isNearlyFinished
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +57,7 @@ public class RoomPlaybackProgressStore(
         durationMs: Long?,
         chosen: Chosen,
     ): Unit = writes.withLock {
-        val finished = durationMs != null && positionMs >= durationMs - tailFor(durationMs)
+        val finished = durationMs != null && isNearlyFinished(positionMs, durationMs)
         when {
             // FIRST, ahead of the near-the-end rule: a REINSTATED position says where the item
             // is, never whether it is finished. Inferring completion from it marked an item
@@ -134,20 +135,8 @@ public class RoomPlaybackProgressStore(
         )
     }
 
-    /**
-     * How close to the end still counts as finished. A flat 15s is right for anything of
-     * normal length but absurd for a Short: it marked a 30-second video played at the
-     * halfway point, and a 60-second one at 75%. The tail is capped at a share of the
-     * item instead, so "nearly finished" means the same thing at any duration.
-     */
-    private fun tailFor(durationMs: Long): Long =
-        minOf(NEAR_END_MS, (durationMs * TAIL_FRACTION_PERCENT) / PERCENT)
-
     private companion object {
         const val MIN_SAVE_MS = 5_000L
-        const val NEAR_END_MS = 15_000L
-        const val TAIL_FRACTION_PERCENT = 10L
-        const val PERCENT = 100L
     }
 }
 

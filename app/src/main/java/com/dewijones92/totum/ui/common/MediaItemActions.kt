@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.di.AppContainer
@@ -34,6 +36,7 @@ import kotlinx.coroutines.launch
 interface UiEffects {
     fun announce(message: String)
     fun expandPlayer()
+    fun modeMessage(audio: Boolean): String = ""
 }
 
 /**
@@ -91,7 +94,8 @@ class MediaItemActions internal constructor(
         // and only WatchViewModel cleared it. Report 0.1.444, "can't see video?mmm": mode=VIDEO and
         // three routes still carrying listen=true. See TheSoundRungPlaysTheFailINGItemTest.
         if (!toAudio) queue.wantsThePictureAgain(item.id)
-        ui.announce(if (toAudio) audioOnMessage else videoOnMessage)
+        val message = (if (toAudio) audioOnMessage else videoOnMessage).ifBlank { ui.modeMessage(toAudio) }
+        if (message.isNotBlank()) ui.announce(message)
         val playable = item.toPlayableOrNull() ?: return
         scope.launch { queue.playInChosenMode(playable) }
     }
@@ -178,7 +182,9 @@ fun rememberMediaItemActions(
     val uiScope = rememberCoroutineScope()
     val context = LocalContext.current
     val expandPlayer = LocalExpandPlayer.current
-    return remember(container, adder, uiScope, snackbar, expandPlayer) {
+    val audioOn = stringResource(R.string.mode_audio_on)
+    val videoOn = stringResource(R.string.mode_video_on)
+    return remember(container, adder, uiScope, snackbar, expandPlayer, audioOn, videoOn) {
         MediaItemActions(
             queue = container.playbackQueue,
             openPlaylistPicker = adder,
@@ -199,6 +205,8 @@ fun rememberMediaItemActions(
                 }
 
                 override fun expandPlayer() = expandPlayer()
+
+                override fun modeMessage(audio: Boolean): String = if (audio) audioOn else videoOn
             },
         )
     }

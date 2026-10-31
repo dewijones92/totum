@@ -447,6 +447,7 @@
     <string name="download_the_video">🎬 Download the video</string>
     <string name="download_the_song">🎧 Download the song</string>
     <string name="download_the_file">⬇️ Download the whole file</string>
+    <string name="download_choose">⬇️ Download (sound or video)</string>
     <string name="downloaded_delete">Downloaded — tap to remove</string>
     <string name="picture_offer">🎬 “%1$s” has a picture. You are listening.</string>
     <string name="picture_offer_watch">🎬 Watch</string>

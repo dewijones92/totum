@@ -51,6 +51,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.withArtworkFrom
 
@@ -122,7 +123,8 @@ fun MediaItemRow(
      * automatically): the tick already means "offline", so without this there'd be no
      * way left to ask for the picture too.
      */
-    onDownloadVideo: (() -> Unit)? = null,
+    onDownloadVideo: (() -> Unit)? = LocalItemActions.current.takeIf { item.offersDownloadChoice(pillar) }
+        .bind { chooseDownload(item, pillar, askAnyway = false, videoOnly = true) },
     /** Switches between listening and watching (and sets the mode); anything with a picture. */
     onSwitchMode: (() -> Unit)? =
         LocalItemActions.current.takeIf { item.offersListenAndWatch(pillar) }.bind { switchMode(item) },

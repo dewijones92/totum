@@ -237,6 +237,29 @@ class PinsTest {
     }
 
     @Test
+    fun `a pinned torrent film shows a picture too, so its shortcut opens the player`() = runTest {
+        val rig = Rig(this, FakeYouTubeMusicCatalogue(), FakePodcastRepository())
+        val stream = HttpUrl.of("https://home.test/ts/stream/Night.of.the.Living.Dead.1968.mkv?link=h&index=1&play")
+        val film = PlayableItem(
+            MediaItem(
+                id = MediaItemId("torrent:h:1"),
+                sourceId = SourceId("torrent"),
+                title = "Night of the Living Dead",
+                publishedAt = null,
+                duration = null,
+                mediaUrl = stream,
+            ),
+            PlayHandle.Podcast(),
+        )
+
+        val result = rig.player.play(Pin.of(film), from = "test")
+        advanceUntilIdle()
+
+        assertEquals(PinPlayed.Started(showsPicture = true), result)
+        rig.work.cancel()
+    }
+
+    @Test
     fun `a pinned artist with no channel id plays its mix`() = runTest {
         val catalogue =
             FakeYouTubeMusicCatalogue(radioBatches = listOf(RadioBatch(listOf(song("m1"), song("m2")), null)))

@@ -18,6 +18,7 @@ import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
+import com.dewijones92.totum.settings.DownloadChoice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -102,6 +103,9 @@ private class ContainerItemActions(
         Diag.log("download", "${items.size} selected to download (${playable.size} playable); asking how, in the sheet")
         container.episodeDownloads.ask(title, playable)
     }
+
+    override val downloadChoice: DownloadChoice?
+        get() = container.appPreferences.settings.value.downloadChoice
 
     override fun chooseDownload(item: MediaItem, pillar: MediaKind, askAnyway: Boolean, videoOnly: Boolean) {
         container.downloadChooser.request(item, pillar, askAnyway, videoOnly)

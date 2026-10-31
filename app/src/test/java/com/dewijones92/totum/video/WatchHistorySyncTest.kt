@@ -107,6 +107,20 @@ class WatchHistorySyncTest {
         assertTrue("the finish must be reported", history.reports.any { it.finished })
     }
 
+    @Test
+    fun `a Short two-thirds through is not reported finished, by the same rule the app keeps`() = runTest {
+        sync()
+        runCurrent()
+
+        playback.emitState(
+            state("s1", kind = MediaKind.VIDEO, hasVideo = true, positionMs = 20_000, durationMs = 30_000)
+        )
+        runCurrent()
+
+        assertTrue("a report is made", history.reports.isNotEmpty())
+        assertTrue("but not as finished", history.reports.none { it.finished })
+    }
+
     /** An item with no known duration cannot be reported as a fraction watched. */
     @Test
     fun `nothing is reported without a duration`() = runTest {

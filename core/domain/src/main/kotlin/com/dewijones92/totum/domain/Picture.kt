@@ -25,6 +25,8 @@ public val PlayableItem.pictureForSwitching: Picture
 public fun PlayableItem.listensWithThePictureOff(route: PlayRoute.AudioStream, listening: Boolean): Boolean =
     listening && pictureForSwitching != Picture.NO && !route.viaAudioOnlyUrl
 
+public fun MediaItem.offersDownloadChoice(pillar: MediaKind = this.pillar): Boolean = pillar == MediaKind.VIDEO
+
 public fun MediaItem.offersListenAndWatch(pillar: MediaKind = this.pillar): Boolean =
     pillar == MediaKind.VIDEO || picture == Picture.YES
 

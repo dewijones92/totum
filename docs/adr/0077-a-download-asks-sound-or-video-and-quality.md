@@ -2,7 +2,7 @@
 title: A download asks sound or video, and which quality
 kind: adr
 status: accepted
-updated: 2026-10-23
+updated: 2026-10-31
 ---
 
 # 77. A download asks sound or video, and which quality
@@ -36,3 +36,15 @@ only costs space.
 - A download's log line says `audioOnly=… maxHeight=…`, and the chooser logs whether it asked, why, and what was
   chosen or remembered.
 - Music keeps downloading sound directly (an album's ⬇️ is always sound).
+
+## Amended 2026-10-31 (consistency audit)
+
+- **Every download button goes through the chooser**: the queue, Library, the Videos feed and the player's ⋮ had
+  their own direct calls (the queue's said "Download the video" and fetched sound; the player's always fetched
+  sound; Library and Queue ignored the quality ceiling; the Videos feed's "Download video" did nothing when Sound was
+  remembered). "Download video" is now offered by every row for a YouTube item, through the chooser with
+  `videoOnly`.
+- **The menu says what Download will do**, from the remembered choice: 🎧 sound only, 🎬 video, or ⬇️ (sound or
+  video) when nothing is remembered and it will ask.
+- **Only a YouTube item has a choice** (`offersDownloadChoice`): a torrent's film or a video podcast is one file,
+  fetched whole, so it is never offered Sound or a height it cannot honour.

@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.pillar
 
@@ -30,7 +31,7 @@ internal fun ItemActionSheet(
     val readyAhead = LocalReadyAhead.current
     LaunchedEffect(item.id) { readyAhead(item) }
     val local = downloadStateOf(item.id)
-    val video = pillar == MediaKind.VIDEO
+    val video = item.offersDownloadChoice(pillar)
     ActionSheet(
         title = item.title,
         onPlayInsteadOfCurrent = null,
@@ -43,9 +44,8 @@ internal fun ItemActionSheet(
         onPeek = { actions.peek(item) },
         onDownloadVideo = { actions.chooseDownload(item, pillar, askAnyway = false, videoOnly = true) }
             .takeIf { video && local !is DownloadState.Downloading && local.mayStillGetThePicture() },
-        onDownload = { actions.download(item, audioOnly = true) }
+        onDownload = { actions.chooseDownload(item, pillar, askAnyway = false) }
             .takeIf { local !is DownloadState.Downloaded && local !is DownloadState.Downloading },
-        downloadAudioOnly = true,
         onDeleteDownload = { actions.deleteDownload(item.id) }.takeIf { local is DownloadState.Downloaded },
         onSwitchMode = { actions.switchMode(item) }.takeIf { item.offersListenAndWatch(pillar) },
         audioMode = actions.audioMode,

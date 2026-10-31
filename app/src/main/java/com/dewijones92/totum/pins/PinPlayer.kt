@@ -8,10 +8,10 @@ import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.MusicListing
 import com.dewijones92.totum.innertube.music.MusicResult
@@ -68,7 +68,7 @@ class PinPlayer(
 
     private suspend fun playItem(pin: Pin.Item): PinPlayed {
         val playable = pin.playable() ?: return PinPlayed.Failed("the pinned item cannot be rebuilt")
-        val video = playable.pillar == MediaKind.VIDEO && playable.item.contentKind != MediaContentKind.MUSIC
+        val video = playable.offersListenAndWatch && playable.item.contentKind != MediaContentKind.MUSIC
         return start(playable, showsPicture = video)
     }
 
