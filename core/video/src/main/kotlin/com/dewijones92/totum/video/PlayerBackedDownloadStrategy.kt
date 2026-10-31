@@ -174,8 +174,6 @@ class PlayerBackedDownloadStrategy(
             emit(DownloadState.Downloaded(target.absolutePath, audioOnly = true))
         }
 
-    // A function rather than the call inline: Android lint does not follow an opt-in into a
-    // lambda, and `download` builds its work inside `flow { }`. Same workaround as PlaybackService.
     private companion object {
         const val NANOS_PER_SECOND = 1_000_000_000L
         const val BYTES_PER_KB = 1024.0

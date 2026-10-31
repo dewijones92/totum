@@ -35,9 +35,11 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
 - **The CLI engine does what the phone's does.** `ProcessYtDlpEngine` now downloads (progress streamed as lines),
   solves `n` and signatures, and merges, through the same Python bridge and the same `FfmpegMerge`; the JS runtime is
   named by `TOTUM_JS_RUNTIME` (Node in the container). Until now the desktop never actually enabled one.
-- **The phone decides the format.** A job carries the item (the backup format), Sound or Video, the height ceiling,
-  and the phone's decoders (`PhoneDecoder`: family, highest height, hardware), so the Pi picks what that phone plays
-  (`PhoneCodecs`, one `VideoCodecFamily` table shared with the phone's own check).
+- **The phone decides the format, as far as the phone itself does.** A job carries the item (the backup format),
+  Sound or Video, the height ceiling, and the phone's decoders (`PhoneDecoder`: family, highest height, hardware,
+  kept on disk with the job). The signed-in route chooses by them (`PhoneCodecs`, one `VideoCodecFamily` table
+  shared with the phone's own check); the yt-dlp route takes only the height, exactly as it does on the phone
+  (`selectorFor`). From home yt-dlp is bot-checked, so in practice the signed-in route answers.
 - **Torrents are read from TorrServer directly** (`TOTUM_REWRITE`, the public `/ts/` address rewritten to
   `gluetun:8090` on the compose network), so the Pi needs no device token for its own server.
 - **Space:** files land in `/home/pi/ext_files/media/totum`; a job is refused with "❌ Not enough space at home"

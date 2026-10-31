@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.backup.BackupItem
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -51,14 +52,13 @@ class HomeJobsClientTest {
     }
 
     @Test
-    fun `ids with odd characters are escaped in paths`() = runTest {
+    fun `ids with odd characters travel in the query, untouched by nginx`() = runTest {
         server.enqueue(MockResponse.Builder().code(200).body("{}").build())
         client().cancel("a b/c?d")
-        assertEquals("/fetch/jobs/a%20b%2Fc%3Fd", server.takeRequest().url.encodedPath)
-        assertEquals(
-            "/fetch/files/x%2Fy",
-            client().fileUrl("x/y").value.substringAfter(server.url("/").toString().trimEnd('/'))
-        )
+        val sent = server.takeRequest().url
+        assertEquals("/fetch/jobs", sent.encodedPath)
+        assertEquals("a b/c?d", sent.queryParameter("id"))
+        assertEquals("x/y", client().fileUrl("x/y").value.toHttpUrl().queryParameter("id"))
     }
 
     @Test

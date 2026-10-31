@@ -17,7 +17,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
-internal class HomeReporting(val operations: Operations, val notices: HomeNotices)
+internal class HomeReporting(
+    val operations: Operations,
+    val notices: HomeNotices,
+    val cancelAtHome: (MediaItemId) -> Unit,
+)
 
 internal class HomeFollower(
     private val known: StateFlow<Map<MediaItemId, HomeJob>>,
@@ -45,21 +49,30 @@ internal class HomeFollower(
     }
 
     private fun strip(job: HomeJob) = scope.launch {
-        reporting.operations.track("home:${job.id}", OperationKind.HOME_DOWNLOAD, job.item.title) { progress ->
-            var end: OperationEnd? = null
-            while (end == null) {
-                val now = known.value[MediaItemId(job.id)]
-                progress.report(step = now?.percent() ?: 0, steps = PERCENT)
-                end = when (now?.state) {
-                    null -> OperationEnd.Nothing
-                    HomeJobState.DONE -> OperationEnd.Done(1)
-                    HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed at home")
-                    else -> null.also { delay(pollMs) }
+        var finished = false
+        try {
+            reporting.operations.track("home:${job.id}", OperationKind.HOME_DOWNLOAD, job.item.title) { progress ->
+                var end: OperationEnd? = null
+                while (end == null) {
+                    val now = known.value[MediaItemId(job.id)]
+                    progress.report(step = now?.percent() ?: 0, steps = PERCENT)
+                    end = when (now?.state) {
+                        null -> OperationEnd.Nothing
+                        HomeJobState.DONE -> OperationEnd.Done(1)
+                        HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed at home")
+                        else -> null.also { delay(pollMs) }
+                    }
                 }
+                finished = true
+                end
             }
-            end
+        } finally {
+            tracked.remove(job.id)
+            if (!finished) {
+                Diag.log(TAG, "\"${job.item.title}\": stopped from the strip; cancelling it at home")
+                reporting.cancelAtHome(MediaItemId(job.id))
+            }
         }
-        tracked.remove(job.id)
     }
 
     private suspend fun copyWhatIsReady() {

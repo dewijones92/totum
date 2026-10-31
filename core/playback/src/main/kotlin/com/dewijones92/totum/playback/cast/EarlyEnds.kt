@@ -9,12 +9,12 @@ internal class EarlyEnds {
 
     @Synchronized
     fun seen(atUs: Long, nowMs: Long) {
-        val previous = this.atUs
-        if (previous == null || abs(previous - atUs) >= SAME_PLACE_US) {
+        val first = this.atUs
+        if (first == null || abs(first - atUs) >= SAME_PLACE_US) {
+            this.atUs = atUs
             firstMs = nowMs
             times = 0
         }
-        this.atUs = atUs
         times++
     }
 

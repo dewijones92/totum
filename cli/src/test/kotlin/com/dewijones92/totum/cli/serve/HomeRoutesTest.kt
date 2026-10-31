@@ -38,9 +38,13 @@ class HomeRoutesTest {
         }
 
         override suspend fun jobs() = HomeJobs(emptyList(), freeBytes = 42, youTubeSignedIn = handedOver != null)
-        override suspend fun cancel(id: String) = Unit
+        val cancelled = mutableListOf<String>()
+        var fileId = "canonical-id"
+        override suspend fun cancel(id: String) {
+            cancelled += id
+        }
         override suspend fun retry(id: String) = Unit
-        override suspend fun fileOf(id: String): File? = file.takeIf { id == "canonical-id" }
+        override suspend fun fileOf(id: String): File? = file.takeIf { id == fileId }
         override suspend fun signIn(handover: AccountHandover) {
             handedOver = handover
         }
@@ -106,16 +110,41 @@ class HomeRoutesTest {
 
     @Test
     fun `a finished file is served whole or in ranges`() {
-        val whole = call("GET", "/files/canonical-id")
+        val whole = call("GET", "/files?id=canonical-id")
         assertEquals(200, whole.statusCode())
         assertArrayEquals(file.readBytes(), whole.body())
-        val part = call("GET", "/files/canonical-id", range = "bytes=10-19")
+        val part = call("GET", "/files?id=canonical-id", range = "bytes=10-19")
         assertEquals(206, part.statusCode())
         assertEquals("bytes 10-19/1000", part.headers().firstValue("Content-Range").orElse(""))
         assertArrayEquals(file.readBytes().copyOfRange(10, 20), part.body())
-        assertEquals(206, call("GET", "/files/canonical-id", range = "bytes=990-").statusCode())
-        assertEquals(416, call("GET", "/files/canonical-id", range = "bytes=5000-").statusCode())
-        assertEquals(404, call("GET", "/files/other").statusCode())
+        assertEquals(206, call("GET", "/files?id=canonical-id", range = "bytes=990-").statusCode())
+        assertEquals(416, call("GET", "/files?id=canonical-id", range = "bytes=5000-").statusCode())
+        assertEquals(404, call("GET", "/files?id=other").statusCode())
+    }
+
+    @Test(timeout = 10_000)
+    fun `a file being read slowly does not hold up anything else`() {
+        file.writeBytes(ByteArray(64 * 1024 * 1024))
+        val slow = java.net.Socket("localhost", server.address.port)
+        slow.getOutputStream().write("GET /files?id=canonical-id HTTP/1.1\r\nHost: x\r\n\r\n".toByteArray())
+        slow.getInputStream().read()
+        val started = System.currentTimeMillis()
+        assertEquals(200, call("GET", "/jobs").statusCode())
+        assertTrue("took ${System.currentTimeMillis() - started}ms", System.currentTimeMillis() - started < 2_000)
+        slow.close()
+    }
+
+    @Test
+    fun `an id that is a URL with slashes survives the query, and a suffix range is the end of the file`() {
+        val id = "https://feed.example/ep/1/"
+        val encoded = java.net.URLEncoder.encode(id, Charsets.UTF_8)
+        home.fileId = id
+        assertEquals(200, call("GET", "/files?id=$encoded").statusCode())
+        val tail = call("GET", "/files?id=$encoded", range = "bytes=-10")
+        assertEquals(206, tail.statusCode())
+        assertArrayEquals(file.readBytes().copyOfRange(990, 1000), tail.body())
+        call("DELETE", "/jobs?id=$encoded")
+        assertEquals(listOf(id), home.cancelled)
     }
 
     @Test

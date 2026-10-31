@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.download.DefaultDownloadManager
@@ -44,6 +45,9 @@ import com.dewijones92.totum.video.videoAndPodcastDownloads
 import com.dewijones92.totum.ytdlp.process.ProcessYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -84,7 +88,8 @@ internal class HomeDownloads(
     private val embedded = EmbeddedPlayer(innerTube, HttpVisitorIdSource(http), HttpEmbedHostFlagsSource(http), stamps)
     private val skipSegments = SponsorBlockSegmentSource(OkHttpTextFetcher(http)) { emptySet() }
     private val lookups = FileLookupStore(File(dataDir, "lookups"))
-    private val decodersOf = ConcurrentHashMap<String, List<PhoneDecoder>>()
+    private val decodersFile = File(dataDir, "decoders.json")
+    private val decodersOf = ConcurrentHashMap<String, List<PhoneDecoder>>(loadDecoders(decodersFile))
     private val resolvers = ConcurrentHashMap<List<PhoneDecoder>, VideoResolver>()
 
     private val manager: DownloadManager = DefaultDownloadManager(
@@ -134,6 +139,7 @@ internal class HomeDownloads(
         val item = request.item.copy(mediaUrl = request.item.mediaUrl?.let(rewrites::apply)).toPlayable()
             ?: return Started.Refused("❌ That item can't be downloaded")
         decodersOf[item.item.id.value] = request.decoders
+        saveDecoders(decodersFile, decodersOf)
         Diag.log(
             "home",
             "job ${item.item.id.value} \"${item.item.title}\" audioOnly=${request.audioOnly} " +
@@ -209,3 +215,16 @@ internal fun rewritesFrom(spec: String?): Rewrites = Rewrites(
         pair.split('=', limit = 2).takeIf { it.size == 2 && it[0].isNotBlank() }?.let { it[0] to it[1] }
     },
 )
+
+private val DECODERS = MapSerializer(String.serializer(), ListSerializer(PhoneDecoder.serializer()))
+
+private fun loadDecoders(file: File): Map<String, List<PhoneDecoder>> =
+    runCatching { AskJson.decodeFromString(DECODERS, file.readText()) }.getOrDefault(emptyMap())
+
+private fun saveDecoders(file: File, all: Map<String, List<PhoneDecoder>>) {
+    runCatching {
+        file.parentFile?.mkdirs()
+        file.writeText(AskJson.encodeToString(DECODERS, all.toMap()))
+    }
+        .onFailure { Diag.warn("home", "decoders not saved", it) }
+}

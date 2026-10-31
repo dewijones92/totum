@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback.cast
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class EarlyEndsTest {
@@ -20,7 +21,7 @@ class EarlyEndsTest {
         ends.seen(atUs = 3_600_000_100, nowMs = 15_000)
         ends.seen(atUs = 3_600_000_200, nowMs = 31_000)
 
-        assertEquals(3_600_000_200L, ends.trusted(nowMs = 31_000))
+        assertEquals(3_600_000_000L, ends.trusted(nowMs = 31_000))
     }
 
     @Test
@@ -31,5 +32,14 @@ class EarlyEndsTest {
         ends.seen(atUs = 500_000_000, nowMs = 40_000)
 
         assertEquals(null, ends.trusted(nowMs = 40_000))
+    }
+
+    @Test
+    fun `failures creeping forward a little each time are not one place`() {
+        val ends = EarlyEnds()
+        ends.seen(10_000_000, 0)
+        ends.seen(11_500_000, 15_000)
+        ends.seen(13_000_000, 31_000)
+        assertNull(ends.trusted(31_000))
     }
 }

@@ -18,6 +18,7 @@ import com.dewijones92.totum.innertube.auth.RefreshToken
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.settings.DownloadChoice
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -118,5 +119,46 @@ class HomeDownloadsTest {
         api.listed = listOf(job(HomeJobState.DONE, audioOnly = true))
         home(this).refresh("sound ready")
         assertTrue(local.requested.isEmpty())
+    }
+
+    @Test
+    fun `after sending a job home it is followed closely, not at the idle pace`() = runTest {
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { false }),
+            local,
+            Operations(),
+            notices,
+            backgroundScope,
+            Pacing(pollMs = 1_000, idleMs = 600_000),
+        )
+        home.watch()
+        advanceTimeBy(5_000)
+        api.listed = listOf(job(HomeJobState.DOWNLOADING))
+        home.start(video, null)
+        advanceTimeBy(500)
+        api.listed = listOf(job(HomeJobState.DONE))
+        advanceTimeBy(3_000)
+        assertTrue(notices.said.toString(), "ready A film" in notices.said)
+    }
+
+    @Test
+    fun `cancelling a home download from the strip cancels it at home`() = runTest {
+        val operations = Operations()
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { false }),
+            local,
+            operations,
+            notices,
+            backgroundScope,
+            Pacing(pollMs = 1_000, idleMs = 600_000)
+        )
+        api.listed = listOf(job(HomeJobState.DOWNLOADING))
+        home.refresh("running")
+        advanceTimeBy(100)
+        operations.cancel(operations.running.value.single().id)
+        advanceTimeBy(100)
+        assertEquals(listOf("abcdefghijk"), api.cancelled)
     }
 }

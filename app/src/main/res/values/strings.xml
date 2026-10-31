@@ -1110,7 +1110,7 @@
     <string name="home_delete">🗑️ Delete</string>
     <string name="home_notice_ready">🏠 Ready at home: %1$s</string>
     <string name="home_notice_refused">❌ Not downloaded at home: %1$s. %2$s</string>
-    <string name="ops_home_percent">%1$d%%</string>
+    <string name="ops_home_percent">⏳ %1$d%%</string>
     <plurals name="ops_home_done">
         <item quantity="one">🏠 Ready at home: %2$s</item>
         <item quantity="other">🏠 Ready at home: %2$s</item>
@@ -1128,7 +1128,7 @@
     <string name="ask_speech_prompt">What would you like?</string>
     <string name="ask_start_over">🔄 Start over</string>
     <string name="ask_you_said">🗣️ %1$s</string>
-    <string name="ask_asking">✨ Asking the home server… (up to a minute)</string>
+    <string name="ask_asking">✨ Asking the home server… (a minute or two)</string>
     <string name="ask_searching">🔍 Looking for copies…</string>
     <string name="ask_vetting">🕵️ Checking they\'re the right ones…</string>
     <string name="ask_checking_copy">⏳ Checking this copy…</string>

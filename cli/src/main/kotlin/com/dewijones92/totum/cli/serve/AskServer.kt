@@ -21,6 +21,7 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 
 internal class AskServer(
     private val brain: Brain,
@@ -36,6 +37,7 @@ internal class AskServer(
     private data class Job(val started: Long, val snapshot: AskJob)
 
     fun start(port: Int): HttpServer = HttpServer.create(InetSocketAddress(port), 0).apply {
+        executor = Executors.newFixedThreadPool(THREADS)
         createContext("/") { exchange -> exchange.use { handle(it) } }
         start()
         Diag.log("serve", "listening on $port")
@@ -118,6 +120,7 @@ internal class AskServer(
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
         const val CONCURRENT = 2
+        const val THREADS = 16
         const val KEEP_MS = 30 * 60_000L
         const val LOGGED = 300
     }

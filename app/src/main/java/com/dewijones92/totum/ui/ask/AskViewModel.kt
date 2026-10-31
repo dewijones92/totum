@@ -65,49 +65,63 @@ class AskViewModel(
         Diag.log("ask", "asking \"$request\" from $from after ${earlier.size} earlier turn(s)")
         state.update { it.copy(turns = it.turns + Turn(request)) }
         viewModelScope.launch {
-            operations.track("ask:$request", OperationKind.ASK, request) { progress ->
-                progress.report(step = 1, steps = STEPS)
-                val turns = earlier.map { turn -> AskTurn(turn.request, turn.cards.map { it.suggestion.label }) } +
-                    AskTurn(request)
-                val owned = runCatching { have() }.getOrDefault(emptyList())
-                when (val answer = askService.ask(AskRequest(turns, owned))) {
-                    is AskOutcome.Failed -> {
-                        updateLast { it.copy(stage = Stage.FAILED, error = answer.reason) }
-                        return@track OperationEnd.Failed(answer.reason)
-                    }
-                    is AskOutcome.Answered -> {
-                        val picks = answer.value.suggestions.joinToString("; ") { s ->
-                            "${s.kind} ${s.label} [${s.searchWords}]"
-                        }
-                        Diag.log(
-                            "ask",
-                            "\"$request\" answered in ${answer.elapsedMs}ms, ${owned.size} owned title(s) sent: $picks",
-                        )
-                        updateLast {
-                            it.copy(
-                                stage = Stage.SEARCHING,
-                                cards = answer.value.suggestions.map(::AskCard),
-                                tookMs = answer.elapsedMs
-                            )
-                        }
-                    }
+            try {
+                val end = askAndFind(askService, request, earlier)
+                if (state.value.busy) {
+                    val why = (end as? OperationEnd.Failed)?.why ?: "No answer"
+                    updateLast { it.copy(stage = Stage.FAILED, error = "❌ $why") }
                 }
-                progress.report(step = 2, steps = STEPS)
-                search()
-                progress.report(step = 3, steps = STEPS)
-                vet(askService)
-                val cards = state.value.turns.last().cards
-                updateLast { it.copy(stage = Stage.DONE) }
-                Diag.log(
-                    "ask",
-                    "\"$request\" done: " + cards.joinToString("; ") {
-                        "${it.suggestion.label} -> ${it.best?.title ?: "nothing"}"
-                    }
-                )
-                OperationEnd.Done(cards.count { it.best != null })
+            } finally {
+                if (state.value.busy) {
+                    Diag.log("ask", "\"$request\" stopped before it finished")
+                    updateLast { it.copy(stage = Stage.FAILED, error = "⏹️ Stopped") }
+                }
             }
         }
     }
+
+    private suspend fun askAndFind(askService: AskService, request: String, earlier: List<Turn>): OperationEnd =
+        operations.track("ask:$request", OperationKind.ASK, request) { progress ->
+            progress.report(step = 1, steps = STEPS)
+            val turns = earlier.map { turn -> AskTurn(turn.request, turn.cards.map { it.suggestion.label }) } +
+                AskTurn(request)
+            val owned = runCatching { have() }.getOrDefault(emptyList())
+            when (val answer = askService.ask(AskRequest(turns, owned))) {
+                is AskOutcome.Failed -> {
+                    updateLast { it.copy(stage = Stage.FAILED, error = answer.reason) }
+                    return@track OperationEnd.Failed(answer.reason)
+                }
+                is AskOutcome.Answered -> {
+                    val picks = answer.value.suggestions.joinToString("; ") { s ->
+                        "${s.kind} ${s.label} [${s.searchWords}]"
+                    }
+                    Diag.log(
+                        "ask",
+                        "\"$request\" answered in ${answer.elapsedMs}ms, ${owned.size} owned title(s) sent: $picks",
+                    )
+                    updateLast {
+                        it.copy(
+                            stage = Stage.SEARCHING,
+                            cards = answer.value.suggestions.map(::AskCard),
+                            tookMs = answer.elapsedMs
+                        )
+                    }
+                }
+            }
+            progress.report(step = 2, steps = STEPS)
+            search()
+            progress.report(step = 3, steps = STEPS)
+            vet(askService)
+            val cards = state.value.turns.last().cards
+            updateLast { it.copy(stage = Stage.DONE) }
+            Diag.log(
+                "ask",
+                "\"$request\" done: " + cards.joinToString("; ") {
+                    "${it.suggestion.label} -> ${it.best?.title ?: "nothing"}"
+                }
+            )
+            OperationEnd.Done(cards.count { it.best != null })
+        }
 
     fun startOver() {
         if (state.value.busy) return

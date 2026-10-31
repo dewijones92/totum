@@ -132,6 +132,11 @@ private fun PlayableItem.fileRoute(copy: LocalCopy, audioPreferred: Boolean): Pl
     }
 }
 
+public data class HomeCopy(public val url: HttpUrl, public val audioOnly: Boolean)
+
+public fun PlayableItem.playedFromHome(home: HomeCopy): PlayableItem =
+    copy(item = item.copy(mediaUrl = home.url), handle = PlayHandle.Podcast())
+
 /**
  * The same item played from a file rather than the network. A video fetched audio-only is an
  * audio file, so it plays as one.
@@ -140,11 +145,6 @@ private fun PlayableItem.fileRoute(copy: LocalCopy, audioPreferred: Boolean): Pl
  * different paths and must make the same handle out of it, or one of them streams a file that
  * is already on the disk.
  */
-public data class HomeCopy(public val url: HttpUrl, public val audioOnly: Boolean)
-
-public fun PlayableItem.playedFromHome(home: HomeCopy): PlayableItem =
-    copy(item = item.copy(mediaUrl = home.url), handle = PlayHandle.Podcast())
-
 public fun PlayableItem.playedFromDisk(copy: LocalCopy): PlayableItem = copy(
     handle = if (copy.audioOnly || handle.pillar == MediaKind.PODCAST) {
         PlayHandle.Podcast(copy.path)

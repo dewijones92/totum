@@ -18,7 +18,11 @@ internal class FakeHomeApi : HomeJobsApi {
         return refuse?.let { HomeAnswer.No(it) } ?: HomeAnswer.Ok(job.item.itemId)
     }
     override suspend fun jobs() = HomeAnswer.Ok(HomeJobs(listed, 1, true))
-    override suspend fun cancel(id: String) = HomeAnswer.Ok(Unit)
+    val cancelled = mutableListOf<String>()
+    override suspend fun cancel(id: String): HomeAnswer<Unit> {
+        cancelled += id
+        return HomeAnswer.Ok(Unit)
+    }
     override suspend fun retry(id: String) = HomeAnswer.Ok(Unit)
     override suspend fun handOver(account: AccountHandover): HomeAnswer<Unit> {
         handedOver += account

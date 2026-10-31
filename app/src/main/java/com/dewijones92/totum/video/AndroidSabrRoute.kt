@@ -14,6 +14,8 @@ import java.io.File
 
 object AndroidSabrRoute : SabrRoute {
 
+    // A function rather than the call inline: Android lint does not follow an opt-in into a
+    // lambda, and `download` builds its work inside `flow { }`. Same workaround as PlaybackService.
     @OptIn(UnstableApi::class)
     override fun bytes(url: HttpUrl, item: PlayableItem, target: File): Flow<DownloadState>? =
         sabrStreamFor(url.value)?.let { sabrBytes(it, item, target) }

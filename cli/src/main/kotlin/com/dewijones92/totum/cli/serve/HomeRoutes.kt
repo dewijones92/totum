@@ -10,40 +10,40 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
 import java.io.File
 import java.io.RandomAccessFile
+import java.net.URLDecoder
 
 internal class HomeRoutes(private val home: Home) {
 
-    fun handles(path: String): Boolean =
-        path == "/jobs" || path.startsWith("/jobs/") || path.startsWith("/files/") || path == "/account"
+    fun handles(path: String): Boolean = path in PATHS
 
     fun handle(exchange: HttpExchange, method: String, path: String) = runBlocking {
+        val id = idOf(exchange)
         when {
-            path == "/jobs" || path.startsWith("/jobs/") -> jobs(exchange, method, path)
-            method == "GET" && path.startsWith("/files/") -> {
-                val file = home.fileOf(path.removePrefix("/files/"))
+            method == "GET" && path == "/jobs" ->
+                exchange.json(OK, AskJson.encodeToString(HomeJobs.serializer(), home.jobs()))
+            method == "POST" && path == "/jobs" -> start(exchange)
+            id == null -> exchange.json(BAD_REQUEST, """{"error":"which item? (?id=)"}""")
+            else -> withId(exchange, method, path, id)
+        }
+    }
+
+    private suspend fun withId(exchange: HttpExchange, method: String, path: String, id: String) {
+        when {
+            method == "DELETE" && path == "/jobs" -> {
+                home.cancel(id)
+                exchange.json(OK, """{"ok":true}""")
+            }
+            method == "POST" && path == "/jobs/retry" -> {
+                home.retry(id)
+                exchange.json(OK, """{"ok":true}""")
+            }
+            method == "GET" && path == "/files" -> {
+                val file = home.fileOf(id)
                 if (file == null) exchange.json(NOT_FOUND, """{"error":"no such file"}""") else serve(exchange, file)
             }
             method == "PUT" && path == "/account" -> account(exchange)
             method == "DELETE" && path == "/account" -> {
                 home.signOut()
-                exchange.json(OK, """{"ok":true}""")
-            }
-            else -> exchange.json(NOT_FOUND, """{"error":"no such route"}""")
-        }
-    }
-
-    private suspend fun jobs(exchange: HttpExchange, method: String, path: String) {
-        val id = path.removePrefix("/jobs").removePrefix("/").removeSuffix("/retry")
-        when {
-            method == "GET" && path == "/jobs" ->
-                exchange.json(OK, AskJson.encodeToString(HomeJobs.serializer(), home.jobs()))
-            method == "POST" && path == "/jobs" -> start(exchange)
-            method == "DELETE" && id.isNotEmpty() -> {
-                home.cancel(id)
-                exchange.json(OK, """{"ok":true}""")
-            }
-            method == "POST" && path.endsWith("/retry") -> {
-                home.retry(id)
                 exchange.json(OK, """{"ok":true}""")
             }
             else -> exchange.json(NOT_FOUND, """{"error":"no such route"}""")
@@ -79,8 +79,10 @@ internal class HomeRoutes(private val home: Home) {
     private fun serve(exchange: HttpExchange, file: File) {
         val length = file.length()
         val range = RANGE.find(exchange.requestHeaders.getFirst("Range").orEmpty())
-        val start = range?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-        val end = (range?.groupValues?.get(2)?.toLongOrNull() ?: (length - 1)).coerceAtMost(length - 1)
+        val first = range?.groupValues?.get(1)?.toLongOrNull()
+        val last = range?.groupValues?.get(2)?.toLongOrNull()
+        val start = first ?: last?.let { (length - it).coerceAtLeast(0) } ?: 0L
+        val end = (if (first == null) null else last)?.coerceAtMost(length - 1) ?: (length - 1)
         if (start > end || start >= length) {
             exchange.responseHeaders.add("Content-Range", "bytes */$length")
             exchange.sendResponseHeaders(RANGE_NOT_SATISFIABLE, -1)
@@ -109,6 +111,11 @@ internal class HomeRoutes(private val home: Home) {
         }
     }
 
+    private fun idOf(exchange: HttpExchange): String? =
+        exchange.requestURI.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("id=") }
+            ?.removePrefix("id=")?.let { URLDecoder.decode(it, Charsets.UTF_8) }
+            ?: ACCOUNT_ID.takeIf { exchange.requestURI.path == "/account" }
+
     private fun HttpExchange.json(code: Int, body: String) {
         val bytes = body.toByteArray()
         responseHeaders.add("Content-Type", "application/json")
@@ -126,5 +133,7 @@ internal class HomeRoutes(private val home: Home) {
         const val INSUFFICIENT_STORAGE = 507
         const val BUFFER = 64 * 1024
         val RANGE = Regex("""bytes=(\d*)-(\d*)""")
+        val PATHS = setOf("/jobs", "/jobs/retry", "/files", "/account")
+        const val ACCOUNT_ID = "account"
     }
 }

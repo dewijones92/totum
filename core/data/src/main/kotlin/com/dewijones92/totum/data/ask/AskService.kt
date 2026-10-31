@@ -27,6 +27,7 @@ public class HttpAskService(
     private val token: () -> String,
     private val pollMs: Long = POLL_MS,
     private val giveUpMs: Long = GIVE_UP_MS,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : AskService {
 
     override suspend fun ask(request: AskRequest, progress: (Long) -> Unit): AskOutcome<AskAnswer> =
@@ -45,14 +46,14 @@ public class HttpAskService(
         val started = post(path, body) ?: return AskOutcome.Failed("❌ The home server didn't answer")
         Diag.log("ask", "$path job ${started.id} started")
         var job = started
-        var waited = 0L
+        val began = clock()
         while (job.state == JobState.RUNNING) {
+            val waited = clock() - began
             if (waited >= giveUpMs) {
                 Diag.warn("ask", "$path job ${job.id} still running after ${waited}ms; giving up")
                 return AskOutcome.Failed("❌ The home server took too long")
             }
             delay(pollMs)
-            waited += pollMs
             job = poll(job.id) ?: job
             progress(job.elapsedMs)
         }
@@ -96,7 +97,7 @@ public class HttpAskService(
     private companion object {
         val JSON = "application/json".toMediaType()
         const val POLL_MS = 1_500L
-        const val GIVE_UP_MS = 180_000L
+        const val GIVE_UP_MS = 330_000L
         const val LOGGED_CHARS = 200
     }
 }

@@ -72,13 +72,15 @@ class HttpAskServiceTest {
     fun `a job that never finishes is given up on`() = runTest {
         server.enqueue(job("running"))
         repeat(20) { server.enqueue(job("running")) }
+        var ticks = 0L
         val slow =
             HttpAskService(
                 OkHttpClient(),
                 server.url("/fetch").toString().trimEnd('/'),
                 { "t" },
                 pollMs = 1,
-                giveUpMs = 5
+                giveUpMs = 5,
+                clock = { ticks++ },
             )
         assertEquals(AskOutcome.Failed("❌ The home server took too long"), slow.ask(request))
     }

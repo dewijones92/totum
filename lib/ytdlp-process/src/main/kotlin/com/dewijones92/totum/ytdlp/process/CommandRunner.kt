@@ -87,7 +87,7 @@ public class SystemCommandRunner(
                 error("the extractor failed (exit ${process.exitValue()}): $said")
             }
         } finally {
-            process.destroy()
+            if (process.isAlive) process.destroyForcibly()
             err.delete()
         }
     }.flowOn(Dispatchers.IO)

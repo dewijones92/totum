@@ -18,12 +18,15 @@ import com.dewijones92.totum.innertube.auth.OAuthTokens
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.settings.DownloadChoice
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 interface HomeNotices {
     fun started(title: String)
@@ -70,19 +73,23 @@ class HomeDownloads(
     private val follower = HomeFollower(
         known,
         downloads,
-        HomeReporting(operations, notices),
+        HomeReporting(operations, notices) { id -> cancel(id) },
         phone.unmetered,
         scope,
         pacing.pollMs
     )
     private var handedOver = false
+    private val handing = Mutex()
+    private val wake = Channel<String>(Channel.CONFLATED)
 
     fun watch() {
         if (client == null) return
         scope.launch {
+            var why = "tick"
             while (true) {
-                refresh("tick")
-                delay(if (known.value.values.any { it.state.busy() }) pacing.pollMs else pacing.idleMs)
+                refresh(why)
+                val pause = if (known.value.values.any { it.state.busy() }) pacing.pollMs else pacing.idleMs
+                why = withTimeoutOrNull(pause) { wake.receive() } ?: "tick"
             }
         }
         pacing.refreshWhen?.let { changes -> scope.launch { changes.collect { refresh("network changed") } } }
@@ -103,6 +110,7 @@ class HomeDownloads(
                 is HomeAnswer.Ok -> {
                     notices.started(item.item.title)
                     refresh("started ${answer.value}")
+                    wake.trySend("following ${answer.value}")
                 }
                 is HomeAnswer.No -> {
                     Diag.warn(TAG, "\"${item.item.title}\": the home server refused: ${answer.reason}")
@@ -143,10 +151,10 @@ class HomeDownloads(
         }
     }
 
-    private suspend fun handOver(home: HomeJobsApi) {
-        if (handedOver) return
+    private suspend fun handOver(home: HomeJobsApi) = handing.withLock {
+        if (handedOver) return@withLock
         val tokens = phone.youTubeTokens()
-            ?: return Diag.log(TAG, "not signed in to YouTube here; nothing to hand over")
+            ?: return@withLock Diag.log(TAG, "not signed in to YouTube here; nothing to hand over")
         val answer = home.handOver(
             AccountHandover(tokens.accessToken.value, tokens.refreshToken.value, tokens.expiresAtEpochSeconds),
         )
@@ -159,6 +167,7 @@ class HomeDownloads(
         scope.launch {
             Diag.log(TAG, "$what ${id.value} at home: ${call(id.value)}")
             refresh(what)
+            wake.trySend("after $what")
         }
     }
 }

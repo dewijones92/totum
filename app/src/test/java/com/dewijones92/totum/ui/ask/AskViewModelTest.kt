@@ -150,4 +150,24 @@ class AskViewModelTest {
         assertTrue(none.uiState.value.turns.isEmpty())
         assertTrue(!none.uiState.value.available)
     }
+
+    @Test
+    fun `cancelling from the strip ends the ask, so the next one is not refused`() = runTest(dispatcher) {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val slow = object : AskService by service {
+            override suspend fun ask(request: AskRequest, progress: (Long) -> Unit): AskOutcome<AskAnswer> {
+                gate.await()
+                return AskOutcome.Answered(AskAnswer(listOf(zog)), 1)
+            }
+        }
+        val vm = AskViewModel(slow, AskCopies({ listOf(torrents) }), { emptyList() }, operations)
+        vm.ask("first", "typed")
+        advanceUntilIdle()
+        operations.cancel(operations.running.value.single().id)
+        advanceUntilIdle()
+        assertEquals(AskViewModel.Stage.FAILED, vm.uiState.value.turns.single().stage)
+        assertTrue(!vm.uiState.value.busy)
+        vm.startOver()
+        assertTrue(vm.uiState.value.turns.isEmpty())
+    }
 }

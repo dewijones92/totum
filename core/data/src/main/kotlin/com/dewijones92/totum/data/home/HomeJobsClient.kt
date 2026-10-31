@@ -47,10 +47,10 @@ public class HomeJobsClient(
         call("GET /jobs", Request.Builder().url("$base/jobs").get(), HomeJobs.serializer())
 
     override suspend fun cancel(id: String): HomeAnswer<Unit> =
-        call("DELETE /jobs/$id", Request.Builder().url("$base/jobs/${encoded(id)}").delete()) { }
+        call("DELETE /jobs?id=$id", Request.Builder().url("$base/jobs?id=${encoded(id)}").delete()) { }
 
     override suspend fun retry(id: String): HomeAnswer<Unit> =
-        call("POST /jobs/$id/retry", post("jobs/${encoded(id)}/retry", "{}")) { }
+        call("POST /jobs/retry?id=$id", post("jobs/retry?id=${encoded(id)}", "{}")) { }
 
     override suspend fun handOver(account: AccountHandover): HomeAnswer<Unit> = call(
         "PUT /account",
@@ -62,7 +62,7 @@ public class HomeJobsClient(
     override suspend fun forgetAccount(): HomeAnswer<Unit> =
         call("DELETE /account", Request.Builder().url("$base/account").delete()) { }
 
-    override fun fileUrl(id: String): HttpUrl = HttpUrl.of("$base/files/${encoded(id)}")
+    override fun fileUrl(id: String): HttpUrl = HttpUrl.of("$base/files?id=${encoded(id)}")
 
     private fun post(path: String, body: String) = Request.Builder().url("$base/$path").post(body.json())
 
