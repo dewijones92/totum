@@ -256,6 +256,8 @@ public data class PlaybackState(
     val castVideoHeight: Int? = null,
     val castFetchHeight: Int? = null,
     val castProblem: CastProblem? = null,
+    val castStage: CastStage? = null,
+    val castStagePercent: Int? = null,
     val hasPictureTrack: Boolean = false,
     val castLoading: Boolean = false,
     val live: Boolean = false,

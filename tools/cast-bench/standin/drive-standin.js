@@ -1,6 +1,6 @@
 // Stand-in Cast receiver: Shaka Player (what the Cast receiver plays DASH with) in a private headless
 // Edge, pointed at the manifest Totum serves. Run on Windows: node drive-standin.js <manifest-url> [plan]
-// plan: comma-separated steps, e.g. "start,seek:300,seek:60,subs:en,subs:off,wait:5"
+// plan: comma-separated steps, e.g. "start,seek:300,seek:60,subs:en,subs:off,wait:5,frames:10"
 const { chromium } = require('playwright-core');
 
 const [, , manifest, planArg = 'start,seek:300,seek:60,subs:en'] = process.argv;
@@ -125,6 +125,33 @@ const page = `<!doctype html><html><body>
         return {
           ended: video.ended, wallS: ((performance.now() - began) / 1000).toFixed(2),
           mediaS: (video.currentTime - from).toFixed(2), stalls, stalledMs: Math.round(stalledMs), jumps, errors: window.errors,
+        };
+      }, Number(arg));
+      say({ step, ...result });
+    } else if (kind === 'frames') {
+      const result = await tab.evaluate(async (seconds) => {
+        const video = document.getElementById('v');
+        const before = video.getVideoPlaybackQuality();
+        const steps = [];
+        let last = null;
+        await new Promise((done) => {
+          const began = performance.now();
+          const each = (_now, meta) => {
+            if (last !== null) steps.push(Math.round((meta.mediaTime - last) * 10000) / 10);
+            last = meta.mediaTime;
+            if (performance.now() - began < seconds * 1000) video.requestVideoFrameCallback(each); else done();
+          };
+          video.requestVideoFrameCallback(each);
+        });
+        const after = video.getVideoPlaybackQuality();
+        const counts = {};
+        steps.forEach((ms) => { counts[ms] = (counts[ms] || 0) + 1; });
+        const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([ms, n]) => `${ms}ms x${n}`);
+        return {
+          shown: steps.length + 1,
+          decoded: after.totalVideoFrames - before.totalVideoFrames,
+          dropped: after.droppedVideoFrames - before.droppedVideoFrames,
+          mediaStepMs: top,
         };
       }, Number(arg));
       say({ step, ...result });

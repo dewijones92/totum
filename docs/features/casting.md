@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-10-29
+updated: 2026-10-31
 ---
 
 # Casting
@@ -106,3 +106,24 @@ away (🔒) instead of waiting for the TV to give up; turn the VPN off, or exclu
 A 5.1 film (The Apprentice, AAC 5.1) and a downloaded copy (Ali G Indahouse) both failed to cast: the first because
 the TV's stereo stream was fed six channels, the second because the cast audio path could not open a local file.
 Both fixed in ADR 68's consequences; the sound is mixed to stereo for the TV.
+
+## A downloaded film starts at once, and the strip says what casting is doing (2026-10-31)
+
+Report 20261031T070822-6de9304d (v0.1.778): casting the downloaded Matrix (2.4 GB HEVC MKV, 5.1) waited 31 s before
+the TV got its manifest, and Dewi asked for *"a pop-up saying what it's doing, if it's repackaging"*. A downloaded file
+was repackaged whole by ffmpeg (MKV to MP4, the picture untouched) before anything was served, after a WebM attempt
+HEVC can never pass, while a torrent stream of the same film was already cut on demand by `MkvVideo`. Now both go
+through one `VideoProbe` with a byte reader (HTTP or the file), so a downloaded MKV or MP4 is cut for the TV as it asks;
+ffmpeg remains only for a file that cannot be cut (no Cues, laced or compressed tracks), MP4 first. On the laptop
+stand-in a 150 MB 1080p HEVC MKV went from 882 ms to 104 ms for the manifest (read in 11 ms), which no longer grows
+with the file, and no copy is written.
+
+The cast strip now says what is happening: ⏳ Getting it ready for <TV>… (session made), 📦 Repackaging it for <TV>:
+N% (the ffmpeg fallback, from ffmpeg's `-progress` file), ⏳ <TV> is starting it… (manifest served), and nothing once
+the TV fetches its first segment (`CastStage`, through `CastStatus` session extras; logged `stage …`).
+
+Judder: on the stand-in the stream's frames step 42/41 ms (millisecond MKV timestamps, under 1 ms off 41.7 ms, the
+same before and after), so the stream is even; the stand-in itself dropped frames even for a light 720p AVC control on
+a loaded laptop, so it cannot judge judder. The TV's 24 fps on 60 Hz cadence remains the suspect. A downloaded file's
+video requests are now logged (sampled), so the next report shows whether the picture arrived late.
+

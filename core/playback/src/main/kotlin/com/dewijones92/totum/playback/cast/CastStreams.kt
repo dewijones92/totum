@@ -11,6 +11,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.domain.pictureAt
+import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
@@ -23,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
 
 @OptIn(markerClass = [UnstableApi::class])
+@Suppress("TooManyFunctions")
 internal class CastStreams(
     private val context: Context,
     private val boost: () -> VolumeBoost,
@@ -53,6 +55,7 @@ internal class CastStreams(
     private val random = SecureRandom()
     private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
 
+    @Suppress("TooManyFunctions")
     private inner class Session(
         val token: String,
         val item: MediaItem,
@@ -76,11 +79,15 @@ internal class CastStreams(
 
         @Volatile var videoRequests = 0
 
+        @Volatile var flowing = false
+
         @Volatile var layout: StreamLayout? = null
 
         @Volatile var remuxed: RemuxedVideo? = null
 
         @Volatile var videoFile: File? = null
+
+        @Volatile private var videoReader = RangeReader { span -> Upstream.bytes(videoUrl.orEmpty(), span) }
 
         @Volatile var prepared = false
 
@@ -101,8 +108,7 @@ internal class CastStreams(
         private fun pickVideo(url: String) {
             try {
                 when {
-                    !url.startsWith("http") ->
-                        layout = localVideo(File(url.toUri().path ?: url))?.takeIf { shows(it.codecs, it.height) }
+                    !url.startsWith("http") -> localFile(File(url.toUri().path ?: url))
                     url.contains(YOUTUBE_STREAMS) && rungs.choose(url, ladder, tvs.current()?.screen) -> Unit
                     url.contains(YOUTUBE_STREAMS) ->
                         layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
@@ -117,25 +123,38 @@ internal class CastStreams(
         }
 
         private fun remoteFile(url: String) {
-            val head = Upstream.bytes(url, ByteSpan(0, StreamLayouts.HEAD_BYTES - 1))
-            when {
-                Ebml.isEbml(head) -> {
-                    val found = MkvVideo.probe(head) { span -> Upstream.bytes(url, span) }
-                    when {
-                        found == null -> noteNoPicture("an MKV with no video track")
-                        shows(found.codecs, found.height) -> remuxed = found
-                    }
-                }
-                Mp4Layout.isMp4(
-                    head
-                ) -> when (val choice = Mp4Video.choose(head, { Upstream.bytes(url, it) }, item.mediaId)) {
-                    is Mp4Video.Companion.Choice.Fragmented ->
-                        layout = choice.layout.takeIf { shows(it.codecs, it.height) }
-                    is Mp4Video.Companion.Choice.Remuxed ->
-                        if (shows(choice.video.codecs, choice.video.height)) remuxed = choice.video
-                    Mp4Video.Companion.Choice.NoVideo -> noteNoPicture("an MP4 with no video track")
-                }
-                else -> noteNoPicture("audio only, or not a WebM, MP4 or MKV")
+            videoReader = RangeReader { span -> Upstream.bytes(url, span) }
+            use(VideoProbe.of(videoReader, item.mediaId), file = null)
+        }
+
+        private fun localFile(source: File) {
+            val started = System.currentTimeMillis()
+            videoReader = RangeReader { span -> LocalRanges.bytes(source, span) }
+            try {
+                use(VideoProbe.of(videoReader, item.mediaId), file = source)
+                Diag.log(
+                    "cast",
+                    "${item.mediaId}: the downloaded file is cut for the TV as it asks, no repackaging first " +
+                        "(read in ${System.currentTimeMillis() - started}ms)",
+                )
+            } catch (e: UnreadableLayout) {
+                Diag.warn(
+                    "cast",
+                    "${item.mediaId}: cannot cut the downloaded file as the TV asks (${e.message}); " +
+                        "repackaging it whole",
+                )
+                tvs.stage(item.mediaId, CastStage.REPACKAGING, 0)
+                layout = localVideo(source)?.takeIf { shows(it.codecs, it.height) }
+                tvs.stage(item.mediaId, CastStage.TV_STARTING)
+            }
+        }
+
+        private fun use(found: FoundVideo, file: File?) {
+            when (found) {
+                is FoundVideo.Remuxed -> if (shows(found.video.codecs, found.video.height)) remuxed = found.video
+                is FoundVideo.Fragmented -> layout = found.layout.takeIf { shows(it.codecs, it.height) }
+                    ?.also { videoFile = file }
+                is FoundVideo.NoPicture -> noteNoPicture(found.why)
             }
         }
 
@@ -162,7 +181,10 @@ internal class CastStreams(
         }
 
         private fun localVideo(source: File): StreamLayout? {
-            val remuxed = VideoRemux.videoOnly(context, source, "${item.mediaId}/$token") ?: return null
+            val durationUs = audio.durationUs.takeIf { it != C.TIME_UNSET }
+            val remuxed = VideoRemux.videoOnly(context, source, "${item.mediaId}/$token", durationUs) { percent ->
+                tvs.stage(item.mediaId, CastStage.REPACKAGING, percent)
+            } ?: return null
             videoFile = remuxed
             return StreamLayouts.probe { span -> LocalRanges.bytes(remuxed, span) }
         }
@@ -184,7 +206,7 @@ internal class CastStreams(
             val bytes = if (part == "init.mp4") {
                 source.init()
             } else {
-                source.segment(part.removeSuffix(".m4s").toInt()) { span -> Upstream.bytes(videoUrl.orEmpty(), span) }
+                source.segment(part.removeSuffix(".m4s").toInt(), videoReader)
             }
             return HttpReply.Bytes(Http.OK, MimeTypes.VIDEO_MP4, bytes)
         }
@@ -280,6 +302,7 @@ internal class CastStreams(
         server.start(PORT)
         val token = random.token()
         val session = Session(token, item, sources.video, sources.audio, sources.ladder)
+        tvs.stage(item.mediaId, CastStage.PREPARING)
         sessions[token] = session
         latest[item.mediaId] = session
         videos.forget(item.mediaId)
@@ -344,7 +367,19 @@ internal class CastStreams(
                 "${request.from} ${request.method} $what in ${System.currentTimeMillis() - started}ms"
             )
         }
+        stageAfter(session, what)
         return reply
+    }
+
+    private fun stageAfter(session: Session, what: String) {
+        when {
+            session.flowing -> Unit
+            what == "manifest.mpd" -> tvs.stage(session.item.mediaId, CastStage.TV_STARTING)
+            what.startsWith("video") || what.startsWith("audio/") && what != "audio/init.mp4" -> {
+                session.flowing = true
+                tvs.stage(session.item.mediaId, null)
+            }
+        }
     }
 
     private fun subtitle(session: Session, what: String): HttpReply {
@@ -374,7 +409,13 @@ internal class CastStreams(
             }
         }
         what.startsWith("video/") -> session.remuxedPart(what.removePrefix("video/"))
-        what == "video" -> session.videoFile?.let { LocalRanges.reply(it, range) }
+        what == "video" -> session.videoFile?.let { file ->
+            val n = ++session.videoRequests
+            if (n <= VIDEO_LOG_FIRST || n % VIDEO_LOG_EVERY == 0) {
+                Diag.log("cast", "video request #$n ($range) from the file ${file.name} (${file.length() / Http.KB}KB)")
+            }
+            LocalRanges.reply(file, range)
+        }
             ?: session.videoUrl?.let { proxy(session, it, range) }
         else -> null
     }

@@ -4,8 +4,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.session.MediaSession
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.playback.CastProblem
+import com.dewijones92.totum.playback.CastStage
 
 internal class CastTv(val name: String, val screen: CastScreen)
 
@@ -13,6 +15,8 @@ internal interface CastTvPort {
     fun current(): CastTv?
     fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>, fetchingHeights: Map<String, Int>)
     fun problem(now: CastProblem?)
+
+    fun stage(mediaId: String, now: CastStage?, percent: Int? = null) {}
 }
 
 internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort {
@@ -25,6 +29,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     private var sentHeights: Map<String, Int> = emptyMap()
     private var fetchingHeights: Map<String, Int> = emptyMap()
     private var problem: CastProblem? = null
+    private var stage: Triple<String, CastStage, Int?>? = null
     private var screens: List<Screen> = emptyList()
     private var screenPage: String? = null
 
@@ -51,6 +56,17 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         }
     }
 
+    override fun stage(mediaId: String, now: CastStage?, percent: Int?) {
+        main.post {
+            val next = now?.let { Triple(mediaId, it, percent) }
+            if (next == null && stage?.first != mediaId) return@post
+            if (stage == next) return@post
+            if (stage?.second != next?.second) Diag.log("cast", "$mediaId: stage ${now ?: "done (the TV is fetching)"}")
+            stage = next
+            publish()
+        }
+    }
+
     fun screens(present: List<Screen>) {
         main.post {
             screens = present
@@ -72,6 +88,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             sentHeights = emptyMap()
             fetchingHeights = emptyMap()
             problem = null
+            stage = null
         }
         publish()
     }
@@ -81,6 +98,11 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             tv?.let { putString(EXTRA_CAST_DEVICE, it.name) }
             putBundle(EXTRA_CAST_REFUSED, Bundle().apply { refusals.forEach(::putString) })
             problem?.let { putString(EXTRA_CAST_PROBLEM, it.name) }
+            stage?.let { (id, now, percent) ->
+                putString(EXTRA_CAST_STAGE_ITEM, id)
+                putString(EXTRA_CAST_STAGE, now.name)
+                percent?.let { putInt(EXTRA_CAST_STAGE_PERCENT, it) }
+            }
             putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sentHeights.forEach(::putInt) })
             putBundle(EXTRA_CAST_FETCH_HEIGHT, Bundle().apply { fetchingHeights.forEach(::putInt) })
             putBundle(EXTRA_SCREENS, Bundle().apply { screens.forEach { putString(it.id, it.name) } })
@@ -94,6 +116,9 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         const val EXTRA_CAST_REFUSED: String = "cast_refused"
         const val EXTRA_CAST_SENT_HEIGHT: String = "cast_sent_height"
         const val EXTRA_CAST_PROBLEM: String = "cast_problem"
+        const val EXTRA_CAST_STAGE: String = "cast_stage"
+        const val EXTRA_CAST_STAGE_ITEM: String = "cast_stage_item"
+        const val EXTRA_CAST_STAGE_PERCENT: String = "cast_stage_percent"
         const val EXTRA_CAST_FETCH_HEIGHT: String = "cast_fetch_height"
         const val EXTRA_SCREENS: String = "screens"
         const val EXTRA_SCREEN_PAGE: String = "screen_page"

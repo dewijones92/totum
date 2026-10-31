@@ -141,6 +141,9 @@ public class Media3PlaybackController(
     @Volatile
     private var castRefused: Map<String, String> = emptyMap()
     private var castProblem: CastProblem? = null
+    private var castStageItem: String? = null
+    private var castStage: CastStage? = null
+    private var castStagePercent: Int? = null
     private var castFetchHeights: Map<String, Int> = emptyMap()
     private val castLoad = CastLoadHold<Media3MediaItem>(SystemClock::elapsedRealtime)
     private val holdTimer = android.os.Handler(android.os.Looper.getMainLooper())
@@ -751,6 +754,11 @@ public class Media3PlaybackController(
         castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
             CastProblem.entries.firstOrNull { it.name == name }
         }
+        castStageItem = extras.getString(CastStatus.EXTRA_CAST_STAGE_ITEM)
+        castStage = extras.getString(CastStatus.EXTRA_CAST_STAGE)?.let { name ->
+            CastStage.entries.firstOrNull { it.name == name }
+        }
+        castStagePercent = extras.getInt(CastStatus.EXTRA_CAST_STAGE_PERCENT, -1).takeIf { it >= 0 }
         val screens = extras.getBundle(CastStatus.EXTRA_SCREENS)
         _screens.value = ScreenTargets(
             present = screens?.keySet()?.map { ScreenTarget(it, screens.getString(it).orEmpty()) }.orEmpty(),
@@ -760,6 +768,8 @@ public class Media3PlaybackController(
             "cast",
             "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
                 "problem=${castProblem ?: "none"} fetching=$castFetchHeights " +
+                "stage=${castStage ?: "none"} ${castStagePercent?.let { "$it%" }.orEmpty()} " +
+                "for ${castStageItem ?: "-"} " +
                 "screenPage=${_screens.value.pageUrl?.substringBefore('#') ?: "none"}",
         )
         _state.value = controller.currentPlaybackState()
@@ -1144,6 +1154,8 @@ public class Media3PlaybackController(
             castVideoHeight = castSentHeights[current.mediaId],
             castFetchHeight = castFetchHeights[current.mediaId],
             castProblem = castProblem,
+            castStage = castStage.takeIf { castStageItem == current.mediaId },
+            castStagePercent = castStagePercent.takeIf { castStageItem == current.mediaId },
             live = LocalManifests.isLive(current.localConfiguration?.uri?.toString()),
             isBuffering = playbackState == Player.STATE_BUFFERING,
             wantsToPlay = playWhenReady,

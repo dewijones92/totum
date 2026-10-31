@@ -2,7 +2,7 @@
 title: Casting plays a stream the phone serves, with Totum's own audio and the original video packets
 kind: adr
 status: accepted
-updated: 2026-10-28
+updated: 2026-10-31
 ---
 
 # 68. Casting plays a stream the phone serves, with Totum's own audio and the original video packets
@@ -60,6 +60,8 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   ssh tunnel on the Pi); release builds advertise the phone's Wi-Fi address.
 
 ## Consequences
+
+- Amended 2026-10-31: a downloaded file is cut for the TV on demand like a torrent stream (`VideoProbe` over a file reader); ffmpeg repackages only a file that cannot be cut, MP4 first, with its progress shown. The cast strip names the stage (`CastStage`). See docs/features/casting.md.
 
 - **Surround sound and downloads cast** (2026-10-24, report 0.1.721, "ali g not playing??"). A 5.1 track was
   promised to the TV as stereo while the decoder gave six channels, so every audio segment failed ("decoder gives

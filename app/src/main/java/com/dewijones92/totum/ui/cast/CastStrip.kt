@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.CastProblem
+import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.rememberField
@@ -48,6 +50,7 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                 ScreenButton()
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
             }
+            state.castStage?.let { stage -> CastStageLine(stage, state.castStagePercent, device) }
             (state.castFetchHeight ?: state.castVideoHeight)?.let { height ->
                 val best = state.castVideoHeight
                 Text(
@@ -81,6 +84,37 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
         }
     }
 }
+
+@Composable
+private fun CastStageLine(stage: CastStage, percent: Int?, device: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(end = 8.dp, bottom = 6.dp).semantics { testTag = CAST_STAGE_TAG },
+    ) {
+        if (percent == null) {
+            CircularProgressIndicator(modifier = Modifier.size(STAGE_SPINNER), strokeWidth = 2.dp)
+        } else {
+            CircularProgressIndicator(
+                progress = { percent / PERCENT },
+                modifier = Modifier.size(STAGE_SPINNER),
+                strokeWidth = 2.dp
+            )
+        }
+        Text(
+            when (stage) {
+                CastStage.PREPARING -> stringResource(R.string.cast_strip_stage_preparing, device)
+                CastStage.REPACKAGING -> stringResource(R.string.cast_strip_stage_repackaging, device, percent ?: 0)
+                CastStage.TV_STARTING -> stringResource(R.string.cast_strip_stage_starting, device)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+const val CAST_STAGE_TAG: String = "cast-stage"
+private val STAGE_SPINNER = 18.dp
+private const val PERCENT = 100f
 
 const val CAST_STRIP_TAG: String = "cast-strip"
 private val CAST_BUTTON_SIZE = 40.dp

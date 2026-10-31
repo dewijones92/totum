@@ -1000,6 +1000,9 @@
     <string name="cast_strip_casting">📺 Casting to %1$s</string>
     <string name="subtitles_on_cast_device">📺 Subtitles show on %1$s</string>
     <string name="cast_strip_unnamed_device">the TV</string>
+    <string name="cast_strip_stage_preparing">⏳ Getting it ready for %1$s…</string>
+    <string name="cast_strip_stage_repackaging">📦 Repackaging it for %1$s: %2$d%%</string>
+    <string name="cast_strip_stage_starting">⏳ %1$s is starting it…</string>
     <plurals name="downloads_summary_on_phone">
         <item quantity="one">📥 %d on the phone</item>
         <item quantity="other">📥 %d on the phone</item>
