@@ -41,6 +41,22 @@ export class TransactionsStore {
     return added;
   }
 
+  addedSince(
+    accountIds: readonly string[],
+    createdFrom: string,
+    bookedFrom: string,
+  ): StoredTransaction[] {
+    if (accountIds.length === 0) return [];
+    const marks = accountIds.map(() => '?').join(',');
+    return this.db
+      .prepare(
+        `SELECT id, account_id AS accountId, external_id AS externalId, booked_on AS bookedOn, minor, currency,
+         description, counterparty FROM transactions
+         WHERE account_id IN (${marks}) AND created_at >= ? AND booked_on >= ? ORDER BY booked_on`,
+      )
+      .all(...accountIds, createdFrom, bookedFrom) as unknown as StoredTransaction[];
+  }
+
   list(filter: { accountId?: string; since?: string; limit: number }): StoredTransaction[] {
     const where: string[] = [];
     const values: (string | number)[] = [];

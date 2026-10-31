@@ -5,6 +5,7 @@ import { createLogger } from './log.ts';
 import { SecretBox } from './secret-box.ts';
 import { openDb } from './store/db.ts';
 import { wire } from './wire.ts';
+import { MatrixNotifier } from './notify/notifier.ts';
 import { Trading212Connector } from './connectors/trading212.ts';
 import { EnableBankingClient } from './connectors/enable-banking.ts';
 import { readFileSync } from 'node:fs';
@@ -39,6 +40,16 @@ const enableBanking =
       }
     : undefined;
 
+const notifier =
+  config.MATRIX_HOMESERVER && config.MATRIX_ROOM && config.MATRIX_CREDS_FILE
+    ? new MatrixNotifier({
+        homeserver: config.MATRIX_HOMESERVER,
+        room: config.MATRIX_ROOM,
+        credsFile: config.MATRIX_CREDS_FILE,
+        log,
+      })
+    : undefined;
+
 const { app, scheduler, connections } = wire({
   db,
   secrets,
@@ -52,6 +63,8 @@ const { app, scheduler, connections } = wire({
   connectors: [new Trading212Connector(log)],
   ...(enableBanking ? { enableBanking } : {}),
   ...(config.PUBLIC_URL ? { publicUrl: config.PUBLIC_URL } : {}),
+  ...(notifier ? { notifier } : {}),
+  largeTransactionMinor: config.LARGE_TRANSACTION_MINOR,
   ...(config.STATIC_DIR ? { staticDir: config.STATIC_DIR } : {}),
 });
 
@@ -63,6 +76,7 @@ log.info(
     trusted: config.TRUSTED_CIDRS,
     ownerCheck: config.OWNER_EMAIL === '' ? 'off (no OWNER_EMAIL)' : 'on',
     fakeProviders: config.FAKE_PROVIDERS === '1',
+    notifications: notifier ? 'matrix' : 'log only (MATRIX_* not set)',
     openBanking: enableBanking
       ? 'on'
       : 'off (EB_APPLICATION_ID, EB_PRIVATE_KEY_FILE or PUBLIC_URL missing)',

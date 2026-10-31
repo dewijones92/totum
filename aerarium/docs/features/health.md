@@ -1,6 +1,6 @@
 ---
 title: Health dashboard
-status: in progress
+status: shipped
 updated: 2026-10-31
 ---
 
@@ -16,7 +16,7 @@ See [ADR 0006](../adr/0006-a-health-dashboard-that-shouts.md).
 - Health is computed from the sync-run log on each request (`judgeConnection`, `judgeManual`,
   `judgeScheduler` in `packages/shared/src/health.ts`), never stored as a flag.
 - `/healthz` reports the scheduler's last tick for the deploy check.
-- Still to come: a Matrix message when a source changes state.
+- A Matrix message when a source breaks or recovers ([Alerts](alerts.md)).
 
 Tests: `packages/shared/test/health.test.ts`, `apps/server/test/app.test.ts`, `apps/web/test/app.test.tsx`,
 `e2e/health.spec.ts`.

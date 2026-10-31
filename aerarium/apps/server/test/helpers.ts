@@ -5,6 +5,7 @@ import { wire } from '../src/wire.ts';
 import type { Connector } from '../src/connectors/types.ts';
 import type { EnableBankingClient } from '../src/connectors/enable-banking.ts';
 import type { FetchLike } from '../src/http/read-only.ts';
+import type { Notifier } from '../src/notify/notifier.ts';
 
 export function testApp(
   opts: {
@@ -15,6 +16,7 @@ export function testApp(
     enableBanking?: { client: EnableBankingClient; maxConsentDays: number };
     publicUrl?: string;
     monzoFetch?: FetchLike;
+    notifier?: Notifier;
     now?: () => Date;
   } = {},
 ) {
@@ -34,6 +36,7 @@ export function testApp(
     ...(opts.enableBanking ? { enableBanking: opts.enableBanking } : {}),
     ...(opts.publicUrl ? { publicUrl: opts.publicUrl } : {}),
     ...(opts.monzoFetch ? { monzoFetch: opts.monzoFetch } : {}),
+    ...(opts.notifier ? { notifier: opts.notifier } : {}),
     clock,
     remoteAddress: () => opts.ip ?? '172.21.0.5',
   });

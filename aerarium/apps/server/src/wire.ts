@@ -17,6 +17,10 @@ import type { FetchLike } from './http/read-only.ts';
 import { TransactionsStore } from './store/transactions.ts';
 import { SyncEngine } from './sync/engine.ts';
 import { Scheduler } from './sync/scheduler.ts';
+import { buildHealthReport } from './health.ts';
+import { LogOnlyNotifier, type Notifier } from './notify/notifier.ts';
+import { describeLarge, HealthWatcher } from './notify/watchers.ts';
+import { findTransfers } from '@aerarium/shared';
 
 export interface WireOptions {
   db: Db;
@@ -33,6 +37,8 @@ export interface WireOptions {
   enableBanking?: { client: EnableBankingClient; maxConsentDays: number };
   publicUrl?: string;
   monzoFetch?: FetchLike;
+  notifier?: Notifier;
+  largeTransactionMinor?: number;
   clock?: () => Date;
   remoteAddress?: (c: Context) => string | undefined;
 }
@@ -92,13 +98,53 @@ export function wire(o: WireOptions) {
     const nw = computeNetWorth(accounts.list());
     netWorthDays.record(now.toISOString().slice(0, 10), nw.household, nw.yours, now.toISOString());
   };
+  const notifier = o.notifier ?? new LogOnlyNotifier(o.log);
+  const publicUrl = (o.publicUrl ?? '').replace(/\/$/, '');
+  const healthWatcher = new HealthWatcher({ settings, notifier, log: o.log, publicUrl });
+  let schedulerRef: Scheduler | null = null;
+  const healthReport = () =>
+    buildHealthReport(
+      {
+        accounts,
+        connections,
+        engine,
+        version: o.version,
+        schedulerLastTickAt: () => schedulerRef?.lastTickAt() ?? null,
+        databaseFile: o.databaseFile,
+        manualStaleDays: o.manualStaleDays,
+      },
+      clock(),
+    );
+  const largeMinor = o.largeTransactionMinor ?? 50_000;
+  const alertLarge = async (connectionId: string, runStartedAt: string) => {
+    const ids = accounts
+      .list()
+      .filter((a) => a.connectionId === connectionId)
+      .map((a) => a.id);
+    const weekAgo = new Date(clock().getTime() - 7 * 86_400_000).toISOString().slice(0, 10);
+    const fresh = transactions.addedSince(ids, runStartedAt, weekAgo);
+    const transfers = findTransfers(transactions.list({ since: weekAgo, limit: 5000 }));
+    const names = new Map(accounts.list().map((a) => [a.id, a.name]));
+    const big = fresh.filter((t) => Math.abs(t.minor) >= largeMinor && !transfers.has(t.id));
+    o.log.info(
+      { connectionId, fresh: fresh.length, large: big.length, thresholdMinor: largeMinor },
+      'dewidebug large-transaction check',
+    );
+    for (const t of big)
+      await notifier.send(describeLarge({ ...t, accountName: names.get(t.accountId) ?? '—' }));
+  };
   const scheduler = new Scheduler({
     connections,
     engine,
     log: o.log,
     clock,
     onTick: snapshotNetWorth,
+    afterTick: async () => {
+      await healthWatcher.check(healthReport());
+    },
+    afterRun: alertLarge,
   });
+  schedulerRef = scheduler;
   const app = createApp({
     log: o.log,
     version: o.version,
@@ -111,7 +157,7 @@ export function wire(o: WireOptions) {
     transactions,
     netWorthDays,
     engine,
-    health: { databaseFile: o.databaseFile, manualStaleDays: o.manualStaleDays },
+    healthReport,
     ...(fake ? { fake } : {}),
     ...(eb ? { enableBanking: eb.flow } : {}),
     settings,
@@ -119,5 +165,17 @@ export function wire(o: WireOptions) {
     ...(o.staticDir ? { staticDir: o.staticDir } : {}),
     ...(o.remoteAddress ? { remoteAddress: o.remoteAddress } : {}),
   });
-  return { app, scheduler, engine, accounts, connections, transactions, netWorthDays, fake };
+  return {
+    app,
+    scheduler,
+    engine,
+    accounts,
+    connections,
+    transactions,
+    netWorthDays,
+    fake,
+    notifier,
+    healthWatcher,
+    healthReport,
+  };
 }

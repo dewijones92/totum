@@ -15,6 +15,7 @@ import {
   type Connection,
   type Dashboard,
   type Healthz,
+  type HealthReport,
   type SyncStarted,
 } from '@aerarium/shared';
 import { Hono, type Context } from 'hono';
@@ -24,7 +25,6 @@ import type { EnableBankingFlow } from './consent/enable-banking-flow.ts';
 import type { MonzoApi } from './connectors/monzo.ts';
 import type { SettingsStore } from './store/settings.ts';
 import { randomBytes } from 'node:crypto';
-import { buildHealthReport, type HealthDeps } from './health.ts';
 import { isTrusted } from './http/ip.ts';
 import { EMAIL_HEADER, judgeOwner } from './http/owner.ts';
 import type { Logger } from './log.ts';
@@ -47,10 +47,7 @@ export interface AppDeps {
   transactions: TransactionsStore;
   netWorthDays: NetWorthDaysStore;
   engine: SyncEngine;
-  health: Omit<
-    HealthDeps,
-    'accounts' | 'connections' | 'engine' | 'version' | 'schedulerLastTickAt'
-  >;
+  healthReport: () => HealthReport;
   fake?: FakeConnector;
   enableBanking?: EnableBankingFlow;
   settings: SettingsStore;
@@ -427,21 +424,7 @@ export function createApp(deps: AppDeps): Hono {
     );
   });
 
-  app.get('/api/health', (c) =>
-    c.json(
-      buildHealthReport(
-        {
-          ...deps.health,
-          accounts,
-          connections,
-          engine,
-          version: deps.version,
-          schedulerLastTickAt: deps.schedulerLastTickAt,
-        },
-        clock(),
-      ),
-    ),
-  );
+  app.get('/api/health', (c) => c.json(deps.healthReport()));
 
   if (deps.fake) {
     const fake = deps.fake;
