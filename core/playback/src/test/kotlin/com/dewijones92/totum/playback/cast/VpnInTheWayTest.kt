@@ -26,32 +26,37 @@ class VpnInTheWayTest {
     }
 
     @Test
-    fun `on the home VPN the TV is sent to the Pi's relay, which reaches the phone through the tunnel`() {
+    fun `on the home VPN the TV is sent to the home server's relay, at home or at anyone else's house`() {
         val home = vpn("0.0.0.0/0")
+        val atMums = CastNetwork(wifi = true, ethernet = false, vpn = false, ipv4 = listOf("192.168.1.40"))
 
         assertEquals(
-            "http://192.168.0.19:18766",
-            CastAddress.relayFor("192.168.0.85", listOf(wifi, home))?.baseUrl,
+            "https://totum.example/cast",
+            CastAddress.relayFor("192.168.0.85", listOf(wifi, home), homeServer = "totum.example")?.baseUrl,
+        )
+        assertEquals(
+            "https://totum.example/cast",
+            CastAddress.relayFor("192.168.1.40", listOf(atMums, home), homeServer = "totum.example")?.baseUrl,
         )
     }
 
     @Test
-    fun `another VPN, or none, has no relay`() {
-        val other =
-            CastNetwork(
-                wifi = false,
-                ethernet = false,
-                vpn = true,
-                ipv4 = listOf("10.8.0.5"),
-                routes = listOf("0.0.0.0/0")
-            )
+    fun `another VPN, no VPN, or no home server has no relay`() {
+        val other = CastNetwork(
+            wifi = false,
+            ethernet = false,
+            vpn = true,
+            ipv4 = listOf("10.8.0.5"),
+            routes = listOf("0.0.0.0/0")
+        )
 
-        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi, other)))
-        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi)))
+        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi, other), homeServer = "totum.example"))
+        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi), homeServer = "totum.example"))
+        assertEquals(null, CastAddress.relayFor("192.168.0.85", listOf(wifi, vpn("0.0.0.0/0")), homeServer = null))
         assertEquals(
             "a home VPN that leaves the LAN alone needs none",
             null,
-            CastAddress.relayFor("192.168.0.85", listOf(wifi, vpn("10.13.13.0/24")))
+            CastAddress.relayFor("192.168.0.85", listOf(wifi, vpn("10.13.13.0/24")), homeServer = "totum.example"),
         )
     }
 

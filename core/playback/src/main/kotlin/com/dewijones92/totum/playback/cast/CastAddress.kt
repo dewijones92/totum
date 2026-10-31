@@ -21,14 +21,15 @@ internal data class CastRelay(val baseUrl: String, val viaTunnelAddress: String)
 
 internal object CastAddress {
 
-    fun relayFor(address: String, networks: List<CastNetwork>): CastRelay? {
+    fun relayFor(address: String, networks: List<CastNetwork>, homeServer: String?): CastRelay? {
+        val host = homeServer?.takeIf { it.isNotBlank() } ?: return null
         if (!vpnCarries(address, networks)) return null
         val tunnel = networks.filter { it.vpn }.flatMap { it.ipv4 }.firstOrNull { it == HOME_VPN_PHONE } ?: return null
-        return CastRelay(HOME_VPN_RELAY, tunnel)
+        return CastRelay("https://$host$RELAY_PATH", tunnel)
     }
 
     const val HOME_VPN_PHONE = "10.13.13.2"
-    const val HOME_VPN_RELAY = "http://192.168.0.19:18766"
+    private const val RELAY_PATH = "/cast"
 
     fun vpnCarries(address: String, networks: List<CastNetwork>): Boolean =
         networks.any { network -> network.vpn && network.routes.any { covers(it, address) } }

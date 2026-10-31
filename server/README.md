@@ -116,3 +116,12 @@ The watchdog's and the warmer's units are symlinked from here into `/etc/systemd
 `sudo systemctl enable --now torrserver-watchdog.timer search-warmer.timer`).
 
 Moved here from `dot-files` on 2026-10-23 ([ADR 85](../docs/adr/0085-the-pi-back-end-lives-in-this-repo.md)).
+
+## The cast relay route (hand-managed, 2026-10-31)
+
+`/var/lib/totum-auth/snippets/totum-guard.partial` (root, not in git, mounted into nginx) carries, after the guard,
+a `location ~ "^/cast/(c/[0-9a-f]{16}/.*)$"` with `auth_request off` that proxies to `http://192.168.0.19:18766/$1`,
+the `wg-home` relay to a phone on the VPN (dot-files ADR 7; Totum ADR 68). A TV cannot send the token, so only
+per-session cast paths pass. A backup of the snippet before the change is beside it (`.bak-2026-10-31`). Edit it in
+place (nginx pins the file's inode), `docker exec nginx_dewi nginx -t`, then `nginx -s reload`.
+

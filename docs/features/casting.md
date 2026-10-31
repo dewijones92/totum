@@ -98,8 +98,10 @@ Logs: `[screen] Watch here pressed …`, `Watch here on screen …: moving what 
 
 ## On the home VPN (2026-10-31)
 
-On `wg-home` the TV now fetches through the Pi (`192.168.0.19:18766` → the phone's `10.13.13.2:8765`), which Totum
-advertises by itself; the 🔒 strip below is for any other VPN. ADR 68, dot-files ADR 7.
+On `wg-home` the TV fetches through the home server instead of from the phone directly
+(`https://<home server>/cast/c/<session>/…` → the Pi → the tunnel → the phone), at home or at anyone's house;
+Totum does it by itself. Limited by the home upload speed. The 🔒 strip below is for any other VPN. ADR 68,
+dot-files ADR 7.
 
 ## Even frame timing (2026-10-31)
 

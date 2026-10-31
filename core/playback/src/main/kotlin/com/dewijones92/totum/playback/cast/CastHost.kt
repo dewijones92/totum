@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.PowerManager
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerAuth
 import java.io.File
 import java.net.Inet4Address
 
@@ -55,13 +56,17 @@ internal class CastHost(private val context: Context) {
     }
 
     private fun reachableBase(address: String, port: Int, networks: List<CastNetwork>): String {
-        val relay = CastAddress.relayFor(address, networks)?.takeIf { port == CastStreams.PORT }
+        val relay = CastAddress.relayFor(
+            address,
+            networks,
+            HomeServerAuth.homeHost()
+        )?.takeIf { port == CastStreams.PORT }
         vpnInTheWay = relay == null && CastAddress.vpnCarries(address, networks)
         when {
             relay != null -> Diag.log(
                 "cast",
-                "the home VPN routes $address's network, so the TV is given the Pi's relay ${relay.baseUrl}, " +
-                    "which reaches this phone at ${relay.viaTunnelAddress}:$port through the tunnel",
+                "the home VPN routes $address's network, so the TV is given the home server's relay " +
+                    "${relay.baseUrl}, which reaches this phone at ${relay.viaTunnelAddress}:$port through the tunnel",
             )
             vpnInTheWay -> Diag.warn(
                 "cast",

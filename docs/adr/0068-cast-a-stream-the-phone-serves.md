@@ -224,15 +224,19 @@ says so at once (🔒 "A VPN on this phone is carrying your home network … tur
 clearing by itself if the TV fetches after all. Not yet proven on his phone: the next report's route list will show
 whether this VPN covers 192.168.0.x. Tests: `VpnInTheWayTest`.
 
-## Amended 2026-10-31: casting on the home VPN goes through the Pi
+## Amended 2026-10-31: casting on the home VPN goes through the home server, from any house
 
 Full-tunnel on `wg-home`, the phone answers the TV into the tunnel from its Wi-Fi address, and WireGuard drops
-anything from the phone peer not sourced `10.13.13.2`, so the TV got nothing (report 0.1.698). The Pi now
-publishes `192.168.0.19:18766` on the LAN and forwards it to the phone's tunnel address `10.13.13.2:8765`
-(dot-files ADR 7). When a VPN covers the TV's network and the phone's tunnel address is `10.13.13.2`, Totum gives
-the TV that relay instead of its Wi-Fi address (`CastAddress.relayFor`) and logs it; the 🔒 strip stays for any
-other VPN, or when the cast server could not get port 8765. Tests: `VpnInTheWayTest` (+2). Not covered: the PureVPN
-profile (`wg-vpn`).
+anything from the phone peer not sourced `10.13.13.2`, so the TV got nothing (report 0.1.698), at home or anywhere
+else. Now, when a VPN covers the TV's network and the phone's tunnel address is `10.13.13.2`, Totum gives the TV
+`https://<home server>/cast` (`CastAddress.relayFor`, the host from `HomeServerAuth`) and logs it. The Pi's nginx
+passes `/cast/c/<16-hex session key>/…` (no token: a TV cannot send one; nothing but per-session paths) to
+`192.168.0.19:18766`, which `wg-home` forwards down the tunnel to `10.13.13.2:8765` (dot-files ADR 7). It works
+from Dewi's mum's TV as from his own, since the router loops the public address back for the home LAN (measured:
+401 in 57 ms from the laptop). Verified the same afternoon: a made-up session key through the public address was
+answered 404 by the phone's own server while it was on the VPN. The cost: casting on the VPN goes phone → home
+broadband → TV, so it is limited by the home upload. The 🔒 strip stays for any other VPN, and when the cast server
+could not get port 8765. The PC screen page is not relayed. Tests: `VpnInTheWayTest` (+2).
 
 ## Amended 2026-10-31: frames are timed at the film's own rate
 

@@ -14,6 +14,8 @@ public object HomeServerAuth {
         this.token = token
     }
 
+    public fun homeHost(): String? = host()
+
     public fun headersFor(requestHost: String?): Map<String, String> {
         val home = host() ?: return emptyMap()
         if (requestHost == null || !requestHost.equals(home, ignoreCase = true)) return emptyMap()
