@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback.cast
 
 import android.content.Context
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.C
@@ -74,7 +75,8 @@ internal class CastStreams(
         val subtitles = if (cuts) {
             emptyList()
         } else {
-            item.localConfiguration?.subtitleConfigurations.orEmpty().filter { it.mimeType == MimeTypes.TEXT_VTT }
+            item.localConfiguration?.subtitleConfigurations.orEmpty().filter { it.mimeType == MimeTypes.TEXT_VTT } +
+                fromTheFile(videoUrl, item.mediaId)
         }
 
         @Volatile var videoRequests = 0
@@ -283,6 +285,34 @@ internal class CastStreams(
         }
     }
 
+    private val preparing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private fun fromTheFile(videoUrl: String?, mediaId: String): List<MediaItem.SubtitleConfiguration> {
+        val path = videoUrl?.takeIf { !it.startsWith("http") }?.let { it.toUri().path ?: it } ?: return emptyList()
+        val file = File(path).takeIf { it.extension.equals("mkv", true) || it.extension == "media" }
+            ?: return emptyList()
+        if (!EmbeddedSubtitles.isDone(context, file)) {
+            if (preparing.add(file.path)) {
+                Diag.log(
+                    "cast",
+                    "$mediaId: the film's own subtitles are not saved yet; saving them now for the next cast"
+                )
+                Thread(
+                    { EmbeddedSubtitles.prepare(context, file).also { preparing.remove(file.path) } },
+                    "embedded-subs"
+                )
+                    .start()
+            }
+            return emptyList()
+        }
+        return EmbeddedSubtitles.kept(context, file).map { kept ->
+            MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(kept.file))
+                .setMimeType(MimeTypes.TEXT_VTT)
+                .setLanguage(kept.language)
+                .build()
+        }.also { Diag.log("cast", "$mediaId: ${it.size} subtitle track(s) from the film itself") }
+    }
+
     private fun itemSkipsSilence(item: MediaItem): Boolean? =
         item.requestMetadata.extras?.takeIf { it.containsKey(EXTRA_SKIP_SILENCE) }?.getBoolean(EXTRA_SKIP_SILENCE)
 
@@ -385,12 +415,18 @@ internal class CastStreams(
     private fun subtitle(session: Session, what: String): HttpReply {
         val index = what.removePrefix("subtitles/").removeSuffix(".vtt").toIntOrNull()
         val config = index?.let(session.subtitles::getOrNull) ?: return notFound()
-        val reply = Upstream.get(config.uri.toString(), null)
-        Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: upstream ${reply.status}")
-        if (reply.status != Http.OK) {
-            return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
+        val text = if (config.uri.scheme == "file") {
+            Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: from the film's own track")
+            File(config.uri.path.orEmpty()).readText()
+        } else {
+            val reply = Upstream.get(config.uri.toString(), null)
+            Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: upstream ${reply.status}")
+            if (reply.status != Http.OK) {
+                return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
+            }
+            reply.body().use { it.readBytes() }.toString(Charsets.UTF_8)
         }
-        val cleaned = TvCaptions.clean(reply.body().use { it.readBytes() }.toString(Charsets.UTF_8))
+        val cleaned = TvCaptions.clean(text)
         Diag.log(
             "cast",
             "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, which places them itself: " +

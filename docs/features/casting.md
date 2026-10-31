@@ -127,3 +127,14 @@ same before and after), so the stream is even; the stand-in itself dropped frame
 a loaded laptop, so it cannot judge judder. The TV's 24 fps on 60 Hz cadence remains the suspect. A downloaded file's
 video requests are now logged (sampled), so the next report shows whether the picture arrived late.
 
+## The film's own subtitles on the TV (2026-10-31)
+
+Report 20261031T100318-068abf73: the Matrix's English subtitles worked on the phone and not on the TV ("on the TV: none
+of 0 offered"). They are a track inside the MKV, which the phone's player reads, while the cast server only offered
+sidecar subtitle files. `EmbeddedSubtitles` lists a downloaded file's subtitle tracks with the bundled ffprobe, copies
+each SRT track out with the bundled ffmpeg (stream copy: the build has no decoders or encoders) and converts it to
+WebVTT in Kotlin, kept under `files/embedded-subs/`; image and ASS tracks are named in the log as not converted. A cast
+of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downloaded torrent file in the background
+30 s after launch and as downloads land, so a cast does not wait. A file not prepared yet starts it at the cast (logged
+"saving them now for the next cast"). Checked on the stand-in: a test MKV with an English SRT track showed its cue.
+

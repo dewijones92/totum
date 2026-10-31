@@ -11,6 +11,7 @@ import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.diagnostics.MainThreadWatch
+import com.dewijones92.totum.downloads.EmbeddedSubtitleWarmer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge
 import com.dewijones92.totum.groups.GroupNewsWorker
@@ -88,6 +89,13 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         }
         container.dailyAlarms.tickAll("startup")
         warmTheEngineSoon()
+        if (warmEngineAfterLaunch) {
+            EmbeddedSubtitleWarmer(
+                this,
+                container.downloadManager,
+                container.applicationScope
+            ).start(SUBTITLE_WARM_DELAY_MS)
+        }
     }
 
     private fun warmTheEngineSoon() {
@@ -107,6 +115,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         @Volatile
         internal var warmEngineAfterLaunch: Boolean = true
         private const val ENGINE_WARM_DELAY_MS = 10_000L
+        private const val SUBTITLE_WARM_DELAY_MS = 30_000L
         private const val UPLOADS_CHECK_DELAY_MS = 20_000L
         private val UPDATE_CHECK_INTERVAL = 30.minutes
     }
