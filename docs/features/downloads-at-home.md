@@ -15,7 +15,7 @@ copies it over the next time it is on Wi-Fi. ADR 110.
 ## What you see
 
 - ⬇️ asks where (📱 On this phone / 🏠 At home); on mobile data 🏠 is suggested; "remember" keeps it.
-- Rows: 🏠 Downloading at home · 45% → 🏠 At home · copies to the phone on Wi-Fi → the usual offline mark.
+- Rows: 🏠 Downloading at home · 45% → 🏠 At home · copies to the phone on Wi-Fi → 📥 Copying from home 70% → the usual offline mark.
 - The progress strip and a notification while it runs; "🏠 Ready at home" when done.
 - Library → Downloads → 🏠 At home: every job, with Retry, Cancel and Delete.
 - Deleting the download deletes both copies. Under 20 GB free at home a job is refused with the reason.
@@ -36,3 +36,7 @@ phone): a podcast episode sent home (8.8 MB in 2 s), announced "🏠 Ready at ho
 signed-in route on the Pi (147 MB, n solved by Node), then replaced the phone's sound-only copy; deleting either on
 the phone deleted the copy at home. Not yet proven live: playing from the Pi's copy before the phone has its own
 (unit-tested; the same URL and token served the copy).
+
+First real use (report 20261031T193811-51dfc9b5, v0.1.811): Toy Story 5 (1080p 10-bit x265, 1.96 GB) sent home from
+the phone, done on the Pi in 7 minutes, copied to the phone over Wi-Fi in ~70 s. The phone's copy showed as a plain
+"⬇️ Downloading 70%", which read as the Pi lagging; it now says "📥 Copying from home".

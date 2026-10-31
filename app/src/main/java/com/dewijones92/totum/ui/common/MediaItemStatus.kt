@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.home.HomeJob
+import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
@@ -79,10 +80,8 @@ internal fun MediaItemStatus(
         // not — a server that sends no Content-Length must not produce a stuck "0%".
         HomeStatus(home, downloadState)
         if (downloadState is DownloadState.Downloading) {
-            val percent = downloadState.fraction?.let { (it * PERCENT).toInt() }
             Text(
-                text = percent?.let { stringResource(R.string.status_downloading_percent, it) }
-                    ?: stringResource(R.string.status_downloading),
+                text = downloadingText(downloadState, fromHome = home?.state == HomeJobState.DONE),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -262,4 +261,15 @@ private fun HomeStatus(home: HomeJob?, downloadState: DownloadState) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.testTag(HOME_STATUS_TAG),
     )
+}
+
+@Composable
+private fun downloadingText(state: DownloadState.Downloading, fromHome: Boolean): String {
+    val percent = state.fraction?.let { (it * PERCENT).toInt() }
+    return when {
+        fromHome && percent != null -> stringResource(R.string.status_copying_from_home_percent, percent)
+        fromHome -> stringResource(R.string.status_copying_from_home)
+        percent != null -> stringResource(R.string.status_downloading_percent, percent)
+        else -> stringResource(R.string.status_downloading)
+    }
 }

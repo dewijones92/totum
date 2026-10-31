@@ -728,6 +728,8 @@
     <string name="buffer_ahead_falling">⚠️ %1$ds buffered · falling behind</string>
     <string name="status_downloading">⬇️ Downloading…</string>
     <string name="status_downloading_percent">⬇️ Downloading %1$d%%</string>
+    <string name="status_copying_from_home">📥 Copying from home…</string>
+    <string name="status_copying_from_home_percent">📥 Copying from home %1$d%%</string>
     <string name="status_online_only">☁️ Online only</string>
     <plurals name="filter_hint_count">
         <item quantity="one">Filter %1$d item</item>
