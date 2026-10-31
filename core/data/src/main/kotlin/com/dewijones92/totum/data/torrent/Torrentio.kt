@@ -55,7 +55,11 @@ public class Torrentio(
         val body = get("$torrentioBase/stream/$path.json") ?: return emptyList()
         val streams = (runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject)
             ?.get("streams") as? JsonArray ?: return emptyList()
-        val results = streams.mapNotNull { (it as? JsonObject)?.toResult() }
+        val results = streams.mapNotNull {
+            (it as? JsonObject)?.toResult()?.copy(
+                imdbId = meta.id.substringBefore(':')
+            )
+        }
         Diag.log(
             "torrent",
             "torrentio $kind \"${meta.name}\" (${meta.id}) -> ${results.size} of ${streams.size} stream(s) " +

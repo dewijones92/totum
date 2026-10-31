@@ -109,7 +109,16 @@ public data class TorrentResult(
     public val uploaderName: String? = null,
     public val audiobook: Boolean = false,
     public val seedersReported: Boolean = true,
-)
+    public val posterUrl: String? = null,
+    public val imdbId: String? = null,
+) {
+    public val artworkUrl: String?
+        get() = posterUrl ?: imdbId?.let { "$POSTER_FOR_IMDB/$it/img" }
+
+    private companion object {
+        const val POSTER_FOR_IMDB = "https://images.metahub.space/poster/medium"
+    }
+}
 
 public enum class Uploader { VIP, TRUSTED, OFFICIAL, MEMBER, UNKNOWN }
 

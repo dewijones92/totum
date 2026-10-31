@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.search
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
@@ -10,6 +11,7 @@ import com.dewijones92.totum.data.torrent.TorrentResult
 import com.dewijones92.totum.data.torrent.TorrentSearchResult
 import com.dewijones92.totum.data.torrent.TorrentTrust
 import com.dewijones92.totum.data.torrent.Uploader
+import com.dewijones92.totum.data.torrent.withSharedPosters
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -57,7 +59,7 @@ public class TorrentSearchSource(
     private fun List<TorrentResult>.toHits(limit: Int, final: Boolean): List<SearchHit> {
         val books = if (category == TorrentCategory.ANY) count { it.audiobook } else 0
         if (final && books > 0) Diag.log("torrent", "$books audiobook result(s) left to the audiobook section")
-        val judged = filter { category != TorrentCategory.ANY || !it.audiobook }
+        val judged = withSharedPosters(filter { category != TorrentCategory.ANY || !it.audiobook })
             .map { it to TorrentTrust.of(it, now()) }
         val shown = judged.sortedWith(
             compareBy<Pair<TorrentResult, TorrentTrust>> { it.second.flagged }
@@ -65,11 +67,12 @@ public class TorrentSearchSource(
         )
             .take(limit)
         if (final) logTrust(judged, shown)
+        if (final) logPosters(judged.map { it.first })
         return shown.map { (torrent, trust) ->
             SearchHit.Torrent(
                 title = torrent.title,
                 subtitle = torrent.describe(),
-                artworkUrl = null,
+                artworkUrl = torrent.artworkUrl?.let(HttpUrl::parse),
                 link = torrent.link,
                 seeders = torrent.seeders,
                 sizeBytes = torrent.sizeBytes,
@@ -107,6 +110,17 @@ public class TorrentSearchSource(
         const val BYTES_PER_GB = 1_000_000_000.0
         const val FLAGGED_NAMED = 3
         val TRUSTED = setOf(Uploader.VIP, Uploader.TRUSTED, Uploader.OFFICIAL)
+    }
+
+    private fun logPosters(results: List<TorrentResult>) {
+        val own = results.count { it.posterUrl != null }
+        val byImdb = results.count { it.posterUrl == null && it.imdbId != null }
+        val none = results.count { it.artworkUrl == null }
+        Diag.log(
+            "torrent",
+            "posters: $own from the site, $byImdb by IMDb id " +
+                "(some borrowed from a copy of the same work), $none without",
+        )
     }
 }
 

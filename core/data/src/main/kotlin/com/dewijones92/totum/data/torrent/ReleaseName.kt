@@ -15,6 +15,18 @@ internal class ReleaseName(name: String) {
             return (words.take(marker).map(String::lowercase) + listOfNotNull(at)).joinToString(" ")
         }
 
+    val workKey: String?
+        get() {
+            if (marker <= 0) return null
+            val at = words[marker].lowercase()
+            val work = when {
+                YEAR.matches(at) -> at
+                EPISODE.matches(at) -> "series"
+                else -> return null
+            }
+            return (words.take(marker).map(String::lowercase) + work).joinToString(" ")
+        }
+
     private fun String.isMarker(): Boolean = lowercase().let {
         YEAR.matches(it) || EPISODE.matches(it) || it in QUALITY_WORDS
     }

@@ -161,6 +161,25 @@ class TorrentSearchSourceTest {
         assertTrue(hit.trust.toString(), hit.trust.any { it.startsWith("❔ Seeders not reported by AudioBook Bay") })
         assertTrue(hit.trust.toString(), hit.trust.none { it.contains("seeding") })
     }
+
+    @Test
+    fun `a hit's picture is the site's poster, else the poster for its IMDb id`() = runTest {
+        server.results = listOf(
+            result("Dune - Frank Herbert [M4B]", 1).copy(posterUrl = "https://i.ibb.co/x/folder.jpg"),
+            result("Dune 2021 1080p", 9).copy(imdbId = "tt1160419"),
+            result("Dune unknown", 3),
+        )
+
+        val hits = (source.search(SearchQuery("dune"), limit = 10, after = null) as SearchOutcome.Success)
+            .page.items.associateBy { it.title }
+
+        assertEquals("https://i.ibb.co/x/folder.jpg", hits.getValue("Dune - Frank Herbert [M4B]").artworkUrl?.value)
+        assertEquals(
+            "https://images.metahub.space/poster/medium/tt1160419/img",
+            hits.getValue("Dune 2021 1080p").artworkUrl?.value,
+        )
+        assertEquals(null, hits.getValue("Dune unknown").artworkUrl)
+    }
 }
 
 /**
@@ -264,5 +283,19 @@ class ProwlarrShapeTest {
 
         assertEquals(TorrentLink.ViaIndexer("/4/download?link=bTRzVk5Y&file=Night"), parsed.link)
         assertEquals(120, parsed.seeders)
+    }
+
+    @Test
+    fun `a result carries the site's poster or its IMDb id`() {
+        val body = """[{"title":"Dune - Frank Herbert [M4B]",""" +
+            """"guid":"magnet:?xt=urn:btih:${"A".repeat(40)}","seeders":1,""" +
+            """"size":1,"indexer":"AudioBook Bay","posterUrl":"https://i.ibb.co/x/folder.jpg","imdbId":0},""" +
+            """{"title":"Dune 2021 1080p","guid":"magnet:?xt=urn:btih:${"B".repeat(40)}","seeders":9,"size":1,""" +
+            """"indexer":"The Pirate Bay","imdbId":1160419}]"""
+
+        val parsed = parseProwlarr(body)!!
+
+        assertEquals(listOf("https://i.ibb.co/x/folder.jpg", null), parsed.map { it.posterUrl })
+        assertEquals(listOf(null, "tt1160419"), parsed.map { it.imdbId })
     }
 }

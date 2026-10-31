@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.Picture
@@ -38,6 +39,7 @@ public object TorrentPlayables {
         server: HomeTorrentServer,
         torrent: PreparedTorrent,
         kind: MediaContentKind = MediaContentKind.STANDARD,
+        artwork: HttpUrl? = null,
     ): List<PlayableItem> =
         TorrentEpisodes.playableInOrder(torrent.files).map { file ->
             PlayableItem(
@@ -52,6 +54,7 @@ public object TorrentPlayables {
                     author = torrent.name,
                     mediaUrl = server.stream(torrent, file),
                     contentKind = kind,
+                    thumbnailUrl = artwork,
                 ),
                 // The audio-only variant, so Listen mode costs 2.1 MB/min instead of 15.2.
                 handle = PlayHandle.Podcast(

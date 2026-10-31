@@ -70,6 +70,7 @@ public class Apibay(
             uploader = standingOf(text("status")),
             uploaderName = text("username")?.takeIf { it.isNotBlank() },
             audiobook = text("category") == TorrentCategory.AUDIOBOOKS.apibay.toString(),
+            imdbId = text("imdb")?.takeIf { IMDB.matches(it) },
         )
     }
 
@@ -78,6 +79,7 @@ public class Apibay(
         public const val BASE: String = "https://apibay.org"
         public const val INDEXER: String = "The Pirate Bay"
         private val NO_HASH = Regex("0{40}")
+        private val IMDB = Regex("tt\\d{7,}")
 
         internal fun standingOf(status: String?): Uploader = when (status?.lowercase()) {
             "vip" -> Uploader.VIP

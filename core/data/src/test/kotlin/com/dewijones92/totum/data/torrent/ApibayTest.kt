@@ -72,6 +72,24 @@ class ApibayTest {
     }
 
     @Test
+    fun `a result keeps its IMDb id, so it can have a poster`() = runTest {
+        server.enqueue(
+            MockResponse.Builder().code(200).body(
+                """[{"id":"1","name":"Dune 2021 1080p","info_hash":"${"A".repeat(40)}","leechers":"1",""" +
+                    """"seeders":"9","size":"1","num_files":"1","username":"x","added":"1","status":"member",""" +
+                    """"category":"207","imdb":"tt1160419"},""" +
+                    """{"id":"2","name":"Dune 720p","info_hash":"${"B".repeat(40)}","leechers":"1",""" +
+                    """"seeders":"2","size":"1","num_files":"1","username":"x","added":"1","status":"member",""" +
+                    """"category":"207","imdb":""}]""",
+            ).build(),
+        )
+
+        val found = apibay().search("dune") as TorrentSearchResult.Success
+
+        assertEquals(listOf("tt1160419", null), found.results.map { it.imdbId })
+    }
+
+    @Test
     fun `its no-results row is not a result`() = runTest {
         server.enqueue(
             MockResponse.Builder().code(200).body(

@@ -63,6 +63,8 @@ private fun JsonObject.toResult(): TorrentResult? {
         fileCount = this["files"]?.jsonPrimitive?.intOrNull,
         audiobook = categoryIds().any { it == AUDIOBOOK_CATEGORY },
         seedersReported = this["indexer"]?.jsonPrimitive?.contentOrNull !in SEEDERS_NOT_REPORTED,
+        posterUrl = this["posterUrl"]?.jsonPrimitive?.contentOrNull?.takeIf { it.startsWith("http") },
+        imdbId = this["imdbId"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 }?.let(::imdbIdOf),
     )
 }
 
@@ -84,6 +86,8 @@ private fun JsonObject.viaIndexer(): TorrentLink.ViaIndexer? {
     val query = parsed.rawQuery.orEmpty().split('&').filter { it.isNotEmpty() && !it.startsWith("apikey=") }
     return TorrentLink.ViaIndexer(if (query.isEmpty()) path else path + "?" + query.joinToString("&"))
 }
+
+internal fun imdbIdOf(number: Int): String = "tt%07d".format(number)
 
 internal fun magnetFor(infoHash: String, title: String): String =
     "magnet:?xt=urn:btih:$infoHash&dn=" + java.net.URLEncoder.encode(title, Charsets.UTF_8).replace("+", "%20")

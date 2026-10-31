@@ -1,9 +1,13 @@
 package com.dewijones92.totum.ui.search
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.theme.TotumTheme
@@ -52,5 +56,22 @@ class TorrentControlsTest {
         composeTestRule.setContent { TotumTheme { TorrentControls(hits, TorrentShelf()) {} } }
 
         composeTestRule.onNodeWithText("▶️ Play the best copy: seeders: 8").assertExists()
+    }
+
+    @Test
+    fun aTorrentWithAPosterShowsItAndOneWithoutKeepsItsIcon() {
+        val poster = hit("Public Domain Film 1968 1080p", 60, "1080p", trusted = true)
+            .copy(artworkUrl = HttpUrl.of("https://images.metahub.space/poster/medium/tt0063350/img"))
+        val bare = hit("Public Domain Film 1968 720p", 3, "720p", trusted = false)
+        composeTestRule.setContent {
+            TotumTheme {
+                Column {
+                    TorrentHitRow(poster, onPlay = {})
+                    TorrentHitRow(bare, onPlay = {})
+                }
+            }
+        }
+
+        composeTestRule.onAllNodesWithTag(TORRENT_POSTER_TAG, useUnmergedTree = true).assertCountEquals(1)
     }
 }

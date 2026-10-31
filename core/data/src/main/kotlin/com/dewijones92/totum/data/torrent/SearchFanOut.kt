@@ -157,6 +157,8 @@ private fun mergedFacts(a: TorrentResult, b: TorrentResult): TorrentResult {
         fileCount = base.fileCount ?: other.fileCount,
         audiobook = base.audiobook || other.audiobook,
         seedersReported = base.seedersReported || other.seedersReported,
+        posterUrl = base.posterUrl ?: other.posterUrl,
+        imdbId = base.imdbId ?: other.imdbId,
     )
 }
 

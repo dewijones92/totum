@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.PlayHandle
@@ -36,6 +37,15 @@ class TorrentPlayablesTest {
      * The unification claim, asserted rather than described: these must be directly-playable
      * items, so the existing playback path takes them with no torrent-specific branch.
      */
+    @Test
+    fun `every episode wears the torrent's picture`() {
+        val poster = HttpUrl.of("https://images.metahub.space/poster/medium/tt1160419/img")
+
+        val items = TorrentPlayables.queueItems(server, pack("S01E01.mkv", "S01E02.mkv"), artwork = poster)
+
+        assertEquals(listOf(poster, poster), items.map { it.item.thumbnailUrl })
+    }
+
     @Test
     fun `items are directly playable with a plain URL`() {
         val items = TorrentPlayables.queueItems(server, pack("S01E01.mkv"))

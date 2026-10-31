@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -596,14 +597,26 @@ internal fun TorrentHitRow(
             }
         },
         leadingContent = {
-            Icon(
-                imageVector = when (hit.category) {
-                    TorrentCategory.AUDIOBOOKS -> Icons.Outlined.Headphones
-                    TorrentCategory.ANY -> Icons.Outlined.Movie
-                },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            val poster = hit.artworkUrl
+            if (poster != null) {
+                MediaThumbnail(
+                    url = poster,
+                    contentDescription = null,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.size(TORRENT_POSTER_WIDTH, TORRENT_POSTER_HEIGHT).testTag(TORRENT_POSTER_TAG),
+                )
+            } else {
+                Box(Modifier.size(TORRENT_POSTER_WIDTH, TORRENT_POSTER_HEIGHT), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = when (hit.category) {
+                            TorrentCategory.AUDIOBOOKS -> Icons.Outlined.Headphones
+                            TorrentCategory.ANY -> Icons.Outlined.Movie
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
         },
         trailingContent = onDownload?.let { download ->
             {
@@ -622,3 +635,6 @@ internal fun TorrentHitRow(
 internal val LocalTorrentProgress = compositionLocalOf<(SearchHit.Torrent) -> List<String>> { { emptyList() } }
 
 internal const val TORRENT_SOUND_ONLY_TAG = "torrent-sound-only"
+internal const val TORRENT_POSTER_TAG = "torrent-poster"
+private val TORRENT_POSTER_WIDTH = 48.dp
+private val TORRENT_POSTER_HEIGHT = 72.dp

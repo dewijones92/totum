@@ -98,6 +98,14 @@ The section asks for 40 results, shows 8 at a time ("⬇️ Show N more"), and o
 💚 Trusted only. The best copy is never flagged and has seeders, and prefers 1080p, a trusted uploader,
 then seeders (`TorrentPicks`). ADR 101.
 
+## Posters (2026-10-31)
+
+Every result, and everything queued from it, wears a picture: the site's poster, else the poster for its IMDb id,
+else one borrowed from another copy of the same film or show in the same search; the film icon otherwise. The
+search log says how many came from each. [ADR 106](../adr/0106-a-torrent-wears-its-poster.md). Tests:
+`SharedPostersTest`, `TorrentSearchSourceTest`/`ProwlarrShapeTest` (poster and IMDb id), `ApibayTest`,
+`TorrentPlayablesTest` (queued files carry it), `TorrentControlsTest` (the row shows it).
+
 ## Speed (measured 2026-10-08, emulator against the Pi)
 
 - **Search asks each indexer on its own, in parallel, and streams** (`ProwlarrSearch.updates`,
