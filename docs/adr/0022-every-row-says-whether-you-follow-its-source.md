@@ -2,7 +2,7 @@
 title: Every row says whether you follow its channel or show, and the mark subscribes
 kind: adr
 status: accepted
-updated: 2026-10-08
+updated: 2026-10-31
 ---
 
 # 22. Every row says whether you follow its channel or show, and the mark subscribes
@@ -49,6 +49,8 @@ subscribed to the channel"*. He chose, from options put to him:
 - The mark sits on the channel / show line, beside the name, and wraps with it.
 
 ## Consequences
+
+- Amended 2026-10-31 (ADR 105): a book chapter (`MediaContentKind.AUDIOBOOK`) carries no mark; a book has nothing to follow.
 
 - A video from a channel you follow on another device shows ✅ once the account list has loaded.
 - A name match can be wrong: two channels sharing a name, a renamed channel, or a collaboration credited

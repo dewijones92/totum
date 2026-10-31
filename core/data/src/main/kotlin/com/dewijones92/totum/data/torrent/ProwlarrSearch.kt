@@ -77,21 +77,36 @@ internal class ProwlarrSearch(
     @Volatile
     private var indexers: List<Indexer>? = null
 
-    suspend fun search(query: String): TorrentSearchResult = updates(query).last()
+    suspend fun search(query: String, category: TorrentCategory = TorrentCategory.ANY): TorrentSearchResult =
+        updates(query, category).last()
 
-    fun updates(query: String): Flow<TorrentSearchResult> = fanOut.updates(
+    fun updates(
+        query: String,
+        category: TorrentCategory = TorrentCategory.ANY,
+        also: List<NamedSearch> = alsoAsk,
+    ): Flow<TorrentSearchResult> = fanOut.updates(
         query,
-        listed = indexers?.let(::homeSources),
-        listing = { homeSources(listIndexers()?.also { indexers = it }) },
-        alsoAsk = alsoAsk,
+        listed = indexers?.let { homeSources(it, category) },
+        listing = { homeSources(listIndexers()?.also { indexers = it }, category) },
+        alsoAsk = also,
     )
 
-    private fun homeSources(listed: List<Indexer>?): List<NamedSearch> =
-        if (listed.isNullOrEmpty()) {
-            listOf(NamedSearch(ALL_INDEXERS) { searchOne(it, null) })
-        } else {
-            listed.map { indexer -> NamedSearch(indexer.name) { searchOne(it, indexer) } }
+    private fun homeSources(listed: List<Indexer>?, category: TorrentCategory): List<NamedSearch> {
+        val carrying = listed?.filter { category.newznab == null || category.newznab in it.categories }
+        if (listed != null && category != TorrentCategory.ANY) {
+            Diag.log(
+                "torrent",
+                "${category.name.lowercase()} search asks " +
+                    "${carrying?.joinToString { it.name }?.ifEmpty { "no indexer" }} " +
+                    "(${listed.size - carrying.orEmpty().size} indexer(s) carry no ${category.newznab})",
+            )
         }
+        return if (carrying.isNullOrEmpty()) {
+            listOf(NamedSearch(ALL_INDEXERS) { searchOne(it, null, category) })
+        } else {
+            carrying.map { indexer -> NamedSearch(indexer.name) { searchOne(it, indexer, category) } }
+        }
+    }
 
     private suspend fun listIndexers(): List<Indexer>? {
         val request = Request.Builder()
@@ -120,14 +135,20 @@ internal class ProwlarrSearch(
             val enabled = indexer["enable"]?.jsonPrimitive?.booleanOrNull ?: true
             val id = indexer["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
             val proxied = (indexer["tags"] as? JsonArray)?.isNotEmpty() == true
-            Indexer(id, indexer["name"]?.jsonPrimitive?.contentOrNull ?: "indexer $id", proxied).takeIf { enabled }
+            val name = indexer["name"]?.jsonPrimitive?.contentOrNull ?: "indexer $id"
+            Indexer(id, name, proxied, categoriesOf(indexer)).takeIf { enabled }
         }
 
-    private suspend fun searchOne(query: String, indexer: Indexer?): TorrentSearchResult {
+    private suspend fun searchOne(
+        query: String,
+        indexer: Indexer?,
+        category: TorrentCategory = TorrentCategory.ANY,
+    ): TorrentSearchResult {
         val encoded = query.replace(" ", "+")
         val only = indexer?.let { "&indexerIds=${it.id}" }.orEmpty()
+        val ofCategory = category.newznab?.let { "&categories=$it" }.orEmpty()
         val request = Request.Builder()
-            .url("$prowlarrBase/api/v1/search?query=$encoded&type=search$only")
+            .url("$prowlarrBase/api/v1/search?query=$encoded&type=search$ofCategory$only")
             .header("X-Api-Key", prowlarrApiKey())
             .header(TOKEN_HEADER, token())
             .build()
@@ -205,7 +226,21 @@ internal class ProwlarrSearch(
     }
 }
 
-private data class Indexer(val id: Int, val name: String, val proxied: Boolean = false)
+private fun categoriesOf(indexer: JsonObject): Set<Int> {
+    val listed = (indexer["capabilities"] as? JsonObject)?.get("categories") as? JsonArray ?: return emptySet()
+    return listed.flatMap { category ->
+        val top = category as? JsonObject ?: return@flatMap emptyList()
+        val subs = (top["subCategories"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+        (listOf(top) + subs).mapNotNull { it["id"]?.jsonPrimitive?.intOrNull }
+    }.toSet()
+}
+
+private data class Indexer(
+    val id: Int,
+    val name: String,
+    val proxied: Boolean = false,
+    val categories: Set<Int> = emptySet(),
+)
 
 private const val WARM_EVERY_MS = 10 * 60_000L
 private const val WARM_QUERY = "ubuntu"

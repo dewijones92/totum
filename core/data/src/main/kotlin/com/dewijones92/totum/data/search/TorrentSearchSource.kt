@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.ReleaseQuality
+import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentResult
 import com.dewijones92.totum.data.torrent.TorrentSearchResult
 import com.dewijones92.totum.data.torrent.TorrentTrust
@@ -26,17 +27,18 @@ import java.time.Instant
 public class TorrentSearchSource(
     private val server: HomeTorrentServer,
     private val now: () -> Instant = Instant::now,
+    private val category: TorrentCategory = TorrentCategory.ANY,
 ) : SearchSource {
 
     override suspend fun search(query: SearchQuery, limit: Int, after: PageToken?): SearchOutcome {
         // No paging to continue: a second page would repeat the first, so an empty one is the
         // honest answer rather than searching the same thing again.
         if (after != null) return SearchOutcome.Success(Page.last(emptyList()))
-        return server.search(query.value).asOutcome(limit)
+        return server.search(query.value, category).asOutcome(limit)
     }
 
     override fun updates(query: SearchQuery, limit: Int): Flow<SearchOutcome> =
-        server.searchUpdates(query.value).map { it.asOutcome(limit) }
+        server.searchUpdates(query.value, category).map { it.asOutcome(limit) }
 
     private fun TorrentSearchResult.asOutcome(limit: Int): SearchOutcome = when (this) {
         is TorrentSearchResult.Failure -> SearchOutcome.Failure(detail, slow)
@@ -53,7 +55,10 @@ public class TorrentSearchSource(
      * every implementation of the port.
      */
     private fun List<TorrentResult>.toHits(limit: Int, final: Boolean): List<SearchHit> {
-        val judged = map { it to TorrentTrust.of(it, now()) }
+        val books = if (category == TorrentCategory.ANY) count { it.audiobook } else 0
+        if (final && books > 0) Diag.log("torrent", "$books audiobook result(s) left to the audiobook section")
+        val judged = filter { category != TorrentCategory.ANY || !it.audiobook }
+            .map { it to TorrentTrust.of(it, now()) }
         val shown = judged.sortedWith(
             compareBy<Pair<TorrentResult, TorrentTrust>> { it.second.flagged }
                 .thenByDescending { it.first.seeders }
@@ -73,6 +78,7 @@ public class TorrentSearchSource(
                 flagged = trust.flagged,
                 resolution = ReleaseQuality.resolutionOf(torrent.title),
                 trusted = TorrentTrust.standing(torrent) in TRUSTED,
+                category = category,
             )
         }
     }
@@ -94,7 +100,7 @@ public class TorrentSearchSource(
 
     /** Seeders and size ARE the decision, so they are the subtitle rather than a detail view. */
     private fun TorrentResult.describe(): String =
-        "$seeders seeders · ${"%.2f GB".format(sizeBytes / BYTES_PER_GB)}" +
+        (if (seedersReported) "$seeders seeders · " else "") + "%.2f GB".format(sizeBytes / BYTES_PER_GB) +
             (indexer?.let { " · $it" } ?: "")
 
     private companion object {

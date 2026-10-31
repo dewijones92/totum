@@ -1,9 +1,12 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.pictureOfFileName
 
 /**
  * Turns a prepared torrent into ordinary queue items.
@@ -31,7 +34,11 @@ public object TorrentPlayables {
      * One item per file rather than one per torrent: a season pack IS two dozen things to watch,
      * and collapsing it to one would make the queue lie about what is in it.
      */
-    public fun queueItems(server: HomeTorrentServer, torrent: PreparedTorrent): List<PlayableItem> =
+    public fun queueItems(
+        server: HomeTorrentServer,
+        torrent: PreparedTorrent,
+        kind: MediaContentKind = MediaContentKind.STANDARD,
+    ): List<PlayableItem> =
         TorrentEpisodes.playableInOrder(torrent.files).map { file ->
             PlayableItem(
                 item = MediaItem(
@@ -44,9 +51,12 @@ public object TorrentPlayables {
                     duration = null,
                     author = torrent.name,
                     mediaUrl = server.stream(torrent, file),
+                    contentKind = kind,
                 ),
                 // The audio-only variant, so Listen mode costs 2.1 MB/min instead of 15.2.
-                handle = PlayHandle.Podcast(audioUrl = server.audioStream(torrent, file)),
+                handle = PlayHandle.Podcast(
+                    audioUrl = server.audioStream(torrent, file).takeIf { pictureOfFileName(file.name) != Picture.NO },
+                ),
             )
         }
 

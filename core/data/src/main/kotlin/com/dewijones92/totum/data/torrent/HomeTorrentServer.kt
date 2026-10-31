@@ -22,9 +22,12 @@ import java.time.Instant
 public interface HomeTorrentServer {
 
     /** Results ordered by the caller's preference, or a failure that says why. */
-    public suspend fun search(query: String): TorrentSearchResult
+    public suspend fun search(query: String, category: TorrentCategory = TorrentCategory.ANY): TorrentSearchResult
 
-    public fun searchUpdates(query: String): Flow<TorrentSearchResult> = flow { emit(search(query)) }
+    public fun searchUpdates(
+        query: String,
+        category: TorrentCategory = TorrentCategory.ANY,
+    ): Flow<TorrentSearchResult> = flow { emit(search(query, category)) }
 
     public suspend fun warmSearch() {}
 
@@ -104,6 +107,8 @@ public data class TorrentResult(
     public val fileCount: Int? = null,
     public val uploader: Uploader = Uploader.UNKNOWN,
     public val uploaderName: String? = null,
+    public val audiobook: Boolean = false,
+    public val seedersReported: Boolean = true,
 )
 
 public enum class Uploader { VIP, TRUSTED, OFFICIAL, MEMBER, UNKNOWN }

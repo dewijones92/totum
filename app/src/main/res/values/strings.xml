@@ -38,6 +38,7 @@
     <string name="feed_error">📡 Couldn\'t load this feed. Check your connection and try again.</string>
     <string name="tag_live">🔴 LIVE</string>
     <string name="tag_short">📱 SHORT</string>
+    <string name="tag_audiobook">🎧 BOOK</string>
     <string name="tag_members_only">💎 MEMBERS</string>
     <string name="notifications_seen_already">👀 Already seen</string>
     <string name="done">Done</string>
@@ -180,7 +181,15 @@
     <string name="downloads_retry">Try again</string>
     <string name="downloads_failed_section">❌ Didn\'t finish</string>
     <string name="downloads_cancel_all">Cancel all</string>
-    <string name="torrent_best_copy">▶️ Play the best copy: %1$s · seeders: %2$d</string>
+    <string name="search_section_audiobooks">🎧 Audiobooks (free: LibriVox and the Internet Archive)</string>
+    <string name="search_section_audiobook_torrents">🎧 Audiobook torrents</string>
+    <string name="book_play">▶️ Play</string>
+    <string name="book_play_from_start">▶️ Play the book</string>
+    <string name="book_resume">▶️ Resume at chapter %1$d of %2$d</string>
+    <string name="book_download">⬇️ Download the book</string>
+    <string name="book_opening_strip">🎧 Opening %1$s</string>
+    <string name="torrent_best_copy">▶️ Play the best copy: %1$s</string>
+    <string name="torrent_best_seeders">seeders: %1$d</string>
     <string name="torrent_best_trusted">💚 trusted</string>
     <string name="torrent_filter_all">All (%1$d)</string>
     <string name="torrent_filter_trusted">💚 Trusted only (%1$d)</string>
@@ -295,6 +304,7 @@
     <string name="item_kind_song">🎵 Song</string>
     <string name="item_kind_live">🔴 Live</string>
     <string name="item_kind_short">📱 Short</string>
+    <string name="item_kind_audiobook">🎧 Book chapter</string>
     <string name="item_kind_video">📺 Video</string>
     <string name="item_kind_episode">🎙️ Podcast episode</string>
     <string name="quick_boost">Boost</string>

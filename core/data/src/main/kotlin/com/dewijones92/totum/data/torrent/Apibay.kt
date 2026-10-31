@@ -19,11 +19,12 @@ public class Apibay(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    public suspend fun search(query: String): TorrentSearchResult {
+    public suspend fun search(query: String, category: TorrentCategory = TorrentCategory.ANY): TorrentSearchResult {
         val started = TimeSource.Monotonic.markNow()
         val encoded = URLEncoder.encode(query.trim(), Charsets.UTF_8).replace("+", "%20")
+        val inCategory = category.apibay?.let { "&cat=$it" }.orEmpty()
         val body = try {
-            get("$base/q.php?q=$encoded")
+            get("$base/q.php?q=$encoded$inCategory")
         } catch (e: IOException) {
             Diag.warn("torrent", "apibay \"$query\" could not be reached", e)
             return TorrentSearchResult.Failure("The Pirate Bay's API could not be reached")
@@ -34,7 +35,8 @@ public class Apibay(
         val standings = results.groupingBy { it.uploader }.eachCount().entries.joinToString { "${it.key}=${it.value}" }
         Diag.log(
             "torrent",
-            "apibay \"$query\" -> ${results.size} result(s) in ${started.elapsedNow().inWholeMilliseconds}ms " +
+            "apibay \"$query\"$inCategory -> ${results.size} result(s) " +
+                "in ${started.elapsedNow().inWholeMilliseconds}ms " +
                 "[uploaders: ${standings.ifEmpty { "none" }}]",
         )
         return TorrentSearchResult.Success(results)
@@ -67,6 +69,7 @@ public class Apibay(
             fileCount = text("num_files")?.toIntOrNull(),
             uploader = standingOf(text("status")),
             uploaderName = text("username")?.takeIf { it.isNotBlank() },
+            audiobook = text("category") == TorrentCategory.AUDIOBOOKS.apibay.toString(),
         )
     }
 

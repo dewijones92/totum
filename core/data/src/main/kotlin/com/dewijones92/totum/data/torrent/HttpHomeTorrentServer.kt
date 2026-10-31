@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -73,17 +74,21 @@ public class HttpHomeTorrentServer(
         token,
         lateDeadlineMs,
         clock,
-        alsoAsk = listOfNotNull(
-            torrentio?.let { NamedSearch(Torrentio.NAME, it::search) },
-            apibay?.let { NamedSearch(Apibay.NAME, it::search) },
-        ),
+        alsoAsk = alsoAsk(TorrentCategory.ANY),
+    )
+
+    private fun alsoAsk(category: TorrentCategory): List<NamedSearch> = listOfNotNull(
+        torrentio?.takeIf { category == TorrentCategory.ANY }?.let { NamedSearch(Torrentio.NAME, it::search) },
+        apibay?.let { NamedSearch(Apibay.NAME) { query -> it.search(query, category) } },
     )
 
     private val torrServerBase get() = "$base/ts"
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun search(query: String): TorrentSearchResult = withContext(Dispatchers.IO) {
+    override suspend fun search(query: String, category: TorrentCategory): TorrentSearchResult = withContext(
+        Dispatchers.IO
+    ) {
         // Asked BEFORE the request, because signing in is the one cause the person can fix and
         // the reply it produces is indistinguishable from every other refusal: nginx answers a
         // missing token and a wrong one with the same bare 401. Report 0.1.308 said only
@@ -92,7 +97,7 @@ public class HttpHomeTorrentServer(
             Diag.log("torrent", "not searching for \"$query\": not signed in to the home server")
             return@withContext TorrentSearchResult.Failure("sign in to the home server first")
         }
-        prowlarr.search(query)
+        prowlarr.updates(query, category, alsoAsk(category)).last()
     }
 
     override suspend fun signOut(): Boolean = withContext(Dispatchers.IO) {
@@ -115,14 +120,14 @@ public class HttpHomeTorrentServer(
         withContext(Dispatchers.IO) { prowlarr.warm() }
     }
 
-    override fun searchUpdates(query: String): Flow<TorrentSearchResult> =
+    override fun searchUpdates(query: String, category: TorrentCategory): Flow<TorrentSearchResult> =
         if (token().isBlank()) {
             flow {
                 Diag.log("torrent", "not searching for \"$query\": not signed in to the home server")
                 emit(TorrentSearchResult.Failure("sign in to the home server first"))
             }
         } else {
-            prowlarr.updates(query).flowOn(Dispatchers.IO)
+            prowlarr.updates(query, category, alsoAsk(category)).flowOn(Dispatchers.IO)
         }
 
     override suspend fun prepare(link: TorrentLink): PreparedTorrent? = withContext(Dispatchers.IO) {

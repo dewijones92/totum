@@ -5,6 +5,7 @@ import android.os.StatFs
 import androidx.core.os.LocaleListCompat
 import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.account.SharedPrefsTokenStore
+import com.dewijones92.totum.audiobooks.BookPlayer
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.backup.asBackupSettings
 import com.dewijones92.totum.backup.drive.DriveBackup
@@ -19,6 +20,7 @@ import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.dailyAlarmController
+import com.dewijones92.totum.data.audiobook.ArchiveBookSearchSource
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.DefaultChannelRepository
@@ -67,6 +69,7 @@ import com.dewijones92.totum.data.torrent.Apibay
 import com.dewijones92.totum.data.torrent.HomeServerAuthInterceptor
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
+import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.Torrentio
@@ -522,6 +525,9 @@ interface AppContainer {
     val exploreMode: ExploreMode
     val queueSkips: QueueSkips
     val episodeDownloads: EpisodeDownloads
+    val audiobookSearchSource: SearchSource
+    val audiobookTorrentSource: SearchSource?
+    val bookPlayer: BookPlayer
     val statsLog: StatsLog
     val groupDownloads: GroupDownloads
     val randomStarts: RandomStarts
@@ -1569,6 +1575,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val episodeDownloads: EpisodeDownloads by lazy {
         EpisodeDownloads(downloadManager, applicationScope, operations)
+    }
+
+    override val audiobookSearchSource: SearchSource by lazy { ArchiveBookSearchSource(textFetcher) }
+
+    override val audiobookTorrentSource: SearchSource? by lazy {
+        homeTorrentServer?.let { TorrentSearchSource(it, category = TorrentCategory.AUDIOBOOKS) }
+    }
+
+    override val bookPlayer: BookPlayer by lazy {
+        BookPlayer(podcastRepository, playbackQueue, { playbackProgressStore.observeStates().first() }, operations)
     }
 
     override val queueSkips: QueueSkips by lazy {

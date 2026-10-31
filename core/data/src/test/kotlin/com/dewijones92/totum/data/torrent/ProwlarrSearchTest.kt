@@ -91,8 +91,34 @@ class ProwlarrSearchTest {
         assertEquals(listOf("ok"), (last as TorrentSearchResult.Success).results.map { it.title })
     }
 
+    @Test
+    fun `an audiobook search asks only the indexers that carry audiobooks, for that category`() = runTest {
+        val asked = java.util.Collections.synchronizedList(mutableListOf<String>())
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when {
+                request.target.startsWith("/api/v1/indexer") -> ok(INDEXERS)
+                else -> ok("[]").also { asked += request.target }
+            }
+        }
+
+        withContext(Dispatchers.Default) {
+            search().updates("dune", TorrentCategory.AUDIOBOOKS, also = emptyList()).toList()
+        }
+
+        assertEquals(
+            listOf("/api/v1/search?query=dune&type=search&categories=3030&indexerIds=11"),
+            asked.toList(),
+        )
+    }
+
     private companion object {
         const val RACES = 300
         const val NANOS_PER_MS = 1_000_000L
+        const val INDEXERS = """[
+            {"id": 2, "name": "YTS", "enable": true, "tags": [],
+             "capabilities": {"categories": [{"id": 2000, "subCategories": [{"id": 2040}]}]}},
+            {"id": 11, "name": "AudioBook Bay", "enable": true, "tags": [],
+             "capabilities": {"categories": [{"id": 3000, "subCategories": [{"id": 3030}]}]}}
+        ]"""
     }
 }

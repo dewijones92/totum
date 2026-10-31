@@ -10,6 +10,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -19,10 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.TorrentPicks
+import com.dewijones92.totum.data.torrent.TorrentProgress
+import com.dewijones92.totum.ui.common.LocalPlayStates
 
 @Stable
 internal class TorrentShelf {
@@ -64,8 +68,8 @@ internal fun TorrentControls(all: List<SearchHit.Torrent>, shelf: TorrentShelf, 
                         listOfNotNull(
                             pick.resolution,
                             stringResource(R.string.torrent_best_trusted).takeIf { pick.trusted },
+                            stringResource(R.string.torrent_best_seeders, pick.seeders),
                         ).joinToString(" · "),
-                        pick.seeders,
                     ),
                 )
             }
@@ -104,3 +108,17 @@ internal const val TORRENT_CONTROLS_TAG = "torrent-controls"
 internal const val TORRENT_BEST_TAG = "torrent-best"
 internal const val TORRENT_FILTER_TAG = "torrent-filter"
 internal const val TORRENT_TRUSTED_TAG = "torrent-trusted-only"
+
+@Composable
+internal fun rememberTorrentProgress(viewModel: SearchViewModel): (SearchHit.Torrent) -> List<String> {
+    val seen by viewModel.torrentsSeen.collectAsStateWithLifecycle()
+    val plays = LocalPlayStates.current
+    val played by remember(plays) { derivedStateOf { TorrentProgress.indexOf(plays.value) } }
+    val seenKeys = remember(seen) { TorrentProgress.keysOf(seen) }
+    return remember(seen, seenKeys, played) {
+        {
+                hit: SearchHit.Torrent ->
+            TorrentProgress.chips(hit.title, hit.link, played, seen, seenKeys)
+        }
+    }
+}

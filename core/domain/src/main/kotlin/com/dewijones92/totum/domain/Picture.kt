@@ -43,4 +43,4 @@ public fun pictureOfFileName(name: String): Picture {
 }
 
 public val VIDEO_EXTENSIONS: Set<String> = setOf("mkv", "mp4", "m4v", "mov", "webm", "avi", "ts", "3gp")
-public val AUDIO_EXTENSIONS: Set<String> = setOf("mp3", "m4a", "aac", "ogg", "oga", "opus", "wav", "flac")
+public val AUDIO_EXTENSIONS: Set<String> = setOf("mp3", "m4a", "m4b", "aac", "ogg", "oga", "opus", "wav", "flac")

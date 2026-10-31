@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.audiobooks.BookPlayer
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
@@ -17,23 +18,28 @@ import com.dewijones92.totum.data.search.SearchQuery
 import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.asSection
+import com.dewijones92.totum.data.search.toSource
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.PreparedTorrent
 import com.dewijones92.totum.data.torrent.SeenTorrent
+import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentEpisodes
 import com.dewijones92.totum.data.torrent.TorrentPlayables
-import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.TorrentTrust
 import com.dewijones92.totum.data.torrent.TorrentsSeen
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.pictureOfFileName
+import com.dewijones92.totum.domain.whereToResume
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
@@ -43,6 +49,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import com.dewijones92.totum.ui.common.toMediaItem
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.coroutineScope
@@ -74,6 +81,7 @@ class TorrentServices(
     val subtitles: TorrentSidecarSubtitles? = null,
     val seen: TorrentsSeen? = null,
     val playStates: suspend () -> Map<MediaItemId, PlayState> = { emptyMap() },
+    val bookSearch: SearchSource? = null,
 ) {
     companion object {
         /** Null unless BOTH are configured, so a half-set-up server is absent rather than odd. */
@@ -86,6 +94,7 @@ class TorrentServices(
                 container.torrentSubtitles,
                 container.torrentsSeen,
                 playStates = { container.playbackProgressStore.observeStates().first() },
+                bookSearch = container.audiobookTorrentSource,
             )
         }
     }
@@ -103,6 +112,7 @@ class SearchViewModel(
     private val onSearched: (SearchScope) -> Unit = {},
     private val episodeDownloads: EpisodeDownloads? = null,
     private val operations: Operations? = null,
+    private val books: BookPlayer? = null,
 ) : TrackedViewModel("search") {
 
     data class UiState(
@@ -138,6 +148,8 @@ class SearchViewModel(
             val musicShown: Map<MusicShelf, Int> = emptyMap(),
             /** [SearchSection.Absent] when no home server is set up, which is not a failure. */
             val torrents: SearchSection<List<SearchHit.Torrent>>,
+            val books: SearchSection<List<SearchHit.Book>> = SearchSection.Absent,
+            val bookTorrents: SearchSection<List<SearchHit.Torrent>> = SearchSection.Absent,
             val loadingMore: Boolean = false,
         ) : Results {
             val canLoadMore: Boolean get() = videos.itemsOrNull?.hasMore == true
@@ -156,7 +168,7 @@ class SearchViewModel(
             /** True while any section is still out — drives the one thin bar at the top. */
             val stillSearching: Boolean
                 get() = podcasts.isSearching || videos.isSearching || songs.isSearching || torrents.isSearching ||
-                    albums.isSearching || artists.isSearching
+                    albums.isSearching || artists.isSearching || books.isSearching || bookTorrents.isSearching
         }
     }
 
@@ -266,6 +278,7 @@ class SearchViewModel(
         val state = MutableStateFlow(startingSections(query))
         launch { state.collect { send(it) } }
         val run = SearchRun(query, state)
+        launchEverythingOnlySections(run, query)
         if (everything) {
             launch {
                 run.section<List<SearchHit.Podcast>>(
@@ -310,15 +323,35 @@ class SearchViewModel(
                 )
             }
         }
-        if (torrents != null && everything) {
-            launch {
-                run.section<List<SearchHit.Torrent>>(
-                    name = "torrents",
-                    updates = { torrents.search.updates(query, TORRENT_RESULTS) },
-                    into = { loaded, s -> loaded.copy(torrents = s) },
-                    select = { it.page.items.filterIsInstance<SearchHit.Torrent>() },
-                )
-            }
+    }
+
+    private fun CoroutineScope.launchEverythingOnlySections(run: SearchRun, query: SearchQuery) {
+        if (!everything) return
+        launch {
+            run.section<List<SearchHit.Book>>(
+                name = "audiobooks",
+                updates = { sources.books.updates(query, BOOK_RESULTS) },
+                into = { loaded, s -> loaded.copy(books = s) },
+                select = { it.page.items.filterIsInstance<SearchHit.Book>() },
+            )
+        }
+        val home = torrents ?: return
+        launch {
+            run.section<List<SearchHit.Torrent>>(
+                name = "torrents",
+                updates = { home.search.updates(query, TORRENT_RESULTS) },
+                into = { loaded, s -> loaded.copy(torrents = s) },
+                select = { it.page.items.filterIsInstance<SearchHit.Torrent>() },
+            )
+        }
+        val bookTorrents = home.bookSearch ?: return
+        launch {
+            run.section<List<SearchHit.Torrent>>(
+                name = "audiobook torrents",
+                updates = { bookTorrents.updates(query, BOOK_RESULTS) },
+                into = { loaded, s -> loaded.copy(bookTorrents = s) },
+                select = { it.page.items.filterIsInstance<SearchHit.Torrent>() },
+            )
         }
     }
 
@@ -336,6 +369,8 @@ class SearchViewModel(
             artists = only(music),
             // Absent, not Searching: with no home server there is no section to wait for.
             torrents = only(everything && torrents != null),
+            books = only(everything),
+            bookTorrents = only(everything && torrents?.bookSearch != null),
         )
     }
 
@@ -344,6 +379,12 @@ class SearchViewModel(
             // Outcome surfaces via observeSubscriptions; failures leave the button active.
             podcastRepository.subscribe(hit.feedUrl)
         }
+    }
+
+    fun playBook(hit: SearchHit.Book, label: String) {
+        val player = books ?: return
+        Diag.log("search", "play the book \"${hit.title}\" (${hit.identifier}) from search")
+        viewModelScope.launch { player.play(hit.toSource(), label) }
     }
 
     /** Resolves the hit's stream (shared launcher) and hands it to the shared player. */
@@ -405,7 +446,11 @@ class SearchViewModel(
                 torrents?.subtitles?.remember(it)
                 torrents?.seen?.remember(it)
             }
-            items = prepared?.let { TorrentPlayables.queueItems(server, it) }.orEmpty()
+            val kind = when (hit.category) {
+                TorrentCategory.AUDIOBOOKS -> MediaContentKind.AUDIOBOOK
+                TorrentCategory.ANY -> MediaContentKind.STANDARD
+            }
+            items = prepared?.let { TorrentPlayables.queueItems(server, it, kind) }.orEmpty()
             val warning = prepared?.let { TorrentTrust.filesWarning(it.files) }
             warning?.let { Diag.warn("search", "\"${hit.title}\": $it") }
             if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size, note = warning)
@@ -429,12 +474,16 @@ class SearchViewModel(
             // until Listen is pressed it is 25 seconds of spinner; started here it overlaps the
             // queueing and the video that plays first.
             val states = torrents?.playStates?.invoke().orEmpty()
-            val startAt = TorrentProgress.resumeAt(items.map { it.item.id }, states)
+            val startAt = whereToResume(items.map { it.item.id }, states)
             val first = items.indexOfFirst { it.item.id == startAt }
             val playable = TorrentEpisodes.playableInOrder(prepared!!.files)
             (playable.getOrNull(first) ?: playable.firstOrNull())?.let { file ->
                 launch { server.warmVideo(prepared, file) }
-                launch { server.warmAudio(server.audioStream(prepared, file)) }
+                if (pictureOfFileName(file.name) != Picture.NO) {
+                    launch { server.warmAudio(server.audioStream(prepared, file)) }
+                } else {
+                    Diag.log("search", "\"${file.name}\" is already audio: no separate audio stream to warm")
+                }
             }
             Diag.log(
                 "search",
@@ -560,6 +609,7 @@ class SearchViewModel(
         private const val STOP_TIMEOUT_MILLIS = 5_000L
         private const val RESULTS_PER_SECTION = 8
         private const val TORRENT_RESULTS = 40
+        private const val BOOK_RESULTS = 12
 
         /** A music search answers about 20 a page; a shelf keeps the lot and shows [RESULTS_PER_SECTION] at a time. */
         private const val MUSIC_PAGE = 25
@@ -598,6 +648,7 @@ class SearchViewModel(
                         music = container.musicSearchSource,
                         albums = container.musicAlbumSearchSource,
                         artists = container.musicArtistSearchSource,
+                        books = container.audiobookSearchSource,
                     ),
                     torrents = TorrentServices.from(container),
                     podcastRepository = container.podcastRepository,
@@ -607,6 +658,7 @@ class SearchViewModel(
                     onSearched = { container.statsLog.use(UseKind.SEARCH, it.name) },
                     episodeDownloads = container.episodeDownloads,
                     operations = container.operations,
+                    books = container.bookPlayer,
                 )
             }
         }

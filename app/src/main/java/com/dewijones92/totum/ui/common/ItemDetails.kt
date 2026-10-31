@@ -49,6 +49,7 @@ private fun kindName(kind: MediaContentKind) = when (kind) {
     MediaContentKind.LIVE -> "Live"
     MediaContentKind.SHORT -> "Short"
     MediaContentKind.MUSIC -> "Song"
+    MediaContentKind.AUDIOBOOK -> "Book chapter"
 }
 
 private fun formatLength(seconds: Long): String {

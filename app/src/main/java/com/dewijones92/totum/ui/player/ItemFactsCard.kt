@@ -110,6 +110,7 @@ private fun kindLabel(fact: ItemFact.Kind): Int = when (fact.kind) {
     MediaContentKind.MUSIC -> R.string.item_kind_song
     MediaContentKind.LIVE -> R.string.item_kind_live
     MediaContentKind.SHORT -> R.string.item_kind_short
+    MediaContentKind.AUDIOBOOK -> R.string.item_kind_audiobook
     MediaContentKind.STANDARD -> if (fact.isVideo) R.string.item_kind_video else R.string.item_kind_episode
 }
 

@@ -193,6 +193,26 @@ class HttpHomeTorrentServerTest {
     }
 
     @Test
+    fun `an audiobook search leaves out Torrentio, which only knows films and series`() = runTest {
+        answering(threeIndexers, catalogue = torrentioFilm(delaySeconds = 0)) { ok("[]") }
+        val torrents = serverWith(token = { "t" }, key = { "k" }, lateDeadlineMs = 10_000, torrentio = true)
+
+        val answers = withContext(Dispatchers.Default) {
+            torrents.searchUpdates("dune", TorrentCategory.AUDIOBOOKS).toList()
+        }
+
+        assertTrue(
+            "asked Torrentio: $answers",
+            answers.none { it is TorrentSearchResult.Success && "Torrentio" in it.stillWaitingFor },
+        )
+        assertTrue(
+            "Torrentio results: $answers",
+            (answers.last() as TorrentSearchResult.Success).results
+                .none { it.indexer?.startsWith("Torrentio") == true },
+        )
+    }
+
+    @Test
     fun `the same torrent from two sources is listed once, with the most seeders`() = runTest {
         val sameHash = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         answering(threeIndexers, catalogue = torrentioFilm()) { id ->

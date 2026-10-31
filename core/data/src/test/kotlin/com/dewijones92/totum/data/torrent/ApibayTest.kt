@@ -48,6 +48,30 @@ class ApibayTest {
     }
 
     @Test
+    fun `an audiobook search asks for The Pirate Bay's audiobook category`() = runTest {
+        server.enqueue(MockResponse.Builder().code(200).body("[]").build())
+
+        apibay().search("dune", TorrentCategory.AUDIOBOOKS)
+
+        assertEquals("/q.php?q=dune&cat=102", server.takeRequest().target)
+    }
+
+    @Test
+    fun `a result in The Pirate Bay's audiobook category says so`() = runTest {
+        server.enqueue(
+            MockResponse.Builder().code(200).body(
+                """[{"id":"1","name":"Dune - Frank Herbert","info_hash":"${"A".repeat(40)}","leechers":"1",""" +
+                    """"seeders":"9","size":"1","num_files":"40","username":"x","added":"1","status":"member",""" +
+                    """"category":"102","imdb":""}]""",
+            ).build(),
+        )
+
+        val found = apibay().search("dune") as TorrentSearchResult.Success
+
+        assertEquals(listOf(true), found.results.map { it.audiobook })
+    }
+
+    @Test
     fun `its no-results row is not a result`() = runTest {
         server.enqueue(
             MockResponse.Builder().code(200).body(

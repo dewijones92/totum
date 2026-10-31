@@ -93,4 +93,23 @@ class TorrentEpisodesTest {
 
         assertEquals(listOf("Show.S01E01.mkv"), TorrentEpisodes.playableInOrder(files).map { it.name })
     }
+
+    @Test
+    fun `an audiobook's chapters play in their numbered order, not the torrent's`() {
+        val files = listOf(
+            TorrentFile(0, "Book/Chapter 10.mp3", 1L),
+            TorrentFile(1, "Book/Chapter 2.mp3", 1L),
+            TorrentFile(2, "Book/cover.jpg", 1L),
+            TorrentFile(3, "Book/Chapter 1.mp3", 1L),
+        )
+
+        val ordered = TorrentEpisodes.playableInOrder(files).map { it.name }
+
+        assertEquals(listOf("Chapter 1.mp3", "Chapter 2.mp3", "Chapter 10.mp3"), ordered)
+    }
+
+    @Test
+    fun `an m4b book is playable`() {
+        assertEquals(true, TorrentFile(0, "Book/Dune.m4b", 1L).isPlayable)
+    }
 }

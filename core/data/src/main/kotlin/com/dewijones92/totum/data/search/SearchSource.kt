@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.search
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
+import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
@@ -75,6 +76,7 @@ public sealed interface SearchHit {
         public val flagged: Boolean = false,
         public val resolution: String? = null,
         public val trusted: Boolean = false,
+        public val category: TorrentCategory = TorrentCategory.ANY,
     ) : SearchHit
 
     /**
@@ -114,6 +116,15 @@ public sealed interface SearchHit {
         override val artworkUrl: HttpUrl? get() = ref.thumbnailUrl
     }
 
+    public data class Book(
+        override val title: String,
+        override val subtitle: String?,
+        override val artworkUrl: HttpUrl?,
+        val feedUrl: HttpUrl,
+        val identifier: String,
+        val librivox: Boolean,
+    ) : SearchHit
+
     /** A subscribable podcast feed. */
     public data class Podcast(
         override val title: String,
@@ -145,6 +156,13 @@ public sealed interface SearchHit {
 }
 
 public fun SearchHit.Podcast.toSource(): MediaSource.PodcastFeed = MediaSource.PodcastFeed(
+    id = MediaSource.PodcastFeed.idFor(feedUrl),
+    title = title,
+    feedUrl = feedUrl,
+    artworkUrl = artworkUrl,
+)
+
+public fun SearchHit.Book.toSource(): MediaSource.PodcastFeed = MediaSource.PodcastFeed(
     id = MediaSource.PodcastFeed.idFor(feedUrl),
     title = title,
     feedUrl = feedUrl,

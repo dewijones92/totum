@@ -1,0 +1,64 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 31,
+  "params": {
+   "query": "(title:persuasion OR creator:persuasion) AND mediatype:audio AND collection:audio_bookspoetry",
+   "qin": "(title:persuasion OR creator:persuasion) AND mediatype:audio AND collection:audio_bookspoetry",
+   "fields": "identifier,title,creator,downloads,collection",
+   "wt": "json",
+   "sort": "downloads desc",
+   "rows": 3,
+   "start": 0
+  }
+ },
+ "response": {
+  "numFound": 11,
+  "start": 0,
+  "docs": [
+   {
+    "collection": [
+     "librivoxaudio",
+     "audio_bookspoetry"
+    ],
+    "creator": "Jane Austen",
+    "downloads": 1009719,
+    "identifier": "persuasion_0905_librivox",
+    "title": "Persuasion"
+   },
+   {
+    "collection": [
+     "librivoxaudio",
+     "audio_bookspoetry"
+    ],
+    "creator": "Jane Austen",
+    "downloads": 514735,
+    "identifier": "persuasion_etk",
+    "title": "Persuasion (version 2)"
+   },
+   {
+    "collection": [
+     "librivoxaudio",
+     "audio_bookspoetry"
+    ],
+    "creator": "Jane Austen",
+    "downloads": 501436,
+    "identifier": "persuasion_0912_librivox",
+    "title": "Persuasion (version 5)"
+   },
+   {
+    "identifier": "someone_else_reading",
+    "title": "Persuasion (a reading)",
+    "creator": [
+     "Jane Austen",
+     "A Reader"
+    ],
+    "downloads": 12,
+    "collection": "audio_bookspoetry"
+   },
+   {
+    "title": "No identifier"
+   }
+  ]
+ }
+}

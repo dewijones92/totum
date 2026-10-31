@@ -44,6 +44,7 @@ public data class TorrentTrust(
         private fun healthChip(result: TorrentResult, now: Instant): String {
             val leeching = result.leechers?.let { ", $it leeching" }.orEmpty()
             val age = result.publishedAt?.let { " · ${ageOf(Duration.between(it, now))}" }.orEmpty()
+            if (!result.seedersReported) return "❔ Seeders not reported by ${result.indexer}$age"
             val state = when {
                 result.seeders >= WELL_SEEDED -> "🌱 Well seeded"
                 result.seeders >= SOME_SEEDERS -> "🌿 Some seeders"

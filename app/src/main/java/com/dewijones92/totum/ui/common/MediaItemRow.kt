@@ -335,6 +335,7 @@ private fun ItemBadges(item: MediaItem) {
     val kindLabel = when (item.contentKind) {
         MediaContentKind.LIVE -> stringResource(R.string.tag_live) to MaterialTheme.colorScheme.error
         MediaContentKind.SHORT -> stringResource(R.string.tag_short) to MaterialTheme.colorScheme.tertiary
+        MediaContentKind.AUDIOBOOK -> stringResource(R.string.tag_audiobook) to MaterialTheme.colorScheme.primary
         MediaContentKind.STANDARD, MediaContentKind.MUSIC -> null
     }
     val members = if (item.membersOnly) {

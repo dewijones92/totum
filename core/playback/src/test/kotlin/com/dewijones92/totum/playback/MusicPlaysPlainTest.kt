@@ -38,4 +38,26 @@ class MusicPlaysPlainTest {
         assertEquals(false, tuningFor(MediaContentKind.MUSIC, choices).silentTailEnds)
         assertEquals(false, tuningFor(MediaContentKind.LIVE, choices).silentTailEnds)
     }
+
+    @Test
+    fun `a book keeps your speed, never skips silence, and a skip-silence toggle is for that chapter only`() {
+        assertEquals(
+            ItemTuning(
+                speed = 1.75f,
+                skipSilence = false,
+                keepsChanges = true,
+                silentTailEnds = false,
+                keepsSkipSilence = false,
+            ),
+            tuningFor(MediaContentKind.AUDIOBOOK, choices)
+        )
+    }
+
+    @Test
+    fun `only a book stops skip-silence while keeping other changes`() {
+        MediaContentKind.entries.forEach { kind ->
+            val tuning = tuningFor(kind, choices)
+            assertEquals(kind.name, kind != MediaContentKind.AUDIOBOOK && tuning.keepsChanges, tuning.keepsSkipSilence)
+        }
+    }
 }

@@ -1,5 +1,9 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.common.NaturalOrder
+import com.dewijones92.totum.domain.Picture
+import com.dewijones92.totum.domain.pictureOfFileName
+
 /**
  * Turns the files inside a torrent into something orderable and readable.
  *
@@ -16,7 +20,8 @@ package com.dewijones92.totum.data.torrent
 public object TorrentEpisodes {
 
     /**
-     * Playable files, ordered for queueing: by season and episode where known, else as listed.
+     * Playable files, ordered for queueing: by season and episode where known, all-audio files (a
+     * book's chapters) by the numbers in their names, else as listed.
      *
      * Stable within each group, so a pack that parses cleanly is in broadcast order and one that
      * does not is exactly as the torrent had it — never scrambled by a half-successful parse.
@@ -34,6 +39,8 @@ public object TorrentEpisodes {
                     { it.second?.episode ?: 0 },
                 ),
             ).map { it.first }
+        } else if (playable.all { pictureOfFileName(it.name) == Picture.NO }) {
+            playable.sortedWith(compareBy(NaturalOrder) { it.path })
         } else {
             playable
         }

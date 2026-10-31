@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # Architecture decision records
@@ -120,3 +120,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 102 | [Torrent results say what you have watched, and a tap resumes](0102-torrent-results-say-what-you-have-watched.md) | Accepted |
 | 103 | [A stalled torrent holds its place, and downloads retry themselves](0103-a-torrent-holds-its-place-and-downloads-retry-themselves.md) | Accepted |
 | 104 | [Downloads in three sections, and a notification per running download](0104-downloads-in-three-sections-and-a-notification-per-download.md) | Accepted |
+| 105 | [Audiobooks are Internet Archive items played as podcast feeds, and torrents in the audiobook category](0105-audiobooks-are-books-from-the-archive-and-torrents.md) | Accepted |

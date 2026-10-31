@@ -1,0 +1,113 @@
+---
+id: audiobookbay
+name: AudioBook Bay
+description: "AudioBook Bay (ABB) is a public torrent site for audiobooks"
+language: en-US
+type: public
+encoding: UTF-8
+requestDelay: 2
+links:
+  - https://audiobookbay.lu/
+legacylinks:
+  - https://audiobookbay.li/
+  - https://audiobookbay.se/
+  - https://audiobookbay.fi/
+  - https://audiobookbay.is/
+
+caps:
+  categorymappings:
+    - {id: Audiobook, cat: Audio/Audiobook, desc: "Audiobook"}
+
+  modes:
+    search: [q]
+    book-search: [q]
+
+settings: []
+
+download:
+  headers:
+    User-Agent: ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"]
+  infohash:
+    hash:
+      selector: td:contains("Info Hash:") ~ td
+      filters:
+        - name: regexp
+          args: ([A-Fa-f0-9]{40})
+    title:
+      selector: h1
+      filters:
+        - name: trim
+        - name: validfilename
+
+search:
+  headers:
+    User-Agent: ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"]
+  paths:
+    - path: "{{ if .Keywords }}?s={{ .Keywords }}&tt=1{{ else }}{{ end }}"
+    - path: "page/2/{{ if .Keywords }}?s={{ .Keywords }}&tt=1{{ else }}{{ end }}"
+
+  rows:
+    selector: div.post:has(div[class="postTitle"])
+
+  fields:
+    category:
+      text: Audiobook
+    _format:
+      optional: true
+      selector: div.postContent
+      filters:
+        - name: regexp
+          args: "Format: (.+?) /"
+        - name: replace
+          args: ["?", ""]
+    _bitrate:
+      optional: true
+      selector: div.postContent
+      filters:
+        - name: regexp
+          args: "Bitrate: (.+?)File"
+        - name: replace
+          args: ["?", ""]
+    title:
+      selector: div.postTitle
+      filters:
+        - name: append
+          args: "{{ if .Result._format }} [{{ .Result._format }}]{{ else }}{{ end }}{{ if .Result._bitrate }} [{{ .Result._bitrate }}]{{ else }}{{ end }}"
+    details:
+      selector: div.postTitle h2 a
+      attribute: href
+    download:
+      selector: div.postTitle h2 a
+      attribute: href
+    poster:
+      selector: img
+      attribute: src
+    date_optional:
+      optional: true
+      selector: div.postContent
+      filters:
+        - name: regexp
+          args: "(\\d{1,2} \\D{3} \\d{4})"
+        - name: dateparse
+          args: "2 Jan 2006"
+    date:
+      text: "{{ if .Result.date_optional }}{{ .Result.date_optional }}{{ else }}now{{ end }}"
+    size_optional:
+      optional: true
+      selector: div.postContent
+      filters:
+        - name: regexp
+          args: "File Size: (.+?)$"
+        - name: replace
+          args: ["s", ""]
+    size:
+      text: "{{ if .Result.size_optional }}{{ .Result.size_optional }}{{ else }}0 B{{ end }}"
+    seeders:
+      text: 1
+    leechers:
+      text: 1
+    downloadvolumefactor:
+      text: 0
+    uploadvolumefactor:
+      text: 1
+# engine n/a

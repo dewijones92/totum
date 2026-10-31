@@ -11,8 +11,11 @@ import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.fake.InMemorySearchHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
+import com.dewijones92.totum.data.torrent.TorrentCategory
+import com.dewijones92.totum.data.torrent.TorrentFile
 import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.playback.fake.FakePlaybackController
@@ -29,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -65,6 +69,8 @@ class SearchStreamsPerSectionTest {
     private val musicGate = CompletableDeferred<SearchOutcome>()
     private val podcastGate = CompletableDeferred<SearchOutcome>()
     private val torrentGate = CompletableDeferred<SearchOutcome>()
+    private val bookGate = CompletableDeferred<SearchOutcome>()
+    private val bookTorrentGate = CompletableDeferred<SearchOutcome>()
 
     private fun song(title: String) = SearchHit.Song(
         MusicSong(
@@ -96,6 +102,15 @@ class SearchStreamsPerSectionTest {
         indexer = "test",
     )
 
+    private fun book(name: String) = SearchHit.Book(
+        title = name,
+        subtitle = null,
+        artworkUrl = null,
+        feedUrl = HttpUrl.of("https://archive.org/metadata/${name.replace(' ', '_')}"),
+        identifier = name.replace(' ', '_'),
+        librivox = true,
+    )
+
     private fun podcast(name: String) = SearchHit.Podcast(
         title = name,
         subtitle = null,
@@ -124,12 +139,17 @@ class SearchStreamsPerSectionTest {
             music = SearchSource { _, _, _ -> musicGate.await() },
             albums = SearchSource { _, _, _ -> error("albums are only asked in the music scope") },
             artists = SearchSource { _, _, _ -> error("artists are only asked in the music scope") },
+            books = SearchSource { _, _, _ -> bookGate.await() },
         ),
         // No home server by default: the torrent section is then Absent, which one case asserts.
         torrents = if (!withHomeServer) {
             null
         } else {
-            TorrentServices(SearchSource { _, _, _ -> torrentGate.await() }, homeServer)
+            TorrentServices(
+                SearchSource { _, _, _ -> torrentGate.await() },
+                homeServer,
+                bookSearch = SearchSource { _, _, _ -> bookTorrentGate.await() },
+            )
         },
         podcastRepository = FakePodcastRepository(),
         queue = PlaybackQueue(
@@ -179,6 +199,46 @@ class SearchStreamsPerSectionTest {
 
             assertEquals(listOf("abc123" to homeServer.files.first().index), homeServer.warmedVideo)
         }
+
+    @Test
+    fun `audiobooks arrive in their own section while torrents are still out`() = runTest(dispatcher) {
+        val model = model(withHomeServer = true)
+        backgroundScope.launch { model.uiState.collect {} }
+        startSearch(model, "war of the worlds")
+
+        bookGate.complete(page(book("The War of the Worlds")))
+        runCurrent()
+
+        val results = model.uiState.value.results as Results.Loaded
+        assertEquals(listOf("The War of the Worlds"), results.books.itemsOrNull?.map { it.title })
+        assertTrue("the book torrents must say they are still looking", results.bookTorrents.isSearching)
+        assertTrue(results.torrents.isSearching)
+    }
+
+    @Test
+    fun `without a home server there is no audiobook torrent section, but free books still come`() =
+        runTest(dispatcher) {
+            val model = model()
+            backgroundScope.launch { model.uiState.collect {} }
+            startSearch(model, "persuasion")
+
+            val results = model.uiState.value.results as Results.Loaded
+            assertEquals(SearchSection.Absent, results.bookTorrents)
+            assertTrue(results.books.isSearching)
+        }
+
+    @Test
+    fun `an audiobook torrent queues as book chapters`() = runTest(dispatcher) {
+        homeServer.files = listOf(TorrentFile(index = 0, path = "Dune/Dune.m4b", sizeBytes = 1_000))
+        val model = model(withHomeServer = true)
+
+        model.playTorrent(torrent("Dune - Frank Herbert [M4B]").copy(category = TorrentCategory.AUDIOBOOKS))
+        advanceUntilIdle()
+
+        assertEquals(MediaContentKind.AUDIOBOOK, playback.lastItem?.contentKind)
+        assertEquals(null, playback.lastAudioUrl)
+        assertEquals("an audio file has no separate audio stream to warm", emptyList<String>(), homeServer.warmed)
+    }
 
     /** THE POINT. Videos are on screen while the other sources are still out. */
     @Test
@@ -236,6 +296,10 @@ class SearchStreamsPerSectionTest {
 
         podcastGate.complete(page(podcast("A Feed")))
         musicGate.complete(page(song("Feeling Good")))
+        runCurrent()
+        assertTrue("the books are still out", (model.uiState.value.results as Results.Loaded).stillSearching)
+
+        bookGate.complete(page())
         runCurrent()
 
         val results = model.uiState.value.results as Results.Loaded

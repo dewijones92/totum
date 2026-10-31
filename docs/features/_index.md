@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-23
+updated: 2026-10-31
 ---
 
 # Features
@@ -40,6 +40,7 @@ alone until they need more.
 | Unified search (iTunes + InnerTube search, yt-dlp fallback → `SearchHit`) | search | shipped | — |
 | Search history (recent queries in every search box: main, list filters, channel, transcript) | search | shipped | [search-history.md](search-history.md) |
 | Torrents: public-domain film & TV via the home server | torrent | shipped | [torrents.md](torrents.md) |
+| Audiobooks: free books (LibriVox, Internet Archive) and audiobook torrents, chapters in order with resume | search | shipped | [audiobooks.md](audiobooks.md) |
 | [Daily alarms](daily-alarms.md) — asked each weekday morning, rung full screen (pickup 17:30 first) | side-quest | built 2026-10-07, ships off | — |
 | Downloads (video merge, sponsors skipped live from the latest list (ADR 16) / podcast enclosure) | downloads | shipped | — |
 | Comments, related, like/dislike, Watch Later, subscribe | video | shipped | — |

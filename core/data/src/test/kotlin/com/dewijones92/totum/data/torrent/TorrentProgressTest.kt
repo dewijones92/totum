@@ -75,25 +75,6 @@ class TorrentProgressTest {
     }
 
     @Test
-    fun `resuming starts at the file in progress, else the next unwatched, else the first`() {
-        val files = (0..3).map(::id)
-        assertEquals(
-            id(2),
-            TorrentProgress.resumeAt(files, mapOf(id(0) to PlayState.Played, id(2) to PlayState.InProgress(1, null)))
-        )
-        assertEquals(
-            id(2),
-            TorrentProgress.resumeAt(files, mapOf(id(0) to PlayState.Played, id(1) to PlayState.Played))
-        )
-        assertEquals(id(0), TorrentProgress.resumeAt(files, emptyMap()))
-        assertEquals(id(0), TorrentProgress.resumeAt(files, files.associateWith { PlayState.Played }))
-        assertEquals(
-            id(1),
-            TorrentProgress.resumeAt(files, mapOf(id(0) to PlayState.Played, id(3) to PlayState.Played).let { it })
-        )
-    }
-
-    @Test
     fun `the title key is the words before the year or the quality, plus the year`() {
         assertEquals(
             "night of the living dead 1968",

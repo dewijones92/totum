@@ -359,13 +359,7 @@ public class Media3PlaybackController(
                     StartChoice(startPositionMs, "an explicit start (a re-fetch keeps its place), not rewound")
                 else -> startChoiceFor(item, tuned)
             }
-            if (!tuned.keepsChanges) {
-                Diag.log(
-                    "playback",
-                    "${item.id.value} is music: 1x, skip-silence off; " +
-                        "the saved speed and skip-silence wait for the next talk item",
-                )
-            }
+            logTuning(item, tuned)
             val boost = boostStore.boost()
             withController { controller ->
                 // A newer play() superseded this one while we were loading — drop it,
@@ -870,11 +864,30 @@ public class Media3PlaybackController(
         }
     }
 
+    private fun logTuning(item: MediaItem, tuned: ItemTuning) {
+        if (!tuned.keepsChanges) {
+            Diag.log(
+                "playback",
+                "${item.id.value} is music: 1x, skip-silence off; " +
+                    "the saved speed and skip-silence wait for the next talk item",
+            )
+        } else if (!tuned.keepsSkipSilence) {
+            Diag.log(
+                "playback",
+                "${item.id.value} is a book chapter: ${tuned.speed}x as saved, skip-silence off " +
+                    "(saved choice ${if (skipSilence) "on" else "off"}, kept for other talk)",
+            )
+        }
+    }
+
     override fun setSkipSilence(enabled: Boolean) {
-        if (tuning.keepsChanges) {
+        if (tuning.keepsSkipSilence) {
             skipSilence = enabled
         } else {
-            Diag.log("playback", "skip-silence $enabled for this song only; music does not change the saved choice")
+            Diag.log(
+                "playback",
+                "skip-silence $enabled for this item only; a song or a book chapter does not change the saved choice",
+            )
         }
         tuning = tuning.copy(skipSilence = enabled)
         withController {

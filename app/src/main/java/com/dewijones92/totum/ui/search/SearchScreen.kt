@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Search
@@ -37,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -56,7 +57,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.map
 import com.dewijones92.totum.data.search.toSource
-import com.dewijones92.totum.data.torrent.TorrentProgress
+import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
@@ -71,7 +72,6 @@ import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LoadMoreOnScrollToEnd
 import com.dewijones92.totum.ui.common.LocalOpenSource
-import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -100,22 +100,14 @@ fun SearchScreen(
         factory = SearchViewModel.factory(container, scope),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
     val actions = rememberMediaItemActions(container)
     // "Go to channel" needs somewhere to land, so Search hosts the channel page as an
     // overlay exactly as the Videos tab does.
     var browsingChannel by rememberSaveable(stateSaver = VideoChannelSaver) {
         mutableStateOf<MediaSource.VideoChannel?>(null)
     }
-    val seen by viewModel.torrentsSeen.collectAsStateWithLifecycle()
-    val plays = LocalPlayStates.current
-    val played by remember(plays) { derivedStateOf { TorrentProgress.indexOf(plays.value) } }
-    val seenKeys = remember(seen) { TorrentProgress.keysOf(seen) }
-    val progressOf = remember(seen, seenKeys, played) {
-        {
-                hit: SearchHit.Torrent ->
-            TorrentProgress.chips(hit.title, hit.link, played, seen, seenKeys)
-        }
-    }
+    val progressOf = rememberTorrentProgress(viewModel)
     ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {
         CompositionLocalProvider(LocalTorrentProgress provides progressOf) {
             SearchContent(
@@ -127,6 +119,12 @@ fun SearchScreen(
                 onPlaySong = viewModel::playSong,
                 onPlayTorrent = viewModel::playTorrent,
                 onDownloadTorrent = viewModel::downloadTorrent,
+                onPlayBook = { book ->
+                    viewModel.playBook(
+                        book,
+                        resources.getString(R.string.book_opening_strip, book.title)
+                    )
+                },
                 onRemoveHistory = viewModel::removeHistory,
                 onClearHistory = viewModel::clearHistory,
                 actions = actions,
@@ -179,6 +177,7 @@ internal fun SearchContent(
     header: SearchHeader = SearchHeader(stringResource(R.string.destination_search), null),
     idle: (@Composable () -> Unit)? = null,
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
+    onPlayBook: (SearchHit.Book) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf(header.initialQuery) }
     var submitted by rememberSaveable { mutableStateOf(header.initialQuery.trim()) }
@@ -222,6 +221,7 @@ internal fun SearchContent(
                 more,
                 query = submitted,
                 onDownloadTorrent = onDownloadTorrent,
+                onPlayBook = onPlayBook,
             )
         }
     }
@@ -364,6 +364,7 @@ private fun ResultsList(
     modifier: Modifier = Modifier,
     query: String = "",
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
+    onPlayBook: (SearchHit.Book) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val shelf = rememberTorrentShelf(query)
@@ -374,6 +375,7 @@ private fun ResultsList(
     SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize(), key = query) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             torrentSection(results, onPlayTorrent, onDownloadTorrent, shelf)
+            bookSections(results, onPlayBook, onPlayTorrent, onDownloadTorrent)
             hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
                     hit: SearchHit.Podcast ->
                 PodcastHitRow(
@@ -594,7 +596,10 @@ internal fun TorrentHitRow(
         },
         leadingContent = {
             Icon(
-                imageVector = Icons.Outlined.Movie,
+                imageVector = when (hit.category) {
+                    TorrentCategory.AUDIOBOOKS -> Icons.Outlined.Headphones
+                    TorrentCategory.ANY -> Icons.Outlined.Movie
+                },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )

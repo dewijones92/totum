@@ -45,4 +45,12 @@ class TorrentControlsTest {
         assertEquals(listOf("Public Domain Film 1968 1080p", "Public Domain Film 1968 720p"), played)
         assertEquals("720p", shelf.resolution)
     }
+
+    @Test
+    fun aPickWithNoResolutionSaysOnlyWhatItKnows() {
+        val hits = listOf(hit("Librivox M4B - Beyond Good and Evil", 8, "", trusted = false).copy(resolution = null))
+        composeTestRule.setContent { TotumTheme { TorrentControls(hits, TorrentShelf()) {} } }
+
+        composeTestRule.onNodeWithText("▶️ Play the best copy: seeders: 8").assertExists()
+    }
 }

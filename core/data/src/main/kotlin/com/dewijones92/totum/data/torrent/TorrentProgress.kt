@@ -50,16 +50,6 @@ public object TorrentProgress {
         return listOfNotNull(other?.let { "👀 You've played another copy of this" })
     }
 
-    public fun resumeAt(items: List<MediaItemId>, states: Map<MediaItemId, PlayState>): MediaItemId? {
-        if (items.isEmpty()) return null
-        items.firstOrNull { states[it] is PlayState.InProgress }?.let { return it }
-        val lastWatched = items.indexOfLast { states[it] is PlayState.Played }
-        if (lastWatched < 0) return items.first()
-        return items.drop(lastWatched + 1).firstOrNull { states[it] !is PlayState.Played }
-            ?: items.firstOrNull { states[it] !is PlayState.Played }
-            ?: items.first()
-    }
-
     private fun progressOf(mine: Map<Int, PlayState>, record: SeenTorrent?): List<String> {
         if (mine.isEmpty()) return emptyList()
         val playable = record?.files?.size

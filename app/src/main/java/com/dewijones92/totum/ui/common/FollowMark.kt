@@ -37,6 +37,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.FollowedSources
 import com.dewijones92.totum.domain.Following
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
@@ -54,7 +55,18 @@ internal class RowFollowing(
 ) {
     private val noted = mutableSetOf<String>()
 
-    fun markFor(item: MediaItem, pillar: MediaKind): FollowMarkSpec = FollowMarkSpec(of(item, pillar), set)
+    fun markFor(item: MediaItem, pillar: MediaKind): FollowMarkSpec? =
+        if (item.contentKind == MediaContentKind.AUDIOBOOK) {
+            if (noted.add(
+                    "book"
+                )
+            ) {
+                Diag.log("follow", "book chapters carry no follow mark: a book has nothing to follow")
+            }
+            null
+        } else {
+            FollowMarkSpec(of(item, pillar), set)
+        }
 
     private fun of(item: MediaItem, pillar: MediaKind): Following = followed.of(item, pillar).also { answer ->
         val kind = when (answer) {

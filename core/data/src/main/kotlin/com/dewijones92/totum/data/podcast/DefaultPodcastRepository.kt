@@ -3,6 +3,8 @@ package com.dewijones92.totum.data.podcast
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.data.audiobook.ArchiveBooks
+import com.dewijones92.totum.data.audiobook.ArchiveItemParser
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.net.HttpTextFetcher
 import com.dewijones92.totum.data.rss.ParsedEpisode
@@ -12,6 +14,7 @@ import com.dewijones92.totum.data.rss.RssParseResult
 import com.dewijones92.totum.data.rss.RssParser
 import com.dewijones92.totum.data.subscription.SubscriptionStore
 import com.dewijones92.totum.domain.Chapter
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
@@ -87,7 +90,8 @@ public class DefaultPodcastRepository(
             }
         }
         return withContext(Dispatchers.Default) {
-            val parsed = when (val result = parser.parse(body)) {
+            val read = if (ArchiveBooks.isBook(feedUrl)) ArchiveItemParser.parse(body) else parser.parse(body)
+            val parsed = when (val result = read) {
                 is RssParseResult.Success -> result.feed
                 is RssParseResult.Failure -> {
                     Diag.warn("subs", "$purpose: unparseable feed $feedUrl: ${result.detail}")
@@ -230,6 +234,8 @@ public class DefaultPodcastRepository(
         thumbnailUrl = imageUrl?.let(HttpUrl::parse) ?: source.artworkUrl,
         mediaUrl = enclosureUrl?.let(HttpUrl::parse),
         chapters = chapters,
+        contentKind = MediaContentKind.AUDIOBOOK.takeIf { ArchiveBooks.isBook(source.feedUrl) }
+            ?: MediaContentKind.STANDARD,
     )
 
     private companion object {

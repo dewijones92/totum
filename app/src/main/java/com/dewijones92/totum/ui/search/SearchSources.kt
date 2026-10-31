@@ -17,6 +17,7 @@ data class SearchSources(
     val music: SearchSource,
     val albums: SearchSource,
     val artists: SearchSource,
+    val books: SearchSource,
 )
 
 enum class SearchScope { EVERYTHING, MUSIC }

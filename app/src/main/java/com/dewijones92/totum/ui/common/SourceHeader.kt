@@ -37,7 +37,7 @@ fun SourceHeader(
     title: String,
     subscribed: Boolean,
     onBack: () -> Unit,
-    onToggleSubscribed: () -> Unit,
+    onToggleSubscribed: (() -> Unit)?,
     /** Opens the group checklist; omitted where grouping does not apply. */
     onOpenGroups: (() -> Unit)? = null,
     /**
@@ -107,12 +107,12 @@ fun SourceHeader(
         val buttonModifier = Modifier
             .fillMaxWidth()
             .padding(top = 14.dp)
-        if (subscribed) {
-            OutlinedButton(onClick = onToggleSubscribed, modifier = buttonModifier) {
+        when {
+            onToggleSubscribed == null -> Unit
+            subscribed -> OutlinedButton(onClick = onToggleSubscribed, modifier = buttonModifier) {
                 Text(stringResource(R.string.channel_unsubscribe))
             }
-        } else {
-            Button(onClick = onToggleSubscribed, modifier = buttonModifier) {
+            else -> Button(onClick = onToggleSubscribed, modifier = buttonModifier) {
                 Text(stringResource(R.string.channel_subscribe))
             }
         }

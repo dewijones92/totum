@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.audiobook.ArchiveBooks
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
@@ -138,6 +139,7 @@ fun PodcastFeedScreen(
     SubscribeOutcome(subscribing) { subscribing = Subscribing.Idle }
     val shape = rememberListShape("podcast page ${source.id.value}")
     val episodes = page.episodes.filteredByProgress(settings.mediaFilter).shapedBy(shape) { it }
+    val book = rememberIsBook(source)
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -164,7 +166,7 @@ fun PodcastFeedScreen(
                     } else {
                         viewModel.subscribe(source.feedUrl.value) { subscribing = it }
                     }
-                },
+                }.takeUnless { book && !page.subscribed },
             )
             if (subscribing == Subscribing.InProgress) LinearProgressIndicator(Modifier.fillMaxWidth())
             when {
@@ -180,11 +182,21 @@ fun PodcastFeedScreen(
                     episodes,
                     settings.mediaFilter,
                     listFilter,
-                    source.id.value
+                    source.id.value,
+                    book = page.source.takeIf { book }?.let { it to page.episodes },
                 )
             }
         }
     }
+}
+
+@Composable
+private fun rememberIsBook(source: MediaSource.PodcastFeed): Boolean {
+    val book = ArchiveBooks.isBook(source.feedUrl)
+    LaunchedEffect(source.id, book) {
+        if (book) Diag.log("audiobook", "book page \"${source.title}\" opened (${source.feedUrl.value}); no subscribe")
+    }
+    return book
 }
 
 @Composable
@@ -213,14 +225,17 @@ private fun EpisodeList(
     filter: MediaFilter,
     listFilter: ListFilter,
     selectionKey: String,
+    book: Pair<MediaSource.PodcastFeed, List<MediaItem>>? = null,
 ) {
     val chooseDownload = rememberChooseDownload()
+    val playFrom = rememberBookChapterPlayer(container, book)
     val actions = rememberMediaItemActions(container)
     val shown = listFilter.filter(episodes, { it.searchableText })
     SelectableMediaList(listFilter.place, episodes, shown, { it }, key = selectionKey) {
         Column {
             FilterField(listFilter, shown.size, episodes.size, hosted = true)
             LazyColumn(Modifier.fillMaxSize()) {
+                book?.let { (source, chapters) -> item { BookActions(container, source, chapters) } }
                 item {
                     MediaFilterChips(selected = filter, onSelect = container.appPreferences::setMediaFilter)
                 }
@@ -233,7 +248,7 @@ private fun EpisodeList(
                         subtitleLines = rowFacts(episode, MediaKind.PODCAST),
                         downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
                         pillar = MediaKind.PODCAST,
-                        onPlay = { viewModel.play(episode) },
+                        onPlay = { playFrom?.invoke(episode) ?: viewModel.play(episode) },
                         onDownload = { chooseDownload(episode) },
                         onDeleteDownload = { viewModel.deleteDownload(episode) },
                         onPlayNext = { viewModel.playNext(episode) },

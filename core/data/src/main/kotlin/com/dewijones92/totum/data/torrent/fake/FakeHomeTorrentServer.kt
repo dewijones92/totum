@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.torrent.fake
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.PreparedTorrent
+import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentFile
 import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.data.torrent.TorrentResult
@@ -22,8 +23,12 @@ public class FakeHomeTorrentServer(
         TorrentFile(index = 1, path = "Some.Release/feature.mkv", sizeBytes = 1_700_000_000),
     )
 
-    override suspend fun search(query: String): TorrentSearchResult =
-        failure?.let { TorrentSearchResult.Failure(it, slow) } ?: TorrentSearchResult.Success(results)
+    public val searchedCategories: MutableList<TorrentCategory> = mutableListOf()
+
+    override suspend fun search(query: String, category: TorrentCategory): TorrentSearchResult {
+        searchedCategories += category
+        return failure?.let { TorrentSearchResult.Failure(it, slow) } ?: TorrentSearchResult.Success(results)
+    }
 
     override suspend fun prepare(link: TorrentLink): PreparedTorrent? {
         prepared += link
@@ -31,7 +36,9 @@ public class FakeHomeTorrentServer(
     }
 
     override fun stream(torrent: PreparedTorrent, file: TorrentFile): HttpUrl =
-        HttpUrl.of("https://home.test/stream/${file.name}?link=${torrent.hash}&index=${file.index}&play")
+        HttpUrl.of(
+            "https://home.test/stream/${file.name.replace(" ", "%20")}?link=${torrent.hash}&index=${file.index}&play"
+        )
 
     /** A plausible audio URL so tests can assert one was offered without a server. */
     override fun audioStream(torrent: PreparedTorrent, file: TorrentFile): HttpUrl =

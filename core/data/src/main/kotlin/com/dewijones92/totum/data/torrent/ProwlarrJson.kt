@@ -61,8 +61,17 @@ private fun JsonObject.toResult(): TorrentResult? {
         publishedAt = this["publishDate"]?.jsonPrimitive?.contentOrNull
             ?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() },
         fileCount = this["files"]?.jsonPrimitive?.intOrNull,
+        audiobook = categoryIds().any { it == AUDIOBOOK_CATEGORY },
+        seedersReported = this["indexer"]?.jsonPrimitive?.contentOrNull !in SEEDERS_NOT_REPORTED,
     )
 }
+
+private fun JsonObject.categoryIds(): List<Int> =
+    (this["categories"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonObject)?.get("id")?.jsonPrimitive?.intOrNull }
+
+private const val AUDIOBOOK_CATEGORY = 3030
+
+private val SEEDERS_NOT_REPORTED = setOf("AudioBook Bay")
 
 private fun JsonObject.infoHash(): String? =
     this["infoHash"]?.jsonPrimitive?.contentOrNull?.takeIf { HASH.matches(it) }

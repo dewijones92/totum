@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.PlayHandle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -77,5 +78,26 @@ class TorrentPlayablesTest {
         val items = TorrentPlayables.queueItems(server, pack("sample.mkv", "S01E01.mkv", "notes.nfo"))
 
         assertEquals(1, items.size)
+    }
+
+    @Test
+    fun `a book's chapters queue as chapters in order and play their own audio file`() {
+        val items = TorrentPlayables.queueItems(
+            server,
+            pack("Chapter 10.mp3", "Chapter 2.mp3", "Chapter 1.mp3"),
+            MediaContentKind.AUDIOBOOK,
+        )
+
+        assertEquals(listOf("Chapter 1", "Chapter 2", "Chapter 10"), items.map { it.item.title })
+        assertEquals(setOf(MediaContentKind.AUDIOBOOK), items.map { it.item.contentKind }.toSet())
+        assertEquals(listOf(null, null, null), items.map { (it.handle as PlayHandle.Podcast).audioUrl })
+    }
+
+    @Test
+    fun `a video keeps its audio-only stream and its kind`() {
+        val item = TorrentPlayables.queueItems(server, pack("S01E01.mkv")).single()
+
+        assertNotNull((item.handle as PlayHandle.Podcast).audioUrl)
+        assertEquals(MediaContentKind.STANDARD, item.item.contentKind)
     }
 }

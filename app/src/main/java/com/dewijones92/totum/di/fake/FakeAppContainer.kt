@@ -1,5 +1,6 @@
 package com.dewijones92.totum.di.fake
 
+import com.dewijones92.totum.audiobooks.BookPlayer
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
@@ -129,6 +130,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /** In-memory [AppContainer] for previews and UI tests. */
 class FakeAppContainer(
@@ -279,6 +281,11 @@ class FakeAppContainer(
     }
     override val randomStarts: RandomStarts by lazy { RandomStarts(playbackProgressStore, null, applicationScope) }
     override val episodeDownloads: EpisodeDownloads by lazy { EpisodeDownloads(downloadManager, applicationScope) }
+    override val audiobookSearchSource: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.empty()) }
+    override val audiobookTorrentSource: SearchSource? = null
+    override val bookPlayer: BookPlayer by lazy {
+        BookPlayer(podcastRepository, playbackQueue, { playbackProgressStore.observeStates().first() }, operations)
+    }
 
     override val queueSkips: QueueSkips by lazy {
         QueueSkips(

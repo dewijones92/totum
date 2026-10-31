@@ -1,0 +1,104 @@
+{
+ "metadata": {
+  "identifier": "war_of_the_worlds_librivox",
+  "title": "The War of the Worlds",
+  "creator": "H. G. Wells",
+  "date": "2006-05-03",
+  "language": "eng",
+  "collection": [
+   "librivoxaudio",
+   "audio_bookspoetry"
+  ],
+  "description": "LibriVox recording of The War of the Worlds by H. G. Wells."
+ },
+ "files": [
+  {
+   "name": "war_of_the_worlds_03_wells_64kb.mp3",
+   "source": "derivative",
+   "format": "64Kbps MP3",
+   "title": "The War of the Worlds - Book 1 - Chapter 03",
+   "length": "06:51",
+   "size": "3290442",
+   "creator": "H. G. Wells",
+   "album": "The War of the Worlds"
+  },
+  {
+   "name": "war_of_the_worlds_01_wells_64kb.mp3",
+   "source": "derivative",
+   "format": "64Kbps MP3",
+   "title": "The War of the Worlds - Book 1 - Chapter 01",
+   "length": "13:52",
+   "size": "6657312",
+   "creator": "H. G. Wells",
+   "album": "The War of the Worlds"
+  },
+  {
+   "name": "war_of_the_worlds_02_wells_64kb.mp3",
+   "source": "derivative",
+   "format": "64Kbps MP3",
+   "title": "The War of the Worlds - Book 1 - Chapter 02",
+   "length": "08:21",
+   "size": "4010168",
+   "creator": "H. G. Wells",
+   "album": "The War of the Worlds"
+  },
+  {
+   "name": "war_of_the_worlds_02_wells.mp3",
+   "source": "original",
+   "format": "VBR MP3",
+   "title": "The War of the Worlds - Book 1 - Chapter 02",
+   "track": "2",
+   "length": "501.26",
+   "size": "8020270",
+   "creator": "H. G. Wells",
+   "album": "The War of the Worlds"
+  },
+  {
+   "name": "war_of_the_worlds_01_wells.mp3",
+   "source": "original",
+   "format": "VBR MP3",
+   "title": "The War of the Worlds - Book 1 - Chapter 01",
+   "track": "1",
+   "length": "832.14",
+   "size": "13314350",
+   "creator": "H. G. Wells",
+   "album": "The War of the Worlds"
+  },
+  {
+   "name": "war_of_the_worlds_03_wells.mp3",
+   "source": "original",
+   "format": "VBR MP3",
+   "title": "The War of the Worlds - Book 1 - Chapter 03",
+   "track": "3",
+   "length": "411.28",
+   "size": "6580526",
+   "creator": "H. G. Wells",
+   "album": "The War of the Worlds"
+  },
+  {
+   "name": "WarOfTheWorlds_librivox.m4b",
+   "source": "original",
+   "format": "Audiobook",
+   "size": "196328843"
+  },
+  {
+   "name": "war_of_the_worlds_librivox_64kb.m3u",
+   "source": "derivative",
+   "format": "64kbps M3U",
+   "size": "2565"
+  },
+  {
+   "name": "war_of_the_worlds_librivox_64kb_mp3.zip",
+   "source": "derivative",
+   "format": "ZIP",
+   "length": "24216.14",
+   "size": "193729175"
+  },
+  {
+   "name": "war_worlds_group_1109.jpg",
+   "source": "original",
+   "format": "JPEG",
+   "size": "123413"
+  }
+ ]
+}

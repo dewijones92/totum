@@ -29,6 +29,18 @@ class TorrentSearchSourceTest {
         TorrentResult(title, TorrentLink.Magnet("magnet:?xt=urn:btih:$title"), seeders, size, indexer = "TPB")
 
     @Test
+    fun `an audiobook source asks for audiobooks and its results say so`() = runTest {
+        server.results = listOf(result("Dune - Frank Herbert [M4B]", 1))
+        val books = TorrentSearchSource(server, category = TorrentCategory.AUDIOBOOKS)
+
+        val hits = (books.search(SearchQuery("dune"), limit = 10, after = null) as SearchOutcome.Success)
+            .page.items.filterIsInstance<SearchHit.Torrent>()
+
+        assertEquals(listOf(TorrentCategory.AUDIOBOOKS), server.searchedCategories)
+        assertEquals(listOf(TorrentCategory.AUDIOBOOKS), hits.map { it.category })
+    }
+
+    @Test
     fun `a slow home server reaches the section as slow, not as unreachable`() = runTest {
         server.failure = "the home server's indexers are slow to answer"
         server.slow = true
@@ -118,6 +130,37 @@ class TorrentSearchSourceTest {
 
         assertEquals(emptyList<SearchHit>(), (outcome as SearchOutcome.Success).page.items)
     }
+
+    @Test
+    fun `the everything search leaves audiobooks to their own section`() = runTest {
+        server.results = listOf(
+            result("Dune 2021 1080p", 9),
+            result("Dune - Frank Herbert [M4B]", 4).copy(audiobook = true),
+        )
+
+        val hits = (source.search(SearchQuery("dune"), limit = 10, after = null) as SearchOutcome.Success).page.items
+        val books = (
+            TorrentSearchSource(server, category = TorrentCategory.AUDIOBOOKS)
+                .search(SearchQuery("dune"), limit = 10, after = null) as SearchOutcome.Success
+            ).page.items
+
+        assertEquals(listOf("Dune 2021 1080p"), hits.map { it.title })
+        assertEquals(2, books.size)
+    }
+
+    @Test
+    fun `a result whose site does not report seeders does not claim a seeder count`() = runTest {
+        server.results = listOf(
+            result("Dune - Frank Herbert [M4B]", 1).copy(seedersReported = false, indexer = "AudioBook Bay"),
+        )
+
+        val hit = (source.search(SearchQuery("dune"), limit = 10, after = null) as SearchOutcome.Success)
+            .page.items.filterIsInstance<SearchHit.Torrent>().single()
+
+        assertEquals("1.00 GB · AudioBook Bay", hit.subtitle)
+        assertTrue(hit.trust.toString(), hit.trust.any { it.startsWith("❔ Seeders not reported by AudioBook Bay") })
+        assertTrue(hit.trust.toString(), hit.trust.none { it.contains("seeding") })
+    }
 }
 
 /**
@@ -175,6 +218,20 @@ class ProwlarrShapeTest {
             TorrentLink.Magnet("magnet:?xt=urn:btih:$hash&dn=Night%20of%20the%20Living%20Dead%20%281968%29%201080p"),
             parsed.single().link,
         )
+    }
+
+    @Test
+    fun `an audiobook result says so, and AudioBook Bay's placeholder seeders are not reported as health`() {
+        val body = """[{"title":"Dune - Frank Herbert [M4B]",""" +
+            """"downloadUrl":"http://prowlarr:9696/11/download?apikey=k&link=x","seeders":1,"leechers":1,""" +
+            """"size":1,"indexer":"AudioBook Bay","categories":[{"id":3030},{"id":146173}]},""" +
+            """{"title":"Dune 2021 1080p","guid":"magnet:?xt=urn:btih:${"A".repeat(40)}","seeders":9,"size":1,""" +
+            """"indexer":"The Pirate Bay","categories":[{"id":2000}]}]"""
+
+        val parsed = parseProwlarr(body)!!
+
+        assertEquals(listOf(true, false), parsed.map { it.audiobook })
+        assertEquals(listOf(false, true), parsed.map { it.seedersReported })
     }
 
     @Test

@@ -33,6 +33,11 @@ State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver`, `/v
   3 s `requestDelay` between pages is kept). Deploy: copy it to
   `/var/lib/prowlarr/config/Definitions/Custom/`, `docker restart prowlarr`. The stock four-page indexer is kept
   disabled as "1337x (4 pages)".
+- **AudioBook Bay is the custom definition `prowlarr/definitions/audiobookbay.yml`** (2026-10-31), added as indexer 11
+  ("AudioBook Bay"). Prowlarr no longer ships one; the site answers 404 to Prowlarr's own User-Agent, so the
+  definition sends a browser one for the search and for the book page the info hash is read from when a result is
+  chosen. Two pages (~14 books, ~3.5 s). Deploy like 1337x-fast. The phone asks it, with The Pirate Bay's Audio
+  Books, for the audiobook category only ([ADR 105](../docs/adr/0105-audiobooks-are-books-from-the-archive-and-torrents.md)).
 - **`prowlarr/search-warmer.{sh,service,timer}`** searches every FlareSolverr-backed indexer every 15 minutes, so
   Cloudflare's clearance is held and a real search skips the ~80 s solve. Its log (`journalctl -t search-warmer`)
   says each time whether the clearance had lapsed. Link it like the watchdog.

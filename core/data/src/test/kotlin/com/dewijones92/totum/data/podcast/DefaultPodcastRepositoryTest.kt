@@ -3,8 +3,10 @@ package com.dewijones92.totum.data.podcast
 import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.audiobook.ArchiveBooks
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.subscription.SubscriptionStore
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
@@ -34,6 +36,28 @@ class DefaultPodcastRepositoryTest {
         store = store,
         clock = Clock.fixed(now, ZoneOffset.UTC),
     )
+
+    @Test
+    fun `an Internet Archive book previews as its chapters in order, each a book chapter`() = runTest {
+        val item = checkNotNull(javaClass.getResource("/archive/war_of_the_worlds_librivox.json")).readText()
+        val bookUrl = ArchiveBooks.feedUrl("war_of_the_worlds_librivox")
+
+        val preview = repository(FetchResult.Success(item)).preview(bookUrl) as PreviewResult.Loaded
+
+        assertEquals("The War of the Worlds", preview.source.title)
+        assertEquals(3, preview.episodes.size)
+        assertTrue(preview.episodes.first().title.endsWith("Chapter 01"))
+        assertEquals(setOf(MediaContentKind.AUDIOBOOK), preview.episodes.map { it.contentKind }.toSet())
+    }
+
+    @Test
+    fun `an ordinary feed's episodes stay ordinary`() = runTest {
+        val xml = checkNotNull(javaClass.getResource("/sample-feed.xml")).readText()
+
+        val preview = repository(FetchResult.Success(xml)).preview(feedUrl) as PreviewResult.Loaded
+
+        assertEquals(setOf(MediaContentKind.STANDARD), preview.episodes.map { it.contentKind }.toSet())
+    }
 
     @Test
     fun `subscribe stores feed and episodes`() = runTest {

@@ -11,11 +11,19 @@ internal data class ItemTuning(
     val skipSilence: Boolean,
     val keepsChanges: Boolean,
     val silentTailEnds: Boolean = keepsChanges,
+    val keepsSkipSilence: Boolean = keepsChanges,
 )
 
 internal fun tuningFor(kind: MediaContentKind, choices: PlaybackChoices): ItemTuning = when (kind) {
     MediaContentKind.MUSIC -> ItemTuning(speed = 1f, skipSilence = false, keepsChanges = false)
     MediaContentKind.LIVE -> ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true, silentTailEnds = false)
+    MediaContentKind.AUDIOBOOK -> ItemTuning(
+        choices.speed,
+        skipSilence = false,
+        keepsChanges = true,
+        silentTailEnds = false,
+        keepsSkipSilence = false,
+    )
     MediaContentKind.STANDARD, MediaContentKind.SHORT ->
         ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true)
 }
