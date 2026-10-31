@@ -61,4 +61,8 @@ so neither app's commits build, release or block the other.
 
 ## Gotchas already paid for
 
+- **Playwright `count()` does not wait, and `POST /api/connections/:id/sync` returns before the sync ends.** A
+  test that counted rows straight after navigating passed every local run and failed in CI with 0. Wait for the
+  run's outcome (`expect.poll` on `/runs`) and for a row to be visible before counting; prove a timing fix by
+  delaying the request with `page.route` and watching the old test fail at the same line.
 - TypeScript is pinned to 6.0.x (TS 7 ships no `tsserver.js`, and typescript-eslint supports `<6.1`).

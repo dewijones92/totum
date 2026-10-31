@@ -9,9 +9,18 @@ test('a newly synced account asks whose it is, and Joint sticks as a label', asy
   await resetFake(request);
   const { id } = (await (await request.post('/api/dev/fake/connect')).json()) as { id: string };
   await request.post(`/api/connections/${id}/sync`);
+  await expect
+    .poll(async () => {
+      const runs = (await (await request.get(`/api/connections/${id}/runs`)).json()) as {
+        outcome: string;
+      }[];
+      return runs[0]?.outcome;
+    })
+    .toBe('ok');
 
   await page.goto('/');
   await page.getByRole('link', { name: /new account/ }).click();
+  await expect(page.locator('.account-row-new').first()).toBeVisible();
   const prompts = page.getByText(strings.accounts.whose);
   const jointTags = page.locator('.account-row .tag', { hasText: strings.accounts.joint });
   const before = { prompts: await prompts.count(), joint: await jointTags.count() };
