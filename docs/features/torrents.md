@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # Torrents (public-domain film & TV)
@@ -90,6 +90,13 @@ half in the middle of one? … I trust you."* (The choices below are Claude's, o
 
 Seen on totum-api35 (2026-10-30): the YTS copy of a public-domain film read `▶️ 2 of 96 min` after
 two minutes' play, the 1337x copy of the same film `👀 You've played another copy of this`.
+
+## Quality filter and the best copy (2026-10-31)
+
+The section asks for 40 results, shows 8 at a time ("⬇️ Show N more"), and opens with
+"▶️ Play the best copy: 1080p · 💚 trusted · 210 seeding" over chips All · 4K · 1080p · 720p · SD and
+💚 Trusted only. The best copy is never flagged and has seeders, and prefers 1080p, a trusted uploader,
+then seeders (`TorrentPicks`). ADR 101.
 
 ## Speed (measured 2026-10-08, emulator against the Pi)
 

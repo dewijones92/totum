@@ -2,7 +2,7 @@
 title: Torrent results carry trust badges
 kind: adr
 status: accepted
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # 101. Torrent results carry trust badges
@@ -52,3 +52,13 @@ flagged results marked and sorted down, and the phone asking apibay itself (no P
   uploader chip is the strong signal and the group chip the weak one.
 - Tests: `TorrentTrustTest` (9), `ApibayTest` (4), the merge in `HttpHomeTorrentServerTest`, the
   sort-down in `TorrentSearchSourceTest` (2), `TorrentTrustChipsTest` on the device.
+
+## Amended 2026-10-31: a quality filter and the best copy
+
+Two of the ideas Dewi picked: the torrent section now asks for 40 results (flagged ones still last),
+shows 8 at a time with "⬇️ Show N more", and opens with chips — All, 4K, 1080p, 720p, SD (with counts,
+from `ReleaseQuality.resolutionOf`) and "💚 Trusted only" (VIP, trusted or official) — under a
+"▶️ Play the best copy" button. The best copy (`TorrentPicks.best`) is never flagged and has seeders; it
+weighs the picture (1080p first, then 4K and 720p), a trusted uploader, then seeders, within whatever
+the chips allow. The choice is logged (`best copy chosen: … (1080p, trusted=true, 210 seeders)`).
+Tests: `TorrentPicksTest` (3), device `TorrentControlsTest`.

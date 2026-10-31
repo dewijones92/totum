@@ -366,13 +366,14 @@ private fun ResultsList(
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
+    val shelf = rememberTorrentShelf(query)
     // The same scroll trigger the account feeds and channel tabs use.
     val shownVideos = results.videos.itemsOrNull?.items?.size ?: 0
     LoadMoreOnScrollToEnd(listState, results.canLoadMore && !results.loadingMore, shownVideos, more.videos)
     val selectable = remember(results) { results.selectableItems() }
     SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize(), key = query) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            torrentSection(results, onPlayTorrent, onDownloadTorrent)
+            torrentSection(results, onPlayTorrent, onDownloadTorrent, shelf)
             hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
                     hit: SearchHit.Podcast ->
                 PodcastHitRow(

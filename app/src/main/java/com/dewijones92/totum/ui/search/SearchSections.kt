@@ -6,13 +6,16 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchSection
+import com.dewijones92.totum.data.search.TorrentPicks
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 
 /**
@@ -34,12 +37,18 @@ internal fun LazyListScope.torrentSection(
     results: Results.Loaded,
     onPlayTorrent: (SearchHit.Torrent) -> Unit,
     onDownloadTorrent: ((SearchHit.Torrent) -> Unit)? = null,
+    shelf: TorrentShelf = TorrentShelf(),
 ) {
+    val all = results.torrents.itemsOrNull.orEmpty()
+    val filtered = TorrentPicks.filtered(all, shelf.resolution, shelf.trustedOnly)
+    val section = (results.torrents as? SearchSection.Found)?.copy(items = filtered.take(shelf.shown))
+        ?: results.torrents
     // Named rather than a generic error: the home server is only reachable at home or on
     // wg-home, so "cannot reach it" is usually a fact about where you are, not a fault.
     hitSection(
         title = { stringResource(R.string.search_section_torrents) },
-        section = results.torrents,
+        section = section,
+        afterHeader = { if (all.isNotEmpty()) TorrentControls(all, shelf, onPlayTorrent) },
         failure = { failed ->
             SectionMessage(
                 stringResource(
@@ -49,6 +58,15 @@ internal fun LazyListScope.torrentSection(
         },
     ) { hit ->
         TorrentHitRow(hit = hit, onPlay = { onPlayTorrent(hit) }, onDownload = onDownloadTorrent?.let { { it(hit) } })
+    }
+    val hidden = filtered.size - shelf.shown
+    if (hidden > 0) {
+        item {
+            TextButton(onClick = shelf::showMore, modifier = Modifier.padding(horizontal = 8.dp)) {
+                val more = minOf(hidden, TorrentShelf.PAGE)
+                Text(pluralStringResource(R.plurals.torrent_show_more, more, more))
+            }
+        }
     }
 }
 
@@ -65,6 +83,7 @@ internal fun <T> LazyListScope.hitSection(
     title: @Composable () -> String,
     section: SearchSection<List<T>>,
     failure: @Composable (SearchSection.Failed) -> Unit = { SectionError() },
+    afterHeader: (@Composable () -> Unit)? = null,
     row: @Composable (T) -> Unit,
 ) {
     // Absent is not a section at all: no home server means no torrent heading to explain away.
@@ -75,6 +94,7 @@ internal fun <T> LazyListScope.hitSection(
     if (section is SearchSection.Found && items.isEmpty() && stillWaitingFor.isEmpty()) return
 
     item { SectionHeader(title()) }
+    afterHeader?.let { controls -> item { controls() } }
     when (section) {
         is SearchSection.Searching -> item { SectionSearching() }
         is SearchSection.Failed -> item { failure(section) }

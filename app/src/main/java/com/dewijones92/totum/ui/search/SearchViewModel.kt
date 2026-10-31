@@ -314,7 +314,7 @@ class SearchViewModel(
             launch {
                 run.section<List<SearchHit.Torrent>>(
                     name = "torrents",
-                    updates = { torrents.search.updates(query, RESULTS_PER_SECTION) },
+                    updates = { torrents.search.updates(query, TORRENT_RESULTS) },
                     into = { loaded, s -> loaded.copy(torrents = s) },
                     select = { it.page.items.filterIsInstance<SearchHit.Torrent>() },
                 )
@@ -559,6 +559,7 @@ class SearchViewModel(
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
         private const val RESULTS_PER_SECTION = 8
+        private const val TORRENT_RESULTS = 40
 
         /** A music search answers about 20 a page; a shelf keeps the lot and shows [RESULTS_PER_SECTION] at a time. */
         private const val MUSIC_PAGE = 25

@@ -18,7 +18,7 @@ public data class TorrentTrust(
         public fun of(result: TorrentResult, now: Instant = Instant.now()): TorrentTrust = TorrentTrust(
             uploader = uploaderChip(result),
             group = groupOf(result.title)?.let { "🏷️ $it release" },
-            quality = qualityOf(result.title)?.let { "🎞️ $it" },
+            quality = ReleaseQuality.qualityOf(result.title)?.let { "🎞️ $it" },
             health = healthChip(result, now),
             flags = flagsOf(result),
         )
@@ -88,18 +88,6 @@ public data class TorrentTrust(
             return "⚠️ Looks fake: ${result.sizeBytes / BYTES_PER_MB} MB for $quality"
         }
 
-        internal fun qualityOf(title: String): String? {
-            val words = ReleaseName(title).tail.map(String::lowercase)
-            fun first(table: List<Pair<Set<String>, String>>) =
-                table.firstOrNull { (names, _) -> words.any { it in names } }?.second
-            val audio = listOfNotNull(
-                first(listOf(setOf("atmos") to "Atmos")),
-                CHANNELS.find(title)?.value?.let { if (it.startsWith("7")) "7.1" else "5.1" },
-            )
-            val parts = listOfNotNull(first(RESOLUTIONS), first(SOURCES), first(CODECS), first(HDR)) + audio
-            return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
-        }
-
         internal fun groupOf(title: String): String? {
             val tagged = listOfNotNull(GROUP_TAIL.find(title.trim())?.groupValues?.get(1)) +
                 BRACKETED.findAll(title).map { it.groupValues[1] }.toList().reversed()
@@ -113,30 +101,6 @@ public data class TorrentTrust(
             }
         }
 
-        private val CHANNELS = Regex("""(?<![0-9])[57][. ]1(?![0-9])""")
-        private val RESOLUTIONS = listOf(
-            setOf("2160p", "4k", "uhd") to "4K",
-            setOf("1080p", "1080i") to "1080p",
-            setOf("720p") to "720p",
-            setOf("576p", "480p") to "SD",
-        )
-        private val SOURCES = listOf(
-            setOf("remux") to "Remux",
-            setOf("bluray", "blu", "bdrip", "brrip", "bdremux") to "BluRay",
-            setOf("web", "webdl", "webrip", "amzn", "nf", "dsnp", "hmax", "atvp") to "WEB",
-            setOf("hdtv") to "TV",
-            setOf("dvdrip", "dvd") to "DVD",
-        )
-        private val CODECS = listOf(
-            setOf("x265", "h265", "hevc") to "HEVC",
-            setOf("av1") to "AV1",
-            setOf("x264", "h264", "avc") to "H.264",
-            setOf("xvid", "divx") to "XviD",
-        )
-        private val HDR = listOf(
-            setOf("dv", "dovi", "dolbyvision") to "Dolby Vision",
-            setOf("hdr", "hdr10", "hdr10+", "hdr10plus") to "HDR",
-        )
         private val OFFICIAL_SITES = listOf("YTS")
         private val CAMERA_COPIES = setOf("CAM", "CAMRIP", "HDCAM", "TS", "HDTS", "TELESYNC", "HDTC", "TC")
         private val PROGRAMS = setOf("exe", "scr", "msi", "bat", "cmd", "lnk", "apk", "vbs", "js", "ps1", "jar", "com")

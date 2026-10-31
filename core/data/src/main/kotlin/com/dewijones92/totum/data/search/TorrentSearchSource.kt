@@ -4,9 +4,11 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.torrent.ReleaseQuality
 import com.dewijones92.totum.data.torrent.TorrentResult
 import com.dewijones92.totum.data.torrent.TorrentSearchResult
 import com.dewijones92.totum.data.torrent.TorrentTrust
+import com.dewijones92.totum.data.torrent.Uploader
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -69,6 +71,8 @@ public class TorrentSearchSource(
                 indexer = torrent.indexer,
                 trust = trust.chips,
                 flagged = trust.flagged,
+                resolution = ReleaseQuality.resolutionOf(torrent.title),
+                trusted = TorrentTrust.standing(torrent) in TRUSTED,
             )
         }
     }
@@ -96,6 +100,7 @@ public class TorrentSearchSource(
     private companion object {
         const val BYTES_PER_GB = 1_000_000_000.0
         const val FLAGGED_NAMED = 3
+        val TRUSTED = setOf(Uploader.VIP, Uploader.TRUSTED, Uploader.OFFICIAL)
     }
 }
 

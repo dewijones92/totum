@@ -111,9 +111,9 @@ class TorrentTrustTest {
         assertEquals("🎞️ 1080p · BluRay · H.264", TorrentTrust.of(result(), now).quality)
         assertEquals(
             "4K · WEB · HEVC · Dolby Vision · Atmos · 5.1",
-            TorrentTrust.qualityOf("Some Film 2026 2160p WEB-DL DDP5.1 Atmos DV HEVC-GROUP"),
+            ReleaseQuality.qualityOf("Some Film 2026 2160p WEB-DL DDP5.1 Atmos DV HEVC-GROUP"),
         )
-        assertNull(TorrentTrust.qualityOf("Some Film 2026"))
+        assertNull(ReleaseQuality.qualityOf("Some Film 2026"))
     }
 
     @Test
@@ -152,6 +152,6 @@ class TorrentTrustTest {
 
     @Test
     fun `a word of the title is not read as the source`() {
-        assertEquals("DVD", TorrentTrust.qualityOf("Charlotte's Web 1973 DVDRip"))
+        assertEquals("DVD", ReleaseQuality.qualityOf("Charlotte's Web 1973 DVDRip"))
     }
 }
