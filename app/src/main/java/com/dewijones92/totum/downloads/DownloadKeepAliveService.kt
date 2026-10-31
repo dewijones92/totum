@@ -49,7 +49,20 @@ internal class DownloadKeepAliveService : Service() {
             stopSelf()
         }
         if (started.isSuccess) Diag.log("downloads", "holding the process open while downloads run")
+        arrived()
         return START_NOT_STICKY
+    }
+
+    private fun arrived() {
+        val release = synchronized(lock) {
+            if (pendingStarts > 0) pendingStarts--
+            (releaseWhenStarted && pendingStarts == 0).also { if (it) releaseWhenStarted = false }
+        }
+        if (release) {
+            Diag.log("downloads", "the hold was released before the service started; letting go now it has")
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -74,10 +87,31 @@ internal class DownloadKeepAliveService : Service() {
          * Starts or stops the hold. Never throws: a refusal is a downgrade in reliability, never a
          * crash, and it is logged rather than swallowed so a report can say it happened.
          */
+        private val lock = Any()
+        private var pendingStarts = 0
+        private var releaseWhenStarted = false
+
         fun hold(context: Context, holding: Boolean) {
             val intent = Intent(context, DownloadKeepAliveService::class.java)
             runCatching {
-                if (holding) ContextCompat.startForegroundService(context, intent) else context.stopService(intent)
+                synchronized(lock) {
+                    when {
+                        holding -> {
+                            releaseWhenStarted = false
+                            pendingStarts++
+                            ContextCompat.startForegroundService(context, intent)
+                        }
+                        pendingStarts > 0 -> {
+                            releaseWhenStarted = true
+                            Diag.log(
+                                "downloads",
+                                "hold released before the service started ($pendingStarts start(s) pending); " +
+                                    "it lets go once started, since stopping it sooner crashes the app",
+                            )
+                        }
+                        else -> context.stopService(intent)
+                    }
+                }
             }.onFailure {
                 Diag.warn("downloads", "could not ${if (holding) "start" else "stop"} the download hold", it)
             }

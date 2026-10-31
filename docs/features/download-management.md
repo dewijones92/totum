@@ -8,6 +8,15 @@ updated: 2026-10-31
 
 # Managing downloads
 
+> 🐛 **A download that ended at once could crash the app. Fixed 2026-10-31.** CI run of e294d360 crashed with
+> `ForegroundServiceDidNotStartInTimeException` in `DownloadKeepAliveService`: `hold(true)` asks Android to start a
+> foreground service and `hold(false)` stopped it, and when a download started and ended (or failed) within moments,
+> the stop came before the service had called `startForeground`, which Android punishes by killing the app. Every
+> start is now counted, and a release that arrives while any is pending is deferred until the service has started
+> (logged `hold released before the service started … it lets go once started`). `DownloadHoldReleasedAtOnceTest`
+> (device) reproduced the exact crash before the fix.
+
+
 Since 2026-10-22 the download manager is its own page: Library → **Downloads** (the tile counts what is on the
 phone, running and failed), with the finished list headed "On the phone" ([ADR 73](../adr/0073-the-library-is-a-hub-and-downloads-have-their-own-page.md)).
 
