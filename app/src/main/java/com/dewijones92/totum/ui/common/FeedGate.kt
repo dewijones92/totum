@@ -4,10 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -66,7 +63,6 @@ fun ShowWhenAskedButton(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         FilledTonalButton(onClick = onShow, modifier = Modifier.testTag(SHOW_FEED_TAG)) {
-            Icon(Icons.Outlined.Visibility, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
             Text(label)
         }
         if (fetchLabel != null && onShowAndFetch != null) {
