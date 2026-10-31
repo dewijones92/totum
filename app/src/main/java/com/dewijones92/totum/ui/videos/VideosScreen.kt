@@ -50,7 +50,6 @@ import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.shortsReelFrom
 import com.dewijones92.totum.shuffle.ShuffleTarget
-import com.dewijones92.totum.stats.UseKind
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
@@ -159,7 +158,7 @@ fun VideosScreen(
                 onSetSort = viewModel::setSort,
                 onLoadMore = viewModel::loadMore,
                 feedHidden = feedHidden,
-                onShowFeed = container.statsLog.counting(UseKind.VIDEOS_SHOWN, feedGate::show),
+                onShowFeed = rememberShowFeed(container, feedGate, viewModel),
                 modifier = modifier,
             )
         }
@@ -272,7 +271,7 @@ internal fun VideosContent(
     onSetFilter: (MediaFilter) -> Unit,
     modifier: Modifier = Modifier,
     feedHidden: Boolean = false,
-    onShowFeed: () -> Unit = {},
+    onShowFeed: (fetch: Boolean) -> Unit = {},
     groupAction: @Composable (SourceGroup, Boolean) -> Unit = { _, _ -> },
 ) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
@@ -413,7 +412,7 @@ private fun ChannelsAndVideos(
     onSetFilter: (MediaFilter) -> Unit,
     modifier: Modifier = Modifier,
     feedHidden: Boolean = false,
-    onShowFeed: () -> Unit = {},
+    onShowFeed: (fetch: Boolean) -> Unit = {},
     groupAction: @Composable (SourceGroup, Boolean) -> Unit = { _, _ -> },
 ) {
     val listState = rememberLazyListState()
@@ -483,14 +482,16 @@ private fun ChannelsAndVideos(
 private fun LazyListScope.feedStandIn(
     state: VideosViewModel.UiState,
     feedHidden: Boolean,
-    onShowFeed: () -> Unit,
+    onShowFeed: (fetch: Boolean) -> Unit,
 ): Boolean {
     when {
         feedHidden -> item {
             ShowWhenAskedButton(
                 label = stringResource(R.string.feed_show),
                 note = stringResource(R.string.feed_hidden_note),
-                onShow = onShowFeed,
+                onShow = { onShowFeed(false) },
+                fetchLabel = stringResource(R.string.feed_show_and_fetch),
+                onShowAndFetch = { onShowFeed(true) },
             )
         }
         // Skeletons only when there is genuinely NOTHING to show. Cached items arrive

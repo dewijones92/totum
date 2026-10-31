@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.videos
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.channel.DefaultChannelRepository
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.feed.FeedCache
@@ -101,7 +102,9 @@ class VideosFeedCacheTest {
         mediaUrl = HttpUrl.of("https://www.youtube.com/watch?v=$id"),
     )
 
-    private fun TestScope.viewModel(cache: FeedCache): VideosViewModel {
+    private lateinit var subs: AccountSubscriptions
+
+    private fun TestScope.viewModel(cache: FeedCache, hidden: Boolean = false): VideosViewModel {
         val account = YouTubeAccount(
             FakeYouTubeAuth(),
             InMemoryTokenStore(OAuthTokens(AccessToken("at"), RefreshToken("rt"), expiresAtEpochSeconds = 3_600)),
@@ -115,7 +118,7 @@ class VideosFeedCacheTest {
                 FakeYouTubeActions(),
                 account,
                 backgroundScope,
-            ),
+            ).also { subs = it },
             queue = PlaybackQueue(
                 playback,
                 VideoPlaybackLauncher(
@@ -131,6 +134,7 @@ class VideosFeedCacheTest {
             youtube = YouTubeAccountServices(account, feeds, FakeYouTubeActions()),
             groups = GroupServices(FakeSourceGroupStore(), GroupFeed { emptyList() }),
             feedCache = cache,
+            holdFirstFetch = { hidden },
         )
     }
 
@@ -189,5 +193,25 @@ class VideosFeedCacheTest {
         advanceUntilIdle()
 
         assertTrue("nothing may be saved on failure", cache.saved.isEmpty())
+    }
+
+    @Test
+    fun `hidden until asked, opening shows what was kept and fetches nothing until asked`() = runTest(dispatcher) {
+        feeds.results[AccountFeed.SUBSCRIPTIONS] = FeedResult.Success(Page.last(listOf(video("fresh"))))
+        val cache = RecordingCache(mapOf("SUBSCRIPTIONS" to listOf(cached("old"))))
+
+        val model = viewModel(cache, hidden = true)
+        backgroundScope.launch { model.uiState.collect {} }
+        subs.recheckSignedIn()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Cached old"), model.uiState.value.videos.map { it.title })
+        assertEquals("no fetch until asked", emptyList<Pair<AccountFeed, PageToken?>>(), feeds.requested.toList())
+        assertEquals(false, model.uiState.value.feedLoading)
+
+        model.fetchNew()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Video fresh"), model.uiState.value.videos.map { it.title })
     }
 }

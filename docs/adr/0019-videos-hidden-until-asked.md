@@ -2,7 +2,7 @@
 title: The Videos feed is hidden until asked, and hides again when you leave the tab
 kind: adr
 status: accepted
-updated: 2026-10-07
+updated: 2026-10-31
 ---
 
 # 19. The Videos feed is hidden until asked, and hides again when you leave the tab
@@ -40,6 +40,13 @@ Videos tab is gated, which is what he asked for.
   same gate if Dewi wants them hidden too.
 
 ## Consequences
+
+- Amended 2026-10-31: Dewi checks new subscriptions each morning and otherwise wants to scroll *"the subscriptions …
+  already fetched"* without fetching new ones. While hidden, opening the tab no longer fetches: the Subscriptions feed
+  shows what was kept from the last fetch (`VideosViewModel.holdFirstFetch`, the feed cache). The button is two:
+  📺 Show what's here (no fetch) and 🔄 Show and fetch new; pull to refresh and choosing another feed still fetch.
+  Logged: `showing the N kept from the last fetch, not fetching`. Tests: `VideosFeedCacheTest` (seen red: it fetched
+  while hidden), `VideosHiddenUntilAskedTest` (device).
 
 - Every launch, and every return to the tab, shows the button first. Leaving the app for the home
   screen does not hide the feed (the screen stays composed); a process restart does.

@@ -21,6 +21,7 @@ import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.SourceGroupId
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.SHOW_AND_FETCH_TAG
 import com.dewijones92.totum.ui.common.SHOW_FEED_TAG
 import org.junit.Rule
 import org.junit.Test
@@ -68,6 +69,15 @@ class VideosHiddenUntilAskedTest {
         composeTestRule.onNodeWithTag(SHOW_FEED_TAG).performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { videoRows().fetchSemanticsNodes().isNotEmpty() }
         composeTestRule.onAllNodesWithTag(SHOW_FEED_TAG).assertCountEquals(0)
+    }
+
+    @Test
+    fun showAndFetchNewIsOfferedBesideShowWhatsHere() {
+        showShell(container())
+
+        composeTestRule.onNodeWithTag(SHOW_AND_FETCH_TAG).assertIsDisplayed().performClick()
+        composeTestRule.waitUntil(TIMEOUT_MS) { videoRows().fetchSemanticsNodes().isNotEmpty() }
+        composeTestRule.onAllNodesWithTag(SHOW_AND_FETCH_TAG).assertCountEquals(0)
     }
 
     @Test

@@ -63,6 +63,7 @@ class VideosViewModel(
      * feed tests want — the feed's own behaviour must not depend on a second network call.
      */
     private val subscriptionShorts: SubscriptionShorts? = null,
+    private val holdFirstFetch: () -> Boolean = { false },
 ) : TrackedViewModel("videos") {
 
     data class UiState(
@@ -129,7 +130,8 @@ class VideosViewModel(
             accountSubscriptions.signedIn.collect { signed ->
                 when {
                     signed -> if (feedState.value.selected == null) {
-                        select(FeedChoice.Account(AccountFeed.SUBSCRIPTIONS))
+                        val subscriptions = FeedChoice.Account(AccountFeed.SUBSCRIPTIONS)
+                        if (holdFirstFetch()) showKept(subscriptions) else select(subscriptions)
                     }
                     // Only an ACCOUNT feed depends on being signed in. A group can be all
                     // podcasts, which need no account at all, so clearing everything here
@@ -239,6 +241,19 @@ class VideosViewModel(
         }
     }
 
+    private fun showKept(choice: FeedChoice) {
+        feedState.update { it.copy(selected = choice, error = false, loading = false) }
+        viewModelScope.launch {
+            val kept = feedCache.items(choice.cacheKey())
+            feedState.update { if (it.selected == choice && it.videos.isEmpty()) it.copy(videos = kept) else it }
+            Diag.log(
+                "feed",
+                "${choice.describe()}: showing the ${kept.size} kept from the last fetch, not fetching " +
+                    "(hidden until asked; 🔄 Show and fetch new, or pull to refresh, fetches)",
+            )
+        }
+    }
+
     private suspend fun accountFeedState(choice: FeedChoice.Account): FeedState =
         when (val result = loadFeed(choice.feed)) {
             is FeedResult.Success -> {
@@ -320,6 +335,11 @@ class VideosViewModel(
      * feed, keeping the visible content until the new data arrives (a transient
      * failure is swallowed rather than replacing the list with an error).
      */
+    fun fetchNew() {
+        Diag.log("feed", "fetch new asked for ${feedState.value.selected?.describe() ?: "nothing selected"}")
+        refresh()
+    }
+
     fun refresh() {
         if (refreshing.value) return
         viewModelScope.launch {
@@ -483,6 +503,7 @@ class VideosViewModel(
                     ),
                     groups = GroupServices(container.sourceGroupStore, container.groupFeed, container.groupNews),
                     feedCache = container.feedCache,
+                    holdFirstFetch = { container.appPreferences.settings.value.feedHiddenUntilAsked },
                     subscriptionShorts = SubscriptionShorts(container.youTubeChannel),
                 )
             }

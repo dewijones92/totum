@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -51,7 +52,14 @@ fun rememberFeedGate(where: String, hideUntilAsked: Boolean): FeedGate {
 }
 
 @Composable
-fun ShowWhenAskedButton(label: String, note: String, onShow: () -> Unit, modifier: Modifier = Modifier) {
+fun ShowWhenAskedButton(
+    label: String,
+    note: String,
+    onShow: () -> Unit,
+    modifier: Modifier = Modifier,
+    fetchLabel: String? = null,
+    onShowAndFetch: (() -> Unit)? = null,
+) {
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -60,6 +68,12 @@ fun ShowWhenAskedButton(label: String, note: String, onShow: () -> Unit, modifie
         FilledTonalButton(onClick = onShow, modifier = Modifier.testTag(SHOW_FEED_TAG)) {
             Icon(Icons.Outlined.Visibility, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
             Text(label)
+        }
+        if (fetchLabel != null && onShowAndFetch != null) {
+            OutlinedButton(
+                onClick = onShowAndFetch,
+                modifier = Modifier.testTag(SHOW_AND_FETCH_TAG)
+            ) { Text(fetchLabel) }
         }
         Text(
             text = note,
@@ -71,3 +85,4 @@ fun ShowWhenAskedButton(label: String, note: String, onShow: () -> Unit, modifie
 }
 
 const val SHOW_FEED_TAG: String = "show-feed"
+const val SHOW_AND_FETCH_TAG: String = "show-and-fetch"
