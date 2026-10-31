@@ -19,8 +19,11 @@ providers he uses out of git.
 - Tests and e2e use synthetic data only.
 - `tools/privacy-guard.mjs` fails on sort codes, IBANs, Luhn-valid card numbers, UK mobile numbers, number
   plates, non-example email addresses, and any word in a denylist kept outside the repo
-  (`~/.local/share/finance-hub/denylist.txt`, or `AERARIUM_DENYLIST`). It runs in pre-commit, pre-push and CI.
-  CI has no denylist, so there it checks patterns only.
+  (`~/.local/share/finance-hub/denylist.txt`, or `AERARIUM_DENYLIST`). It runs in three modes: pre-commit scans exactly what
+  is staged (any path in the repo); pre-push scans the added lines and commit messages of every pushed range; CI and
+  `pnpm privacy` scan the whole `aerarium/` tree. Lockfiles and binaries are skipped in diffs. CI has no denylist,
+  so there it checks patterns only. If the guard itself crashes, the hook warns and lets the commit through, so it
+  can never wedge Totum work; only a finding blocks.
 - When it reports a denylisted word it names the denylist line, not the word, so CI logs never echo it.
 
 ## Consequences
