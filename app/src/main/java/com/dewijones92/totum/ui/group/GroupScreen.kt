@@ -34,6 +34,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.ui.common.BackHeader
@@ -52,10 +53,10 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
         }
     }
     group ?: return
-    val resources = LocalResources.current
     var sinceMs by rememberSaveable(groupId) { mutableStateOf<Long?>(null) }
     var openedHere by rememberSaveable(groupId) { mutableStateOf(false) }
-    var items by remember(groupId) { mutableStateOf<List<MediaItem>?>(null) }
+    val kept by container.groupFeed.keptLists.collectAsStateWithLifecycle()
+    val items = container.groupFeed.lastKnown(group, kept)
     var loads by remember { mutableIntStateOf(0) }
     var editing by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(groupId) {
@@ -67,13 +68,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
             "\"${group.name}\" page opened; new since ${sinceMs?.let(Instant::ofEpochMilli) ?: "never looked"}"
         )
     }
-    LaunchedEffect(groupId, group.members, loads) {
-        if (group.members.isEmpty()) return@LaunchedEffect
-        val label = resources.getString(R.string.group_loading_strip, group.name)
-        items = container.operations.showing("group:$groupId", label) {
-            container.groupFeed.itemsFor(group)
-        }
-    }
+    RefreshGroup(container, group, loads)
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(group.name, onBack) {
@@ -96,6 +91,24 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
         }
     }
     if (editing) GroupEditSheet(container, group, onDismiss = { editing = false }, onDeleted = onBack)
+}
+
+@Composable
+private fun RefreshGroup(container: AppContainer, group: SourceGroup, loads: Int) {
+    val resources = LocalResources.current
+    LaunchedEffect(group.id, group.members, loads) {
+        if (group.members.isEmpty()) return@LaunchedEffect
+        val label = resources.getString(R.string.group_loading_strip, group.name)
+        val kept = container.groupFeed.lastKnown(group)?.size
+        Diag.log(
+            "group",
+            "\"${group.name}\" refreshing (kept even if the page closes); " +
+                (kept?.let { "showing the $it kept item(s) meanwhile" } ?: "nothing kept yet"),
+        )
+        container.operations.showing("group:${group.id.value}", label) {
+            container.groupFeed.refresh(group, container.applicationScope).await()
+        }
+    }
 }
 
 @Composable

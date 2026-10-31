@@ -30,6 +30,41 @@ class GroupFeedTest {
         GroupFeed { source -> itemsBySource[source.id]?.invoke() ?: emptyList() }
 
     @Test
+    fun `the last list is kept for the next visit, without a removed member's rows`() = runTest {
+        val groups = groupFeed(
+            mapOf(
+                channel.id to { listOf(item("old video", channel.id, "2026-07-01T00:00:00Z")) },
+                feed.id to { listOf(item("new episode", feed.id, "2026-07-29T00:00:00Z")) },
+            ),
+        )
+        assertEquals(null, groups.lastKnown(group))
+
+        groups.itemsFor(group)
+
+        assertEquals(listOf("new episode", "old video"), groups.lastKnown(group)?.map { it.title })
+        assertEquals(listOf("old video"), groups.lastKnown(group.copy(sources = listOf(channel)))?.map { it.title })
+    }
+
+    @Test
+    fun `a second refresh while one is loading joins it instead of loading twice`() = runTest {
+        var loads = 0
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val groups = GroupFeed { _ ->
+            loads++
+            gate.await()
+            emptyList()
+        }
+        val first = groups.refresh(group, backgroundScope)
+        testScheduler.runCurrent()
+        val second = groups.refresh(group, backgroundScope)
+        gate.complete(Unit)
+
+        assertEquals(first, second)
+        first.await()
+        assertEquals(group.members.size, loads)
+    }
+
+    @Test
     fun `both pillars merge into one newest-first list`() = runTest {
         val result = groupFeed(
             mapOf(

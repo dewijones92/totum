@@ -2,7 +2,7 @@
 title: Groups say what's new, notify each new video, and live in the Library
 kind: adr
 status: accepted
-updated: 2026-10-29
+updated: 2026-10-31
 ---
 
 # 95. Groups say what's new, notify each new video, and live in the Library
@@ -65,3 +65,16 @@ any network; Shorts and live included (ADR 94's feed brings them).
 - Tests: `GroupNewsTest` (10: first look, new once and counted, opening clears, never opened, a failed post retried,
   the saved count known at start-up, a deleted group forgotten, an unreadable channel keeps its new, opening during a
   check, a channel joining an old group; the four review cases seen failing first).
+
+## Amended 2026-10-31: the page keeps its list while it refreshes
+
+Dewi: *"it reloads all of it each time I go into it … it says loading, but the screen is blank … keep
+the list there so I have something to scroll through while the new stuff is being fetched"*. The page
+held its list in `remember`, so every visit started empty; and leaving it cancelled the load, so a
+slow first load was never kept. Now `GroupFeed` keeps each group's last merged list (`keptLists`,
+in memory for the session; a removed member's rows are dropped), the page shows it at once with the
+"⏳ Loading" strip on top, and the load runs in the app's scope (`GroupFeed.refresh`) so it finishes
+and is kept even if the page closes; a reopen joins a load already running. Logged as `refreshing
+(kept even if the page closes); showing the N kept item(s) meanwhile`. Tests: `GroupFeedTest` (kept
+list, removed member; a second refresh joins). Checked on totum-api35: left the page mid-load,
+reopened, 60 rows shown at once under the strip.
