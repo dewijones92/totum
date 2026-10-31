@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 internal fun playingRowIndex(entries: List<QueueEntry>, target: Int, collapsed: Set<String>): Int {
-    val row = queueRows(entries, collapsed, dragging = false)
+    val row = queueRows(entries, collapsed, dragging = false, playing = target)
         .indexOfFirst { it is QueueRowSpec.Entry && it.index == target }
     return ROWS_ABOVE_THE_QUEUE + row.coerceAtLeast(0)
 }

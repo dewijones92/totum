@@ -46,6 +46,19 @@ class QueueLayoutTest {
     }
 
     @Test
+    fun `the playing item is never hidden by collapsing its group, and its run keeps a header`() {
+        val queue = listOf(entry("a"), entry("b1", "B"), entry("b2", "B"), entry("c"), entry("b3", "B"))
+        assertEquals(
+            listOf("ungrouped-0", "a", queueGroupHeaderKey("B"), "ungrouped-3", "c", "group-4-B", "b3"),
+            queueRows(queue, setOf("B"), dragging = false, playing = 4).map { it.key },
+        )
+        assertEquals(
+            listOf("ungrouped-0", "a", queueGroupHeaderKey("B"), "b1", "ungrouped-3", "c"),
+            queueRows(queue, setOf("B"), dragging = false, playing = 1).map { it.key },
+        )
+    }
+
+    @Test
     fun `a queue with no groups has no headings at all`() {
         val queue = (1..5).map { entry("e$it") }
         assertEquals((1..5).map { "e$it" }, queueRows(queue, emptySet(), dragging = false).map { it.key })

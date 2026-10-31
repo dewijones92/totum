@@ -143,7 +143,15 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onShuffleGroups = shuffleGroupsOrNull(container, snapshot.upNext, ask),
                 onJump = jump.takeIf { snapshot.currentIndex in entries.indices },
                 groups = groupIds to collapsedGroups,
-                onCollapseAll = { collapsedGroups = toggledAll(groupIds, collapsedGroups) },
+                onCollapseAll = {
+                    collapsedGroups = toggledAll(groupIds, collapsedGroups).also {
+                        Diag.log(
+                            "queue",
+                            "collapse all: ${it.size} of ${groupIds.size} group(s) now collapsed; " +
+                                "the playing item stays shown in its group",
+                        )
+                    }
+                },
                 onSort = { order: MediaSort -> sortWithUndo(order, null) }.takeIf { snapshot.upNext.size > 1 },
                 filters = queueFilters,
             )
@@ -300,7 +308,9 @@ private data class GroupCollapse(
     fun hides(entry: QueueEntry): Boolean = entry.group?.let { isCollapsed(it.id) } == true
 
     fun toggle(id: String) {
-        onChange(if (id in collapsedIds) collapsedIds - id else collapsedIds + id)
+        val collapsing = id !in collapsedIds
+        Diag.log("queue", "${if (collapsing) "collapsed" else "expanded"} group $id (${collapsedIds.size} collapsed before)")
+        onChange(if (collapsing) collapsedIds + id else collapsedIds - id)
     }
 }
 
@@ -444,8 +454,8 @@ private fun FilterableQueue(
                 val dragging = actions.dragSession.dragging
                 val collapsedIds = actions.groups.collapsedIds
                 val blockCount = remember(entries) { entries.blocks().size }
-                val layout = remember(entries, collapsedIds, dragging, blockCount) {
-                    QueueLayout(entries, queueRows(entries, collapsedIds, dragging), blockCount)
+                val layout = remember(entries, collapsedIds, dragging, blockCount, currentIndex) {
+                    QueueLayout(entries, queueRows(entries, collapsedIds, dragging, currentIndex), blockCount)
                 }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }

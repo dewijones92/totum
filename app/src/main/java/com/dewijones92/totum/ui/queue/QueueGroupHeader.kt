@@ -188,9 +188,10 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
                 modifier = Modifier.testTag(QUEUE_GROUP_ENDLESS_TAG),
             )
         }
-        if (model.collapsed) {
+        val hidden = if (model.containsNowPlaying) model.count - 1 else model.count
+        if (model.collapsed && hidden > 0) {
             Text(
-                text = pluralStringResource(R.plurals.queue_group_hidden, model.count, model.count),
+                text = pluralStringResource(R.plurals.queue_group_hidden, hidden, hidden),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # Playback queue
@@ -119,6 +119,14 @@ Dewi asked for a button to scroll the queue to the playing item, and one to coll
 has groups. Jumping expands the playing item's group if it is collapsed, scrolls to the row the list draws for it
 (`playingRowIndex`, taken from `queueRows` itself), then settles on the row by its key. The collapsed set now lives
 above the header, so the toggle and the list share it. Logged: `jumped to the playing item (…): row N, found at M`.
+
+> 🐛 **The playing item vanished in a collapsed group. Fixed 2026-10-31.** Report 20261031T073503-745b9438 (v0.1.778):
+> *"it says … added by you, but there's nothing there. It plays the wrong thing … the Matrix film isn't visible"*. A
+> collapsed group is drawn once, at its first run, with no rows, so the Matrix pack's third run (5717, the playing
+> item) had no header and no row: "➕ Added by you · 39" followed Peter Hitchens directly. Collapsing was not logged,
+> so the report could not show it (most likely collapse all after the queue opened, since the open-time jump found the
+> row). Now `queueRows` never hides the playing item: its row is drawn, under a header for its run, however collapsed
+> its group is; and collapsing, expanding and collapse all are logged (`collapsed group …`, `collapse all: N of M`).
 
 > 🐛 **The jump missed in a long queue. Fixed 2026-10-30.** Report 20261030T080734-101ffbf8 (v0.1.755, 5,739 items):
 > *"when I press the target icon … it doesn't scroll down"*, logged `estimate 62, not on screen after the estimate`.
