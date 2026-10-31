@@ -18,7 +18,9 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.homeStateText
 import com.dewijones92.totum.ui.common.rowCard
 
@@ -42,7 +44,8 @@ internal fun LazyListScope.homeBody(home: HomeSection) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(job.item.title, style = MaterialTheme.typography.titleSmall)
-                Text(homeStateText(job), style = MaterialTheme.typography.bodySmall)
+                val onPhone = downloadStateOf(MediaItemId(job.id)) is DownloadState.Downloaded
+                Text(homeStateText(job, onPhone), style = MaterialTheme.typography.bodySmall)
                 if (job.state == HomeJobState.DOWNLOADING) {
                     val total = job.totalBytes
                     if (total != null && total > 0) {

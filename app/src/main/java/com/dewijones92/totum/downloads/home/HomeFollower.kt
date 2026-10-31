@@ -70,11 +70,17 @@ internal class HomeFollower(
             return
         }
         val local = downloads.observeDownloads().first()
-        ready.filter { local[MediaItemId(it.id)].let { s -> s == null || s == DownloadState.NotDownloaded } }
+        ready.filter { job -> wanted(job, local[MediaItemId(job.id)]) }
             .forEach { job ->
                 val item = job.item.toPlayable() ?: return@forEach
                 Diag.log(TAG, "\"${job.item.title}\": copying from home to the phone (unmetered)")
                 downloads.download(item, audioOnly = job.audioOnly)
             }
+    }
+
+    private fun wanted(job: HomeJob, onPhone: DownloadState?): Boolean = when (onPhone) {
+        null, DownloadState.NotDownloaded, is DownloadState.Failed -> true
+        is DownloadState.Downloaded -> onPhone.audioOnly && !job.audioOnly
+        is DownloadState.Downloading -> false
     }
 }

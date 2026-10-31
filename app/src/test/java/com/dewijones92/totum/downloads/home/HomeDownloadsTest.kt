@@ -104,4 +104,19 @@ class HomeDownloadsTest {
         home(this).refresh("launch")
         assertTrue(notices.said.isEmpty())
     }
+
+    @Test
+    fun `a video at home replaces a sound-only copy on the phone, never the other way round`() = runTest {
+        unmetered = true
+        local.place(com.dewijones92.totum.domain.DownloadedMedia(video, "/phone/a.m4a", audioOnly = true))
+        api.listed = listOf(job(HomeJobState.DONE, audioOnly = false))
+        home(this).refresh("video ready")
+        assertEquals(listOf(MediaItemId("abcdefghijk") to false), local.requested)
+
+        local.requested.clear()
+        local.place(com.dewijones92.totum.domain.DownloadedMedia(video, "/phone/a.mkv", audioOnly = false))
+        api.listed = listOf(job(HomeJobState.DONE, audioOnly = true))
+        home(this).refresh("sound ready")
+        assertTrue(local.requested.isEmpty())
+    }
 }

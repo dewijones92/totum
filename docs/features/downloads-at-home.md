@@ -30,4 +30,9 @@ copies it over the next time it is on Wi-Fi. ADR 110.
 
 ## Status
 
-Built and unit-tested on both sides; the service was proven on the laptop with real YouTube and podcast jobs.
+Built and unit-tested on both sides, and proven end to end on 2026-10-31 (v0.1.807 on the Pi, the emulator as the
+phone): a podcast episode sent home (8.8 MB in 2 s), announced "🏠 Ready at home" and copied over Wi-Fi through
+`HomeCopyFirst`; a YouTube video sent home as 480p handed the sign-in over, was refused by yt-dlp and fetched by the
+signed-in route on the Pi (147 MB, n solved by Node), then replaced the phone's sound-only copy; deleting either on
+the phone deleted the copy at home. Not yet proven live: playing from the Pi's copy before the phone has its own
+(unit-tested; the same URL and token served the copy).
