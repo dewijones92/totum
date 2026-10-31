@@ -117,6 +117,39 @@ class DefaultDownloadManagerTest {
     }
 
     @Test
+    fun `a download that times out tries again by itself and lands`() = runTest {
+        var calls = 0
+        val strategy = DownloadStrategy { _, target, _ ->
+            calls++
+            if (calls == 1) {
+                flowOf(DownloadState.Downloading(1_700, 4_000), DownloadState.Failed("timeout"))
+            } else {
+                flowOf(DownloadState.Downloaded(target.absolutePath))
+            }
+        }
+
+        manager(strategy, backgroundScope).download(item)
+        advanceTimeBy(TransientRetries.FIRST_WAIT_MS + 1_000)
+
+        assertEquals(2, calls)
+        assertTrue(store.observeAll().first()[item.id] is DownloadState.Downloaded)
+    }
+
+    @Test
+    fun `a download that failed for good is not tried again by itself`() = runTest {
+        var calls = 0
+        val strategy = DownloadStrategy { _, _, _ ->
+            calls++
+            flowOf(DownloadState.Failed("ERROR: Video unavailable"))
+        }
+
+        manager(strategy, backgroundScope).download(item)
+        advanceTimeBy(10 * TransientRetries.FIRST_WAIT_MS)
+
+        assertEquals(1, calls)
+    }
+
+    @Test
     fun `download records progress then completion`() = runTest {
         val strategy = DownloadStrategy { _, target, _ ->
             flowOf(

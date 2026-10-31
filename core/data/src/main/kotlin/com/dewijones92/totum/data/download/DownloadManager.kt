@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.asPlayable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * The app's single offline-downloads seam. Both pillars go through this:
@@ -91,4 +92,6 @@ public interface DownloadManager {
     public suspend fun noteOpened(id: MediaItemId)
 
     public suspend fun markUnreadable(id: MediaItemId, why: String)
+
+    public fun retryPlans(): Flow<Map<MediaItemId, RetryPlan>> = flowOf(emptyMap())
 }

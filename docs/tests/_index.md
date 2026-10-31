@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # Testing
@@ -361,6 +361,7 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A podcast feed is parsed off the thread that asked for it | `PodcastFeedParsedOffTheCallerTest` | every commit |
 | Torrent results carry trust chips (uploader standing from apibay merged by info hash, YTS official, release group, health, red flags), flagged ones sorted down before the cap, and a program among prepared files is named | `TorrentTrustTest` (9), `ApibayTest` (4), `HttpHomeTorrentServerTest` (merge), `TorrentSearchSourceTest` (2); device: `TorrentTrustChipsTest` | every commit |
 | A torrent result shows what you watched (by hash, or another copy by name), a tap resumes at the file in progress or the next unwatched, the episode picker marks files, a quality chip is read from the name | `TorrentProgressTest` (10), `TorrentsSeenTest` (3), `TorrentTrustTest` (quality, and title words raising nothing), `PlaybackQueueTest` (start part-way); device: `TorrentTrustChipsTest` (2) | every commit |
+| A stalled torrent holds its place; a transient download failure retries itself (30 s ×4 backoff, resuming); an HLS playlist is never held by the preloader; the stall watch reports it is alive | `StallWatchdogTest`, `TransientRetriesTest` (3), `DefaultDownloadManagerTest` (2), `PreloadUrlTest` (2), `MainThreadStallsTest` | every commit |
 | "The tail is not coming" is only said when the stop actually left playback unable to continue | `LoadStopIsAFaultTest` | every commit |
 | The stream held for the next item is the stream that then plays — not a second guess at it | `ThePreloadIsTheStreamThatPlaysTest` | every commit |
 | Subtitle tracks reach the player and a choice sticks | `SubtitlesArriveAndRenderTest` | live phase — the plumbing was unit-tested at both ends and the middle (a real resolve handing tracks to a real ExoPlayer) by nothing |

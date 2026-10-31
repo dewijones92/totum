@@ -531,6 +531,11 @@ public class Media3PlaybackController(
     }
 
     override fun seekTo(positionMs: Long) {
+        val caller = Thread.currentThread().stackTrace
+            .dropWhile { it.className.startsWith("dalvik.") || it.className == Thread::class.java.name }
+            .getOrNull(1)
+            ?.let { "at ${it.className}.${it.methodName}(${it.fileName ?: "Unknown Source"}:${it.lineNumber})" }
+        Diag.log("seek", "the app seeks to ${positionMs}ms [${caller ?: "caller unknown"}]")
         withController { controller ->
             val max = controller.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
             controller.seekTo(positionMs.coerceIn(0, max))

@@ -280,6 +280,34 @@ class StallWatchdogTest {
         assertEquals(2, replayedAt.size)
     }
 
+    @Test
+    fun `a torrent never moves on mid-film but holds its place and keeps retrying`() = runTest {
+        StallWatchdog(
+            states = states,
+            advance = {
+                advanced++
+                true
+            },
+            replay = { positionMs ->
+                replayedAt += positionMs
+                true
+            },
+            isEnabled = { enabled },
+            scope = backgroundScope,
+            holdsItsPlace = { it.value.startsWith("torrent:") },
+        ).start()
+        repeat(5) { cycle ->
+            states.value = state(positionMs = 866_343, buffering = true, id = "torrent:abc:1")
+            advanceTimeBy(26_000)
+            states.value = state(positionMs = 866_343 + cycle.toLong(), buffering = true, id = "torrent:abc:1")
+            advanceTimeBy(6_000)
+        }
+
+        assertEquals(0, advanced)
+        assertEquals(5, replayedAt.size)
+        assertEquals(866_343L, replayedAt.first())
+    }
+
     /** And once the rescues are spent, the queue moves on rather than sitting on a dead stream. */
     @Test
     fun `giving up on a stream advances the queue`() = runTest {

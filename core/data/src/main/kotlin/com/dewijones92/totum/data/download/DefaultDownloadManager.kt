@@ -45,6 +45,15 @@ public class DefaultDownloadManager(
 
     private val notes = DownloadNotes(File(downloadDir, NOTES_FILE))
 
+    private val retries = TransientRetries(
+        scope,
+        retry = { id -> retry(id) },
+        nowMs = System::currentTimeMillis,
+        mayRetryNow = mayResumeNow,
+    )
+
+    override fun retryPlans(): Flow<Map<MediaItemId, RetryPlan>> = retries.planned
+
     override suspend fun learnFacts(resolved: MediaItem): Unit = store.learnFacts(resolved)
 
     // Replay nothing and never suspend the producer: a download must not be held up by
@@ -79,13 +88,25 @@ public class DefaultDownloadManager(
             val told = if (passesThrough) state else recorded.first
             _events.tryEmit(DownloadEvent(media, told))
             when (state) {
-                is DownloadState.Failed -> Diag.warn("download", "failed ${media.title}: ${state.reason}")
+                is DownloadState.Failed -> {
+                    Diag.warn("download", "failed ${media.title}: ${state.reason}")
+                    if (recorded.first is DownloadState.Failed) {
+                        retries.failed(media.id, media.title, state)
+                    } else {
+                        Diag.log(
+                            "download",
+                            "${media.title}: the upgrade failed; the copy on the phone stays " +
+                                "and it is not retried by itself",
+                        )
+                    }
+                }
                 is DownloadState.Downloaded -> {
                     // Whatever produced the finished file, no part-fetched copy of it may
                     // survive: the next fetch of this id would resume from bytes belonging to
                     // a download that has already finished.
                     target.partialDownload().delete()
                     notes.settled(media.id)
+                    retries.succeeded(media.id)
                     Diag.log("download", "done ${media.title} sponsorSegmentsCut=${state.sponsorSegmentsCut}")
                     onDownloaded(item)
                 }
@@ -284,6 +305,7 @@ public class DefaultDownloadManager(
     }
 
     override suspend fun cancel(id: MediaItemId) {
+        retries.forget(id)
         val job = runningLock.withLock { running.remove(id) }
         upgrading.remove(id)?.let { kept ->
             job?.cancelAndJoin()
@@ -353,6 +375,7 @@ public class DefaultDownloadManager(
     }
 
     override suspend fun delete(id: MediaItemId) {
+        retries.forget(id)
         // Stop it first if it is still going. Without this the coroutine outlived the delete and
         // wrote its next progress update straight back, so the row reappeared seconds later and the
         // bytes kept arriving — a deletion that undid itself.

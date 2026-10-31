@@ -238,6 +238,22 @@ public class PlaybackService : MediaSessionService() {
                 )
                 .build()
 
+        override fun onPlayerCommandRequest(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            playerCommand: Int,
+        ): Int {
+            SessionSeeks.named(playerCommand)?.let { what ->
+                val who = when {
+                    session.isMediaNotificationController(controller) -> "the notification or lock screen"
+                    controller.packageName == packageName -> "the app"
+                    else -> controller.packageName
+                }
+                Diag.log("seek", "$what asked by $who at ${session.player.currentPosition}ms")
+            }
+            return SessionResult.RESULT_SUCCESS
+        }
+
         override fun onMediaButtonEvent(
             session: MediaSession,
             controllerInfo: MediaSession.ControllerInfo,

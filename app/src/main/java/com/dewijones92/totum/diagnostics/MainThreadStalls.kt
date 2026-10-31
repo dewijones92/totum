@@ -13,6 +13,9 @@ internal class MainThreadStalls(
     private var unsaid = 0
     private var unsaidWorstMs = 0L
     private var worstMs = 0L
+    private var pings = 0L
+    private var longestMs = 0L
+    private var counted = 0L
 
     fun sampled(stack: Array<StackTraceElement>) {
         samples++
@@ -20,13 +23,22 @@ internal class MainThreadStalls(
     }
 
     fun ended(stalledMs: Long, nowMs: Long) {
+        pings++
+        longestMs = maxOf(longestMs, stalledMs)
         if (stalledMs >= reportOverMs) counted(stalledMs, nowMs)
+        if (pings % ALIVE_EVERY == 1L) {
+            Vitals.set(
+                "main.watch",
+                "on: $pings ping(s), the longest wait ${longestMs}ms, $counted stall(s) over ${reportOverMs}ms"
+            )
+        }
         seenAt.clear()
         samples = 0
     }
 
     private fun counted(stalledMs: Long, nowMs: Long) {
         Vitals.add("main.stalls")
+        counted++
         if (stalledMs > worstMs) {
             worstMs = stalledMs
             Vitals.set("main.worstStallMs", worstMs.toString())
@@ -59,6 +71,7 @@ internal class MainThreadStalls(
         const val QUIET_MS = 10_000L
         const val PLACES_SHOWN = 3
         const val FRAMES_SHOWN = 10
+        const val ALIVE_EVERY = 50L
         const val OWN_FRAMES_SHOWN = 3
         const val OWN_PACKAGE = "com.dewijones92."
 

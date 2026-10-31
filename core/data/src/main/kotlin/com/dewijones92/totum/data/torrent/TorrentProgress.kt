@@ -10,12 +10,12 @@ public object TorrentProgress {
         is TorrentLink.ViaIndexer -> null
     }
 
-    public fun itemId(hash: String, index: Int): MediaItemId = MediaItemId("torrent:${hash.lowercase()}:$index")
+    public fun itemId(hash: String, index: Int): MediaItemId = MediaItemId("$ITEM_PREFIX${hash.lowercase()}:$index")
 
     public fun indexOf(states: Map<MediaItemId, PlayState>): Map<String, Map<Int, PlayState>> {
         val byHash = mutableMapOf<String, MutableMap<Int, PlayState>>()
         states.forEach { (id, state) ->
-            if (state is PlayState.Unplayed || !id.value.startsWith(PREFIX)) return@forEach
+            if (state is PlayState.Unplayed || !id.value.startsWith(ITEM_PREFIX)) return@forEach
             val parts = id.value.split(':')
             val index = parts.getOrNull(2)?.toIntOrNull() ?: return@forEach
             byHash.getOrPut(parts[1].lowercase()) { mutableMapOf() }[index] = state
@@ -95,5 +95,5 @@ public object TorrentProgress {
 
     private val BTIH = Regex("""btih:([0-9A-Fa-f]{40})""")
     private const val MS_PER_MINUTE = 60_000L
-    private const val PREFIX = "torrent:"
+    public const val ITEM_PREFIX: String = "torrent:"
 }

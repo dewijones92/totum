@@ -182,6 +182,14 @@ grep -o 'the main thread stalled.*' report.txt | sed 's/ < /\n/g; s/; [0-9]*× /
 On the swiftshader emulator, long frames waiting on the render thread (`postAndWait`) show up as
 stalls too: they are real waits, but the emulator's, not the app's. See ADR 100.
 
+## Who asked for a seek (2026-10-31)
+
+Report 0.1.766 showed a film jump from 31:31 to 0 with nothing to say why. Now every seek-type
+command reaching the media session is logged as `[seek] <what> asked by <the app | the notification
+or lock screen | a package>` (`onPlayerCommandRequest`, `SessionSeeks`), and the app's own
+`seekTo` adds `the app seeks to Nms [at <calling frame>]`. The vital `main.watch` says the stall
+watch is alive even when nothing stalled. See ADR 103.
+
 ## A note on log volume
 
 The silence detector enters silence every few seconds during speech. Logging each one

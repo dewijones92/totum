@@ -61,6 +61,7 @@ internal class StallWatchdog(
     private val isEnabled: () -> Boolean,
     private val scope: CoroutineScope,
     private val checkEveryMs: Long = CHECK_MS,
+    private val holdsItsPlace: (MediaItemId) -> Boolean = { false },
 ) {
     private var stuckItem: MediaItemId? = null
     private var stuckPositionMs = -1L
@@ -233,6 +234,16 @@ internal class StallWatchdog(
                 "${state.itemId.value} waits ${stalledForMs}ms at ${state.positionMs}ms on the TV — $diagnosis; " +
                     "not rebuilding: the TV is buffering from Totum's own stream (see [cast])",
             )
+            return
+        }
+        if (rescues >= MAX_RESCUES && holdsItsPlace(state.itemId)) {
+            rescues++
+            Diag.warn(
+                "advance",
+                "${state.itemId.value} stalled again at ${state.positionMs}ms — $diagnosis; it holds its place " +
+                    "(a torrent waits for its peers rather than skipping the film): replaying from there, try $rescues",
+            )
+            Diag.log("advance", "${state.itemId.value} held-place replay=${replay(state.positionMs)}")
             return
         }
         if (rescues >= MAX_RESCUES) {

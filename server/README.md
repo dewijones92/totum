@@ -45,6 +45,18 @@ State lives outside the repo, in `/var/lib/prowlarr`, `/var/lib/torrserver`, `/v
   swarm (TorrServer, totum-audio) uses PureVPN. Measured: the first two exit as the home address, the second two as
   PureVPN's.
 
+## TorrServer's own settings (2026-10-31)
+
+Some of TorrServer's behaviour lives in its database (`/var/lib/torrserver`), not in this repo, so it
+is written down here. Set through its API from inside the container, e.g.
+`docker exec torrserver wget -q -O - --post-data='{"action":"get"}' http://127.0.0.1:8090/settings`,
+then post `{"action":"set","sets":{…the whole object…}}` with the change.
+
+| Setting | Value | Why |
+|---|---|---|
+| `UploadRateLimit` | `1` (KB/s) | Dewi, 2026-10-31: "set upload speed to like 1 KB a second". Was `0` (unlimited). Read back after setting. |
+| `DisableUpload` | `false` | Left on: a peer that uploads nothing is choked by others and downloads slower. |
+
 ## What stays in the Pi's `dot-files` repo
 
 - **nginx**: one generated config for the whole Pi. The app reaches all of this through the `totum.` vhost

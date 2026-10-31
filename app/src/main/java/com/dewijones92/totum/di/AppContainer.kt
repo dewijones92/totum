@@ -67,6 +67,7 @@ import com.dewijones92.totum.data.torrent.Apibay
 import com.dewijones92.totum.data.torrent.HomeServerAuthInterceptor
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
+import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.Torrentio
 import com.dewijones92.totum.data.torrent.TorrentsSeen
@@ -200,6 +201,7 @@ import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.exploreModeFor
 import com.dewijones92.totum.playback.handOverFinishedDownloads
+import com.dewijones92.totum.playback.preloadableUrl
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.polite.PoliteInterceptor
 import com.dewijones92.totum.polite.PoliteYtDlpEngine
@@ -1040,6 +1042,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             replay = { positionMs -> playbackQueue.replayCurrent(positionMs) },
             isEnabled = autoPlayNextEnabled,
             scope = applicationScope,
+            holdsItsPlace = { id -> id.value.startsWith(TorrentProgress.ITEM_PREFIX) },
         ).start()
         // Resolving one item ahead, defined ONCE. Two things want it for the same reason —
         // an extraction costs 20-25s on a phone, and any second of that spent while the user is
@@ -1377,14 +1380,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private fun preloadBytesOf(item: PlayableItem) {
         // A local copy needs nothing, and a video's URL is not known until it resolves — so this
         // covers exactly what has a playable URL in hand right now.
-        val url = when (val handle = item.handle) {
-            // NOT `localPath?.let { null } ?: …` — an elvis cannot tell a deliberate null from an
-            // absent one, so that spelling fell straight through and preloaded a file already on
-            // the device. Caught by PreloadOnWifiOnlyTest before it shipped.
-            is PlayHandle.Podcast -> if (handle.localPath != null) null else handle.audioUrl ?: item.item.mediaUrl
-            is PlayHandle.LocalVideo -> null
-            is PlayHandle.Video -> null
-        } ?: return
+        // NOT `localPath?.let { null } ?: …` — an elvis cannot tell a deliberate null from an
+        // absent one, so that spelling fell straight through and preloaded a file already on
+        // the device. Caught by PreloadOnWifiOnlyTest before it shipped.
+        val url = item.preloadableUrl() ?: return
         nominatePreload(item.item.id, url)
     }
 

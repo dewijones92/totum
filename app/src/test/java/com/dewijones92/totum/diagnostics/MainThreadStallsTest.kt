@@ -115,4 +115,12 @@ class MainThreadStallsTest {
             )
         )
     }
+
+    @Test
+    fun `a report can tell the watch is alive even when nothing stalled`() {
+        stalls.ended(stalledMs = 3, nowMs = 0)
+        assertEquals("on: 1 ping(s), the longest wait 3ms, 0 stall(s) over 400ms", Vitals.snapshot()["main.watch"])
+        repeat(50) { stalls.ended(stalledMs = 120, nowMs = 0) }
+        assertEquals("on: 51 ping(s), the longest wait 120ms, 0 stall(s) over 400ms", Vitals.snapshot()["main.watch"])
+    }
 }
