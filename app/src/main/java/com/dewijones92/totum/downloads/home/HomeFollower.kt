@@ -27,7 +27,7 @@ internal class HomeFollower(
     private val known: StateFlow<Map<MediaItemId, HomeJob>>,
     private val downloads: DownloadManager,
     private val reporting: HomeReporting,
-    private val unmetered: () -> Boolean,
+    private val phone: PhoneSide,
     private val scope: CoroutineScope,
     private val pollMs: Long,
 ) {
@@ -78,12 +78,17 @@ internal class HomeFollower(
     private suspend fun copyWhatIsReady() {
         val ready = known.value.values.filter { it.state == HomeJobState.DONE }
         if (ready.isEmpty()) return
-        if (!unmetered()) {
+        if (!phone.copyOnWifi()) {
+            Diag.log(TAG, "${ready.size} ready at home; copying to the phone by itself is off")
+            return
+        }
+        if (!phone.unmetered()) {
             Diag.log(TAG, "${ready.size} ready at home; not copying on a metered network")
             return
         }
         val local = downloads.observeDownloads().first()
-        ready.filter { job -> wanted(job, local[MediaItemId(job.id)]) }
+        val kept = phone.kept.ids.value
+        ready.filter { job -> job.id !in kept && wanted(job, local[MediaItemId(job.id)]) }
             .forEach { job ->
                 val item = job.item.toPlayable() ?: return@forEach
                 Diag.log(TAG, "\"${job.item.title}\": copying from home to the phone (unmetered)")

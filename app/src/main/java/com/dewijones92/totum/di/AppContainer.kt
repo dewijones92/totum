@@ -129,6 +129,7 @@ import com.dewijones92.totum.downloads.home.HomeDownloads
 import com.dewijones92.totum.downloads.home.HomeNotifications
 import com.dewijones92.totum.downloads.home.Pacing
 import com.dewijones92.totum.downloads.home.PhoneSide
+import com.dewijones92.totum.downloads.home.PrefsKeptAtHome
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
@@ -742,6 +743,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 youTubeTokens = { SharedPrefsTokenStore(context).load() },
                 decoders = { PlatformVideoCodecSupport().snapshot() },
                 unmetered = { !networkStatus.isMetered() },
+                copyOnWifi = { appPreferences.settings.value.copyHomeOnWifi },
+                kept = PrefsKeptAtHome(context),
             ),
             downloads = lockingDownloads,
             operations = operations,

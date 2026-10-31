@@ -161,4 +161,38 @@ class HomeDownloadsTest {
         advanceTimeBy(100)
         assertEquals(listOf("abcdefghijk"), api.cancelled)
     }
+
+    @Test
+    fun `kept at home is not copied back, copy now copies anywhere, the setting stops copying`() = runTest {
+        val kept = InMemoryKeptAtHome()
+        var copyOnWifi = true
+        unmetered = true
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { unmetered }, { copyOnWifi }, kept),
+            local,
+            Operations(),
+            notices,
+            this,
+            Pacing(pollMs = 1),
+        )
+        api.listed = listOf(job(HomeJobState.DONE))
+        home.deleteOnPhoneOnly(MediaItemId("abcdefghijk"))
+        advanceUntilIdle()
+        home.refresh("wifi")
+        assertTrue("kept at home is not copied back", local.requested.isEmpty())
+
+        unmetered = false
+        home.copyNow(MediaItemId("abcdefghijk"))
+        advanceUntilIdle()
+        assertEquals(listOf(MediaItemId("abcdefghijk") to false), local.requested)
+        assertTrue(kept.ids.value.isEmpty())
+
+        local.requested.clear()
+        unmetered = true
+        copyOnWifi = false
+        local.setFailed(MediaItemId("abcdefghijk"), "gone")
+        home.refresh("setting off")
+        assertTrue(local.requested.isEmpty())
+    }
 }

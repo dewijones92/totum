@@ -20,7 +20,7 @@ class TvCaptionsTest {
     """.trimIndent()
 
     @Test
-    fun `cue settings and word timings are removed so the TV places captions itself`() {
+    fun `cue settings and word timings are replaced by one safe place, clear of the screen's edges`() {
         val cleaned = TvCaptions.clean(youTubeAuto)
 
         assertEquals(
@@ -29,11 +29,11 @@ class TvCaptionsTest {
             Kind: captions
             Language: en
 
-            00:00:00.000 --> 00:00:02.389
+            00:00:00.000 --> 00:00:02.389 line:85%,end align:center
              
             hello everyone and
 
-            00:00:02.389 --> 00:00:02.399
+            00:00:02.389 --> 00:00:02.399 line:85%,end align:center
             hello everyone and
              
             """.trimIndent(),
@@ -44,12 +44,12 @@ class TvCaptionsTest {
     }
 
     @Test
-    fun `plain captions pass through untouched`() {
+    fun `plain captions are lifted off the bottom edge too, as the TV's overscan cut them off`() {
         val plain = "WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nA plain line.\n"
 
         val cleaned = TvCaptions.clean(plain)
 
-        assertEquals(plain, cleaned.text)
+        assertEquals("WEBVTT\n\n00:00:01.000 --> 00:00:03.000 line:85%,end align:center\nA plain line.\n", cleaned.text)
         assertEquals(emptyMap<String, Int>(), cleaned.settingsRemoved)
     }
 }

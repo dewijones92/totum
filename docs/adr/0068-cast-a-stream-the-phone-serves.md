@@ -261,3 +261,11 @@ failed silently with the TV stuck loading: `SoundDecoders.missing` now spots Med
 audio/…" anywhere in the cause chain, and the strip says 🔇 the phone can't decode this film's sound and to pick
 another copy. Transcoding such sound on the Pi is a recorded follow-up, not built. Tests: `EarlyEndsTest`,
 `SoundDecodersTest`.
+
+## Amended 2026-10-31: captions sit at 85% of the screen, not on its edge
+
+Report 20261031T201948-970e1ae9 (v0.1.811, The Matrix, 2.40:1, cast to the TV): "the subtitles are cut off … half
+below the picture". With every cue setting stripped (2026-10-24), the TV placed captions at its own default, the very
+bottom edge, which its overscan crops. `TvCaptions.clean` now gives every cue one safe place instead,
+`line:85%,end align:center`: the bottom of the text at 85% of the height, centred, clear of overscan, and for a
+letterboxed film just inside the bottom of the picture. Not yet seen on the real TV. `TvCaptionsTest`, red first.

@@ -446,7 +446,8 @@ internal class CastStreams(
         val cleaned = TvCaptions.clean(text)
         Diag.log(
             "cast",
-            "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, which places them itself: " +
+            "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, " +
+                "placed at ${TvCaptions.SAFE_PLACE}: " +
                 "cue settings removed ${cleaned.settingsRemoved.ifEmpty { "none" }}, " +
                 "${cleaned.inlineTagsRemoved} word-timing tag(s) removed",
         )

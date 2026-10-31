@@ -149,6 +149,12 @@ private fun DownloadSettings(settings: AppPreferences.Settings, prefs: AppPrefer
         onCheckedChange = prefs::setAutoDownloadWifiOnly,
         enabled = settings.autoDownloadQueue,
     )
+    SwitchRow(
+        label = stringResource(R.string.settings_copy_home),
+        summary = stringResource(R.string.settings_copy_home_summary),
+        checked = settings.copyHomeOnWifi,
+        onCheckedChange = prefs::setCopyHomeOnWifi,
+    )
 }
 
 /**

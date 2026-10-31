@@ -1110,6 +1110,13 @@
     <string name="home_state_done_on_phone">🏠 At home · 📥 on the phone too</string>
     <string name="home_state_failed">❌ Failed at home: %1$s</string>
     <string name="home_delete">🗑️ Delete</string>
+    <string name="home_copy_now">📥 Copy to the phone now</string>
+    <string name="home_delete_phone_only">🗑️ Delete from the phone, keep at home</string>
+    <string name="home_delete_home_only">🏠 Delete at home, keep on the phone</string>
+    <string name="home_delete_at_home">🏠 Delete at home</string>
+    <string name="home_also_at_home">🏠 Also at home</string>
+    <string name="settings_copy_home">🏠 Copy home downloads to the phone</string>
+    <string name="settings_copy_home_summary">On Wi-Fi, by itself. Off: they stay at home until you choose 📥 Copy to the phone now.</string>
     <string name="home_notice_ready">🏠 Ready at home: %1$s</string>
     <string name="home_notice_refused">❌ Not downloaded at home: %1$s. %2$s</string>
     <string name="ops_home_percent">⏳ %1$d%%</string>

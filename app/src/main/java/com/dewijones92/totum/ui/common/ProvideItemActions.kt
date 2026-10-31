@@ -53,6 +53,7 @@ internal fun ProvideItemActions(
     CompositionLocalProvider(
         LocalItemActions provides actions,
         LocalDownloadLocking provides container.lockingDownloads,
+        LocalHomeDownloads provides container.homeDownloads,
         LocalReadyAhead provides remember(container) {
             {
                     item: MediaItem ->

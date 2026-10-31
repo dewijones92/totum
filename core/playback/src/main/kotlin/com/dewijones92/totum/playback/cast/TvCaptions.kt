@@ -6,6 +6,7 @@ internal object TvCaptions {
     private val inlineTag = Regex("""<\d{2}:\d{2}(:\d{2})?\.\d{3}>|</?c(\.[^>]*)?>""")
     private val whitespace = Regex("""\s+""")
     private const val TIMING_PARTS = 3
+    const val SAFE_PLACE = "line:85%,end align:center"
 
     fun clean(vtt: String): Cleaned {
         val removed = mutableMapOf<String, Int>()
@@ -14,7 +15,7 @@ internal object TvCaptions {
             if ("-->" in line) {
                 val parts = line.trim().split(whitespace)
                 parts.drop(TIMING_PARTS).forEach { removed.merge(it.substringBefore(':'), 1, Int::plus) }
-                if (parts.size > TIMING_PARTS) parts.take(TIMING_PARTS).joinToString(" ") else line
+                parts.take(TIMING_PARTS).joinToString(" ") + " " + SAFE_PLACE
             } else {
                 tags += inlineTag.findAll(line).count()
                 line.replace(inlineTag, "")

@@ -2,8 +2,8 @@ package com.dewijones92.totum.downloads.home
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.backup.toBackup
+import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.download.DownloadManager
-import com.dewijones92.totum.data.home.AccountHandover
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobRequest
@@ -24,8 +24,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 interface HomeNotices {
@@ -44,6 +42,8 @@ class PhoneSide(
     val youTubeTokens: suspend () -> OAuthTokens?,
     val decoders: () -> List<PhoneDecoder>,
     val unmetered: () -> Boolean,
+    val copyOnWifi: () -> Boolean = { true },
+    val kept: KeptAtHome = InMemoryKeptAtHome(),
 )
 
 class Pacing(
@@ -74,12 +74,13 @@ class HomeDownloads(
         known,
         downloads,
         HomeReporting(operations, notices) { id -> cancel(id) },
-        phone.unmetered,
+        phone,
         scope,
         pacing.pollMs
     )
-    private var handedOver = false
-    private val handing = Mutex()
+    private val phoneDownloads = downloads
+    val kept: StateFlow<Set<String>> get() = phone.kept.ids
+    private val handover = SignInHandover(phone.youTubeTokens)
     private val wake = Channel<String>(Channel.CONFLATED)
 
     fun watch() {
@@ -98,7 +99,7 @@ class HomeDownloads(
     fun start(item: PlayableItem, choice: DownloadChoice?) {
         val home = client ?: return Diag.warn(TAG, "\"${item.item.title}\": no home server; not sent home")
         scope.launch {
-            if (item.handle is PlayHandle.Video) handOver(home)
+            if (item.handle is PlayHandle.Video) handover.ensure(home)
             val request = HomeJobRequest(
                 item.toBackup(),
                 audioOnly = choice == DownloadChoice.Sound,
@@ -128,10 +129,24 @@ class HomeDownloads(
 
     fun cancel(id: MediaItemId) = act("cancel", id) { client?.cancel(it) }
 
+    fun copyNow(id: MediaItemId) {
+        val job = known.value[id]?.takeIf { it.state == HomeJobState.DONE } ?: return
+        val item = job.item.toPlayable() ?: return
+        phone.kept.release(id.value)
+        Diag.log(TAG, "\"${job.item.title}\": copy to the phone now (asked; whatever the network)")
+        scope.launch { phoneDownloads.download(item, audioOnly = job.audioOnly) }
+    }
+
+    fun deleteOnPhoneOnly(id: MediaItemId) {
+        phone.kept.keep(id.value)
+        Diag.log(TAG, "${id.value}: deleted from the phone only; kept at home and not copied back by itself")
+        scope.launch { phoneDownloads.delete(id) }
+    }
+
     fun retry(id: MediaItemId) = act("retry", id) { client?.retry(it) }
 
     fun forgetAccount() {
-        handedOver = false
+        handover.forget()
         scope.launch {
             val answer = client?.forgetAccount() ?: return@launch
             Diag.log(TAG, "asked home to forget the YouTube sign-in: $answer")
@@ -149,17 +164,6 @@ class HomeDownloads(
                 follower.followAll(now.values)
             }
         }
-    }
-
-    private suspend fun handOver(home: HomeJobsApi) = handing.withLock {
-        if (handedOver) return@withLock
-        val tokens = phone.youTubeTokens()
-            ?: return@withLock Diag.log(TAG, "not signed in to YouTube here; nothing to hand over")
-        val answer = home.handOver(
-            AccountHandover(tokens.accessToken.value, tokens.refreshToken.value, tokens.expiresAtEpochSeconds),
-        )
-        handedOver = answer is HomeAnswer.Ok
-        Diag.log(TAG, "YouTube sign-in handed to home: ${if (handedOver) "ok" else answer}")
     }
 
     private fun act(what: String, id: MediaItemId, call: suspend (String) -> HomeAnswer<Unit>?) {

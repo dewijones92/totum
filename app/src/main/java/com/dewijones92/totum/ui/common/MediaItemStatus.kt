@@ -254,9 +254,11 @@ const val HOME_STATUS_TAG = "home-status"
 
 @Composable
 private fun HomeStatus(home: HomeJob?, downloadState: DownloadState) {
-    if (home == null || downloadState is DownloadState.Downloaded || downloadState is DownloadState.Downloading) return
+    if (home == null || downloadState is DownloadState.Downloading) return
+    val alsoHere = downloadState is DownloadState.Downloaded
+    if (alsoHere && home.state != HomeJobState.DONE) return
     Text(
-        text = homeStateText(home),
+        text = if (alsoHere) stringResource(R.string.home_also_at_home) else homeStateText(home),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.testTag(HOME_STATUS_TAG),
