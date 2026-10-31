@@ -15,6 +15,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.kidlock.KidLockWindow
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayed
@@ -82,6 +83,7 @@ class MainActivity : FragmentActivity() {
         }
         KidLockWindow(this, container.kidLock).start()
         if (!restored) handleOpenPlayer(intent, via = "onCreate")
+        if (!restored) DownloadsRequests.handle(intent, via = "onCreate")
         handleShareIntent(intent, via = "onCreate", restored = restored)
     }
 
@@ -93,6 +95,7 @@ class MainActivity : FragmentActivity() {
         // already allowed the ask, and before the first composition makes it.
         if (intent.isFreshShare(restored = false)) mayAsk.value = false
         handleOpenPlayer(intent, via = "onNewIntent")
+        DownloadsRequests.handle(intent, via = "onNewIntent")
         handleShareIntent(intent, via = "onNewIntent", restored = false)
     }
 

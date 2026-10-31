@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.download.fake
 import com.dewijones92.totum.data.download.DownloadEvent
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.DownloadRecord
+import com.dewijones92.totum.data.download.RetryPlan
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
@@ -136,6 +137,10 @@ public class FakeDownloadManager : DownloadManager {
 
     /** Every id a caller asked to start over. */
     public val retried: MutableList<MediaItemId> = mutableListOf()
+
+    public val plans: MutableStateFlow<Map<MediaItemId, RetryPlan>> = MutableStateFlow(emptyMap())
+
+    override fun retryPlans(): Flow<Map<MediaItemId, RetryPlan>> = plans
 
     override suspend fun cancel(id: MediaItemId) {
         cancelled += id

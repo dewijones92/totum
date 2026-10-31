@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.data.download.RetryPlan
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CleanupCandidate
@@ -49,6 +50,7 @@ import java.time.Instant
  * The download records are the whole source. This used to combine podcast episodes with
  * download states, so a downloaded video sat on disk and never appeared here.
  */
+@Suppress("TooManyFunctions") // One method per user action on the Library and Downloads pages.
 class LibraryViewModel(
     private val queue: PlaybackQueue,
     private val downloads: DownloadManager,
@@ -114,16 +116,15 @@ class LibraryViewModel(
      * ones, so a failure simply vanished from the UI while its row sat in the database. Someone
      * waiting for an episode on a plane would find no episode and no explanation.
      */
-    data class Failed(val item: MediaItem, val reason: String) {
+    data class Failed(val item: MediaItem, val reason: String, val retry: RetryPlan? = null) {
         val id: MediaItemId get() = item.id
     }
 
-    val failed: StateFlow<List<Failed>> = records
-        .map { rows ->
-            rows.mapNotNull { row ->
-                (row.state as? DownloadState.Failed)?.let { Failed(row.item.item, it.reason) }
-            }.sortedBy { it.item.title.lowercase() }
-        }
+    val failed: StateFlow<List<Failed>> = combine(records, downloads.retryPlans()) { rows, plans ->
+        rows.mapNotNull { row ->
+            (row.state as? DownloadState.Failed)?.let { Failed(row.item.item, it.reason, plans[row.item.item.id]) }
+        }.sortedBy { it.item.title.lowercase() }
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
 
     val downloaded: StateFlow<List<Entry>> = combine(
@@ -258,6 +259,18 @@ class LibraryViewModel(
     /** Forgets a failed download without retrying it. */
     fun dismiss(id: MediaItemId) {
         viewModelScope.launch { downloads.delete(id) }
+    }
+
+    fun retryAll() {
+        val stopped = failed.value.filter { it.retry == null }.map { it.id }
+        Diag.log("download", "retry all: ${stopped.size} failed download(s) started again")
+        viewModelScope.launch { stopped.forEach { downloads.retry(it) } }
+    }
+
+    fun clearFailed() {
+        val all = failed.value.map { it.id }
+        Diag.log("download", "clear failed: ${all.size} failed download(s) forgotten")
+        viewModelScope.launch { all.forEach { downloads.delete(it) } }
     }
 
     companion object {

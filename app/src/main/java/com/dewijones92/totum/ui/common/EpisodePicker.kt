@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -120,7 +121,9 @@ private fun stateNote(state: DownloadState?): String? = when (state) {
 @Composable
 private fun playNote(state: PlayState?): String? = when (state) {
     is PlayState.Played -> stringResource(R.string.episodes_state_watched)
-    is PlayState.InProgress -> stringResource(R.string.episodes_state_started, state.positionMs / MS_PER_MINUTE)
+    is PlayState.InProgress -> (state.positionMs / MS_PER_MINUTE).let { minutes ->
+        pluralStringResource(R.plurals.episodes_state_started, minutes.toInt(), minutes)
+    }
     else -> null
 }
 

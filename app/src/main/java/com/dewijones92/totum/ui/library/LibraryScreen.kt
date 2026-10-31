@@ -53,12 +53,15 @@ import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.downloads.AnswerDownloadsRequests
+import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.stars.STARRED_PLAYLIST
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.ItemActions
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -93,6 +96,13 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
     var openPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
     val playlist = openPlaylistId?.let(::PlaylistId)
     var openGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+    var downloadsSection by rememberSaveable { mutableStateOf<String?>(null) }
+    AnswerDownloadsRequests(consume = true) { asked ->
+        openGroupId = null
+        openPlaylistId = null
+        downloadsSection = asked.name
+        pageName = LibraryPage.DOWNLOADS.name
+    }
     TrackPlace("library") { "page=${page.name.lowercase()} playlist=$openPlaylistId group=$openGroupId" }
 
     BackHandler(enabled = openGroupId != null || playlist != null || page != LibraryPage.HOME) {
@@ -103,9 +113,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
         } else if (playlist != null) {
             openPlaylistId = null
         } else {
-            go(
-                LibraryPage.HOME
-            )
+            go(LibraryPage.HOME)
         }
     }
     val home = { go(LibraryPage.HOME) }
@@ -125,20 +133,15 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     modifier = modifier,
                 )
             }) { open ->
-                when (open) {
-                    LibraryPage.PLAYLISTS -> LocalPlaylistsScreen(
-                        container,
-                        onBack = home,
-                        onOpen = { openPlaylistId = it.value },
-                        modifier = modifier,
-                    )
-                    LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = home, modifier = modifier)
-                    LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = home, modifier = modifier)
-                    LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = home)
-                    LibraryPage.STATS -> StatsScreen(container, onBack = home, modifier = modifier)
-                    LibraryPage.DOWNLOADS -> DownloadsScreen(container, onBack = home, modifier = modifier)
-                    LibraryPage.HOME -> Unit
-                }
+                LibraryPageContent(
+                    container,
+                    open,
+                    onBack = home,
+                    downloadsSection = downloadsSection,
+                    onDownloadsSection = { downloadsSection = it.name },
+                    onOpenPlaylist = { openPlaylistId = it },
+                    modifier = modifier,
+                )
             }
         }) { open ->
             LocalPlaylistDetailScreen(container, open, onBack = { openPlaylistId = null }, modifier = modifier)
@@ -215,7 +218,45 @@ private fun LibraryHome(
 }
 
 @Composable
-private fun DownloadsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun LibraryPageContent(
+    container: AppContainer,
+    open: LibraryPage,
+    onBack: () -> Unit,
+    downloadsSection: String?,
+    onDownloadsSection: (DownloadsSection) -> Unit,
+    onOpenPlaylist: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (open) {
+        LibraryPage.PLAYLISTS -> LocalPlaylistsScreen(
+            container,
+            onBack = onBack,
+            onOpen = { onOpenPlaylist(it.value) },
+            modifier = modifier,
+        )
+        LibraryPage.HISTORY -> PlayHistoryScreen(container, onBack = onBack, modifier = modifier)
+        LibraryPage.SUBSCRIPTIONS -> AllSubscriptionsScreen(container, onBack = onBack, modifier = modifier)
+        LibraryPage.ACCOUNT -> AccountScreen(container, modifier = modifier, onBack = onBack)
+        LibraryPage.STATS -> StatsScreen(container, onBack = onBack, modifier = modifier)
+        LibraryPage.DOWNLOADS -> DownloadsScreen(
+            container,
+            onBack = onBack,
+            section = downloadsSection?.let { name -> DownloadsSection.entries.firstOrNull { it.name == name } },
+            onSection = onDownloadsSection,
+            modifier = modifier,
+        )
+        LibraryPage.HOME -> Unit
+    }
+}
+
+@Composable
+private fun DownloadsScreen(
+    container: AppContainer,
+    onBack: () -> Unit,
+    section: DownloadsSection?,
+    onSection: (DownloadsSection) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
     val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
     val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
@@ -242,6 +283,7 @@ private fun DownloadsScreen(container: AppContainer, onBack: () -> Unit, modifie
         onSetSort = viewModel::setSort,
         modifier = modifier,
         cleanup = Cleanup(cleanup, viewModel::deleteSuggested),
+        sections = Sections(section, onSection, viewModel::retryAll, viewModel::clearFailed),
     )
 }
 
@@ -264,8 +306,14 @@ internal fun DownloadsContent(
     onSetSort: (DownloadSort) -> Unit,
     modifier: Modifier = Modifier,
     cleanup: Cleanup = Cleanup(),
+    sections: Sections = Sections(),
 ) {
     val actions = LocalItemActions.current
+    val retrying = failed.count { it.retry != null }
+    val stopped = failed.size - retrying
+    var chosen by rememberSaveable(sections.current) { mutableStateOf(sections.current?.name) }
+    val current = chosen?.let { name -> DownloadsSection.entries.firstOrNull { it.name == name } }
+        ?: defaultSection(inProgress.size + retrying, stopped, downloaded.size)
     var reviewing by rememberSaveable { mutableStateOf<CleanupGroup?>(null) }
     val listFilter = rememberListFilter("downloads")
     val itemFilters = rememberItemFilters("downloads")
@@ -274,14 +322,19 @@ internal fun DownloadsContent(
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item { BackHeader(stringResource(R.string.library_downloads), onBack) }
-                // In-progress FIRST, and outside the empty check: a fresh install with everything
-                // still downloading would otherwise show "nothing downloaded yet" while the phone
-                // was busily downloading, which is the most misleading thing this screen could say.
-                runningSection(inProgress, onCancel, onCancelAll)
-                failedSection(failed, onRetry, onDismiss)
-                if (downloaded.isEmpty() && inProgress.isEmpty() && failed.isEmpty()) {
+                item {
+                    SectionChips(current, inProgress.size + retrying, stopped, downloaded.size) {
+                        Diag.log("downloads", "section ${it.name.lowercase()} chosen")
+                        chosen = it.name
+                        sections.onSection(it)
+                    }
+                }
+                activeBody(current, inProgress, failed, sections, Handlers(onCancel, onCancelAll, onRetry, onDismiss))
+                if (current != DownloadsSection.ON_THE_PHONE) {
+                    Unit
+                } else if (downloaded.isEmpty()) {
                     item { DownloadsEmpty() }
-                } else if (downloaded.isNotEmpty()) {
+                } else {
                     item {
                         SectionHeaderWithSortOptions(
                             title = stringResource(R.string.downloads_on_the_phone),
@@ -298,34 +351,45 @@ internal fun DownloadsContent(
                     cleanupSection(cleanup) { reviewing = it }
                     filterField(listFilter, shown.size, downloaded.size, hosted = true)
                     items(shown, key = { it.item.id.value }) { entry ->
-                        MediaItemRow(
-                            item = entry.item,
-                            // The size sits with the item it belongs to; a total alone cannot
-                            // tell you which download is the one worth deleting. Its own line, like
-                            // every other fact — it used to be glued onto the end of the subtitle,
-                            // which is precisely where an ellipsis reached it first.
-                            subtitleLines = rowFacts(entry.item, entry.media.pillar) +
-                                "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}" +
-                                listOfNotNull(
-                                    stringResource(R.string.download_locked_row)
-                                        .takeIf { isDownloadLocked(entry.item.id) },
-                                ),
-                            downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
-                            pillar = entry.media.pillar,
-                            onPlay = { onPlay(entry) },
-                            onDownload = { },
-                            onDeleteDownload = { onDelete(entry) },
-                            onAddToPlaylist = { onAddToPlaylist(entry) },
-                            // An audio-only copy of a video is still missing the picture,
-                            // and Library is exactly where you'd notice.
-                            onDownloadVideo = actions?.let { { it.download(entry.item, audioOnly = false) } },
-                        )
+                        FinishedRow(entry, actions, onPlay, onDelete, onAddToPlaylist)
                     }
                 }
             }
         }
     }
     CleanupReviewOf(cleanup, reviewing, downloaded) { reviewing = null }
+}
+
+@Composable
+private fun FinishedRow(
+    entry: LibraryViewModel.Entry,
+    actions: ItemActions?,
+    onPlay: (LibraryViewModel.Entry) -> Unit,
+    onDelete: (LibraryViewModel.Entry) -> Unit,
+    onAddToPlaylist: (LibraryViewModel.Entry) -> Unit,
+) {
+    MediaItemRow(
+        item = entry.item,
+        // The size sits with the item it belongs to; a total alone cannot
+        // tell you which download is the one worth deleting. Its own line, like
+        // every other fact — it used to be glued onto the end of the subtitle,
+        // which is precisely where an ellipsis reached it first.
+        subtitleLines = rowFacts(entry.item, entry.media.pillar) +
+            "${FactEmoji.ON_DISK} ${formatBytes(entry.sizeBytes)}" +
+            listOfNotNull(
+                stringResource(R.string.download_locked_row)
+                    .takeIf { isDownloadLocked(entry.item.id) },
+            ),
+        downloadState = DownloadState.Downloaded(entry.media.localPath, entry.media.audioOnly),
+        pillar = entry.media.pillar,
+        onPlay = { onPlay(entry) },
+        onDownload = { },
+        onDeleteDownload = { onDelete(entry) },
+        onAddToPlaylist = { onAddToPlaylist(entry) },
+        // An audio-only copy of a video is still missing the picture,
+        // and Library is exactly where you'd notice.
+        onDownloadVideo = actions?.let { { it.download(entry.item, audioOnly = false) } },
+    )
 }
 
 /**

@@ -34,6 +34,17 @@ class DownloadNoticeTrackerTest {
         tracker.onEvent(DownloadEvent(item(id), DownloadState.Failed(reason)))
 
     @Test
+    fun `running downloads each have their own progress, and queued ones are only counted`() {
+        downloading("a", percent = 40)
+        downloading("b", percent = 10)
+        val notice = downloading("c")
+
+        assertEquals(listOf("Episode a" to 40, "Episode b" to 10), notice.running.map { it.item.title to it.percent })
+        assertEquals(1, notice.waiting)
+        assertEquals(3, notice.active.size)
+    }
+
+    @Test
     fun `a starting download becomes active`() {
         val notice = downloading("a")
 

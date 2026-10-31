@@ -3,7 +3,7 @@ title: Download notifications
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-07-25
+updated: 2026-10-31
 ---
 
 # Download notifications
@@ -13,6 +13,19 @@ maybe lets have notificatons for that".
 
 Three notifications, on their own channel: **progress** while downloads run, **completed**
 listing what landed, **failed** with the reason.
+
+## One bar per running download, and a tap opens Downloads (2026-10-31)
+
+Dewi: *"I can only see like one at a time … I want to see them all in progress in the progress bars
+… click it and go into the app, downloads … if they're finished, go to the finished downloads"*.
+The aggregate below is kept for what is QUEUED, and each RUNNING download (at most four, the
+download slots) now has its own notification with its own bar and "⬇️ 56% · 90 MB of 158.2 MB",
+under the "Downloading N" summary, which lists every running one and "⏳ N waiting for a free slot"
+(`RunningDownloadNotifications`, `DownloadNoticeTracker.running/waiting`). Every download
+notification opens Library → Downloads at its section (`DownloadsRequests`, extra
+`totum.openDownloads`): running ones at ⏳ In progress, "Downloaded" at ✅ On the phone, "failed" at
+❌ Failed. A dismissed "Downloaded" or "failed" no longer comes back on the next event: it is
+re-posted only when its list changes. ADR 104.
 
 ## The one design decision worth defending
 

@@ -10,6 +10,8 @@ internal data class DownloadNotice(
     val active: List<MediaItem> = emptyList(),
     /** Aggregate progress across active downloads; null while no download reports any. */
     val percent: Int? = null,
+    val running: List<RunningDownload> = emptyList(),
+    val waiting: Int = 0,
     val completed: List<MediaItem> = emptyList(),
     val failed: List<FailedDownload> = emptyList(),
 ) {
@@ -18,6 +20,12 @@ internal data class DownloadNotice(
 
 internal data class FailedDownload(val item: MediaItem, val reason: String)
 
+internal data class RunningDownload(val item: MediaItem, val downloadedBytes: Long, val totalBytes: Long?) {
+    val percent: Int? get() = totalBytes?.takeIf { it > 0 }?.let { (downloadedBytes * PERCENT_OF / it).toInt() }
+}
+
+private const val PERCENT_OF = 100L
+
 /**
  * Turns a stream of [DownloadEvent]s into what should be on screen.
  *
@@ -25,15 +33,15 @@ internal data class FailedDownload(val item: MediaItem, val reason: String)
  * a batch, when to forget finished work, how to aggregate progress — so it can be tested
  * on the JVM instead of by squinting at a phone. [DownloadNotifier] only renders.
  *
- * **One aggregate notification, not one per item.** AntennaPod and NewPipe both notify
- * per download, which is fine when every download is a deliberate tap. Totum
- * auto-downloads the audio of everything in the queue, so per-item notifications would
- * mean thirty notifications for one queued playlist. Aggregating is the difference
- * between a useful signal and something you'd mute within a day.
+ * **One notification per RUNNING download, under a summary that counts the rest.** Totum
+ * auto-downloads the audio of everything in the queue, so one per queued item would mean thirty
+ * notifications for one playlist; but only four ever run at once (the download slots), so a bar
+ * each for those, with "N waiting" on the summary, stays small (Dewi, 2026-10-31: "I can only see
+ * like one at a time").
  */
 internal class DownloadNoticeTracker {
 
-    private val active = LinkedHashMap<MediaItemId, Pair<MediaItem, Int?>>()
+    private val active = LinkedHashMap<MediaItemId, Pair<MediaItem, DownloadState.Downloading>>()
     private val completed = LinkedHashMap<MediaItemId, MediaItem>()
     private val failed = LinkedHashMap<MediaItemId, FailedDownload>()
 
@@ -50,7 +58,7 @@ internal class DownloadNoticeTracker {
                 }
                 completed -= id
                 failed -= id
-                active[id] = event.item to state.fraction?.let { (it * PERCENT).toInt() }
+                active[id] = event.item to state
             }
 
             is DownloadState.Downloaded -> {
@@ -74,10 +82,15 @@ internal class DownloadNoticeTracker {
     }
 
     private fun notice(): DownloadNotice {
-        val known = active.values.mapNotNull { it.second }
+        val known = active.values.mapNotNull { it.second.fraction?.let { f -> (f * PERCENT).toInt() } }
+        val (started, queued) = active.values.partition { (_, state) ->
+            state.downloadedBytes > 0 || state.totalBytes != null
+        }
         return DownloadNotice(
             active = active.values.map { it.first },
             percent = known.takeIf { it.size == active.size && it.isNotEmpty() }?.average()?.toInt(),
+            running = started.map { (item, state) -> RunningDownload(item, state.downloadedBytes, state.totalBytes) },
+            waiting = queued.size,
             completed = completed.values.toList(),
             failed = failed.values.toList(),
         )

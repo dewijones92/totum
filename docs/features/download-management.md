@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-24
+updated: 2026-10-31
 ---
 
 # Managing downloads
@@ -15,6 +15,16 @@ Dewi, 2026-08-07: *"improve the download manager experience ... e.g. cancel inpr
 by size, sort by other stuff etc etc etc etc etc comprehensve please"*.
 
 Three of these were things that could not be done or seen **at all**.
+
+## Three sections, one at a time (2026-10-31)
+
+Dewi: *"I find the download page in the app quite difficult to use. There's like a load of failed
+downloads"*. The page now opens on chips — ⏳ In progress (N) · ❌ Failed (N) · ✅ On the phone (N) — and
+shows one section at a time (In progress when anything runs, else On the phone), so failures no
+longer sit above everything you have. In progress holds the running downloads (bars), the ones
+⏳ waiting for a free slot, and 🔁 the failures retrying by themselves ("Retry 2 of 4 in 3 min —
+timeout", with Retry now; ADR 103). Failed holds only what stopped for good or ran out of retries,
+with 🔁 Retry all and 🧹 Clear all. A notification opens the page at its section. ADR 104.
 
 ## Cancel
 

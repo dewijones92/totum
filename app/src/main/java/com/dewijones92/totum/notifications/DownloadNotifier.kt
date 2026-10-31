@@ -9,7 +9,10 @@ import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
+import com.dewijones92.totum.downloads.DownloadsRequests
+import com.dewijones92.totum.downloads.DownloadsSection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -33,6 +36,7 @@ internal class DownloadNotifier(
 ) {
 
     private val manager = NotificationManagerCompat.from(context)
+    private val children by lazy { RunningDownloadNotifications(context, manager) { base() } }
     private val tracker = DownloadNoticeTracker()
 
     fun start() {
@@ -59,21 +63,45 @@ internal class DownloadNotifier(
         runCatching {
             ensureChannel()
             if (notice.active.isEmpty()) manager.cancel(PROGRESS_ID) else manager.notify(PROGRESS_ID, progress(notice))
-            if (notice.completed.isEmpty()) manager.cancel(DONE_ID) else manager.notify(DONE_ID, completed(notice))
-            if (notice.failed.isEmpty()) manager.cancel(FAILED_ID) else manager.notify(FAILED_ID, failed(notice))
+            children.post(notice.running)
+            val done = notice.completed.map { it.id }
+            if (done.isEmpty()) {
+                manager.cancel(DONE_ID)
+            } else if (done != lastDone) {
+                manager.notify(DONE_ID, completed(notice))
+            }
+            lastDone = done
+            val failedIds = notice.failed.map { it.item.id }
+            if (failedIds.isEmpty()) {
+                manager.cancel(FAILED_ID)
+            } else if (failedIds != lastFailed) {
+                manager.notify(FAILED_ID, failed(notice))
+            }
+            lastFailed = failedIds
         }.onFailure { Diag.warn("downloads", "could not post notification", it) }
     }
 
     private fun progress(notice: DownloadNotice): Notification {
         val count = notice.active.size
+        val lines = notice.running.map { "${it.item.title} — ${children.percentText(it)}" } +
+            listOfNotNull(
+                context.resources.getQuantityString(R.plurals.download_waiting_line, notice.waiting, notice.waiting)
+                    .takeIf { notice.waiting > 0 },
+            )
         return base()
             .setContentTitle(context.resources.getQuantityString(R.plurals.download_progress_title, count, count))
-            .setContentText(notice.active.first().title)
+            .setContentText(lines.firstOrNull() ?: notice.active.first().title)
+            .setStyle(inbox(lines))
             .setProgress(PROGRESS_MAX, notice.percent ?: 0, notice.percent == null)
+            .setGroupSummary(true)
+            .setContentIntent(DownloadsRequests.pendingIntent(context, DownloadsSection.IN_PROGRESS))
             .setOngoing(true)
             .setSilent(true)
             .build()
     }
+
+    private var lastDone: List<MediaItemId> = emptyList()
+    private var lastFailed: List<MediaItemId> = emptyList()
 
     private fun completed(notice: DownloadNotice): Notification {
         val count = notice.completed.size
@@ -81,6 +109,7 @@ internal class DownloadNotifier(
             .setContentTitle(context.resources.getQuantityString(R.plurals.download_done_title, count, count))
             .setContentText(notice.completed.last().title)
             .setStyle(inbox(notice.completed.map { it.title }))
+            .setContentIntent(DownloadsRequests.pendingIntent(context, DownloadsSection.ON_THE_PHONE))
             .setAutoCancel(true)
             .setSilent(true)
             .build()
@@ -92,6 +121,7 @@ internal class DownloadNotifier(
             .setContentTitle(context.resources.getQuantityString(R.plurals.download_failed_title, count, count))
             .setContentText(notice.failed.last().item.title)
             .setStyle(inbox(notice.failed.map { "${it.item.title} — ${it.reason}" }))
+            .setContentIntent(DownloadsRequests.pendingIntent(context, DownloadsSection.FAILED))
             .setAutoCancel(true)
             .build()
     }
@@ -122,9 +152,9 @@ internal class DownloadNotifier(
         const val MAX_LINES = 5
         const val PROGRESS_MAX = 100
 
-        // Fixed ids: there is one notification of each kind, by design (see the tracker's
-        // note on why downloads are aggregated rather than notified per item). PROGRESS_ID is
-        // shared with the keep-alive service, which adopts this very notification as its own.
+        // PROGRESS_ID is the group summary and is shared with the keep-alive service, which adopts
+        // this very notification as its own; each running download has its own child (see the
+        // tracker's note on why only the running ones).
         const val PROGRESS_ID = DownloadNotifications.PROGRESS_ID
         const val DONE_ID = 201
         const val FAILED_ID = 202

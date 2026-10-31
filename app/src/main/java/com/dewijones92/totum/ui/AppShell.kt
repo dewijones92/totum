@@ -25,6 +25,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
+import com.dewijones92.totum.downloads.AnswerDownloadsRequests
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
@@ -110,6 +111,13 @@ fun AppShell(
     OpenVideoOnLandscape(shell?.hasVideo == true, shell?.itemId?.value, shortsReel == null, openPlayer)
     AnswerOpenPlayerRequests(openPlayerRequest, controller, openPlayer)
     LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
+    AnswerDownloadsRequests(consume = false) {
+        Diag.log("nav", "Downloads asked for: switching to the Library from ${selected.name}")
+        selected = TopLevelDestination.Library
+        showFullPlayer = false
+        shortsReel = null
+        shellSource = null
+    }
 
     ProvideShellLocals(container, videoBounds, openPlayer, tabs, selected, { showFullPlayer = false }) {
         val openSource: (MediaSource) -> Unit = remember {

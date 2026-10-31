@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.library
 
+import com.dewijones92.totum.data.download.RetryPlan
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
@@ -160,6 +161,41 @@ class DownloadManagementTest {
         advanceUntilIdle()
 
         assertEquals(listOf(MediaItemId("ep-2")), downloads.retried)
+    }
+
+    @Test
+    fun `retry all starts the stopped failures, not the ones already retrying by themselves`() = runTest(dispatcher) {
+        downloads.know(item("ep-4", "Stopped"))
+        downloads.setFailed(MediaItemId("ep-4"), "no space")
+        downloads.know(item("ep-5", "Retrying"))
+        downloads.setFailed(MediaItemId("ep-5"), "timeout")
+        downloads.plans.value = mapOf(MediaItemId("ep-5") to RetryPlan(attempt = 1, of = 4, atMs = 0))
+        val model = model()
+        backgroundScope.launch { model.failed.collect {} }
+        advanceUntilIdle()
+
+        assertEquals(listOf("Retrying", "Stopped"), model.failed.value.map { it.item.title })
+        assertEquals(1, model.failed.value.single { it.item.title == "Retrying" }.retry?.attempt)
+        model.retryAll()
+        advanceUntilIdle()
+
+        assertEquals(listOf(MediaItemId("ep-4")), downloads.retried)
+    }
+
+    @Test
+    fun `clear all forgets every failure`() = runTest(dispatcher) {
+        listOf("ep-6", "ep-7").forEach {
+            downloads.know(item(it, it))
+            downloads.setFailed(MediaItemId(it), "no space")
+        }
+        val model = model()
+        backgroundScope.launch { model.failed.collect {} }
+        advanceUntilIdle()
+
+        model.clearFailed()
+        advanceUntilIdle()
+
+        assertEquals(emptyList<LibraryViewModel.Failed>(), model.failed.value)
     }
 
     /** A failure you have read and do not want back is dismissed, not retried. */
