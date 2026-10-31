@@ -601,7 +601,7 @@ private fun QueueHeader(
 @Composable
 private fun EmptyQueue() = EmptyState(
     icon = Icons.AutoMirrored.Filled.QueueMusic,
-    headline = stringResource(R.string.queue_title),
+    headline = stringResource(R.string.queue_empty_headline),
     supportingText = stringResource(R.string.queue_empty),
 )
 

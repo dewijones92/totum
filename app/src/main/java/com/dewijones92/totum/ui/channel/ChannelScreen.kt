@@ -52,6 +52,7 @@ import com.dewijones92.totum.ui.common.InboxToggle
 import com.dewijones92.totum.ui.common.KeepWhenSettled
 import com.dewijones92.totum.ui.common.KeepsEachPlace
 import com.dewijones92.totum.ui.common.ListFilter
+import com.dewijones92.totum.ui.common.ListMessage
 import com.dewijones92.totum.ui.common.ListShape
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
@@ -308,8 +309,8 @@ private fun MediaItemTab(
     LoadMoreUnlessFiltered(listFilter, listState, tab.canLoadMore, shown.size, onLoadMore)
     when {
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
-        tab.error -> Message(stringResource(R.string.feed_error))
-        tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
+        tab.error -> ListMessage(stringResource(R.string.feed_error))
+        tab.loaded && tab.items.isEmpty() -> ListMessage(stringResource(R.string.feed_empty))
         else -> SelectableMediaList(place, tab.items, shown, { it }, key = sourceKey) {
             Column {
                 listFilter?.let { FilterField(it, shown.size, tab.items.size, hosted = true) }
@@ -347,8 +348,8 @@ private fun PlaylistTab(
     LoadMoreUnlessFiltered(listFilter, listState, tab.canLoadMore, tab.items.size, onLoadMore)
     when {
         tab.loading && tab.items.isEmpty() -> CenteredProgress()
-        tab.error -> Message(stringResource(R.string.feed_error))
-        tab.loaded && tab.items.isEmpty() -> Message(stringResource(R.string.feed_empty))
+        tab.error -> ListMessage(stringResource(R.string.feed_error))
+        tab.loaded && tab.items.isEmpty() -> ListMessage(stringResource(R.string.feed_empty))
         else -> Column {
             FilterField(listFilter, shown.size, tab.items.size, hosted = true)
             PlaylistRows(listState, listFilter, shown, tab, onOpen)
@@ -410,16 +411,4 @@ private fun CenteredProgress() {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         MediaListSkeleton()
     }
-}
-
-@Composable
-private fun Message(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-    )
 }

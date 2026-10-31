@@ -99,6 +99,7 @@ private class ContainerItemActions(
     }
 
     override fun downloadSome(items: List<MediaItem>, title: String) {
+        if (container.downloadChooser.requestAllRemembered(items)) return
         val playable = items.mapNotNull { it.toPlayableOrNull() }
         Diag.log("download", "${items.size} selected to download (${playable.size} playable); asking how, in the sheet")
         container.episodeDownloads.ask(title, playable)

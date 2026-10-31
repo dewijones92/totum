@@ -147,7 +147,7 @@ say why it is the way it is.
   it appears: an item shows the same facts in every list, an action offered for one kind of item is offered for
   every kind it makes sense for, and every path that builds an item fills what is known. When a change touches one
   path, check its siblings (every list, every way in: tap, link, notification, search, restore). A deliberate
-  exception is never built silently: stop and ask Dewi, then record it here or in its ADR.
+  exception is never built silently: stop and ask Dewi, then record it in [ADR 108](docs/adr/0108-consistent-everywhere-and-its-recorded-exceptions.md), which also lists what the 2026-10-31 audit left to do.
 - **Strictly DRY** — this matters a lot to Dewi. Knowledge lives in exactly one
   place: versions and SDK levels only in `gradle/libs.versions.toml`; Android
   build defaults (compileSdk/minSdk/Java level/lint policy) only in the root

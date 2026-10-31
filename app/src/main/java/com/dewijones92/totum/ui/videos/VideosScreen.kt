@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -19,7 +18,6 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -54,6 +52,7 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelScreen
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FilterToggle
+import com.dewijones92.totum.ui.common.ListMessage
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
@@ -452,7 +451,7 @@ private fun ChannelsAndVideos(
             if (!feedStandIn(state, feedHidden, onShowFeed)) {
                 playStateFilter(filter, onSetFilter)
                 filterField(listFilter, shown.size, unwatchedFiltered.size, hosted = true) {
-                    FeedMessage(stringResource(R.string.filter_hides_everything))
+                    ListMessage(stringResource(R.string.filter_hides_everything))
                 }
                 items(shown, key = { it.id.value }) { video ->
                     MediaItemRow(
@@ -499,8 +498,8 @@ private fun LazyListScope.feedStandIn(
         // said loading, which is exactly what a screenshot caught on 2026-07-31. The
         // global BusyBar and pull-to-refresh still say work is in flight.
         state.feedLoading && state.videos.isEmpty() -> item { FeedLoading() }
-        state.feedError -> item { FeedMessage(stringResource(R.string.feed_error)) }
-        state.videos.isEmpty() -> item { FeedMessage(stringResource(R.string.feed_empty)) }
+        state.feedError -> item { ListMessage(stringResource(R.string.feed_error)) }
+        state.videos.isEmpty() -> item { ListMessage(stringResource(R.string.feed_empty)) }
         else -> return false
     }
     return true
@@ -511,18 +510,6 @@ private fun FeedLoading() {
     // A skeleton rather than a spinner: it says what is coming and roughly how much, so the
     // screen reads as filling in rather than blocked, and nothing jumps when content lands.
     MediaListSkeleton()
-}
-
-@Composable
-private fun FeedMessage(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-    )
 }
 
 @Preview(showBackground = true)

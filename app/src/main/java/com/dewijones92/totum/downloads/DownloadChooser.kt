@@ -49,6 +49,13 @@ class DownloadChooser(
         asking.tryEmit(Ask(item, pillar, videoOnly))
     }
 
+    fun requestAllRemembered(items: List<MediaItem>): Boolean {
+        val remembered = prefs.settings.value.downloadChoice ?: return false
+        Diag.log(TAG, "${items.size} selected: the remembered choice ${remembered.stored}; not asking")
+        items.forEach { request(it) }
+        return true
+    }
+
     fun choose(ask: Ask, choice: DownloadChoice, remember: Boolean) {
         if (remember) prefs.setDownloadChoice(choice)
         Diag.log(TAG, "\"${ask.item.title}\": chose ${choice.stored}${if (remember) ", remembered" else ""}")

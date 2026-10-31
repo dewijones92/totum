@@ -1,25 +1,18 @@
 package com.dewijones92.totum.ui.playlist
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
@@ -34,6 +27,8 @@ import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
+import com.dewijones92.totum.ui.common.ListLoading
+import com.dewijones92.totum.ui.common.ListMessage
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -87,9 +82,9 @@ fun PlaylistScreen(
                     // tab needs and now gets from one place.
                     item { PlaylistBackHeader(state.title, playlist, music, onBack) }
                     when {
-                        state.loading -> item { CenteredProgress() }
-                        state.error -> item { Message(stringResource(R.string.feed_error)) }
-                        state.videos.isEmpty() -> item { Message(stringResource(R.string.feed_empty)) }
+                        state.loading -> item { ListLoading() }
+                        state.error -> item { ListMessage(stringResource(R.string.feed_error)) }
+                        state.videos.isEmpty() -> item { ListMessage(stringResource(R.string.feed_empty)) }
                         else -> {
                             item { VideosHeading(state, viewModel::setSort, listFilter, itemFilters) }
                             filterField(listFilter, shown.size, state.videos.size, hosted = true)
@@ -118,18 +113,6 @@ private fun PlaylistBackHeader(title: String, playlist: Playlist, music: Boolean
     BackHeader(title = title, onBack = onBack) {
         PinToggle(Pin.Playlist(playlist.browseId, playlist.title, playlist.thumbnailUrl?.value, music))
     }
-
-@Composable
-private fun CenteredProgress() {
-    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun Message(text: String) {
-    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { Text(text) }
-}
 
 @Composable
 private fun playlistViewModel(container: AppContainer, playlist: Playlist, music: Boolean): PlaylistViewModel =

@@ -96,6 +96,20 @@ class DownloadChooserTest {
     }
 
     @Test
+    fun `a selection uses the remembered choice, and asks only when nothing is remembered`() = runTest {
+        val rig = Rig(this)
+        val two = listOf(video, video.copy(id = MediaItemId("second")))
+
+        assertEquals(false, rig.chooser.requestAllRemembered(two))
+        rig.prefs.setDownloadChoice(DownloadChoice.Video(480))
+        assertEquals(true, rig.chooser.requestAllRemembered(two))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(0, rig.asked.size)
+        assertEquals(listOf<Int?>(480, 480), rig.downloads.requestedHeights)
+    }
+
+    @Test
     fun `the choice survives being stored`() {
         listOf(DownloadChoice.Sound, DownloadChoice.Video(null), DownloadChoice.Video(1080)).forEach {
             assertEquals(it, DownloadChoice.parse(it.stored))
