@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,6 +28,8 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.downloads.AnswerDownloadsRequests
+import com.dewijones92.totum.navigation.TabNews
+import com.dewijones92.totum.navigation.TabSeenStore
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
@@ -60,6 +64,7 @@ import com.dewijones92.totum.ui.settings.DriveBackupPrompt
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
 import com.dewijones92.totum.video.VideoPlaybackLauncher
+import java.time.Instant
 
 /**
  * Top-level scaffold: bottom navigation across the app's pillars with
@@ -190,6 +195,37 @@ private fun ShellScaffold(
     }
 }
 
+@Composable
+private fun rememberNewEpisodes(container: AppContainer, selected: TopLevelDestination): Int {
+    val context = LocalContext.current
+    val store = remember { TabSeenStore(context.applicationContext) }
+    val seen by store.seen.collectAsStateWithLifecycle()
+    val episodes by container.podcastRepository.observeEpisodes().collectAsStateWithLifecycle(
+        initialValue = emptyList()
+    )
+    val podcastsSeen = seen[TopLevelDestination.Podcasts]
+    LaunchedEffect(podcastsSeen) {
+        if (podcastsSeen == null) {
+            store.markSeen(
+                TopLevelDestination.Podcasts,
+                Instant.now(),
+                "first run, so nothing is new yet"
+            )
+        }
+    }
+    DisposableEffect(selected) {
+        if (selected == TopLevelDestination.Podcasts) store.markSeen(selected, Instant.now(), "tab opened")
+        onDispose {
+            if (selected == TopLevelDestination.Podcasts) store.markSeen(selected, Instant.now(), "tab left")
+        }
+    }
+    val count = TabNews.newEpisodes(episodes, podcastsSeen)
+    LaunchedEffect(
+        count
+    ) { if (count > 0) Diag.log("nav", "Podcasts badge: $count new episode(s) since $podcastsSeen") }
+    return count
+}
+
 /** The mini player sitting above the tabs — one bar, so neither appears without the other. */
 @Composable
 private fun BottomBar(
@@ -204,7 +240,11 @@ private fun BottomBar(
     val news by container.groupNews.states.collectAsStateWithLifecycle()
     val groups by container.sourceGroupStore.observeGroups().collectAsStateWithLifecycle(initialValue = emptyList())
     val fresh = groups.sumOf { news[it.id.value]?.fresh?.size ?: 0 }
-    val badges = if (fresh > 0) mapOf(TopLevelDestination.Library to fresh) else emptyMap()
+    val newEpisodes = rememberNewEpisodes(container, selected)
+    val badges = TabNews.badges(
+        mapOf(TopLevelDestination.Library to fresh, TopLevelDestination.Podcasts to newEpisodes),
+        selected,
+    )
     SteadyPlayback(
         container.playbackController
     ) { state -> DockFor(state, starting, selected, onTogglePlayPause, onExpand, onSelect, onSkipNext, badges) }
