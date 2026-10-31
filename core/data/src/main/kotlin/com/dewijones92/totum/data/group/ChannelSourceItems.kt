@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.channel.ChannelVideosResult
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.PublishedAge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -14,8 +15,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneOffset
 
 /**
  * The video pillar's members, through the same [ChannelRepository] a channel page uses —
@@ -86,7 +85,7 @@ public class ChannelSourceItems(
         }
         val byDay = days.mapNotNull { (item, day) ->
             day?.let {
-                item.copy(publishedAt = it.atTime(NOON).toInstant(ZoneOffset.UTC))
+                item.copy(publishedAt = PublishedAge.ofDay(it))
             }
         }
         val dated = datedChannelItems(feed.orEmpty() + byDay, page, clock())
@@ -100,7 +99,6 @@ public class ChannelSourceItems(
     }
 }
 
-private val NOON: LocalTime = LocalTime.NOON
 private const val LOOKUPS_AT_ONCE = 4
 private const val LOOKUPS_PER_CHANNEL = 25
 

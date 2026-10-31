@@ -28,4 +28,63 @@ class TheWatchPageDatesTheVideoTest {
         assertNull(WatchNextParser.publishedOn("""{"contents":{}}"""))
         assertNull(WatchNextParser.publishedOn(page("6 days ago")))
     }
+
+    @Test
+    fun `a watch page that describes a video dates it too`() {
+        val page = """
+            {"contents":{"singleColumnWatchNextResults":{"results":{"results":{"contents":[
+              {"itemSectionRenderer":{"contents":[
+                {"videoMetadataRenderer":{"videoId":"abc","title":{"runs":[{"text":"24 Hours"}]},
+                  "dateText":{"runs":[{"text":"Oct 31, 2026"}]}}}]}},
+              {"videoPrimaryInfoRenderer":{"dateText":{"simpleText":"Oct 31, 2026"}}}
+            ]}}}}}
+        """.trimIndent()
+
+        assertEquals(LocalDate.of(2026, 10, 31), WatchNextParser.details(page, "abc")?.publishedOn)
+    }
+
+    @Test
+    fun `a player response is dated by its microformat, else by the watch page that described it`() {
+        val withMicroformat = """
+            {"playabilityStatus":{"status":"OK"},"videoDetails":{"videoId":"abc","title":"T"},
+             "microformat":{"playerMicroformatRenderer":{"publishDate":"2026-10-31T03:33:41-07:00"}},
+             "streamingData":{"adaptiveFormats":[]}}
+        """.trimIndent()
+        val bare = """
+            {"playabilityStatus":{"status":"OK"},"videoDetails":{"videoId":"abc"},"streamingData":{"adaptiveFormats":[]}}
+        """.trimIndent()
+        val described = WatchNextDetails("T", null, null, publishedOn = LocalDate.of(2026, 10, 30))
+
+        assertEquals(LocalDate.of(2026, 10, 31), detailsOf(withMicroformat, described).publishedOn)
+        assertEquals(LocalDate.of(2026, 10, 30), detailsOf(bare, described).publishedOn)
+        assertNull(
+            detailsOf(bare.replace("\"videoId\":\"abc\"", "\"videoId\":\"abc\",\"title\":\"T\""), null).publishedOn
+        )
+    }
+
+    @Test
+    fun `the watch page's relative wording and the microformat's exact time are kept`() {
+        val page = """
+            {"contents":{"singleColumnWatchNextResults":{"results":{"results":{"contents":[
+              {"itemSectionRenderer":{"contents":[
+                {"videoMetadataRenderer":{"videoId":"abc","title":{"runs":[{"text":"24 Hours"}]},
+                  "dateText":{"runs":[{"text":"1 hour ago"}]}}},
+                {"videoDescriptionHeaderRenderer":{"publishDate":{"simpleText":"Published on Oct 31, 2026"}}}]}}
+            ]}}}}}
+        """.trimIndent()
+        val withMicroformat = """
+            {"playabilityStatus":{"status":"OK"},"videoDetails":{"videoId":"abc","title":"T"},
+             "microformat":{"playerMicroformatRenderer":{"publishDate":"2026-10-31T03:33:41-07:00"}},
+             "streamingData":{"adaptiveFormats":[]}}
+        """.trimIndent()
+
+        val described = WatchNextParser.details(page, "abc")
+
+        assertEquals("1 hour ago", described?.publishedAgo)
+        assertEquals(LocalDate.of(2026, 10, 31), described?.publishedOn)
+        assertEquals(java.time.Instant.parse("2026-10-31T10:33:41Z"), detailsOf(withMicroformat, null).publishedAt)
+    }
+
+    private fun detailsOf(body: String, described: WatchNextDetails?): PlayerDetails =
+        (PlayerResponseParser.parse(body, described) as? PlayerResult.Success)?.details ?: error("not parsed")
 }

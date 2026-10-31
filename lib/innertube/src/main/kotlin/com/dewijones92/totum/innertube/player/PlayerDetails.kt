@@ -29,6 +29,9 @@ public data class PlayerDetails(
     public val description: String?,
     /** True for a live stream, which has no meaningful length and cannot be seeked normally. */
     public val isLive: Boolean = false,
+    public val publishedOn: java.time.LocalDate? = null,
+    public val publishedAgo: String? = null,
+    public val publishedAt: java.time.Instant? = null,
 )
 
 /**

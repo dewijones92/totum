@@ -73,7 +73,7 @@ class BridgeJsonTest {
     @Test
     fun `an upload_date alone gives the day, and nothing gives null`() {
         val dated = metadataOf("""{"id": "abc", "title": "A video", "upload_date": "20250304", "formats": []}""")
-        assertEquals(java.time.Instant.parse("2025-03-04T00:00:00Z"), dated.publishedAt)
+        assertEquals(java.time.Instant.parse("2025-03-04T12:00:00Z"), dated.publishedAt)
         val bare = metadataOf("""{"id": "abc", "title": "A video", "formats": []}""")
         assertEquals(null, bare.publishedAt)
     }

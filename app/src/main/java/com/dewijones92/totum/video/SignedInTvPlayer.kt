@@ -57,6 +57,7 @@ class SignedInTvPlayer(
         val success = response as? InnerTubeResponse.Success
         val details = success?.parsed { body ->
             Diag.log("resolve", "dewidebug $videoId watch page ${descriptionKeys(body)}")
+            Diag.log("resolve", "dewidebug $videoId watch page dates ${dateSamples(body)}")
             Diag.log("resolve", "dewidebug $videoId watch page progress ${progressKeys(body)}")
             WatchNextParser.details(body, videoId)
         }
@@ -64,7 +65,9 @@ class SignedInTvPlayer(
             "resolve",
             if (details != null) {
                 "$videoId described by the account's watch page: \"${details.title}\" by ${details.author}, " +
-                    "${details.description?.length ?: 0} chars of description"
+                    "${details.description?.length ?: 0} chars of description, " +
+                    "published ${details.publishedOn ?: "not said (${dateKeys(success.body)})"} " +
+                    "(\"${details.publishedAgo ?: "no relative wording"}\")"
             } else {
                 "$videoId: the account's watch page gave no title (${response.toString().take(
                     LOGGED_RESPONSE_CHARS
@@ -146,6 +149,19 @@ private val DESCRIPTION_FIELDS = listOf(
 )
 
 private val DESCRIPTION_KEY = Regex(""""(${DESCRIPTION_FIELDS.joinToString("|")})"\s*:\s*(.{0,60})""")
+
+internal fun dateSamples(body: String): String =
+    DATE_SAMPLE.findAll(body).map { "${it.groupValues[1]}: ${it.groupValues[2]}" }.distinct().take(DATE_SAMPLES)
+        .joinToString("; ").ifEmpty { "no date field" }
+
+private val DATE_SAMPLE =
+    Regex(""""(dateText|publishDate|uploadDate|publishedTimeText|relativeDateText)"\s*:\s*(.{0,60})""")
+private const val DATE_SAMPLES = 6
+
+internal fun dateKeys(body: String): String =
+    DATE_KEY.findAll(body).map { it.groupValues[1] }.distinct().joinToString().ifEmpty { "no date field" }
+
+private val DATE_KEY = Regex(""""(dateText|publishDate|uploadDate|publishedTimeText|relativeDateText)"""")
 
 internal fun descriptionKeys(body: String): String {
     val hits = DESCRIPTION_KEY.findAll(body).toList()

@@ -8,7 +8,10 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-/** `timestamp` is exact; `upload_date` (YYYYMMDD) is the day only, so it lands at midnight UTC. */
+/**
+ * `timestamp` is exact; `upload_date` (YYYYMMDD) is the day only, so it lands at noon UTC, as every day-only
+ * date in the app does.
+ */
 internal fun JsonObject.publishedAt(): Instant? {
     val epochSeconds = (this["timestamp"] ?: this["release_timestamp"])?.jsonPrimitive?.doubleOrNull
     if (epochSeconds != null) return Instant.ofEpochSecond(epochSeconds.toLong())
@@ -16,7 +19,10 @@ internal fun JsonObject.publishedAt(): Instant? {
         ?.takeIf { it.length == UPLOAD_DATE_LENGTH && it.all(Char::isDigit) }
         ?: return null
     return runCatching {
-        LocalDate.parse(day, DateTimeFormatter.BASIC_ISO_DATE).atStartOfDay(ZoneOffset.UTC).toInstant()
+        LocalDate.parse(
+            day,
+            DateTimeFormatter.BASIC_ISO_DATE
+        ).atTime(java.time.LocalTime.NOON).toInstant(ZoneOffset.UTC)
     }.getOrNull()
 }
 

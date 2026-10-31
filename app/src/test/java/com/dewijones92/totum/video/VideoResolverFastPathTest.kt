@@ -135,6 +135,25 @@ class VideoResolverFastPathTest {
     }
 
     @Test
+    fun `the account's answer dates the video, so a shared link's row has a date`() = runTest {
+        val dated = playerResponse("https://x.test/account").let {
+            it.copy(details = it.details?.copy(publishedOn = java.time.LocalDate.of(2026, 10, 31)))
+        }
+        val resolver = VideoResolver(
+            engine = CountingEngine(AtomicInteger()),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = object : PlayerStreams {
+                override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+                override suspend fun signedInFor(videoId: String, describe: Boolean) = dated
+            },
+        )
+
+        val resolved = resolver.resolve(url, source, asked = "play")
+
+        assertEquals(java.time.Instant.parse("2026-10-31T12:00:00Z"), resolved?.item?.publishedAt)
+    }
+
+    @Test
     fun `a caller that knows the title spares the account its watch-page lookup`() = runTest {
         val described = mutableListOf<Boolean>()
         val streams = object : PlayerStreams {

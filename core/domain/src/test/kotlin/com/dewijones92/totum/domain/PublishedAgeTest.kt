@@ -131,4 +131,19 @@ class PublishedAgeTest {
         val full = bare.copy(title = "T", author = "A", publishedAt = now, duration = kotlin.time.Duration.parse("1m"))
         assertSame(full, full.fillingSilenceFrom(bare))
     }
+
+    @Test
+    fun `a fresh video is dated by its relative wording, an older one by its day`() {
+        val now = Instant.parse("2026-10-31T11:25:00Z")
+        val today = java.time.LocalDate.of(2026, 10, 31)
+
+        assertEquals(Instant.parse("2026-10-31T10:25:00Z"), PublishedAge.best(today, "1 hour ago", now))
+        assertEquals(
+            Instant.parse("2026-10-06T12:00:00Z"),
+            PublishedAge.best(java.time.LocalDate.of(2026, 10, 6), "3 weeks ago", now),
+        )
+        assertEquals(Instant.parse("2026-10-31T12:00:00Z"), PublishedAge.best(today, null, now))
+        assertEquals(Instant.parse("2026-10-10T11:25:00Z"), PublishedAge.best(null, "3 weeks ago", now))
+        assertEquals(null, PublishedAge.best(null, "Published on a Tuesday", now))
+    }
 }

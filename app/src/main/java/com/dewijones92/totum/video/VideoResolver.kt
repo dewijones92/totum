@@ -13,9 +13,11 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.titleIsKnown
+import com.dewijones92.totum.innertube.player.PlayerDetails
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaMetadata
@@ -577,7 +579,7 @@ class VideoResolver(
                 // The id is a poor title and a deliberate one: it is recognisable, and it makes a
                 // missing description obvious rather than inventing a plausible name for it.
                 title = details?.title ?: request.id,
-                publishedAt = null,
+                publishedAt = details?.publishedInstant(),
                 duration = details?.lengthSeconds?.seconds,
                 author = details?.author,
                 description = details?.description,
@@ -720,7 +722,7 @@ class VideoResolver(
                 id = MediaItemId(id),
                 sourceId = sourceId,
                 title = prepared.details.title,
-                publishedAt = null,
+                publishedAt = prepared.details.publishedInstant(),
                 duration = prepared.details.lengthSeconds?.seconds,
                 author = prepared.details.author,
                 description = prepared.details.description,
@@ -918,3 +920,6 @@ class VideoResolver(
         val HTTP_SERVED = 200..299
     }
 }
+
+private fun PlayerDetails.publishedInstant(): java.time.Instant? =
+    publishedAt ?: PublishedAge.best(publishedOn, publishedAgo, java.time.Instant.now())

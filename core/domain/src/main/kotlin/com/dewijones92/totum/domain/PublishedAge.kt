@@ -29,6 +29,20 @@ public object PublishedAge {
         return observedAt.minus(unit.multipliedBy(amount))
     }
 
+    public fun best(day: java.time.LocalDate?, relative: String?, observedAt: Instant): Instant? {
+        val fromWording = relative?.let { parse(it, observedAt) }
+        val recent = fromWording != null && Duration.between(fromWording, observedAt) < WORDING_BEATS_THE_DAY
+        return when {
+            recent || day == null -> fromWording
+            else -> ofDay(day)
+        }
+    }
+
+    public fun ofDay(day: java.time.LocalDate): Instant =
+        day.atTime(java.time.LocalTime.NOON).toInstant(java.time.ZoneOffset.UTC)
+
+    private val WORDING_BEATS_THE_DAY = Duration.ofDays(2)
+
     /** "2 hours ago" for [publishedAt] as seen from [now], in YouTube's own words and units. */
     public fun text(publishedAt: Instant, now: Instant): String {
         val elapsed = Duration.between(publishedAt, now).coerceAtLeast(Duration.ZERO)

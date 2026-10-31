@@ -14,8 +14,11 @@ public data class WatchNextDetails(
     val author: String?,
     val channelId: String?,
     val description: String? = null,
+    val publishedOn: LocalDate? = null,
+    val publishedAgo: String? = null,
 )
 
+@Suppress("TooManyFunctions")
 public object WatchNextParser {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -30,16 +33,21 @@ public object WatchNextParser {
             channelId = ((owner?.get("navigationEndpoint") as? JsonObject)?.get("browseEndpoint") as? JsonObject)
                 ?.text("browseId"),
             description = root.description(),
+            publishedOn = root.publishedOn(),
+            publishedAgo = metadata.readable("dateText")?.takeIf { it.endsWith(" ago") },
         )
     }
 
     public fun description(body: String): String? =
         runCatching { json.parseToJsonElement(body) }.getOrNull()?.description()
 
-    public fun publishedOn(body: String): LocalDate? {
-        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() ?: return null
-        val text = root.objectsNamed("videoPrimaryInfoRenderer").firstNotNullOfOrNull { it.readable("dateText") }
-            ?: root.objectsNamed("videoDescriptionHeaderRenderer").firstNotNullOfOrNull { it.readable("publishDate") }
+    public fun publishedOn(body: String): LocalDate? =
+        runCatching { json.parseToJsonElement(body) }.getOrNull()?.publishedOn()
+
+    private fun JsonElement.publishedOn(): LocalDate? {
+        val text = objectsNamed("videoPrimaryInfoRenderer").firstNotNullOfOrNull { it.readable("dateText") }
+            ?: objectsNamed("videoDescriptionHeaderRenderer").firstNotNullOfOrNull { it.readable("publishDate") }
+            ?: objectsNamed("videoMetadataRenderer").firstNotNullOfOrNull { it.readable("dateText") }
             ?: return null
         return DATE_FORMATS.firstNotNullOfOrNull { format -> dateIn(text, format) }
     }

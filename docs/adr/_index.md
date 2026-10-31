@@ -122,3 +122,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 104 | [Downloads in three sections, and a notification per running download](0104-downloads-in-three-sections-and-a-notification-per-download.md) | Accepted |
 | 105 | [Audiobooks are Internet Archive items played as podcast feeds, and torrents in the audiobook category](0105-audiobooks-are-books-from-the-archive-and-torrents.md) | Accepted |
 | 106 | [A torrent wears its poster, from its site or its IMDb id](0106-a-torrent-wears-its-poster.md) | Accepted |
+| 107 | [A tab says what is new since you last looked at it](0107-a-tab-says-what-is-new-since-you-looked.md) | Accepted |

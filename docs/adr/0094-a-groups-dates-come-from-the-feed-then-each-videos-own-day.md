@@ -23,7 +23,7 @@ Cat's newest, truly first, sat 21st). Ages are also too coarse: "4 months ago" p
 - A channel member (`ChannelSourceItems`) reads its page as before, plus its **RSS feed** (`LatestUploads.feedOf`,
   exact times for its newest 15, Shorts and live included). Page items the feed does not cover ask YouTube for their
   **publish day** once (`InnerTubeClient.next` + `WatchNextParser.publishedOn`), kept for good in
-  `files/publish_days.json` (`PublishDays`): a publish day never changes. Taken as noon UTC.
+  `files/publish_days.json` (`PublishDays`): a publish day never changes. Taken as noon UTC, the rule for every day-only date in the app (`PublishedAge.ofDay`, since 2026-10-31; yt-dlp's `upload_date`, the watch page's day and the player's Details had used midnight, which falls on the previous day west of UTC).
 - `datedChannelItems` never changes an exact date; anything still undated gets its age, held no newer than the item
   above it on the channel's own page and no older than the next exact date below, so a channel's own order survives.
   Feed items missing from the page (a Short, a live) are kept with their exact time.

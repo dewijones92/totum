@@ -137,7 +137,7 @@ const val PLAYER_TAB_TAG = "player-tab:"
 internal fun detailsPublished(state: PlaybackState, related: RelatedState): java.time.Instant? =
     (related as? RelatedState.Loaded)
         ?.takeIf { state.kind == MediaKind.VIDEO && it.videoId == state.itemId.value }
-        ?.publishedOn?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()
+        ?.publishedOn?.let(com.dewijones92.totum.domain.PublishedAge::ofDay)
 
 internal fun detailsDescription(state: PlaybackState, related: RelatedState): String? =
     (related as? RelatedState.Loaded)

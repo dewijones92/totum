@@ -25,6 +25,7 @@ import java.util.Base64
  * SABR keeps exactly one entry in the first list and a full ladder, all URL-less, in the
  * second — which is how a 1080p video ends up playing at 360p.
  */
+@Suppress("TooManyFunctions")
 public object PlayerResponseParser {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -46,7 +47,7 @@ public object PlayerResponseParser {
             // unusable.
             else -> return PlayerResult.Unplayable(
                 listOfNotNull(state, status.stringAt("reason")).joinToString(": "),
-                details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),
+                details = root.details(describedBy),
             )
         }
 
@@ -70,7 +71,7 @@ public object PlayerResponseParser {
                 liveManifestUrl = streaming.stringAt("hlsManifestUrl")?.let(HttpUrl::parse),
                 ustreamerConfig = root.ustreamerConfig(),
             ),
-            details = (root["videoDetails"] as? JsonObject)?.toDetails(describedBy),
+            details = root.details(describedBy),
             subtitles = root.captionTracks(),
             accountStartMs = root.accountStartMs(),
         )
@@ -81,6 +82,29 @@ public object PlayerResponseParser {
         val millis = (start["startPosition"] as? JsonObject)?.stringAt("streamTimeMillis")?.toLongOrNull()
         return millis ?: start["startSeconds"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()?.times(MS_PER_SECOND)
     }
+
+    private fun JsonObject.details(describedBy: WatchNextDetails?): PlayerDetails? =
+        (this["videoDetails"] as? JsonObject)?.toDetails(describedBy)
+            ?.let { details ->
+                val stamp = microformatStamp()
+                details.copy(
+                    publishedAt = stamp?.let {
+                        runCatching {
+                            java.time.OffsetDateTime.parse(
+                                it
+                            ).toInstant()
+                        }.getOrNull()
+                    },
+                    publishedOn = stamp?.take(ISO_DATE_LENGTH)
+                        ?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
+                        ?: describedBy?.publishedOn,
+                    publishedAgo = describedBy?.publishedAgo,
+                )
+            }
+
+    private fun JsonObject.microformatStamp(): String? =
+        ((this["microformat"] as? JsonObject)?.get("playerMicroformatRenderer") as? JsonObject)
+            ?.let { it.stringAt("publishDate") ?: it.stringAt("uploadDate") }
 
     private fun JsonObject.toDetails(describedBy: WatchNextDetails?): PlayerDetails? {
         val videoId = stringAt("videoId") ?: return null
@@ -221,3 +245,5 @@ private const val FMT_VTT = "fmt=vtt"
 private const val AUTO_MARK = "auto-generated"
 
 private const val MS_PER_SECOND = 1_000L
+
+private const val ISO_DATE_LENGTH = 10
