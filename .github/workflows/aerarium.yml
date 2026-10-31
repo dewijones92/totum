@@ -18,6 +18,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  IMAGE: ghcr.io/dewijones92/aerarium
+
 defaults:
   run:
     working-directory: aerarium
@@ -55,3 +58,134 @@ jobs:
             aerarium/playwright-report
             aerarium/test-results
           retention-days: 14
+
+  image:
+    name: Image (${{ matrix.arch }})
+    needs: gate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: aerarium
+          platforms: linux/${{ matrix.arch }}
+          build-args: APP_VERSION=0.1.${{ github.run_number }}+${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=0.1.${{ github.run_number }}
+            org.opencontainers.image.title=aerarium
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=aerarium-${{ matrix.arch }}
+          cache-to: type=gha,scope=aerarium-${{ matrix.arch }},mode=max
+          provenance: false
+      - working-directory: .
+        run: |
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aerarium-digest-${{ matrix.arch }}
+          path: digests/*
+          retention-days: 1
+
+  manifest:
+    name: Publish multi-arch image
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: aerarium-digest-*
+          merge-multiple: true
+          path: digests
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: publish
+        working-directory: digests
+        run: |
+          set -euo pipefail
+          sources=$(printf "${IMAGE}@sha256:%s " *)
+          docker buildx imagetools create \
+            -t "${IMAGE}:sha-${GITHUB_SHA::7}" \
+            -t "${IMAGE}:v0.1.${GITHUB_RUN_NUMBER}" \
+            -t "${IMAGE}:latest" \
+            $sources
+          digest=$(docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA::7}" --format '{{json .Manifest}}' | jq -r .digest)
+          platforms=$(docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA::7}" --format '{{json .Manifest}}' | jq -r '[.manifests[].platform.architecture] | sort | join(",")')
+          echo "dewidebug published ${IMAGE}@${digest} platforms=${platforms}"
+          [ "$platforms" = "amd64,arm64" ] || { echo "expected amd64,arm64 but got ${platforms}"; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy to the Pi
+    needs: manifest
+    if: github.ref == 'refs/heads/main' && vars.AERARIUM_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: aerarium-production
+      url: https://aerarium.333133333.xyz
+    concurrency:
+      group: aerarium-deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Deploy over the forced-command SSH key
+        env:
+          SSH_KEY: ${{ secrets.PI_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PI_KNOWN_HOSTS }}
+          PI_HOST: ${{ secrets.PI_HOST }}
+          DIGEST: ${{ needs.manifest.outputs.digest }}
+          PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$SSH_KEY" > key
+          printf '%s\n' "$KNOWN_HOSTS" > known_hosts
+          echo "dewidebug deploying ${DIGEST} for ${GITHUB_SHA::7} to the Pi"
+          printf '%s\n%s\n' "$GITHUB_ACTOR" "$PULL_TOKEN" | ssh \
+            -i key -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            "pi@${PI_HOST}" "deploy ${DIGEST} ${GITHUB_SHA}"

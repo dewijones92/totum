@@ -59,6 +59,19 @@ PW_CHROMIUM_PATH=~/.cache/ms-playwright/chromium-1169/chrome-linux/chrome pnpm e
 CI is `.github/workflows/aerarium.yml` (paths `aerarium/**` only). Totum's `ci.yml` ignores `aerarium/**`,
 so neither app's commits build, release or block the other.
 
+## Deployment
+
+- Every push to `main` that touches `aerarium/**`: gate → amd64 and arm64 images on native runners → one manifest at
+  `ghcr.io/dewijones92/aerarium:{sha-xxxxxxx,v0.1.N,latest}` → `deploy` job (environment `aerarium-production`, `main`
+  only, repo variable `AERARIUM_DEPLOY_ENABLED=true`).
+- The deploy job SSHes to the Pi with a key whose `authorized_keys` line is `restrict,command="…/aerarium/deploy.sh"`
+  (verified: no shell, no forwarding). `deploy.sh` pulls by digest, waits for `/healthz` to report the commit, and
+  rolls back and fails CI otherwise.
+- The Pi side lives in the dot-files repo (`~/code/dot-files/aerarium/`, README there). State in `/var/lib/aerarium`
+  (backed up), keys in `/var/lib/aerarium-keys` (not backed up, copies in Bitwarden), `OWNER_EMAIL` and the Enable
+  Banking settings in `/var/lib/aerarium/state/app.env`. nginx vhost on `/oauth2/auth-owner` passing
+  `X-Forwarded-Email`. Read the dot-files root `CLAUDE.md` before touching anything on the Pi.
+
 ## Gotchas already paid for
 
 - **Playwright `count()` does not wait, and `POST /api/connections/:id/sync` returns before the sync ends.** A
