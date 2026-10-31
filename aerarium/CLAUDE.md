@@ -78,4 +78,7 @@ so neither app's commits build, release or block the other.
   test that counted rows straight after navigating passed every local run and failed in CI with 0. Wait for the
   run's outcome (`expect.poll` on `/runs`) and for a row to be visible before counting; prove a timing fix by
   delaying the request with `page.route` and watching the old test fail at the same line.
+- **An Enable Banking `uid` lives only as long as its consent session.** Key accounts by `identification_hash`, or
+  every 90-day renewal duplicates accounts and history (ADR 0010; a test with the SAME uids in both sessions passed
+  for the wrong reason).
 - TypeScript is pinned to 6.0.x (TS 7 ships no `tsserver.js`, and typescript-eslint supports `<6.1`).

@@ -16,6 +16,8 @@ mounted read-only), or only to the log when `MATRIX_*` is not set.
   `LARGE_TRANSACTION_MINOR` (default £500) booked in the last 7 days, that is not a transfer between your own
   accounts, sends "💷 £X into/out of <account>: <payee> (<date>)". Backfill from a first sync is older than 7 days
   and stays quiet; a transaction is only ever new once.
+- A message Matrix did not accept is retried on the next tick rather than marked as sent. Large-transaction checks
+  run after every successful sync, whether the scheduler, Sync now or a new connection started it.
 - Still to come: new payees taking direct debits, bill rises, card payments abroad (step 8), and the weekly report.
 
 Tests: `apps/server/test/notify.test.ts`.

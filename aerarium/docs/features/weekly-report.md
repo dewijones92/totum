@@ -10,7 +10,8 @@ See [ADR 0008](../adr/0008-a-weekly-money-report.md). Pure computation in `packa
 the job in `apps/server/src/notify/weekly.ts`.
 
 - **When**: the first scheduler tick at or after 07:00 UTC on a Monday makes the report for the previous
-  Monday–Sunday, stores it (`weekly_reports`) and sends a one-line Matrix headline with a link. Once per week.
+  Monday–Sunday, stores it (`weekly_reports`) and sends a one-line Matrix headline with a link. Once per week; if Monday's tick was missed (Pi off), the next tick that week makes it, but never for a
+  week before Aerarium was installed. Only pounds count; other currencies are left out.
   📊 **Make last week's report now** on `/reports` makes it on demand and sends nothing (you are already looking).
 - **Where the change came from**: saved (income minus spending, transfers between your own accounts excluded),
   markets (each investment, ISA or pension account's value change minus what went into it that week), interest,
