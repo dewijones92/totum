@@ -609,7 +609,7 @@ class SearchViewModel(
         private const val STOP_TIMEOUT_MILLIS = 5_000L
         private const val RESULTS_PER_SECTION = 8
         private const val TORRENT_RESULTS = 40
-        private const val BOOK_RESULTS = 12
+        private const val BOOK_RESULTS = 40
 
         /** A music search answers about 20 a page; a shelf keeps the lot and shows [RESULTS_PER_SECTION] at a time. */
         private const val MUSIC_PAGE = 25

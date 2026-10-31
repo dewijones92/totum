@@ -129,7 +129,7 @@ private fun combined(
     }
 }
 
-private fun onePerTorrent(results: List<TorrentResult>): List<TorrentResult> {
+internal fun onePerTorrent(results: List<TorrentResult>): List<TorrentResult> {
     val best = linkedMapOf<String, TorrentResult>()
     results.forEach { result ->
         val key = when (val link = result.link) {
@@ -148,6 +148,7 @@ private fun mergedFacts(a: TorrentResult, b: TorrentResult): TorrentResult {
         it.link
     }.firstOrNull { it is TorrentLink.Magnet && TRACKER in it.uri } ?: base.link
     return base.copy(
+        title = listOf(base.title, other.title).maxWith(compareBy({ !it.isShortened() }, { it.length })),
         link = link,
         uploader = standing.uploader,
         uploaderName = standing.uploaderName ?: base.uploaderName ?: other.uploaderName,
@@ -158,6 +159,8 @@ private fun mergedFacts(a: TorrentResult, b: TorrentResult): TorrentResult {
         seedersReported = base.seedersReported || other.seedersReported,
     )
 }
+
+private fun String.isShortened(): Boolean = trimEnd().let { it.endsWith("...") || it.endsWith("…") }
 
 private fun TorrentSearchResult.withoutWaiting(): TorrentSearchResult =
     if (this is TorrentSearchResult.Success) copy(stillWaitingFor = emptyList()) else this

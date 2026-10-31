@@ -181,8 +181,8 @@
     <string name="downloads_retry">Try again</string>
     <string name="downloads_failed_section">❌ Didn\'t finish</string>
     <string name="downloads_cancel_all">Cancel all</string>
-    <string name="search_section_audiobooks">🎧 Audiobooks (free: LibriVox and the Internet Archive)</string>
-    <string name="search_section_audiobook_torrents">🎧 Audiobook torrents</string>
+    <string name="search_section_audiobooks">🎧 Audiobooks</string>
+    <string name="book_free">🆓 Free · %1$s</string>
     <string name="book_play">▶️ Play</string>
     <string name="book_play_from_start">▶️ Play the book</string>
     <string name="book_resume">▶️ Resume at chapter %1$d of %2$d</string>

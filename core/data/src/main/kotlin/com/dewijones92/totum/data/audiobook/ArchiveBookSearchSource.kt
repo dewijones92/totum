@@ -26,23 +26,43 @@ public class ArchiveBookSearchSource(private val fetcher: HttpTextFetcher) : Sea
             Diag.log("audiobook", "\"${query.value}\" has no words to look for; not asking the Internet Archive")
             return SearchOutcome.Success(Page.last(emptyList()))
         }
-        val body = when (val fetched = fetcher.fetch(ArchiveBooks.searchUrl(words, limit))) {
+        val strict = when (val found = booksFor(ArchiveBooks.searchUrl(words, limit), query)) {
+            is Found.Books -> found.books
+            is Found.Failed -> return SearchOutcome.Failure(found.detail)
+        }
+        val loose = if (strict.size < LOOSE_BELOW) {
+            (booksFor(ArchiveBooks.searchUrl(words, limit, loose = true), query) as? Found.Books)?.books.orEmpty()
+        } else {
+            emptyList()
+        }
+        val books = (strict + loose).distinctBy { it.identifier }
+        Diag.log(
+            "audiobook",
+            "Internet Archive \"${query.value}\" -> ${books.size} book(s), " +
+                "${books.count { it.librivox }} from LibriVox " +
+                "(${strict.size} by title or author" +
+                (if (strict.size < LOOSE_BELOW) ", ${books.size - strict.size} more from a looser search)" else ")"),
+        )
+        return SearchOutcome.Success(Page.last(books))
+    }
+
+    private sealed interface Found {
+        data class Books(val books: List<SearchHit.Book>) : Found
+        data class Failed(val detail: String) : Found
+    }
+
+    private suspend fun booksFor(url: com.dewijones92.totum.common.HttpUrl, query: SearchQuery): Found {
+        val body = when (val fetched = fetcher.fetch(url)) {
             is FetchResult.Success -> fetched.body
             is FetchResult.Failure -> {
                 Diag.warn("audiobook", "Internet Archive search for \"${query.value}\" failed: ${fetched.detail}")
-                return SearchOutcome.Failure(fetched.detail)
+                return Found.Failed(fetched.detail)
             }
         }
         val docs = runCatching {
             ((json.parseToJsonElement(body) as JsonObject)["response"] as JsonObject)["docs"] as JsonArray
-        }.getOrElse { return SearchOutcome.Failure("The Internet Archive answered something unreadable") }
-        val books = docs.mapNotNull { (it as? JsonObject)?.toBook() }.distinctBy { it.identifier }
-        Diag.log(
-            "audiobook",
-            "Internet Archive \"${query.value}\" -> ${books.size} book(s), " +
-                "${books.count { it.librivox }} from LibriVox, of ${docs.size} row(s)",
-        )
-        return SearchOutcome.Success(Page.last(books))
+        }.getOrElse { return Found.Failed("The Internet Archive answered something unreadable") }
+        return Found.Books(docs.mapNotNull { (it as? JsonObject)?.toBook() }.distinctBy { it.identifier })
     }
 
     private fun JsonObject.toBook(): SearchHit.Book? {
@@ -68,5 +88,6 @@ public class ArchiveBookSearchSource(private val fetcher: HttpTextFetcher) : Sea
 
     private companion object {
         const val LIBRIVOX = "librivoxaudio"
+        const val LOOSE_BELOW = 5
     }
 }

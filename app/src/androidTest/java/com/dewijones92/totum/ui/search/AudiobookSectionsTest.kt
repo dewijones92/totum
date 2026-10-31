@@ -41,7 +41,7 @@ class AudiobookSectionsTest {
     )
 
     @Test
-    fun freeBooksAndBookTorrentsEachHaveTheirSectionAndPlay() {
+    fun freeBooksAndBookTorrentsShareOneSectionAndPlay() {
         val books = mutableListOf<String>()
         val torrents = mutableListOf<String>()
         val results = SearchViewModel.Results.Loaded(
@@ -54,17 +54,48 @@ class AudiobookSectionsTest {
         )
         composeTestRule.setContent {
             TotumTheme {
-                LazyColumn { bookSections(results, { books += it.title }, { torrents += it.title }, {}) }
+                LazyColumn {
+                    bookSections(
+                        results,
+                        "war of the worlds",
+                        TorrentShelf(),
+                        BookSections({ books += it.title }, { torrents += it.title }, {}),
+                    )
+                }
             }
         }
 
-        composeTestRule.onNodeWithText("🎧 Audiobooks (free: LibriVox and the Internet Archive)").assertExists()
-        composeTestRule.onNodeWithText("H. G. Wells · LibriVox · 1,414,173 plays").assertExists()
+        composeTestRule.onNodeWithText("🎧 Audiobooks").assertExists()
+        composeTestRule.onNodeWithText("🆓 Free · H. G. Wells · LibriVox · 1,414,173 plays").assertExists()
         composeTestRule.onNodeWithTag("$BOOK_PLAY_TAG-war_of_the_worlds_librivox").performClick()
-        composeTestRule.onNodeWithText("🎧 Audiobook torrents").assertExists()
         composeTestRule.onNodeWithText("The War of the Worlds - H. G. Wells [MP3]").performClick()
 
         assertEquals(listOf("The War of the Worlds"), books)
         assertEquals(listOf("The War of the Worlds - H. G. Wells [MP3]"), torrents)
+    }
+
+    @Test
+    fun aLongListShowsEightAndOffersMore() {
+        val many = (1..12).map { n ->
+            bookTorrent.copy(
+                title = "War of the Worlds copy $n",
+                link = TorrentLink.ViaIndexer("/11/$n")
+            )
+        }
+        val results = SearchViewModel.Results.Loaded(
+            podcasts = SearchSection.Absent,
+            videos = SearchSection.Absent,
+            songs = SearchSection.Absent,
+            torrents = SearchSection.Absent,
+            books = SearchSection.Found(emptyList()),
+            bookTorrents = SearchSection.Found(many),
+        )
+        composeTestRule.setContent {
+            TotumTheme {
+                LazyColumn { bookSections(results, "war of the worlds", TorrentShelf(), BookSections({}, {}, {})) }
+            }
+        }
+
+        composeTestRule.onNodeWithText("⬇️ Show 4 more").assertExists()
     }
 }

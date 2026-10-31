@@ -13,8 +13,9 @@ for torrents". Decisions and reasons: [ADR 105](../adr/0105-audiobooks-are-books
 
 ## What it does
 
-- Search shows **🎧 Audiobooks** (free: LibriVox and the Internet Archive) and, with a home server,
-  **🎧 Audiobook torrents** (AudioBook Bay and The Pirate Bay's Audio Books category).
+- Search shows one **🎧 Audiobooks** section: free books (LibriVox and the Internet Archive, marked 🆓 Free) and, with a
+  home server, audiobook torrents (AudioBook Bay 5 pages, Knaben, The Pirate Bay's Audio Books), ranked together by how
+  well the title matches, free and torrent taking turns; 8 at a time with Show more, up to 40 from each source.
 - ▶️ on a free book plays it from where you were: every chapter is queued as one group, starting at
   the chapter in progress or the next one you have not finished. Tapping the row opens the book.
 - The book's page lists its chapters in order with **▶️ Play the book / Resume at chapter N of M** and

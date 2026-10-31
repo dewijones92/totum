@@ -59,6 +59,14 @@ Prowlarr's own User-Agent.
 - **The book page** is the podcast page with no subscribe button (a book gets no new episodes), and
   ▶️ Play the book / Resume at chapter N of M and ⬇️ Download the book (the episode sheet, ADR 80).
 
+- **Widened the same day** (Dewi: *"I feel like you've limited the search"*; he chose all four and one section):
+  free books and audiobook torrents are **one 🎧 Audiobooks section** (`AudiobookPicks.merged`: best title match
+  first; within an equal match a free book and a torrent take turns, free first, torrents by seeders; free ones read
+  "🆓 Free · …"), shown 8 at a time with Show more; up to 40 from each source (was 12); AudioBook Bay's definition
+  asks 5 pages (33 books for a common title, was 18); **Knaben** (a public meta-search) is a Prowlarr indexer on the
+  Pi; and when the strict title-or-author search finds fewer than 5, a looser one searches descriptions and more
+  audiobook collections. When the same torrent comes from two sites the whole title wins over a shortened one.
+
 ## Consequences
 
 - A book is never in Room until something of it is downloaded or queued; its page loads from the

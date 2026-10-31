@@ -28,9 +28,14 @@ public object ArchiveBooks {
     internal fun wordsOf(query: String): List<String> =
         WORD.findAll(query.lowercase()).map { it.value }.take(MAX_WORDS).toList()
 
-    internal fun searchUrl(words: List<String>, rows: Int): HttpUrl {
-        val clause = words.joinToString(" AND ") { "(title:$it OR creator:$it)" } +
-            " AND mediatype:audio AND collection:audio_bookspoetry"
+    internal fun searchUrl(words: List<String>, rows: Int, loose: Boolean = false): HttpUrl {
+        val clause = if (loose) {
+            words.joinToString(" AND ") + " AND mediatype:audio AND " +
+                "(collection:audio_bookspoetry OR collection:librivoxaudio OR subject:audiobook OR subject:audiobooks)"
+        } else {
+            words.joinToString(" AND ") { "(title:$it OR creator:$it)" } +
+                " AND mediatype:audio AND collection:audio_bookspoetry"
+        }
         val fields = listOf("identifier", "title", "creator", "downloads", "collection")
             .joinToString("") { "&fl[]=$it" }
         return HttpUrl.of(

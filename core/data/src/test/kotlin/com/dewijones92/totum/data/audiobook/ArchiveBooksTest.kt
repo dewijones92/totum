@@ -21,7 +21,7 @@ class ArchiveBooksTest {
     fun `each word must be in the title or the author, best-loved books first`() = runTest {
         var asked: HttpUrl? = null
         val source = ArchiveBookSearchSource { url ->
-            asked = url
+            if (asked == null) asked = url
             FetchResult.Success(fixture("search-persuasion.json"))
         }
 
@@ -57,6 +57,24 @@ class ArchiveBooksTest {
         assertEquals("Persuasion (a reading)", other.title)
         assertEquals("Jane Austen, A Reader · Internet Archive · 12 plays", other.subtitle)
         assertEquals(hits.size, hits.map { it.identifier }.toSet().size)
+    }
+
+    @Test
+    fun `when the title and author search finds little, a looser search adds more`() = runTest {
+        val asked = mutableListOf<String>()
+        val strict = """{"response": {"docs": [{"identifier": "one", "title": "Dune talk", "downloads": 5}]}}"""
+        val loose = """{"response": {"docs": [{"identifier": "one", "title": "Dune talk"},
+            {"identifier": "two", "title": "Desert planet tales", "downloads": 9}]}}"""
+        val source = ArchiveBookSearchSource { url ->
+            asked += URLDecoder.decode(url.value, Charsets.UTF_8)
+            FetchResult.Success(if (asked.size == 1) strict else loose)
+        }
+
+        val hits = (source.search(SearchQuery("dune"), limit = 40, after = null) as SearchOutcome.Success).page.items
+
+        assertEquals(listOf("one", "two"), hits.filterIsInstance<SearchHit.Book>().map { it.identifier })
+        assertEquals(2, asked.size)
+        assertTrue(asked[1], !asked[1].contains("title:") && asked[1].contains("subject:audiobook"))
     }
 
     @Test

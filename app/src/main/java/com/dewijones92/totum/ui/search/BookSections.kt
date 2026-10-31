@@ -16,28 +16,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.search.AudiobookPicks
 import com.dewijones92.totum.data.search.SearchHit
+import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.data.search.toSource
 import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 
-internal fun LazyListScope.bookSections(
-    results: Results.Loaded,
-    onPlayBook: (SearchHit.Book) -> Unit,
-    onPlayTorrent: (SearchHit.Torrent) -> Unit,
-    onDownloadTorrent: (SearchHit.Torrent) -> Unit,
-) {
+internal class BookSections(
+    val onPlayBook: (SearchHit.Book) -> Unit,
+    val onPlayTorrent: (SearchHit.Torrent) -> Unit,
+    val onDownloadTorrent: (SearchHit.Torrent) -> Unit,
+)
+
+internal fun LazyListScope.bookSections(results: Results.Loaded, query: String, shelf: TorrentShelf, on: BookSections) {
+    val merged = mergedBooks(results, query)
+    val section = (merged as? SearchSection.Found)?.copy(items = merged.items.take(shelf.shown)) ?: merged
     hitSection(
         title = { stringResource(R.string.search_section_audiobooks) },
-        section = results.books,
-    ) { hit -> BookHitRow(hit, onPlay = { onPlayBook(hit) }) }
-    hitSection(
-        title = { stringResource(R.string.search_section_audiobook_torrents) },
-        section = results.bookTorrents,
+        section = section,
         failure = { failed ->
             SectionMessage(
                 stringResource(
@@ -46,9 +48,46 @@ internal fun LazyListScope.bookSections(
             )
         },
     ) { hit ->
-        TorrentHitRow(hit = hit, onPlay = { onPlayTorrent(hit) }, onDownload = { onDownloadTorrent(hit) })
+        when (hit) {
+            is SearchHit.Book -> BookHitRow(hit, onPlay = { on.onPlayBook(hit) })
+            is SearchHit.Torrent ->
+                TorrentHitRow(hit = hit, onPlay = { on.onPlayTorrent(hit) }, onDownload = { on.onDownloadTorrent(hit) })
+            else -> Unit
+        }
+    }
+    val hidden = merged.itemsOrNull.orEmpty().size - shelf.shown
+    if (hidden > 0) {
+        item {
+            TextButton(onClick = shelf::showMore, modifier = Modifier.padding(horizontal = 8.dp)) {
+                val more = minOf(hidden, TorrentShelf.PAGE)
+                Text(pluralStringResource(R.plurals.torrent_show_more, more, more))
+            }
+        }
     }
 }
+
+internal fun mergedBooks(results: Results.Loaded, query: String): SearchSection<List<SearchHit>> {
+    val parts = listOf(results.books, results.bookTorrents).filterNot { it is SearchSection.Absent }
+    if (parts.isEmpty()) return SearchSection.Absent
+    val items = AudiobookPicks.merged(
+        query,
+        results.books.itemsOrNull.orEmpty(),
+        results.bookTorrents.itemsOrNull.orEmpty(),
+    )
+    val waiting = buildList {
+        if (results.books.isSearching) add(FREE_BOOKS)
+        if (results.bookTorrents.isSearching) add(BOOK_TORRENTS)
+        addAll((results.bookTorrents as? SearchSection.Found)?.stillWaitingFor.orEmpty())
+    }
+    return when {
+        items.isEmpty() && parts.all { it.isSearching } -> SearchSection.Searching
+        items.isEmpty() && parts.all { it is SearchSection.Failed } -> parts.first()
+        else -> SearchSection.Found(items, waiting)
+    }
+}
+
+private const val FREE_BOOKS = "free books"
+private const val BOOK_TORRENTS = "audiobook torrents"
 
 @Composable
 private fun BookHitRow(
@@ -69,9 +108,11 @@ private fun BookHitRow(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(hit.title, style = MaterialTheme.typography.bodyLarge)
-            hit.subtitle?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text(
+                stringResource(R.string.book_free, hit.subtitle.orEmpty()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         TextButton(onClick = onPlay, modifier = Modifier.testTag("$BOOK_PLAY_TAG-${hit.identifier}")) {
             Text(stringResource(R.string.book_play))
