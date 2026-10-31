@@ -29,9 +29,10 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
     var remember by remember { mutableStateOf(false) }
     LaunchedEffect(chooser) { chooser.asks.collect { asking = it } }
     val ask = asking ?: return
-    val pick = { choice: DownloadChoice ->
+    var place by remember(ask) { mutableStateOf(ask.suggestedPlace) }
+    val pick = { choice: DownloadChoice? ->
         asking = null
-        chooser.choose(ask, choice, remember)
+        chooser.choose(ask, choice, place, remember)
     }
     AlertDialog(
         onDismissRequest = {
@@ -42,18 +43,29 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
         title = { Text(stringResource(R.string.download_choice_title, ask.item.title)) },
         text = {
             Column {
-                if (!ask.videoOnly) {
+                if (ask.askWhere) PlaceChips(place) { place = it }
+                if (!ask.askWhat) {
+                    TextButton(onClick = { pick(null) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.download_choice_go), modifier = Modifier.fillMaxWidth())
+                    }
+                }
+                if (ask.askWhat && !ask.videoOnly) {
                     TextButton(onClick = { pick(DownloadChoice.Sound) }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.download_choice_sound), modifier = Modifier.fillMaxWidth())
                     }
                 }
-                DownloadChoice.heights.forEach { height ->
-                    TextButton(onClick = { pick(DownloadChoice.Video(height)) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            height?.let { stringResource(R.string.download_choice_video_height, it) }
-                                ?: stringResource(R.string.download_choice_video_best),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                if (ask.askWhat) {
+                    DownloadChoice.heights.forEach { height ->
+                        TextButton(
+                            onClick = { pick(DownloadChoice.Video(height)) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                height?.let { stringResource(R.string.download_choice_video_height, it) }
+                                    ?: stringResource(R.string.download_choice_video_best),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
                 LabelledCheckbox(remember, stringResource(R.string.download_choice_remember)) { remember = it }

@@ -3,6 +3,7 @@ package com.dewijones92.totum.video
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.home.PhoneDecoder
 import android.media.MediaFormat as AndroidMediaFormat
 
 /**
@@ -57,6 +58,13 @@ public class PlatformVideoCodecSupport : VideoCodecSupport {
     }
 
     /** yt-dlp's codec string → the Android MIME type; null when unrecognised. */
+    fun snapshot(): List<PhoneDecoder> = PhoneCodecs.FAMILIES.mapNotNull { family ->
+        val codec = family.name.lowercase()
+        val probe = PROBE_CODECS.getValue(family)
+        val height = PROBE_HEIGHTS.firstOrNull { canDecode(probe, it * WIDE / TALL, it) } ?: return@mapNotNull null
+        PhoneDecoder(codec, height, isHardware(probe, height * WIDE / TALL, height))
+    }.also { Diag.log("codec", "decoders told to home: ${it.joinToString { d -> "${d.codec}≤${d.maxHeight}p" }}") }
+
     private fun String?.toMimeType(): String? = when (VideoCodecFamily.of(this)) {
         VideoCodecFamily.AVC -> AndroidMediaFormat.MIMETYPE_VIDEO_AVC
         VideoCodecFamily.HEVC -> AndroidMediaFormat.MIMETYPE_VIDEO_HEVC
@@ -75,3 +83,13 @@ fun decodesTenBitHevc(): Boolean = runCatching {
                 .any { it.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 }
         }
 }.getOrDefault(false).also { Diag.log("codec", "10-bit HEVC decoder on this phone: $it") }
+
+private val PROBE_HEIGHTS = listOf(2160, 1440, 1080, 720, 480)
+private const val WIDE = 16
+private const val TALL = 9
+private val PROBE_CODECS = mapOf(
+    VideoCodecFamily.AVC to "avc1",
+    VideoCodecFamily.HEVC to "hev1",
+    VideoCodecFamily.VP9 to "vp09",
+    VideoCodecFamily.AV1 to "av01",
+)

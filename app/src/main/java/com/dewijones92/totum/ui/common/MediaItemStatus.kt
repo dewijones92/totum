@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
@@ -45,6 +47,7 @@ internal fun MediaItemStatus(
     playState: PlayState,
     downloadState: DownloadState,
     modifier: Modifier = Modifier,
+    home: HomeJob? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -74,6 +77,7 @@ internal fun MediaItemStatus(
         // like one nobody had touched. Dewi, 2026-08-02: "its not clear from gui what is
         // downloading atm". Percentage when the size is known, plain "Downloading…" when it is
         // not — a server that sends no Content-Length must not produce a stuck "0%".
+        HomeStatus(home, downloadState)
         if (downloadState is DownloadState.Downloading) {
             val percent = downloadState.fraction?.let { (it * PERCENT).toInt() }
             Text(
@@ -246,3 +250,16 @@ internal val StatusRowSpacing = Modifier.padding(top = 3.dp)
 
 /** Fractions are 0..1; people read percentages. */
 private const val PERCENT = 100
+
+const val HOME_STATUS_TAG = "home-status"
+
+@Composable
+private fun HomeStatus(home: HomeJob?, downloadState: DownloadState) {
+    if (home == null || downloadState is DownloadState.Downloaded || downloadState is DownloadState.Downloading) return
+    Text(
+        text = homeStateText(home),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.testTag(HOME_STATUS_TAG),
+    )
+}

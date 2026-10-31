@@ -33,6 +33,8 @@ import com.dewijones92.totum.data.content.PodcastSubscriptionItemsSource
 import com.dewijones92.totum.data.content.SeenItemsTracker
 import com.dewijones92.totum.data.download.DefaultDownloadManager
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.data.download.HomeCopyFirst
+import com.dewijones92.totum.data.download.HttpDownloadStrategy
 import com.dewijones92.totum.data.download.LockingDownloadManager
 import com.dewijones92.totum.data.download.SkipSegmentsOnDisk
 import com.dewijones92.totum.data.feed.FeedCache
@@ -42,6 +44,7 @@ import com.dewijones92.totum.data.group.PodcastSourceItems
 import com.dewijones92.totum.data.group.RoutedSourceItems
 import com.dewijones92.totum.data.group.SourceGroupStore
 import com.dewijones92.totum.data.history.PlayHistoryStore
+import com.dewijones92.totum.data.home.HomeJobsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
@@ -121,6 +124,11 @@ import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.PrefsDownloadLocks
+import com.dewijones92.totum.downloads.home.DeletesAtHomeToo
+import com.dewijones92.totum.downloads.home.HomeDownloads
+import com.dewijones92.totum.downloads.home.HomeNotifications
+import com.dewijones92.totum.downloads.home.Pacing
+import com.dewijones92.totum.downloads.home.PhoneSide
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
@@ -319,6 +327,7 @@ interface AppContainer {
      */
     val torrentSearchSource: SearchSource?
     val askService: AskService?
+    val homeDownloads: HomeDownloads
     val askCopies: AskCopies
 
     /** Adds a torrent to the home server and turns it into queue items; null when unconfigured. */
@@ -719,6 +728,29 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         }
     }
 
+    override val homeDownloads: HomeDownloads by lazy {
+        val client = appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
+            HomeJobsClient(
+                transferClient,
+                "https://totum.$base/fetch",
+                { appPreferences.settings.value.homeServerToken }
+            )
+        }
+        HomeDownloads(
+            client = client,
+            phone = PhoneSide(
+                youTubeTokens = { SharedPrefsTokenStore(context).load() },
+                decoders = { PlatformVideoCodecSupport().snapshot() },
+                unmetered = { !networkStatus.isMetered() },
+            ),
+            downloads = lockingDownloads,
+            operations = operations,
+            notices = HomeNotifications(context),
+            scope = applicationScope,
+            pacing = Pacing(refreshWhen = networkStatus.onlineChanges()),
+        ).also { it.watch() }
+    }
+
     override val askCopies: AskCopies by lazy {
         AskCopies({ kind ->
             when (kind) {
@@ -803,12 +835,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    override val downloadManager: DownloadManager get() = lockingDownloads
+    override val downloadManager: DownloadManager by lazy { DeletesAtHomeToo(lockingDownloads) { homeDownloads } }
 
     override val kidLock: KidLock = KidLock()
 
     override val downloadChooser: DownloadChooser by lazy {
-        DownloadChooser(appPreferences, downloadManager, applicationScope)
+        DownloadChooser(appPreferences, downloadManager, applicationScope, homeDownloads, networkStatus::isMetered)
     }
 
     override val lockingDownloads: LockingDownloadManager by lazy {
@@ -820,12 +852,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             downloadDir = downloadDir,
             store = RoomDownloadStore(database.downloadDao()),
             // Videos resolve+merge through the engine (bundled ffmpeg); podcast enclosures are a plain HTTP fetch.
-            strategy = videoAndPodcastDownloads(
-                engine = ytDlpEngine,
-                preferredAudioLanguages = streamChoices::preferredAudioLanguages,
-                resolver = videoResolver,
-                transferClient = transferClient,
-                sabr = AndroidSabrRoute,
+            strategy = HomeCopyFirst(
+                atHome = { item -> homeDownloads.atHome(item) },
+                http = HttpDownloadStrategy(transferClient),
+                next = videoAndPodcastDownloads(
+                    engine = ytDlpEngine,
+                    preferredAudioLanguages = streamChoices::preferredAudioLanguages,
+                    resolver = videoResolver,
+                    transferClient = transferClient,
+                    sabr = AndroidSabrRoute,
+                ),
             ),
             scope = applicationScope,
             onDownloaded = { item -> skipSegmentsOnDisk.refresh(item.item.id) },
@@ -1158,6 +1194,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             audioPreferred = ::audioPlaybackPreferred,
             // Asked per play, so an item downloaded after it was queued still plays from disk.
             localCopy = { id -> realCopyFor(id) },
+            atHome = homeDownloads::atHome,
             // Errs toward "there is a network" only when it can genuinely tell; NetworkStatus
             // itself errs the other way when unsure, which is the safe direction for data.
             offline = ::isOffline,
@@ -1500,6 +1537,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 // under one account would reach a DIFFERENT one if he ever switched; he has
                 // one account, so that trade is stated here rather than silently taken.
                 Diag.log("yt-sync", "signed out — forgetting every account position acted on")
+                homeDownloads.forgetAccount()
             },
         )
     }
@@ -1561,7 +1599,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
 
     override val episodeDownloads: EpisodeDownloads by lazy {
-        EpisodeDownloads(downloadManager, applicationScope, operations)
+        EpisodeDownloads(downloadManager, applicationScope, operations, homeDownloads)
     }
 
     override val audiobookSearchSource: SearchSource by lazy { ArchiveBookSearchSource(textFetcher) }

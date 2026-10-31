@@ -36,6 +36,7 @@ internal fun ShellOverlays(
         container.episodeDownloads,
         container.downloadManager,
         container.appPreferences.settings.collectAsStateWithLifecycle().value.downloadChoice,
+        container.downloadChooser.suggestedPlace().takeIf { container.downloadChooser.homeAvailable },
     )
     // A playlist opened from the channel overlay. This passed `{}` and swallowed the tap: a
     // channel reached via "go to channel" listed its playlists and none of them would open.

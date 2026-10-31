@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -263,6 +264,8 @@ private fun DownloadsScreen(
     val sort by viewModel.sortOrder.collectAsStateWithLifecycle()
     val cleanup by viewModel.cleanup.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
+    val homeJobs by container.homeDownloads.jobs.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { container.homeDownloads.refresh("the Downloads page opened") }
 
     DownloadsContent(
         downloaded = downloaded,
@@ -282,6 +285,12 @@ private fun DownloadsScreen(
         modifier = modifier,
         cleanup = Cleanup(cleanup, viewModel::deleteSuggested),
         sections = Sections(section, onSection, viewModel::retryAll, viewModel::clearFailed),
+        home = HomeSection(
+            available = container.homeDownloads.available,
+            jobs = homeJobs.values.sortedBy { it.state.ordinal },
+            onCancel = container.homeDownloads::cancel,
+            onRetry = container.homeDownloads::retry,
+        ),
     )
 }
 
@@ -305,6 +314,7 @@ internal fun DownloadsContent(
     modifier: Modifier = Modifier,
     cleanup: Cleanup = Cleanup(),
     sections: Sections = Sections(),
+    home: HomeSection = HomeSection(),
 ) {
     val retrying = failed.count { it.retry != null }
     val stopped = failed.size - retrying
@@ -320,13 +330,20 @@ internal fun DownloadsContent(
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item { BackHeader(stringResource(R.string.library_downloads), onBack) }
                 item {
-                    SectionChips(current, inProgress.size + retrying, stopped, downloaded.size) {
-                        Diag.log("downloads", "section ${it.name.lowercase()} chosen")
+                    val counts = SectionCounts(inProgress.size + retrying, stopped, downloaded.size, home)
+                    ChipsFor(current, counts) {
                         chosen = it.name
                         sections.onSection(it)
                     }
                 }
-                activeBody(current, inProgress, failed, sections, Handlers(onCancel, onCancelAll, onRetry, onDismiss))
+                activeBody(
+                    current,
+                    inProgress,
+                    failed,
+                    sections,
+                    Handlers(onCancel, onCancelAll, onRetry, onDismiss),
+                    home
+                )
                 if (current != DownloadsSection.ON_THE_PHONE) {
                     Unit
                 } else if (downloaded.isEmpty()) {
@@ -589,5 +606,21 @@ internal fun LazyListScope.failedSection(
         items(failed, key = { "failed-${it.id.value}" }) { entry ->
             FailedRow(entry, onRetry = { onRetry(entry.id) }, onDismiss = { onDismiss(entry.id) })
         }
+    }
+}
+
+internal class SectionCounts(val running: Int, val failed: Int, val onThePhone: Int, val home: HomeSection)
+
+@Composable
+private fun ChipsFor(current: DownloadsSection, counts: SectionCounts, onSection: (DownloadsSection) -> Unit) {
+    SectionChips(
+        current,
+        counts.running,
+        counts.failed,
+        counts.onThePhone,
+        counts.home.jobs.size.takeIf { counts.home.available },
+    ) {
+        Diag.log("downloads", "section ${it.name.lowercase()} chosen")
+        onSection(it)
     }
 }

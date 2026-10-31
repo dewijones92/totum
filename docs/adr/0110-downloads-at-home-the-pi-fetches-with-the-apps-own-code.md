@@ -7,7 +7,7 @@ updated: 2026-10-31
 
 # 110. Downloads at home: the Pi fetches with the app's own code
 
-- Status: Accepted (the Pi's service is built; the phone side is next)
+- Status: Accepted
 - Date: 2026-10-31
 
 ## Context
@@ -52,3 +52,26 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   phone signs out.
 - yt-dlp in the container updates itself at start, like the app's; the CLI is installed from a release, so the Pi
   runs only released code.
+
+## The phone side (2026-10-31)
+
+- **Where, in the ⬇️ question.** With a home server, the download question gains 📱 On this phone / 🏠 At home
+  (`PlaceChips`), shown for every downloadable item, not only those with a sound-or-video choice, until "remember"
+  keeps the place (`AppPreferences.downloadPlace`); on mobile data 🏠 is suggested. The episode picker has the same
+  row. A selection with a remembered choice but no remembered place opens the picker instead of asking per item.
+  This widens ADR 77's "a podcast downloads at once" for the place only.
+- **`HomeDownloads`** sends the job (the item, Sound or Video and height, the phone's decoders from
+  `PlatformVideoCodecSupport.snapshot()`), hands the YouTube sign-in over once before the first video, polls every
+  20 s while anything runs (10 min otherwise, and on every network change), and drives the strip
+  ("🏠 Downloading at home: …" with a percentage) and notifications (started, ready at home, refused; tapping opens
+  Downloads at 🏠 At home). A job already finished when the app started is not announced.
+- **Rows say so** through one root-provided state (`LocalHomeJobs`): "🏠 Downloading at home · 45%", "🏠 At home ·
+  copies to the phone on Wi-Fi", "❌ Failed at home: …", in every list's status line, until the phone has its own
+  copy. Downloads has a 🏠 At home section with Retry, Cancel and Delete.
+- **Playing:** `routeNow` takes a finished copy at home (`HomeCopy`) when there is none on the phone and the phone
+  is online, and plays the Pi's file as a stream (the token header is the player's usual one).
+- **Copying:** on an unmetered network every finished job with no copy on the phone is downloaded through the
+  ordinary download manager, whose first route (`HomeCopyFirst`) fetches the Pi's file when it has one
+  (resumable); a sound-only copy never stands in for a video.
+- **Deleting** a download on the phone deletes its copy at home too (`DeletesAtHomeToo`), unless the phone kept
+  it (locked). Signing out of YouTube asks the Pi to forget the handed-over sign-in.

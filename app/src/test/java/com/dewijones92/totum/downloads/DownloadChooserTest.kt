@@ -5,7 +5,13 @@ import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.downloads.home.FakeHomeApi
+import com.dewijones92.totum.downloads.home.HomeDownloads
+import com.dewijones92.totum.downloads.home.NoHomeNotices
+import com.dewijones92.totum.downloads.home.PhoneSide
+import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.settings.DownloadPlace
 import com.dewijones92.totum.settings.InMemoryAppPreferences
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -27,10 +33,19 @@ class DownloadChooserTest {
     )
     private val episode = video.copy(id = MediaItemId("ep"), mediaUrl = HttpUrl.of("https://feed.test/ep.mp3"))
 
-    private class Rig(scope: TestScope) {
+    private class Rig(scope: TestScope, withHome: Boolean = false, metered: Boolean = false) {
         val prefs = InMemoryAppPreferences()
         val downloads = FakeDownloadManager()
-        val chooser = DownloadChooser(prefs, downloads, scope)
+        val api = FakeHomeApi()
+        val home = HomeDownloads(
+            api.takeIf { withHome },
+            PhoneSide({ null }, { emptyList() }, { true }),
+            downloads,
+            Operations(),
+            NoHomeNotices,
+            scope,
+        )
+        val chooser = DownloadChooser(prefs, downloads, scope, home, { metered })
         val asked = mutableListOf<DownloadChooser.Ask>()
 
         init {
@@ -48,7 +63,7 @@ class DownloadChooserTest {
         assertEquals(1, rig.asked.size)
         assertEquals(emptyList<Pair<MediaItemId, Boolean>>(), rig.downloads.requested)
 
-        rig.chooser.choose(rig.asked.single(), DownloadChoice.Video(720), remember = true)
+        rig.chooser.choose(rig.asked.single(), DownloadChoice.Video(720), DownloadPlace.PHONE, remember = true)
         testScheduler.advanceUntilIdle()
         rig.chooser.request(video.copy(id = MediaItemId("next")))
         testScheduler.advanceUntilIdle()
@@ -132,5 +147,39 @@ class DownloadChooserTest {
             assertEquals(it, DownloadChoice.parse(it.stored))
         }
         assertNull(DownloadChoice.parse("rubbish"))
+    }
+
+    @Test
+    fun `with a home server, even a podcast asks where, and on mobile data home is suggested`() = runTest {
+        val rig = Rig(this, withHome = true, metered = true)
+        rig.chooser.request(episode)
+        testScheduler.advanceUntilIdle()
+        val ask = rig.asked.single()
+        assertEquals(false, ask.askWhat)
+        assertEquals(true, ask.askWhere)
+        assertEquals(DownloadPlace.HOME, ask.suggestedPlace)
+
+        rig.chooser.choose(ask, null, DownloadPlace.HOME, remember = true)
+        testScheduler.advanceUntilIdle()
+        assertEquals("ep", rig.api.started.single().item.itemId)
+        assertEquals(emptyList<Pair<MediaItemId, Boolean>>(), rig.downloads.requested)
+        assertEquals(DownloadPlace.HOME, rig.prefs.settings.value.downloadPlace)
+    }
+
+    @Test
+    fun `a remembered place and choice ask nothing, and without a home server nothing asks where`() = runTest {
+        val rig = Rig(this, withHome = true)
+        rig.prefs.setDownloadChoice(DownloadChoice.Video(480))
+        rig.prefs.setDownloadPlace(DownloadPlace.HOME)
+        rig.chooser.request(video)
+        testScheduler.advanceUntilIdle()
+        assertEquals(0, rig.asked.size)
+        assertEquals(480, rig.api.started.single().maxHeight)
+
+        val plain = Rig(this)
+        plain.chooser.request(episode)
+        testScheduler.advanceUntilIdle()
+        assertEquals(0, plain.asked.size)
+        assertEquals(listOf(MediaItemId("ep") to false), plain.downloads.requested)
     }
 }

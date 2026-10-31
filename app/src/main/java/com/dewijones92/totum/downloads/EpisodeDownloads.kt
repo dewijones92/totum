@@ -7,11 +7,13 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.downloads.home.HomeDownloads
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.settings.DownloadPlace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -28,7 +30,9 @@ class EpisodeDownloads(
     private val downloads: DownloadManager,
     private val scope: CoroutineScope,
     private val operations: Operations? = null,
+    private val home: HomeDownloads? = null,
 ) {
+    val homeAvailable: Boolean get() = home?.available == true
 
     data class Ask(val title: String, val items: List<PlayableItem>) {
         val offersAChoice: Boolean get() = items.any { it.handle is PlayHandle.Video && !it.isSong }
@@ -47,8 +51,15 @@ class EpisodeDownloads(
         _asking.value = null
     }
 
-    fun start(ask: Ask, chosen: Set<MediaItemId>, choice: DownloadChoice) {
+    fun start(ask: Ask, chosen: Set<MediaItemId>, choice: DownloadChoice, place: DownloadPlace = DownloadPlace.PHONE) {
         val picked = ask.items.filter { it.item.id in chosen }
+        val atHome = home?.takeIf { place == DownloadPlace.HOME && it.available }
+        if (atHome != null) {
+            Diag.log(TAG, "sending ${picked.size} of ${ask.items.size} from \"${ask.title}\" home as ${choice.stored}")
+            _asking.value = null
+            picked.forEach { atHome.start(it, choice.takeIf { _ -> it.handle is PlayHandle.Video }) }
+            return
+        }
         Diag.log(
             TAG,
             "downloading ${picked.size} of ${ask.items.size} from \"${ask.title}\" as ${choice.stored} " +

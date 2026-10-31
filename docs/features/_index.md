@@ -41,6 +41,7 @@ alone until they need more.
 | Search history (recent queries in every search box: main, list filters, channel, transcript) | search | shipped | [search-history.md](search-history.md) |
 | Torrents: public-domain film & TV via the home server | torrent | shipped | [torrents.md](torrents.md) |
 | ✨ Ask: say what you want, Haiku picks, the app finds the copies, you confirm | search | refining | [ask.md](ask.md) |
+| 🏠 Downloads at home: the Pi downloads anything, plays from home, copies to the phone on Wi-Fi | downloads | refining | [downloads-at-home.md](downloads-at-home.md) |
 | Audiobooks: free books (LibriVox, Internet Archive) and audiobook torrents, chapters in order with resume | search | shipped | [audiobooks.md](audiobooks.md) |
 | [Daily alarms](daily-alarms.md) — asked each weekday morning, rung full screen (pickup 17:30 first) | side-quest | built 2026-10-07, ships off | — |
 | Downloads (video merge, sponsors skipped live from the latest list (ADR 16) / podcast enclosure) | downloads | shipped | — |

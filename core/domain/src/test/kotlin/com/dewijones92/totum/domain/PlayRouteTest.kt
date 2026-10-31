@@ -32,6 +32,27 @@ class PlayRouteTest {
         )
     }
 
+    @Test
+    fun `with nothing on the phone, a finished copy at home plays from home`() {
+        val home = HomeCopy(HttpUrl.of("https://home.test/fetch/files/aaaaaaaaaaa"), audioOnly = false)
+        val route = video().routeNow(onDisk = null, offline = false, audioPreferred = false, atHome = home)
+        assertEquals(PlayRoute.AudioStream(video().playedFromHome(home), viaAudioOnlyUrl = false), route)
+        assertEquals(home.url, (route as PlayRoute.AudioStream).playable.item.mediaUrl)
+    }
+
+    @Test
+    fun `a copy on the phone beats one at home, and offline the home copy is out of reach`() {
+        val home = HomeCopy(HttpUrl.of("https://home.test/fetch/files/aaaaaaaaaaa"), audioOnly = false)
+        assertEquals(
+            PlayRoute.VideoFile(video().playedFromDisk(fullCopy), fullCopy.path),
+            video().routeNow(fullCopy, offline = false, audioPreferred = false, atHome = home),
+        )
+        assertEquals(
+            PlayRoute.Refused(Refusal.NotOnThisDevice),
+            video().routeNow(onDisk = null, offline = true, audioPreferred = false, atHome = home),
+        )
+    }
+
     private val watchUrl = HttpUrl.of("https://www.youtube.com/watch?v=aaaaaaaaaaa")
     private val enclosure = HttpUrl.of("https://example.test/episode.mp3")
     private val remuxedAudio = HttpUrl.of("https://home.test/ts/stream/audio.m3u8")

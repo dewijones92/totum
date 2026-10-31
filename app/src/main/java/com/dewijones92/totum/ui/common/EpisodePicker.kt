@@ -31,16 +31,23 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.startsTicked
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.settings.DownloadPlace
 
 const val EPISODE_PICKER_TAG = "episode-picker"
 
 @Composable
-internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManager, remembered: DownloadChoice?) {
+internal fun EpisodePicker(
+    episodes: EpisodeDownloads,
+    downloads: DownloadManager,
+    remembered: DownloadChoice?,
+    suggestedPlace: DownloadPlace? = null,
+) {
     val ask by episodes.asking.collectAsStateWithLifecycle()
     val current = ask ?: return
     val states by downloads.observeDownloads().collectAsStateWithLifecycle(initialValue = null)
     val known = states ?: return
     var choice by remember(current) { mutableStateOf(remembered ?: DownloadChoice.Video(null)) }
+    var place by remember(current) { mutableStateOf(suggestedPlace ?: DownloadPlace.PHONE) }
     var ticked by remember(current) {
         mutableStateOf(current.items.filter { startsTicked(it, known[it.item.id], choice) }.map { it.item.id }.toSet())
     }
@@ -53,6 +60,7 @@ internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManage
         text = {
             Column {
                 Text(stringResource(R.string.episodes_on_phone, onPhone, current.items.size))
+                if (suggestedPlace != null && episodes.homeAvailable) PlaceChips(place) { place = it }
                 if (current.offersAChoice) ChoiceChips(choice) { choice = it }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { ticked = current.items.mapTo(mutableSetOf()) { it.item.id } }) {
@@ -78,7 +86,7 @@ internal fun EpisodePicker(episodes: EpisodeDownloads, downloads: DownloadManage
         },
         confirmButton = {
             TextButton(
-                onClick = { episodes.start(current, ticked, choice) },
+                onClick = { episodes.start(current, ticked, choice, place) },
                 enabled = ticked.isNotEmpty(),
             ) { Text(stringResource(R.string.episodes_download, ticked.size)) }
         },

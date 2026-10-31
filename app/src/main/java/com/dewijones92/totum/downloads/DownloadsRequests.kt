@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class DownloadsSection { IN_PROGRESS, FAILED, ON_THE_PHONE }
+enum class DownloadsSection { IN_PROGRESS, FAILED, ON_THE_PHONE, AT_HOME }
 
 @Composable
 fun AnswerDownloadsRequests(consume: Boolean, open: (DownloadsSection) -> Unit) {

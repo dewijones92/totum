@@ -308,7 +308,7 @@ private fun TitleAndSubtitle(
         // has to, so neither the view count nor the date can be swallowed by a long channel name —
         // which is what happened when all three shared a single capped line.
         FactLines(subtitleLines, followMark)
-        MediaItemStatus(pillar, playState, downloadState, StatusRowSpacing)
+        MediaItemStatus(pillar, playState, downloadState, StatusRowSpacing, homeJobOf(item.id))
     }
 }
 

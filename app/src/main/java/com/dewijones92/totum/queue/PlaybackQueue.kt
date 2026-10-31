@@ -9,6 +9,7 @@ import com.dewijones92.totum.data.queue.QueueSnapshot.Companion.NOTHING_PLAYING
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.data.queue.stampedSince
+import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -96,6 +97,7 @@ class PlaybackQueue(
      * copy holds a picture decides whether it can stand in for streaming (see [routeNow]).
      */
     private val localCopy: suspend (MediaItemId) -> LocalCopy? = { null },
+    private val atHome: (PlayableItem) -> HomeCopy? = { null },
     /**
      * Whether there is no usable network right now.
      *
@@ -980,12 +982,15 @@ class PlaybackQueue(
         val onDisk = localCopy(queued.item.id)
         val offlineNow = offline()
         val audioNow = !forceVideo && (forceAudio || pictures.soundOnly(queued) || audioPreferred())
+        val home = atHome(queued).takeIf { onDisk == null }
         val route = queued.routeNow(
             onDisk,
             offline = offlineNow,
             audioPreferred = audioNow,
-            streamRefused = streamRefused
+            streamRefused = streamRefused,
+            atHome = home,
         )
+        if (home != null) Diag.log("queue", "${queued.item.id.value}: a finished copy at home is offered (${home.url})")
         return Decision(route, onDisk, offlineNow, audioNow)
     }
 

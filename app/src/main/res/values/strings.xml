@@ -1094,6 +1094,26 @@
     <string name="ops_download_batch">⬇️ Downloading %1$s</string>
     <string name="ops_task">⏳ %1$s</string>
     <string name="ops_ask">✨ Asking: %1$s</string>
+    <string name="ops_home_download">🏠 Downloading at home: %1$s</string>
+    <string name="home_notice_started">🏠 Downloading at home: %1$s</string>
+    <string name="downloads_section_at_home">🏠 At home (%1$d)</string>
+    <string name="download_place_phone">📱 On this phone</string>
+    <string name="download_place_home">🏠 At home</string>
+    <string name="download_choice_go">⬇️ Download</string>
+    <string name="downloads_none_at_home">📭 Nothing at home. Choose 🏠 At home when you download.</string>
+    <string name="home_state_waiting">⏳ Waiting at home</string>
+    <string name="home_state_starting">🏠 Starting at home…</string>
+    <string name="home_state_downloading">🏠 Downloading at home · %1$d%%</string>
+    <string name="home_state_done">🏠 At home · copies to the phone on Wi-Fi</string>
+    <string name="home_state_failed">❌ Failed at home: %1$s</string>
+    <string name="home_delete">🗑️ Delete</string>
+    <string name="home_notice_ready">🏠 Ready at home: %1$s</string>
+    <string name="home_notice_refused">❌ Not downloaded at home: %1$s. %2$s</string>
+    <string name="ops_home_percent">%1$d%%</string>
+    <plurals name="ops_home_done">
+        <item quantity="one">🏠 Ready at home: %2$s</item>
+        <item quantity="other">🏠 Ready at home: %2$s</item>
+    </plurals>
     <plurals name="ops_ask_done">
         <item quantity="one">✅ %1$d pick ready to confirm: %2$s</item>
         <item quantity="other">✅ %1$d picks ready to confirm: %2$s</item>

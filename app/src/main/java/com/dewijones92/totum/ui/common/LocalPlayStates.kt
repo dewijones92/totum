@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
@@ -54,6 +55,15 @@ internal fun playStateOf(id: MediaItemId): PlayState {
 internal fun downloadStateOf(id: MediaItemId): DownloadState {
     val states = LocalDownloadStates.current
     return remember(states, id) { derivedStateOf { states.value[id] ?: DownloadState.NotDownloaded } }.value
+}
+
+internal val LocalHomeJobs =
+    staticCompositionLocalOf<State<Map<MediaItemId, HomeJob>>> { mutableStateOf(emptyMap()) }
+
+@Composable
+internal fun homeJobOf(id: MediaItemId): HomeJob? {
+    val jobs = LocalHomeJobs.current
+    return remember(jobs, id) { derivedStateOf { jobs.value[id] } }.value
 }
 
 internal val LocalSourceArtwork = compositionLocalOf<Map<SourceId, HttpUrl>> { emptyMap() }

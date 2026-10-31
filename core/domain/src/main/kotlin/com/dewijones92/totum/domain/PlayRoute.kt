@@ -97,6 +97,7 @@ public fun PlayableItem.routeNow(
     offline: Boolean,
     audioPreferred: Boolean,
     streamRefused: Boolean = false,
+    atHome: HomeCopy? = null,
 ): PlayRoute {
     // A handle may already point at a file (Library plays these); the store answers for
     // everything else, because a handle is fixed when the item is queued and the download
@@ -107,6 +108,8 @@ public fun PlayableItem.routeNow(
     val hasStream = handle is PlayHandle.Video || item.mediaUrl != null || audioUrl != null
     return when {
         usable != null -> fileRoute(usable, audioPreferred)
+        atHome != null && !offline && !streamRefused ->
+            PlayRoute.AudioStream(playedFromHome(atHome), viaAudioOnlyUrl = false)
         // Checked before the network, because "there is nothing to play" is true either way and
         // is the more useful thing to be told.
         !hasStream -> PlayRoute.Refused(Refusal.NothingToPlay)
@@ -137,6 +140,11 @@ private fun PlayableItem.fileRoute(copy: LocalCopy, audioPreferred: Boolean): Pl
  * different paths and must make the same handle out of it, or one of them streams a file that
  * is already on the disk.
  */
+public data class HomeCopy(public val url: HttpUrl, public val audioOnly: Boolean)
+
+public fun PlayableItem.playedFromHome(home: HomeCopy): PlayableItem =
+    copy(item = item.copy(mediaUrl = home.url), handle = PlayHandle.Podcast())
+
 public fun PlayableItem.playedFromDisk(copy: LocalCopy): PlayableItem = copy(
     handle = if (copy.audioOnly || handle.pillar == MediaKind.PODCAST) {
         PlayHandle.Podcast(copy.path)

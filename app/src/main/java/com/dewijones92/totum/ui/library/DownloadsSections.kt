@@ -90,6 +90,7 @@ internal fun LazyListScope.activeBody(
     failed: List<LibraryViewModel.Failed>,
     sections: Sections,
     handlers: Handlers,
+    home: HomeSection = HomeSection(),
 ) {
     val (retrying, stopped) = failed.partition { it.retry != null }
     when (current) {
@@ -97,6 +98,7 @@ internal fun LazyListScope.activeBody(
             inProgressBody(inProgress, retrying, handlers.onCancel, handlers.onCancelAll, handlers.onRetry)
         DownloadsSection.FAILED -> failedBody(stopped, sections, handlers.onRetry, handlers.onDismiss)
         DownloadsSection.ON_THE_PHONE -> Unit
+        DownloadsSection.AT_HOME -> homeBody(home)
     }
 }
 
@@ -116,6 +118,7 @@ internal fun SectionChips(
     running: Int,
     failed: Int,
     onThePhone: Int,
+    atHome: Int?,
     onSection: (DownloadsSection) -> Unit,
 ) {
     FlowRow(
@@ -126,7 +129,8 @@ internal fun SectionChips(
             DownloadsSection.IN_PROGRESS to stringResource(R.string.downloads_section_in_progress, running),
             DownloadsSection.FAILED to stringResource(R.string.downloads_section_failed, failed),
             DownloadsSection.ON_THE_PHONE to stringResource(R.string.downloads_section_on_the_phone, onThePhone),
-        ).forEach { (section, label) ->
+            atHome?.let { DownloadsSection.AT_HOME to stringResource(R.string.downloads_section_at_home, it) },
+        ).filterNotNull().forEach { (section, label) ->
             FilterChip(
                 selected = section == current,
                 onClick = { onSection(section) },

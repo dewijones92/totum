@@ -60,6 +60,9 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.downloads.EpisodeDownloads
+import com.dewijones92.totum.downloads.home.HomeDownloads
+import com.dewijones92.totum.downloads.home.NoHomeNotices
+import com.dewijones92.totum.downloads.home.PhoneSide
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.InMemoryExsurgeStore
 import com.dewijones92.totum.exsurge.NoExsurgePorts
@@ -130,6 +133,7 @@ import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -247,6 +251,17 @@ class FakeAppContainer(
     }
 
     override val operations: Operations = Operations()
+
+    override val homeDownloads: HomeDownloads by lazy {
+        HomeDownloads(
+            null,
+            PhoneSide({ null }, { emptyList() }, { true }),
+            downloadManager,
+            operations,
+            NoHomeNotices,
+            MainScope(),
+        )
+    }
     override val keptArtistSongs: KeptArtistSongs = KeptArtistSongs(null)
 
     override val transcripts: TranscriptLoader = TranscriptLoader(
