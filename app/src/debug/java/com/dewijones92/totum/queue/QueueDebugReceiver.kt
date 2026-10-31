@@ -1,5 +1,7 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.data.torrent.TorrentPlayables
+import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.data.queue.QueueGroup
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -64,6 +66,24 @@ class QueueDebugReceiver : BroadcastReceiver() {
             } else {
                 container.kidLock.unlock("a debug broadcast")
             }
+            ACTION_PLAY_TORRENT -> container.applicationScope.launch {
+                val server = container.homeTorrentServer ?: return@launch Diag.warn("queue", "dewidebug DEBUG torrent: no home server")
+                val magnet = intent.getStringExtra("magnet") ?: return@launch Diag.warn("queue", "dewidebug DEBUG torrent: no magnet")
+                val prepared = server.prepare(TorrentLink.Magnet(magnet))
+                    ?: return@launch Diag.warn("queue", "dewidebug DEBUG torrent: prepare failed")
+                Diag.log(
+                    "queue",
+                    "dewidebug DEBUG torrent \"${prepared.name}\" files: " +
+                        prepared.files.joinToString { "${it.index}:${it.name}(${it.sizeBytes / BYTES_PER_MB}MB)" },
+                )
+                val items = TorrentPlayables.queueItems(server, prepared)
+                val wanted = intent.getStringExtra("file")
+                val chosen = wanted?.let { name -> items.filter { it.item.title.contains(name, ignoreCase = true) } }
+                    ?.ifEmpty { null } ?: items.take(1)
+                Diag.log("queue", "dewidebug DEBUG torrent playing ${chosen.map { it.item.title }} url=${chosen.firstOrNull()?.item?.mediaUrl?.value}")
+                container.playbackQueue.clear()
+                container.playbackQueue.playAll(chosen, null)
+            }
             ACTION_DOWNLOAD -> container.applicationScope.launch {
                 val audioOnly = intent.getBooleanExtra("audioOnly", false)
                 ids.mapNotNull { id ->
@@ -100,6 +120,8 @@ class QueueDebugReceiver : BroadcastReceiver() {
         const val ACTION_PLAY_ON_SCREEN = "com.dewijones92.totum.DEBUG_PLAY_ON_SCREEN"
         const val ACTION_DOWNLOAD = "com.dewijones92.totum.DEBUG_DOWNLOAD"
         const val ACTION_KID_LOCK = "com.dewijones92.totum.DEBUG_KID_LOCK"
+        const val ACTION_PLAY_TORRENT = "com.dewijones92.totum.DEBUG_PLAY_TORRENT"
+        const val BYTES_PER_MB = 1_048_576L
         const val DEFAULT_BEFORE_END_MS = 35_000L
     }
 }
