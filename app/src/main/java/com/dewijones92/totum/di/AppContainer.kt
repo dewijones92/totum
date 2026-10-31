@@ -33,11 +33,7 @@ import com.dewijones92.totum.data.content.PodcastSubscriptionItemsSource
 import com.dewijones92.totum.data.content.SeenItemsTracker
 import com.dewijones92.totum.data.download.DefaultDownloadManager
 import com.dewijones92.totum.data.download.DownloadManager
-import com.dewijones92.totum.data.download.EngineDownloadStrategy
-import com.dewijones92.totum.data.download.FallbackDownloadStrategy
-import com.dewijones92.totum.data.download.HttpDownloadStrategy
 import com.dewijones92.totum.data.download.LockingDownloadManager
-import com.dewijones92.totum.data.download.RoutedDownloadStrategy
 import com.dewijones92.totum.data.download.SkipSegmentsOnDisk
 import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.group.ChannelSourceItems
@@ -118,7 +114,6 @@ import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
-import com.dewijones92.totum.domain.deservesAnotherRoute
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
@@ -142,8 +137,6 @@ import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.HttpYouTubeAuth
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
-import com.dewijones92.totum.innertube.browse.InnerTubeResponse
-import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.channel.HttpYouTubeChannel
 import com.dewijones92.totum.innertube.channel.YouTubeChannel
 import com.dewijones92.totum.innertube.comments.HttpYouTubeComments
@@ -163,12 +156,7 @@ import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.HttpVisitorIdSource
 import com.dewijones92.totum.innertube.player.MemoisedNSolver
 import com.dewijones92.totum.innertube.player.NSolver
-import com.dewijones92.totum.innertube.player.PlayerResponseParser
-import com.dewijones92.totum.innertube.player.PlayerResult
 import com.dewijones92.totum.innertube.player.SignatureSolver
-import com.dewijones92.totum.innertube.player.StreamingData
-import com.dewijones92.totum.innertube.player.withSolvedChallenges
-import com.dewijones92.totum.innertube.player.withSolvedN
 import com.dewijones92.totum.innertube.playlists.HttpYouTubePlaylists
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.innertube.related.HttpYouTubeRelated
@@ -247,23 +235,24 @@ import com.dewijones92.totum.video.AccountChannel
 import com.dewijones92.totum.video.AccountPlaybackProgressStore
 import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.AndroidSabrRoute
 import com.dewijones92.totum.video.CastAwareCodecSupport
+import com.dewijones92.totum.video.EmbeddedPlayer
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
-import com.dewijones92.totum.video.PlayerBackedDownloadStrategy
 import com.dewijones92.totum.video.ProgressOutboxDrain
-import com.dewijones92.totum.video.RangedFetch
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.SignedInTvPlayer
 import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.StreamStatus
 import com.dewijones92.totum.video.VideoPlaybackLauncher
-import com.dewijones92.totum.video.VideoQuality
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.WatchHistorySync
 import com.dewijones92.totum.video.decodesTenBitHevc
+import com.dewijones92.totum.video.solvingChallenges
+import com.dewijones92.totum.video.videoAndPodcastDownloads
 import com.dewijones92.totum.ytdlp.InteractiveFirstEngine
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.chaquopy.ChaquopyYtDlpEngine
@@ -831,37 +820,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             downloadDir = downloadDir,
             store = RoomDownloadStore(database.downloadDao()),
             // Videos resolve+merge through the engine (bundled ffmpeg); podcast enclosures are a plain HTTP fetch.
-            strategy = RoutedDownloadStrategy(
-                // yt-dlp first, because it handles everything. Its one blind spot is anything YouTube
-                // only serves to an ACCOUNT —
-                // members-only uploads, which it is refused and the app is not — so a permanent
-                // refusal falls back to the app's own signed-in resolution.
-                video = FallbackDownloadStrategy(
-                    primary = EngineDownloadStrategy(
-                        engine = ytDlpEngine,
-                        // The SAME preference playback resolves with. Without it, choosing German and
-                        // downloading gave the English original -- and a downloaded file is precisely
-                        // the one you cannot re-pick a track for.
-                        preferredAudioLanguages = streamChoices::preferredAudioLanguages,
-                    ),
-                    secondary = PlayerBackedDownloadStrategy(
-                        // The SAME resolution playback uses, so anything watchable is fetchable.
-                        resolveAudioUrl = { item -> videoResolver.resolve(item, "download")?.audioOnlyUrl },
-                        // NOT resumable: this route re-resolves the URL on every attempt and can be
-                        // handed a different audio format each time, so continuing a part-fetched
-                        // file would splice two formats into one that never plays.
-                        http = HttpDownloadStrategy(transferClient, resumable = false),
-                        resolveVideo = signedInVideo(videoResolver),
-                        fetch = RangedFetch(transferClient),
-                        merge = ytDlpEngine::mergeStreams,
-                    ),
-                    // The named domain rule, not a lambda spelled out here. This used to read
-                    // `{ it.isPermanent }`, which withheld the second route from every 403 — and on
-                    // 2026-08-18, when YouTube stopped serving yt-dlp's URLs at all, that meant a
-                    // working route sat unreachable while nothing in the app could be downloaded.
-                    shouldFallBack = { it.deservesAnotherRoute },
-                ),
-                podcast = HttpDownloadStrategy(transferClient),
+            strategy = videoAndPodcastDownloads(
+                engine = ytDlpEngine,
+                preferredAudioLanguages = streamChoices::preferredAudioLanguages,
+                resolver = videoResolver,
+                transferClient = transferClient,
+                sabr = AndroidSabrRoute,
             ),
             scope = applicationScope,
             onDownloaded = { item -> skipSegmentsOnDisk.refresh(item.item.id) },
@@ -892,7 +856,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             playerStreams = InnerTubePlayerStreams(
                 innerTubeClient,
                 accountPlayer,
-                embedded = ::embeddedPlayer,
+                embedded = embeddedPlayer::player,
                 // Only the anonymous response needs solving here; the account path already
                 // solved its own, and doing it twice would transform an answer into nonsense.
                 solveN = solvingChallenges(signatureTimestamps, nSolver, signatureSolver),
@@ -1288,16 +1252,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      * The embedded player's answer, or null when one of its three inputs cannot be had. Each absence is
      * logged by its source; this only says that the ask did not happen.
      */
-    private suspend fun embeddedPlayer(videoId: String): PlayerResult? {
-        val visitor = visitorIds.current() ?: return null
-        val flags = embedHostFlags.forVideo(videoId) ?: return null
-        val stamp = runCatching { signatureTimestamps.current() }.getOrNull() ?: return null
-        val response = innerTubeClient.playerAsEmbedded(videoId, visitor, stamp, flags)
-        val success = response as? InnerTubeResponse.Success ?: run {
-            Diag.log("resolve", "$videoId: the embedded player answered $response")
-            return null
-        }
-        return success.parsed { PlayerResponseParser.parse(it) }
+    private val embeddedPlayer by lazy {
+        EmbeddedPlayer(
+            innerTubeClient,
+            visitorIds,
+            embedHostFlags,
+            signatureTimestamps
+        )
     }
 
     override val appPreferences: AppPreferences by lazy { SharedPrefsAppPreferences(context) }
@@ -1818,26 +1779,6 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
     ).start()
 }
 
-private fun solvingChallenges(
-    signatureTimestamps: HttpSignatureTimestampSource,
-    nSolver: NSolver,
-    signatureSolver: SignatureSolver,
-): suspend (StreamingData) -> StreamingData = { streaming ->
-    val playerUrl = runCatching { signatureTimestamps.playerScriptUrl() }.getOrNull()
-    if (playerUrl != null) {
-        streaming.withSolvedChallenges(nSolver, signatureSolver, playerUrl)
-    } else {
-        // FAIL CLOSED. Returning the streams untouched here looked harmless and
-        // was the worst option: their `n` is unsolved, so they 403 the moment
-        // playback opens them — a video that resolved in 112ms and then died,
-        // rather than one that took 14s and worked. Seen on the emulator
-        // 2026-08-02. An empty solver drops every format carrying an `n`, which
-        // sends the caller to extraction, and anything with no `n` survives.
-        Diag.warn("resolve", "no player script — dropping any stream that needs its n solved")
-        streaming.withSolvedN({ _, _ -> emptyMap() }, "")
-    }
-}
-
 // Wrapped so extraction reports itself to the global loading bar. This is the slowest
 // thing the app does — an embedded Python interpreter plus a JS runtime, ~8s of
 // startup on first use — so it is the work most worth telling the user about.
@@ -1851,11 +1792,6 @@ private fun politeEngine(context: Context, updateDir: File, polite: Politeness):
             polite.botBackOff,
         ),
     )
-
-private fun signedInVideo(resolver: VideoResolver): suspend (PlayableItem, Int?) -> VideoQuality? = { item, maxHeight ->
-    val qualities = resolver.resolve(item, "download")?.qualities.orEmpty()
-    qualities.firstOrNull { maxHeight == null || it.height <= maxHeight } ?: qualities.lastOrNull()
-}
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 private val ENGINE_THREADS = kotlinx.coroutines.Dispatchers.IO.limitedParallelism(16)

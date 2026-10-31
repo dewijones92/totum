@@ -1,15 +1,11 @@
 package com.dewijones92.totum.video
 
-import androidx.annotation.OptIn
-import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.DownloadStrategy
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
-import com.dewijones92.totum.playback.sabrStreamFor
-import com.dewijones92.totum.sabr.SabrStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -44,6 +40,7 @@ class PlayerBackedDownloadStrategy(
     private val resolveVideo: suspend (PlayableItem, Int?) -> VideoQuality? = { _, _ -> null },
     private val fetch: RangedFetch? = null,
     private val merge: suspend (File, File, File) -> String? = { _, _, _ -> "no merger" },
+    private val sabr: SabrRoute = SabrRoute.NONE,
 ) : DownloadStrategy {
 
     override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
@@ -73,19 +70,19 @@ class PlayerBackedDownloadStrategy(
         // which fetched the SABR endpoint with a GET and wrote the 2KB refusal as a "download":
         // a file that existed, played nothing, and reported success. Caught by the instrumented
         // test on 2026-08-06. One call decides, the same one playback uses.
-        val stream = streamFor(url)
+        val sabrBytes = sabr.bytes(url, item, target)
         val ranged = fetch
-        if (stream == null && ranged != null) {
+        if (sabrBytes == null && ranged != null) {
             emitAll(rangedSound(ranged, url, item, target))
             return@flow
         }
-        if (stream == null) {
+        if (sabrBytes == null) {
             Diag.log("download", "fetching \"${item.item.title}\" from its resolved audio URL")
             http.download(item.item.copy(mediaUrl = url).let { PlayableItem(it, PlayHandle.Podcast()) }, target, true)
                 .collect { emit(if (it is DownloadState.Downloaded) it.copy(audioOnly = true) else it) }
             return@flow
         }
-        emitAll(sabrBytes(stream, item, target))
+        emitAll(sabrBytes)
     }.flowOn(Dispatchers.IO)
 
     private suspend fun bothStreams(
@@ -179,61 +176,7 @@ class PlayerBackedDownloadStrategy(
 
     // A function rather than the call inline: Android lint does not follow an opt-in into a
     // lambda, and `download` builds its work inside `flow { }`. Same workaround as PlaybackService.
-    @OptIn(UnstableApi::class)
-    private fun streamFor(url: HttpUrl): SabrStream? = sabrStreamFor(url.value)
-
-    /**
-     * Copies a SABR stream to [target].
-     *
-     * Progress is reported by bytes written against the format's own length when it has one, so a
-     * long fetch is not a spinner. The stream ends by returning nothing, exactly as it does for the
-     * player.
-     */
-    @OptIn(UnstableApi::class)
-    private fun sabrBytes(stream: SabrStream, item: PlayableItem, target: File): Flow<DownloadState> = flow {
-        val total = stream.contentLength
-        Diag.log(
-            "download",
-            "fetching \"${item.item.title}\" over SABR (${total ?: -1} bytes expected)",
-        )
-        emit(DownloadState.Downloading(0, total))
-        var written = 0L
-        target.parentFile?.mkdirs()
-        target.outputStream().use { out ->
-            while (true) {
-                val chunk = stream.read(written)
-                if (chunk.isEmpty()) break
-                out.write(chunk)
-                written += chunk.size
-                emit(DownloadState.Downloading(written, total))
-            }
-        }
-        // A file that exists is not a file that plays. An empty fetch, or one that stopped far
-        // short of the length the format itself declared, is a FAILURE — recorded as one, so the
-        // item is retried rather than sitting in Library as a download that plays nothing.
-        val short = total != null && written < total * ENOUGH_PERCENT / PERCENT
-        if (written == 0L || short) {
-            target.delete()
-            emit(
-                DownloadState.Failed(
-                    "the signed-in path returned ${written}B of ${total ?: -1}B",
-                ),
-            )
-            return@flow
-        }
-        Diag.log("download", "SABR fetch of \"${item.item.title}\" finished at $written bytes")
-        emit(DownloadState.Downloaded(target.absolutePath, audioOnly = true))
-    }
-
     private companion object {
-        /**
-         * How much of a declared length counts as the whole thing.
-         *
-         * Not 100%: SABR serves what it decides to and a final run can end a hair short, so an
-         * exact test would fail good downloads. Low enough that a truncated one cannot pass.
-         */
-        const val ENOUGH_PERCENT = 95
-        const val PERCENT = 100
         const val NANOS_PER_SECOND = 1_000_000_000L
         const val BYTES_PER_KB = 1024.0
         const val MIN_SECONDS = 0.001
