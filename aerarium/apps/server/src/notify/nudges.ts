@@ -123,9 +123,12 @@ export class Nudges {
     for (const r of this.compute(now).reminders) {
       const key = this.remindKey(r, now);
       if (done.has(key)) continue;
-      await this.d.notifier.send(this.describe(r));
-      done.add(key);
-      sent++;
+      if (await this.d.notifier.send(this.describe(r))) {
+        done.add(key);
+        sent++;
+      } else {
+        this.d.log.warn({ key }, 'dewidebug reminder not delivered, will retry next tick');
+      }
     }
     if (sent > 0) this.d.settings.set(REMINDED, [...done].slice(-500));
     return sent;

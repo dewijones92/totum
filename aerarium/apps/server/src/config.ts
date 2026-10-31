@@ -37,5 +37,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!parsed.success) {
     throw new Error(`Invalid configuration:\n${z.prettifyError(parsed.error)}`);
   }
+  if (env['NODE_ENV'] === 'production' && parsed.data.OWNER_EMAIL.trim() === '') {
+    throw new Error(
+      'Invalid configuration: OWNER_EMAIL must be set in production, or every signed-in person could read it',
+    );
+  }
   return parsed.data;
 }

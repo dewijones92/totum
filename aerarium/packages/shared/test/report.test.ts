@@ -125,3 +125,12 @@ describe('dates', () => {
     expect(taxYearStart('2026-04-06')).toBe('2026-04-06');
   });
 });
+
+describe('currency', () => {
+  it('leaves non-pound transactions out of the report', () => {
+    const base = input();
+    const usd: TxIn = { ...tx('cur', '2026-10-29', -999, 'US SHOP'), currency: 'USD' };
+    const r = weeklyReport({ ...base, transactions: [...base.transactions, usd] });
+    expect(r.spending).toBe(25_000);
+  });
+});

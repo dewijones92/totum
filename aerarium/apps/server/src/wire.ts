@@ -89,7 +89,13 @@ export function wire(o: WireOptions) {
   const all: Connector[] = [
     ...(o.connectors ?? []),
     ...(eb ? [eb.connector] : []),
-    ...(monzo ? [new MonzoConnector(monzo, o.log)] : []),
+    ...(monzo
+      ? [
+          new MonzoConnector(monzo, o.log, (id, secrets) => {
+            connections.update(id, { secrets });
+          }),
+        ]
+      : []),
     ...(fake ? [fake] : []),
   ];
   const engine = new SyncEngine({
@@ -100,6 +106,7 @@ export function wire(o: WireOptions) {
     connectors: new Map(all.map((c) => [c.kind, c])),
     log: o.log,
     clock,
+    onRunSucceeded: (id, startedAt) => alertLarge(id, startedAt),
   });
   const snapshots = o.snapshotsDir
     ? new Snapshots({ db: o.db, dir: o.snapshotsDir, log: o.log })
@@ -130,6 +137,7 @@ export function wire(o: WireOptions) {
     log: o.log,
     publicUrl,
     personalSavingsAllowance: o.personalSavingsAllowance ?? 100_000,
+    installedAt: () => connections.get('manual')?.createdAt ?? clock().toISOString(),
   };
   let schedulerRef: Scheduler | null = null;
   const healthReport = () =>
@@ -171,14 +179,17 @@ export function wire(o: WireOptions) {
     clock,
     onTick: (now) => {
       snapshotNetWorth(now);
-      snapshots?.maybeTake(now);
+      try {
+        snapshots?.maybeTake(now);
+      } catch (error) {
+        o.log.error({ err: error }, 'dewidebug nightly snapshot failed; syncing carries on');
+      }
     },
     afterTick: async () => {
       await healthWatcher.check(healthReport());
       await maybeWeekly(weekly, clock());
       await nudges.notifyNew(clock());
     },
-    afterRun: alertLarge,
   });
   schedulerRef = scheduler;
   const app = createApp({

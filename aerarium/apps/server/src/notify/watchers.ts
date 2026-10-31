@@ -70,13 +70,23 @@ export class HealthWatcher {
     >;
     const current = healthStates(report);
     const changes = diffHealth(previous, current);
-    const next: Record<string, HealthState> = {};
-    for (const [k, v] of current) next[k] = v.state;
-    this.d.settings.set('health-states', next);
+    const undelivered = new Map<string, HealthState | null>();
     for (const c of changes) {
       this.d.log.info(c, 'dewidebug health changed, notifying');
-      await this.d.notifier.send(describeChange(c, this.d.publicUrl));
+      if (!(await this.d.notifier.send(describeChange(c, this.d.publicUrl)))) {
+        undelivered.set(c.key, c.from);
+        this.d.log.warn(
+          { key: c.key },
+          'dewidebug health message not delivered, will retry next tick',
+        );
+      }
     }
+    const next: Record<string, HealthState> = {};
+    for (const [k, v] of current) {
+      const kept = undelivered.has(k) ? undelivered.get(k) : v.state;
+      if (kept) next[k] = kept;
+    }
+    this.d.settings.set('health-states', next);
     return changes;
   }
 }

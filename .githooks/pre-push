@@ -8,6 +8,7 @@ set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 zero=0000000000000000000000000000000000000000
 changed=""
+ranges=()
 unknown=0
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
@@ -21,6 +22,7 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
     continue
   fi
   changed+="$files"$'\n'
+  ranges+=("$base..$local_sha")
 done
 totum=0
 aerarium=0
@@ -39,6 +41,21 @@ if [ "$totum" = 1 ] && [ -f "$root/tools/ci/preflight.py" ]; then
     echo "Fix them, or push with --no-verify if you know better." >&2
     exit 1
   fi
+fi
+guard="$root/aerarium/tools/privacy-guard.mjs"
+if [ -f "$guard" ]; then
+  for range in "${ranges[@]}"; do
+    set +e
+    node "$guard" --range "$range"
+    code=$?
+    set -e
+    if [ "$code" -eq 1 ]; then
+      echo "pre-push BLOCKED: personal or financial data in $range. This repo is public." >&2
+      exit 1
+    elif [ "$code" -ne 0 ]; then
+      echo "pre-push: the privacy guard itself failed on $range (exit $code); pushing anyway, run it by hand." >&2
+    fi
+  done
 fi
 if [ "$aerarium" = 1 ] && [ -f "$root/aerarium/tools/preflight.mjs" ]; then
   echo "pre-push: running aerarium preflight + privacy guard"

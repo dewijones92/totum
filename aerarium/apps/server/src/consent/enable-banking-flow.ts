@@ -4,6 +4,7 @@ import {
   accountName,
   EnableBankingConfig,
   kindFromCashAccountType,
+  stableKey,
   type EnableBankingClient,
 } from '../connectors/enable-banking.ts';
 import type { Logger } from '../log.ts';
@@ -68,6 +69,13 @@ export class EnableBankingFlow {
     const pending = Pending.safeParse(this.d.settings.get(key));
     this.d.settings.delete(key);
     this.forgetStaleStates(now);
+    if (pending.success && now.getTime() - Date.parse(pending.data.createdAt) > 60 * 60_000) {
+      this.d.log.warn(
+        { aspsp: pending.data.name },
+        'dewidebug open banking callback after the link expired',
+      );
+      return { kind: 'refused', reason: 'This sign-in link is over an hour old. Start again.' };
+    }
     if (!pending.success) {
       this.d.log.warn(
         { hasState: Boolean(q.state) },
@@ -91,6 +99,7 @@ export class EnableBankingFlow {
     const session = await this.d.client.createSession(q.code, now);
     const accounts = session.accounts.map((a) => ({
       uid: a.uid,
+      key: stableKey(a),
       name: accountName(a, session.aspsp.name),
       kind: kindFromCashAccountType(a.cash_account_type),
       currency: a.currency ?? 'GBP',

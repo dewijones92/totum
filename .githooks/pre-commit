@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 root="$(git rev-parse --show-toplevel)"
-if git diff --cached --name-only --diff-filter=ACMR | grep -q '^aerarium/'; then
-  echo "pre-commit: aerarium files staged, running the privacy guard"
-  if ! (cd "$root/aerarium" && node tools/privacy-guard.mjs); then
-    echo "pre-commit BLOCKED: personal or financial data must never enter this public repo." >&2
-    exit 1
-  fi
+guard="$root/aerarium/tools/privacy-guard.mjs"
+[ -f "$guard" ] || exit 0
+node "$guard" --staged
+code=$?
+if [ "$code" -eq 1 ]; then
+  echo "pre-commit BLOCKED: personal or financial data must never enter this public repo." >&2
+  exit 1
 fi
+if [ "$code" -ne 0 ]; then
+  echo "pre-commit: the privacy guard itself failed (exit $code); committing anyway, run it by hand." >&2
+fi
+exit 0

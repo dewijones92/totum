@@ -69,7 +69,7 @@ export function scanText(file, text, denylist) {
     for (const word of denylist ?? []) {
       if (new RegExp(`(?<![A-Za-z0-9])${escapeRe(word)}(?![A-Za-z0-9])`, 'i').test(line)) {
         problems.push(
-          `${file}:${String(i + 1)}: contains a denylisted word (line ${String(denylist.indexOf(word) + 1)} of the denylist)`,
+          `${file}:${String(i + 1)}: contains a denylisted word (denylist entry ${String(denylist.indexOf(word) + 1)}, comment lines not counted)`,
         );
       }
     }
@@ -77,11 +77,95 @@ export function scanText(file, text, denylist) {
   return problems;
 }
 
+export function addedLines(diff) {
+  const out = [];
+  let file = null;
+  let line = 0;
+  for (const raw of diff.split('\n')) {
+    if (raw.startsWith('+++ ')) {
+      file = raw.startsWith('+++ b/') ? raw.slice(6) : null;
+      continue;
+    }
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
+    if (hunk) {
+      line = Number(hunk[1]);
+      continue;
+    }
+    if (file && raw.startsWith('+')) {
+      out.push({ file, line, text: raw.slice(1) });
+      line++;
+    } else if (file && raw.startsWith(' ')) {
+      line++;
+    }
+  }
+  return out;
+}
+
+function git(args, cwd) {
+  return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+}
+
+const SKIP =
+  /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|gradle\.lockfile)$|\.(png|jpe?g|ico|webp|woff2?|pdf|jar|apk)$/;
+
+function scanDiff(diff, denylist) {
+  return addedLines(diff)
+    .filter((l) => !SKIP.test(l.file))
+    .flatMap((l) =>
+      scanText(l.file, l.text, denylist).map((p) =>
+        p.replace(/^([^:]+):1:/, `$1:${String(l.line)}:`),
+      ),
+    );
+}
+
+function report(problems, what, ms, mode) {
+  if (problems.length > 0) {
+    console.error(
+      `privacy-guard: ${String(problems.length)} problem(s) in ${what} (${String(ms)} ms) [${mode}]`,
+    );
+    for (const p of problems) console.error(`  ✗ ${p}`);
+    console.error(
+      'This repo is PUBLIC. Personal or financial data belongs in /var/lib/aerarium or ~/.local/share/finance-hub, never here.',
+    );
+    process.exit(1);
+  }
+  console.info(`privacy-guard: ok, ${what} (${String(ms)} ms) [${mode}]`);
+}
+
 function main() {
   const started = performance.now();
   const denylistPath =
     process.env['AERARIUM_DENYLIST'] ?? join(homedir(), '.local/share/finance-hub/denylist.txt');
   const denylist = loadDenylist(denylistPath);
+  const mode0 = denylist
+    ? `patterns + ${String(denylist.length)}-word denylist`
+    : 'patterns only (no denylist on this machine)';
+  const arg = process.argv[2];
+  if (arg === '--staged' || arg === '--range') {
+    const root = git(['rev-parse', '--show-toplevel']).trim();
+    if (arg === '--staged') {
+      const diff = git(['diff', '--cached', '-U0', '--no-color', '--diff-filter=ACMR'], root);
+      const problems = scanDiff(diff, denylist);
+      report(problems, 'staged changes', Math.round(performance.now() - started), mode0);
+      return;
+    }
+    const range = process.argv[3];
+    if (!range) throw new Error('--range needs <base>..<head>');
+    const diff = git(['diff', '-U0', '--no-color', '--diff-filter=ACMR', range], root);
+    const messages = git(['log', '--format=%H%n%B%x00', range], root)
+      .split('\0')
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const problems = [
+      ...scanDiff(diff, denylist),
+      ...messages.flatMap((m) => {
+        const [sha = '', ...body] = m.split('\n');
+        return scanText(`commit ${sha.slice(0, 8)} message`, body.join('\n'), denylist);
+      }),
+    ];
+    report(problems, `push range ${range}`, Math.round(performance.now() - started), mode0);
+    return;
+  }
   const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
     encoding: 'utf8',
   })

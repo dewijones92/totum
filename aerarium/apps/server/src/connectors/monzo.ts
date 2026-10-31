@@ -70,6 +70,8 @@ const Transactions = z.object({
         .optional(),
       counterparty: z.object({ name: z.string().optional() }).partial().optional(),
       decline_reason: z.string().optional(),
+      settled: z.string().optional(),
+      metadata: z.record(z.string(), z.string()).optional(),
     }),
   ),
 });
@@ -158,6 +160,7 @@ export class MonzoConnector implements Connector {
   constructor(
     private readonly api: MonzoApi,
     private readonly log: Logger,
+    private readonly persistSecrets?: (connectionId: string, secrets: MonzoSecrets) => void,
     private readonly maxPages = 100,
   ) {}
 
@@ -167,7 +170,11 @@ export class MonzoConnector implements Connector {
     if (Date.parse(secrets.expiresAt) - now.getTime() < 5 * 60_000) {
       secrets = await this.api.refresh(secrets.refreshToken, now);
       refreshed = true;
-      this.log.info({ connection: connection.id }, 'dewidebug monzo token refreshed before sync');
+      this.persistSecrets?.(connection.id, secrets);
+      this.log.info(
+        { connection: connection.id, persisted: this.persistSecrets !== undefined },
+        'dewidebug monzo token refreshed before sync and saved at once',
+      );
     }
     const token = secrets.accessToken;
     let list;
@@ -189,6 +196,7 @@ export class MonzoConnector implements Connector {
       .catch({})
       .parse(connection.config['syncedThrough']);
     const today = isoDay(now.toISOString());
+    const warnings: string[] = [];
     for (const a of list.accounts.filter((x) => !x.closed)) {
       const bal = await this.api.get(
         `/balance?account_id=${encodeURIComponent(a.id)}`,
@@ -216,10 +224,16 @@ export class MonzoConnector implements Connector {
           balance: { minor: p.balance, asOf: today },
         });
       }
+      const livePots = new Set(pots.pots.filter((x) => !x.deleted).map((p) => p.id));
+      const firstSync = syncedThrough[a.id] === undefined;
       let since =
         syncedThrough[a.id] ?? new Date(now.getTime() - 3 * 365 * 86_400_000).toISOString();
       let pages = 0;
       let declined = 0;
+      let pending = 0;
+      let potMoves = 0;
+      let capped = false;
+      let lastCreated: string | null = null;
       for (;;) {
         const q = new URLSearchParams({
           account_id: a.id,
@@ -227,11 +241,33 @@ export class MonzoConnector implements Connector {
           limit: '100',
           'expand[]': 'merchant',
         });
-        const page = await this.api.get(`/transactions?${q.toString()}`, token, Transactions);
+        let page;
+        try {
+          page = await this.api.get(`/transactions?${q.toString()}`, token, Transactions);
+        } catch (error) {
+          if (firstSync && pages === 0 && error instanceof ProviderError && error.status === 403) {
+            since = new Date(now.getTime() - 89 * 86_400_000).toISOString();
+            warnings.push(
+              `${a.description ?? 'Monzo'}: full history was not shared (approval came after Monzo's 5-minute window), so only the last 89 days were read`,
+            );
+            this.log.warn(
+              { connection: connection.id, account: a.id },
+              'dewidebug monzo full history refused, falling back to 89 days',
+            );
+            pages++;
+            continue;
+          }
+          throw error;
+        }
         pages++;
         for (const t of page.transactions) {
+          lastCreated = t.created;
           if (t.decline_reason) {
             declined++;
+            continue;
+          }
+          if (t.settled === '') {
+            pending++;
             continue;
           }
           const merchant =
@@ -245,12 +281,37 @@ export class MonzoConnector implements Connector {
             description: t.description ?? merchant ?? '—',
             counterparty: merchant ?? t.counterparty?.name ?? null,
           });
+          const potId = t.metadata?.['pot_id'];
+          if (potId && livePots.has(potId)) {
+            potMoves++;
+            transactions.push({
+              accountExternalId: potId,
+              externalId: `${t.id}:pot`,
+              bookedOn: isoDay(t.created),
+              minor: -t.amount,
+              currency: t.currency,
+              description:
+                t.amount < 0 ? 'MONEY IN FROM CURRENT ACCOUNT' : 'MONEY OUT TO CURRENT ACCOUNT',
+              counterparty: null,
+            });
+          }
         }
         const last = page.transactions.at(-1);
-        if (page.transactions.length < 100 || !last || pages >= this.maxPages) break;
+        if (page.transactions.length < 100 || !last) break;
+        if (pages >= this.maxPages) {
+          capped = true;
+          break;
+        }
         since = last.id;
       }
-      syncedThrough[a.id] = new Date(now.getTime() - 10 * 86_400_000).toISOString();
+      if (capped && lastCreated) {
+        syncedThrough[a.id] = lastCreated;
+        warnings.push(
+          `${a.description ?? 'Monzo'}: stopped after ${String(pages)} pages with more to read; the next sync carries on`,
+        );
+      } else {
+        syncedThrough[a.id] = new Date(now.getTime() - 10 * 86_400_000).toISOString();
+      }
       this.log.info(
         {
           connection: connection.id,
@@ -258,6 +319,9 @@ export class MonzoConnector implements Connector {
           pots: pots.pots.length,
           pages,
           declinedSkipped: declined,
+          pendingSkipped: pending,
+          potMovesMirrored: potMoves,
+          capped,
         },
         'dewidebug monzo account read',
       );
@@ -267,6 +331,7 @@ export class MonzoConnector implements Connector {
       transactions,
       config: { syncedThrough },
       ...(refreshed ? { secrets } : {}),
+      ...(warnings.length ? { warnings } : {}),
     };
   }
 }

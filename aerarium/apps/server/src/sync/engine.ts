@@ -14,7 +14,7 @@ export interface SyncEngineDeps {
   connectors: ReadonlyMap<string, Connector>;
   log: Logger;
   clock: () => Date;
-  onRunFinished?: (connectionId: string) => void;
+  onRunSucceeded?: (connectionId: string, runStartedAt: string) => Promise<void>;
 }
 
 export type RunOutcome =
@@ -54,7 +54,8 @@ export class SyncEngine {
       return { kind: 'busy' };
     }
     this.inFlight.add(connection.id);
-    const runId = connections.startRun(connection.id, clock().toISOString());
+    const runStartedAt = clock().toISOString();
+    const runId = connections.startRun(connection.id, runStartedAt);
     const started = performance.now();
     log.info(
       { connection: connection.id, kind: connection.kind, label: connection.label, runId, reason },
@@ -71,6 +72,7 @@ export class SyncEngine {
           accountsSeen: result.accounts.length,
           transactionsAdded: added,
           error: null,
+          warning: result.warnings?.join('; ') ?? null,
         },
         now,
       );
@@ -86,6 +88,11 @@ export class SyncEngine {
         },
         'dewidebug sync finished',
       );
+      try {
+        await this.deps.onRunSucceeded?.(connection.id, runStartedAt);
+      } catch (error) {
+        log.error({ connection: connection.id, err: error }, 'dewidebug after-sync checks failed');
+      }
       return { kind: 'ok', accountsSeen: result.accounts.length, transactionsAdded: added };
     } catch (error) {
       const message = describe(error);
@@ -106,7 +113,6 @@ export class SyncEngine {
       return { kind: 'failed', error: message };
     } finally {
       this.inFlight.delete(connection.id);
-      this.deps.onRunFinished?.(connection.id);
     }
   }
 
@@ -155,16 +161,15 @@ export class SyncEngine {
       result.secrets !== undefined ||
       result.config !== undefined
     ) {
+      const fresh = connections.get(connection.id) ?? connection;
       connections.update(connection.id, {
         ...(result.consentExpiresAt !== undefined
           ? { consentExpiresAt: result.consentExpiresAt }
           : {}),
         ...(result.secrets !== undefined
-          ? { secrets: { ...connection.secrets, ...result.secrets } }
+          ? { secrets: { ...fresh.secrets, ...result.secrets } }
           : {}),
-        ...(result.config !== undefined
-          ? { config: { ...connection.config, ...result.config } }
-          : {}),
+        ...(result.config !== undefined ? { config: { ...fresh.config, ...result.config } } : {}),
       });
     }
     return added;

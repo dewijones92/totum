@@ -9,7 +9,6 @@ export interface SchedulerDeps {
   clock: () => Date;
   onTick?: (now: Date) => void;
   afterTick?: () => Promise<void>;
-  afterRun?: (connectionId: string, runStartedAt: string) => Promise<void>;
 }
 
 const HOUR = 3_600_000;
@@ -56,8 +55,7 @@ export class Scheduler {
           last?.outcome === 'failed' &&
           now.getTime() - lastStart >= connector.retryAfterHours * HOUR;
         if (dueIn <= 0 || retryAfterFailure) {
-          const startedAt = clock().toISOString();
-          const outcome = await engine.run(
+          await engine.run(
             c,
             last === null
               ? 'first sync'
@@ -65,7 +63,6 @@ export class Scheduler {
                 ? 'retry after a failure'
                 : 'due',
           );
-          if (outcome.kind === 'ok') await this.deps.afterRun?.(c.id, startedAt);
         }
       }
       await this.deps.afterTick?.();

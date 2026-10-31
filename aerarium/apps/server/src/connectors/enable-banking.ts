@@ -38,6 +38,7 @@ export type Aspsp = z.infer<typeof Aspsp>;
 
 const SessionAccount = z.object({
   uid: z.string(),
+  identification_hash: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   details: z.string().nullable().optional(),
   product: z.string().nullable().optional(),
@@ -87,7 +88,13 @@ export const EnableBankingConfig = z.object({
   aspspName: z.string(),
   aspspCountry: z.string(),
   accounts: z.array(
-    z.object({ uid: z.string(), name: z.string(), kind: AccountKind, currency: z.string() }),
+    z.object({
+      uid: z.string(),
+      key: z.string(),
+      name: z.string(),
+      kind: AccountKind,
+      currency: z.string(),
+    }),
   ),
   syncedThrough: z.record(z.string(), z.string()).default({}),
 });
@@ -153,19 +160,31 @@ export function signJwt(s: EnableBankingSettings, now: Date): string {
   return `${header}.${payload}.${b64url(signer.sign(s.privateKeyPem))}`;
 }
 
-function transactionId(
-  uid: string,
+export function stableKey(a: {
+  uid: string;
+  identification_hash?: string | null | undefined;
+}): string {
+  return a.identification_hash ?? a.uid;
+}
+
+function transactionBasis(
+  key: string,
   t: z.infer<typeof Transactions>['transactions'][number],
 ): string {
-  if (t.entry_reference) return `ref:${t.entry_reference}`;
-  const basis = [
-    uid,
+  return [
+    key,
     t.booking_date ?? t.value_date ?? '',
     t.transaction_amount.amount,
     t.credit_debit_indicator,
     (t.remittance_information ?? []).join('|'),
   ].join('#');
-  return `hash:${createHash('sha256').update(basis).digest('hex').slice(0, 32)}`;
+}
+
+function hashed(basis: string, occurrence: number): string {
+  const digest = createHash('sha256')
+    .update(`${basis}#${String(occurrence)}`)
+    .digest('hex');
+  return `hash:${digest.slice(0, 32)}`;
 }
 
 export class EnableBankingClient {
@@ -269,6 +288,7 @@ export class EnableBankingConnector implements Connector {
     const accounts: FetchedAccount[] = [];
     const transactions: FetchedTransaction[] = [];
     const syncedThrough: Record<string, string> = { ...config.syncedThrough };
+    const warnings: string[] = [];
     const today = now.toISOString().slice(0, 10);
     for (const a of config.accounts) {
       const balances = await this.client.balances(a.uid, now);
@@ -283,7 +303,7 @@ export class EnableBankingConnector implements Connector {
         'dewidebug enable banking balance chosen',
       );
       accounts.push({
-        externalId: a.uid,
+        externalId: a.key,
         name: a.name,
         kind: a.kind,
         currency: pick?.balance_amount.currency ?? a.currency,
@@ -291,7 +311,7 @@ export class EnableBankingConnector implements Connector {
           ? { minor: toMinor(pick.balance_amount.amount), asOf: pick.reference_date ?? today }
           : null,
       });
-      const last = syncedThrough[a.uid];
+      const last = syncedThrough[a.key];
       const from = last
         ? new Date(Date.parse(last) - 10 * 86_400_000).toISOString().slice(0, 10)
         : new Date(now.getTime() - this.firstSyncDays * 86_400_000).toISOString().slice(0, 10);
@@ -299,6 +319,8 @@ export class EnableBankingConnector implements Connector {
       let pages = 0;
       let booked = 0;
       let skipped = 0;
+      let newest: string | null = null;
+      const seen = new Map<string, number>();
       do {
         const page = await this.client.transactions(a.uid, from, continuation, now);
         pages++;
@@ -312,9 +334,19 @@ export class EnableBankingConnector implements Connector {
           const sign = t.credit_debit_indicator === 'DBIT' ? -1 : 1;
           const counterparty =
             (t.credit_debit_indicator === 'DBIT' ? t.creditor?.name : t.debtor?.name) ?? null;
+          if (newest === null || date > newest) newest = date;
+          let externalId: string;
+          if (t.entry_reference) {
+            externalId = `ref:${t.entry_reference}`;
+          } else {
+            const basis = transactionBasis(a.key, t);
+            const occurrence = seen.get(basis) ?? 0;
+            seen.set(basis, occurrence + 1);
+            externalId = hashed(basis, occurrence);
+          }
           transactions.push({
-            accountExternalId: a.uid,
-            externalId: transactionId(a.uid, t),
+            accountExternalId: a.key,
+            externalId,
             bookedOn: date,
             minor: sign * Math.abs(toMinor(t.transaction_amount.amount)),
             currency: t.transaction_amount.currency,
@@ -336,8 +368,20 @@ export class EnableBankingConnector implements Connector {
         },
         'dewidebug enable banking transactions read',
       );
-      syncedThrough[a.uid] = today;
+      if (continuation === null) {
+        syncedThrough[a.key] = today;
+      } else {
+        if (newest !== null) syncedThrough[a.key] = newest;
+        warnings.push(
+          `${a.name}: stopped after ${String(pages)} pages with more to read; the next sync carries on from ${syncedThrough[a.key] ?? from}`,
+        );
+      }
     }
-    return { accounts, transactions, config: { syncedThrough } };
+    return {
+      accounts,
+      transactions,
+      config: { syncedThrough },
+      ...(warnings.length ? { warnings } : {}),
+    };
   }
 }

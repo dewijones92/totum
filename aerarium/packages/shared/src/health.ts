@@ -16,6 +16,7 @@ export const HealthReason = z.discriminatedUnion('code', [
   z.object({ code: z.literal('running') }),
   z.object({ code: z.literal('never-synced') }),
   z.object({ code: z.literal('last-run-failed'), error: z.string() }),
+  z.object({ code: z.literal('partial-sync'), warning: z.string() }),
   z.object({ code: z.literal('stale'), hours: z.number() }),
   z.object({ code: z.literal('consent-expired'), at: IsoInstant }),
   z.object({ code: z.literal('consent-expiring'), days: z.number() }),
@@ -112,6 +113,9 @@ export function judgeConnection(
     }
   } else if (okAge > tooOld && f.lastRun?.outcome !== 'failed') {
     reasons.push({ state: 'fail', reason: { code: 'stale', hours: Math.round(okAge / HOUR) } });
+  }
+  if (f.lastRun?.outcome === 'ok' && f.lastRun.warning) {
+    reasons.push({ state: 'warn', reason: { code: 'partial-sync', warning: f.lastRun.warning } });
   }
   if (f.lastRun?.outcome === 'running') {
     reasons.push({ state: 'ok', reason: { code: 'running' } });

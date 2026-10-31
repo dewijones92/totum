@@ -84,6 +84,7 @@ export const SyncRun = z.object({
   accountsSeen: z.number().int(),
   transactionsAdded: z.number().int(),
   error: z.string().nullable(),
+  warning: z.string().nullable().default(null),
 });
 export type SyncRun = z.infer<typeof SyncRun>;
 

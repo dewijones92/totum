@@ -32,6 +32,7 @@ interface RunRow {
   accounts_seen: number;
   transactions_added: number;
   error: string | null;
+  warning: string | null;
 }
 
 const asRecord = (json: string): Record<string, unknown> => {
@@ -61,6 +62,7 @@ function toRun(r: RunRow): SyncRun {
     accountsSeen: r.accounts_seen,
     transactionsAdded: r.transactions_added,
     error: r.error,
+    warning: r.warning,
   });
 }
 
@@ -162,15 +164,16 @@ export class ConnectionsStore {
       accountsSeen: number;
       transactionsAdded: number;
       error: string | null;
+      warning?: string | null;
     },
     now: string,
   ): void {
     this.db
       .prepare(
-        `UPDATE sync_runs SET finished_at = ?, outcome = ?, accounts_seen = ?, transactions_added = ?, error = ?
+        `UPDATE sync_runs SET finished_at = ?, outcome = ?, accounts_seen = ?, transactions_added = ?, error = ?, warning = ?
          WHERE id = ?`,
       )
-      .run(now, p.outcome, p.accountsSeen, p.transactionsAdded, p.error, id);
+      .run(now, p.outcome, p.accountsSeen, p.transactionsAdded, p.error, p.warning ?? null, id);
   }
 
   abandonRunning(now: string): number {

@@ -65,7 +65,8 @@ export function weeklyReport(input: ReportInput): WeeklyReport {
   const end = input.weekEnd;
   const start = iso(Date.parse(`${end}T00:00:00Z`) - 6 * DAY);
   const before = iso(Date.parse(`${start}T00:00:00Z`) - DAY);
-  const transfers = findTransfers(input.transactions);
+  const gbp = input.transactions.filter((t) => t.currency === 'GBP');
+  const transfers = findTransfers(gbp);
   const kindOf = new Map(input.accounts.map((a) => [a.id, a.kind]));
   const inWeek = (t: TxIn) => t.bookedOn >= start && t.bookedOn <= end;
 
@@ -73,7 +74,7 @@ export function weeklyReport(input: ReportInput): WeeklyReport {
   let spending = 0;
   let interest = 0;
   const weekByCat = new Map<string, number>();
-  for (const t of input.transactions) {
+  for (const t of gbp) {
     if (!inWeek(t) || transfers.has(t.id)) continue;
     const kind = kindOf.get(t.accountId);
     if (kind && INVESTMENT_KINDS.has(kind)) continue;
@@ -93,7 +94,7 @@ export function weeklyReport(input: ReportInput): WeeklyReport {
     const b1 = a.balanceAt(end);
     if (b0 === null || b1 === null) continue;
     if (INVESTMENT_KINDS.has(a.kind)) {
-      const deposits = input.transactions
+      const deposits = gbp
         .filter((t) => t.accountId === a.id && inWeek(t))
         .reduce((s, t) => s + t.minor, 0);
       markets += b1 - b0 - deposits;
@@ -106,7 +107,7 @@ export function weeklyReport(input: ReportInput): WeeklyReport {
   let pastSpending = 0;
   const pastByCat = new Map<string, number>();
   let earliest: string | null = null;
-  for (const t of input.transactions) {
+  for (const t of gbp) {
     if (t.bookedOn < yearAgo || t.bookedOn >= start || transfers.has(t.id) || t.minor >= 0)
       continue;
     const kind = kindOf.get(t.accountId);
@@ -146,7 +147,7 @@ export function weeklyReport(input: ReportInput): WeeklyReport {
 
   const tys = taxYearStart(end);
   let interestOutsideIsa = 0;
-  for (const t of input.transactions) {
+  for (const t of gbp) {
     if (t.bookedOn < tys || t.bookedOn > end || t.minor <= 0 || transfers.has(t.id)) continue;
     const kind = kindOf.get(t.accountId);
     if (kind && ISA_KINDS.has(kind)) continue;

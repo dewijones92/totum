@@ -79,6 +79,9 @@ const MIGRATIONS: readonly string[] = [
     report_json TEXT NOT NULL
   );
   `,
+  `
+  ALTER TABLE sync_runs ADD COLUMN warning TEXT;
+  `,
 ];
 
 export type Db = DatabaseSync;

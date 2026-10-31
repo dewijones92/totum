@@ -29,7 +29,30 @@ describe('privacy guard', () => {
   });
   it('names the denylist line, never the word', () => {
     const [problem] = at('secretword here', ['other', 'secretword']);
-    expect(problem).toContain('line 2 of the denylist');
+    expect(problem).toContain('denylist entry 2');
     expect(problem).not.toContain('secretword');
+  });
+});
+
+describe('addedLines', () => {
+  it('reads only added lines, with their file and line number', async () => {
+    const { addedLines } = await import('../privacy-guard.mjs');
+    const diff = [
+      'diff --git a/x.ts b/x.ts',
+      '--- a/x.ts',
+      '+++ b/x.ts',
+      '@@ -1,0 +5,2 @@',
+      '+const a = 1;',
+      '+const b = 2;',
+      'diff --git a/gone.ts b/gone.ts',
+      '--- a/gone.ts',
+      '+++ /dev/null',
+      '@@ -1 +0,0 @@',
+      '-removed',
+    ].join('\n');
+    expect(addedLines(diff)).toEqual([
+      { file: 'x.ts', line: 5, text: 'const a = 1;' },
+      { file: 'x.ts', line: 6, text: 'const b = 2;' },
+    ]);
   });
 });

@@ -313,6 +313,8 @@ export function reasonText(r: HealthReason): string {
       return '⏳ Waiting for its first sync';
     case 'last-run-failed':
       return `❌ Last sync failed: ${r.error}`;
+    case 'partial-sync':
+      return `⚠️ Last sync was incomplete: ${r.warning}`;
     case 'stale':
       return `⌛ No good sync for ${String(r.hours)} hours`;
     case 'consent-expired':

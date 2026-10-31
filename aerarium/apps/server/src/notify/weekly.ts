@@ -33,6 +33,7 @@ export interface WeeklyDeps {
   log: Logger;
   publicUrl: string;
   personalSavingsAllowance: number;
+  installedAt: () => string;
 }
 
 export function buildWeekly(d: WeeklyDeps, weekEnd: string): WeeklyReport {
@@ -58,9 +59,10 @@ export async function maybeWeekly(
   force = false,
 ): Promise<WeeklyReport | null> {
   const today = now.toISOString().slice(0, 10);
-  const isMondayMorning = now.getUTCDay() === 1 && now.getUTCHours() >= 7;
   const { end } = previousWeek(today);
-  if (!force && (!isMondayMorning || d.reports.has(end))) return null;
+  const thisMonday = new Date(Date.parse(`${end}T00:00:00Z`) + 86_400_000 + 7 * 3_600_000);
+  const installedBefore = Date.parse(d.installedAt()) <= thisMonday.getTime();
+  if (!force && (now < thisMonday || !installedBefore || d.reports.has(end))) return null;
   const r = buildWeekly(d, end);
   d.reports.save(r, now.toISOString());
   d.log.info(
@@ -73,6 +75,10 @@ export async function maybeWeekly(
     },
     'dewidebug weekly report made',
   );
-  if (!force) await d.notifier.send(headline(r, d.publicUrl));
+  if (!force) {
+    const sent = await d.notifier.send(headline(r, d.publicUrl));
+    if (!sent)
+      d.log.warn({ weekEnd: end }, 'dewidebug weekly report made but the Matrix message failed');
+  }
   return r;
 }

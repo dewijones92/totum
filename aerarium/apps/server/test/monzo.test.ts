@@ -182,3 +182,88 @@ describe('Monzo routes', () => {
     expect((await t.call('POST', '/api/monzo/start')).status).toBe(409);
   });
 });
+
+describe('Monzo edge cases the review found', () => {
+  const base = { accessToken: 'a', refreshToken: 'r', expiresAt: '2026-11-02T00:00:00Z' };
+  const ok = (b: unknown, status = 200) =>
+    Promise.resolve(new Response(JSON.stringify(b), { status }));
+
+  it('saves a refreshed token at once, even when the sync then fails', async () => {
+    const saved: unknown[] = [];
+    const fetchFail = (url: string) => {
+      const u = new URL(url);
+      if (u.pathname === '/oauth2/token')
+        return ok({ access_token: 'new-access', refresh_token: 'new-refresh', expires_in: 3600 });
+      if (u.pathname === '/accounts')
+        return ok({ accounts: [{ id: 'acc_1', description: 'Example current' }] });
+      return ok({ error: 'unavailable' }, 503);
+    };
+    const api = new MonzoApi(() => creds, log, fetchFail);
+    await expect(
+      new MonzoConnector(api, log, (_id, s) => saved.push(s)).sync(
+        connection({ ...base, expiresAt: '2026-11-01T12:01:00Z' }),
+        now,
+      ),
+    ).rejects.toThrow(/503/);
+    expect(saved).toEqual([
+      {
+        accessToken: 'new-access',
+        refreshToken: 'new-refresh',
+        expiresAt: '2026-11-01T13:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('falls back to 89 days when the first sync missed the 5-minute window, and says so', async () => {
+    const sinces: string[] = [];
+    const fetchLate = (url: string) => {
+      const u = new URL(url);
+      if (u.pathname === '/accounts')
+        return ok({ accounts: [{ id: 'acc_1', description: 'Example current' }] });
+      if (u.pathname === '/balance') return ok({ balance: 1, currency: 'GBP' });
+      if (u.pathname === '/pots') return ok({ pots: [] });
+      const since = u.searchParams.get('since') ?? '';
+      sinces.push(since);
+      if (since < '2026-08-01') return ok({ code: 'forbidden.verification_required' }, 403);
+      return ok({ transactions: [tx(1)] });
+    };
+    const r = await new MonzoConnector(new MonzoApi(() => creds, log, fetchLate), log).sync(
+      connection(base),
+      now,
+    );
+    expect(sinces).toEqual(['2023-11-02T12:00:00.000Z', '2026-08-04T12:00:00.000Z']);
+    expect(r.transactions).toHaveLength(1);
+    expect(r.warnings?.[0]).toMatch(/only the last 89 days/);
+  });
+
+  it('skips pending payments and mirrors pot moves onto the pot so they pair as transfers', async () => {
+    const fetchPots = (url: string) => {
+      const u = new URL(url);
+      if (u.pathname === '/accounts')
+        return ok({ accounts: [{ id: 'acc_1', description: 'Example current' }] });
+      if (u.pathname === '/balance') return ok({ balance: 1, currency: 'GBP' });
+      if (u.pathname === '/pots')
+        return ok({ pots: [{ id: 'pot_1', name: 'Holiday', balance: 2000, currency: 'GBP' }] });
+      return ok({
+        transactions: [
+          tx(1, { settled: '' }),
+          tx(2, {
+            amount: -2000,
+            description: 'pot_1',
+            merchant: null,
+            metadata: { pot_id: 'pot_1' },
+            settled: '2026-10-01T10:00:00Z',
+          }),
+        ],
+      });
+    };
+    const r = await new MonzoConnector(new MonzoApi(() => creds, log, fetchPots), log).sync(
+      connection(base),
+      now,
+    );
+    expect(r.transactions.map((t) => [t.accountExternalId, t.externalId, t.minor])).toEqual([
+      ['acc_1', 'tx_0002', -2000],
+      ['pot_1', 'tx_0002:pot', 2000],
+    ]);
+  });
+});

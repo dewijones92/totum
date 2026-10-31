@@ -136,6 +136,22 @@ export function createApp(deps: AppDeps): Hono {
     await next();
   });
 
+  app.use('/api/*', async (c, next) => {
+    if (c.req.method === 'GET' || c.req.method === 'HEAD') return next();
+    const site = c.req.header('sec-fetch-site');
+    const type = (c.req.header('content-type') ?? '').toLowerCase();
+    const crossSite = site !== undefined && site !== 'same-origin' && site !== 'none';
+    const formLike = type !== '' && !type.startsWith('application/json');
+    if (crossSite || formLike) {
+      log.warn(
+        { path: c.req.path, site, type },
+        'dewidebug refused a write that did not come from the app',
+      );
+      return c.json({ error: 'Writes must come from the app itself' }, 403);
+    }
+    return next();
+  });
+
   const manualAccount = (id: string) => {
     const a = accounts.get(id);
     if (!a) throw new HttpError(404, 'No such account');
@@ -230,7 +246,10 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   app.get('/api/outgoings', (c) => {
-    const o = computeOutgoings(recentTransactions(), clock().toISOString().slice(0, 10));
+    const o = computeOutgoings(
+      recentTransactions().filter((t) => t.currency === 'GBP'),
+      clock().toISOString().slice(0, 10),
+    );
     const byId = new Map(accounts.list().map((a) => [a.id, a]));
     const enrich = (r: (typeof o.recurring)[number]) => {
       const a = byId.get(r.accountId);
@@ -402,10 +421,19 @@ export function createApp(deps: AppDeps): Hono {
   app.get('/api/monzo/callback', async (c) => {
     const m = monzoApi();
     const state = c.req.query('state') ?? '';
-    const pending = deps.settings.get(`monzo-state:${state}`);
+    const pending = z
+      .object({ createdAt: z.string() })
+      .safeParse(deps.settings.get(`monzo-state:${state}`));
     deps.settings.delete(`monzo-state:${state}`);
+    for (const key of deps.settings.keysWithPrefix('monzo-state:')) {
+      const p = z.object({ createdAt: z.string() }).safeParse(deps.settings.get(key));
+      if (!p.success || clock().getTime() - Date.parse(p.data.createdAt) > 86_400_000)
+        deps.settings.delete(key);
+    }
+    const fresh =
+      pending.success && clock().getTime() - Date.parse(pending.data.createdAt) <= 60 * 60_000;
     const code = c.req.query('code');
-    if (pending === undefined || !code) {
+    if (!fresh || !code) {
       log.warn(
         { hasState: state !== '', hasCode: Boolean(code) },
         'dewidebug monzo callback refused',

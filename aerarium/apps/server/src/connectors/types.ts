@@ -25,6 +25,7 @@ export interface SyncResult {
   consentExpiresAt?: string | null;
   secrets?: Record<string, unknown>;
   config?: Record<string, unknown>;
+  warnings?: string[];
 }
 
 export interface Connector {

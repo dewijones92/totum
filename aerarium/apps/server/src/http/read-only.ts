@@ -46,6 +46,7 @@ export class ReadOnlyHttp {
 
   isAllowed(method: Method, url: string): boolean {
     const u = new URL(url);
+    if (u.protocol !== 'https:' || u.username !== '' || u.password !== '') return false;
     return this.o.allowed.some(
       (a) => a.method === method && a.host === u.host && a.path.test(u.pathname),
     );
@@ -71,6 +72,7 @@ export class ReadOnlyHttp {
         method,
         headers: init.headers ?? {},
         ...(init.body === undefined ? {} : { body: init.body }),
+        redirect: 'error',
         signal: AbortSignal.timeout(this.o.timeoutMs ?? 30_000),
       });
     } catch (error) {

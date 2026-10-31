@@ -19,6 +19,7 @@ const run = (outcome: SyncRun['outcome'], error: string | null = null): SyncRun 
   accountsSeen: 1,
   transactionsAdded: 0,
   error,
+  warning: null,
 });
 const base = {
   lastRun: run('ok'),
@@ -92,5 +93,18 @@ describe('judgeScheduler and worst', () => {
   });
   it('parses a healthz body', () => {
     expect(Healthz.parse({ ok: true, version: 'dev', schedulerLastTickAt: null }).ok).toBe(true);
+  });
+});
+
+describe('partial syncs', () => {
+  it('turns amber when the last run stopped early, naming why', () => {
+    const r = judgeConnection(
+      { ...base, lastRun: { ...run('ok'), warning: 'Example: stopped after 50 pages' } },
+      now,
+    );
+    expect(r).toEqual({
+      state: 'warn',
+      reasons: [{ code: 'partial-sync', warning: 'Example: stopped after 50 pages' }],
+    });
   });
 });
