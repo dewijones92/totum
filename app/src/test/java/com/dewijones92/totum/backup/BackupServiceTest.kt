@@ -229,6 +229,30 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `a restored queue row keeps its date and views, as every other stored row does`() = runTest {
+        val dated = playable("v1").let {
+            it.copy(
+                item = it.item.copy(
+                    publishedAt = java.time.Instant.parse("2026-10-30T12:00:00Z"),
+                    publishedText = "1 day ago",
+                    viewsText = "1.2K views",
+                ),
+            )
+        }
+        val from = Fixture()
+        from.queue.save(QueueSnapshot(listOf(QueueEntry(dated))))
+        val file = BackupCodec.encode(from.service().create())
+
+        val onto = Fixture()
+        onto.service().restore((BackupCodec.decode(file) as BackupReadResult.Ok).backup)
+
+        val restored = onto.queue.load().entries.single().item.item
+        assertEquals(java.time.Instant.parse("2026-10-30T12:00:00Z"), restored.publishedAt)
+        assertEquals("1 day ago", restored.publishedText)
+        assertEquals("1.2K views", restored.viewsText)
+    }
+
+    @Test
     fun `a restored queue row keeps the show AND its publisher`() = runTest {
         val from = Fixture()
         from.queue.save(QueueSnapshot(listOf(QueueEntry(playable("ep1")))))

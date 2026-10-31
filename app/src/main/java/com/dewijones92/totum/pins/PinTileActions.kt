@@ -2,6 +2,7 @@ package com.dewijones92.totum.pins
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeWatchUrl
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -173,7 +174,7 @@ private fun sourcePage(pin: Pin): PinOutcome? = when (pin) {
 private suspend fun playSeed(queue: PlaybackQueue, pin: Pin): PinOutcome? {
     val station = pin as? Pin.Radio ?: return null
     val id = station.videoId ?: return null
-    val watch = HttpUrl.parse("https://www.youtube.com/watch?v=$id") ?: return null
+    val watch = youTubeWatchUrl(id) ?: return null
     val song = MediaItem(
         id = MediaItemId(id),
         sourceId = SourceId("radio-seed:${station.playlistId}"),
@@ -181,6 +182,7 @@ private suspend fun playSeed(queue: PlaybackQueue, pin: Pin): PinOutcome? {
         publishedAt = null,
         duration = null,
         mediaUrl = watch,
+        thumbnailUrl = station.artUrl?.let(HttpUrl::parse),
         contentKind = MediaContentKind.MUSIC,
     )
     return if (queue.playNow(PlayableItem(song, PlayHandle.Video(watch)), quiet = true)) {

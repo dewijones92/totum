@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentLink
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtistRef
@@ -152,6 +153,7 @@ public sealed interface SearchHit {
          * result is instant instead of costing a full extraction to discover.
          */
         val channelUrl: HttpUrl? = null,
+        val kind: MediaContentKind = MediaContentKind.STANDARD,
     ) : SearchHit
 }
 

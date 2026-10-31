@@ -42,7 +42,13 @@ public fun HttpUrl.youTubeVideoId(): String? {
  * being a different video from "this video" is exactly the bug this exists to stop.
  */
 public fun HttpUrl.canonicalWatchUrl(): HttpUrl =
-    youTubeVideoId()?.let { HttpUrl.parse("https://www.youtube.com/watch?v=$it") } ?: this
+    youTubeVideoId()?.let(::youTubeWatchUrl) ?: this
+
+public fun youTubeWatchUrl(videoId: String): HttpUrl? =
+    videoId.takeIf { VIDEO_ID_SHAPE.matches(it) }?.let { HttpUrl.parse(YOUTUBE_WATCH_PREFIX + it) }
+
+public const val YOUTUBE_WATCH_PREFIX: String = "https://www.youtube.com/watch?v="
+private val VIDEO_ID_SHAPE = Regex("[A-Za-z0-9_-]{11}")
 
 /**
  * Whether [this] is a YouTube channel id — `UC` and 22 more id characters, exactly.

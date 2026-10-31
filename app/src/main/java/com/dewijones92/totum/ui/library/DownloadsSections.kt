@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
@@ -20,8 +22,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.downloads.DownloadsSection
+import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.rowCard
 
 class Sections(
@@ -42,7 +46,7 @@ internal fun LazyListScope.waitingSection(waiting: List<LibraryViewModel.InProgr
                 .rowCard(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large)
                 .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         ) {
-            Text(entry.item.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f)) { DownloadCardHeader(entry.item) }
             TextButton(onClick = { onCancel(entry.id) }) { Text(stringResource(R.string.cancel)) }
         }
     }
@@ -149,7 +153,7 @@ internal fun LazyListScope.retryingSection(
                 .rowCard(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large)
                 .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 4.dp),
         ) {
-            Text(entry.item.title, style = MaterialTheme.typography.bodyMedium)
+            DownloadCardHeader(entry.item)
             Text(
                 text = stringResource(
                     R.string.downloads_retrying_row,
@@ -217,3 +221,25 @@ internal const val DOWNLOADS_RETRY_ALL_TAG = "downloads-retry-all"
 internal const val DOWNLOADS_CLEAR_FAILED_TAG = "downloads-clear-failed"
 private const val MS_PER_S = 1_000L
 private const val SECONDS_A_MINUTE = 60L
+
+@Composable
+internal fun DownloadCardHeader(item: MediaItem, trailing: @Composable RowScope.() -> Unit = {}) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        MediaThumbnail(
+            url = item.thumbnailUrl,
+            contentDescription = null,
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.size(DOWNLOAD_THUMB_WIDTH, DOWNLOAD_THUMB_HEIGHT),
+        )
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(item.title, style = MaterialTheme.typography.bodyMedium)
+            item.author?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        trailing()
+    }
+}
+
+private val DOWNLOAD_THUMB_WIDTH = 64.dp
+private val DOWNLOAD_THUMB_HEIGHT = 36.dp

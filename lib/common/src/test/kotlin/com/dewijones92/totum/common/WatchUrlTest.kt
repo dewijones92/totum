@@ -86,4 +86,10 @@ class WatchUrlTest {
         assertNull(HttpUrl.of("https://www.youtube.com/embed/live_stream?channel=UC123").youTubeVideoId())
         assertNull(HttpUrl.of("https://www.youtube.com/@someone/live").youTubeVideoId())
     }
+
+    @Test
+    fun `one builder makes a video's watch URL, and refuses what is not a video id`() {
+        assertEquals("https://www.youtube.com/watch?v=dQw4w9WgXcQ", youTubeWatchUrl("dQw4w9WgXcQ")?.value)
+        assertEquals(null, youTubeWatchUrl("not an id"))
+    }
 }

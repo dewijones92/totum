@@ -2,6 +2,8 @@ package com.dewijones92.totum.data.search
 
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.common.youTubeChannelUrl
+import com.dewijones92.totum.domain.MediaContentKind
+import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.innertube.search.SearchVideosResult
 import com.dewijones92.totum.innertube.search.YouTubeSearch
 
@@ -28,6 +30,11 @@ public class InnerTubeVideoSearchSource(private val search: YouTubeSearch) : Sea
                         membersOnly = video.membersOnly,
                         channelUrl = video.channelId
                             ?.let { youTubeChannelUrl(it) },
+                        kind = when (video.kind) {
+                            FeedVideo.Kind.VIDEO -> MediaContentKind.STANDARD
+                            FeedVideo.Kind.LIVE -> MediaContentKind.LIVE
+                            FeedVideo.Kind.SHORT -> MediaContentKind.SHORT
+                        },
                     )
                 },
             )

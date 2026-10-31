@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.formatViewCount
 import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.VideoSearchEntry
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -38,6 +39,8 @@ public class DefaultChannelRepository(
         // Resolved to a stream URL on play (video URLs expire); watchUrl is the stable handle.
         thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
         mediaUrl = watchUrl,
+        viewsText = viewCount?.let(::formatViewCount),
+        membersOnly = membersOnly,
     )
 
     private companion object {

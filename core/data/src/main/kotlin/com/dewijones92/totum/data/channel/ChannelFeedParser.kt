@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.channel
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeChannelUrl
+import com.dewijones92.totum.common.youTubeWatchUrl
 import com.dewijones92.totum.data.xml.childElements
 import com.dewijones92.totum.data.xml.firstChildElement
 import com.dewijones92.totum.data.xml.firstChildText
@@ -39,7 +40,7 @@ public object ChannelFeedParser {
         val channelUrl = youTubeChannelUrl(channelId) ?: return null
         val watch = childElements("link").firstOrNull { it.getAttribute("rel") == "alternate" }
             ?.getAttribute("href")?.let(HttpUrl::parse)
-            ?: HttpUrl.parse("https://www.youtube.com/watch?v=$videoId")
+            ?: youTubeWatchUrl(videoId)
         return MediaItem(
             id = MediaItemId(videoId),
             sourceId = SourceId(channelUrl.value),

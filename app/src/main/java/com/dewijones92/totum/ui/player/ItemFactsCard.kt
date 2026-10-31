@@ -21,16 +21,13 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
-import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.downloadStateOf
+import com.dewijones92.totum.ui.common.publishedDateAndAge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 val LocalPlayingItem = compositionLocalOf<MediaItem?> { null }
 
@@ -93,8 +90,7 @@ private fun describe(fact: ItemFact): Pair<String, String> = when (fact) {
 @Composable
 private fun publishedValue(fact: ItemFact.Published): String {
     val at = fact.at ?: return fact.text.orEmpty()
-    val date = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withZone(ZoneId.systemDefault()).format(at)
-    return "$date · ${PublishedAge.text(at, LocalNow.current)}"
+    return publishedDateAndAge(at, LocalNow.current)
 }
 
 @Composable

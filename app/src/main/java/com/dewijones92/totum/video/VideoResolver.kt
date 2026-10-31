@@ -9,6 +9,7 @@ import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.Chapter
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -18,6 +19,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.innertube.player.PlayerDetails
+import com.dewijones92.totum.innertube.player.StreamingData
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaMetadata
@@ -580,6 +582,7 @@ class VideoResolver(
                 // missing description obvious rather than inventing a plausible name for it.
                 title = details?.title ?: request.id,
                 publishedAt = details?.publishedInstant(),
+                contentKind = contentKindOf(details, response.streaming),
                 duration = details?.lengthSeconds?.seconds,
                 author = details?.author,
                 description = details?.description,
@@ -923,3 +926,8 @@ class VideoResolver(
 
 private fun PlayerDetails.publishedInstant(): java.time.Instant? =
     publishedAt ?: PublishedAge.best(publishedOn, publishedAgo, java.time.Instant.now())
+
+private fun contentKindOf(details: PlayerDetails?, streaming: StreamingData): MediaContentKind {
+    val liveNow = details?.isLive == true && (streaming.liveManifestUrl != null || streaming.hasLiveSegments)
+    return if (liveNow) MediaContentKind.LIVE else MediaContentKind.STANDARD
+}

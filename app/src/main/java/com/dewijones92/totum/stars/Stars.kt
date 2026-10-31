@@ -1,7 +1,7 @@
 package com.dewijones92.totum.stars
 
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeWatchUrl
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItem
@@ -10,7 +10,6 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.domain.WATCH_PREFIX
 import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.music.MusicFavourites.Outcome
@@ -72,4 +71,4 @@ fun LocalPlaylistStore.observeYourPlaylists(): Flow<List<LocalPlaylist>> =
     observePlaylists().map { all -> all.filter { it.id != STARRED_PLAYLIST } }
 
 fun MediaItem.starrable(): PlayableItem? = toPlayableOrNull()
-    ?: id.value.takeIf(::isYouTubeVideoId)?.let { PlayableItem(this, PlayHandle.Video(HttpUrl.of(WATCH_PREFIX + it))) }
+    ?: youTubeWatchUrl(id.value)?.let { url -> PlayableItem(this, PlayHandle.Video(url)) }

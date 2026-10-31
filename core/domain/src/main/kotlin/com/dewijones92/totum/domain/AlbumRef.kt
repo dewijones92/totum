@@ -7,5 +7,5 @@ public fun canonicalItemId(id: String): String =
 
 public fun isYouTubeVideoId(value: String): Boolean = VIDEO_ID.matches(value)
 
-public const val WATCH_PREFIX: String = "https://www.youtube.com/watch?v="
+public const val WATCH_PREFIX: String = com.dewijones92.totum.common.YOUTUBE_WATCH_PREFIX
 private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")

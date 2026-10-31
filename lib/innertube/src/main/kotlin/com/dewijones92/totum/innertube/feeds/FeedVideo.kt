@@ -1,6 +1,7 @@
 package com.dewijones92.totum.innertube.feeds
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.youTubeWatchUrl
 
 /**
  * A video in an account feed (home, subscriptions, watch later, history).
@@ -37,7 +38,6 @@ public data class FeedVideo(
     public enum class Kind { VIDEO, LIVE, SHORT }
 
     public companion object {
-        public fun watchUrlFor(videoId: String): HttpUrl? =
-            HttpUrl.parse("https://www.youtube.com/watch?v=$videoId")
+        public fun watchUrlFor(videoId: String): HttpUrl? = youTubeWatchUrl(videoId)
     }
 }

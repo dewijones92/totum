@@ -72,6 +72,7 @@ fun SearchHit.Video.toMediaItem(sourceId: SourceId, observedAt: Instant = Instan
     viewsText = viewsText,
     membersOnly = membersOnly,
     sourceUrl = channelUrl,
+    contentKind = kind,
 )
 
 fun SearchHit.Song.toMediaItem(sourceId: SourceId): MediaItem = song.toMediaItem(sourceId)

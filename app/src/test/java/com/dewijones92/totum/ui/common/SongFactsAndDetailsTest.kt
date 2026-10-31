@@ -54,11 +54,15 @@ class SongFactsAndDetailsTest {
 
     @Test
     fun `details list everything known about the item`() {
-        val details = itemDetails(song.copy(publishedAt = Instant.parse("2026-10-14T18:30:00Z")), ZoneOffset.UTC)
+        val details = itemDetails(
+            song.copy(publishedAt = Instant.parse("2026-10-14T18:30:00Z")),
+            ZoneOffset.UTC,
+            now = Instant.parse("2026-10-14T20:30:00Z"),
+        )
 
         assertTrue(details.contains("🎤 Paco de Lucía"))
         assertTrue(details.contains("💿 Fuente y caudal"))
-        assertTrue(details.contains("📅 14 October 2026, 18:30"))
+        assertTrue(details.contains("📅 14 October 2026 · 2 hours ago"))
         assertTrue(details.contains("⏱️ 5:45"))
         assertTrue(details.contains("🎞️ Song"))
         assertTrue(details.contains("🆔 abcdefghijk"))

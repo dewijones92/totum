@@ -79,4 +79,30 @@ class SearchResultsParserTest {
         assertTrue(SearchResultsParser.videos("not json").isEmpty())
         assertTrue(SearchResultsParser.videos("{}").isEmpty())
     }
+
+    @Test
+    fun `a live result and a Short are told apart from a video, as the feed tells them`() {
+        fun hit(id: String, style: String, endpoint: String) = """
+            {"videoRenderer":{"videoId":"$id","title":{"runs":[{"text":"$id"}]},
+              "thumbnailOverlays":[{"thumbnailOverlayTimeStatusRenderer":{"style":"$style"}}],
+              "navigationEndpoint":{"$endpoint":{"videoId":"$id"}}}}
+        """
+        val hits = listOf(
+            hit("liveliveliv", "LIVE", "watchEndpoint"),
+            hit("shortshorts", "SHORTS", "reelWatchEndpoint"),
+            hit("videovideov", "DEFAULT", "watchEndpoint"),
+        )
+        val body = """{"contents":[${hits.joinToString(",")}]}"""
+
+        val kinds = SearchResultsParser.videos(body).associate { it.videoId to it.kind }
+
+        assertEquals(
+            mapOf(
+                "liveliveliv" to com.dewijones92.totum.innertube.feeds.FeedVideo.Kind.LIVE,
+                "shortshorts" to com.dewijones92.totum.innertube.feeds.FeedVideo.Kind.SHORT,
+                "videovideov" to com.dewijones92.totum.innertube.feeds.FeedVideo.Kind.VIDEO,
+            ),
+            kinds,
+        )
+    }
 }

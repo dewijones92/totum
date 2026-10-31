@@ -58,7 +58,20 @@ internal object SearchResultsParser {
             viewsText = textAt("shortViewCountText") ?: textAt("viewCountText"),
             membersOnly = Badges.membersOnly(this),
             channelId = channelId(),
+            kind = kind(),
         )
+    }
+
+    private fun JsonObject.kind(): FeedVideo.Kind {
+        val styles = (this["thumbnailOverlays"] as? JsonArray).orEmpty().mapNotNull { overlay ->
+            ((overlay as? JsonObject)?.get("thumbnailOverlayTimeStatusRenderer") as? JsonObject)?.stringAt("style")
+        }
+        val reel = (this["navigationEndpoint"] as? JsonObject)?.get("reelWatchEndpoint") != null
+        return when {
+            "LIVE" in styles -> FeedVideo.Kind.LIVE
+            reel || "SHORTS" in styles -> FeedVideo.Kind.SHORT
+            else -> FeedVideo.Kind.VIDEO
+        }
     }
 
     /**

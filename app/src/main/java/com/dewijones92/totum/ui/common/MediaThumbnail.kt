@@ -12,6 +12,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,16 +67,24 @@ fun MediaThumbnail(
             modifier = Modifier.fillMaxSize(PLACEHOLDER_GLYPH_FRACTION),
         )
         if (url != null) {
+            var portrait by remember(url) { mutableStateOf(false) }
             AsyncImage(
                 model = url.value,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
+                contentScale = thumbnailScale(portrait),
+                onSuccess = { loaded -> portrait = isPortrait(loaded.result.image.width, loaded.result.image.height) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
         durationLabel?.let { DurationChip(it, Modifier.align(Alignment.BottomEnd)) }
     }
 }
+
+internal fun isPortrait(width: Int, height: Int): Boolean = width > 0 && height > width * PORTRAIT_RATIO
+
+internal fun thumbnailScale(portrait: Boolean): ContentScale = if (portrait) ContentScale.Fit else ContentScale.Crop
+
+private const val PORTRAIT_RATIO = 1.1f
 
 /** Black-on-white-ish so it stays readable over any still, as YouTube's own does. */
 @Composable

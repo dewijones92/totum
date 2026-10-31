@@ -17,8 +17,8 @@ class LiveStreamManifest(
 ) {
     suspend fun applyTo(videoId: String, answer: PlayerResult.Success): PlayerResult.Success {
         val streaming = answer.streaming
-        val liveFormats = streaming.formats.any { it.url?.value?.contains("live=1") == true }
-        if (answer.details?.isLive != true || streaming.liveManifestUrl != null || !liveFormats) return answer
+        val needsOne = answer.details?.isLive == true && streaming.liveManifestUrl == null && streaming.hasLiveSegments
+        if (!needsOne) return answer
         val manifest = build(videoId, streaming) ?: return answer
         return answer.copy(streaming = streaming.copy(liveManifestUrl = publish(videoId, manifest)))
     }

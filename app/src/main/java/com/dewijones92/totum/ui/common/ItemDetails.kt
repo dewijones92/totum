@@ -22,18 +22,16 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
-fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault()): List<String> {
+fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault(), now: Instant = Instant.now()): List<String> {
     val music = item.contentKind == MediaContentKind.MUSIC
-    val published = item.publishedAt?.atZone(zone)?.format(DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm", Locale.UK))
     return listOfNotNull(
         item.author?.let { "${if (music) FactEmoji.ARTIST else FactEmoji.CHANNEL} $it" },
         item.publisher?.let { "${FactEmoji.PUBLISHER} $it" },
         item.album?.title?.let { "${FactEmoji.ALBUM} $it" },
-        (published ?: item.publishedText)?.let { "${FactEmoji.PUBLISHED} $it" },
+        publishedLine(item, now, zone),
         item.duration?.let { "⏱️ ${formatLength(it.inWholeSeconds)}" },
         item.viewsText?.let { "${FactEmoji.VIEWS} $it" },
         "🎞️ ${kindName(item.contentKind)}" + if (item.membersOnly) " · 🔒 members only" else "",
@@ -43,6 +41,10 @@ fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault()): List<St
         item.description?.trim()?.takeIf { it.isNotEmpty() }?.let { "📝 $it" },
     )
 }
+
+private fun publishedLine(item: MediaItem, now: Instant, zone: ZoneId): String? =
+    (item.publishedAt?.let { publishedDateAndAge(it, now, zone) } ?: item.publishedText)
+        ?.let { "${FactEmoji.PUBLISHED} $it" }
 
 private fun kindName(kind: MediaContentKind) = when (kind) {
     MediaContentKind.STANDARD -> "Video or episode"

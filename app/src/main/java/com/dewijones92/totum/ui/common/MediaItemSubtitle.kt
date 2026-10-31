@@ -102,6 +102,11 @@ object FactEmoji {
  * anchoring existed, which have nothing else. Both pillars read the same way — a podcast episode
  * is "3 days ago" too, not an absolute date beside a video's relative one.
  */
+fun publishedDateAndAge(at: Instant, now: Instant, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String =
+    "${PUBLISHED_DAY.withZone(zone).format(at)} · ${PublishedAge.text(at, now)}"
+
+private val PUBLISHED_DAY = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.UK)
+
 fun mediaDateText(publishedText: String?, publishedAt: Instant?, now: Instant = Instant.now()): String? =
     publishedAt?.let { PublishedAge.text(it, now) } ?: publishedText
 

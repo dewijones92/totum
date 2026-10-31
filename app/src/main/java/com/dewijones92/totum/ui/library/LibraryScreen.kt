@@ -473,10 +473,7 @@ private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDis
             )
             .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 4.dp),
     ) {
-        Text(
-            text = entry.item.title,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        DownloadCardHeader(entry.item)
         Text(
             // The reason verbatim. A generic "download failed" would hide the difference between
             // "members only", "no space" and "the home server was not there", which are the three
@@ -510,14 +507,7 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
             .rowCard(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large)
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 14.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                // The TITLE. This printed `active.id.value` — a raw media id like "chxbS3N3Llc" —
-                // because the progress stream carried states without the items they were about.
-                text = active.item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
+        DownloadCardHeader(active.item) {
             Text(
                 text = fraction
                     ?.let { stringResource(R.string.status_downloading_percent, (it * PERCENT).toInt()) }

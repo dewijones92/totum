@@ -79,6 +79,19 @@ class PublishedAgeTest {
     }
 
     @Test
+    fun `a queue row learns the chapters it lacks, and keeps its own`() {
+        val chapters = listOf(
+            Chapter(kotlin.time.Duration.ZERO, "Intro"),
+            Chapter(kotlin.time.Duration.parse("1m"), "Main")
+        )
+        val resolved = bare.copy(chapters = chapters)
+
+        assertEquals(chapters, bare.fillingSilenceFrom(resolved).chapters)
+        val own = listOf(Chapter(kotlin.time.Duration.ZERO, "Mine"))
+        assertEquals(own, bare.copy(chapters = own).fillingSilenceFrom(resolved).chapters)
+    }
+
+    @Test
     fun `a queue row fills only the facts it lacks from what resolved`() {
         val resolved = bare.copy(
             title = "Big Buck Bunny",

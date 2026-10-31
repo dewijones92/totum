@@ -491,9 +491,8 @@ private fun VideoHitRow(
  * A song row.
  *
  * The SAME [MediaItemRow] every other list uses, so a song gets the long-press menu, the play
- * state and the offline indicator for free — the rule the unified-row test guards. Only the
- * subtitle differs, because "artist • album" is what tells two recordings of one song apart and
- * the shared formatter would render an upload date it does not have.
+ * state, the offline indicator, its download actions and the same facts as in the Music tab
+ * (artist, album, plays) — the rule the unified-row test guards.
  */
 @Composable
 internal fun SongHitRow(
@@ -506,11 +505,9 @@ internal fun SongHitRow(
     val item = remember(hit) { hit.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE) }
     MediaItemRow(
         item = item,
-        subtitleLines = listOfNotNull(hit.subtitle),
+        subtitleLines = rowFacts(item, MediaKind.VIDEO),
         pillar = MediaKind.VIDEO,
         onPlay = onPlay,
-        onDownload = {},
-        onDeleteDownload = {},
         onPlayNext = { actions.playNext(item) },
         onAddToQueue = { actions.addToQueue(item) },
         onAddToPlaylist = { actions.addToPlaylist(item) },

@@ -37,6 +37,28 @@ class DefaultChannelRepositoryTest {
     }
 
     @Test
+    fun `the fallback keeps views and members-only, as the channel's own page does`() = runTest {
+        engine.registerChannel(
+            channelUrl,
+            ChannelResult.Success(
+                channelId = "UC123",
+                title = "Example Channel",
+                videos = listOf(
+                    FakeYtDlpEngine.sampleSearchEntry(
+                        id = "v1",
+                        title = "First"
+                    ).copy(viewCount = 1_200, membersOnly = true),
+                ),
+            ),
+        )
+
+        val video = (repository().fetchChannelVideos(channelUrl) as ChannelVideosResult.Success).videos.single()
+
+        assertEquals("1.2K views", video.viewsText)
+        assertTrue(video.membersOnly)
+    }
+
+    @Test
     fun `fetchChannelVideos reports not-a-channel as a value`() = runTest {
         val result = repository().fetchChannelVideos(channelUrl)
         assertTrue(result is ChannelVideosResult.Failure.NotAChannel)

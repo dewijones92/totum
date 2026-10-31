@@ -154,6 +154,42 @@ class VideoResolverFastPathTest {
     }
 
     @Test
+    fun `a live stream reached by link is a live item, as it is in the feed, and its replay is not`() = runTest {
+        val live = playerResponse("https://x.test/account").let {
+            it.copy(
+                details = it.details?.copy(isLive = true),
+                streaming = it.streaming.copy(liveManifestUrl = HttpUrl.of("https://x.test/live.m3u8")),
+            )
+        }
+        val replay = playerResponse("https://x.test/account").let { it.copy(details = it.details?.copy(isLive = true)) }
+        val resolver = VideoResolver(
+            engine = CountingEngine(AtomicInteger()),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = object : PlayerStreams {
+                override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+                override suspend fun signedInFor(videoId: String, describe: Boolean) = live
+            },
+        )
+
+        assertEquals(
+            com.dewijones92.totum.domain.MediaContentKind.LIVE,
+            resolver.resolve(url, source, asked = "play")?.item?.contentKind,
+        )
+        val replays = VideoResolver(
+            engine = CountingEngine(AtomicInteger()),
+            skipSegments = SkipSegmentSource { emptyList() },
+            playerStreams = object : PlayerStreams {
+                override suspend fun playerFor(videoId: String) = playerResponse("https://x.test/anonymous")
+                override suspend fun signedInFor(videoId: String, describe: Boolean) = replay
+            },
+        )
+        assertEquals(
+            com.dewijones92.totum.domain.MediaContentKind.STANDARD,
+            replays.resolve(url, source, asked = "play")?.item?.contentKind,
+        )
+    }
+
+    @Test
     fun `a caller that knows the title spares the account its watch-page lookup`() = runTest {
         val described = mutableListOf<Boolean>()
         val streams = object : PlayerStreams {

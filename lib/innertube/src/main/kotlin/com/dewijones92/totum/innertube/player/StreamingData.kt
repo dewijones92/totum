@@ -31,6 +31,8 @@ public data class StreamingData(
      */
     val ustreamerConfig: ByteArray? = null,
 ) {
+    public val hasLiveSegments: Boolean get() = formats.any { it.url?.value?.contains("live=1") == true }
+
     /** Formats we could play today — those with a direct URL. */
     public val directlyPlayable: List<PlayableFormat> get() = formats.filter { it.url != null }
 

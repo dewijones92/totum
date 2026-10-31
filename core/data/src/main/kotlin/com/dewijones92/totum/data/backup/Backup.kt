@@ -108,6 +108,9 @@ public data class BackupItem(
     val publisher: String? = null,
     val albumId: String? = null,
     val albumTitle: String? = null,
+    val publishedAtMs: Long? = null,
+    val publishedText: String? = null,
+    val viewsText: String? = null,
 )
 
 /** How far through something you got, or that you finished it. */

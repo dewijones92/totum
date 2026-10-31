@@ -32,9 +32,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.channel.ChannelCheckProgress
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
-import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.searchableText
@@ -51,6 +51,7 @@ import com.dewijones92.totum.ui.common.SelectableList
 import com.dewijones92.totum.ui.common.SelectionCheckbox
 import com.dewijones92.totum.ui.common.SourceArtwork
 import com.dewijones92.totum.ui.common.isSelecting
+import com.dewijones92.totum.ui.common.mediaDateText
 import com.dewijones92.totum.ui.common.orSelected
 import com.dewijones92.totum.ui.common.pillarRowTint
 import com.dewijones92.totum.ui.common.rememberListFilter
@@ -186,10 +187,8 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
         Column(Modifier.weight(1f)) {
             Text(source.title, style = MaterialTheme.typography.titleMedium)
             val maker = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL
-            val latest = activity.latest
-            val line = latest?.publishedAt?.let { at ->
-                "${FactEmoji.PUBLISHED} ${PublishedAge.text(at, LocalNow.current)} · ${latest.title}"
-            } ?: stringResource(R.string.all_subscriptions_no_recent)
+            val line = latestUploadLine(activity.latest, LocalNow.current)
+                ?: stringResource(R.string.all_subscriptions_no_recent)
             Text(
                 "$maker $line",
                 style = MaterialTheme.typography.bodySmall,
@@ -201,3 +200,9 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
 }
 
 private val ARTWORK_SIZE = 48.dp
+
+internal fun latestUploadLine(latest: MediaItem?, now: java.time.Instant): String? = latest?.let { upload ->
+    mediaDateText(upload.publishedText, upload.publishedAt, now)
+        ?.let { "${FactEmoji.PUBLISHED} $it · ${upload.title}" }
+        ?: upload.title
+}

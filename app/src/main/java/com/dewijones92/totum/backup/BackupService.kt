@@ -238,6 +238,9 @@ internal fun PlayableItem.toBackup(): BackupItem {
         membersOnly = item.membersOnly,
         albumId = item.album?.id,
         albumTitle = item.album?.title,
+        publishedAtMs = item.publishedAt?.toEpochMilli(),
+        publishedText = item.publishedText,
+        viewsText = item.viewsText,
     )
 }
 
@@ -249,7 +252,9 @@ internal fun BackupItem.toPlayable(): PlayableItem? {
             id = MediaItemId(canonicalItemId(itemId)),
             sourceId = SourceId(sourceId),
             title = title,
-            publishedAt = null,
+            publishedAt = publishedAtMs?.let(java.time.Instant::ofEpochMilli),
+            publishedText = publishedText,
+            viewsText = viewsText,
             duration = durationMs?.milliseconds,
             author = author,
             publisher = publisher,

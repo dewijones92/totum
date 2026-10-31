@@ -3,6 +3,7 @@ package com.dewijones92.totum.innertube.search
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
+import com.dewijones92.totum.innertube.feeds.FeedVideo
 
 /** One video a search returned. */
 public data class SearchedVideo(
@@ -18,6 +19,7 @@ public data class SearchedVideo(
     public val viewsText: String? = null,
     /** Behind a channel membership — it will not play or download without one. */
     public val membersOnly: Boolean = false,
+    public val kind: FeedVideo.Kind = FeedVideo.Kind.VIDEO,
     /**
      * The uploader's `UC…` id, which every search result carries in its `ownerText`.
      *
