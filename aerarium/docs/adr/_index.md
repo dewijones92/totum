@@ -20,3 +20,5 @@ update or supersede the relevant ADR in the same change as the code; a supersede
 | 6   | [A health dashboard that shouts](0006-a-health-dashboard-that-shouts.md)                                    | Accepted |
 | 7   | [Tokens encrypted in the database, keys kept out of backups](0007-secrets-encrypted-key-outside-backups.md) | Accepted |
 | 8   | [A weekly money report instead of a monthly digest](0008-a-weekly-money-report.md)                          | Accepted |
+| 9   | [A narrow mail importer for documents that arrive nowhere else](0009-a-narrow-mail-importer.md)             | Accepted |
+| 10  | [Open Banking through Enable Banking, own accounts only](0010-open-banking-through-enable-banking.md)       | Accepted |

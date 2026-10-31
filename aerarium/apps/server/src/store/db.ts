@@ -69,6 +69,9 @@ const MIGRATIONS: readonly string[] = [
   );
   INSERT INTO connections (id, kind, label, created_at) VALUES ('manual', 'manual', 'Typed in by you', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
   `,
+  `
+  ALTER TABLE accounts ADD COLUMN owner_confirmed INTEGER NOT NULL DEFAULT 1;
+  `,
 ];
 
 export type Db = DatabaseSync;

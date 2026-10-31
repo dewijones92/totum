@@ -20,8 +20,8 @@ never to move it.
 - Monzo: its own API. Its token has no scopes and could move money between pots; Dewi accepted that
   ("I don't really use Monzo"), so it is the one exception, and Aerarium only ever calls its read endpoints.
 - Savings, pensions, the mortgage and the childcare account are typed in by hand: no credentials at all.
-- Gmail is not used by the app. The one-off inventory sweep (2026-10-29) used a full-access app password, so
-  giving the app that credential would break this rule.
+- Gmail: amended by [ADR 0009](0009-a-narrow-mail-importer.md). A narrow importer reads only allow-listed
+  senders, read-only by construction in code, because an app password itself is full-access.
 - Every connector talks through an HTTP client built with an explicit list of allowed methods and paths;
   anything else throws before a request leaves the process, and a test pins every connector's list.
 

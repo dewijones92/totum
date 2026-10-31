@@ -65,6 +65,18 @@ export const api = {
   connectTrading212: (input: NewTrading212) =>
     request('/api/connections/trading212', z.object({ id: z.string() }), json('POST', input)),
   disconnect: (id: string) => request(`/api/connections/${enc(id)}`, z.undefined(), json('DELETE')),
+  ebStatus: () => request('/api/eb/status', z.object({ configured: z.boolean() })),
+  ebBanks: (country = 'GB') =>
+    request(
+      `/api/eb/banks?country=${enc(country)}`,
+      z.array(
+        z.object({ name: z.string(), country: z.string(), maxConsentDays: z.number().nullable() }),
+      ),
+    ),
+  ebStart: (name: string, country = 'GB') =>
+    request('/api/eb/start', z.object({ url: z.string() }), json('POST', { name, country })),
+  reconnect: (id: string) =>
+    request(`/api/connections/${enc(id)}/reconnect`, z.object({ url: z.string() }), json('POST')),
   syncNow: (id: string) => request(`/api/connections/${enc(id)}/sync`, SyncStarted, json('POST')),
   transactions: (query: { account?: string; since?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

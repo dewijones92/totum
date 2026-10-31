@@ -1,6 +1,6 @@
 import type { Logger } from '../log.ts';
 
-export type Method = 'GET' | 'POST';
+export type Method = 'GET' | 'POST' | 'DELETE';
 
 export interface Allowed {
   method: Method;

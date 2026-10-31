@@ -1,6 +1,5 @@
 import {
   AccountKind,
-  formatMoney,
   LIABILITY_KINDS,
   Owner,
   parseMajorToMinor,
@@ -9,6 +8,7 @@ import {
 import { useState, type SyntheticEvent } from 'react';
 import { api } from '../api/client.ts';
 import { strings, tips } from '../strings.ts';
+import { formatBalance } from '../ui/format.ts';
 import { useAsync } from '../ui/use-async.ts';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -156,7 +156,33 @@ function AccountRow({ account, onChange }: { account: Account; onChange: () => v
   };
 
   return (
-    <li className="account-row" data-testid={`account-${account.name}`}>
+    <li
+      className={account.ownerConfirmed ? 'account-row' : 'account-row account-row-new'}
+      data-testid={`account-${account.name}`}
+    >
+      {account.ownerConfirmed ? null : (
+        <div className="whose">
+          <b>{strings.accounts.whose}</b>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void act(() => api.patchAccount(account.id, { owner: 'mine' }), 'confirm-mine')
+            }
+          >
+            {strings.accounts.markMine}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void act(() => api.patchAccount(account.id, { owner: 'joint' }), 'confirm-joint')
+            }
+          >
+            {strings.accounts.markJoint}
+          </button>
+        </div>
+      )}
       <div className="account-main">
         <b>{account.name}</b>
         {account.owner === 'joint' ? <span className="tag">{strings.accounts.joint}</span> : null}
@@ -164,9 +190,7 @@ function AccountRow({ account, onChange }: { account: Account; onChange: () => v
           {strings.kinds[account.kind]} ·{' '}
           {manual ? strings.accounts.typedIn : strings.accounts.synced}
         </span>
-        <span className="account-balance">
-          {account.balance ? formatMoney(account.balance) : '—'}
-        </span>
+        <span className="account-balance">{formatBalance(account)}</span>
         {account.balanceAsOf ? (
           <span className="muted">{strings.health.asOf(account.balanceAsOf)}</span>
         ) : null}
@@ -252,9 +276,11 @@ export function AccountsPage({ onChange }: { onChange: () => void }) {
       <AddManual onAdded={changed} />
       {error ? <p className="error">{strings.common.error(error)}</p> : null}
       <ul className="account-list">
-        {(data ?? []).map((a) => (
-          <AccountRow key={a.id} account={a} onChange={changed} />
-        ))}
+        {[...(data ?? [])]
+          .sort((a, b) => Number(a.ownerConfirmed) - Number(b.ownerConfirmed))
+          .map((a) => (
+            <AccountRow key={a.id} account={a} onChange={changed} />
+          ))}
       </ul>
     </section>
   );

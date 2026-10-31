@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeNetWorth,
+  displayBalance,
   formatMoney,
   money,
   parseMajorToMinor,
@@ -16,6 +17,7 @@ const acct = (over: Partial<Account>): Account => ({
   owner: 'mine',
   currency: 'GBP',
   includeInNetWorth: true,
+  ownerConfirmed: true,
   balance: money(10_000),
   balanceAsOf: '2026-10-31',
   ...over,
@@ -58,5 +60,16 @@ describe('computeNetWorth', () => {
     ]);
     expect(nw.counted).toBe(0);
     expect(nw.leftOut.map((l) => l.reason)).toEqual(['excluded', 'no-balance', 'other-currency']);
+  });
+});
+
+describe('displayBalance', () => {
+  it('shows every debt as negative, however the source stored it', () => {
+    expect(displayBalance(acct({ kind: 'mortgage', balance: money(150_000) }))?.minor).toBe(
+      -150_000,
+    );
+    expect(displayBalance(acct({ kind: 'credit-card', balance: money(-50) }))?.minor).toBe(-50);
+    expect(displayBalance(acct({ balance: money(70) }))?.minor).toBe(70);
+    expect(displayBalance(acct({ balance: null }))).toBeNull();
   });
 });

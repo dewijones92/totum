@@ -46,6 +46,17 @@ function SourceTile({ s, onSynced }: { s: SourceHealth; onSynced: () => void }) 
       setBusy(false);
     }
   };
+  const reconnect = async () => {
+    setBusy(true);
+    try {
+      const { url } = await api.reconnect(s.connectionId);
+      console.info('dewidebug reconnect starting', { id: s.connectionId });
+      window.location.assign(url);
+    } catch (err) {
+      setNote(strings.common.error(err instanceof Error ? err.message : String(err)));
+      setBusy(false);
+    }
+  };
   return (
     <article className={`tile tile-${s.state}`} data-testid={`source-${s.label}`}>
       <header>
@@ -61,9 +72,16 @@ function SourceTile({ s, onSynced }: { s: SourceHealth; onSynced: () => void }) 
           <li>{strings.health.consentUntil(s.consentExpiresAt.slice(0, 10))}</li>
         ) : null}
       </ul>
-      <button type="button" className="secondary" disabled={busy} onClick={() => void sync()}>
-        {busy ? strings.health.syncing : strings.health.syncNow}
-      </button>
+      <div className="tile-actions">
+        <button type="button" className="secondary" disabled={busy} onClick={() => void sync()}>
+          {busy ? strings.health.syncing : strings.health.syncNow}
+        </button>
+        {s.kind === 'enable-banking' ? (
+          <button type="button" disabled={busy} onClick={() => void reconnect()}>
+            {strings.health.reconnect}
+          </button>
+        ) : null}
+      </div>
       {note ? <p className="muted">{note}</p> : null}
       <Runs id={s.connectionId} />
     </article>

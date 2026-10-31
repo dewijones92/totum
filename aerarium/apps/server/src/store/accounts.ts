@@ -20,6 +20,7 @@ interface AccountRow {
   owner: string;
   currency: string;
   include_in_net_worth: number;
+  owner_confirmed: number;
   minor: number | null;
   balance_currency: string | null;
   as_of: string | null;
@@ -27,7 +28,7 @@ interface AccountRow {
 
 const SELECT = `
   SELECT a.id, a.connection_id, c.kind AS source_kind, a.name, a.kind, a.owner, a.currency,
-         a.include_in_net_worth, b.minor, b.currency AS balance_currency, b.as_of
+         a.include_in_net_worth, a.owner_confirmed, b.minor, b.currency AS balance_currency, b.as_of
   FROM accounts a
   JOIN connections c ON c.id = a.connection_id
   LEFT JOIN balances b ON b.account_id = a.id
@@ -44,6 +45,7 @@ function toAccount(r: AccountRow): Account {
     owner: Owner.parse(r.owner),
     currency: r.currency,
     includeInNetWorth: r.include_in_net_worth === 1,
+    ownerConfirmed: r.owner_confirmed === 1,
     balance: r.minor === null ? null : money(r.minor, r.balance_currency ?? r.currency),
     balanceAsOf: r.as_of,
   });
@@ -88,8 +90,8 @@ export class AccountsStore {
     const id = randomUUID();
     this.db
       .prepare(
-        `INSERT INTO accounts (id, connection_id, external_id, name, kind, currency, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO accounts (id, connection_id, external_id, name, kind, currency, created_at, owner_confirmed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
       )
       .run(id, a.connectionId, a.externalId, a.name, a.kind, a.currency, now);
     return id;
@@ -121,7 +123,7 @@ export class AccountsStore {
       values.push(p.kind);
     }
     if (p.owner !== undefined) {
-      sets.push('owner = ?');
+      sets.push('owner = ?', 'owner_confirmed = 1');
       values.push(p.owner);
     }
     if (p.includeInNetWorth !== undefined) {

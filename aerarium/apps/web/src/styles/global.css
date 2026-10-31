@@ -191,6 +191,12 @@ select {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
 }
+.panel {
+  margin: 14px 0;
+}
+.panel > h2:first-child {
+  margin-top: 0;
+}
 .card,
 .tile,
 .panel {
@@ -255,7 +261,7 @@ select {
 }
 .add-form {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 10px 14px;
   align-items: end;
 }
@@ -303,4 +309,58 @@ select {
   background: var(--card);
   border: 1px dashed var(--line);
   border-radius: 12px;
+}
+
+.tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bank-search {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 360px;
+}
+.bank-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.bank-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.note-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+.note-new {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  font-weight: 600;
+  text-decoration: none;
+}
+.account-row-new {
+  border: 2px solid var(--warn);
+}
+.whose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--warn);
 }

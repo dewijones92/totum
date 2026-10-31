@@ -6,6 +6,8 @@ import { SecretBox } from './secret-box.ts';
 import { openDb } from './store/db.ts';
 import { wire } from './wire.ts';
 import { Trading212Connector } from './connectors/trading212.ts';
+import { EnableBankingClient } from './connectors/enable-banking.ts';
+import { readFileSync } from 'node:fs';
 
 const config = loadConfig();
 const log = createLogger(config.LOG_LEVEL);
@@ -19,6 +21,21 @@ if (secrets.ephemeral) {
   );
 }
 
+const enableBanking =
+  config.EB_APPLICATION_ID && config.EB_PRIVATE_KEY_FILE && config.EB_REDIRECT_URL
+    ? {
+        client: new EnableBankingClient(
+          {
+            applicationId: config.EB_APPLICATION_ID,
+            privateKeyPem: readFileSync(config.EB_PRIVATE_KEY_FILE, 'utf8'),
+            redirectUrl: config.EB_REDIRECT_URL,
+          },
+          log,
+        ),
+        maxConsentDays: config.EB_MAX_CONSENT_DAYS,
+      }
+    : undefined;
+
 const { app, scheduler, connections } = wire({
   db,
   secrets,
@@ -30,6 +47,7 @@ const { app, scheduler, connections } = wire({
   fakeProviders: config.FAKE_PROVIDERS === '1',
   manualStaleDays: config.MANUAL_STALE_DAYS,
   connectors: [new Trading212Connector(log)],
+  ...(enableBanking ? { enableBanking } : {}),
   ...(config.STATIC_DIR ? { staticDir: config.STATIC_DIR } : {}),
 });
 
@@ -41,6 +59,9 @@ log.info(
     trusted: config.TRUSTED_CIDRS,
     ownerCheck: config.OWNER_EMAIL === '' ? 'off (no OWNER_EMAIL)' : 'on',
     fakeProviders: config.FAKE_PROVIDERS === '1',
+    openBanking: enableBanking
+      ? 'on'
+      : 'off (EB_APPLICATION_ID, EB_PRIVATE_KEY_FILE or EB_REDIRECT_URL missing)',
     connections: connections.synced().map((c) => ({ id: c.id, kind: c.kind })),
     runsInterruptedByLastShutdown: abandoned,
   },

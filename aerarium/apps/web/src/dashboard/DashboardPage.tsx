@@ -2,6 +2,7 @@ import { AccountKind, formatMoney, money, signedBalance, type Account } from '@a
 import { Link } from 'wouter';
 import { api } from '../api/client.ts';
 import { strings } from '../strings.ts';
+import { formatBalance } from '../ui/format.ts';
 import { useAsync } from '../ui/use-async.ts';
 import { Sparkline } from './Sparkline.tsx';
 
@@ -47,6 +48,11 @@ export function DashboardPage() {
           <b>{formatMoney(money(nw.liabilities))}</b>
         </div>
       </div>
+      {data.accounts.some((a) => !a.ownerConfirmed) ? (
+        <Link href="/accounts" className="note-new">
+          {strings.dashboard.unconfirmed(data.accounts.filter((a) => !a.ownerConfirmed).length)}
+        </Link>
+      ) : null}
       {nw.leftOut.length > 0 ? (
         <p className="muted">{strings.dashboard.leftOut(nw.leftOut.length)}</p>
       ) : null}
@@ -77,7 +83,7 @@ export function DashboardPage() {
                     ) : null}
                   </header>
                   <span className={signedBalance(a) < 0 ? 'card-value negative' : 'card-value'}>
-                    {a.balance ? formatMoney(money(signedBalance(a), a.balance.currency)) : '—'}
+                    {formatBalance(a)}
                   </span>
                   <footer>
                     <span>{strings.sources[a.sourceKind]}</span>

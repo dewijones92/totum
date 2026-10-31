@@ -14,6 +14,7 @@ import {
 import { Hono, type Context } from 'hono';
 import { ZodError, z } from 'zod';
 import type { FakeConnector } from './connectors/fake.ts';
+import type { EnableBankingFlow } from './consent/enable-banking-flow.ts';
 import { buildHealthReport, type HealthDeps } from './health.ts';
 import { isTrusted } from './http/ip.ts';
 import { EMAIL_HEADER, judgeOwner } from './http/owner.ts';
@@ -42,6 +43,7 @@ export interface AppDeps {
     'accounts' | 'connections' | 'engine' | 'version' | 'schedulerLastTickAt'
   >;
   fake?: FakeConnector;
+  enableBanking?: EnableBankingFlow;
   remoteAddress?: (c: Context) => string | undefined;
 }
 
@@ -248,6 +250,70 @@ export function createApp(deps: AppDeps): Hono {
     connections.delete(conn.id);
     log.info({ id: conn.id, kind: conn.kind }, 'dewidebug connection removed with its accounts');
     return c.body(null, 204);
+  });
+
+  app.get('/api/eb/status', (c) => c.json({ configured: deps.enableBanking !== undefined }));
+
+  const flow = () => {
+    if (!deps.enableBanking)
+      throw new HttpError(409, 'Open Banking is not set up on this server yet');
+    return deps.enableBanking;
+  };
+
+  app.get('/api/eb/banks', async (c) => {
+    const country = z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .default('GB')
+      .parse(c.req.query('country'));
+    const banks = await flow().banks(country, clock());
+    return c.json(
+      banks
+        .map((b) => ({
+          name: b.name,
+          country: b.country,
+          maxConsentDays: b.maximum_consent_validity
+            ? Math.floor(b.maximum_consent_validity / 86_400)
+            : null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  });
+
+  app.post('/api/eb/start', async (c) => {
+    const aspsp = z
+      .object({ name: z.string().min(1), country: z.string().regex(/^[A-Z]{2}$/) })
+      .parse(await c.req.json());
+    return c.json(await flow().start(aspsp, clock()));
+  });
+
+  app.post('/api/connections/:id/reconnect', async (c) => {
+    const conn = connections.get(c.req.param('id'));
+    if (conn?.kind !== 'enable-banking') throw new HttpError(404, 'No such bank connection');
+    const cfg = z.object({ aspspName: z.string(), aspspCountry: z.string() }).parse(conn.config);
+    log.info({ id: conn.id }, 'dewidebug reconnect asked for');
+    return c.json(await flow().start({ name: cfg.aspspName, country: cfg.aspspCountry }, clock()));
+  });
+
+  app.get('/api/eb/callback', async (c) => {
+    const outcome = await flow().callback(
+      {
+        code: c.req.query('code'),
+        state: c.req.query('state'),
+        error: c.req.query('error'),
+        error_description: c.req.query('error_description'),
+      },
+      clock(),
+    );
+    if (outcome.kind === 'refused') {
+      return c.redirect(`/connections?failed=${encodeURIComponent(outcome.reason)}`, 302);
+    }
+    const conn = connections.get(outcome.connectionId);
+    if (conn) void engine.run(conn, outcome.renewed ? 'consent renewed' : 'just connected');
+    return c.redirect(
+      `/connections?connected=${encodeURIComponent(outcome.label)}&renewed=${outcome.renewed ? '1' : '0'}`,
+      302,
+    );
   });
 
   app.get('/api/health', (c) =>

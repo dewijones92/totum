@@ -3,6 +3,7 @@ import { SecretBox } from '../src/secret-box.ts';
 import { openMemoryDb } from '../src/store/db.ts';
 import { wire } from '../src/wire.ts';
 import type { Connector } from '../src/connectors/types.ts';
+import type { EnableBankingClient } from '../src/connectors/enable-banking.ts';
 
 export function testApp(
   opts: {
@@ -10,6 +11,7 @@ export function testApp(
     ip?: string;
     fakeProviders?: boolean;
     connectors?: Connector[];
+    enableBanking?: { client: EnableBankingClient; maxConsentDays: number };
     now?: () => Date;
   } = {},
 ) {
@@ -26,6 +28,7 @@ export function testApp(
     fakeProviders: opts.fakeProviders ?? false,
     manualStaleDays: 90,
     ...(opts.connectors ? { connectors: opts.connectors } : {}),
+    ...(opts.enableBanking ? { enableBanking: opts.enableBanking } : {}),
     clock,
     remoteAddress: () => opts.ip ?? '172.21.0.5',
   });

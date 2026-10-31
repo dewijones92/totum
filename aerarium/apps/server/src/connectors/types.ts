@@ -24,6 +24,7 @@ export interface SyncResult {
   transactions: FetchedTransaction[];
   consentExpiresAt?: string | null;
   secrets?: Record<string, unknown>;
+  config?: Record<string, unknown>;
 }
 
 export interface Connector {

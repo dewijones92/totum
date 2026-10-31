@@ -1,4 +1,5 @@
-import { useState, type SyntheticEvent } from 'react';
+import { useMemo, useState, type SyntheticEvent } from 'react';
+import { useSearch } from 'wouter';
 import { api } from '../api/client.ts';
 import { strings, tips } from '../strings.ts';
 import { useAsync } from '../ui/use-async.ts';
@@ -94,6 +95,90 @@ function AddTrading212({ onAdded }: { onAdded: () => void }) {
   );
 }
 
+function ConnectBank() {
+  const status = useAsync(() => api.ebStatus(), 'eb-status');
+  const configured = status.data?.configured === true;
+  const banks = useAsync(
+    () => (configured ? api.ebBanks() : Promise.resolve([])),
+    `eb-banks-${String(configured)}`,
+  );
+  const [query, setQuery] = useState('');
+  const [going, setGoing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (banks.data ?? [])
+      .filter((b) => q === '' || b.name.toLowerCase().includes(q))
+      .slice(0, 30);
+  }, [banks.data, query]);
+
+  const go = async (name: string) => {
+    setGoing(name);
+    setError(null);
+    try {
+      const { url } = await api.ebStart(name);
+      console.info('dewidebug open banking consent starting', { name });
+      window.location.assign(url);
+    } catch (err) {
+      setError(strings.common.error(err instanceof Error ? err.message : String(err)));
+      setGoing(null);
+    }
+  };
+
+  return (
+    <div className="panel">
+      <h2>{strings.connections.bankTitle}</h2>
+      <p className="muted">{strings.connections.bankHint}</p>
+      {status.data && !configured ? (
+        <p className="muted">{strings.connections.bankNotSetUp}</p>
+      ) : null}
+      {configured ? (
+        <>
+          <label className="bank-search">
+            <span>{strings.connections.bankSearch}</span>
+            <input
+              value={query}
+              placeholder={tips.bankSearch}
+              onChange={(e) => {
+                setQuery(e.target.value);
+              }}
+            />
+          </label>
+          {banks.loading ? <p className="muted">{strings.connections.bankLoading}</p> : null}
+          <ul className="bank-list">
+            {shown.map((b) => (
+              <li key={`${b.country}-${b.name}`}>
+                <span>{b.name}</span>
+                <button type="button" disabled={going !== null} onClick={() => void go(b.name)}>
+                  {going === b.name ? strings.connections.bankGoing : strings.connections.bankGo}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {error ? <p className="error">{error}</p> : null}
+    </div>
+  );
+}
+
+function ReturnNote() {
+  const params = new URLSearchParams(useSearch());
+  const connected = params.get('connected');
+  const failed = params.get('failed');
+  if (connected) {
+    return (
+      <p className="note-ok">
+        {params.get('renewed') === '1'
+          ? strings.connections.backRenewed(connected)
+          : strings.connections.backConnected(connected)}
+      </p>
+    );
+  }
+  if (failed) return <p className="error">{strings.connections.backFailed(failed)}</p>;
+  return null;
+}
+
 export function ConnectionsPage({ onChange }: { onChange: () => void }) {
   const { data, error, reload } = useAsync(() => api.connections(), 'connections');
   const changed = () => {
@@ -109,6 +194,7 @@ export function ConnectionsPage({ onChange }: { onChange: () => void }) {
   return (
     <section>
       <h1>{strings.connections.title}</h1>
+      <ReturnNote />
       <p className="muted">{strings.connections.hint}</p>
       {error ? <p className="error">{strings.common.error(error)}</p> : null}
       {data?.length === 0 ? <p className="muted">{strings.connections.none}</p> : null}
@@ -125,6 +211,7 @@ export function ConnectionsPage({ onChange }: { onChange: () => void }) {
           </li>
         ))}
       </ul>
+      <ConnectBank />
       <AddTrading212 onAdded={changed} />
     </section>
   );

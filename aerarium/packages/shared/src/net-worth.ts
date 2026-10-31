@@ -1,5 +1,5 @@
 import { LIABILITY_KINDS, type Account } from './domain.ts';
-import { minor, type Minor } from './money.ts';
+import { minor, money, type Minor, type Money } from './money.ts';
 
 export interface NetWorth {
   household: Minor;
@@ -14,6 +14,11 @@ export function signedBalance(account: Account): number {
   if (!account.balance) return 0;
   const v = account.balance.minor;
   return LIABILITY_KINDS.has(account.kind) ? -Math.abs(v) : v;
+}
+
+export function displayBalance(account: Account): Money | null {
+  if (!account.balance) return null;
+  return money(signedBalance(account), account.balance.currency);
 }
 
 export function computeNetWorth(accounts: readonly Account[], currency = 'GBP'): NetWorth {

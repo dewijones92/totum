@@ -43,6 +43,7 @@ export const Account = z.object({
   owner: Owner,
   currency: Currency,
   includeInNetWorth: z.boolean(),
+  ownerConfirmed: z.boolean(),
   balance: Money.nullable(),
   balanceAsOf: IsoDate.nullable(),
 });

@@ -24,6 +24,7 @@ export const strings = {
     noSources: '📭 No banks or providers connected yet.',
     noManual: '📭 No typed-in balances yet.',
     syncNow: '🔄 Sync now',
+    reconnect: '🔑 Reconnect',
     syncing: '⏳ Syncing…',
     syncBusy: '⏳ Already syncing',
     syncStarted: '✅ Sync started',
@@ -54,6 +55,10 @@ export const strings = {
     leftOut: (n: number) =>
       `ℹ️ ${String(n)} account${n === 1 ? '' : 's'} not counted (excluded, no balance yet, or another currency)`,
     empty: '📭 Nothing here yet. Add an account to get started.',
+    unconfirmed: (n: number) =>
+      n === 1
+        ? '📥 1 new account: say whose it is'
+        : `📥 ${String(n)} new accounts: say whose they are`,
     addFirst: '➕ Add an account',
     history: '📊 Net worth over time',
     historyTooShort: '⏳ The chart fills in day by day.',
@@ -82,6 +87,9 @@ export const strings = {
     synced: '🔌 Synced automatically',
     typedIn: '✍️ Typed in',
     joint: '👥 Joint',
+    whose: '📥 New account: whose is it?',
+    markMine: '👤 Mine',
+    markJoint: '👥 Joint',
   },
   connections: {
     title: '🔌 Connections',
@@ -99,6 +107,18 @@ export const strings = {
     connect: '🔌 Connect',
     connecting: '⏳ Connecting…',
     connected: '✅ Connected: the first sync is running, see 🩺 Health',
+    bankTitle: '🏦 Connect a bank or card (Open Banking)',
+    bankHint:
+      '🔒 Read-only access through Enable Banking: balances and transactions, never payments. You approve it in your bank’s app, and renew it every 90 days (Aerarium reminds you).',
+    bankNotSetUp:
+      '⚙️ Open Banking is not set up on the server yet: it needs the Enable Banking key.',
+    bankSearch: '🔎 Find your bank',
+    bankGo: '➡️ Connect',
+    bankGoing: '⏳ Opening your bank…',
+    bankLoading: '⏳ Loading banks…',
+    backConnected: (name: string) => `✅ ${name} connected: first sync running`,
+    backRenewed: (name: string) => `✅ ${name} consent renewed for another 90 days`,
+    backFailed: (why: string) => `❌ Not connected: ${why}`,
   },
   common: {
     error: (message: string) => `❌ ${message}`,
@@ -162,6 +182,7 @@ export const tips = {
   amountPlaceholder: '1234.56',
   namePlaceholder: 'e.g. Easy access saver',
   history: 'Net worth over time',
+  bankSearch: 'Bank name',
 };
 
 export const units = {

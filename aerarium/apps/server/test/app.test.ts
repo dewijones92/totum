@@ -116,6 +116,10 @@ describe('synced connections', () => {
     await t.scheduler.tick();
     const accounts = (await t.call('GET', '/api/accounts')).body as Account[];
     expect(accounts.map((a) => a.name)).toContain('Example Card');
+    expect(accounts.every((a) => !a.ownerConfirmed)).toBe(true);
+    const card = accounts.find((a) => a.name === 'Example Card')!;
+    const patched = await t.call('PATCH', `/api/accounts/${card.id}`, { owner: 'joint' });
+    expect(patched.body).toMatchObject({ owner: 'joint', ownerConfirmed: true });
     expect(((await t.call('GET', '/api/transactions')).body as unknown[]).length).toBe(1);
     const conns = (await t.call('GET', '/api/connections')).body;
     expect(conns).toMatchObject([

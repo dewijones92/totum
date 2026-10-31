@@ -150,13 +150,20 @@ export class SyncEngine {
       ];
     });
     const added = transactions.insertNew(rows, now);
-    if (result.consentExpiresAt !== undefined || result.secrets !== undefined) {
+    if (
+      result.consentExpiresAt !== undefined ||
+      result.secrets !== undefined ||
+      result.config !== undefined
+    ) {
       connections.update(connection.id, {
         ...(result.consentExpiresAt !== undefined
           ? { consentExpiresAt: result.consentExpiresAt }
           : {}),
         ...(result.secrets !== undefined
           ? { secrets: { ...connection.secrets, ...result.secrets } }
+          : {}),
+        ...(result.config !== undefined
+          ? { config: { ...connection.config, ...result.config } }
           : {}),
       });
     }
