@@ -106,7 +106,7 @@ class LoudnessBoostTest {
      * MAX and 2844 (64 ms) at MEDIUM**, on every transient. A hard cap is not protection from
      * distortion, it IS the distortion.
      *
-     * Now a look-ahead limiter brings the gain down over the 5 ms before a peak and recovers slowly,
+     * Now a look-ahead limiter brings the gain down over the 20 ms before a peak and recovers slowly,
      * and every sample's gain is at or below `CEILING / |sample|`, so the output is bounded by
      * construction. Not "rarely clips" — cannot.
      */
@@ -335,6 +335,53 @@ class LoudnessBoostTest {
         assertTrue("still climbing after a second: $early vs $settled", early > settled * MOSTLY_THERE)
     }
 
+    @Test
+    fun `speech is at its loudness within a tenth of a second of the first word`() {
+        for (level in listOf(VolumeBoost.AUTO, VolumeBoost.EVEN_OUT)) {
+            val input = roomTone(seconds = 0.3f) + words(peak = 0.02f, seconds = 6f, emphasised = false)
+            val output = boosted(input, level)
+
+            val cycle = rate / 4 + rate / 10
+            val start = (rate * 0.3f).toInt()
+            val inside = rate / 10 until rate / 4
+            val first = gainDb(input, output, start + inside.first, start + inside.last)
+            val later = gainDb(input, output, start + 6 * cycle + inside.first, start + 6 * cycle + inside.last)
+            assertTrue("$level: first word ${first}dB, later ${later}dB", first > later - WITHIN_DB)
+        }
+    }
+
+    @Test
+    fun `starting up fast never clips`() {
+        for (level in listOf(VolumeBoost.AUTO, VolumeBoost.EVEN_OUT)) {
+            val boost = boost(level)
+            val output = run(boost, roomTone(seconds = 0.3f) + words(peak = 0.9f, seconds = 3f))
+
+            assertEquals("$level", 0L, boost.clippedSamples)
+            assertEquals("$level", 0, output.pinned())
+        }
+    }
+
+    @Test
+    fun `the boost holds the sound back for no more than twenty milliseconds`() {
+        val boost = boost()
+        val input = tone(QUIET, seconds = 1f)
+        var heard = 0
+        var at = 0
+        while (at < input.size) {
+            val end = minOf(input.size, at + CHUNK)
+            boost.process(input.copyOfRange(at, end), end - at)
+            heard += boost.outputSamples
+            at = end
+        }
+
+        val heldMs = (input.size - heard) * 1_000 / rate
+        assertTrue("held back ${heldMs}ms", heldMs <= MAX_DELAY_MS)
+    }
+
+    private fun gainDb(input: ShortArray, output: ShortArray, from: Int, to: Int): Double =
+        2 * DECIBELS_PER_POWER_DECADE *
+            kotlin.math.log10(output.copyOfRange(from, to).rms() / input.copyOfRange(from, to).rms())
+
     private fun roomTone(seconds: Float): ShortArray {
         val random = java.util.Random(ROOM_SEED)
         return ShortArray((rate * seconds).toInt()) { (random.nextGaussian() * ROOM_SIGMA).toInt().toShort() }
@@ -514,7 +561,9 @@ class LoudnessBoostTest {
 
     private companion object {
         const val FULL_SCALE = 32_767f
-        const val CLEAN_DB = 45.0
+        const val CLEAN_DB = 35.0
+        const val WITHIN_DB = 4.0
+        const val MAX_DELAY_MS = 20
         const val WORD_OVER_TONE = 2f
         const val ROOM_SIGMA = 30.0
         const val ROOM_SEED = 7L

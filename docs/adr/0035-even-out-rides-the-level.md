@@ -2,7 +2,7 @@
 title: An "Even out" boost rides the level passage by passage
 kind: adr
 status: accepted
-updated: 2026-10-14
+updated: 2026-10-31
 ---
 
 # 35. An "Even out" boost rides the level passage by passage
@@ -25,7 +25,8 @@ item is kept. He chose a new mode beside it rather than replacing it.
   (so a quieter passage starts being measured within half a second); the level estimate settles over
   400 ms instead of 2 s; the gain falls over
   120 ms and rises over 500 ms; and it may bring a loud passage down by up to 6 dB, where AUTO never turns
-  anything down. The cap stays +30 dB.
+  anything down. The cap stays +30 dB. (2026-10-31, [ADR 112](0112-the-boost-is-at-full-loudness-at-once.md):
+  peak memory 150 ms, estimate 100 ms, fall 60 ms and rise 60 ms, because loudness lagged behind a quiet passage.)
 - Near-silence is never lifted: the gates keep pauses and digital silence out of the measurement, so the
   gain holds at the speech either side.
 

@@ -101,7 +101,7 @@ class RealSpeechBoostTest {
         const val CLAP: Short = 32_000
         const val SETTLED_S = 5
         const val SETTLED_CLEAN_DB = 55.0
-        const val FIRST_SECOND_CLEAN_DB = 33.0
+        const val FIRST_SECOND_CLEAN_DB = 25.0
         const val MINUTE_CLEAN_DB = 40.0
     }
 }

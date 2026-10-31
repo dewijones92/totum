@@ -6,6 +6,7 @@ internal class LookaheadLimiter(sampleRate: Int, private val channels: Int) {
     private val window = lookahead + 1
     private val release = LoudnessBoost.coefficientFor(RELEASE_MS, sampleRate)
     private val delay = ShortArray(window * channels)
+    private val askedAt = FloatArray(window)
     private val minIndex = LongArray(window + 1)
     private val minValue = FloatArray(window + 1)
     private val box = FloatArray(window)
@@ -24,19 +25,20 @@ internal class LookaheadLimiter(sampleRate: Int, private val channels: Int) {
         private set
 
     fun push(input: ShortArray, at: Int, allowed: Float, asked: Float, emit: (ShortArray, Int, Float) -> Unit) {
-        pushMin(framesIn, allowed)
+        pushMin(framesIn, if (asked > EPSILON) allowed / asked else 1f)
         input.copyInto(delay, slotOf(framesIn), at, at + channels)
+        askedAt[(framesIn % window).toInt()] = asked
         framesIn++
         if (delayed < lookahead) {
             delayed++
         } else {
             val oldest = framesIn - window
-            emit(oldest, windowMin(oldest, asked), asked, emit)
+            emit(oldest, windowMin(oldest), emit)
         }
     }
 
-    fun releaseAll(asked: Float, emit: (ShortArray, Int, Float) -> Unit) {
-        for (frame in framesIn - delayed until framesIn) emit(frame, windowMin(frame, asked), asked, emit)
+    fun releaseAll(emit: (ShortArray, Int, Float) -> Unit) {
+        for (frame in framesIn - delayed until framesIn) emit(frame, windowMin(frame), emit)
         reset()
     }
 
@@ -51,7 +53,7 @@ internal class LookaheadLimiter(sampleRate: Int, private val channels: Int) {
         deepest = 1f
     }
 
-    private fun emit(frame: Long, floor: Float, asked: Float, emit: (ShortArray, Int, Float) -> Unit) {
+    private fun emit(frame: Long, floor: Float, emit: (ShortArray, Int, Float) -> Unit) {
         if (!boxPrimed) {
             box.fill(floor)
             boxSum = floor.toDouble() * window
@@ -62,9 +64,9 @@ internal class LookaheadLimiter(sampleRate: Int, private val channels: Int) {
         boxSum += released - box[boxAt]
         box[boxAt] = released
         boxAt = (boxAt + 1) % window
-        val gain = (boxSum / window).toFloat()
-        if (asked > EPSILON) deepest = minOf(deepest, gain / asked)
-        emit(delay, slotOf(frame), gain)
+        val kept = (boxSum / window).toFloat()
+        deepest = minOf(deepest, kept)
+        emit(delay, slotOf(frame), kept * askedAt[(frame % window).toInt()])
     }
 
     private fun slotOf(frame: Long): Int = (frame % window).toInt() * channels
@@ -77,16 +79,16 @@ internal class LookaheadLimiter(sampleRate: Int, private val channels: Int) {
         minSize++
     }
 
-    private fun windowMin(from: Long, fallback: Float): Float {
+    private fun windowMin(from: Long): Float {
         while (minSize > 0 && minIndex[minHead] < from) {
             minHead = (minHead + 1) % minValue.size
             minSize--
         }
-        return if (minSize > 0) minValue[minHead] else fallback
+        return if (minSize > 0) minValue[minHead] else 1f
     }
 
     internal companion object {
-        const val LOOKAHEAD_MS = 5L
+        const val LOOKAHEAD_MS = 20L
         private const val RELEASE_MS = 250f
         private const val MILLIS_PER_SECOND = 1_000L
         private const val EPSILON = 1e-6f

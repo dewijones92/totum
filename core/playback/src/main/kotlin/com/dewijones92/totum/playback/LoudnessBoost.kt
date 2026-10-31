@@ -48,6 +48,7 @@ import kotlin.math.ln
  * Pure arithmetic on a `ShortArray`, deliberately: no Android, no platform effect, so it behaves the
  * same on every device and — the part that matters here — the maths can be proven on the JVM.
  */
+@Suppress("TooManyFunctions")
 internal class LoudnessBoost(private val sampleRate: Int, private val channels: Int = 1) {
 
     /** Whether to do anything at all. Changing it mid-stream is picked up on the next sample. */
@@ -81,11 +82,16 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     private var warmupSamples = 0L
 
     private var heardDynamics = false
+    private var seeded = false
+    private var glideLeft = 0L
     private var quietestBlock = Float.MAX_VALUE
     private var blockPeak = 0f
     private var blockFill = 0
     private var audibleFrames = 0L
     private val blockFrames = framesOf(sampleRate, DYNAMICS_BLOCK_MS).toInt().coerceAtLeast(1)
+    private val seedFrames = framesOf(sampleRate, SEED_MS)
+    private val glideFrames = framesOf(sampleRate, GLIDE_MS)
+    private val glideRise = coefficientFor(GLIDE_TAU_MS, sampleRate)
     private val dynamicsTimeout = framesOf(sampleRate, DYNAMICS_TIMEOUT_MS)
 
     /**
@@ -138,7 +144,7 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         // OFF is bit-exact passthrough, not a gain of one: a multiply-and-round on every sample of
         // every stream forever, to change nothing, is worth skipping.
         if (level == VolumeBoost.OFF) {
-            limiter.releaseAll(applied, write)
+            limiter.releaseAll(write)
             input.copyInto(out, outputSamples, 0, frames * channels)
             outputSamples += frames * channels
             return out
@@ -150,7 +156,7 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     fun drain(): ShortArray {
         ensureRoom(limiter.heldFrames)
         outputSamples = 0
-        limiter.releaseAll(applied, write)
+        limiter.releaseAll(write)
         return out
     }
 
@@ -182,19 +188,37 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         val floor = if (evening) EVEN_MIN_GAIN else MIN_GAIN
         val wanted = if (loudness > EPSILON) (TARGET_LEVEL / loudness).coerceIn(floor, MAX_GAIN) else MIN_GAIN
 
-        // Drift towards it — slowly, so a change of level is never heard as the gain moving...
-        applied += (wanted - applied) * if (wanted < applied) falling else rising
+        driftTowards(wanted)
         val allowed = if (magnitude > EPSILON) minOf(applied, CEILING / magnitude) else applied
 
         limiter.push(input, at, allowed, applied, write)
     }
 
-    private fun measure(magnitude: Float) {
+    private fun driftTowards(wanted: Float) {
+        if (!seeded && warmupSamples >= seedFrames) {
+            seeded = true
+            glideLeft = glideFrames
+            val heardMs = warmupSamples * MILLIS_PER_SECOND.toLong() / sampleRate.coerceAtLeast(1)
+            Diag.log("boost", "gain heads for ${"%.1f".format(decibels(wanted))}dB, from ${heardMs}ms of speech")
+        }
+        if (!seeded) return
+        // Drift towards it — slowly, so a change of level is never heard as the gain moving...
         val rate = when {
+            glideLeft > 0 -> glideRise
+            wanted < applied -> falling
+            else -> rising
+        }
+        if (glideLeft > 0) glideLeft--
+        applied += (wanted - applied) * rate
+    }
+
+    private fun measure(magnitude: Float) {
+        val settled = when {
             warmupSamples < warmupLimit -> loudnessWarmup
             level == VolumeBoost.EVEN_OUT -> evenSettle
             else -> loudnessSettle
         }
+        val rate = maxOf(settled, 1f / (warmupSamples + 1))
         if (level == VolumeBoost.EVEN_OUT) {
             val heard = ln(magnitude)
             logLoudness = if (logLoudness.isNaN()) heard else logLoudness + (heard - logLoudness) * rate
@@ -290,9 +314,12 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         /** +30 dB. */
         private const val MAX_GAIN = 31.6f
 
-        private const val DYNAMICS_OVER_QUIETEST = 4f
-        private const val DYNAMICS_BLOCK_MS = 20L
+        private const val DYNAMICS_OVER_QUIETEST = 2f
+        private const val DYNAMICS_BLOCK_MS = 10L
         private const val DYNAMICS_TIMEOUT_MS = 500L
+        private const val SEED_MS = 30L
+        private const val GLIDE_MS = 300L
+        private const val GLIDE_TAU_MS = 15f
 
         /** Slow: the rate the automatic gain drifts. The limiter has its own release. */
         private const val GAIN_RISE_MS = 400f
@@ -304,10 +331,10 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         private const val LOUDNESS_WARMUP_MS = 150f
         private const val WARMUP_SECONDS = 2
 
-        private const val EVEN_SETTLE_MS = 400f
-        private const val EVEN_RISE_MS = 500f
-        private const val EVEN_FALL_MS = 120f
-        private const val EVEN_PEAK_DECAY_MS = 400f
+        private const val EVEN_SETTLE_MS = 100f
+        private const val EVEN_RISE_MS = 60f
+        private const val EVEN_FALL_MS = 60f
+        private const val EVEN_PEAK_DECAY_MS = 150f
         private const val EVEN_MIN_GAIN = 0.5f
 
         /** Just under full scale, so rounding cannot take a limited peak over it. */

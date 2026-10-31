@@ -3,7 +3,7 @@ title: Quiet podcasts made audible, automatically
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-14
+updated: 2026-10-31
 ---
 
 # Quiet podcasts made audible, automatically
@@ -226,8 +226,31 @@ cap, and the look-ahead limiter is what makes raising either safe to try.
 
 ## Even out (2026-10-14, ADR 35)
 
-A third choice, **Even out**, rides the level passage by passage: the gate's peak memory fades over 400 ms,
-the level is tracked in decibels over 400 ms, the gain falls over 120 ms and rises over 500 ms, and it may
-bring a loud passage down 6 dB. A 3-second quiet spell comes within 2x of the loud passages around it
+A third choice, **Even out**, rides the level passage by passage: the gate's peak memory fades over 150 ms,
+the level is tracked in decibels over 100 ms, the gain falls and rises over 60 ms, and it may
+bring a loud passage down 6 dB (the times were 400, 400, 120 and 500 ms until 2026-10-31). A 3-second quiet spell comes within 2x of the loud passages around it
 (`EvenOutLoudnessTest`), and real speech dropping 20 dB every 4 s comes back within 6 dB, at least 6 dB
 closer than Auto (`RealSpeechEvenOutTest`, audio-quality suite). Silence is never lifted.
+
+## No delay (2026-10-31, ADR 112)
+
+Dewi: *"make sure it makes the whole thing loud, loud, loud, without any delay"*. What he hears is loudness
+arriving late: at the start of an item, and after a quiet passage. Measured on the fixture, an item 18 dB down took
+about a second to reach its loudness and a quiet passage in Even out about a second and a half. Causes, found one by
+one: the gain started at unity and climbed over 400 ms; the level estimate began at zero and waited for contrast;
+and the limiter slewed every rise of the gain at its 250 ms release.
+
+Now the estimate is a running average from the first sample, the gain is brought to it through a 15 ms glide once 30
+ms of speech has been measured, the limiter smooths only the reduction it has to make (so a rise is not slowed), and
+the look-ahead is 20 ms. Speech is within 4 dB of its settled loudness from 100 ms after the first word
+(`RealSpeechLagTest`, and `LoudnessBoostTest` on synthetic words), and a quiet passage in Even out is lifted within
+400 ms. The processor holds the sound back 20 ms, constant, so picture and sound do not drift. The cast path uses the
+same processor.
+
+What it costs, so it is not rediscovered: the first syllable after room tone or a breath can overshoot and be limited
+for about 100 ms (first second 28 dB clean, was 42; the two bars in the tests were lowered, see the ADR), and Even
+out's gain moves about twice as much within a loud passage.
+
+Tests added: `RealSpeechLagTest` (5, audio-quality suite) and, in `LoudnessBoostTest`, speech at its loudness within a
+tenth of a second, starting up never clips, and the 20 ms bound. The item-start and quiet-passage tests in the suite and
+the first-word test in `LoudnessBoostTest` were seen failing on the old code; the rest guard what must not regress.

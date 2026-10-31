@@ -1,11 +1,11 @@
 ---
 title: An "Even out" loudness mode that brings quiet passages up to the loud ones
 kind: todo
-status: built 2026-10-14 — ADR 35
+status: built 2026-10-14 — ADR 35; made faster 2026-10-31 — ADR 112
 area: playback
 priority: high
 requested: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-31
 ---
 
 # Even out quiet and loud
@@ -30,3 +30,10 @@ gain with a look-ahead limiter; it does not change the balance inside an item.
   pumping on music measured, not guessed.
 - Interplay with skip-silence (it judges levels too) checked on the same recordings.
 - Logged: mode, target, current gain, and how often the floor held a gain back (counted, not per event).
+
+## 2026-10-31
+
+Dewi found loudness lagging behind a quiet bit and at the start; the times above were cut and the gain now starts
+at once ([ADR 112](../adr/0112-the-boost-is-at-full-loudness-at-once.md)). Still open: Even out overshoots after a
+pause and when a loud passage follows a quiet one, which is not lag; and the estimate carries across gapless items of
+one format.
