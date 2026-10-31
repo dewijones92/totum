@@ -107,6 +107,7 @@ dependencies {
   implementation(project(":core:data"))
   implementation(project(":core:database"))
   implementation(project(":core:playback"))
+  implementation(project(":core:video"))
   implementation(project(":core:domain"))
   implementation(project(":lib:ytdlp-chaquopy"))
   implementation(project(":lib:innertube"))

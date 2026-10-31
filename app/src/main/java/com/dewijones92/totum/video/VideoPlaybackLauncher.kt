@@ -375,12 +375,15 @@ class VideoPlaybackLauncher(
     fun captionsFor(resolved: VideoResolver.Resolved, url: HttpUrl): List<SubtitleTrack> =
         if (url == resolved.audioOnlyUrl) emptyList() else resolved.subtitles
 
-    fun streamsThatWouldPlay(resolved: VideoResolver.Resolved): Pair<HttpUrl, HttpUrl?>? = when {
-        // The cheap stream when listening: an audio-only track is a fraction of the video's size,
-        // and holding the picture for a mode that will not show it spends the data twice over.
-        audioPreferred() && resolved.audioOnlyUrl != null -> resolved.audioOnlyUrl to null
-        else -> chosenQuality(resolved)?.let { it.videoUrl to it.audioUrl }
-            ?: resolved.item.mediaUrl?.let { it to null }
+    fun streamsThatWouldPlay(resolved: VideoResolver.Resolved): Pair<HttpUrl, HttpUrl?>? {
+        val audioOnly = resolved.audioOnlyUrl
+        return when {
+            // The cheap stream when listening: an audio-only track is a fraction of the video's size,
+            // and holding the picture for a mode that will not show it spends the data twice over.
+            audioPreferred() && audioOnly != null -> audioOnly to null
+            else -> chosenQuality(resolved)?.let { it.videoUrl to it.audioUrl }
+                ?: resolved.item.mediaUrl?.let { it to null }
+        }
     }
 
     /** Plays [resolved] as video at the best allowed quality — the shared play/"Watch" path. */

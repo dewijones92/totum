@@ -26,7 +26,7 @@ import com.dewijones92.totum.sabr.SabrSessions
  * caller extracts as it always has. Every reason is logged, because "SABR did not happen" with
  * no explanation would be the hardest kind of bug to chase.
  */
-internal object SabrResolve {
+object SabrResolve {
 
     /** A playable pair of `sabr://` URLs, plus the details that describe the video. */
     data class Resolved(

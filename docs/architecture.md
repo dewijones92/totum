@@ -1,7 +1,7 @@
 ---
 title: Architecture — unified seams & modules
 kind: reference
-updated: 2026-08-06
+updated: 2026-10-31
 ---
 
 # Architecture
@@ -19,6 +19,7 @@ for a genuinely strong technical reason, which must be surfaced to Dewi.
 | `:core:data` | JVM | Business logic: `RssParser`, `PodcastRepository`, search seam (`SearchSource` → `SearchHit`), `SearchHistoryStore`, downloads (`DownloadManager` + strategies), `SponsorBlockSegmentSource`, `ContentRefresher`/`SeenItemsTracker`, import/export. Ports here, impls in Android modules. |
 | `:core:database` | Android/Room | Entities, DAOs, `Room*Store` impls. The only place entities meet domain types. Kover-exempt. |
 | `:core:playback` | Android/Media3 | `PlaybackController` port + `Media3PlaybackController`, `PlaybackService`, `SleepTimer`, `PlaybackProgressStore`, `PlaybackSpeedStore`. Kover-exempt adapter. |
+| `:core:video` | JVM | YouTube resolution: `VideoResolver`, `SignedInTvPlayer`, `PlayerStreams`, `VideoQuality`, `RangedFetch`, `LookupStore`, the `VideoCodecSupport` port. Pure JVM so the CLI's home-download service runs the same code as the app; the Android decoder list (`PlatformVideoCodecSupport`) stays in `:app`. |
 | `:lib:ytdlp` | pure JVM | yt-dlp API: `YtDlpEngine` (extract/search/download), result types. Platform-neutral. |
 | `:lib:ytdlp-chaquopy` | Android | Real engine on embedded CPython; `BridgeJson` (JSON in/out), wheel self-update. |
 | `:lib:innertube` | pure JVM | YouTube InnerTube seams: auth (TV device-code OAuth), feeds, comments, related, actions, playlists, subscriptions, history. `InnerTubeClient`. |

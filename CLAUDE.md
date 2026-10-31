@@ -485,6 +485,10 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   podcast enclosures in the wild are frequently plain http (BBC media hosts
   included); refusing them breaks playback of legitimate feeds. Same policy
   as AntennaPod.
+- `:core:video` — YouTube resolution (`VideoResolver`, `SignedInTvPlayer`, `PlayerStreams`, `VideoQuality`,
+  `RangedFetch`, `LookupStore`, the `VideoCodecSupport` port), pure JVM since 2026-10-31 so the Pi's download
+  service (the CLI) resolves with the same code as the app. Only the decoder list (`PlatformVideoCodecSupport`)
+  and the SABR download route stay in `:app`.
 - `:lib:ytdlp` — from-scratch yt-dlp library (replaces the youtubedl-android
   fork). **Pure JVM on purpose** — it is the platform-neutral API (types,
   port, fake); only the real engine module needs Android. Public API:
