@@ -15,6 +15,9 @@ const Env = z.object({
   APP_VERSION: z.string().default('dev'),
   TRUSTED_CIDRS: csv.default(['127.0.0.0/8', '::1/128']),
   OWNER_EMAIL: z.string().default(''),
+  SECRETS_KEY_FILE: z.string().default(''),
+  FAKE_PROVIDERS: z.enum(['0', '1']).default('0'),
+  MANUAL_STALE_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 

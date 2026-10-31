@@ -6,6 +6,7 @@ updated: 2026-10-31
 
 # Features
 
-| Feature                                                   | Status |
-| --------------------------------------------------------- | ------ |
-| _none shipped yet; see [the backlog](../todos/_index.md)_ |        |
+| Feature                                                           | Status      |
+| ----------------------------------------------------------------- | ----------- |
+| [Overview and typed-in accounts](overview-and-manual-accounts.md) | shipped     |
+| [Health dashboard](health.md)                                     | in progress |

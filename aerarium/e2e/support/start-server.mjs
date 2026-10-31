@@ -17,6 +17,7 @@ const child = spawn(process.execPath, [join(root, 'apps', 'server', 'dist', 'ser
     DATA_DIR: join(run, 'data'),
     STATIC_DIR: join(root, 'apps', 'web', 'dist'),
     APP_VERSION: 'e2e',
+    FAKE_PROVIDERS: '1',
     LOG_LEVEL: 'info',
   },
 });

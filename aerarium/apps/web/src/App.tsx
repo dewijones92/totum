@@ -1,10 +1,53 @@
-import { strings } from './strings.ts';
+import { Link, Route, Switch, useLocation } from 'wouter';
+import { AccountsPage } from './accounts/AccountsPage.tsx';
+import { DashboardPage } from './dashboard/DashboardPage.tsx';
+import { HealthBar } from './health/HealthBar.tsx';
+import { HealthPage } from './health/HealthPage.tsx';
+import { useHealth } from './health/use-health.ts';
+import { names, strings, tips } from './strings.ts';
+
+const NAV: { href: string; label: string }[] = [
+  { href: '/', label: strings.nav.dashboard },
+  { href: '/accounts', label: strings.nav.accounts },
+  { href: '/health', label: strings.nav.health },
+];
 
 export function App() {
+  const health = useHealth();
+  const [location] = useLocation();
   return (
-    <main className="shell">
-      <h1>{strings.appName}</h1>
-      <p>{strings.tagline}</p>
-    </main>
+    <div className="app">
+      <header className="top">
+        <Link href="/" className="brand">
+          <img src="/favicon.svg" alt="" width={28} height={28} />
+          <span>{names.app}</span>
+        </Link>
+        <nav aria-label={tips.nav}>
+          {NAV.map((n) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={location === n.href ? 'nav-link active' : 'nav-link'}
+            >
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+      </header>
+      <HealthBar report={health.data} />
+      <main className="shell">
+        <Switch>
+          <Route path="/">
+            <DashboardPage />
+          </Route>
+          <Route path="/accounts">
+            <AccountsPage onChange={health.reload} />
+          </Route>
+          <Route path="/health">
+            <HealthPage health={health} />
+          </Route>
+        </Switch>
+      </main>
+    </div>
   );
 }
