@@ -1,0 +1,20 @@
+---
+title: Aerarium architecture decision records
+kind: index
+updated: 2026-10-31
+---
+
+# Architecture decision records
+
+One file per decision: `NNNN-short-title.md` with status, date, context, decision and consequences. Create,
+update or supersede the relevant ADR in the same change as the code; a superseded ADR keeps its file with
+`status: superseded by NNNN`.
+
+| #   | Decision                                                                                                | Status   |
+| --- | ------------------------------------------------------------------------------------------------------- | -------- |
+| 1   | [A second app in the Totum repo, fully separate](0001-a-second-app-in-the-totum-repo.md)                | Accepted |
+| 2   | [Read-only access everywhere](0002-read-only-everywhere.md)                                             | Accepted |
+| 3   | [Stack: TypeScript like per-chordas, SQLite built into Node](0003-stack.md)                             | Accepted |
+| 4   | [No personal data in the public repo, enforced by a guard](0004-no-personal-data-in-the-public-repo.md) | Accepted |
+| 5   | [Owner only, behind the Google gate](0005-owner-only-behind-the-gate.md)                                | Accepted |
+| 6   | [A health dashboard that shouts](0006-a-health-dashboard-that-shouts.md)                                | Accepted |

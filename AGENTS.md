@@ -1,10 +1,14 @@
 ---
 title: Totum — agent entry point
 kind: index
-updated: 2026-07-25
+updated: 2026-10-31
 ---
 
 # AGENTS.md
+
+**This repo holds two apps.** Totum (this file, the root) and **Aerarium**, the finance hub under
+[`aerarium/`](aerarium/AGENTS.md), which has its own entry point, `CLAUDE.md` and `docs/`. If your work is in
+`aerarium/`, start at [`aerarium/AGENTS.md`](aerarium/AGENTS.md). The root `CLAUDE.md`'s general rules bind both.
 
 Entry point for anyone (human or agent) working on Totum (formerly UniApp). Start here, then read
 what's relevant.

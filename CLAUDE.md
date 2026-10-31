@@ -1,5 +1,15 @@
 # Totum
 
+> **Two apps live in this repo.** **Totum** (the Android app) is everything at the root. **Aerarium**
+> (Dewi's read-only finance hub, a TypeScript web app on the Pi) is everything under `aerarium/`, with its own
+> `aerarium/CLAUDE.md`, `aerarium/AGENTS.md`, `aerarium/docs/` (ADRs, features, todos, tests), CI workflow
+> and releases. The general rules in this file (DRY and one seam, the testing pyramid, compile-time safety,
+> generous `dewidebug` logging, visible async work, wrapping text, emoji-led state strings, living docs, ADR
+> CRUD) bind **both** apps; the Android, YouTube, Gradle, emulator and APK-release sections are Totum-only.
+> Working in `aerarium/`, read `aerarium/CLAUDE.md` as well, and record Aerarium decisions in
+> `aerarium/docs/adr/`, never the root `docs/adr/`. Neither app's CI builds, releases or blocks the other
+> ([Aerarium ADR 0001](aerarium/docs/adr/0001-a-second-app-in-the-totum-repo.md)).
+
 **Totum** — Latin for "the whole". One app for all of it; the name deliberately avoids
 "duo"/"uni" so a third pillar wouldn't make it a lie. Named 2026-07-25 (was UniApp);
 `applicationId` is `com.dewijones92.totum`.

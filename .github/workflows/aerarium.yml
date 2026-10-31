@@ -1,0 +1,57 @@
+name: Aerarium
+
+on:
+  push:
+    paths:
+      - "aerarium/**"
+      - ".github/workflows/aerarium.yml"
+  pull_request:
+    paths:
+      - "aerarium/**"
+      - ".github/workflows/aerarium.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: aerarium-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: aerarium
+
+jobs:
+  gate:
+    name: Gate (privacy, lint, types, unit, e2e)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: aerarium/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: aerarium/.nvmrc
+          cache: pnpm
+          cache-dependency-path: aerarium/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm preflight
+      - run: pnpm privacy
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:coverage
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerarium-playwright-report
+          path: |
+            aerarium/playwright-report
+            aerarium/test-results
+          retention-days: 14

@@ -3,7 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "aerarium/**"
+      - ".github/workflows/aerarium.yml"
   pull_request:
+    paths-ignore:
+      - "aerarium/**"
+      - ".github/workflows/aerarium.yml"
   # A hand-startable run, because a push event is not guaranteed to produce one.
   #
   # GitHub Actions had a major outage on 2026-08-06 (15:22 UTC). Five pushes to main landed during

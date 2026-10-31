@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+if git diff --cached --name-only --diff-filter=ACMR | grep -q '^aerarium/'; then
+  echo "pre-commit: aerarium files staged, running the privacy guard"
+  if ! (cd "$root/aerarium" && node tools/privacy-guard.mjs); then
+    echo "pre-commit BLOCKED: personal or financial data must never enter this public repo." >&2
+    exit 1
+  fi
+fi

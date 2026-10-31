@@ -6,13 +6,44 @@
 # stays a deliberate step. Skip in an emergency with `git push --no-verify`.
 set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
-if [ ! -f "$root/tools/ci/preflight.py" ]; then
-  exit 0
+zero=0000000000000000000000000000000000000000
+changed=""
+unknown=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    base="$(git merge-base "$local_sha" origin/main 2>/dev/null || true)"
+  else
+    base="$remote_sha"
+  fi
+  if [ -z "$base" ] || ! files="$(git diff --name-only "$base" "$local_sha" 2>/dev/null)"; then
+    unknown=1
+    continue
+  fi
+  changed+="$files"$'\n'
+done
+totum=0
+aerarium=0
+if [ "$unknown" = 1 ]; then
+  totum=1
+  aerarium=1
 fi
-echo "pre-push: running tools/ci/preflight.py"
-if ! python3 "$root/tools/ci/preflight.py"; then
-  echo
-  echo "pre-push BLOCKED. These are the failures that do not show up in the Gradle gate." >&2
-  echo "Fix them, or push with --no-verify if you know better." >&2
-  exit 1
+grep -q '^aerarium/' <<<"$changed" && aerarium=1
+grep -v -e '^aerarium/' -e '^$' -e '^\.github/workflows/aerarium\.yml$' <<<"$changed" | grep -q . && totum=1
+echo "pre-push: totum checks=$totum aerarium checks=$aerarium"
+if [ "$totum" = 1 ] && [ -f "$root/tools/ci/preflight.py" ]; then
+  echo "pre-push: running tools/ci/preflight.py"
+  if ! python3 "$root/tools/ci/preflight.py"; then
+    echo
+    echo "pre-push BLOCKED. These are the failures that do not show up in the Gradle gate." >&2
+    echo "Fix them, or push with --no-verify if you know better." >&2
+    exit 1
+  fi
+fi
+if [ "$aerarium" = 1 ] && [ -f "$root/aerarium/tools/preflight.mjs" ]; then
+  echo "pre-push: running aerarium preflight + privacy guard"
+  if ! (cd "$root/aerarium" && node tools/preflight.mjs && node tools/privacy-guard.mjs); then
+    echo "pre-push BLOCKED by aerarium checks. Fix them, or push with --no-verify if you know better." >&2
+    exit 1
+  fi
 fi
