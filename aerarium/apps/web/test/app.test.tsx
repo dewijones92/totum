@@ -14,6 +14,7 @@ const report = (over: Partial<HealthReport>): HealthReport => ({
     version: 't',
     schedulerLastTickAt: null,
     databaseBytes: 0,
+    lastSnapshotDay: null,
   },
   ...over,
 });
@@ -72,6 +73,7 @@ describe('HealthBar', () => {
           version: 't',
           schedulerLastTickAt: null,
           databaseBytes: 0,
+          lastSnapshotDay: null,
         },
       }),
     );

@@ -154,6 +154,15 @@ export class AccountsStore {
       .run(accountId, asOf, value, currency, now);
   }
 
+  balanceOn(accountId: string, day: string): number | null {
+    const row = this.db
+      .prepare(
+        'SELECT minor FROM balances WHERE account_id = ? AND as_of <= ? ORDER BY as_of DESC LIMIT 1',
+      )
+      .get(accountId, day) as { minor: number } | undefined;
+    return row?.minor ?? null;
+  }
+
   balanceHistory(accountId: string): { asOf: string; minor: number }[] {
     return this.db
       .prepare('SELECT as_of AS asOf, minor FROM balances WHERE account_id = ? ORDER BY as_of')

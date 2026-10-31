@@ -444,3 +444,25 @@ select {
   color: var(--ok);
   margin: 8px 0 0;
 }
+
+.report {
+  max-width: 720px;
+}
+.report h3 {
+  font-size: 1rem;
+  margin: 18px 0 6px;
+}
+.report-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.tone-up {
+  color: var(--ok);
+}
+.tone-down {
+  color: var(--fail);
+}

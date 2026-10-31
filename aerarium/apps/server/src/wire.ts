@@ -17,6 +17,9 @@ import type { FetchLike } from './http/read-only.ts';
 import { TransactionsStore } from './store/transactions.ts';
 import { SyncEngine } from './sync/engine.ts';
 import { Scheduler } from './sync/scheduler.ts';
+import { Snapshots } from './store/snapshot.ts';
+import { ReportsStore } from './store/reports.ts';
+import { maybeWeekly, type WeeklyDeps } from './notify/weekly.ts';
 import { buildHealthReport } from './health.ts';
 import { LogOnlyNotifier, type Notifier } from './notify/notifier.ts';
 import { describeLarge, HealthWatcher } from './notify/watchers.ts';
@@ -38,6 +41,8 @@ export interface WireOptions {
   publicUrl?: string;
   monzoFetch?: FetchLike;
   notifier?: Notifier;
+  snapshotsDir?: string;
+  personalSavingsAllowance?: number;
   largeTransactionMinor?: number;
   clock?: () => Date;
   remoteAddress?: (c: Context) => string | undefined;
@@ -94,6 +99,9 @@ export function wire(o: WireOptions) {
     log: o.log,
     clock,
   });
+  const snapshots = o.snapshotsDir
+    ? new Snapshots({ db: o.db, dir: o.snapshotsDir, log: o.log })
+    : undefined;
   const snapshotNetWorth = (now: Date) => {
     const nw = computeNetWorth(accounts.list());
     netWorthDays.record(now.toISOString().slice(0, 10), nw.household, nw.yours, now.toISOString());
@@ -101,6 +109,16 @@ export function wire(o: WireOptions) {
   const notifier = o.notifier ?? new LogOnlyNotifier(o.log);
   const publicUrl = (o.publicUrl ?? '').replace(/\/$/, '');
   const healthWatcher = new HealthWatcher({ settings, notifier, log: o.log, publicUrl });
+  const weekly: WeeklyDeps = {
+    accounts,
+    transactions,
+    netWorthDays,
+    reports: new ReportsStore(o.db),
+    notifier,
+    log: o.log,
+    publicUrl,
+    personalSavingsAllowance: o.personalSavingsAllowance ?? 100_000,
+  };
   let schedulerRef: Scheduler | null = null;
   const healthReport = () =>
     buildHealthReport(
@@ -112,6 +130,7 @@ export function wire(o: WireOptions) {
         schedulerLastTickAt: () => schedulerRef?.lastTickAt() ?? null,
         databaseFile: o.databaseFile,
         manualStaleDays: o.manualStaleDays,
+        ...(snapshots ? { lastSnapshotDay: () => snapshots.latestDay() } : {}),
       },
       clock(),
     );
@@ -138,9 +157,13 @@ export function wire(o: WireOptions) {
     engine,
     log: o.log,
     clock,
-    onTick: snapshotNetWorth,
+    onTick: (now) => {
+      snapshotNetWorth(now);
+      snapshots?.maybeTake(now);
+    },
     afterTick: async () => {
       await healthWatcher.check(healthReport());
+      await maybeWeekly(weekly, clock());
     },
     afterRun: alertLarge,
   });
@@ -158,6 +181,7 @@ export function wire(o: WireOptions) {
     netWorthDays,
     engine,
     healthReport,
+    weekly,
     ...(fake ? { fake } : {}),
     ...(eb ? { enableBanking: eb.flow } : {}),
     settings,

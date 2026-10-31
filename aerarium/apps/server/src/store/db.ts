@@ -72,6 +72,13 @@ const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE accounts ADD COLUMN owner_confirmed INTEGER NOT NULL DEFAULT 1;
   `,
+  `
+  CREATE TABLE weekly_reports (
+    week_end TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    report_json TEXT NOT NULL
+  );
+  `,
 ];
 
 export type Db = DatabaseSync;

@@ -19,6 +19,7 @@ export interface HealthDeps {
   schedulerLastTickAt: () => string | null;
   databaseFile: string | null;
   manualStaleDays: number;
+  lastSnapshotDay?: () => string | null;
 }
 
 export function buildHealthReport(d: HealthDeps, now: Date): HealthReport {
@@ -64,11 +65,27 @@ export function buildHealthReport(d: HealthDeps, now: Date): HealthReport {
       databaseBytes = 0;
     }
   }
+  const snapshotDay = d.lastSnapshotDay ? d.lastSnapshotDay() : null;
+  const installedAt = Math.min(
+    ...d.connections.list().map((c) => Date.parse(c.createdAt)),
+    now.getTime(),
+  );
+  const lastCopyAt = snapshotDay ? Date.parse(`${snapshotDay}T23:59:59Z`) : installedAt;
+  const snapshotStale =
+    d.lastSnapshotDay !== undefined &&
+    now.getTime() - Math.max(lastCopyAt, installedAt) > 2 * 86_400_000;
+  const appState = snapshotStale && scheduler.state === 'ok' ? 'warn' : scheduler.state;
+  const appReasons =
+    snapshotStale && scheduler.state === 'ok'
+      ? [{ code: 'snapshot-stale' as const, lastDay: snapshotDay }]
+      : scheduler.reasons;
   const app = {
-    ...scheduler,
+    state: appState,
+    reasons: appReasons,
     version: d.version,
     schedulerLastTickAt: d.schedulerLastTickAt(),
     databaseBytes,
+    lastSnapshotDay: snapshotDay,
   };
   const states: HealthState[] = [
     ...sources.map((s) => s.state),

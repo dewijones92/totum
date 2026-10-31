@@ -19,6 +19,18 @@ export class NetWorthDaysStore {
       .run(day, household, yours, now);
   }
 
+  on(day: string, toleranceDays = 3): { household: number } | null {
+    const from = new Date(Date.parse(`${day}T00:00:00Z`) - toleranceDays * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const row = this.db
+      .prepare(
+        'SELECT household FROM net_worth_days WHERE day <= ? AND day >= ? ORDER BY day DESC LIMIT 1',
+      )
+      .get(day, from) as { household: number } | undefined;
+    return row ?? null;
+  }
+
   since(day: string): NetWorthDay[] {
     return this.db
       .prepare('SELECT day, household, yours FROM net_worth_days WHERE day >= ? ORDER BY day')

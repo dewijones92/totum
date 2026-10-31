@@ -13,3 +13,4 @@ updated: 2026-10-31
 | [Connections](connections.md)                                     | in progress (Trading 212 shipped)                           |
 | [Transactions and outgoings](transactions-and-outgoings.md)       | shipped                                                     |
 | [Alerts](alerts.md)                                               | in progress (health changes and large transactions shipped) |
+| [Weekly money report](weekly-report.md)                           | shipped (story and tax-year review to come)                 |

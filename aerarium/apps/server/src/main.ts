@@ -54,6 +54,7 @@ const { app, scheduler, connections } = wire({
   db,
   secrets,
   databaseFile: join(config.DATA_DIR, 'aerarium.sqlite'),
+  snapshotsDir: join(config.DATA_DIR, 'snapshots'),
   log,
   version: config.APP_VERSION,
   trustedCidrs: config.TRUSTED_CIDRS,

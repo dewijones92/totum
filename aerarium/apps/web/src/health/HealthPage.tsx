@@ -136,6 +136,9 @@ export function HealthPage({ health }: { health: AsyncState<HealthReport> }) {
           </li>
           <li>{strings.health.version(report.app.version)}</li>
           <li>{strings.health.database(units.bytes(report.app.databaseBytes))}</li>
+          {report.app.lastSnapshotDay ? (
+            <li>{strings.health.snapshot(report.app.lastSnapshotDay)}</li>
+          ) : null}
         </ul>
       </article>
     </section>

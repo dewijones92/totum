@@ -22,6 +22,7 @@ export const HealthReason = z.discriminatedUnion('code', [
   z.object({ code: z.literal('manual-stale'), days: z.number() }),
   z.object({ code: z.literal('manual-missing') }),
   z.object({ code: z.literal('scheduler-silent'), minutes: z.number() }),
+  z.object({ code: z.literal('snapshot-stale'), lastDay: IsoDate.nullable() }),
 ]);
 export type HealthReason = z.infer<typeof HealthReason>;
 
@@ -52,6 +53,7 @@ export const AppHealth = z.object({
   version: z.string(),
   schedulerLastTickAt: IsoInstant.nullable(),
   databaseBytes: z.number().int(),
+  lastSnapshotDay: IsoDate.nullable(),
 });
 export type AppHealth = z.infer<typeof AppHealth>;
 

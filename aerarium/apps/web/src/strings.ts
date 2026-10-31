@@ -18,6 +18,7 @@ export const strings = {
     accounts: '🗂️ Accounts',
     transactions: '🧾 Transactions',
     outgoings: '📤 Outgoings',
+    reports: '📊 Reports',
     connections: '🔌 Connections',
     health: '🩺 Health',
   },
@@ -46,6 +47,7 @@ export const strings = {
     schedulerNever: '⚠️ Scheduler has not ticked yet',
     version: (v: string) => `🏷️ Version ${v}`,
     database: (size: string) => `🗄️ Database ${size}`,
+    snapshot: (day: string) => `💾 Nightly backup copy ${day}`,
     asOf: (when: string) => `📅 Balance as of ${when}`,
     runOk: (accounts: number, added: number) =>
       `📦 ${String(accounts)} accounts, ${String(added)} new transactions`,
@@ -173,6 +175,32 @@ export const strings = {
     times: (n: number) => `🔢 Seen ${String(n)} times`,
     loading: '⏳ Working out your regular payments…',
   },
+  reports: {
+    title: '📊 Weekly reports',
+    makeNow: '📊 Make last week’s report now',
+    making: '⏳ Working it out…',
+    none: '📭 No reports yet: the first arrives on Monday morning, or make one now.',
+    week: (start: string, end: string) => `🗓️ ${start} to ${end}`,
+    netWorth: '🏠 Net worth change',
+    unknown: '❔ Not known yet (the daily net worth record starts with this app)',
+    whereFrom: '🧭 Where the change came from',
+    saved: '💼 Saved (in minus out)',
+    markets: '📈 Markets (investments, after deposits)',
+    interest: '💰 Interest',
+    debt: '💳 Debt paid down',
+    unexplained: '❔ Not explained (typed-in balances, timing)',
+    spending: '🛒 Spending',
+    usual: (amount: string) => `📏 Usual week: ${amount}`,
+    topCats: '🏷️ Biggest categories this week',
+    year: '📅 The year',
+    ytd: '📈 Since 1 January',
+    projection: '🔭 At this rate, in 12 months',
+    savingsRate: '💯 Savings rate this week',
+    psa: '🧾 Interest outside ISAs this tax year',
+    psaOf: (used: string, allowance: string) =>
+      `🧾 ${used} of your ${allowance} Personal Savings Allowance`,
+    older: '🗂️ Earlier weeks',
+  },
   cadences: {
     weekly: '🗓️ Weekly',
     monthly: '🗓️ Monthly',
@@ -249,6 +277,10 @@ export function reasonText(r: HealthReason): string {
       return `⌛ Balance is ${String(r.days)} days old: update it`;
     case 'manual-missing':
       return '✍️ No balance entered yet';
+    case 'snapshot-stale':
+      return r.lastDay
+        ? `💾 Last nightly backup copy was ${r.lastDay}`
+        : '💾 No nightly backup copy yet';
     case 'scheduler-silent':
       return r.minutes < 0
         ? '🛑 The scheduler has not started'
@@ -266,6 +298,7 @@ export const tips = {
 };
 
 export const units = {
+  catLine: (cat: string, amount: string, usual: string) => `${cat}: ${amount} (usually ${usual})`,
   runLine: (outcome: string, when: string, detail: string) => `${outcome} ${when} · ${detail}`,
   ago: (ms: number): string => {
     const m = Math.round(ms / 60_000);

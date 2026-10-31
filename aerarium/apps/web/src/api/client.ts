@@ -2,6 +2,7 @@ import {
   Account,
   ConnectionsDto,
   OutgoingsDto,
+  WeeklyReport,
   type Category,
   Dashboard,
   HealthReport,
@@ -96,6 +97,8 @@ export const api = {
     ),
   monzoStart: () => request('/api/monzo/start', z.object({ url: z.string() }), json('POST')),
   syncNow: (id: string) => request(`/api/connections/${enc(id)}/sync`, SyncStarted, json('POST')),
+  reports: () => request('/api/reports', z.array(WeeklyReport)),
+  makeReport: () => request('/api/reports/run', WeeklyReport, json('POST')),
   outgoings: () => request('/api/outgoings', OutgoingsDto),
   transactions: (
     query: {

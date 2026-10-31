@@ -17,13 +17,18 @@ export function testApp(
     publicUrl?: string;
     monzoFetch?: FetchLike;
     notifier?: Notifier;
+    snapshotsDir?: string;
     now?: () => Date;
   } = {},
 ) {
   let current = new Date('2026-11-01T12:00:00Z');
   const clock = opts.now ?? (() => current);
+  const db = openMemoryDb();
+  db.prepare("UPDATE connections SET created_at = ? WHERE id = 'manual'").run(
+    clock().toISOString(),
+  );
   const w = wire({
-    db: openMemoryDb(),
+    db,
     secrets: SecretBox.ephemeral(),
     databaseFile: null,
     log: pino({ level: 'silent' }),
@@ -37,6 +42,7 @@ export function testApp(
     ...(opts.publicUrl ? { publicUrl: opts.publicUrl } : {}),
     ...(opts.monzoFetch ? { monzoFetch: opts.monzoFetch } : {}),
     ...(opts.notifier ? { notifier: opts.notifier } : {}),
+    ...(opts.snapshotsDir ? { snapshotsDir: opts.snapshotsDir } : {}),
     clock,
     remoteAddress: () => opts.ip ?? '172.21.0.5',
   });

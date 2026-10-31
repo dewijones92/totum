@@ -24,6 +24,7 @@ import type { FakeConnector } from './connectors/fake.ts';
 import type { EnableBankingFlow } from './consent/enable-banking-flow.ts';
 import type { MonzoApi } from './connectors/monzo.ts';
 import type { SettingsStore } from './store/settings.ts';
+import { maybeWeekly, type WeeklyDeps } from './notify/weekly.ts';
 import { randomBytes } from 'node:crypto';
 import { isTrusted } from './http/ip.ts';
 import { EMAIL_HEADER, judgeOwner } from './http/owner.ts';
@@ -48,6 +49,7 @@ export interface AppDeps {
   netWorthDays: NetWorthDaysStore;
   engine: SyncEngine;
   healthReport: () => HealthReport;
+  weekly: WeeklyDeps;
   fake?: FakeConnector;
   enableBanking?: EnableBankingFlow;
   settings: SettingsStore;
@@ -425,6 +427,13 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   app.get('/api/health', (c) => c.json(deps.healthReport()));
+
+  app.get('/api/reports', (c) => c.json(deps.weekly.reports.list(104)));
+
+  app.post('/api/reports/run', async (c) => {
+    const r = await maybeWeekly(deps.weekly, clock(), true);
+    return c.json(r, 201);
+  });
 
   if (deps.fake) {
     const fake = deps.fake;
