@@ -1,5 +1,9 @@
 package com.dewijones92.totum.dailyalarms
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -73,5 +77,17 @@ class SetTodayFromThePageTest {
         pageAt(hour = 18)
 
         composeTestRule.onNodeWithTag("dailyalarm-today-pickup-17:30").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun theTimesAreButtonsAndNotTodayCanBeSaidBeforeTheQuestion() {
+        val alarms = pageAt(hour = 6)
+        alarms.update("test") { list -> list.map { it.copy(enabled = true) } }
+
+        composeTestRule.onNodeWithTag("dailyalarm-today-pickup-17:30").performScrollTo()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        composeTestRule.onNodeWithTag("dailyalarm-today-no-pickup").performScrollTo().performClick()
+
+        assertEquals(DayState.Done(monday, Outcome.DECLINED), alarms.view.value.state("pickup"))
     }
 }

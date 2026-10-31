@@ -1,6 +1,5 @@
 package com.dewijones92.totum.dailyalarms
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -28,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,7 +37,6 @@ import com.dewijones92.totum.theme.LocalLaurel
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
@@ -69,12 +65,16 @@ internal fun AlarmCard(
             var more by rememberSaveable(alarm.id) { mutableStateOf(false) }
             NameAndSwitch(alarm, change)
             CardTime(alarm, next, now, alarms)
-            Text(
-                todayText(alarm, state),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            if (alarm.isReminder) ReminderToday(alarm, state, alarms, now) else SetForToday(alarm, state, alarms, now)
+            if (alarm.isReminder) {
+                Text(
+                    todayText(alarm, state),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                ReminderToday(alarm, state, alarms, now)
+            } else {
+                TodayPanel(alarm, state, alarms, now, todayText(alarm, state))
+            }
             DayToggles(alarm, change)
             TextButton(
                 onClick = {
@@ -180,47 +180,6 @@ private fun ReminderToday(alarm: DailyAlarm, state: DayState, alarms: DailyAlarm
             onClick = { alarms.setToday(alarm.id, time, "page") },
             modifier = Modifier.testTag("reminder-after-all-${alarm.id}"),
         ) { Text(stringResource(R.string.reminder_after_all)) }
-    }
-}
-
-@Composable
-private fun SetForToday(alarm: DailyAlarm, state: DayState, alarms: DailyAlarmController, today: LocalDateTime) {
-    if (state is DayState.Ringing || state is DayState.Snoozed) return
-    val context = LocalContext.current
-    val gone = stringResource(R.string.dailyalarm_set_today_gone)
-    val set: (LocalTime) -> Unit = { time ->
-        if (!alarms.setToday(alarm.id, time, "page")) Toast.makeText(context, gone, Toast.LENGTH_LONG).show()
-    }
-    var picking by remember { mutableStateOf(false) }
-    val now = today.toLocalTime()
-    val dayTime = alarm.timeOn(today.dayOfWeek)
-    val offered = (listOf(dayTime) + alarm.choices).distinct().sorted()
-    Text(stringResource(R.string.dailyalarm_set_today), style = MaterialTheme.typography.titleSmall)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        offered.forEach { time ->
-            FilterChip(
-                selected = state is DayState.Set && state.time == time,
-                enabled = time.isAfter(now),
-                onClick = { set(time) },
-                label = { Text(DailyAlarmNotifications.hhmm(time)) },
-                modifier = Modifier.testTag("dailyalarm-today-${alarm.id}-${DailyAlarmNotifications.hhmm(time)}"),
-            )
-        }
-        TextButton(onClick = { picking = true }, modifier = Modifier.testTag("dailyalarm-today-other-${alarm.id}")) {
-            Text(stringResource(R.string.dailyalarm_set_today_other))
-        }
-        if (state is DayState.Set) {
-            TextButton(
-                onClick = { alarms.dispatch(alarm.id, AlarmEvent.Cancel, "page") },
-                modifier = Modifier.testTag("dailyalarm-today-cancel-${alarm.id}"),
-            ) { Text(stringResource(R.string.dailyalarm_cancel_today)) }
-        }
-    }
-    if (picking) {
-        TimePickDialog(stringResource(R.string.dailyalarm_set_today), dayTime, {
-            set(it)
-            picking = false
-        }) { picking = false }
     }
 }
 

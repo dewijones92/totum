@@ -178,6 +178,7 @@ public object DailyAlarmMachine {
                 effects += AlarmEffect.HideQuestion(id)
                 notes += "declined: no alarm today"
             }
+            Idle -> Done(today, Outcome.DECLINED).also { notes += "declined before the question: no alarm today" }
             else -> state.also { notes += "decline ignored in $state" }
         }
 

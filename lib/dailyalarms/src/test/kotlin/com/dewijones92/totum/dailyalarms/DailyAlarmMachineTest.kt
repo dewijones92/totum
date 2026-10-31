@@ -93,6 +93,15 @@ class DailyAlarmMachineTest {
     }
 
     @Test
+    fun `no can be said before the question, and then the question is not asked today`() {
+        val early = run(Idle, AlarmEvent.Decline, at(7))
+        assertEquals(Done(monday, Outcome.DECLINED), early.state)
+        val eight = run(early.state, AlarmEvent.Tick, at(8))
+        assertEquals(Done(monday, Outcome.DECLINED), eight.state)
+        assertTrue("no question at 08:00: ${eight.effects}", eight.effects.none { it is AlarmEffect.ShowQuestion })
+    }
+
+    @Test
     fun `a set alarm can be cancelled or changed`() {
         val set = Set(monday, LocalTime.of(17, 30))
         assertEquals(Done(monday, Outcome.CANCELLED), run(set, AlarmEvent.Cancel, at(12)).state)

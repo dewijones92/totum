@@ -3,7 +3,7 @@ title: Daily alarms and reminders — asked each morning or nagging until done, 
 kind: feature
 area: side-quest
 status: built 2026-10-07 — ships switched off; reminders and the one-tap page built 2026-10-29, the fridge reminder on by default
-updated: 2026-10-30
+updated: 2026-10-31
 ---
 
 # Daily alarms
@@ -114,6 +114,17 @@ adding a time without the five-tap trip through Edit.
   today's state: …` (with why), `… reminder <id> "<title>" for 21:00: nudge n of 6, posted=…`, `… <id> new REMINDER …`,
   `… deleted from page (undo offered)` / `restored from undo`, `… new sheet Set: NewAlarmChoice(…)`. Reports carry each
   alarm's `kind` in `dailyAlarms.<id>.settings` and the `reminding` state in `.state`.
+
+## Answer today early, on the page (2026-10-31)
+
+Dewi: *"I want to be able to answer it myself … without waiting for the question"*, then *"it just looks like a bit
+of labeled text, not a button I can press"*. Tapping the sticky board notification already opened this page, but
+"Set for today" was a small title over filter chips that read as labels. Each daily alarm's card now has a tinted
+**Today** panel (`TodayPanel`): today's status as its title, a line saying you can answer now (or that a time turns a
+switched-off alarm on), every offered time as a filled ⏰ button (✅ on the one set), 🕐 Other time…, and 🚫 Not today
+(❌ Cancel today once set). Not today works before the morning question: `AlarmEvent.Decline` from `Idle` settles
+today as declined, so the question is not asked (`DailyAlarmMachineTest`). Tests: `SetTodayFromThePageTest` (the
+times have the Button role; Not today before the question).
 
 ## ⚡ Quick alarm (2026-10-30, ADR 99)
 

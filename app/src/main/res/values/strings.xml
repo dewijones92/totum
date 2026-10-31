@@ -948,8 +948,13 @@
     <string name="out_of_date_detail">🆕 You\'re on v%1$s. v%2$s is out.</string>
     <string name="out_of_date_update">Update</string>
     <string name="dailyalarm_set_today">Set for today</string>
-    <string name="dailyalarm_set_today_other">Other time…</string>
-    <string name="dailyalarm_cancel_today">Cancel today</string>
+    <string name="dailyalarm_set_today_other">🕐 Other time…</string>
+    <string name="dailyalarm_cancel_today">❌ Cancel today</string>
+    <string name="dailyalarm_not_today">🚫 Not today</string>
+    <string name="dailyalarm_today_time">⏰ %1$s</string>
+    <string name="dailyalarm_today_time_chosen">✅ %1$s</string>
+    <string name="dailyalarm_today_answer_now">Answer now: tap a time, or Not today. No need to wait for the question.</string>
+    <string name="dailyalarm_today_answer_off">It is switched off. Tap a time to turn it on for today.</string>
     <string name="dailyalarm_set_today_gone">⌛ That time has already gone today</string>
     <string name="shuffle_all">Shuffle all</string>
     <string name="details_show">Details</string>
