@@ -95,7 +95,7 @@ internal fun GroupPicker(
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    label = { Text(stringResource(R.string.groups_new)) },
+                    label = { Text(stringResource(R.string.group_new)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -154,7 +154,7 @@ private fun GroupRow(
             if (!renaming) {
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.groups_edit))
+                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.group_edit))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
@@ -165,7 +165,7 @@ private fun GroupRow(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.groups_delete)) },
+                            text = { Text(stringResource(R.string.group_delete)) },
                             onClick = {
                                 menuOpen = false
                                 onDelete()

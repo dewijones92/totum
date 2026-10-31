@@ -34,7 +34,7 @@ fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault(), now: Ins
         publishedLine(item, now, zone),
         item.duration?.let { "⏱️ ${formatLength(it.inWholeSeconds)}" },
         item.viewsText?.let { "${FactEmoji.VIEWS} $it" },
-        "🎞️ ${kindName(item.contentKind)}" + if (item.membersOnly) " · 🔒 members only" else "",
+        "🎞️ ${kindName(item.contentKind)}" + if (item.membersOnly) " · 💎 members only" else "",
         item.chapters.takeIf { it.isNotEmpty() }?.let { "📑 ${it.size} chapters" },
         (item.mediaUrl ?: item.sourceUrl)?.let { "$LINK_PREFIX${it.value}" },
         "$ID_PREFIX${item.id.value}",

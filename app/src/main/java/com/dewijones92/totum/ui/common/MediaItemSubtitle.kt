@@ -84,7 +84,6 @@ object FactEmoji {
     const val ON_DISK: String = "💾"
 
     /** A queue row that cannot be played right now. */
-    const val UNAVAILABLE: String = "⚠️"
 
     /** YouTube Music, which is its own kind of hit on the search page. */
     const val SONG: String = "🎵"

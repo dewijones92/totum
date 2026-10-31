@@ -44,11 +44,8 @@
     <string name="done">Done</string>
     <string name="groups_title">Groups</string>
     <string name="groups_none_yet">📭 No groups yet. Name one below to start.</string>
-    <string name="groups_new">New group</string>
     <string name="groups_create">Create</string>
     <string name="groups_rename">Rename</string>
-    <string name="groups_delete">Delete group</string>
-    <string name="groups_edit">Edit group</string>
 
     <string name="groups_add_to">Add to group</string>
 
@@ -68,18 +65,18 @@
     <string name="all_subscriptions_no_recent">📭 No uploads found</string>
     <string name="all_subscriptions_checking">⏳ Checking channels for their latest upload… %1$d of %2$d</string>
     <string name="history_empty">📭 Nothing played yet.</string>
-    <string name="history_clear">Clear all</string>
+    <string name="history_clear">🧹 Clear all</string>
     <string name="queue_title">Queue</string>
     <string name="queue_peek">Play once, don\u2019t queue it</string>
     <string name="download_video">🎬 Download the video too</string>
     <string name="watching_this_one">📺 Watching this one \u2014 audio mode kept</string>
-    <string name="mode_audio_on">🎧 Audio mode on</string>
-    <string name="mode_video_on">📺 Video mode on</string>
+    <string name="mode_audio_on">🎧 Listen mode on</string>
+    <string name="mode_video_on">📺 Watch mode on</string>
     <string name="play_audio_only">🎧 Listen only</string>
     <string name="play_with_video">📺 Watch with video</string>
     <string name="queue_empty">📭 Nothing queued. Tap anything to play it — it lands here.</string>
     <string name="queue_now_playing">▶️ Now playing</string>
-    <string name="queue_clear_all">Clear all</string>
+    <string name="queue_clear_all">🧹 Clear all</string>
     <string name="queue_group_collapse_action">collapse</string>
     <string name="queue_group_expand_action">expand</string>
     <string name="queue_group_collapse">Collapse %1$s</string>
@@ -130,8 +127,8 @@
     <string name="library_albums_on_phone">Albums on this phone</string>
     <string name="library_album_remove">Remove from this phone</string>
     <plurals name="library_album_songs">
-        <item quantity="one">💾 %d song on this phone</item>
-        <item quantity="other">💾 %d songs on this phone</item>
+        <item quantity="one">📥 %d song on the phone</item>
+        <item quantity="other">📥 %d songs on the phone</item>
     </plurals>
     <plurals name="library_album_remove_confirm">
         <item quantity="one">Remove the %1$d song of %2$s from this phone?</item>
@@ -141,7 +138,7 @@
     <string name="lyrics_show">Show lyrics</string>
     <string name="lyrics_hide">Hide lyrics</string>
     <string name="lyrics_loading">⏳ Loading the lyrics</string>
-    <string name="lyrics_none">🤷 YouTube Music has no lyrics for this song</string>
+    <string name="lyrics_none">📭 YouTube Music has no lyrics for this song</string>
     <string name="lyrics_failed">❌ Couldn\'t load the lyrics. Tap to try again</string>
     <string name="notifications_title">New uploads</string>
     <string name="notifications_empty">🎉 You\'re all caught up.</string>
@@ -157,7 +154,7 @@
     <string name="sort_by">🔃 Sort by</string>
     <string name="filter_show_only">🔍 Show only</string>
     <string name="filters_clear">Clear filters</string>
-    <string name="filter_downloaded">💾 Downloaded</string>
+    <string name="filter_downloaded">📥 On the phone</string>
     <string name="filter_length">⏱️ Length</string>
     <string name="filter_kind">🏷️ Kind</string>
     <string name="filter_published">📅 Published</string>
@@ -203,13 +200,13 @@
     </plurals>
     <string name="download_percent_line">⬇️ %1$d%%</string>
     <string name="download_started_line">⬇️ %1$s so far</string>
-    <string name="downloads_section_in_progress">⏳ In progress (%1$d)</string>
+    <string name="downloads_section_in_progress">⬇️ In progress (%1$d)</string>
     <string name="downloads_section_failed">❌ Failed (%1$d)</string>
-    <string name="downloads_section_on_the_phone">✅ On the phone (%1$d)</string>
+    <string name="downloads_section_on_the_phone">📥 On the phone (%1$d)</string>
     <string name="downloads_retrying_section">🔁 Retrying by themselves (%1$d)</string>
     <string name="downloads_retrying_row">🔁 Retry %1$d/%2$d · in %3$s — %4$s</string>
-    <string name="downloads_retry_now">Retry now</string>
-    <string name="downloads_retry_all">🔁 Retry all (%1$d)</string>
+    <string name="downloads_retry_now">Try again now</string>
+    <string name="downloads_retry_all">🔁 Try all again (%1$d)</string>
     <string name="downloads_clear_failed">🧹 Clear all</string>
     <plurals name="downloads_wait_seconds">
         <item quantity="one">%1$d second</item>
@@ -229,7 +226,7 @@
     <string name="sort_added_newest">📥 Added, newest first</string>
     <string name="sort_added_oldest">📤 Added, oldest first</string>
     <string name="sort_channel">👤 Channel or show (A–Z)</string>
-    <string name="sort_longest">⏳ Longest first</string>
+    <string name="sort_longest">⏱️ Longest first</string>
     <string name="sort_shortest">⚡ Shortest first</string>
 
     <string name="related_loading">⏳ Loading related videos…</string>
@@ -251,7 +248,7 @@
     <string name="liked">👍 Liked</string>
     <string name="dislike">Dislike</string>
     <string name="watch_later_save">Save to Watch Later</string>
-    <string name="listen">🎧 Listen (audio only)</string>
+    <string name="listen">🎧 Listen (sound only)</string>
     <string name="watch_video">📺 Watch video</string>
     <string name="sponsor_segments_title">SponsorBlock skips</string>
     <string name="chapters_title">Chapters</string>
@@ -292,12 +289,12 @@
     <string name="item_fact_publisher">🏢 Publisher</string>
     <string name="item_fact_album">💿 Album</string>
     <string name="item_fact_kind">🏷️ Type</string>
-    <string name="item_fact_members">🔒 Members only</string>
+    <string name="item_fact_members">💎 Members only</string>
     <string name="item_fact_yes">Yes</string>
     <string name="item_fact_chapters">📑 Chapters</string>
     <string name="item_fact_subtitles">💬 Subtitles</string>
     <string name="item_fact_skips">⏭️ Parts skipped</string>
-    <string name="item_fact_offline">💾 Saved offline</string>
+    <string name="item_fact_offline">📥 On the phone</string>
     <string name="item_fact_offline_sound">Sound only</string>
     <string name="item_fact_offline_video">Video and sound</string>
     <string name="item_fact_source">🔗 From</string>
@@ -360,7 +357,7 @@
     <string name="comment_failed">❌ Couldn\'t post</string>
     <string name="error_not_a_channel">❌ That URL doesn\'t look like a channel.</string>
     <string name="error_already_subscribed_channel">👍 You\'re already subscribed to this channel.</string>
-    <string name="channel_subscribe">Subscribe</string>
+    <string name="channel_subscribe">➕ Subscribe</string>
     <string name="channel_tab_videos">Videos</string>
     <string name="channel_tab_shorts">Shorts</string>
     <string name="channel_tab_playlists">Playlists</string>
@@ -401,8 +398,8 @@
     <string name="backup_restored">✅ Restored. Subscriptions: %1$d · Playlists: %2$d · Play positions: %3$d. Restart Totum to see a restored queue.</string>
     <string name="channel_tab_search">Search</string>
     <string name="channel_search_hint">Search this channel</string>
-    <string name="library_storage">Using %1$s</string>
-    <string name="library_storage_with_free">Using %1$s · %2$s free</string>
+    <string name="library_storage">💾 Using %1$s</string>
+    <string name="library_storage_with_free">💾 Using %1$s · %2$s free</string>
     <string name="settings_skip_section">Skip in videos</string>
     <string name="settings_skip_supporting">SponsorBlock segments to jump while playing, downloaded copies included.</string>
     <string name="skip_sponsor">Sponsor</string>
@@ -467,7 +464,7 @@
     <string name="search_empty_supporting">🔍 Podcasts and videos, one search box.</string>
     <string name="search_section_failed">📡 This search source couldn\'t be reached.</string>
     <string name="search_recent">Recent searches</string>
-    <string name="search_clear_all">Clear all</string>
+    <string name="search_clear_all">🧹 Clear all</string>
     <string name="search_remove_recent">Remove</string>
     <string name="subscribed">✅ Subscribed</string>
 
@@ -569,7 +566,7 @@
     <string name="pin_added">📌 Pinned \"%1$s\"</string>
     <string name="pin_removed">📍 Unpinned \"%1$s\"</string>
     <string name="pin_home_unsupported">⚠️ This home screen does not take shortcuts; \"%1$s\" is pinned in the app</string>
-    <string name="pin_could_not_play">❌ Could not play \"%1$s\" right now</string>
+    <string name="pin_could_not_play">❌ Couldn\'t play \"%1$s\" right now</string>
     <string name="pinned_title">📌 Pinned</string>
     <string name="pin_gone">🤷 That shortcut is no longer pinned in Totum</string>
     <string name="music_play">Play</string>
@@ -581,11 +578,11 @@
     <string name="music_radio">Radio</string>
     <string name="music_start_radio">Start radio</string>
     <string name="music_mix">Mix</string>
-    <string name="music_could_not_load">📡 Could not load this. Check the connection and try again.</string>
+    <string name="music_could_not_load">📡 Couldn\'t load this. Check your connection and try again.</string>
     <string name="music_retry">Try again</string>
     <string name="music_about">About</string>
-    <string name="music_album_offline">✅ The whole album is on this phone</string>
-    <string name="music_album_offline_progress">💾 On this phone: %1$d/%2$d · Downloading: %3$d</string>
+    <string name="music_album_offline">📥 The whole album is on the phone</string>
+    <string name="music_album_offline_progress">📥 On the phone: %1$d/%2$d · Downloading: %3$d</string>
     <string name="music_show_fewer">Show fewer</string>
     <plurals name="music_show_all">
         <item quantity="one">Show all</item>
@@ -611,7 +608,7 @@
     <string name="music_checking">⏳ Checking…</string>
     <string name="music_unsave_title">Remove "%1$s" from your library?</string>
     <string name="music_unsave">Remove</string>
-    <string name="music_unfollow_title">Stop following %1$s?</string>
+    <string name="music_unfollow_title">Unsubscribe from %1$s?</string>
     <string name="music_unfollow">Unfollow</string>
     <string name="music_keep">Keep</string>
     <string name="music_favourite_done_save">✅ Saved to your YouTube Music library</string>
@@ -709,7 +706,7 @@
     <string name="data_saver_channel_description">Tells you when playback switches to audio to save mobile data</string>
     <string name="data_saver_switched_title">🎧 Switched to listening only</string>
     <string name="data_saver_switched_text">📶 You are on mobile data, so “%1$s” is playing as audio to save data. Turn video back on in the player.</string>
-    <string name="queue_unavailable_offline">Not downloaded — unavailable offline</string>
+    <string name="queue_unavailable_offline">☁️ Not on the phone, so not playable offline</string>
     <plurals name="queue_offline_in_progress">
         <item quantity="one">⬇️ %1$d of %2$d ready offline · 1 still to fetch</item>
         <item quantity="other">⬇️ %1$d of %2$d ready offline · %3$d still to fetch</item>
@@ -839,7 +836,7 @@
     <string name="queue_group_pull_new">🔄 Pull new uploads</string>
     <string name="queue_pull_unwatched">⚠️ This group is not being watched: shuffle the channel again to start</string>
     <string name="queue_pull_nothing">📭 Nothing new since the last look</string>
-    <string name="queue_pull_failed">⚠️ Could not check %1$s</string>
+    <string name="queue_pull_failed">📡 Couldn\'t check %1$s</string>
     <plurals name="queue_pulled_new">
         <item quantity="one">✅ %d new upload added next in the group</item>
         <item quantity="other">✅ %d new uploads added next in the group</item>
@@ -857,7 +854,7 @@
     <string name="player_tab_transcript">Transcript</string>
     <string name="transcript_loading">⏳ Loading the transcript…</string>
     <string name="transcript_none">📭 No transcript: %1$s</string>
-    <string name="transcript_failed">⚠️ The transcript could not be loaded: %1$s</string>
+    <string name="transcript_failed">❌ Couldn\'t load the transcript: %1$s</string>
     <string name="transcript_from">From %1$s</string>
     <string name="transcript_search">Search the transcript</string>
     <string name="transcript_match">%1$d of %2$d</string>
@@ -1010,8 +1007,8 @@
         <item quantity="other">📥 %d on the phone</item>
     </plurals>
     <plurals name="downloads_summary_running">
-        <item quantity="one">⏳ %d downloading</item>
-        <item quantity="other">⏳ %d downloading</item>
+        <item quantity="one">⬇️ %d downloading</item>
+        <item quantity="other">⬇️ %d downloading</item>
     </plurals>
     <plurals name="downloads_summary_failed">
         <item quantity="one">⚠️ %d failed</item>
@@ -1034,8 +1031,8 @@
     <string name="episodes_all">Select all</string>
     <string name="episodes_none">Select none</string>
     <string name="episodes_download">Download %1$d</string>
-    <string name="episodes_state_on_phone">✅ on the phone</string>
-    <string name="episodes_state_downloading">⏳ downloading</string>
+    <string name="episodes_state_on_phone">📥 on the phone</string>
+    <string name="episodes_state_downloading">⬇️ downloading</string>
     <string name="episodes_state_failed">❌ failed</string>
     <string name="episodes_state_watched">✅ watched</string>
     <plurals name="episodes_state_started">

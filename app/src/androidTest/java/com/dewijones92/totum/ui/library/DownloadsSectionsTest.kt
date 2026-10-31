@@ -62,7 +62,7 @@ class DownloadsSectionsTest {
     @Test
     fun aRetryingDownloadIsInProgressAndAStoppedOneIsUnderFailed() {
         show()
-        composeTestRule.onNodeWithText("⏳ In progress (1)").assertExists()
+        composeTestRule.onNodeWithText("⬇️ In progress (1)").assertExists()
         composeTestRule.onNodeWithText("Public Domain Film a").assertExists()
         composeTestRule.onNodeWithText("Public Domain Film b").assertDoesNotExist()
 

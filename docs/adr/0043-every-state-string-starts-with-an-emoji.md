@@ -2,7 +2,7 @@
 title: Every state string starts with an emoji, and nothing spoken carries one
 kind: adr
 status: accepted
-updated: 2026-10-14
+updated: 2026-10-31
 ---
 
 # 43. Every state string starts with an emoji, and nothing spoken carries one
@@ -35,3 +35,24 @@ states, and 52 notification texts; 20 already had an emoji and 35 were spoken or
 - 248 strings changed; tests that matched the old text exactly were updated (32 device tests green).
 - A new state string should start with one of the emoji above; review catches it, no check enforces it.
 - TalkBack reads a visible emoji by name; Dewi does not use TalkBack, and descriptions stay plain.
+
+## Amended 2026-10-31 (consistency audit): one word and one emoji per state
+
+- **Failure:** 📡 when something could not be *reached* (a network failure), ❌ when it failed otherwise, ⚠️ when it
+  partly worked. Always "Couldn't …", never "Could not …".
+- **Empty:** 📭, never 🤷.
+- **Downloaded** is "📥 On the phone" everywhere (filters, facts, section chips, album and episode counts); it had six
+  names and three glyphs (✅ On the phone, 💾 Saved offline, ✅ Ready to play offline, 📥, 💾 …on this phone).
+  **Downloading** is ⬇️ (the In progress chip, counts and the episode picker had ⏳); ⏳ stays for waiting.
+- **Members only** is 💎 (the details sheet and facts card said 🔒, which means signed out elsewhere).
+- **Retry** is "Try again" ("Try again now", "🔁 Try all again (N)"); "Retry now" and "Retry all" are gone.
+- **Clear all** is "🧹 Clear all" everywhere, and wraps (the queue's had `softWrap = false`).
+- **Listen and Watch** (ADR 70's names): "🎧 Listen mode on", "📺 Watch mode on", "🎧 Listen (sound only)".
+- **Subscribe** is "➕ Subscribe"; unsubscribing always asks "Unsubscribe from …?" (Music said "Stop following").
+- The queue's "not playable offline" line carries its own ☁️ in the string; its ⚠️ was added in code.
+- ⏱️ is for length ("Longest first" had ⏳).
+- Duplicate group strings (`groups_new`/`group_new`, …) are one key each.
+- **Kept, deliberately:** row tags are upper-case badges (🔴 LIVE, 📱 SHORT, 🎧 BOOK) while facts are words
+  (🔴 Live, 🎧 Book chapter), as YouTube draws them; "Show more", "Show all N" and "⬇️ Show N more" are different
+  affordances (more of a list, the whole list, the next page of results).
+

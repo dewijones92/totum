@@ -67,7 +67,6 @@ import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
 import com.dewijones92.totum.ui.common.ExploreToggle
-import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
@@ -511,7 +510,7 @@ private fun QueueRow(
             subtitleLines = when {
                 nowPlaying.startingId == media.id -> listOf(stringResource(R.string.starting_play))
                 unavailableOfflineNow(downloadState, availability.offline) ->
-                    listOf("${FactEmoji.UNAVAILABLE} ${stringResource(R.string.queue_unavailable_offline)}")
+                    listOf(stringResource(R.string.queue_unavailable_offline))
                 else -> rowFacts(media, entry.item.pillar)
             },
             // The reorder translation goes on the OUTER element, or a dragged row slides inside a box
@@ -594,7 +593,7 @@ private fun QueueHeader(
         ExploreToggle("queue header")
         onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
         if (count > 0) {
-            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all), softWrap = false) }
+            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
         }
     }
 }
