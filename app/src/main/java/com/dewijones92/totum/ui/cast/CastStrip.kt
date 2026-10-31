@@ -65,11 +65,7 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
             }
             state.castProblem?.let { problem ->
                 Text(
-                    when (problem) {
-                        CastProblem.NO_ADDRESS -> stringResource(R.string.cast_strip_no_address, device)
-                        CastProblem.TV_NOT_FETCHING -> stringResource(R.string.cast_strip_not_fetching, device)
-                        CastProblem.VPN_IN_THE_WAY -> stringResource(R.string.cast_strip_vpn, device)
-                    },
+                    stringResource(problem.wording(), device),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
                 )
@@ -125,4 +121,11 @@ fun rememberCastingTo(controller: PlaybackController): String? {
     val device by controller.castDevice.collectAsStateWithLifecycle()
     val remote by controller.rememberField { it?.onCastDevice == true }
     return device ?: unnamed.takeIf { remote }
+}
+
+private fun CastProblem.wording(): Int = when (this) {
+    CastProblem.NO_ADDRESS -> R.string.cast_strip_no_address
+    CastProblem.TV_NOT_FETCHING -> R.string.cast_strip_not_fetching
+    CastProblem.VPN_IN_THE_WAY -> R.string.cast_strip_vpn
+    CastProblem.SOUND_UNDECODABLE -> R.string.cast_strip_sound_undecodable
 }

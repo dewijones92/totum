@@ -108,6 +108,13 @@ dot-files ADR 7.
 The TV is given each frame at the film's own rate (1001 ticks of 24000 for 23.976 fps), not the source's
 millisecond-rounded gaps (41/42 ms), which judder at 60 Hz. ADR 68.
 
+## Torrents after a seek, and sound the phone can't decode (2026-10-31)
+
+A streaming torrent that stalls after a seek no longer goes silent for the rest of the film: an early end is believed
+only when it repeats at the same place for half a minute. A film whose sound the phone cannot decode (AC3 or DTS on
+a phone without that decoder) now says so on the strip (🔇 pick another copy, one with AAC or MP3 sound) instead of
+loading for ever. ADR 68.
+
 ## A VPN in the way (2026-10-23)
 
 If a VPN on the phone carries your home network, the TV cannot reach the phone. The cast card now says so straight

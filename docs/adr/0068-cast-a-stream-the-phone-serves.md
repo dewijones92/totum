@@ -249,3 +249,15 @@ also truncated each time to a millisecond). Now a `FrameClock` from the source's
 constant rate (a silent film at 18 fps), and the millisecond clock when no rate is declared. Tests:
 `FrameClockTest`, `MkvRemuxTest`, `Mp4RemuxTest`.
 
+
+## Amended 2026-10-31: a torrent's early end must repeat before it is believed; an undecodable sound is named
+
+The torrent matrix (public-domain films through the stand-in) found two faults. After a seek on a streaming torrent,
+a read that failed while the swarm caught up was taken as the film's end the second time it happened, and every sound
+segment after it was served as silence for the rest of the film. Now `EarlyEnds` believes an early end only after it
+has been seen 3 times over 30 s at the same place (within 2 s); before that the producer reads on and logs "not
+believed yet". And a film whose sound this phone cannot decode (AC3 on a phone without the decoder; DTS on any Pixel)
+failed silently with the TV stuck loading: `SoundDecoders.missing` now spots MediaCodec's "Failed to initialize
+audio/…" anywhere in the cause chain, and the strip says 🔇 the phone can't decode this film's sound and to pick
+another copy. Transcoding such sound on the Pi is a recorded follow-up, not built. Tests: `EarlyEndsTest`,
+`SoundDecodersTest`.

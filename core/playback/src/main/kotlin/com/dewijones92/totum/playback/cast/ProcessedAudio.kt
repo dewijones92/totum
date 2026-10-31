@@ -41,8 +41,7 @@ internal class ProcessedAudio(
     private var spare: MediaExtractorCompat? = null
     private var spareOpenedAt = 0L
 
-    @Volatile
-    private var earlyEndUs: Long? = null
+    private val earlyEnds = EarlyEnds()
     private val refilling = java.util.concurrent.atomic.AtomicBoolean(false)
 
     @Volatile
@@ -221,7 +220,7 @@ internal class ProcessedAudio(
                 "audio $label from segment $first: source ${if (spared != null) "was waiting" else "opened"} " +
                     "in ${System.currentTimeMillis() - started}ms",
             )
-            val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs, durationUs, earlyEndUs)
+            val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs, durationUs, trustedEnd())
             try {
                 AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke())
                     .also { transcode = it }
@@ -255,9 +254,17 @@ internal class ProcessedAudio(
         )
     }
 
+    private fun trustedEnd(): Long? {
+        val trusted = earlyEnds.trusted(System.currentTimeMillis())
+        if (trusted == null && earlyEnds.describe != "none") {
+            Diag.log("cast", "audio $label: an early end (${earlyEnds.describe}) is not believed yet; reading on")
+        }
+        return trusted
+    }
+
     private fun fail(first: Int, mine: Any, e: Exception) {
         Diag.warn("cast", "audio $label producer from $first failed", e)
-        if (e is EarlyEnd) earlyEndUs = e.atUs
+        if (e is EarlyEnd) earlyEnds.seen(e.atUs, System.currentTimeMillis())
         synchronized(lock) {
             if (generation === mine) failure = e
             lock.notifyAll()

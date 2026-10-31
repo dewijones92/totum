@@ -12,6 +12,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.domain.pictureAt
+import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
@@ -195,10 +196,20 @@ internal class CastStreams(
             ready()
             val bytes = when {
                 part == "init.mp4" -> audio.init()
-                part.endsWith(".m4s") -> audio.segment(part.removeSuffix(".m4s").toInt())
+                part.endsWith(".m4s") -> soundSegment(part.removeSuffix(".m4s").toInt())
                 else -> return null
             }
             return HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, bytes)
+        }
+
+        private fun soundSegment(n: Int): ByteArray = try {
+            audio.segment(n)
+        } catch (e: IllegalStateException) {
+            SoundDecoders.missing(e)?.let { mime ->
+                Diag.warn("cast", "${item.mediaId}: this phone has no decoder for its sound ($mime); the strip says so")
+                tvs.problem(CastProblem.SOUND_UNDECODABLE)
+            }
+            throw e
         }
 
         fun remuxedPart(part: String): HttpReply {
