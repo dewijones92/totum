@@ -239,19 +239,17 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
     }
 }
 
+private val SELF_RENDERED = setOf(AskKind.LATEST, AskKind.RADIO)
+
 @Composable
-private fun KindBody(card: AskCard, container: AppContainer, row: @Composable (SearchHit) -> Unit): Boolean =
+private fun KindBody(card: AskCard, container: AppContainer, row: @Composable (SearchHit) -> Unit) {
+    if (!card.searched) return
     when (card.suggestion.kind) {
-        AskKind.LATEST -> {
-            if (card.searched) LatestBody(card, container)
-            true
-        }
-        AskKind.RADIO -> {
-            if (card.searched) RadioBody(card, container, row)
-            true
-        }
-        else -> false
+        AskKind.LATEST -> LatestBody(card, container)
+        AskKind.RADIO -> RadioBody(card, container, row)
+        else -> Unit
     }
+}
 
 @Composable
 private fun TurnHeader(turn: AskViewModel.Turn) {
@@ -294,7 +292,7 @@ private fun SuggestionCard(
     stage: AskViewModel.Stage,
     onAllCopies: () -> Unit,
     row: @Composable (SearchHit) -> Unit,
-    body: @Composable () -> Boolean,
+    body: @Composable () -> Unit,
 ) {
     Card(
         Modifier.fillMaxWidth().padding(
@@ -321,7 +319,10 @@ private fun SuggestionCard(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-            if (body()) return@Column
+            if (s.kind in SELF_RENDERED) {
+                body()
+                return@Column
+            }
             val best = card.best
             when {
                 !card.searched -> Unit

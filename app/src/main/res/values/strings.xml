@@ -1184,7 +1184,6 @@
     <string name="ask_radio_seeds">🌱 Seeded from</string>
     <string name="ask_no_latest">📭 Nothing new from this channel, or it is not one you follow</string>
     <string name="ask_reply">✨ %1$s</string>
-    <string name="ask_you_said">🗣️ %1$s</string>
     <string name="ask_asking">✨ Asking the home server… (a minute or two)</string>
     <string name="ask_searching">🔍 Looking for copies…</string>
     <string name="ask_vetting">🕵️ Checking they\'re the right ones…</string>
