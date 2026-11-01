@@ -39,7 +39,10 @@ import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.ShapeControl
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.shapedBy
 import java.time.Instant
 
 @Composable
@@ -69,9 +72,11 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
         )
     }
     RefreshGroup(container, group, loads)
+    val shape = rememberListShape("group ${group.id.value}")
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(group.name, onBack) {
+                ShapeControl(shape)
                 IconButton(onClick = { loads++ }, modifier = Modifier.testTag("group-refresh")) {
                     Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.group_refresh))
                 }
@@ -86,7 +91,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
                     stringResource(R.string.group_loading, group.name),
                     modifier = Modifier.padding(16.dp),
                 )
-                else -> GroupList(container, shown, sinceMs?.let(Instant::ofEpochMilli))
+                else -> GroupList(container, shown.shapedBy(shape) { it }, sinceMs?.let(Instant::ofEpochMilli))
             }
         }
     }

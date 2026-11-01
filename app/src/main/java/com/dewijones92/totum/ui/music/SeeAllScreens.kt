@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
@@ -26,8 +25,11 @@ import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.ShapeControl
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.shapedBy
 
 @Composable
 fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBack: () -> Unit) {
@@ -35,8 +37,14 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
         viewModel(key = page.label, factory = ArtistSongsViewModel.factory(container, page))
     val state by viewModel.state.collectAsStateWithLifecycle()
     val actions = LocalItemActions.current
+    val shape = rememberListShape("artist songs ${page.label}")
+    val songs = (state as? ArtistSongsViewModel.State.Loaded)?.songs.orEmpty().shapedBy(shape) { it }
     LazyColumn(Modifier.fillMaxSize()) {
-        item { BackHeader(title = stringResource(R.string.music_all_songs_of, page.artist), onBack = onBack) }
+        item {
+            BackHeader(title = stringResource(R.string.music_all_songs_of, page.artist), onBack = onBack) {
+                ShapeControl(shape)
+            }
+        }
         when (val current = state) {
             ArtistSongsViewModel.State.Loading -> item { MusicLoading() }
             is ArtistSongsViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
@@ -56,12 +64,12 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
                         ),
                     )
                 }
-                itemsIndexed(current.songs, key = { _, item -> "all:" + item.id.value }) { index, item ->
+                items(songs, key = { item -> "all:" + item.id.value }) { item ->
                     MediaItemRow(
                         item = item,
                         subtitleLines = rowFacts(item, MediaKind.VIDEO),
                         pillar = MediaKind.VIDEO,
-                        onPlay = { viewModel.play(fromIndex = index) },
+                        onPlay = { viewModel.play(fromIndex = current.songs.indexOf(item)) },
                         onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
                     )
                 }

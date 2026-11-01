@@ -42,10 +42,13 @@ import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.shapedBy
 
 /** One local playlist: Play all, play from an item, remove items, rename/delete. */
 @Composable
@@ -63,6 +66,7 @@ fun LocalPlaylistDetailScreen(
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf(false) }
     val listFilter = rememberListFilter("local-playlist")
+    val shape = rememberListShape("local-playlist")
 
     if (deleted) onBack()
 
@@ -74,9 +78,12 @@ fun LocalPlaylistDetailScreen(
                 onRename = { renaming = true },
                 onDelete = viewModel::delete,
                 fixed = viewModel.isStarred,
-                filterToggle = { FilterToggle(listFilter, items.size) },
+                filterToggle = {
+                    ShapeControl(shape)
+                    FilterToggle(listFilter, items.size)
+                },
             )
-            PlaylistBody(items, downloadStates, viewModel, listFilter)
+            PlaylistBody(items.shapedBy(shape) { it.item }, downloadStates, viewModel, listFilter)
         }
     }
 

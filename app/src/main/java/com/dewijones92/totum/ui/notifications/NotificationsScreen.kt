@@ -22,11 +22,14 @@ import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.playStateOf
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.rowTint
+import com.dewijones92.totum.ui.common.shapedBy
 
 /**
  * New uploads from your subscriptions since you last looked — the stand-in for
@@ -47,7 +50,11 @@ fun NotificationsScreen(
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
             val listFilter = rememberListFilter("notifications")
-            BackHeader(stringResource(R.string.notifications_title), onBack) { FilterToggle(listFilter, uploads.size) }
+            val shape = rememberListShape("notifications")
+            BackHeader(stringResource(R.string.notifications_title), onBack) {
+                ShapeControl(shape)
+                FilterToggle(listFilter, uploads.size)
+            }
             val selection = rememberSelection("notifications")
             if (uploads.isEmpty()) {
                 Text(
@@ -57,8 +64,9 @@ fun NotificationsScreen(
                     modifier = Modifier.padding(32.dp),
                 )
             } else {
-                FilterableList("notifications", uploads, { it.item.searchableText }, filter = listFilter) { shown, _ ->
-                    SelectableMediaList("notifications", uploads, shown, { it.item }, hoisted = selection) {
+                val shaped = uploads.shapedBy(shape) { it.item }
+                FilterableList("notifications", shaped, { it.item.searchableText }, filter = listFilter) { shown, _ ->
+                    SelectableMediaList("notifications", shaped, shown, { it.item }, hoisted = selection) {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             itemsIndexed(shown, key = { _, upload -> upload.item.id.value }) { index, upload ->
                                 // One divider between the unread run and the rest, so the boundary is

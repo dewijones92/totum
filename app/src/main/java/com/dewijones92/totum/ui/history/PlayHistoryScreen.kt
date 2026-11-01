@@ -30,12 +30,15 @@ import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
+import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.destructiveTexts
 import com.dewijones92.totum.ui.common.rememberChooseDownload
 import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import com.dewijones92.totum.ui.common.rememberListFilter
+import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.shapedBy
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 
 /** Recently-played history across both pillars: tap to replay, or clear all. */
@@ -48,12 +51,14 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
     val addToPlaylist = rememberPlaylistAdder(container)
     val selection = rememberSelection("history")
     val listFilter = rememberListFilter("history")
+    val shape = rememberListShape("history")
     val confirmClear = rememberHoldToConfirmAsk()
     val clearTexts = destructiveTexts(R.plurals.history_clear_confirm, items.size, R.string.history_clear)
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(stringResource(R.string.history_title), onBack) {
+                ShapeControl(shape)
                 FilterToggle(listFilter, items.size)
                 if (items.isNotEmpty()) {
                     TextButton(onClick = { confirmClear(clearTexts) { viewModel.clear() } }) {
@@ -64,8 +69,9 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
             if (items.isEmpty()) {
                 HistoryEmpty()
             } else {
-                FilterableList("history", items, { it.item.searchableText }, filter = listFilter) { shown, _ ->
-                    SelectableMediaList("history", items, shown, { it.item }, hoisted = selection) {
+                val shaped = items.shapedBy(shape) { it.item }
+                FilterableList("history", shaped, { it.item.searchableText }, filter = listFilter) { shown, _ ->
+                    SelectableMediaList("history", shaped, shown, { it.item }, hoisted = selection) {
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(shown, key = { it.item.id.value }) { entry ->
                                 MediaItemRow(
