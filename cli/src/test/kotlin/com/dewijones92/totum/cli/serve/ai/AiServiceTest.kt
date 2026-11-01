@@ -138,4 +138,18 @@ class AiServiceTest {
         runCatching { brain.vet(com.dewijones92.totum.data.ask.VetRequest(emptyList())) }
         assertTrue(usage.read().any { !it.ok && it.error.orEmpty().startsWith("reported: answer did not fit") })
     }
+
+    @Test
+    fun `a service with no sign-in configured says so before anyone calls it`() {
+        val bare = AiServer(claude, usage, "haiku", hasCredentials = false).start(0)
+        try {
+            val body = OkHttpClient().newCall(
+                okhttp3.Request.Builder().url("http://127.0.0.1:${bare.address.port}/health").build()
+            )
+                .execute().use { it.body.string() }
+            assertEquals("false", AskJson.parseToJsonElement(body).jsonObject["signedIn"]!!.jsonPrimitive.content)
+        } finally {
+            bare.stop(0)
+        }
+    }
 }

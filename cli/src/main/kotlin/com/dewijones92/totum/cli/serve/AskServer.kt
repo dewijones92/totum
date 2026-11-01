@@ -283,7 +283,15 @@ internal suspend fun aiServe(port: Int, out: (String) -> Unit): Int {
     val usage =
         UsageLog(File(System.getenv("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum", "ai-usage.jsonl"))
     val completer = ClaudeCodeCompleter(System.getenv("TOTUM_CLAUDE") ?: "claude", model, record = usage::record)
-    AiServer(completer, usage, model).start(port)
+    val token = !System.getenv("CLAUDE_CODE_OAUTH_TOKEN").isNullOrBlank()
+    val stored = File(System.getProperty("user.home"), ".claude/.credentials.json").isFile
+    if (!token && !stored) {
+        Diag.warn(
+            "ai",
+            "no Claude sign-in configured (CLAUDE_CODE_OAUTH_TOKEN is empty); saying so on /health"
+        )
+    }
+    AiServer(completer, usage, model, hasCredentials = token || stored).start(port)
     out("totum ai-serve: $model listening on $port")
     awaitCancellation()
 }

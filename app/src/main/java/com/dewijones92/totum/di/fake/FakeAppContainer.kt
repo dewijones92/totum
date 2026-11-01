@@ -111,9 +111,11 @@ import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
+import com.dewijones92.totum.queue.PlayTrail
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueSkips
 import com.dewijones92.totum.queue.RandomStarts
+import com.dewijones92.totum.queue.TrailNavigation
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.InMemoryAppPreferences
 import com.dewijones92.totum.shuffle.AppSourcePages
@@ -251,6 +253,10 @@ class FakeAppContainer(
     }
 
     override val operations: Operations = Operations()
+
+    override val trail: TrailNavigation by lazy {
+        TrailNavigation(PlayTrail(), playbackQueue, CoroutineScope(SupervisorJob()))
+    }
 
     override val homeDownloads: HomeDownloads by lazy {
         HomeDownloads(

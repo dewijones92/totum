@@ -19,6 +19,7 @@ import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.ui.player.LocalTrail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -54,6 +55,7 @@ internal fun ProvideItemActions(
         LocalItemActions provides actions,
         LocalDownloadLocking provides container.lockingDownloads,
         LocalHomeDownloads provides container.homeDownloads,
+        LocalTrail provides container.trail,
         LocalReadyAhead provides remember(container) {
             {
                     item: MediaItem ->

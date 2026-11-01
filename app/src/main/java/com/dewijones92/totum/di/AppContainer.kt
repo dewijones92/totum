@@ -214,10 +214,13 @@ import com.dewijones92.totum.polite.PrefsVisitorIdStore
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.MetadataLookups
+import com.dewijones92.totum.queue.PlayTrail
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.PrefsTrailStore
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.QueueSkips
 import com.dewijones92.totum.queue.RandomStarts
+import com.dewijones92.totum.queue.TrailNavigation
 import com.dewijones92.totum.queue.keepTheQueuesPlace
 import com.dewijones92.totum.queue.onlyOtherKindAhead
 import com.dewijones92.totum.queue.passOverReason
@@ -330,6 +333,7 @@ interface AppContainer {
     val torrentSearchSource: SearchSource?
     val askService: AskService?
     val homeDownloads: HomeDownloads
+    val trail: TrailNavigation
     val askCopies: AskCopies
 
     /** Adds a torrent to the home server and turns it into queue items; null when unconfigured. */
@@ -728,6 +732,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
             HttpAskService(httpClient, "https://totum.$base/fetch", { appPreferences.settings.value.homeServerToken })
         }
+    }
+
+    override val trail: TrailNavigation by lazy {
+        TrailNavigation(PlayTrail(PrefsTrailStore(context)), playbackQueue, applicationScope)
     }
 
     override val homeDownloads: HomeDownloads by lazy {
@@ -1177,6 +1185,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             MetadataLookups(videoPlaybackLauncher, youTubeRelated),
         )
         startQueueAutoDownloader(this)
+        trail.start()
     }
 
     override val readyAhead: ReadyAhead by lazy {

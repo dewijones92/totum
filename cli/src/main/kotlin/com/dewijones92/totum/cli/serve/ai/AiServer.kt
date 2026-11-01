@@ -21,11 +21,12 @@ internal class AiServer(
     private val model: String,
     private val clock: () -> Long = System::currentTimeMillis,
     concurrent: Int = CONCURRENT,
+    hasCredentials: Boolean = true,
 ) {
     private val permits = Semaphore(concurrent)
 
     @Volatile
-    private var signedIn: Boolean? = null
+    private var signedIn: Boolean? = if (hasCredentials) null else false
 
     fun start(port: Int): HttpServer = HttpServer.create(InetSocketAddress(port), 0).apply {
         executor = Executors.newFixedThreadPool(THREADS)
