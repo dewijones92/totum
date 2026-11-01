@@ -153,6 +153,12 @@ say why it is the way it is.
   every kind it makes sense for, and every path that builds an item fills what is known. When a change touches one
   path, check its siblings (every list, every way in: tap, link, notification, search, restore). A deliberate
   exception is never built silently: stop and ask Dewi, then record it in [ADR 108](docs/adr/0108-consistent-everywhere-and-its-recorded-exceptions.md), which also lists what the 2026-10-31 audit left to do.
+- **No duplication from a discussed idea** (Dewi, 2026-11-01: *"if we discuss an idea, I don't want you to then
+  duplicate stuff"*). Before building anything, a scout searches for code that already does each part, and the plan
+  names what it **reuses** for each part; a new copy of existing logic needs a stated reason Dewi has agreed. Code
+  that one module needs but another owns is **moved** to the shared module (as the queue operations moved to
+  `:core:data` for the speaker queues), never re-written. The end-of-batch review checks for duplicated logic, and a
+  copy-paste detector in the gate fails on new duplicated blocks.
 - **Strictly DRY** — this matters a lot to Dewi. Knowledge lives in exactly one
   place: versions and SDK levels only in `gradle/libs.versions.toml`; Android
   build defaults (compileSdk/minSdk/Java level/lint policy) only in the root
