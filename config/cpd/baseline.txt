@@ -1,0 +1,6 @@
+# Duplicated blocks known on 2026-11-01 (CPD, Kotlin, 100+ tokens). New ones fail cpdCheck; remove a line once it is fixed.
+app/src/main/java/com/dewijones92/totum/ui/podcasts/AddPodcastDialog.kt | app/src/main/java/com/dewijones92/totum/ui/videos/AddChannelDialog.kt
+core/database/src/main/kotlin/com/dewijones92/totum/database/LocalPlaylistEntities.kt | core/database/src/main/kotlin/com/dewijones92/totum/database/PlayHistoryEntity.kt
+core/database/src/main/kotlin/com/dewijones92/totum/database/LocalPlaylistEntities.kt | core/database/src/main/kotlin/com/dewijones92/totum/database/PodcastEntities.kt | core/database/src/main/kotlin/com/dewijones92/totum/database/QueueEntity.kt
+core/database/src/main/kotlin/com/dewijones92/totum/database/PlayHistoryEntity.kt | core/database/src/main/kotlin/com/dewijones92/totum/database/PodcastEntities.kt | core/database/src/main/kotlin/com/dewijones92/totum/database/QueueEntity.kt
+core/database/src/main/kotlin/com/dewijones92/totum/database/RoomDownloadStore.kt | core/database/src/main/kotlin/com/dewijones92/totum/database/RoomQueueStore.kt

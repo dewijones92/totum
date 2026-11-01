@@ -185,6 +185,9 @@ jobs:
       - name: Static analysis (detekt)
         run: ./gradlew detekt --no-daemon
 
+      - name: Duplicate code (CPD)
+        run: ./gradlew cpdCheck --no-daemon
+
       - name: Android Lint
         run: ./gradlew lint --no-daemon
 

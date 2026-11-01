@@ -139,3 +139,53 @@ subprojects {
     }
   }
 }
+
+val cpdClasspath: Configuration by configurations.creating
+
+dependencies {
+  cpdClasspath(libs.pmd.cli)
+  cpdClasspath(libs.pmd.kotlin)
+}
+
+val cpdSources = subprojects.map { it.layout.projectDirectory.dir("src/main").asFile }.filter { it.isDirectory }
+val cpdReport = layout.buildDirectory.file("cpd/cpd.xml")
+val cpdBaseline = layout.projectDirectory.file("config/cpd/baseline.txt")
+
+val cpdRun = tasks.register<JavaExec>("cpdRun") {
+  classpath = cpdClasspath
+  mainClass.set("net.sourceforge.pmd.cli.PmdCli")
+  inputs.files(cpdSources)
+  outputs.file(cpdReport)
+  doFirst { cpdReport.get().asFile.parentFile.mkdirs() }
+  args(
+    "cpd", "--language", "kotlin", "--minimum-tokens", "100", "--no-fail-on-violation", "--format", "xml",
+    "--dir", cpdSources.joinToString(",") { it.path }, "--report-file", cpdReport.get().asFile.path,
+  )
+}
+
+tasks.register("cpdCheck") {
+  group = "verification"
+  description = "Fails on a block of duplicated Kotlin not already in config/cpd/baseline.txt."
+  dependsOn(cpdRun)
+  doLast {
+    val root = rootDir
+    val doc = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(cpdReport.get().asFile)
+    val found = (0 until doc.getElementsByTagName("duplication").length).map { i ->
+      val dup = doc.getElementsByTagName("duplication").item(i) as org.w3c.dom.Element
+      val files = dup.getElementsByTagName("file")
+      val places = (0 until files.length).map { (files.item(it) as org.w3c.dom.Element) }
+      places.map { java.io.File(it.getAttribute("path")).relativeTo(root).path }.sorted().joinToString(" | ") to
+        places.joinToString(", ") { "${java.io.File(it.getAttribute("path")).relativeTo(root).path}:${it.getAttribute("line")}" }
+    }
+    val known = cpdBaseline.asFile.takeIf { it.isFile }?.readLines()?.map { it.trim() }?.filter { it.isNotEmpty() && !it.startsWith("#") }.orEmpty().toSet()
+    val fresh = found.filter { it.first !in known }
+    if (fresh.isNotEmpty()) {
+      throw GradleException(
+        "New duplicated code (CPD, 100+ tokens). Reuse or move it to a shared module instead (CLAUDE.md):\n" +
+          fresh.joinToString("\n") { "  - ${it.second}" },
+      )
+    }
+    logger.lifecycle("cpd: ${found.size} known duplicate(s), none new")
+  }
+}
+

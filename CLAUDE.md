@@ -158,7 +158,8 @@ say why it is the way it is.
   names what it **reuses** for each part; a new copy of existing logic needs a stated reason Dewi has agreed. Code
   that one module needs but another owns is **moved** to the shared module (as the queue operations moved to
   `:core:data` for the speaker queues), never re-written. The end-of-batch review checks for duplicated logic, and a
-  copy-paste detector in the gate fails on new duplicated blocks.
+  copy-paste detector in the gate (`./gradlew cpdCheck`: PMD CPD, Kotlin, 100+ tokens) fails on any duplicated block
+  not listed in `config/cpd/baseline.txt` (the five known on 2026-11-01; remove a line once it is fixed).
 - **Strictly DRY** — this matters a lot to Dewi. Knowledge lives in exactly one
   place: versions and SDK levels only in `gradle/libs.versions.toml`; Android
   build defaults (compileSdk/minSdk/Java level/lint policy) only in the root
@@ -197,7 +198,7 @@ say why it is the way it is.
 ```bash
 ./gradlew assembleDebug          # build debug APK
 python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run before every push
-./gradlew detekt lint test koverVerify assembleDebugAndroidTest   # the full local gate (matches CI)
+./gradlew detekt cpdCheck lint test koverVerify assembleDebugAndroidTest   # the full local gate (matches CI)
 ./gradlew :app:assembleDebug     # the gate does NOT rebuild app-debug.apk: run this before installing after it
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
 ./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
