@@ -3,7 +3,7 @@ title: Quiet podcasts made audible, automatically
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # Quiet podcasts made audible, automatically
@@ -22,6 +22,10 @@ up to loud, dont distortion"*.
 
 This doc covers all four versions, because the mistakes are the interesting part and each one was
 caused by fixing the previous one too literally.
+
+
+**Speech-aware (Nov 2026, trying out, ADR 115):** Settings → 🗣️ Speech-aware boost chooses 🔊 As before, 📏 Measure
+speech only, or 🗣️ Lift speech only, each with a 💬 Feedback box that sends a report.
 
 ## The four versions, and why each was wrong
 

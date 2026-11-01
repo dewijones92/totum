@@ -362,7 +362,7 @@ internal class CutLevel(private val blockFrames: Int) {
     }
 }
 
-private fun frameMean(input: ShortArray, at: Int, channels: Int): Float {
+internal fun frameMean(input: ShortArray, at: Int, channels: Int): Float {
     var sum = 0
     for (channel in 0 until channels) sum += input[at + channel]
     return sum / (channels * FULL_SCALE)

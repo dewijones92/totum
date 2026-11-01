@@ -28,7 +28,9 @@ import kotlin.math.abs
  */
 @OptIn(markerClass = [UnstableApi::class])
 @UnstableApi
-internal class BoostingAudioProcessor : BaseAudioProcessor() {
+internal class BoostingAudioProcessor(
+    private val speechWeights: () -> SpeechWeights? = { null },
+) : BaseAudioProcessor() {
 
     private var boost: LoudnessBoost? = null
     private var samples = ShortArray(0)
@@ -44,6 +46,17 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
 
     val silentForMs: Long get() = tail?.silentForMs ?: 0
 
+    private var track: SpeechTrack? = null
+    private var sampleRate = 0
+    private var channels = 1
+
+    var speechGate: SpeechGate = SpeechGate.OFF
+        set(value) {
+            field = value
+            boost?.speechGate = value
+            Diag.log("boost", "speech gate -> $value")
+        }
+
     /** Set from the session command; takes effect on the next buffer, glided rather than switched. */
     var level: VolumeBoost = VolumeBoost.OFF
         set(value) {
@@ -58,6 +71,9 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     }
 
     private fun rebuild(inputAudioFormat: AudioProcessor.AudioFormat) {
+        sampleRate = inputAudioFormat.sampleRate
+        channels = inputAudioFormat.channelCount.coerceAtLeast(1)
+        newTrack()
         samplesPerReport = inputAudioFormat.sampleRate.toLong() * SECONDS_PER_REPORT
         samplesBeforeFirstReport = inputAudioFormat.sampleRate.toLong() * SECONDS_BEFORE_FIRST_REPORT
         tail = SilentRun(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1))
@@ -65,8 +81,10 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         // Rebuilt per configuration because the smoothing coefficients depend on the sample rate —
         // a boost tuned at 44.1kHz would attack twice as slowly at 22.05.
         boost = if (inputAudioFormat.encoding == ENCODING_16BIT) {
-            LoudnessBoost(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1))
-                .apply { level = this@BoostingAudioProcessor.level }
+            LoudnessBoost(inputAudioFormat.sampleRate, inputAudioFormat.channelCount.coerceAtLeast(1)).also {
+                it.level = level
+                it.speechGate = speechGate
+            }
         } else {
             // Said out loud: silently passing audio through is indistinguishable from a boost that
             // does nothing, and "the booster stopped working" would have no other explanation.
@@ -93,6 +111,7 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         val shorts = inputBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
         shorts.get(samples, 0, count)
         tail?.add(samples, count)
+        listen(active, count)
         // The input has been consumed; the sink checks this rather than taking it on trust.
         inputBuffer.position(inputBuffer.limit())
         write(active.process(samples, count), active.outputSamples)
@@ -110,8 +129,33 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
             rebuild(inputAudioFormat)
         } else {
             boost?.flushDelay()
+            newTrack()
         }
         tail?.reset()
+    }
+
+    private fun newTrack() {
+        track?.retire()
+        track = null
+        boost?.forgetSpeech()
+        boost?.speech = null
+    }
+
+    private fun listen(active: LoudnessBoost, count: Int) {
+        if (speechGate == SpeechGate.OFF || level == VolumeBoost.OFF || sampleRate <= 0) return
+        val listening = track ?: speechWeights()?.let { weights ->
+            SpeechTrack(SpeechModel(weights), sampleRate, SpeechWorker.BACKGROUND).also { made ->
+                track = made
+                active.forgetSpeech()
+                active.speech = made::isSpeech
+                Diag.log("boost", "listening for speech ($speechGate) at ${sampleRate}Hz")
+            }
+        } ?: return
+        var at = 0
+        while (at + channels <= count) {
+            listening.push(frameMean(samples, at, channels))
+            at += channels
+        }
     }
 
     private fun write(output: ShortArray, count: Int) {
@@ -144,11 +188,21 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
         val gainDb = LoudnessBoost.decibels(active.currentGain)
         val clipped = active.clippedSamples
         val moved = reportedGainDb.isNaN() || abs(gainDb - reportedGainDb) >= REPORT_WHEN_DB_MOVES
-        if (!moved && clipped == reportedClipped) return
+        val gated = speechGate != SpeechGate.OFF && active.judgedFrames >= samplesPerReport * GATED_REPORTS
+        if (!moved && clipped == reportedClipped && !gated) return
         reportedGainDb = gainDb
         reportedClipped = clipped
 
-        val line = "auto gain ${"%.1f".format(gainDb)}dB " +
+        val share = if (active.judgedFrames > 0) active.speechFrames * PERCENT / active.judgedFrames else 0
+        val gate = if (speechGate == SpeechGate.OFF) {
+            ""
+        } else {
+            " speech=$speechGate ${if (active.speakingNow) "speaking" else "not speaking"} " +
+                "$share% speech over ${active.judgedFrames / sampleRate.coerceAtLeast(1)}s " +
+                "dropped=${active.speechFramesDropped}"
+        }
+        active.forgetJudged()
+        val line = "auto gain ${"%.1f".format(gainDb)}dB$gate " +
             "(level ${"%.4f".format(active.measuredLoudness)}) " +
             "limiter down to ${"%.1f".format(LoudnessBoost.decibels(active.deepestLimit))}dB clipped=$clipped"
         active.forgetDeepestLimit()
@@ -158,6 +212,8 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
     }
 
     override fun onReset() {
+        track?.retire()
+        track = null
         boost = null
         rebuildOnFlush = false
         samples = ShortArray(0)
@@ -177,5 +233,8 @@ internal class BoostingAudioProcessor : BaseAudioProcessor() {
 
         /** ...and how far it must have moved to be worth a line. Below this, nothing has changed. */
         const val REPORT_WHEN_DB_MOVES = 2f
+
+        const val GATED_REPORTS = 4
+        const val PERCENT = 100
     }
 }

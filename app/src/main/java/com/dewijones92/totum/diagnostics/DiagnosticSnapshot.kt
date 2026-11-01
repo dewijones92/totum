@@ -119,6 +119,7 @@ internal class DiagnosticSnapshot(
         put("settings.mediaFilter", settings.mediaFilter.name)
         put("settings.feedHiddenUntilAsked", settings.feedHiddenUntilAsked.toString())
         put("settings.gaplessQueue", settings.gaplessQueue.toString())
+        put("settings.speechGate", settings.speechGate.name)
         put("settings.exploreByDefault", settings.exploreByDefault.toString())
         put("settings.exploreCap", if (settings.exploreCap > 0) settings.exploreCap.toString() else "no limit")
         put("settings.rewindOnResume", settings.rewindOnResume.toString())

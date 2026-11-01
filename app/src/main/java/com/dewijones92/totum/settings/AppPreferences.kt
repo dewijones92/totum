@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.domain.decodeSourceSkips
 import com.dewijones92.totum.domain.encodeSourceSkips
 import com.dewijones92.totum.playback.SilenceMode
+import com.dewijones92.totum.playback.SpeechGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -91,6 +92,8 @@ interface AppPreferences {
     fun setSilenceMode(mode: SilenceMode)
     fun setFeedHiddenUntilAsked(hidden: Boolean)
     fun setGaplessQueue(enabled: Boolean)
+
+    fun setSpeechGate(gate: SpeechGate)
     fun setExploreByDefault(enabled: Boolean)
     fun setExploreCap(cap: Int)
     fun setRewindOnResume(enabled: Boolean)
@@ -162,6 +165,7 @@ interface AppPreferences {
         val silenceMode: SilenceMode = SilenceMode.DEFAULT,
         val feedHiddenUntilAsked: Boolean = true,
         val gaplessQueue: Boolean = true,
+        val speechGate: SpeechGate = SpeechGate.OFF,
         val exploreByDefault: Boolean = false,
         val exploreCap: Int = 0,
         val rewindOnResume: Boolean = true,
@@ -221,6 +225,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             silenceMode = SilenceMode.fromStoredName(prefs.getString(KEY_SILENCE_MODE, null)),
             feedHiddenUntilAsked = prefs.getBoolean(KEY_FEED_HIDDEN, true),
             gaplessQueue = prefs.getBoolean(KEY_GAPLESS, true),
+            speechGate = SpeechGate.fromStoredName(prefs.getString(KEY_SPEECH_GATE, null)),
             exploreByDefault = prefs.getBoolean(KEY_EXPLORE, false),
             exploreCap = prefs.getInt(KEY_EXPLORE_CAP, 0),
             rewindOnResume = prefs.getBoolean(KEY_REWIND, true),
@@ -331,6 +336,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             it.copy(feedHiddenUntilAsked = hidden)
         }
 
+    override fun setSpeechGate(gate: SpeechGate): Unit =
+        change("speechGate", gate, { putString(KEY_SPEECH_GATE, gate.name) }) { it.copy(speechGate = gate) }
+
     override fun setGaplessQueue(enabled: Boolean): Unit =
         change("gaplessQueue", enabled, { putBoolean(KEY_GAPLESS, enabled) }) { it.copy(gaplessQueue = enabled) }
 
@@ -413,6 +421,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_SILENCE_MODE = "silence_mode"
         const val KEY_FEED_HIDDEN = "feed_hidden_until_asked"
         const val KEY_GAPLESS = "gapless_queue"
+        const val KEY_SPEECH_GATE = "speech_gate"
         const val KEY_EXPLORE = "explore_by_default"
         const val KEY_EXPLORE_CAP = "explore_cap"
         const val KEY_REWIND = "rewind_on_resume"
@@ -455,6 +464,8 @@ class InMemoryAppPreferences : AppPreferences {
         _settings.update { it.copy(feedHiddenUntilAsked = hidden) }
 
     override fun setGaplessQueue(enabled: Boolean) = _settings.update { it.copy(gaplessQueue = enabled) }
+
+    override fun setSpeechGate(gate: SpeechGate) = _settings.update { it.copy(speechGate = gate) }
     override fun setExploreByDefault(enabled: Boolean) = _settings.update { it.copy(exploreByDefault = enabled) }
     override fun setExploreCap(cap: Int) = _settings.update { it.copy(exploreCap = cap) }
     override fun setRewindOnResume(enabled: Boolean) = _settings.update { it.copy(rewindOnResume = enabled) }

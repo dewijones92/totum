@@ -54,6 +54,34 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
     /** Whether to do anything at all. Changing it mid-stream is picked up on the next sample. */
     var level: VolumeBoost = VolumeBoost.OFF
 
+    var speechGate: SpeechGate = SpeechGate.OFF
+
+    var speech: ((Long) -> Boolean?)? = null
+
+    private var framesIn = 0L
+    private val pending = FloatArray(sampleRate.coerceAtLeast(1) * PENDING_SECONDS)
+    private var pendingFrom = 0L
+    private var pendingCount = 0
+    private var speaking = false
+
+    var speechFramesDropped: Long = 0L
+        private set
+
+    val speakingNow: Boolean get() = speaking
+
+    var judgedFrames: Long = 0L
+        private set
+
+    var speechFrames: Long = 0L
+        private set
+
+    fun forgetJudged() {
+        judgedFrames = 0
+        speechFrames = 0
+    }
+
+    private val listening: Boolean get() = speechGate != SpeechGate.OFF && speech != null
+
     /** A slow average of the audio's level, ignoring silence — what "how loud is this item" means. */
     private var loudness = 0f
 
@@ -174,7 +202,9 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
 
         noteDynamics(magnitude)
 
-        if (heardDynamics && magnitude > gateFor(recentPeak)) {
+        if (listening) {
+            hear(magnitude)
+        } else if (heardDynamics && magnitude > gateFor(recentPeak)) {
             // Only real audio counts. Silence between sentences would otherwise drag the estimate
             // down and wind the gain up, so every pause would end in a blast.
             // The first couple of seconds settle fast, or an episode would start unboosted and
@@ -182,16 +212,51 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
             measure(magnitude)
             warmupSamples++
         }
+        framesIn++
 
         // Exactly the gain that brings this item to a comfortable level, and no more.
         val evening = level == VolumeBoost.EVEN_OUT
         val floor = if (evening) EVEN_MIN_GAIN else MIN_GAIN
-        val wanted = if (loudness > EPSILON) (TARGET_LEVEL / loudness).coerceIn(floor, MAX_GAIN) else MIN_GAIN
+        val lifting = listening && speechGate == SpeechGate.LIFT
+        val ceiling = if (lifting) MAX_LIFT else MAX_GAIN
+        val target = if (loudness > EPSILON) (TARGET_LEVEL / loudness).coerceIn(floor, ceiling) else MIN_GAIN
+        val wanted = if (lifting && !speaking) MIN_GAIN else target
 
         driftTowards(wanted)
         val allowed = if (magnitude > EPSILON) minOf(applied, CEILING / magnitude) else applied
 
         limiter.push(input, at, allowed, applied, write)
+    }
+
+    private fun hear(magnitude: Float) {
+        if (pendingCount == pending.size) {
+            pendingFrom++
+            pendingCount--
+            speechFramesDropped++
+        }
+        pending[((pendingFrom + pendingCount) % pending.size).toInt()] = magnitude
+        pendingCount++
+        val verdict = speech ?: return
+        while (pendingCount > 0) {
+            val isSpeech = verdict(pendingFrom) ?: break
+            val heard = pending[(pendingFrom % pending.size).toInt()]
+            if (isSpeech && heardDynamics && heard > gateFor(recentPeak)) {
+                measure(heard)
+                warmupSamples++
+            }
+            speaking = isSpeech
+            judgedFrames++
+            if (isSpeech) speechFrames++
+            pendingFrom++
+            pendingCount--
+        }
+    }
+
+    fun forgetSpeech() {
+        framesIn = 0
+        pendingFrom = 0
+        pendingCount = 0
+        speaking = false
     }
 
     private fun driftTowards(wanted: Float) {
@@ -229,9 +294,11 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         }
     }
 
-    private val rising: Float get() = if (level == VolumeBoost.EVEN_OUT) evenRise else gainRise
+    private val quick: Boolean get() = level == VolumeBoost.EVEN_OUT || listening && speechGate == SpeechGate.LIFT
 
-    private val falling: Float get() = if (level == VolumeBoost.EVEN_OUT) evenFall else gainRise
+    private val rising: Float get() = if (quick) evenRise else gainRise
+
+    private val falling: Float get() = if (quick) evenFall else gainRise
 
     private fun noteDynamics(magnitude: Float) {
         if (heardDynamics) return
@@ -313,6 +380,9 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
 
         /** +30 dB. */
         private const val MAX_GAIN = 31.6f
+
+        private const val MAX_LIFT = 10f
+        private const val PENDING_SECONDS = 2
 
         private const val DYNAMICS_OVER_QUIETEST = 2f
         private const val DYNAMICS_BLOCK_MS = 10L

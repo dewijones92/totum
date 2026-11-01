@@ -90,6 +90,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 FeedAndQueueSettings(settings, prefs)
                 NewUploadsSettings(container, settings)
                 SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
+                SpeechBoostSection(container, settings.speechGate, prefs::setSpeechGate)
                 DownloadSettings(settings, prefs)
                 NavRow(
                     label = stringResource(R.string.exsurge_settings_row),

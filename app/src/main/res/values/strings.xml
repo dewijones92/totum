@@ -1132,6 +1132,19 @@
     </plurals>
     <string name="home_copy_to_home">🏠 Also at home (keep it here too)</string>
     <string name="home_move_to_home">🏠 Move to home (delete it here once home has it)</string>
+    <string name="speech_boost_section">🗣️ Speech-aware boost (trying out)</string>
+    <string name="speech_boost_supporting">How the volume boost (Auto or Even out) uses the speech detector. Try each and tell me with 💬; the ones you don\'t like will go.</string>
+    <string name="speech_boost_off">🔊 As before</string>
+    <string name="speech_boost_off_summary">The boost measures everything it hears, music and noise included.</string>
+    <string name="speech_boost_measure">📏 Measure speech only</string>
+    <string name="speech_boost_measure_summary">The level is learnt from speech alone, so a music bed or a loud intro no longer holds quiet voices down. The lift applies to everything.</string>
+    <string name="speech_boost_lift">🗣️ Lift speech only</string>
+    <string name="speech_boost_lift_summary">Voices are lifted (up to +20 dB) and music and noise are left as they are. It follows a voice a moment after it starts.</string>
+    <string name="speech_boost_feedback">💬 Feedback</string>
+    <string name="speech_boost_feedback_title">💬 %1$s</string>
+    <string name="speech_boost_feedback_hint">How did it sound? What were you listening to?</string>
+    <string name="speech_boost_feedback_send">📤 Send</string>
+    <string name="speech_boost_feedback_sent">✅ Feedback saved and sent</string>
     <string name="send_home_label">🏠 Send home</string>
     <string name="send_home_sending">⏳ Sending home…</string>
     <string name="send_home_refused">❌ Not sent home: %1$s</string>

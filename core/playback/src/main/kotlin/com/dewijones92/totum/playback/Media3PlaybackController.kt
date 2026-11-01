@@ -75,6 +75,7 @@ public class Media3PlaybackController(
     private val rewindOnResume: StateFlow<Boolean> = MutableStateFlow(true),
     private val sourceSkips: StateFlow<Map<SourceId, SourceSkips>> = MutableStateFlow(emptyMap()),
     private val silentTailEnds: StateFlow<Boolean> = MutableStateFlow(true),
+    private val speechGates: StateFlow<SpeechGate> = MutableStateFlow(SpeechGate.OFF),
     private val wallClock: () -> Long = System::currentTimeMillis,
 ) : PlaybackController {
 
@@ -163,6 +164,7 @@ public class Media3PlaybackController(
     private val lengthKnownStart = LengthKnownStart()
     private val startLatency = StartLatency()
     private var volumeBoost = VolumeBoost.OFF
+    private var speechGate = SpeechGate.OFF
     private var ticksSinceSave = 0
     private var ticksSinceMemory = 0
 
@@ -188,6 +190,7 @@ public class Media3PlaybackController(
                     )
                 }
                 scope.launch { silenceMode.collect { mode -> applySilenceMode(connected, mode) } }
+                scope.launch { speechGates.collect { gate -> applySpeechGate(connected, gate) } }
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
@@ -444,7 +447,7 @@ public class Media3PlaybackController(
         )
         applySilenceMode(controller, silenceMode.value)
         applySubtitleLanguage(controller, audioOnly, itemId)
-        if (boost != volumeBoost) setVolumeBoost(boost)
+        if (boost != volumeBoost) setVolumeBoost(boost) else sendBoost(controller)
     }
 
     private fun adopting(controller: MediaController, id: String, uri: String, audioUrl: HttpUrl?, startMs: Long) =
@@ -722,13 +725,24 @@ public class Media3PlaybackController(
     override fun setVolumeBoost(boost: VolumeBoost) {
         volumeBoost = boost
         withController {
-            it.sendCustomCommand(
-                SessionCommand(ACTION_VOLUME_BOOST, Bundle.EMPTY),
-                bundleOf(EXTRA_VOLUME_BOOST_LEVEL to boost.name),
-            )
+            sendBoost(it)
             _state.value = it.currentPlaybackState()
         }
         scope.launch { boostStore.save(boost) }
+    }
+
+    private fun applySpeechGate(controller: MediaController, gate: SpeechGate) {
+        if (gate == speechGate) return
+        speechGate = gate
+        Diag.log("boost", "speech gate chosen: $gate")
+        sendBoost(controller)
+    }
+
+    private fun sendBoost(controller: MediaController) {
+        controller.sendCustomCommand(
+            SessionCommand(ACTION_VOLUME_BOOST, Bundle.EMPTY),
+            bundleOf(EXTRA_VOLUME_BOOST_LEVEL to volumeBoost.name, EXTRA_SPEECH_GATE to speechGate.name),
+        )
     }
 
     override fun showSwitchButton(to: Listening?) {

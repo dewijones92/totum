@@ -72,7 +72,7 @@ public class PlaybackService : MediaSessionService() {
      * rebuilt on every audio-session change — see [BoostingAudioProcessor].
      */
     @UnstableApi
-    private val booster = BoostingAudioProcessor()
+    private val booster = BoostingAudioProcessor { BundledSpeechModel.get(this) }
 
     private var player: ExoPlayer? = null
 
@@ -290,6 +290,8 @@ public class PlaybackService : MediaSessionService() {
                         ?.let { name -> runCatching { VolumeBoost.valueOf(name) }.getOrNull() }
                         ?: VolumeBoost.OFF,
                 )
+                val gate = SpeechGate.fromStoredName(args.getString(EXTRA_SPEECH_GATE))
+                if (gate != booster.speechGate) booster.speechGate = gate
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_USER_SPEED) {
@@ -615,6 +617,7 @@ internal const val ACTION_SILENCE_MODE: String = "com.dewijones92.totum.SILENCE_
 internal const val EXTRA_SILENCE_MODE: String = "silence_mode"
 internal const val ACTION_VOLUME_BOOST: String = "com.dewijones92.totum.VOLUME_BOOST"
 internal const val EXTRA_VOLUME_BOOST_LEVEL: String = "boost_level"
+internal const val EXTRA_SPEECH_GATE: String = "speech_gate"
 
 /**
  * The rate the user chose. Told to the service rather than read off the player.

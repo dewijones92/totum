@@ -48,6 +48,17 @@ public enum class VolumeBoost {
     }
 }
 
+public enum class SpeechGate {
+    OFF,
+    MEASURE,
+    LIFT,
+    ;
+
+    public companion object {
+        public fun fromStoredName(name: String?): SpeechGate = entries.firstOrNull { it.name == name } ?: OFF
+    }
+}
+
 /**
  * Remembers ONE boost setting for the whole app, mirroring [PlaybackSpeedStore].
  *

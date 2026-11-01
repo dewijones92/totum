@@ -18,6 +18,7 @@ internal fun playbackControllerOf(c: AppContainer, context: Context): PlaybackCo
         c.applicationScope.launch { recordPlay(c.playHistoryStore, c.downloadManager, item, kind) }
     },
     silenceMode = c.appPreferences.setting(c.applicationScope) { it.silenceMode },
+    speechGates = c.appPreferences.setting(c.applicationScope) { it.speechGate },
     rewindOnResume = c.appPreferences.setting(c.applicationScope) { it.rewindOnResume },
     sourceSkips = c.appPreferences.setting(c.applicationScope) { it.sourceSkips },
     silentTailEnds = c.appPreferences.setting(c.applicationScope) { it.silentTailEnds },
