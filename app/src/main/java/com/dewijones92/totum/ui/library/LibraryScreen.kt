@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.library
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -265,6 +266,7 @@ private fun DownloadsScreen(
     val cleanup by viewModel.cleanup.collectAsStateWithLifecycle()
     val addToPlaylist = rememberPlaylistAdder(container)
     val homeJobs by container.homeDownloads.jobs.collectAsStateWithLifecycle()
+    val homeStorage by container.homeDownloads.storage.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { container.homeDownloads.refresh("the Downloads page opened") }
 
     DownloadsContent(
@@ -291,6 +293,7 @@ private fun DownloadsScreen(
             onCancel = container.homeDownloads::cancel,
             onRetry = container.homeDownloads::retry,
             onCopy = container.homeDownloads::copyNow,
+            storage = homeStorage,
             onPlay = viewModel::playFromHome,
         ),
     )
@@ -410,11 +413,15 @@ private fun FinishedRow(
  * a number that only shows up once the phone complains has arrived too late.
  */
 @Composable
-private fun StorageSummary(storage: StorageUsage) {
+internal fun StorageSummary(
+    storage: StorageUsage,
+    @StringRes usedRes: Int = R.string.library_storage,
+    @StringRes usedAndFreeRes: Int = R.string.library_storage_with_free,
+) {
     val used = formatBytes(storage.usedBytes)
     val text = storage.freeBytes
-        ?.let { stringResource(R.string.library_storage_with_free, used, formatBytes(it)) }
-        ?: stringResource(R.string.library_storage, used)
+        ?.let { stringResource(usedAndFreeRes, used, formatBytes(it)) }
+        ?: stringResource(usedRes, used)
     Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp)) {
         Text(
             text = text,

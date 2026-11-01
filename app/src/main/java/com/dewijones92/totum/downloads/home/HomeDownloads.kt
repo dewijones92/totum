@@ -14,6 +14,7 @@ import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.innertube.auth.OAuthTokens
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.settings.DownloadChoice
@@ -68,6 +69,8 @@ class HomeDownloads(
 ) {
     private val known = MutableStateFlow<Map<MediaItemId, HomeJob>>(emptyMap())
     val jobs: StateFlow<Map<MediaItemId, HomeJob>> = known.asStateFlow()
+    private val space = MutableStateFlow<StorageUsage?>(null)
+    val storage: StateFlow<StorageUsage?> = space.asStateFlow()
     val available: Boolean get() = client != null
 
     private val follower = HomeFollower(
@@ -163,6 +166,8 @@ class HomeDownloads(
                 val now = answer.value.jobs.associateBy { MediaItemId(it.id) }
                 if (now != known.value) Diag.log(TAG, "jobs ($why): ${now.values.joinToString { it.describe() }}")
                 known.value = now
+                val done = now.values.filter { it.state == HomeJobState.DONE }
+                space.value = StorageUsage(done.size, done.sumOf { it.bytes }, answer.value.freeBytes)
                 follower.followAll(now.values)
             }
         }

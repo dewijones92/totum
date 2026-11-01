@@ -12,6 +12,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.auth.OAuthTokens
 import com.dewijones92.totum.innertube.auth.RefreshToken
@@ -194,5 +195,17 @@ class HomeDownloadsTest {
         local.setFailed(MediaItemId("abcdefghijk"), "gone")
         home.refresh("setting off")
         assertTrue(local.requested.isEmpty())
+    }
+
+    @Test
+    fun `the phone knows how much space is used and free at home`() = runTest {
+        api.freeBytes = 312_000_000_000
+        api.listed = listOf(
+            job(HomeJobState.DONE).copy(bytes = 2_000, totalBytes = 2_000),
+            job(HomeJobState.DOWNLOADING).copy(id = "another"),
+        )
+        val home = home(backgroundScope)
+        home.refresh("test")
+        assertEquals(StorageUsage(itemCount = 1, usedBytes = 2_000, freeBytes = 312_000_000_000), home.storage.value)
     }
 }

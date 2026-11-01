@@ -21,6 +21,7 @@ import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.ui.common.HomeRow
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.downloadStateOf
@@ -34,9 +35,13 @@ class HomeSection(
     val onRetry: (MediaItemId) -> Unit = {},
     val onCopy: (MediaItemId) -> Unit = {},
     val onPlay: (PlayableItem) -> Unit = {},
+    val storage: StorageUsage? = null,
 )
 
 internal fun LazyListScope.homeBody(home: HomeSection) {
+    home.storage?.let { storage ->
+        item(key = "home-storage") { StorageSummary(storage, R.string.home_storage, R.string.home_storage_with_free) }
+    }
     if (home.jobs.isEmpty()) sectionEmpty { stringResource(R.string.downloads_none_at_home) }
     items(home.jobs, key = { "home-${it.id}" }) { job ->
         val id = MediaItemId(job.id)

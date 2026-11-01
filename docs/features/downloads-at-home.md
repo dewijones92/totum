@@ -17,6 +17,8 @@ copies it over the next time it is on Wi-Fi. ADR 110.
 - ⬇️ asks where (📱 On this phone / 🏠 At home); on mobile data 🏠 is suggested; "remember" keeps it.
 - Rows: 🏠 Downloading at home · 45% → 🏠 At home · copies to the phone on Wi-Fi → 📥 Copying from home 70% → the usual offline mark.
 - The progress strip and a notification while it runs; "🏠 Ready at home" when done.
+- Library → Downloads → 🏠 At home opens with the home server's space, like the phone's: "🏠 Using 1.8 GB at home ·
+  139 GB free" and a meter (Totum's finished downloads, and the disk's free space, from every job-list read).
 - Library → Downloads → 🏠 At home: every job as an ordinary item row (poster, ⋮ menu, tap to play from home), with
   📥 Copy to the phone now, Retry, Cancel and Delete; a job that will not copy by itself (kept at home, or the
   setting off) says "🏠 At home · stays there until you copy it".

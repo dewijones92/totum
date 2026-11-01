@@ -13,11 +13,12 @@ internal class FakeHomeApi : HomeJobsApi {
     val handedOver = mutableListOf<AccountHandover>()
     var listed: List<HomeJob> = emptyList()
     var refuse: String? = null
+    var freeBytes = 1L
     override suspend fun start(job: HomeJobRequest): HomeAnswer<String> {
         started += job
         return refuse?.let { HomeAnswer.No(it) } ?: HomeAnswer.Ok(job.item.itemId)
     }
-    override suspend fun jobs() = HomeAnswer.Ok(HomeJobs(listed, 1, true))
+    override suspend fun jobs() = HomeAnswer.Ok(HomeJobs(listed, freeBytes, true))
     val cancelled = mutableListOf<String>()
     override suspend fun cancel(id: String): HomeAnswer<Unit> {
         cancelled += id
