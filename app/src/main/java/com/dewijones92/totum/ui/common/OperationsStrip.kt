@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.common
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,7 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,10 +52,83 @@ fun OperationsStrip(running: List<Operation>, padStatusBar: Boolean, onCancel: (
         modifier = Modifier.fillMaxWidth().testTag(OPERATIONS_STRIP_TAG),
     ) {
         Column(if (padStatusBar) Modifier.windowInsetsPadding(WindowInsets.statusBars) else Modifier) {
-            running.forEach { operation -> OperationRow(operation, onCancel) }
+            stripLines(running).forEach { line ->
+                when (line) {
+                    is StripLine.Single -> OperationRow(line.operation, onCancel)
+                    is StripLine.Group -> GroupRow(line, onCancel)
+                }
+            }
         }
     }
 }
+
+sealed interface StripLine {
+    data class Single(val operation: Operation) : StripLine
+    data class Group(val kind: OperationKind, val operations: List<Operation>) : StripLine {
+        val percent: Int?
+            get() = operations.mapNotNull { it.percentDone() }.takeIf { it.isNotEmpty() }?.average()?.toInt()
+    }
+}
+
+private fun Operation.percentDone(): Int? {
+    val done = step ?: return null
+    val total = steps?.takeIf { it > 0 } ?: return null
+    return done * PERCENT / total
+}
+
+fun stripLines(running: List<Operation>): List<StripLine> =
+    running.groupBy { it.kind }.values.map { same ->
+        if (same.size >= GROUP_FROM) StripLine.Group(same.first().kind, same) else StripLine.Single(same.single())
+    }
+
+@Composable
+private fun GroupRow(group: StripLine.Group, onCancel: (Long) -> Unit) {
+    var open by rememberSaveable(group.kind) { mutableStateOf(false) }
+    Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).clickable { open = !open }) {
+                Text(
+                    pluralStringResource(
+                        R.plurals.ops_group,
+                        group.operations.size,
+                        groupTitle(group.kind),
+                        group.operations.size
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    stringResource(if (open) R.string.ops_group_hide else R.string.ops_group_show),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            TextButton(onClick = { group.operations.forEach { onCancel(it.id) } }) {
+                Text(stringResource(R.string.ops_cancel_all))
+            }
+        }
+        val percent = group.percent
+        if (percent != null) {
+            LinearProgressIndicator(
+                progress = { percent / PERCENT.toFloat() },
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, end = 12.dp),
+            )
+        } else {
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp, end = 12.dp))
+        }
+        if (open) group.operations.forEach { OperationRow(it, onCancel) }
+    }
+}
+
+@Composable
+private fun groupTitle(kind: OperationKind): String = stringResource(
+    when (kind) {
+        OperationKind.HOME_DOWNLOAD -> R.string.ops_group_home
+        OperationKind.PREPARE_TORRENT -> R.string.ops_group_torrents
+        OperationKind.DOWNLOAD_BATCH -> R.string.ops_group_downloads
+        OperationKind.ASK -> R.string.ops_group_asks
+        else -> R.string.ops_group_tasks
+    },
+)
 
 @Composable
 private fun OperationRow(operation: Operation, onCancel: (Long) -> Unit) {
@@ -158,4 +234,6 @@ private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
 }
 
 private const val SHOW_AFTER_MS = 1_000L
+private const val GROUP_FROM = 2
+private const val PERCENT = 100
 private const val SHOW_TICK_MS = 500L

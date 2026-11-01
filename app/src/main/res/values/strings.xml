@@ -1250,6 +1250,18 @@
     </plurals>
     <string name="ops_playing">▶️ Already playing; the rest is shuffled in as it arrives</string>
     <string name="ops_cancel">Cancel</string>
+    <string name="ops_cancel_all">Cancel all</string>
+    <plurals name="ops_group">
+        <item quantity="one">%1$s · %2$d item</item>
+        <item quantity="other">%1$s · %2$d items</item>
+    </plurals>
+    <string name="ops_group_show">⌄ Show them</string>
+    <string name="ops_group_hide">⌃ Hide them</string>
+    <string name="ops_group_home">🏠 Downloading at home</string>
+    <string name="ops_group_torrents">🧲 Preparing torrents</string>
+    <string name="ops_group_downloads">⬇️ Downloading</string>
+    <string name="ops_group_asks">✨ Asking</string>
+    <string name="ops_group_tasks">⏳ Working</string>
     <string name="ops_cancel_what">Cancel %1$s</string>
     <plurals name="ops_done">
         <item quantity="one">✅ %2$s: 1 shuffled in</item>
