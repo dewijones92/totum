@@ -685,6 +685,3 @@ private suspend fun pulled(context: Context, container: AppContainer, groupId: S
         else -> resources.getString(R.string.queue_pull_nothing)
     }
 }
-
-internal fun collapsedGroupOf(entry: QueueEntry, isCollapsed: (String) -> Boolean): QueueGroup? =
-    entry.group?.takeIf { isCollapsed(it.id) }

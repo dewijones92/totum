@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.queue.QueueEntry
+import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.LocalSetPlayed
@@ -48,3 +50,6 @@ private fun startAgain(
         )
     }
 }
+
+internal fun collapsedGroupOf(entry: QueueEntry, isCollapsed: (String) -> Boolean): QueueGroup? =
+    entry.group?.takeIf { isCollapsed(it.id) }
