@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.TorrentIds
 import com.dewijones92.totum.domain.pictureOfFileName
 
 /**
@@ -27,7 +28,7 @@ import com.dewijones92.totum.domain.pictureOfFileName
 public object TorrentPlayables {
 
     /** The source id every torrent item shares, so they group and filter as one kind. */
-    public val SOURCE: SourceId = SourceId("torrent")
+    public val SOURCE: SourceId = TorrentIds.SOURCE
 
     /**
      * Every playable file, in broadcast order where that can be read.

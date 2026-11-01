@@ -117,4 +117,20 @@ class PlayingEntryAdoptsRoutesTest {
         assertEquals(1, entries.count { it.item.item.id == MediaItemId("torrent:abc:7") })
         assertEquals(MediaItemId("torrent:abc:7"), queue.state.value.current?.item?.item?.id)
     }
+
+    @Test
+    fun `an entry queued again keeps the sound-only route it had`() = runTest(dispatcher) {
+        val queue = queue()
+        val other = torrent(
+            PlayHandle.Podcast()
+        ).let { it.copy(item = it.item.copy(id = MediaItemId("torrent:abc:8"))) }
+        queue.playAll(listOf(other, torrent(PlayHandle.Podcast(audioUrl = audioUrl))))
+        advanceUntilIdle()
+
+        queue.playNext(torrent(PlayHandle.Podcast()))
+        queue.enqueue(torrent(PlayHandle.Podcast()))
+
+        val again = queue.state.value.entries.single { it.item.item.id == MediaItemId("torrent:abc:7") }
+        assertEquals(PlayHandle.Podcast(audioUrl = audioUrl), again.item.handle)
+    }
 }

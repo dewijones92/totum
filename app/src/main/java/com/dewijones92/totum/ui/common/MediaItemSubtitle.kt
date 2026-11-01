@@ -45,7 +45,7 @@ fun mediaItemFacts(
         // already knows it exactly (it hands the same value to `MediaItemRow` on the next line), and
         // `MediaItem.pillar` is documented as a guess for items that have no handle yet. Re-deriving
         // it here would put back the second rule that a Shorts URL once fell down the gap between.
-        authorEmoji = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL,
+        authorEmoji = shownAs(item, pillar).maker,
     )
 }
 
@@ -69,6 +69,7 @@ object FactEmoji {
     /** The maker — a TV for a channel, a mic for a podcast, so a mixed list tells you which. */
     const val CHANNEL: String = "📺"
     const val PODCAST: String = "🎙️"
+    const val TORRENT: String = "🧲"
 
     /**
      * The network or label behind a show, on its own line under the show's name. A label glyph

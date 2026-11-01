@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
@@ -35,6 +34,7 @@ import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
 import com.dewijones92.totum.ui.common.mediaDateText
 import com.dewijones92.totum.ui.common.mediaFacts
+import com.dewijones92.totum.ui.common.shownAs
 import kotlin.time.Duration
 
 /**
@@ -76,8 +76,7 @@ internal fun TitleBlock(state: PlaybackState) {
             )
         }
         PillarBadge(
-            state.kind,
-            music = state.contentKind == MediaContentKind.MUSIC,
+            shownAs(state.itemId, state.kind, state.contentKind),
             modifier = Modifier.padding(top = 6.dp),
         )
         ViewsAndDate(state)

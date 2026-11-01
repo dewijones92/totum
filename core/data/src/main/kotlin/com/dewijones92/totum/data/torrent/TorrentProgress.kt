@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.TorrentIds
 
 public object TorrentProgress {
 
@@ -85,5 +86,5 @@ public object TorrentProgress {
 
     private val BTIH = Regex("""btih:([0-9A-Fa-f]{40})""")
     private const val MS_PER_MINUTE = 60_000L
-    public const val ITEM_PREFIX: String = "torrent:"
+    public const val ITEM_PREFIX: String = TorrentIds.PREFIX
 }

@@ -10,8 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +42,7 @@ import com.dewijones92.totum.domain.isPermanent
  */
 @Composable
 internal fun MediaItemStatus(
-    pillar: MediaKind,
+    shown: Shown,
     playState: PlayState,
     downloadState: DownloadState,
     modifier: Modifier = Modifier,
@@ -56,8 +54,8 @@ internal fun MediaItemStatus(
         modifier = modifier,
     ) {
         StatusIcon(
-            icon = if (pillar == MediaKind.PODCAST) Icons.Filled.Podcasts else Icons.Filled.SmartDisplay,
-            descriptionRes = if (pillar == MediaKind.PODCAST) R.string.pillar_podcast else R.string.pillar_video,
+            icon = shown.icon,
+            descriptionRes = shown.label,
         )
         // Distinct from the trailing download button, which is the *action*: this says
         // "you have this offline" without also meaning "tap to delete it". A down-arrow

@@ -214,8 +214,8 @@ class PlaybackQueue(
     /** Adds to the end of the queue, moving it there if it is already queued. */
     fun enqueue(item: PlayableItem, group: QueueGroup? = null) {
         mutate("add-to-end") { snapshot ->
-            snapshot.relocating(item) { without ->
-                without.copy(entries = without.entries + QueueEntry(item, group))
+            snapshot.relocating(item) { without, kept ->
+                without.copy(entries = without.entries + QueueEntry(kept, group))
             }
         }
         mirroring.mirror(item)
@@ -224,8 +224,8 @@ class PlaybackQueue(
     /** Inserts so it plays immediately after the current entry, moving it if already queued. */
     fun playNext(item: PlayableItem, group: QueueGroup? = null) {
         mutate("play-next") { snapshot ->
-            snapshot.relocating(item) { without ->
-                without.inserted(listOf(QueueEntry(item, group)))
+            snapshot.relocating(item) { without, kept ->
+                without.inserted(listOf(QueueEntry(kept, group)))
             }
         }
         mirroring.mirror(item)
@@ -256,7 +256,7 @@ class PlaybackQueue(
         mutate("play-next x${items.size}") { snapshot ->
             if (snapshot.anchor != null && items.any { it.item.id == snapshot.anchor }) {
                 items.asReversed().fold(snapshot) { acc, item ->
-                    acc.relocating(item) { without -> without.inserted(listOf(QueueEntry(item, null))) }
+                    acc.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, null))) }
                 }
             } else {
                 snapshot.insertingAllNext(items)
@@ -1118,10 +1118,20 @@ private fun QueueSnapshot.deduplicated(): QueueSnapshot {
  */
 private fun QueueSnapshot.relocating(
     item: PlayableItem,
-    place: (QueueSnapshot) -> QueueSnapshot,
+    place: (QueueSnapshot, PlayableItem) -> QueueSnapshot,
 ): QueueSnapshot {
     if (current?.item?.item?.id == item.item.id) return adoptingRoutesFrom(listOf(item))
-    return place(removing { it.item.item.id == item.item.id })
+    val earlier = entries.firstOrNull { it.item.item.id == item.item.id }?.item
+    val kept = earlier?.let { old ->
+        PlayableItem(item.item.fillingSilenceFrom(old.item), old.handle.mergedWith(item.handle))
+    } ?: item
+    if (earlier != null && kept != item) {
+        Diag.log(
+            "queue",
+            "${item.item.id.value} queued again; kept what its row knew: ${kept.handle}"
+        )
+    }
+    return place(removing { it.item.item.id == item.item.id }, kept)
 }
 
 private fun QueueSnapshot.appendingAll(items: List<PlayableItem>, group: QueueGroup?): QueueSnapshot {

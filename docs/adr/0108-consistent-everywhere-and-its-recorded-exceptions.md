@@ -39,6 +39,17 @@ item entering the queue with no date is logged with its source (`[facts]`), so t
 The 🏠 At home rows became the shared item row (poster, menu, play), with 📥 Copy to the phone now, and say "stays
 there until you copy it" when they will not copy by themselves.
 
+Also fixed on 2026-11-01 (the overnight consistency batch):
+
+- **Torrents are shown as torrents**, not podcasts: one rule (`isTorrent` in `:core:domain`, `Shown` in the app)
+  decides the maker line (🧲 and the torrent's name), the row's status icon, the player's badge and the mini player's
+  glyph. A torrent still plays through the podcast handle; only what is shown changed.
+- **Queuing an entry again keeps what its row knew**: its sound-only route (a torrent's audio playlist) and its
+  learned facts, not only for the playing entry.
+- **One clock parser** (`ClockText` in `:lib:common`) for YouTube durations, RSS durations and chapter times.
+- **An episode with neither guid nor enclosure is identified by its title and date**, not by its position, which
+  moved whenever the show published.
+
 Recorded exceptions (kept on purpose):
 
 - **Search results have no sort sheet**: they are ranked by relevance.
@@ -60,10 +71,8 @@ Decided, not yet built (next consistency batch):
   covers today and which must not fill the strip.
 - D4 recent searches as chips everywhere (Search's list becomes chips, long-press removes one).
 - D6 a sort sheet on every list of items (history, notifications, playlists, music pages, group pages).
-- The audit's remaining items: torrent films labelled 🎙️ Podcast; re-queuing a torrent file drops its sound-only
-  stream; stored queue/history rows lose show notes and chapters (a schema bump); private page spinners into the
-  strip; six empty-state looks; three search-field designs; two clock-duration parsers; a podcast episode with no
-  guid is identified by its position.
+- The audit's remaining items: stored queue/history rows lose show notes and chapters (a schema bump); private page
+  spinners into the strip; six empty-state looks; three search-field designs.
 
 ## Consequences
 

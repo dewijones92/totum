@@ -74,8 +74,7 @@ class DefaultPodcastRepositoryTest {
         assertEquals("ep-2-guid", stored.second[0].id.value)
         // No guid -> enclosure URL becomes the stable id.
         assertEquals("https://cdn.example.com/ep1.mp3", stored.second[1].id.value)
-        // No guid or enclosure -> positional fallback.
-        assertEquals("${feedUrl.value}#2", stored.second[2].id.value)
+        assertEquals("${feedUrl.value}#Broken metadata episode", stored.second[2].id.value)
         assertEquals("https://cdn.example.com/ep2.mp3", stored.second[0].mediaUrl?.value)
         // The SHOW owns the maker line on every episode, whether or not the episode names an
         // author of its own; the episode's author becomes the publisher beside it. This read

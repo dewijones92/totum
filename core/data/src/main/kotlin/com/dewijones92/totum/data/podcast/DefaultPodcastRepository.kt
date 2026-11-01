@@ -102,7 +102,7 @@ public class DefaultPodcastRepository(
             val decisions = mutableListOf<PublisherChoice>()
             val items = parsed.episodes.mapIndexed { index, episode ->
                 val chapters = if (remoteChapters) resolveChapters(episode, index) else episode.chapters
-                episode.toMediaItem(source, index, parsed, chapters, decisions)
+                episode.toMediaItem(source, parsed, chapters, decisions)
             }
             Diag.log("podcast", parsed.namingDecision(decisions))
             Loaded.Feed(source, items)
@@ -207,7 +207,6 @@ public class DefaultPodcastRepository(
      */
     private fun ParsedEpisode.toMediaItem(
         source: MediaSource.PodcastFeed,
-        index: Int,
         feed: ParsedFeed,
         chapters: List<Chapter>,
         /**
@@ -222,8 +221,10 @@ public class DefaultPodcastRepository(
          */
         decisions: MutableList<PublisherChoice>,
     ) = MediaItem(
-        // Stable per feed: guid, else enclosure, else position — in that order of trust.
-        id = MediaItemId(guid ?: enclosureUrl ?: "${source.feedUrl.value}#$index"),
+        // Stable per feed: guid, else enclosure, else its title and date — in that order of trust.
+        id = MediaItemId(
+            guid ?: enclosureUrl ?: "${source.feedUrl.value}#$title${publishedAt?.let { "@$it" }.orEmpty()}"
+        ),
         sourceId = source.id,
         title = title,
         publishedAt = publishedAt,
