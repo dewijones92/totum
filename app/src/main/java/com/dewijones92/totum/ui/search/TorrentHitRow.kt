@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.search
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +47,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
  * a result with no seeders never plays however good its name looks. Tapping queues everything
  * playable inside it, which for a season pack is the whole season.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun TorrentHitRow(
     hit: SearchHit.Torrent,
@@ -56,6 +58,7 @@ internal fun TorrentHitRow(
     val casting = LocalScreenControl.current?.castDevice?.collectAsStateWithLifecycle()?.value
     val soundOnly = casting?.let { soundOnlyOnTheTvByName(hit.title) }
     val progress = LocalTorrentProgress.current(hit)
+    val menu = LocalTorrentMenu.current
     val homeJobs = LocalHomeJobs.current.value
     val local = LocalDownloadStates.current.value
     val atHome = remember(hit, homeJobs, local) {
@@ -80,11 +83,13 @@ internal fun TorrentHitRow(
         },
         leadingContent = { TorrentPoster(hit) },
         trailingContent = { TorrentActions(atHome, onDownload) },
-        modifier = modifier.clickable(onClick = onPlay),
+        modifier = modifier.combinedClickable(onClick = onPlay, onLongClick = menu?.let { open -> { open(hit) } }),
     )
 }
 
 internal val LocalTorrentProgress = compositionLocalOf<(SearchHit.Torrent) -> List<String>> { { emptyList() } }
+
+internal val LocalTorrentMenu = compositionLocalOf<((SearchHit.Torrent) -> Unit)?> { null }
 
 @Composable
 private fun torrentHomeWords(atHome: TorrentAtHome): String = when (atHome) {

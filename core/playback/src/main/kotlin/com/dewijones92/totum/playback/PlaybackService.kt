@@ -369,6 +369,8 @@ public class PlaybackService : MediaSessionService() {
                     speechWeights = silenceCutter.speechWeights
                 }
             },
+            newBooster = { BoostingAudioProcessor { BundledSpeechModel.get(this) } },
+            gate = { booster.speechGate },
             host = host,
             tvs = castStatus,
         )

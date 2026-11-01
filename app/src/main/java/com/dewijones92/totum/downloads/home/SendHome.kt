@@ -9,6 +9,8 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.placeholderFor
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.sharedWatchUrl
@@ -33,6 +35,7 @@ class SendHome(
     private val torrents: () -> HomeTorrentServer?,
     private val describe: suspend (HttpUrl) -> MediaItem?,
     private val choice: () -> DownloadChoice?,
+    private val operations: Operations? = null,
 ) {
     suspend fun send(text: String?): Sent {
         val shared = text.orEmpty()
@@ -52,7 +55,9 @@ class SendHome(
 
     private suspend fun torrent(magnet: String): Sent {
         val server = torrents() ?: return refused(NotSent.NO_TORRENTS, magnet)
-        val prepared = server.prepare(TorrentLink.Magnet(magnet)) ?: return refused(NotSent.NOT_PREPARED, magnet)
+        val prepared = operations.showing("send-home:${magnet.hashCode()}", "🏠 Preparing a shared torrent at home") {
+            server.prepare(TorrentLink.Magnet(magnet))
+        } ?: return refused(NotSent.NOT_PREPARED, magnet)
         val files = TorrentPlayables.queueItems(server, prepared)
         if (files.isEmpty()) return refused(NotSent.NOTHING_PLAYABLE, magnet)
         Diag.log("home", "shared magnet to send home: \"${prepared.name}\", ${files.size} playable file(s)")

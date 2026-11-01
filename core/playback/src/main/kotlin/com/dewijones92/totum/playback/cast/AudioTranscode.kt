@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.MediaExtractorCompat
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
+import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -51,11 +52,12 @@ internal class AudioTranscode(
     private val boost: () -> VolumeBoost,
     private val sink: TranscodeSink,
     private val cutter: SilenceCuttingAudioProcessor?,
+    private val booster: BoostingAudioProcessor = BoostingAudioProcessor(),
+    private val gate: () -> SpeechGate = { SpeechGate.OFF },
 ) {
     private val info = MediaCodec.BufferInfo()
     private val pending = ArrayDeque<ByteBuffer>()
     private val frames = ArrayList<ByteArray>()
-    private val booster = BoostingAudioProcessor()
     private val chain: List<AudioProcessor> = listOfNotNull(cutter, booster)
     private var tvSamples = 0L
     private var decoder: MediaCodec? = null
@@ -126,6 +128,7 @@ internal class AudioTranscode(
             start()
         }
         booster.level = boost()
+        booster.speechGate = gate()
         cutter?.enabled = true
         chain.forEach {
             it.configure(AudioProcessor.AudioFormat(plan.format.sampleRate, plan.format.channels, C.ENCODING_PCM_16BIT))
@@ -197,6 +200,11 @@ internal class AudioTranscode(
         if (booster.level != wanted) {
             Diag.log("cast", "audio ${plan.label} boost $wanted from segment $segment")
             booster.level = wanted
+        }
+        val gated = gate()
+        if (booster.speechGate != gated) {
+            Diag.log("cast", "audio ${plan.label} speech gate $gated from segment $segment")
+            booster.speechGate = gated
         }
         var buffer = pcm
         timed(PROCESS) {

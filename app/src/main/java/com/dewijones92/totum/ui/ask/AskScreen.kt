@@ -63,12 +63,14 @@ import com.dewijones92.totum.ui.common.rememberRecentSearches
 import com.dewijones92.totum.ui.music.AlbumRow
 import com.dewijones92.totum.ui.music.ArtistRow
 import com.dewijones92.totum.ui.search.BookHitRow
+import com.dewijones92.totum.ui.search.LocalTorrentMenu
 import com.dewijones92.totum.ui.search.LocalTorrentProgress
 import com.dewijones92.totum.ui.search.PodcastHitRow
 import com.dewijones92.totum.ui.search.SearchScope
 import com.dewijones92.totum.ui.search.SearchViewModel
 import com.dewijones92.totum.ui.search.SongHitRow
 import com.dewijones92.totum.ui.search.TorrentHitRow
+import com.dewijones92.totum.ui.search.TorrentMenuSheet
 import com.dewijones92.totum.ui.search.VideoHitRow
 import com.dewijones92.totum.ui.search.rememberTorrentProgress
 
@@ -91,7 +93,11 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
         search.search(card.suggestion.searchWords)
         openSearch?.invoke()
     }
-    CompositionLocalProvider(LocalTorrentProgress provides rememberTorrentProgress(search)) {
+    TorrentMenuSheet(search, container)
+    CompositionLocalProvider(
+        LocalTorrentProgress provides rememberTorrentProgress(search),
+        LocalTorrentMenu provides search::openTorrentMenu,
+    ) {
         Column(modifier.fillMaxSize().testTag(ASK_SCREEN_TAG)) {
             AskHeader(state, onBack, viewModel::startOver)
             if (!state.available) {

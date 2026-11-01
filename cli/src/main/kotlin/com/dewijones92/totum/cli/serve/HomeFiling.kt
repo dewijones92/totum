@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
+import com.dewijones92.totum.cli.serve.filing.YOUTUBE_FROM
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadRecord
 import com.dewijones92.totum.data.download.JsonDownloadStore
@@ -60,7 +61,7 @@ internal class HomeFiling(
             if (!fresh || !tried.add(item.item.id.value)) return@forEach
             val file = File(done.localPath)
             val name = if (torrent) torrentFileName(item) else "${item.item.title}.${file.extension}"
-            val from = if (torrent) item.item.author else "YouTube channel: ${item.item.author ?: "unknown"}"
+            val from = if (torrent) item.item.author else "$YOUTUBE_FROM ${item.item.author ?: "unknown"}"
             scope.launch {
                 filing.withLock {
                     val outcome = filer.file(file, name, from)

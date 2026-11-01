@@ -23,11 +23,14 @@ quiet voice down, and lifting a quiet voice lifts the music under it too. The Si
 - **A setting with three ways** (`SpeechGate`, Settings → 🗣️ Speech-aware boost): 🔊 As before (OFF); 📏 Measure
   speech only (MEASURE: the boost learns the level from frames the detector calls speech, and lifts everything by it);
   🗣️ Lift speech only (LIFT: the same level, applied only while the detector says speech, at most +20 dB, moving at
-  Even out's quick rates; music and noise stay at 1×). It applies to Auto and Even out; Off and music stay untouched.
+  Even out's quick rates; music and noise stay at 1× apart from the detector's lag). It applies to Auto and Even out; Off and music stay untouched.
 - **The detector runs beside the boost**: `BoostingAudioProcessor` feeds its own `SpeechTrack` on the background
   speech thread (the same one smart cutting uses) once the bundled model has loaded; `LoudnessBoost` keeps up to two
   seconds of magnitudes waiting for their verdicts, so the measurement uses only frames judged speech, and LIFT
-  follows the latest verdict. No model yet, or no verdict: it boosts as before. A seek starts a new track.
+  follows the latest verdict. No model yet: it boosts as before. Before the first verdicts (a few hundred ms after a start), MEASURE has not
+  learnt a level and LIFT holds 1×; after a seek a new track starts but LIFT keeps its last verdict until the new ones
+  arrive, so a voice stays lifted through a seek. LIFT also lingers for about the detector's lag after speech ends.
+  Casting carries the same gate (the TV's audio is processed by the phone).
 - **💬 Feedback per way** in the same settings: a short text sent as a diagnostics report whose note begins
   "💬 Feedback on the speech boost …", so it reaches the crash-log sink and is triaged like any report.
 - **Logged for reports**: every minute while a gate is on, the boost line says the gate, whether it is speaking, the

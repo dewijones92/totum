@@ -84,6 +84,36 @@ class SpeechBoostTest {
     }
 
     @Test
+    fun `a seek in the middle of speech keeps the voice lifted while the detector catches up`() {
+        val voice = tone(QUIET_SPEECH, 6f, 200f)
+        var fed = 0L
+        var verdictsFrom = 0L
+        val boost = LoudnessBoost(rate).apply {
+            level = VolumeBoost.AUTO
+            speechGate = SpeechGate.LIFT
+            speech = { frame -> if (frame >= verdictsFrom && frame <= fed - LAG) true else null }
+        }
+        val out = ArrayList<Short>()
+        var at = 0
+        val seekAt = rate * 4
+        while (at < voice.size) {
+            val end = minOf(voice.size, at + CHUNK)
+            if (at < seekAt && end >= seekAt) {
+                boost.forgetSpeech()
+                fed = 0
+                verdictsFrom = 0
+            }
+            fed += end - at
+            val result = boost.process(voice.copyOfRange(at, end), end - at)
+            for (i in 0 until boost.outputSamples) out += result[i]
+            at = end
+        }
+        val shorts = out.toShortArray()
+        val justAfter = shorts.rms(4.05f, 4.2f) / voice.rms(4.05f, 4.2f)
+        assertTrue("just after the seek the voice came out at ${"%.1f".format(justAfter)}x", justAfter > 6)
+    }
+
+    @Test
     fun `with no speech model it boosts as it does today`() {
         val today = run(SpeechGate.OFF)
         val noModel = run(SpeechGate.LIFT, detector = false)
@@ -102,5 +132,6 @@ class SpeechBoostTest {
         const val LOUD_MUSIC = 0.3f
         const val QUIET_SPEECH = 0.01f
         const val CHUNK = 1_024
+        const val LAG = 8_000L
     }
 }

@@ -251,15 +251,16 @@ class PlaybackQueue(
         return fresh.size
     }
 
-    fun playNextAll(items: List<PlayableItem>) {
+    fun playNextAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
-        mutate("play-next x${items.size}") { snapshot ->
+        val label = group?.let { " as \"${it.title}\"" }.orEmpty()
+        mutate("play-next x${items.size}$label") { snapshot ->
             if (snapshot.anchor != null && items.any { it.item.id == snapshot.anchor }) {
                 items.asReversed().fold(snapshot) { acc, item ->
-                    acc.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, null))) }
+                    acc.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, group))) }
                 }
             } else {
-                snapshot.insertingAllNext(items)
+                snapshot.insertingAllNext(items, group)
             }
         }
         mirroring.mirrorAll(items)
@@ -1148,14 +1149,14 @@ private fun QueueSnapshot.appendingAll(items: List<PlayableItem>, group: QueueGr
     return without.copy(entries = without.entries + incoming.map { QueueEntry(it, group) })
 }
 
-private fun QueueSnapshot.insertingAllNext(items: List<PlayableItem>): QueueSnapshot {
+private fun QueueSnapshot.insertingAllNext(items: List<PlayableItem>, group: QueueGroup? = null): QueueSnapshot {
     val playingId = current?.item?.item?.id
     val adopted = items.asReversed().filter { it.item.id == playingId }
         .fold(this) { acc, item -> acc.adoptingRoutesFrom(listOf(item)) }
     val seen = HashSet<MediaItemId>()
     val incoming = items.filter { it.item.id != playingId && seen.add(it.item.id) }
     if (incoming.isEmpty()) return adopted
-    return adopted.removing { it.item.item.id in seen }.inserted(incoming.map { QueueEntry(it, null) })
+    return adopted.removing { it.item.item.id in seen }.inserted(incoming.map { QueueEntry(it, group) })
 }
 
 /**

@@ -27,11 +27,12 @@ class SendHomeActivity : Activity() {
             { container.homeTorrentServer },
             { url -> container.videoPlaybackLauncher.describe(url, SOURCE) },
             { container.appPreferences.settings.value.downloadChoice },
+            container.operations,
         )
         Toast.makeText(app, R.string.send_home_sending, Toast.LENGTH_SHORT).show()
         container.applicationScope.launch {
             val words = when (val sent = sender.send(text)) {
-                is Sent.Video -> app.getString(R.string.home_notice_started, sent.title)
+                is Sent.Video -> app.getString(R.string.send_home_asked, sent.title)
                 is Sent.Torrent -> app.resources.getQuantityString(
                     R.plurals.send_home_torrent,
                     sent.files,

@@ -174,6 +174,39 @@ class SearchViewModel(
 
     private val playAttempt = MutableStateFlow(PlayAttempt())
 
+    data class TorrentMenu(val title: String, val group: QueueGroup, val items: List<PlayableItem>)
+
+    private val menu = MutableStateFlow<TorrentMenu?>(null)
+    val torrentMenu: StateFlow<TorrentMenu?> = menu
+
+    fun openTorrentMenu(hit: SearchHit.Torrent) {
+        val server = torrents?.server ?: return
+        Diag.log("search", "long-pressed \"${hit.title}\": preparing it at home for its menu")
+        viewModelScope.launch {
+            val (prepared, items) = prepareTracked(server, hit)
+            if (prepared == null || items.isEmpty()) {
+                Diag.warn("search", "\"${hit.title}\": nothing playable, so no menu")
+                playAttempt.value = PlayAttempt(failed = true)
+                return@launch
+            }
+            Diag.log("search", "\"${hit.title}\": menu for ${items.size} file(s)")
+            menu.value = TorrentMenu(prepared.name, QueueGroup(id = prepared.hash, title = prepared.name), items)
+        }
+    }
+
+    fun closeTorrentMenu() {
+        menu.value = null
+    }
+
+    fun queueTorrent(next: Boolean) {
+        val chosen = menu.value ?: return
+        Diag.log(
+            "search",
+            "\"${chosen.title}\": ${chosen.items.size} file(s) ${if (next) "played next" else "added to the queue"}"
+        )
+        if (next) queue.playNextAll(chosen.items, chosen.group) else queue.enqueueAll(chosen.items, chosen.group)
+    }
+
     private data class PlayAttempt(val resolving: String? = null, val failed: Boolean = false)
 
     /** The current query text; every keystroke and explicit submit sets it. */

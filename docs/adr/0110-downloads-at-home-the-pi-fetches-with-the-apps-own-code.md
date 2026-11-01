@@ -52,11 +52,14 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
 - **🏠 Also at home / 🏠 Move to home** (2026-11-01, docs/todos/move-to-home.md): any download on the phone that is
   not at home offers both in its menu; home fetches it itself in the phone copy's variant (sound or video). A move
   deletes the phone copy once home reports it ready, through "delete on the phone only", so it is kept at home and
-  not copied back; a refused or failed job keeps the phone copy (`HomeDownloads.sendFromPhone`, a "moving" id set kept
+  not copied back; a refused, failed or cancelled job, a later copy request, or a move left from an earlier run keeps
+  the phone copy; a 🔒 locked download offers only the copy (`HomeDownloads.sendFromPhone`, a "moving" id set kept
   in prefs).
 - **🏠 Keep the next N at home** (2026-11-01): a queue group's ⋮ offers "Keep the next 2 / 5 at home"; the next N
   unplayed members after what is playing (from the group's start when it is not playing) are sent home with the
-  remembered choice, and topped up as you move on (`HomeAhead`, `aheadFor`). Fetch ahead only, nothing is deleted;
+  remembered choice, and topped up as you move on (`HomeAhead`, `aheadFor`), counted from the queue's place (its
+  anchor when nothing plays). Nothing is sent until home's list has been read; an item that was at home and went
+  (cancelled there) is not sent again; a send that never arrives is tried again after 30 minutes. Fetch ahead only, nothing is deleted;
   members already at home or on the phone count towards N. The choice is kept per group id, so the 📥 New group and a
   shuffled channel's group keep fetching their new uploads at home as `NewUploads` adds them (the "overnight prefetch"
   idea: its worker runs every 2 h on Wi-Fi, and the phone copies on Wi-Fi as usual).

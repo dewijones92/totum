@@ -46,7 +46,9 @@ public class FileAskChats(private val file: File) : AskChatStore {
     override fun save(chats: List<SavedChat>) {
         runCatching {
             file.parentFile?.mkdirs()
-            file.writeText(AskJson.encodeToString(serializer, chats))
+            val next = File(file.path + ".next")
+            next.writeText(AskJson.encodeToString(serializer, chats))
+            check(next.renameTo(file)) { "could not replace ${file.name}" }
         }.onFailure { Diag.warn("ask", "chats not saved: $it") }
     }
 }

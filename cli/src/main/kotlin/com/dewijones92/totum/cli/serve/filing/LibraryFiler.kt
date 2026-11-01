@@ -61,8 +61,16 @@ class LibraryFiler(
             Diag.warn("filing", "the brain's plan for \"${request.name}\" was refused ($refused); filing by rules")
             this.refused("plan for \"${request.name}\" refused: $refused")
         }
-        return asked?.takeIf { refused == null }?.let { PlanCheck.snapped(it, library) }
-            ?: Filing.byRules(request.name, library, request.from)
+        val accepted = asked?.takeIf { refused == null }?.let { PlanCheck.snapped(it, library) }
+        if (accepted != null) return accepted
+        if (request.from.orEmpty().startsWith(YOUTUBE_FROM)) {
+            Diag.log(
+                "filing",
+                "\"${request.name}\" is from YouTube and has no accepted plan: left, never filed by rules"
+            )
+            return FilePlan(FilePlan.Action.LEAVE, "", "", request.name, "no plan from the brain for a YouTube video")
+        }
+        return Filing.byRules(request.name, library, request.from)
     }
 
     private fun left(name: String, why: String): Outcome {
@@ -77,3 +85,5 @@ class LibraryFiler(
         return generateSequence(2) { it + 1 }.map { File(wanted.parentFile, "$base ($it).$ext") }.first { !it.exists() }
     }
 }
+
+internal const val YOUTUBE_FROM = "YouTube channel:"

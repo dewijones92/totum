@@ -206,6 +206,34 @@ class HomeDownloadsTest {
     }
 
     @Test
+    fun `a move cancelled at home is forgotten, so a later copy never deletes the phone copy`() = runTest {
+        val moving = InMemoryKeptAtHome()
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { false }, { true }, InMemoryKeptAtHome(), moving),
+            local,
+            Operations(),
+            notices,
+            this,
+            Pacing(pollMs = 1),
+        )
+        local.place(DownloadedMedia(video, "/phone/a.mkv", audioOnly = false))
+        home.sendFromPhone(video.item.id, move = true)
+        advanceUntilIdle()
+        api.listed = listOf(job(HomeJobState.WAITING))
+        home.refresh("waiting")
+        api.listed = emptyList()
+        home.refresh("cancelled at home")
+        home.sendFromPhone(video.item.id, move = false)
+        advanceUntilIdle()
+        api.listed = listOf(job(HomeJobState.DONE))
+        home.refresh("done")
+        advanceUntilIdle()
+        assertEquals("the copy stays on the phone", 1, local.observeDownloaded().first().size)
+        assertTrue(moving.ids.value.isEmpty())
+    }
+
+    @Test
     fun `kept at home is not copied back, copy now copies anywhere, the setting stops copying`() = runTest {
         val kept = InMemoryKeptAtHome()
         var copyOnWifi = true

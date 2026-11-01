@@ -12,6 +12,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.domain.pictureAt
+import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
@@ -19,6 +20,7 @@ import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
 import com.dewijones92.totum.playback.EXTRA_VIDEO_LADDER
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
+import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
 import java.io.File
 import java.security.SecureRandom
@@ -32,6 +34,8 @@ internal class CastStreams(
     private val boost: () -> VolumeBoost,
     private val skipSilence: () -> Boolean,
     private val newCutter: () -> SilenceCuttingAudioProcessor,
+    private val newBooster: () -> BoostingAudioProcessor = { BoostingAudioProcessor() },
+    private val gate: () -> SpeechGate = { SpeechGate.OFF },
     private val host: CastHost,
     private val tvs: CastTvPort,
 ) {
@@ -72,7 +76,15 @@ internal class CastStreams(
         )
 
         val cuts = videoUrl == null && (itemSkipsSilence(item) ?: skipSilence())
-        val audio = ProcessedAudio(context, audioSource, boost, "${item.mediaId}/$token", newCutter.takeIf { cuts })
+        val audio = ProcessedAudio(
+            context,
+            audioSource,
+            boost,
+            "${item.mediaId}/$token",
+            newCutter.takeIf { cuts },
+            newBooster,
+            gate,
+        )
         val subtitles = if (cuts) {
             emptyList()
         } else {

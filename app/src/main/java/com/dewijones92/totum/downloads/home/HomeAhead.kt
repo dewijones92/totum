@@ -24,8 +24,9 @@ fun aheadFor(
     finished: (PlayableItem) -> Boolean,
 ): List<PlayableItem> = keep.flatMap { (groupId, count) ->
     val members = snapshot.entries.withIndex().filter { it.value.group?.id == groupId }
-    val playingHere = snapshot.current?.group?.id == groupId
-    val from = if (playingHere) snapshot.currentIndex + 1 else 0
+    val place = snapshot.place
+    val playingHere = snapshot.entries.getOrNull(place)?.group?.id == groupId
+    val from = if (playingHere) place + 1 else 0
     members.asSequence()
         .filter { it.index >= from }
         .map { it.value.item }
@@ -39,10 +40,13 @@ class HomeAhead(
     private val file: File?,
     private val scope: CoroutineScope,
     private val io: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val mutableKeep = MutableStateFlow(load())
     val keep: StateFlow<Map<String, Int>> = mutableKeep.asStateFlow()
-    private val asked = mutableSetOf<MediaItemId>()
+    private val asked = mutableMapOf<MediaItemId, Long>()
+    private val beenHome = mutableSetOf<MediaItemId>()
+    private var saidWaiting = false
 
     fun choose(groupId: String, count: Int?, why: String) {
         Diag.log(TAG, "group $groupId keeps ${count ?: "nothing"} ahead at home ($why)")
@@ -52,16 +56,17 @@ class HomeAhead(
 
     fun start(
         queue: StateFlow<QueueSnapshot>,
-        present: Flow<Set<MediaItemId>>,
+        present: Flow<Set<MediaItemId>?>,
         finished: (PlayableItem) -> Boolean,
         send: (PlayableItem) -> Unit,
     ) {
         scope.launch {
             combine(queue, keep, present) { snapshot, keep, there -> Triple(snapshot, keep, there) }
-                .collect { (snapshot, keep, there) ->
-                    asked.retainAll { it !in there }
+                .collect { (snapshot, keep, known) ->
                     if (keep.isEmpty()) return@collect
-                    val wanted = aheadFor(snapshot, keep, { it in there || it in asked }, finished)
+                    val there = known ?: return@collect waiting()
+                    beenHome += there
+                    val wanted = aheadFor(snapshot, keep, { it in beenHome || recentlyAsked(it) }, finished)
                     if (wanted.isNotEmpty()) {
                         Diag.log(
                             TAG,
@@ -69,11 +74,19 @@ class HomeAhead(
                         )
                     }
                     wanted.forEach {
-                        asked += it.item.id
+                        asked[it.item.id] = now()
                         send(it)
                     }
                 }
         }
+    }
+
+    private fun recentlyAsked(id: MediaItemId): Boolean = asked[id]?.let { now() - it < RETRY_MS } == true
+
+    private fun waiting() {
+        if (saidWaiting) return
+        saidWaiting = true
+        Diag.log(TAG, "keeping groups ahead at home waits for home's list of downloads")
     }
 
     private fun load(): Map<String, Int> = runCatching {
@@ -103,5 +116,6 @@ class HomeAhead(
 
     private companion object {
         const val TAG = "home"
+        const val RETRY_MS = 30 * 60_000L
     }
 }

@@ -42,7 +42,8 @@ release folders. Jellyfin has online metadata off, so the names are all it has.
   longer where it says but is in the download folder is pointed at it (the mount change moved every path).
 - **Jellyfin is told**: `POST /Library/Media/Updated` with the file's path as Jellyfin sees it (`/data/movies`,
   `/data/tvshows`), falling back to a full `/Library/Refresh`; the key is an API key named "Totum" in `fetch.env`.
-- Only torrents, only video files, and never a sound-only copy; YouTube and podcast downloads stay in `totum/`.
+- Only torrents, only video files, and never a sound-only copy; podcast downloads stay in `totum/` (YouTube videos
+  are filed too since 2026-11-01, below).
 - **Subtitles inside the file become `.srt` files beside it** (2026-11-01, Dewi: *"Jellyfin … only supports subtitles if
   it's not within the actual file … extract it … to a separate SRT file in the same directory"*), before Jellyfin is
   told, by `SidecarMaker` with ffprobe and ffmpeg, not by Haiku (it is mechanical): English text tracks (an untagged one
@@ -57,7 +58,8 @@ release folders. Jellyfin has online metadata off, so the names are all it has.
   that finishes at home is offered to the filer under its title, "from" its YouTube channel. Haiku files it only when it
   is a whole film or a whole TV episode (an SxxEyy code or "full episode" in the name; an episode with no code has its
   season and number found by a web search, or is left); clips, compilations, vlogs and essays stay in Totum's folder.
-  A new show always gets a "Season NN" folder. `totum file-check <listing> --try="<name>|<from>"` plans a new file
+  A new show always gets a "Season NN" folder. A YouTube video is never filed by rules: with no accepted plan (Haiku
+  unavailable, not signed in, or its plan refused) it is left where it is, because the rules would call a vlog a film. `totum file-check <listing> --try="<name>|<from>"` plans a new file
   against the real library without moving anything. Dry runs (3 rounds, 15 names against the 5,133-entry library):
   round 1 filed a new show with and without a season folder; round 2 left "Peep Show S01E01 … from Channel 4 Comedy" as
   a possible clip and numbered Muddy Puddles from memory; round 3, all five right (Peep Show and Peppa episodes into

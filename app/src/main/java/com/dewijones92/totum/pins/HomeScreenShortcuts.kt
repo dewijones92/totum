@@ -16,6 +16,7 @@ import coil3.toBitmap
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.ui.common.kindWords
 
 class HomeScreenShortcuts(private val context: Context) {
 
@@ -51,10 +52,15 @@ class HomeScreenShortcuts(private val context: Context) {
         )
     }
 
+    private fun labelOf(pin: Pin, lockOnOpen: Boolean): String {
+        val kind = context.getString(pin.kindWords()).substringBefore(' ')
+        return (if (lockOnOpen) LOCK_MARK else "") + "$kind ${pin.title}"
+    }
+
     private fun shortcut(pin: Pin, art: Bitmap?, lockOnOpen: Boolean = false): ShortcutInfoCompat =
         ShortcutInfoCompat.Builder(context, if (lockOnOpen) "${pin.key}$LOCKED_SUFFIX" else pin.key)
-            .setShortLabel((if (lockOnOpen) "$LOCK_MARK${pin.title}" else pin.title).take(SHORT_LABEL))
-            .setLongLabel((if (lockOnOpen) "$LOCK_MARK${pin.title}" else pin.title).take(LONG_LABEL))
+            .setShortLabel(labelOf(pin, lockOnOpen).take(SHORT_LABEL))
+            .setLongLabel(labelOf(pin, lockOnOpen).take(LONG_LABEL))
             .setIcon(
                 art?.let(IconCompat::createWithBitmap) ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher)
             )

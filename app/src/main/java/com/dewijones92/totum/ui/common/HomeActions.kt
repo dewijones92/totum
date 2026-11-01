@@ -27,7 +27,12 @@ internal fun HomeDownloadActions(id: MediaItemId?, onDismiss: () -> Unit) {
             R.string.home_copy_to_home,
             onDismiss
         )
-        SheetAction({ home.sendFromPhone(id, move = true) }, Icons.Outlined.Home, R.string.home_move_to_home, onDismiss)
+        SheetAction(
+            { home.sendFromPhone(id, move = true) }.takeIf { !isDownloadLocked(id) },
+            Icons.Outlined.Home,
+            R.string.home_move_to_home,
+            onDismiss,
+        )
         return
     }
     val job = anyJob?.takeIf { it.state == HomeJobState.DONE } ?: return

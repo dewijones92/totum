@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,10 +67,53 @@ class HomeAheadTest {
     }
 
     @Test
+    fun `with nothing playing it counts from the queue's place, not the group's top`() {
+        val snapshot = QueueSnapshot(queue, currentIndex = -1, anchor = MediaItemId("e2"))
+        assertEquals(listOf("e3", "e4"), ids(aheadFor(snapshot, mapOf(show.id to 2), { false }, { false })))
+    }
+
+    @Test
+    fun `nothing is sent before home's list has been read, and nothing already there is sent then`() = runTest {
+        val sent = mutableListOf<String>()
+        val snapshot = MutableStateFlow(QueueSnapshot(queue, currentIndex = 0))
+        val there = MutableStateFlow<Set<MediaItemId>?>(null)
+        val ahead = HomeAhead(null, backgroundScope)
+        ahead.choose(show.id, 2, "test")
+        ahead.start(snapshot, there, { false }) { sent += it.item.id.value }
+        runCurrent()
+        assertTrue("sent before home was read: $sent", sent.isEmpty())
+        there.value = setOf(MediaItemId("e2"), MediaItemId("e3"))
+        runCurrent()
+        assertTrue(sent.isEmpty())
+    }
+
+    @Test
+    fun `an item cancelled at home is not sent again, and a refused send is tried again later`() = runTest {
+        val sent = mutableListOf<String>()
+        var clock = 0L
+        val snapshot = MutableStateFlow(QueueSnapshot(queue, currentIndex = 0))
+        val there = MutableStateFlow<Set<MediaItemId>?>(setOf(MediaItemId("e2")))
+        val ahead = HomeAhead(null, backgroundScope, now = { clock })
+        ahead.choose(show.id, 2, "test")
+        ahead.start(snapshot, there, { false }) { sent += it.item.id.value }
+        runCurrent()
+        assertEquals(listOf("e3"), sent)
+        there.value = emptySet()
+        runCurrent()
+        assertEquals("e2 was at home and went: cancelled, not sent again", listOf("e3"), sent)
+        clock += 31 * 60_000L
+        snapshot.value = QueueSnapshot(queue, currentIndex = 0, anchor = null).copy()
+        there.value = setOf()
+        snapshot.value = QueueSnapshot(queue + entry("e9", null), currentIndex = 0)
+        runCurrent()
+        assertEquals("e3 never arrived: asked again after a while", listOf("e3", "e3"), sent)
+    }
+
+    @Test
     fun `nothing is sent twice while the home job is still on its way`() = runTest {
         val sent = mutableListOf<String>()
         val snapshot = MutableStateFlow(QueueSnapshot(queue, currentIndex = 0))
-        val there = MutableStateFlow(emptySet<MediaItemId>())
+        val there = MutableStateFlow<Set<MediaItemId>?>(emptySet())
         val ahead = HomeAhead(null, backgroundScope)
         ahead.start(snapshot, there, { false }) { sent += it.item.id.value }
         ahead.choose(show.id, 2, "test")

@@ -75,6 +75,8 @@ class HomeDownloads(
 ) {
     private val known = MutableStateFlow<Map<MediaItemId, HomeJob>>(emptyMap())
     val jobs: StateFlow<Map<MediaItemId, HomeJob>> = known.asStateFlow()
+    private val read = MutableStateFlow<Map<MediaItemId, HomeJob>?>(null)
+    val jobsRead: StateFlow<Map<MediaItemId, HomeJob>?> = read.asStateFlow()
     private val status = HomeStatus(notices)
     val problems: StateFlow<List<HomeProblem>> get() = status.problems
     val storage: StateFlow<StorageUsage?> get() = status.storage
@@ -158,7 +160,7 @@ class HomeDownloads(
                 Diag.warn(TAG, "${id.value}: not on the phone, so nothing to ${if (move) "move" else "copy"} home")
                 return@launch
             }
-            if (move) phone.moving.keep(id.value)
+            if (move) moves.begin(id) else moves.copyOnly(id)
             val variant = if (copy.audioOnly) "sound" else "video"
             Diag.log(TAG, "\"${copy.item.title}\": ${if (move) "moving" else "copying"} the phone's $variant copy home")
             start(copy.playable, if (copy.audioOnly) DownloadChoice.Sound else DownloadChoice.Video(null))
@@ -189,6 +191,7 @@ class HomeDownloads(
                 val now = answer.value.jobs.associateBy { MediaItemId(it.id) }
                 if (now != known.value) Diag.log(TAG, "jobs ($why): ${now.values.joinToString { it.describe() }}")
                 known.value = now
+                read.value = now
                 status.read(answer.value)
                 moves.finish(now)
                 follower.followAll(now.values)

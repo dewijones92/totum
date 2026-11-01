@@ -100,7 +100,11 @@ fun SearchScreen(
     }
     val progressOf = rememberTorrentProgress(viewModel)
     ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {
-        CompositionLocalProvider(LocalTorrentProgress provides progressOf) {
+        TorrentMenuSheet(viewModel, container)
+        CompositionLocalProvider(
+            LocalTorrentProgress provides progressOf,
+            LocalTorrentMenu provides viewModel::openTorrentMenu,
+        ) {
             SearchContent(
                 state = state,
                 onSearch = viewModel::search,

@@ -10,8 +10,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.MediaExtractorCompat
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.ChunkedDataSource
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
+import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.playback.homeServerAware
 import com.dewijones92.totum.playback.totumExtractors
@@ -26,6 +28,8 @@ internal class ProcessedAudio(
     private val boost: () -> VolumeBoost,
     private val label: String,
     private val cutter: (() -> SilenceCuttingAudioProcessor)?,
+    private val newBooster: () -> BoostingAudioProcessor = { BoostingAudioProcessor() },
+    private val gate: () -> SpeechGate = { SpeechGate.OFF },
 ) {
     val timeline = CastTimeline(cuts = cutter != null) { durationUs }
     private var silence: ByteArray? = null
@@ -222,7 +226,16 @@ internal class ProcessedAudio(
             )
             val plan = TranscodePlan(format, framesPerSegment, first, label, sourceUs, durationUs, trustedEnd())
             try {
-                AudioTranscode(plan, extractor, audioTrack(extractor), boost, sink, cutter?.invoke())
+                AudioTranscode(
+                    plan,
+                    extractor,
+                    audioTrack(extractor),
+                    boost,
+                    sink,
+                    cutter?.invoke(),
+                    newBooster(),
+                    gate
+                )
                     .also { transcode = it }
                     .run()
             } catch (e: IOException) {
@@ -233,7 +246,7 @@ internal class ProcessedAudio(
                     e,
                 )
                 val fresh = extractor()
-                AudioTranscode(plan, fresh, audioTrack(fresh), boost, sink, cutter?.invoke())
+                AudioTranscode(plan, fresh, audioTrack(fresh), boost, sink, cutter?.invoke(), newBooster(), gate)
                     .also { transcode = it }
                     .run()
             }

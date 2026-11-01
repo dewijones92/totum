@@ -256,7 +256,6 @@ internal class LoudnessBoost(private val sampleRate: Int, private val channels: 
         framesIn = 0
         pendingFrom = 0
         pendingCount = 0
-        speaking = false
     }
 
     private fun driftTowards(wanted: Float) {

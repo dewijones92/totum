@@ -87,6 +87,18 @@ class LibraryFilerTest {
     }
 
     @Test
+    fun `a YouTube video is never filed by rules when the brain is unavailable or refused`() = runBlocking {
+        val source = download()
+        val failing = filer { throw IllegalStateException("not signed in") }
+            .file(source, "Inside the Forbidden Town.mkv", "YouTube channel: Bald and Bankrupt")
+        assertTrue(failing is LibraryFiler.Outcome.Left)
+        val refused = filer { FilePlan(FilePlan.Action.MOVIE, "movies", "../../etc", "x.mkv", "evil") }
+            .file(source, "Inside the Forbidden Town.mkv", "YouTube channel: Bald and Bankrupt")
+        assertTrue(refused is LibraryFiler.Outcome.Left)
+        assertTrue(source.isFile)
+    }
+
+    @Test
     fun `a plan escaping the library is refused and filed by rules`() = runBlocking {
         val outcome = filer { FilePlan(FilePlan.Action.MOVIE, "movies", "../../etc", "x.mkv", "evil") }
             .file(download(), "Zog.2018.1080p.mkv", null)

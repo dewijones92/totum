@@ -1841,8 +1841,9 @@ private fun followSkipRequests(c: DefaultAppContainer, context: Context) = c.app
 
 private fun startHomeAhead(c: DefaultAppContainer) {
     if (!c.homeDownloads.available) return
-    val present = combine(c.homeDownloads.jobs, c.downloadManager.observeDownloads()) { home, phone ->
-        home.keys + phone.filterValues { it is DownloadState.Downloaded || it is DownloadState.Downloading }.keys
+    val present = combine(c.homeDownloads.jobsRead, c.downloadManager.observeDownloads()) { home, phone ->
+        val onPhone = phone.filterValues { it is DownloadState.Downloaded || it is DownloadState.Downloading }.keys
+        home?.let { it.keys + onPhone }
     }
     c.homeAhead.start(c.playbackQueue.state, present, { c.playbackQueue.passOver(it) != null }) {
         c.homeDownloads.start(it, chosenForHome(c.appPreferences.settings.value.downloadChoice))
