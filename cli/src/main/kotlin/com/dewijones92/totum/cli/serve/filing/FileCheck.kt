@@ -27,6 +27,16 @@ class FileCheck(private val paths: List<String>, private val decide: suspend (Fi
         samples.map { path -> async { gate.withPermit { one(path) } } }.awaitAll()
     }
 
+    suspend fun plan(name: String, from: String?): Result<FilePlan> = runCatching {
+        val library = ListedLibrary(paths, emptySet())
+        checked(
+            decide(FileRequest(name, null, Filing.context(name, library, from), from), library),
+            name,
+            library,
+            from
+        )
+    }
+
     private suspend fun one(path: String): CheckResult {
         val shelf = Shelf.entries.first { it.folder == path.substringBefore('/') }
         val actualDir = path.substringAfter('/').substringBeforeLast('/', "")

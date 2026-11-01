@@ -205,6 +205,15 @@ internal suspend fun fileCheck(command: Command.FileCheck, out: (String) -> Unit
     val check = FileCheck(paths) { request, library ->
         if (command.rulesOnly) Filing.byRules(request.name, library, request.from) else brain.file(request)
     }
+    if (command.tries.isNotEmpty()) {
+        command.tries.forEach { tried ->
+            val name = tried.substringBefore('|')
+            val from = tried.substringAfter('|', "").ifBlank { null }
+            val plan = check.plan(name, from)
+            out("$name (from ${from ?: "-"}) -> ${plan.getOrNull() ?: "failed: ${plan.exceptionOrNull()?.message}"}")
+        }
+        return 0
+    }
     val samples = check.samples(command.samples, command.seed)
     val by = if (command.rulesOnly) "by rules" else "with ${System.getenv("TOTUM_ASK_MODEL") ?: "haiku"}"
     out("filing ${samples.size} sample(s) $by")

@@ -112,11 +112,16 @@ internal object Prompts {
           only make a new season subfolder when none holds that season, and then name it the way the show's
           other season folders are named, or "Season NN" if there are none. For a new film use
           "Title (Year)"; for a new show use the show's title, with its year in brackets only when needed to
-          tell two shows apart.
+          tell two shows apart, and always put the episode in a "Season NN" subfolder of it.
         - fileName: the file's new name, keeping its extension. Keep the original name when it already says the
           title and the episode (SxxEyy) or the title and year; otherwise "Show - S01E02.ext" or
           "Title (Year).ext".
         - reason: one short sentence.
+
+        A file from a YouTube channel is filed only when it really is a whole film or a whole episode of a TV
+        series (not a clip, compilation, trailer, vlog or video essay); otherwise leave it. A name carrying an
+        episode code (SxxEyy) or saying "full episode" is a whole episode. When a YouTube episode has no code, find
+        its season and episode number with a web search before filing it; if you cannot confirm them, leave it.
 
         Never leave a file because a file of the same name is already there: it is filed beside it with a number.
         Copy an existing folder's name character for character.

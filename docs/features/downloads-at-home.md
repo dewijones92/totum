@@ -26,6 +26,9 @@ copies it over the next time it is on Wi-Fi. ADR 110.
   (it then stays home until copied again by hand), 🏠 Delete at home (keep on the phone). Rows say "🏠 Also at home".
 - 🏠 Send home in any app's share sheet: a YouTube link or a magnet goes straight home, without opening Totum; a
   toast says "🏠 Downloading at home: …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
+- A download on the phone offers 🏠 Also at home and 🏠 Move to home in its menu; a move deletes the phone copy once
+  home has it. A video that finishes at home (torrent or YouTube) is filed into Jellyfin when Haiku sees a whole film
+  or episode (ADR 111).
 - A queue group's ⋮ → 🏠 Keep the next 2 (or 5) at home: the next unplayed members go home and are topped up as you
   listen; on the 📥 New group or a shuffled channel this fetches new uploads at home as they arrive (`HomeAhead`).
 - Settings → Downloads → 🏠 Copy home downloads to the phone (on by default; off keeps everything home until asked).

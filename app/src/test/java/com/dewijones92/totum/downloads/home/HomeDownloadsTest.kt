@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeProblem
 import com.dewijones92.totum.data.home.HomeSeverity
 import com.dewijones92.totum.data.home.PhoneDecoder
+import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -21,6 +22,7 @@ import com.dewijones92.totum.innertube.auth.RefreshToken
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.settings.DownloadChoice
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -164,6 +166,43 @@ class HomeDownloadsTest {
         operations.cancel(operations.running.value.single().id)
         advanceTimeBy(100)
         assertEquals(listOf("abcdefghijk"), api.cancelled)
+    }
+
+    @Test
+    fun `a phone copy moved home is deleted from the phone once home has it, a copy stays on both`() = runTest {
+        val kept = InMemoryKeptAtHome()
+        val moving = InMemoryKeptAtHome()
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { false }, { true }, kept, moving),
+            local,
+            Operations(),
+            notices,
+            this,
+            Pacing(pollMs = 1),
+        )
+        local.place(DownloadedMedia(video, "/phone/a.mkv", audioOnly = true))
+        home.sendFromPhone(video.item.id, move = true)
+        advanceUntilIdle()
+        assertTrue("the phone copy's variant is what goes home", api.started.single().audioOnly)
+        api.listed = listOf(job(HomeJobState.DOWNLOADING, audioOnly = true))
+        home.refresh("busy")
+        assertEquals("still on the phone while home fetches", 1, local.observeDownloaded().first().size)
+        api.listed = listOf(job(HomeJobState.DONE, audioOnly = true))
+        home.refresh("done")
+        advanceUntilIdle()
+        assertTrue("deleted from the phone", local.observeDownloaded().first().isEmpty())
+        assertTrue("kept at home, not copied back", "abcdefghijk" in kept.ids.value)
+        assertTrue(moving.ids.value.isEmpty())
+
+        local.place(DownloadedMedia(video, "/phone/a.mkv", audioOnly = false))
+        api.started.clear()
+        home.sendFromPhone(video.item.id, move = false)
+        advanceUntilIdle()
+        home.refresh("done again")
+        advanceUntilIdle()
+        assertEquals(false, api.started.single().audioOnly)
+        assertEquals("a copy stays on the phone", 1, local.observeDownloaded().first().size)
     }
 
     @Test

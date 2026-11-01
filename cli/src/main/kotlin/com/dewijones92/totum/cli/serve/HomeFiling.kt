@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.download.DownloadRecord
 import com.dewijones92.totum.data.download.JsonDownloadStore
 import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -29,7 +30,7 @@ internal class HomeFiling(
         scope.launch {
             relocateMoved(records.first())
             if (filer == null) {
-                Diag.log("filing", "no library configured, so finished torrents stay in ${downloadDir.path}")
+                Diag.log("filing", "no library configured, so finished torrents and videos stay in ${downloadDir.path}")
             } else {
                 records.collect { fileFinished(filer, it, scope) }
             }
@@ -52,12 +53,17 @@ internal class HomeFiling(
         records.forEach { record ->
             val done = record.state as? DownloadState.Downloaded ?: return@forEach
             val item = record.item
-            val fresh = item.item.sourceId == TorrentPlayables.SOURCE && !done.audioOnly &&
+            val torrent = item.item.sourceId == TorrentPlayables.SOURCE
+            val youTube = item.handle is PlayHandle.Video
+            val fresh = (torrent || youTube) && !done.audioOnly &&
                 File(done.localPath).canonicalFile.parentFile == home
             if (!fresh || !tried.add(item.item.id.value)) return@forEach
+            val file = File(done.localPath)
+            val name = if (torrent) torrentFileName(item) else "${item.item.title}.${file.extension}"
+            val from = if (torrent) item.item.author else "YouTube channel: ${item.item.author ?: "unknown"}"
             scope.launch {
                 filing.withLock {
-                    val outcome = filer.file(File(done.localPath), torrentFileName(item), item.item.author)
+                    val outcome = filer.file(file, name, from)
                     if (outcome is LibraryFiler.Outcome.Moved) store.relocate(item.item.id, outcome.file.path)
                 }
             }

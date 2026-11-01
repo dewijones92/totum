@@ -1130,6 +1130,8 @@
         <item quantity="one">🏠 Stop keeping the next %1$d at home</item>
         <item quantity="other">🏠 Stop keeping the next %1$d at home</item>
     </plurals>
+    <string name="home_copy_to_home">🏠 Also at home (keep it here too)</string>
+    <string name="home_move_to_home">🏠 Move to home (delete it here once home has it)</string>
     <string name="send_home_label">🏠 Send home</string>
     <string name="send_home_sending">⏳ Sending home…</string>
     <string name="send_home_refused">❌ Not sent home: %1$s</string>

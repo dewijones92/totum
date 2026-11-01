@@ -18,8 +18,19 @@ internal val LocalHomeDownloads = staticCompositionLocalOf<HomeDownloads?> { nul
 internal fun HomeDownloadActions(id: MediaItemId?, onDismiss: () -> Unit) {
     val home = LocalHomeDownloads.current ?: return
     id ?: return
-    val job = homeJobOf(id)?.takeIf { it.state == HomeJobState.DONE } ?: return
     val local = downloadStateOf(id)
+    val anyJob = homeJobOf(id)
+    if (anyJob == null && local is DownloadState.Downloaded && home.available) {
+        SheetAction(
+            { home.sendFromPhone(id, move = false) },
+            Icons.Outlined.Home,
+            R.string.home_copy_to_home,
+            onDismiss
+        )
+        SheetAction({ home.sendFromPhone(id, move = true) }, Icons.Outlined.Home, R.string.home_move_to_home, onDismiss)
+        return
+    }
+    val job = anyJob?.takeIf { it.state == HomeJobState.DONE } ?: return
     val onPhone = local is DownloadState.Downloaded
     SheetAction(
         { home.copyNow(id) }.takeIf { HomeRow.offers(job, local).copyNow },

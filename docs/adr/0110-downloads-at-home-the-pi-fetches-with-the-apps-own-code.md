@@ -49,6 +49,11 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   goes home with the remembered sound/video choice (best video when none is remembered); a magnet is prepared by the
   home TorrServer and each playable file goes home. One rule, `SendHome`, decides; sharing to Totum itself still
   plays at once.
+- **🏠 Also at home / 🏠 Move to home** (2026-11-01, docs/todos/move-to-home.md): any download on the phone that is
+  not at home offers both in its menu; home fetches it itself in the phone copy's variant (sound or video). A move
+  deletes the phone copy once home reports it ready, through "delete on the phone only", so it is kept at home and
+  not copied back; a refused or failed job keeps the phone copy (`HomeDownloads.sendFromPhone`, a "moving" id set kept
+  in prefs).
 - **🏠 Keep the next N at home** (2026-11-01): a queue group's ⋮ offers "Keep the next 2 / 5 at home"; the next N
   unplayed members after what is playing (from the group's start when it is not playing) are sent home with the
   remembered choice, and topped up as you move on (`HomeAhead`, `aheadFor`). Fetch ahead only, nothing is deleted;

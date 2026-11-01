@@ -768,6 +768,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 unmetered = { !networkStatus.isMetered() },
                 copyOnWifi = { appPreferences.settings.value.copyHomeOnWifi },
                 kept = PrefsKeptAtHome(context),
+                moving = PrefsKeptAtHome(context, "totum_moving_home"),
             ),
             downloads = lockingDownloads,
             operations = operations,

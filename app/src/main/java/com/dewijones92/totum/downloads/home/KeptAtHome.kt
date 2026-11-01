@@ -20,8 +20,8 @@ open class InMemoryKeptAtHome : KeptAtHome {
     override fun release(id: String) = held.update { it - id }
 }
 
-class PrefsKeptAtHome(context: Context) : InMemoryKeptAtHome() {
-    private val prefs = context.getSharedPreferences("totum_kept_at_home", Context.MODE_PRIVATE)
+class PrefsKeptAtHome(context: Context, name: String = "totum_kept_at_home") : InMemoryKeptAtHome() {
+    private val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
 
     init {
         held.value = prefs.getStringSet(KEY, emptySet()).orEmpty().toSet()

@@ -2,7 +2,7 @@
 title: Finished torrents at home are filed into Jellyfin by Haiku
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # 111. Finished torrents at home are filed into Jellyfin by Haiku
@@ -51,6 +51,18 @@ release folders. Jellyfin has online metadata off, so the names are all it has.
   `totum sidecars <file…>` runs the same code on files already in the library (it replaces the Pi's hand-kept
   `~/bin/ass2srt.py`).
 - A refused plan is reported to the AI service as a failure (ADR 113), so it shows on the health dashboard.
+
+- **YouTube videos are filed too** (2026-11-01, report 20261101T092142: *"move this to the raspberry pi … the AI to
+  intelligently put it in the jellyfin film or series"*; Dewi chose "Haiku decides"): a video (never a sound-only copy)
+  that finishes at home is offered to the filer under its title, "from" its YouTube channel. Haiku files it only when it
+  is a whole film or a whole TV episode (an SxxEyy code or "full episode" in the name; an episode with no code has its
+  season and number found by a web search, or is left); clips, compilations, vlogs and essays stay in Totum's folder.
+  A new show always gets a "Season NN" folder. `totum file-check <listing> --try="<name>|<from>"` plans a new file
+  against the real library without moving anything. Dry runs (3 rounds, 15 names against the 5,133-entry library):
+  round 1 filed a new show with and without a season folder; round 2 left "Peep Show S01E01 … from Channel 4 Comedy" as
+  a possible clip and numbered Muddy Puddles from memory; round 3, all five right (Peep Show and Peppa episodes into
+  "Season 01" with the number confirmed on the web, a clip and a vlog left, a torrent film and an existing show's
+  episode unchanged).
 
 ## Consequences
 

@@ -70,9 +70,22 @@ class HomeFilingTest {
         "http://gluetun:8090/stream/Toy%20Story%205%20(2026)%20x265.mkv?link=abc&index=1&play",
     )
 
-    private fun seed(item: PlayableItem, path: String) = runBlocking {
-        JsonDownloadStore(File(data, "downloads.json")).put(item, DownloadState.Downloaded(path), audioOnly = false)
+    private fun seed(item: PlayableItem, path: String, audioOnly: Boolean = false) = runBlocking {
+        JsonDownloadStore(File(data, "downloads.json"))
+            .put(item, DownloadState.Downloaded(path, audioOnly = audioOnly), audioOnly = audioOnly)
     }
+
+    private fun youTube(id: String) = PlayableItem(
+        MediaItem(
+            id = MediaItemId(id),
+            sourceId = SourceId("yt:channel"),
+            title = "Muddy Puddles - Peppa Pig Full Episode",
+            publishedAt = null,
+            duration = null,
+            author = "Peppa Pig - Official Channel",
+        ),
+        PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$id")),
+    )
 
     private fun home() = HomeDownloads(data, downloads, scope, freeFloorBytes = 0, filer = filer)
 
@@ -93,7 +106,25 @@ class HomeFilingTest {
     }
 
     @Test
-    fun `only torrents are filed`() = runBlocking {
+    fun `a YouTube video is offered to the filer by its title and channel, a sound-only copy is not`() = runBlocking {
+        seed(youTube("aaaaaaaaaaa"), File(downloads, "aaaaaaaaaaa.mkv").apply { writeText("pig") }.path)
+        seed(
+            youTube("bbbbbbbbbbb"),
+            File(downloads, "bbbbbbbbbbb.m4a").apply { writeText("oink") }.path,
+            audioOnly = true
+        )
+        val home = home()
+        until("asked") { asked.isNotEmpty() }
+        delay(300)
+        assertEquals(
+            listOf("Muddy Puddles - Peppa Pig Full Episode.mkv" to "YouTube channel: Peppa Pig - Official Channel"),
+            asked,
+        )
+        assertEquals(File(downloads, "bbbbbbbbbbb.m4a").canonicalPath, home.fileOf("bbbbbbbbbbb")?.canonicalPath)
+    }
+
+    @Test
+    fun `podcast episodes are not filed`() = runBlocking {
         val episode = item("ep1", SourceId("feed"), "http://example.com/stream/ep.mp3")
         val file = File(downloads, "ep1.media").apply { writeText("talk") }
         seed(episode, file.path)

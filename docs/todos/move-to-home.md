@@ -1,7 +1,7 @@
 ---
 title: 🏠 Move or copy a phone download to home, filed into Jellyfin by Haiku
 kind: todo
-status: decided
+status: done
 area: downloads
 updated: 2026-11-01
 ---
@@ -19,3 +19,5 @@ Decided (AskUserQuestion, 2026-11-01):
   app's own routes (ADR 110), nothing is uploaded from the phone.
 - **Haiku decides where a YouTube video goes in Jellyfin**: a film, an episode of a series (Peppa Pig as a show), or
   left in Totum's folder, through the same filer as torrents (ADR 111), widened beyond torrents.
+
+Built 2026-11-01: ADR 110 (the menu, the move) and ADR 111 (YouTube filing, with its dry runs).

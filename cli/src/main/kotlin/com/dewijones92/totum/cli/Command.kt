@@ -32,6 +32,7 @@ internal sealed interface Command {
         val seed: Int,
         val rulesOnly: Boolean,
         val out: String?,
+        val tries: List<String> = emptyList(),
     ) : Command
 }
 
@@ -116,6 +117,7 @@ private fun fileCheck(rest: List<String>, flags: Set<String>): Command {
         intFlag(flags, "--seed=") ?: 1,
         "--rules" in flags,
         flags.firstOrNull { it.startsWith("--out=") }?.removePrefix("--out="),
+        flags.filter { it.startsWith("--try=") }.map { it.removePrefix("--try=") },
     )
 }
 

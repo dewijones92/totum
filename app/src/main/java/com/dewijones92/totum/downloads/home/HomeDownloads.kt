@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -48,6 +49,7 @@ class PhoneSide(
     val unmetered: () -> Boolean,
     val copyOnWifi: () -> Boolean = { true },
     val kept: KeptAtHome = InMemoryKeptAtHome(),
+    val moving: KeptAtHome = InMemoryKeptAtHome(),
 )
 
 class Pacing(
@@ -61,6 +63,7 @@ class Pacing(
     }
 }
 
+@Suppress("TooManyFunctions")
 class HomeDownloads(
     private val client: HomeJobsApi?,
     private val phone: PhoneSide,
@@ -89,6 +92,7 @@ class HomeDownloads(
     val kept: StateFlow<Set<String>> get() = phone.kept.ids
     private val handover = SignInHandover(phone.youTubeTokens)
     private val wake = Channel<String>(Channel.CONFLATED)
+    private val moves = HomeMoves(phone.moving) { deleteOnPhoneOnly(it) }
 
     fun watch() {
         if (client == null) return
@@ -121,6 +125,7 @@ class HomeDownloads(
                     wake.trySend("following ${answer.value}")
                 }
                 is HomeAnswer.No -> {
+                    moves.refused(item.item)
                     Diag.warn(TAG, "\"${item.item.title}\": the home server refused: ${answer.reason}")
                     notices.refused(item.item.title, answer.reason)
                 }
@@ -144,6 +149,20 @@ class HomeDownloads(
         phone.kept.release(id.value)
         Diag.log(TAG, "\"${job.item.title}\": copy to the phone now (asked; whatever the network)")
         scope.launch { phoneDownloads.download(item, audioOnly = job.audioOnly) }
+    }
+
+    fun sendFromPhone(id: MediaItemId, move: Boolean) {
+        scope.launch {
+            val copy = phoneDownloads.observeDownloaded().first().firstOrNull { it.item.id == id }
+            if (copy == null) {
+                Diag.warn(TAG, "${id.value}: not on the phone, so nothing to ${if (move) "move" else "copy"} home")
+                return@launch
+            }
+            if (move) phone.moving.keep(id.value)
+            val variant = if (copy.audioOnly) "sound" else "video"
+            Diag.log(TAG, "\"${copy.item.title}\": ${if (move) "moving" else "copying"} the phone's $variant copy home")
+            start(copy.playable, if (copy.audioOnly) DownloadChoice.Sound else DownloadChoice.Video(null))
+        }
     }
 
     fun deleteOnPhoneOnly(id: MediaItemId) {
@@ -171,6 +190,7 @@ class HomeDownloads(
                 if (now != known.value) Diag.log(TAG, "jobs ($why): ${now.values.joinToString { it.describe() }}")
                 known.value = now
                 status.read(answer.value)
+                moves.finish(now)
                 follower.followAll(now.values)
             }
         }
