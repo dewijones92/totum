@@ -24,6 +24,8 @@ copies it over the next time it is on Wi-Fi. ADR 110.
   setting off) says "🏠 At home · stays there until you copy it".
 - Any item's menu, once it is at home: 📥 Copy to the phone now (any network), 🗑️ Delete from the phone, keep at home
   (it then stays home until copied again by hand), 🏠 Delete at home (keep on the phone). Rows say "🏠 Also at home".
+- 🏠 Send home in any app's share sheet: a YouTube link or a magnet goes straight home, without opening Totum; a
+  toast says "🏠 Downloading at home: …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
 - Settings → Downloads → 🏠 Copy home downloads to the phone (on by default; off keeps everything home until asked).
 - A finished torrent (film or episode) is filed into Jellyfin's movies or series library by Haiku, into the show's
   existing season folder, and Jellyfin is told; the app still plays, copies and deletes it there (ADR 111).
@@ -31,7 +33,7 @@ copies it over the next time it is on Wi-Fi. ADR 110.
 
 ## Seams
 
-- Phone: `downloads/home/` (`HomeDownloads`, `HomeFollower`, `HomeNotifications`, `DeletesAtHomeToo`),
+- Phone: `downloads/home/` (`HomeDownloads`, `SendHome`, `HomeFollower`, `HomeNotifications`, `DeletesAtHomeToo`),
   `DownloadChooser`/`EpisodeDownloads` (where), `PlaceChips`, `LocalHomeJobs`, `HomeSection`.
 - Shared: `HomeJobsClient`/`HomeJobsApi` and the wire types in `core/data/.../home/`, `HomeCopyFirst`,
   `routeNow(atHome = …)`, `PhoneCodecs`/`VideoCodecFamily`.

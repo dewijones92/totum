@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # Testing
@@ -98,6 +98,7 @@ instead).
 | Consistency batch 2026-11-01: a torrent is shown as a torrent (🧲 maker line, its own icon and label) wherever it is described; an entry queued again keeps its sound-only route; one clock parser; a guid-less, enclosure-less episode keeps its id when the feed grows | JVM unit | `:app` `TorrentsAreShownAsTorrentsTest`, `PlayingEntryAdoptsRoutesTest` (1 new); `:lib:common` `ClockTextTest`; instrumented `RecentSearchesTest` (a long press forgets a chip); `:core:data` `DefaultPodcastRepositoryTest` (changed expectation, seen failing first) |
 | Consistency fixes 2026-11-01: an undated queued video and its download learn the date from the watch page; dates asked only near what plays and never for songs or dated rows; a home row kept at home says it stays there; Copy offered when finished and not on the phone, not while copying, and when the phone has only the sound | JVM unit | `:app` `SharedMetadataRepairTest` (2 new, seen failing first), `HomeRowTest` (3, seen failing first), `HomeDownloadsTest` (the space used and free at home, seen failing first) |
 | AI service and home health (ADR 113): a completion over HTTP comes back structured and is counted with its tokens, not signed in travels as not signed in, an unreachable service fails fast, usage summed per day and caller with the median; the Pi names low disk, a missing or signed-out AI service, a silent Jellyfin and a download stalled for ten minutes, and clears it when it moves; the phone shows home problems and tells each new one once | JVM unit | `:cli` `AiServiceTest`, `HomeHealthTest`, `ClaudeCodeBrainTest` (unchanged, through the new seam); `:app` `HomeDownloadsTest` (problems, seen failing first) |
+| 🏠 Send home from the share sheet: a YouTube link goes home with the remembered choice (best video when none), a magnet is prepared at home and each playable file sent, text with no link and a phone with no home server send nothing and say why | JVM unit | `:app` `SendHomeTest` (5); checked on the emulator against the real Pi ("Me at the zoo" sent home as sound) |
 | Subtitles and problem reports: English text tracks chosen (an untagged one only alone), sidecars named and never colliding, ASS styling stripped, a real MKV with an ASS track becomes a clean SRT (skips without ffmpeg); a caller's problem is logged as a failure with its reason, an answer that does not fit is reported back; a refused filing plan is reported and subtitles are made after the move; a torrent result at home offers the copy back | JVM unit | `:cli` `SidecarsTest`, `SidecarMakerTest` (real ffmpeg), `AiServiceTest` (2 new), `LibraryFilerTest` (1 new); `:app` `TorrentAtHomeTest` |
 | Back and forward (ADR 114): the trail walks what played like a browser, a new play drops what was ahead, a replay moves to the end, it is kept and capped; the AI service says it is not signed in before anyone calls it | JVM unit | `:app` `PlayTrailTest`; `:cli` `AiServiceTest` (1 new). Checked on the emulator |
 | Kid mode (ADR 76): locked, what the icon started loops (its group, or the item) with auto-play on and Explore off; speed held at 1x and silence skipping off, restored on unlock | JVM unit | `:app` `KidModeTest`. The tap badge and brightness slider checked on the emulator |

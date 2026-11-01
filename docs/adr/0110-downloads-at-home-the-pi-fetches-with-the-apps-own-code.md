@@ -2,7 +2,7 @@
 title: Downloads at home — the Pi fetches with the app's own code
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # 110. Downloads at home: the Pi fetches with the app's own code
@@ -44,6 +44,11 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   `gluetun:8090` on the compose network), so the Pi needs no device token for its own server.
 - **Space:** files land in `/home/pi/ext_files/media/totum`; a job is refused with "❌ Not enough space at home"
   under 20 GB free; nothing is deleted except by the phone.
+- **🏠 Send home from any app** (2026-11-01, Dewi's pick from the home use cases): a second entry in Android's share
+  sheet, "🏠 Send home" (`SendHomeActivity`, translucent, gone at once, a toast says what happened). A YouTube link
+  goes home with the remembered sound/video choice (best video when none is remembered); a magnet is prepared by the
+  home TorrServer and each playable file goes home. One rule, `SendHome`, decides; sharing to Totum itself still
+  plays at once.
 
 ## Consequences
 
