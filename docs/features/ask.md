@@ -1,9 +1,9 @@
 ---
-title: ✨ Ask (find something to download by saying what you want)
+title: ✨ Ask (a chat that finds anything to play or download, knowing your taste)
 kind: feature
 status: refining
 area: search
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # ✨ Ask
@@ -11,6 +11,14 @@ updated: 2026-10-31
 Say or type what you want ("a popular Gruffalo film my toddler would like"); Haiku on the home server picks 3–5
 titles with web search, the app finds the best copy of each with its own searches, Haiku checks the copies are the
 right film, and you confirm through the normal ⬇️ sheet. Refine by asking again ("something newer"). ADR 109.
+
+Since 2026-11-01 it is a **chat about anything** (Dewi: *"not specific to torrents … podcasts, music … radio station
+based on happy funk … the latest vlogs … access to my subscriptions … multi-turn"*): your message as a bubble, Haiku's
+one-or-two-sentence reply, then cards. Kinds: 🎬 film, 📺 series, ▶️ YouTube video, 🎙️ podcast (a show you do not
+follow), 🎧 audiobook, 🎵 song, 💿 album, 🎤 artist, 📻 radio (seed songs, 📻 Start this radio) and 🆕 latest (the
+newest uploads or episodes of a channel or podcast you follow, ▶️ Play all / ➕ Queue all). Your taste goes with each
+ask: YouTube subscriptions, podcasts, followed artists and saved albums, and the songs and channels you played most in
+90 days. Follow-ups ("less disco, more 70s") refine; ➕ New chat starts again.
 
 ## Where
 
@@ -32,6 +40,8 @@ right film, and you confirm through the normal ⬇️ sheet. Refine by asking ag
 
 Built and tested against a fake brain and once against Haiku on the laptop. Waiting on Dewi's choice of Claude
 account for the Pi (`claude setup-token`); until then the service answers "❌ …" and nothing else changes.
+
+Not yet: keeping recent chats across restarts (docs/todos/ask-everything.md).
 
 ## Measuring it
 

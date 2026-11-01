@@ -2,7 +2,7 @@
 title: ✨ Ask — Haiku picks what, the app finds and ranks which copy
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # 109. ✨ Ask: Haiku picks what, the app finds and ranks which copy
@@ -41,6 +41,20 @@ His favourite encode is 10-bit HEVC (x265).
   decoder keeps the plain order. The quality chip says "10-bit".
 - **Confirm through the normal paths.** A card's row is the search row for its kind, so ✅ is the same ⬇️ sheet,
   episode picker or subscribe as everywhere else; "All copies" opens ordinary search with the same words.
+
+- **A chat about anything, with your taste** (2026-11-01, docs/todos/ask-everything.md): five more kinds (song, album,
+  artist, radio as 2–4 seed songs, latest of a followed channel or podcast); a `reply` in the answer, carried in later
+  turns; a `Taste` in the request (subscribed channels and podcasts, followed artists, saved albums, the songs and the
+  channels or shows played most over 90 days; liked songs are only a count in the API, so the most-played songs stand in
+  for them); web search when Haiku needs a fact (film years, new releases), not always. Music, radio and latest are not
+  vetted. Two rules Haiku kept breaking are enforced after the call (`AskAnswer.tidied`): a year only on films, series
+  and audiobooks, a podcast you already follow becomes its latest, and markdown links are stripped from the reply.
+- **Dry runs** (2026-11-01, local `totum serve` with Haiku, a hand-made taste): 5 rounds, 34 asks including follow-ups.
+  Round 1 showed a followed podcast suggested as a show, the most-played vlogger left out of "the latest vlogs", and
+  invented album years; the prompt changes fixed the vlogger, the years and the podcast needed the code rule (rounds
+  2–4 were answered by a stale server still holding the port, found by its start time, and re-run as round 5). Round 5:
+  the podcast ask gives its latest episodes, no album years, vlogs led by the most played, "only the travel ones"
+  narrows correctly, no links.
 
 ## Consequences
 

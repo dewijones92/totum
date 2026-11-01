@@ -8,12 +8,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskCard
 import com.dewijones92.totum.data.ask.AskCopies
+import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskOutcome
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskService
 import com.dewijones92.totum.data.ask.AskTurn
+import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.vetRequest
+import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
@@ -32,6 +36,8 @@ class AskViewModel(
     private val copies: AskCopies,
     private val have: suspend () -> List<String>,
     private val operations: Operations,
+    private val taste: suspend () -> Taste = { Taste() },
+    private val latest: suspend (String) -> List<PlayableItem> = { emptyList() },
 ) : ViewModel() {
 
     enum class Stage { ASKING, SEARCHING, VETTING, DONE, FAILED }
@@ -39,6 +45,7 @@ class AskViewModel(
     data class Turn(
         val request: String,
         val stage: Stage = Stage.ASKING,
+        val reply: String = "",
         val cards: List<AskCard> = emptyList(),
         val error: String? = null,
         val tookMs: Long? = null,
@@ -83,10 +90,21 @@ class AskViewModel(
     private suspend fun askAndFind(askService: AskService, request: String, earlier: List<Turn>): OperationEnd =
         operations.track("ask:$request", OperationKind.ASK, request) { progress ->
             progress.report(step = 1, steps = STEPS)
-            val turns = earlier.map { turn -> AskTurn(turn.request, turn.cards.map { it.suggestion.label }) } +
-                AskTurn(request)
+            val turns = earlier.map { turn ->
+                AskTurn(turn.request, turn.cards.map { it.suggestion.label }, turn.reply)
+            } + AskTurn(request)
             val owned = runCatching { have() }.getOrDefault(emptyList())
-            when (val answer = askService.ask(AskRequest(turns, owned))) {
+            val known = runCatching { taste() }.getOrElse {
+                Diag.warn("ask", "taste not gathered, asking without it: $it")
+                Taste()
+            }
+            Diag.log(
+                "ask",
+                "taste sent: ${known.channels.size} channels, ${known.shows.size} shows, " +
+                    "${known.artists.size} artists, ${known.albums.size} albums, " +
+                    "${known.songs.size} songs, ${known.played.size} played",
+            )
+            when (val answer = askService.ask(AskRequest(turns, owned, known))) {
                 is AskOutcome.Failed -> {
                     updateLast { it.copy(stage = Stage.FAILED, error = answer.reason) }
                     return@track OperationEnd.Failed(answer.reason)
@@ -99,9 +117,11 @@ class AskViewModel(
                         "ask",
                         "\"$request\" answered in ${answer.elapsedMs}ms, ${owned.size} owned title(s) sent: $picks",
                     )
+                    Diag.log("ask", "reply: \"${answer.value.reply}\"")
                     updateLast {
                         it.copy(
                             stage = Stage.SEARCHING,
+                            reply = answer.value.reply,
                             cards = answer.value.suggestions.map(::AskCard),
                             tookMs = answer.elapsedMs
                         )
@@ -134,8 +154,13 @@ class AskViewModel(
         kotlinx.coroutines.coroutineScope {
             cards.mapIndexed { index, card ->
                 async {
-                    val found = copies.find(card.suggestion)
-                    updateCard(index) { it.copy(copies = found, searched = true) }
+                    if (card.suggestion.kind == AskKind.LATEST) {
+                        val items = latest(card.suggestion.searchWords.ifBlank { card.suggestion.title })
+                        updateCard(index) { it.copy(items = items, searched = true) }
+                    } else {
+                        val found = copies.find(card.suggestion)
+                        updateCard(index) { it.copy(copies = found, searched = true) }
+                    }
                 }
             }.awaitAll()
         }
@@ -144,7 +169,7 @@ class AskViewModel(
     private suspend fun vet(askService: AskService) {
         updateLast { it.copy(stage = Stage.VETTING) }
         val cards = state.value.turns.last().cards
-        val withCopies = cards.indices.filter { cards[it].copies.isNotEmpty() }
+        val withCopies = cards.indices.filter { cards[it].copies.isNotEmpty() && cards[it].suggestion.kind.vetted }
         if (withCopies.isEmpty()) {
             Diag.log("ask", "no copies found for any suggestion; nothing to check")
             return
@@ -182,8 +207,25 @@ class AskViewModel(
                     copies = container.askCopies,
                     have = { ownedTitles(container) },
                     operations = container.operations,
+                    taste = { tasteFor(container) },
+                    latest = container.askLatest::find,
                 )
             }
+        }
+
+        private suspend fun tasteFor(container: AppContainer): Taste {
+            container.musicFavourites.loadOnce()
+            val shelf = container.musicFavourites.shelf.value
+            return tasteOf(
+                sources = subscribedSources(
+                    container.podcastRepository,
+                    container.accountSubscriptions.channels
+                ).first(),
+                artists = shelf.artists.map { it.name },
+                albums = shelf.albums.map { listOfNotNull(it.title, it.artist).joinToString(" — ") },
+                listens = container.statsLog.all().filterIsInstance<StatEvent.Listen>(),
+                now = System.currentTimeMillis(),
+            )
         }
 
         private suspend fun ownedTitles(container: AppContainer): List<String> {

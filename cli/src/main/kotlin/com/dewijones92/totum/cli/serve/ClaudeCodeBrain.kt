@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
+import com.dewijones92.totum.data.ask.tidied
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 import java.io.File
@@ -35,7 +36,7 @@ internal class PromptBrain(private val completer: Completer, private val caller:
         Prompts.SUGGEST_SCHEMA,
         tools = "WebSearch,WebFetch",
         AskAnswer.serializer(),
-    )
+    ).tidied(request.taste)
 
     override suspend fun vet(request: VetRequest): VetAnswer = ask(
         "vet",

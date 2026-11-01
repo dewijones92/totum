@@ -245,6 +245,7 @@ import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.ui.ask.AskLatest
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.uploads.LatestUploads
 import com.dewijones92.totum.uploads.NewUploads
@@ -547,6 +548,7 @@ interface AppContainer {
     val statsLog: StatsLog
     val groupDownloads: GroupDownloads
     val homeAhead: HomeAhead
+    val askLatest: AskLatest
     val randomStarts: RandomStarts
     val albumYears: AlbumYears
 }
@@ -782,6 +784,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 AskKind.YOUTUBE -> listOf(videoSearchSource)
                 AskKind.PODCAST -> listOf(podcastSearchSource)
                 AskKind.AUDIOBOOK -> listOfNotNull(audiobookSearchSource, audiobookTorrentSource)
+                AskKind.SONG, AskKind.RADIO -> listOf(musicSearchSource)
+                AskKind.ALBUM -> listOf(musicAlbumSearchSource)
+                AskKind.ARTIST -> listOf(musicArtistSearchSource)
+                AskKind.LATEST -> emptyList()
             }
         })
     }
@@ -1653,6 +1659,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             File(context.filesDir, "album-years.txt")
         )
     }
+    override val askLatest: AskLatest by lazy {
+        AskLatest({ subscribedSources(podcastRepository, accountSubscriptions.channels).first() }, latestUploads::of)
+    }
+
     override val homeAhead: HomeAhead by lazy { HomeAhead(File(context.filesDir, "home-ahead.txt"), applicationScope) }
 
     override val groupDownloads: GroupDownloads by lazy {

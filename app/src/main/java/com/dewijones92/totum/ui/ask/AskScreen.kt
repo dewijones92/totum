@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -24,10 +25,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,18 +49,24 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskCard
+import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
+import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.RecentSearchChips
 import com.dewijones92.totum.ui.common.RecentSearches
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rememberRecentSearches
+import com.dewijones92.totum.ui.music.AlbumRow
+import com.dewijones92.totum.ui.music.ArtistRow
 import com.dewijones92.totum.ui.search.BookHitRow
 import com.dewijones92.totum.ui.search.LocalTorrentProgress
 import com.dewijones92.totum.ui.search.PodcastHitRow
 import com.dewijones92.totum.ui.search.SearchScope
 import com.dewijones92.totum.ui.search.SearchViewModel
+import com.dewijones92.totum.ui.search.SongHitRow
 import com.dewijones92.totum.ui.search.TorrentHitRow
 import com.dewijones92.totum.ui.search.VideoHitRow
 import com.dewijones92.totum.ui.search.rememberTorrentProgress
@@ -88,7 +97,6 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
                 Text(stringResource(R.string.ask_unavailable), modifier = Modifier.padding(16.dp))
                 return@Column
             }
-            AskInput(state, recents) { text, from -> viewModel.ask(text, from) }
             if (state.turns.isEmpty()) {
                 RecentSearchChips(
                     recents,
@@ -97,14 +105,25 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
                 )
             }
             val hitRow = rememberAskHitRow(container, search)
-            LazyColumn(Modifier.fillMaxSize()) {
+            val listState = rememberLazyListState()
+            LaunchedEffect(state.turns.size) {
+                if (state.turns.isNotEmpty()) {
+                    listState.animateScrollToItem(
+                        listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
+                    )
+                }
+            }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
                 state.turns.forEach { turn ->
                     item { TurnHeader(turn) }
                     items(turn.cards) { card ->
-                        SuggestionCard(card, turn.stage, onAllCopies = { allCopies(card) }, row = hitRow)
+                        SuggestionCard(card, turn.stage, onAllCopies = { allCopies(card) }, row = hitRow) {
+                            KindBody(card, container, hitRow)
+                        }
                     }
                 }
             }
+            AskInput(state, recents) { text, from -> viewModel.ask(text, from) }
         }
     }
 }
@@ -167,7 +186,7 @@ private fun AskInput(state: AskViewModel.UiState, recents: RecentSearches?, ask:
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { send("keyboard") }),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag(ASK_INPUT_TAG),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag(ASK_INPUT_TAG),
     )
 }
 
@@ -175,6 +194,7 @@ private fun AskInput(state: AskViewModel.UiState, recents: RecentSearches?, ask:
 private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel): @Composable (SearchHit) -> Unit {
     val searchState by search.uiState.collectAsStateWithLifecycle()
     val actions = rememberMediaItemActions(container)
+    val openMusic = LocalOpenMusicPage.current
     return { hit ->
         when (hit) {
             is SearchHit.Torrent -> TorrentHitRow(
@@ -195,15 +215,65 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
                 onSubscribe = { search.subscribe(hit) },
             )
             is SearchHit.Book -> BookHitRow(hit = hit, onPlay = { search.playBook(hit, hit.title) })
-            else -> Text(hit.title, modifier = Modifier.padding(16.dp))
+            is SearchHit.Song -> SongHitRow(
+                hit = hit,
+                resolving = searchState.resolving == hit.watchUrl.value,
+                onPlay = { search.playSong(hit) },
+                actions = actions,
+            )
+            is SearchHit.Album -> AlbumRow(hit.ref, onOpen = {
+                Diag.log("ask", "album ${hit.ref.browseId} \"${hit.ref.title}\" opened")
+                openMusic?.invoke(MusicPage.Album(hit.ref.browseId, title = hit.ref.title))
+            })
+            is SearchHit.Artist -> ArtistRow(
+                hit.ref.name,
+                hit.ref.subtitle,
+                hit.ref.thumbnailUrl,
+                browseId = hit.ref.browseId,
+                onOpen = {
+                    Diag.log("ask", "artist ${hit.ref.browseId} \"${hit.ref.name}\" opened")
+                    openMusic?.invoke(MusicPage.Artist(hit.ref.browseId, hit.ref.name))
+                },
+            )
         }
     }
 }
 
 @Composable
+private fun KindBody(card: AskCard, container: AppContainer, row: @Composable (SearchHit) -> Unit): Boolean =
+    when (card.suggestion.kind) {
+        AskKind.LATEST -> {
+            if (card.searched) LatestBody(card, container)
+            true
+        }
+        AskKind.RADIO -> {
+            if (card.searched) RadioBody(card, container, row)
+            true
+        }
+        else -> false
+    }
+
+@Composable
 private fun TurnHeader(turn: AskViewModel.Turn) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(stringResource(R.string.ask_you_said, turn.request), style = MaterialTheme.typography.titleMedium)
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.align(Alignment.End).padding(start = 48.dp),
+        ) {
+            Text(
+                turn.request,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            )
+        }
+        if (turn.reply.isNotBlank()) {
+            Text(
+                stringResource(R.string.ask_reply, turn.reply),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 10.dp, end = 32.dp),
+            )
+        }
         val status = when (turn.stage) {
             AskViewModel.Stage.ASKING -> stringResource(R.string.ask_asking)
             AskViewModel.Stage.SEARCHING -> stringResource(R.string.ask_searching)
@@ -224,6 +294,7 @@ private fun SuggestionCard(
     stage: AskViewModel.Stage,
     onAllCopies: () -> Unit,
     row: @Composable (SearchHit) -> Unit,
+    body: @Composable () -> Boolean,
 ) {
     Card(
         Modifier.fillMaxWidth().padding(
@@ -250,6 +321,7 @@ private fun SuggestionCard(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+            if (body()) return@Column
             val best = card.best
             when {
                 !card.searched -> Unit
@@ -265,7 +337,7 @@ private fun SuggestionCard(
                 )
             }
             RejectedCopies(card.rejected)
-            if (card.searched) {
+            if (card.searched && s.kind.vetted) {
                 TextButton(onClick = onAllCopies, modifier = Modifier.padding(horizontal = 8.dp)) {
                     Text(stringResource(R.string.ask_all_copies))
                 }

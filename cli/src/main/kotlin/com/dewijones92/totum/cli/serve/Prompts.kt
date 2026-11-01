@@ -2,31 +2,48 @@ package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.serve.filing.FileRequest
 import com.dewijones92.totum.data.ask.AskRequest
+import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.VetRequest
 
 internal object Prompts {
 
     val SUGGEST_SYSTEM = """
-        You help one family choose something to download into their media app. It can download five kinds of
-        thing: a film or a series (from torrents), a YouTube video, a podcast, or an audiobook.
+        You are the assistant inside one family's media app, talking with them in a short chat. The app plays and
+        downloads: films and series (from torrents), YouTube videos, podcasts, audiobooks, and music from YouTube
+        Music (songs, albums, artists, and radio stations that keep playing similar songs). It also knows which
+        YouTube channels, podcasts and artists they follow, and what they play most.
 
-        Always search the web before answering, and confirm every item's exact title and year there: never give
-        a year you have not seen in a search result, because the app finds a film by its title and year and a
-        wrong year finds nothing. Then suggest 3 to 5 specific items that best fit the newest request, taking any
-        earlier turns of the conversation into account (a request such
-        as "something newer" refines the one before it). For each item give:
-        - kind: film, series, youtube, podcast or audiobook
-        - title: its exact title as it is commonly listed
-        - year: its year of release when it has one, otherwise null
-        - why: one short sentence on why it fits; say what age it suits when a child is involved, and its
-          running time when known
-        - searchWords: only the words that find it: for a film or series the title and year and nothing else
-          (torrent names carry little more); for YouTube the title and the channel; for a podcast or an
-          audiobook the title and the author
-        - alreadyHave: true when it appears in the list of things the family already has
+        Answer the newest message, taking the earlier turns into account (a message such as "something newer" or
+        "less disco" refines the one before it). Give:
+        - reply: one or two friendly sentences in plain text (no links, no markdown) saying what you picked and why,
+          or asking one short question when the message is too unclear to act on (then give no items)
+        - suggestions: 1 to 5 specific items, each with
+          - kind: film, series, youtube (one video), podcast (a show), audiobook, song, album, artist, radio (a
+            station built from seed songs) or latest (the newest uploads or episodes of one YouTube channel or
+            podcast they follow)
+          - title: its exact title as commonly listed; for a radio a short name for the station; for latest the
+            channel's or podcast's name exactly as in their list
+          - year: for a film, series or audiobook its year of release; always null for every other kind
+          - why: one short sentence on why it fits; say what age it suits when a child is involved, and its running
+            time when known
+          - searchWords: only the words that find it: for a film or series the title and year; for YouTube the
+            title and the channel; for a podcast or an audiobook the title and the author; for a song the title and
+            the artist; for an album the title and the artist; for an artist the name; for a radio 2 to 4 seed songs
+            as "Title Artist" separated by "; ", all in the station's one style and mood (never mix styles in one
+            station); for latest the channel's or podcast's name
+          - alreadyHave: true when it appears in the list of things they already have
 
-        Prefer items they do not already have. Never suggest anything unsuitable for the audience the request
-        describes. Answer only through the structured output.
+        Use what they follow and play to understand their taste: "my vlogs" or "the latest from my channels" means
+        channels from their list (use kind latest, one item per channel, starting with the ones they play most),
+        "a new episode of my podcast" means kind latest for that podcast (never kind podcast for a show they already
+        follow: podcast is only for a show they do not follow yet), "something like what I listen to" means
+        their artists. The "Most played lately" list is the strongest signal of what they like now. Prefer things
+        they do not already have when they ask for something new.
+
+        Search the web only when you need a fact you are not sure of: a film's or series' exact year (the app finds
+        a film by its title and year, so never give a year you have not confirmed), a new release, or something
+        you do not recognise. Music, radios and their own channels need no search. Never suggest anything
+        unsuitable for the audience the message describes. Answer only through the structured output.
     """.trimIndent()
 
     val VET_SYSTEM = """
@@ -40,18 +57,33 @@ internal object Prompts {
     """.trimIndent()
 
     fun suggestMessage(request: AskRequest): String = buildString {
-        appendLine("Newest request: ${request.turns.last().request}")
+        appendLine("Newest message: ${request.turns.last().request}")
         val earlier = request.turns.dropLast(1)
         if (earlier.isNotEmpty()) {
-            appendLine("Earlier in this conversation:")
+            appendLine("Earlier in this chat:")
             earlier.forEach { turn ->
                 val suggested = turn.suggested.joinToString("; ").ifEmpty { "nothing" }
-                appendLine("- asked \"${turn.request}\"; suggested: $suggested")
+                val reply = turn.reply.takeIf { it.isNotBlank() }?.let { "; you answered \"$it\"" } ?: ""
+                appendLine("- they said \"${turn.request}\"$reply; suggested: $suggested")
             }
         }
         appendLine(
             "Already have: " + request.have.take(MAX_HAVE).joinToString("; ").ifEmpty { "nothing yet" },
         )
+        tasteLines(request.taste)
+    }
+
+    private fun StringBuilder.tasteLines(taste: Taste) {
+        listOf(
+            "YouTube channels they subscribe to" to taste.channels,
+            "Podcasts they follow" to taste.shows,
+            "Artists they follow" to taste.artists,
+            "Albums they saved" to taste.albums,
+            "Songs they like" to taste.songs,
+            "Most played lately" to taste.played,
+        ).forEach { (label, names) ->
+            if (names.isNotEmpty()) appendLine("$label: " + names.take(MAX_TASTE).joinToString("; "))
+        }
     }
 
     fun vetMessage(request: VetRequest): String = buildString {
@@ -109,10 +141,12 @@ internal object Prompts {
     """.trimIndent().replace("\n", "")
 
     val SUGGEST_SCHEMA = """
-        {"type":"object","additionalProperties":false,"required":["suggestions"],"properties":{"suggestions":
+        {"type":"object","additionalProperties":false,"required":["reply","suggestions"],"properties":{
+        "reply":{"type":"string"},"suggestions":
         {"type":"array","maxItems":5,"items":{"type":"object","additionalProperties":false,
         "required":["kind","title","year","why","searchWords","alreadyHave"],"properties":{
-        "kind":{"type":"string","enum":["film","series","youtube","podcast","audiobook"]},
+        "kind":{"type":"string","enum":["film","series","youtube","podcast","audiobook","song","album","artist",
+        "radio","latest"]},
         "title":{"type":"string"},"year":{"type":["integer","null"]},"why":{"type":"string"},
         "searchWords":{"type":"string"},"alreadyHave":{"type":"boolean"}}}}}}
     """.trimIndent().replace("\n", "")
@@ -125,5 +159,6 @@ internal object Prompts {
     """.trimIndent().replace("\n", "")
 
     private const val MAX_HAVE = 200
+    private const val MAX_TASTE = 2_000
     private const val BYTES_PER_GB = 1_000_000_000.0
 }

@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskTurn
 import com.dewijones92.totum.data.ask.CopyToVet
 import com.dewijones92.totum.data.ask.Suggestion
+import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.VetItem
 import com.dewijones92.totum.data.ask.VetRequest
 import kotlinx.coroutines.test.runTest
@@ -88,9 +89,52 @@ class ClaudeCodeBrainTest {
                 have = listOf("The Gruffalo (2009)"),
             ),
         )
-        assertTrue("Newest request: something newer" in text)
-        assertTrue("asked \"a Gruffalo film\"; suggested: Zog (2018)" in text)
+        assertTrue("Newest message: something newer" in text)
+        assertTrue("they said \"a Gruffalo film\"; suggested: Zog (2018)" in text)
         assertTrue("Already have: The Gruffalo (2009)" in text)
+    }
+
+    @Test
+    fun `the message carries earlier replies and the family's taste`() {
+        val text = Prompts.suggestMessage(
+            AskRequest(
+                listOf(
+                    AskTurn("happy funk", listOf("Radio · Happy funk"), reply = "Here is a funk radio"),
+                    AskTurn("more 70s")
+                ),
+                taste = Taste(
+                    channels = listOf("Bald and Bankrupt"),
+                    shows = listOf("The Rest Is Politics"),
+                    artists = listOf("Jackson 5"),
+                    albums = listOf("ABC"),
+                    songs = listOf("September"),
+                    played = listOf("Peep Show"),
+                ),
+            ),
+        )
+        assertTrue("you answered \"Here is a funk radio\"" in text)
+        assertTrue("YouTube channels they subscribe to: Bald and Bankrupt" in text)
+        assertTrue("Podcasts they follow: The Rest Is Politics" in text)
+        assertTrue("Artists they follow: Jackson 5" in text)
+        assertTrue("Albums they saved: ABC" in text)
+        assertTrue("Songs they like: September" in text)
+        assertTrue("Most played lately: Peep Show" in text)
+    }
+
+    @Test
+    fun `the answer may be music, a radio or the latest from a channel, with a reply`() = runTest {
+        val music = """{"reply":"Funk it is","suggestions":[""" + listOf(
+            pick("radio", "Happy funk", "September Earth Wind & Fire; Dean Town Vulfpeck"),
+            pick("latest", "Bald and Bankrupt", "Bald and Bankrupt"),
+            pick("song", "September", "September Earth Wind & Fire"),
+        ).joinToString(",") + "]}"
+        val brain = claudeCodeBrain(run = { _, _ -> envelope(music) })
+        val got = brain.suggest(gruffalo)
+        assertEquals("Funk it is", got.reply)
+        assertEquals(listOf(AskKind.RADIO, AskKind.LATEST, AskKind.SONG), got.suggestions.map { it.kind })
+        listOf("song", "album", "artist", "radio", "latest", "\"reply\"").forEach {
+            assertTrue("schema admits $it", it in Prompts.SUGGEST_SCHEMA)
+        }
     }
 
     @Test
@@ -127,4 +171,7 @@ class ClaudeCodeBrainTest {
         assertEquals("The home server isn't signed in to Claude yet", failure?.message)
         assertEquals(1, attempts)
     }
+
+    private fun pick(kind: String, title: String, words: String) =
+        """{"kind":"$kind","title":"$title","year":null,"why":"fits","searchWords":"$words","alreadyHave":false}"""
 }

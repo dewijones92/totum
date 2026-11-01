@@ -1171,13 +1171,19 @@
         <item quantity="other">✅ %1$d picks ready to confirm: %2$s</item>
     </plurals>
     <string name="ask_title">✨ Ask</string>
-    <string name="ask_action">Ask for something to download</string>
-    <string name="ask_hint">What would you like? A Gruffalo film for a toddler…</string>
-    <string name="ask_refine_hint">Change it: something newer, shorter, funnier…</string>
+    <string name="ask_action">Ask for anything to play or download</string>
+    <string name="ask_hint">What would you like? A happy funk radio, my latest vlogs, a Gruffalo film…</string>
+    <string name="ask_refine_hint">Reply: more 70s, something newer, shorter…</string>
     <string name="ask_speak">Speak</string>
     <string name="ask_send">Ask</string>
     <string name="ask_speech_prompt">What would you like?</string>
-    <string name="ask_start_over">🔄 Start over</string>
+    <string name="ask_start_over">➕ New chat</string>
+    <string name="ask_play_all">▶️ Play all</string>
+    <string name="ask_queue_all">➕ Queue all</string>
+    <string name="ask_start_radio">📻 Start this radio</string>
+    <string name="ask_radio_seeds">🌱 Seeded from</string>
+    <string name="ask_no_latest">📭 Nothing new from this channel, or it is not one you follow</string>
+    <string name="ask_reply">✨ %1$s</string>
     <string name="ask_you_said">🗣️ %1$s</string>
     <string name="ask_asking">✨ Asking the home server… (a minute or two)</string>
     <string name="ask_searching">🔍 Looking for copies…</string>
@@ -1195,7 +1201,7 @@
     </plurals>
     <string name="ask_skipped_line">%1$s: %2$s</string>
     <string name="ask_shortcut_short">✨ Ask</string>
-    <string name="ask_shortcut_long">✨ Ask for something to download</string>
+    <string name="ask_shortcut_long">✨ Ask for anything</string>
     <string name="cast_moving_to_tv">Moving playback to the screen</string>
     <string name="cast_moving_to_phone">Moving playback back to the phone</string>
     <plurals name="unsubscribing">

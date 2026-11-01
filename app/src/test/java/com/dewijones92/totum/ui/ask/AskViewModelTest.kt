@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.ask.AskOutcome
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskService
 import com.dewijones92.totum.data.ask.Suggestion
+import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.Verdict
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
@@ -15,6 +16,10 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchOutcome
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.torrent.TorrentLink
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.Operations
 import kotlinx.coroutines.Dispatchers
@@ -118,6 +123,41 @@ class AskViewModelTest {
         assertEquals(listOf("a Gruffalo film", "something newer"), turns.map { it.request })
         assertEquals(listOf("Zog (2018)"), turns.first().suggested)
     }
+
+    @Test
+    fun `the taste goes with the ask, the reply is kept and carried, latest is looked up and music is not vetted`() =
+        runTest(dispatcher) {
+            val radio = Suggestion(AskKind.RADIO, "Happy funk", null, "upbeat", "Zog seed; Zog other")
+            val latest = Suggestion(AskKind.LATEST, "Bald and Bankrupt", null, "you follow him", "Bald and Bankrupt")
+            service.answer = AskOutcome.Answered(AskAnswer(listOf(radio, latest), reply = "Funk and a vlog"), 1)
+            val video = MediaItem(MediaItemId("v1"), SourceId("c"), "A vlog", publishedAt = null, duration = null)
+                .asPlayable()
+            val looked = mutableListOf<String>()
+            val vm = AskViewModel(
+                service,
+                AskCopies({ listOf(torrents) }),
+                { emptyList() },
+                operations,
+                taste = { Taste(channels = listOf("Bald and Bankrupt")) },
+                latest = { name ->
+                    looked += name
+                    listOf(video)
+                },
+            )
+            vm.ask("funk and my vlogs", "typed")
+            advanceUntilIdle()
+            val turn = vm.uiState.value.turns.single()
+            assertEquals(listOf("Bald and Bankrupt"), service.asked.single().taste.channels)
+            assertEquals("Funk and a vlog", turn.reply)
+            assertEquals(listOf("Bald and Bankrupt"), looked)
+            assertEquals(listOf(video), turn.cards[1].items)
+            assertEquals(2, turn.cards[0].copies.size)
+            assertTrue("music and latest are never sent to be vetted", service.vetted.isEmpty())
+
+            vm.ask("more 70s", "typed")
+            advanceUntilIdle()
+            assertEquals("Funk and a vlog", service.asked.last().turns.first().reply)
+        }
 
     @Test
     fun `a failed ask says why and a failed check keeps the app's order`() = runTest(dispatcher) {

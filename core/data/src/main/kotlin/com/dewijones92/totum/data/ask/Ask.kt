@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-public enum class AskKind(public val emoji: String) {
+public enum class AskKind(public val emoji: String, public val vetted: Boolean = true) {
     @SerialName("film")
     FILM("🎬"),
 
@@ -20,7 +20,32 @@ public enum class AskKind(public val emoji: String) {
 
     @SerialName("audiobook")
     AUDIOBOOK("🎧"),
+
+    @SerialName("song")
+    SONG("🎵", vetted = false),
+
+    @SerialName("album")
+    ALBUM("💿", vetted = false),
+
+    @SerialName("artist")
+    ARTIST("🎤", vetted = false),
+
+    @SerialName("radio")
+    RADIO("📻", vetted = false),
+
+    @SerialName("latest")
+    LATEST("🆕", vetted = false),
 }
+
+@Serializable
+public data class Taste(
+    val channels: List<String> = emptyList(),
+    val shows: List<String> = emptyList(),
+    val artists: List<String> = emptyList(),
+    val albums: List<String> = emptyList(),
+    val songs: List<String> = emptyList(),
+    val played: List<String> = emptyList(),
+)
 
 @Serializable
 public data class Suggestion(
@@ -35,17 +60,25 @@ public data class Suggestion(
 }
 
 @Serializable
-public data class AskTurn(val request: String, val suggested: List<String> = emptyList())
+public data class AskTurn(
+    val request: String,
+    val suggested: List<String> = emptyList(),
+    val reply: String = "",
+)
 
 @Serializable
-public data class AskRequest(val turns: List<AskTurn>, val have: List<String> = emptyList()) {
+public data class AskRequest(
+    val turns: List<AskTurn>,
+    val have: List<String> = emptyList(),
+    val taste: Taste = Taste(),
+) {
     init {
         require(turns.isNotEmpty()) { "an ask needs a request" }
     }
 }
 
 @Serializable
-public data class AskAnswer(val suggestions: List<Suggestion>)
+public data class AskAnswer(val suggestions: List<Suggestion>, val reply: String = "")
 
 @Serializable
 public data class CopyToVet(val name: String, val sizeBytes: Long? = null, val detail: String? = null)
@@ -83,6 +116,26 @@ public data class AskJob(
     val vet: VetAnswer? = null,
     val error: String? = null,
 )
+
+public fun AskAnswer.tidied(taste: Taste): AskAnswer = AskAnswer(
+    suggestions = suggestions.map { it.tidied(taste) },
+    reply = reply.replace(MARKDOWN_LINK) { it.groupValues[1] },
+)
+
+private fun Suggestion.tidied(taste: Taste): Suggestion {
+    val dated = if (kind in DATED) this else copy(year = null)
+    val followed = taste.shows.firstOrNull { it.squashed() == title.squashed() }
+    return if (kind == AskKind.PODCAST && followed != null) {
+        dated.copy(kind = AskKind.LATEST, title = followed, searchWords = followed)
+    } else {
+        dated
+    }
+}
+
+public fun String.squashed(): String = lowercase().replace("&", "and").filter(Char::isLetterOrDigit)
+
+private val DATED = setOf(AskKind.FILM, AskKind.SERIES, AskKind.AUDIOBOOK)
+private val MARKDOWN_LINK = Regex("""\[([^\]]+)]\((https?://[^)\s]+)\)""")
 
 public val AskJson: Json = Json {
     ignoreUnknownKeys = true

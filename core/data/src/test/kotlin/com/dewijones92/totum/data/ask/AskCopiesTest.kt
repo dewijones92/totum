@@ -33,6 +33,31 @@ class AskCopiesTest {
     }
 
     @Test
+    fun `a radio searches each seed song and keeps the first copy of each`() = runTest {
+        val radio = Suggestion(AskKind.RADIO, "Happy funk", null, "upbeat", "September EWF; Dean Town Vulfpeck")
+        val copies = AskCopies({ listOf(source("first", "second")) }).find(radio)
+        assertEquals(listOf("first [September EWF]", "first [Dean Town Vulfpeck]"), copies.map { it.title })
+    }
+
+    @Test
+    fun `a tidied answer dates only films series and books, follows podcasts to their latest and drops links`() {
+        val answer = AskAnswer(
+            listOf(
+                Suggestion(AskKind.ALBUM, "Bach Cello Suites", 1983, "calm", "Bach Cello Suites Yo-Yo Ma"),
+                Suggestion(AskKind.FILM, "Apollo 11", 2019, "space", "Apollo 11 2019"),
+                Suggestion(AskKind.PODCAST, "the rest is politics", 2020, "yours", "The Rest Is Politics Campbell"),
+                Suggestion(AskKind.PODCAST, "In Our Time", 1998, "new to you", "In Our Time Bragg"),
+            ),
+            reply = "No new series yet ([GamesRadar](https://www.gamesradar.com/x)), so here are others.",
+        ).tidied(Taste(shows = listOf("The Rest Is Politics")))
+        assertEquals(listOf(null, 2019, null, null), answer.suggestions.map { it.year })
+        assertEquals(AskKind.LATEST, answer.suggestions[2].kind)
+        assertEquals("The Rest Is Politics", answer.suggestions[2].searchWords)
+        assertEquals(AskKind.PODCAST, answer.suggestions[3].kind)
+        assertEquals("No new series yet (GamesRadar), so here are others.", answer.reply)
+    }
+
+    @Test
     fun `a failing source leaves the others`() = runTest {
         val broken = SearchSource { _, _, _ -> SearchOutcome.Failure("down") }
         assertEquals(1, AskCopies({ listOf(broken, source("ok")) }).find(zog).size)

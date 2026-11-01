@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchOutcome
 import com.dewijones92.totum.data.search.SearchQuery
 import com.dewijones92.totum.data.search.SearchSource
+import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -13,21 +14,32 @@ public class AskCopies(private val sources: (AskKind) -> List<SearchSource>, pri
 
     public suspend fun find(suggestion: Suggestion): List<SearchHit> = coroutineScope {
         val query = suggestion.searchWords.ifBlank { suggestion.label }
-        sources(suggestion.kind).map { source ->
+        val found = if (suggestion.kind == AskKind.RADIO) {
+            query.split(';').map(String::trim).filter(String::isNotEmpty)
+                .map { seed -> async { search(suggestion.kind, seed, 1).firstOrNull() } }
+                .awaitAll().filterNotNull()
+        } else {
+            search(suggestion.kind, query, perSuggestion).take(perSuggestion)
+        }
+        Diag.log(
+            "ask",
+            "\"$query\" (${suggestion.kind}) -> ${found.size} copies: ${found.joinToString("; ") { it.title }}"
+        )
+        found
+    }
+
+    private suspend fun search(kind: AskKind, query: String, limit: Int): List<SearchHit> = coroutineScope {
+        sources(kind).map { source ->
             async {
-                when (val outcome = source.search(SearchQuery(query), perSuggestion, null)) {
+                when (val outcome = source.search(SearchQuery(query), limit, null)) {
                     is SearchOutcome.Success -> outcome.page.items
                     is SearchOutcome.Failure -> {
-                        Diag.warn("ask", "search \"$query\" for ${suggestion.kind} failed: ${outcome.detail}")
+                        Diag.warn("ask", "search \"$query\" for $kind failed: ${outcome.detail}")
                         emptyList()
                     }
                 }
             }
-        }.awaitAll().flatten().take(perSuggestion)
-            .also { found ->
-                val titles = found.joinToString("; ") { it.title }
-                Diag.log("ask", "\"$query\" (${suggestion.kind}) -> ${found.size} copies: $titles")
-            }
+        }.awaitAll().flatten()
     }
 
     public companion object {
@@ -43,6 +55,7 @@ public fun SearchHit.toCopy(): CopyToVet = when (this) {
 public data class AskCard(
     val suggestion: Suggestion,
     val copies: List<SearchHit> = emptyList(),
+    val items: List<PlayableItem> = emptyList(),
     val verdicts: Map<Int, Verdict> = emptyMap(),
     val searched: Boolean = false,
     val vetted: Boolean = false,
