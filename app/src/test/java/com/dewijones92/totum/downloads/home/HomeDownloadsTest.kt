@@ -5,6 +5,8 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.data.home.HomeProblem
+import com.dewijones92.totum.data.home.HomeSeverity
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.MediaItem
@@ -41,6 +43,7 @@ class HomeDownloadsTest {
         override fun started(title: String) { said += "started $title" }
         override fun ready(title: String) { said += "ready $title" }
         override fun refused(title: String, why: String) { said += "refused $title: $why" }
+        override fun problem(key: String, text: String) { said += "problem $text" }
     }
 
     private val api = FakeHomeApi()
@@ -207,5 +210,19 @@ class HomeDownloadsTest {
         val home = home(backgroundScope)
         home.refresh("test")
         assertEquals(StorageUsage(itemCount = 1, usedBytes = 2_000, freeBytes = 312_000_000_000), home.storage.value)
+    }
+
+    @Test
+    fun `a new problem at home is told once and one already there at start is shown but not announced`() = runTest {
+        val disk = HomeProblem("disk", HomeSeverity.WARNING, "⚠️ Only 12 GB free at home")
+        val ai = HomeProblem("ai", HomeSeverity.BROKEN, "❌ The AI service at home is not answering")
+        api.problems = listOf(disk)
+        val home = home(backgroundScope)
+        home.refresh("start")
+        api.problems = listOf(disk, ai)
+        home.refresh("later")
+        home.refresh("again")
+        assertEquals(listOf(disk, ai), home.problems.value)
+        assertEquals(listOf("problem ❌ The AI service at home is not answering"), notices.said)
     }
 }

@@ -30,7 +30,7 @@ class ClaudeCodeBrainTest {
 
     @Test
     fun `the structured answer becomes suggestions`() = runTest {
-        val brain = ClaudeCodeBrain(run = { _, _ -> envelope(answer) })
+        val brain = claudeCodeBrain(run = { _, _ -> envelope(answer) })
         val got = brain.suggest(gruffalo).suggestions.single()
         assertEquals(AskKind.FILM, got.kind)
         assertEquals("The Gruffalo (2009)", got.label)
@@ -39,7 +39,7 @@ class ClaudeCodeBrainTest {
     @Test
     fun `suggesting may search the web and vetting may use no tool at all`() = runTest {
         val calls = mutableListOf<List<String>>()
-        val brain = ClaudeCodeBrain(model = "haiku", run = { args, _ ->
+        val brain = claudeCodeBrain(model = "haiku", run = { args, _ ->
             calls += args
             if (args.any { "verdicts" in it }) envelope("""{"verdicts":[]}""") else envelope(answer)
         })
@@ -53,7 +53,7 @@ class ClaudeCodeBrainTest {
     @Test
     fun `a malformed answer is asked again once`() = runTest {
         var attempts = 0
-        val brain = ClaudeCodeBrain(run = { _, _ ->
+        val brain = claudeCodeBrain(run = { _, _ ->
             attempts++
             if (attempts == 1) envelope("""{"suggestions":[{"kind":"opera"}]}""") else envelope(answer)
         })
@@ -64,7 +64,7 @@ class ClaudeCodeBrainTest {
     @Test
     fun `two failures in a row are reported, not retried for ever`() = runTest {
         var attempts = 0
-        val brain = ClaudeCodeBrain(run = { _, _ ->
+        val brain = claudeCodeBrain(run = { _, _ ->
             attempts++
             ProcessResult(-1, "", "", timedOut = true)
         })
@@ -75,7 +75,7 @@ class ClaudeCodeBrainTest {
 
     @Test
     fun `an error envelope says why`() = runTest {
-        val brain = ClaudeCodeBrain(run = { _, _ -> envelope(null, isError = true) })
+        val brain = claudeCodeBrain(run = { _, _ -> envelope(null, isError = true) })
         val failure = runCatching { brain.suggest(gruffalo) }.exceptionOrNull()
         assertTrue(failure?.message.orEmpty().startsWith("no structured answer"))
     }
@@ -113,7 +113,7 @@ class ClaudeCodeBrainTest {
     @Test
     fun `a home server not signed in to Claude says so once, without retrying`() = runTest {
         var attempts = 0
-        val brain = ClaudeCodeBrain(run = { _, _ ->
+        val brain = claudeCodeBrain(run = { _, _ ->
             attempts++
             ProcessResult(
                 1,

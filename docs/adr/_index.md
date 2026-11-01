@@ -128,3 +128,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 110 | [Downloads at home: the Pi fetches with the app's own code](0110-downloads-at-home-the-pi-fetches-with-the-apps-own-code.md) | Accepted |
 | 111 | [Finished torrents at home are filed into Jellyfin by Haiku](0111-finished-torrents-at-home-are-filed-into-jellyfin.md) | Accepted |
 | 112 | [The boost is at full loudness at once, not after it has caught up](0112-the-boost-is-at-full-loudness-at-once.md) | Accepted |
+| 113 | [An AI service on the Pi, and health the Pi judges](0113-an-ai-service-on-the-pi-and-health-the-pi-judges.md) | Accepted |

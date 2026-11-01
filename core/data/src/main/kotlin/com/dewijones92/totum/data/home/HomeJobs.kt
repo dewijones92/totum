@@ -42,7 +42,24 @@ public data class HomeJob(
 )
 
 @Serializable
-public data class HomeJobs(val jobs: List<HomeJob>, val freeBytes: Long, val youTubeSignedIn: Boolean)
+public enum class HomeSeverity {
+    @SerialName("warning")
+    WARNING,
+
+    @SerialName("broken")
+    BROKEN,
+}
+
+@Serializable
+public data class HomeProblem(val key: String, val severity: HomeSeverity, val text: String)
+
+@Serializable
+public data class HomeJobs(
+    val jobs: List<HomeJob>,
+    val freeBytes: Long,
+    val youTubeSignedIn: Boolean,
+    val problems: List<HomeProblem> = emptyList(),
+)
 
 @Serializable
 public data class AccountHandover(val accessToken: String, val refreshToken: String, val expiresAtEpochSeconds: Long)

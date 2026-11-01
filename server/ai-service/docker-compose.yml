@@ -1,0 +1,29 @@
+name: ai-service
+
+services:
+  ai-service:
+    build:
+      context: ../totum-cli
+      target: ai
+      args:
+        TOTUM_VERSION: ${TOTUM_VERSION:?set TOTUM_VERSION to the release to run, e.g. 0.1.830}
+    image: ai-service:${TOTUM_VERSION}
+    container_name: ai-service
+    env_file:
+      - /var/lib/ai-service/claude.env
+    environment:
+      TZ: GMT0BST,M3.5.0/1,M10.5.0
+    volumes:
+      - /var/lib/ai-service/home:/home/totum
+    networks:
+      - bin_private
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8780/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+networks:
+  bin_private:
+    external: true

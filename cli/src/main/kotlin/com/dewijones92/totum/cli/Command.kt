@@ -22,6 +22,8 @@ internal sealed interface Command {
 
     data class Serve(val port: Int) : Command
 
+    data class AiServe(val port: Int) : Command
+
     data class FileCheck(
         val listing: String,
         val samples: Int,
@@ -64,6 +66,7 @@ private fun command(words: List<String>, flags: Set<String>): Command {
             ?.let { Command.Search(it, limitFrom(flags)) }
             ?: Command.Help("search needs something to search for")
         "serve" -> Command.Serve(portFrom(flags))
+        "ai-serve" -> Command.AiServe(portFrom(flags, AI_PORT))
         "file-check" -> fileCheck(rest, flags)
         // No sub-command: `totum <url>` and `totum jazz live stream` both mean play. The
         // shortest thing you can type should be the thing you do most.
@@ -111,8 +114,8 @@ private fun fileCheck(rest: List<String>, flags: Set<String>): Command {
 private fun intFlag(flags: Set<String>, prefix: String): Int? =
     flags.firstOrNull { it.startsWith(prefix) }?.removePrefix(prefix)?.toIntOrNull()
 
-private fun portFrom(flags: Set<String>): Int =
-    flags.firstOrNull { it.startsWith("--port=") }?.removePrefix("--port=")?.toIntOrNull() ?: DEFAULT_PORT
+private fun portFrom(flags: Set<String>, default: Int = DEFAULT_PORT): Int =
+    flags.firstOrNull { it.startsWith("--port=") }?.removePrefix("--port=")?.toIntOrNull() ?: default
 
 private val HELP_FLAGS = setOf("-h", "--help")
 private val VERSION_FLAGS = setOf("-V", "--version")
@@ -125,3 +128,4 @@ private val PLAIN: Map<String, Command> = mapOf(
     "version" to Command.Version,
     "doctor" to Command.Doctor
 )
+private const val AI_PORT = 8780

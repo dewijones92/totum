@@ -13,6 +13,6 @@ internal interface Brain {
     suspend fun file(request: FileRequest): FilePlan = throw BrainFailure("this brain does not file")
 }
 
-internal open class BrainFailure(message: String) : Exception(message)
+internal open class BrainFailure(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 internal class NotSignedIn : BrainFailure("The home server isn't signed in to Claude yet")

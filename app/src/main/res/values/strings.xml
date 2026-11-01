@@ -402,6 +402,7 @@
     <string name="channel_search_hint">Search this channel</string>
     <string name="library_storage">💾 Using %1$s</string>
     <string name="library_storage_with_free">💾 Using %1$s · %2$s free</string>
+    <string name="home_problems_title">🏠 Home server</string>
     <string name="home_storage">🏠 Using %1$s at home</string>
     <string name="home_storage_with_free">🏠 Using %1$s at home · %2$s free</string>
     <string name="settings_skip_section">Skip in videos</string>

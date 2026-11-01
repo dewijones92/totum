@@ -80,6 +80,7 @@ fun ShellBanners(container: AppContainer) {
     val signedIn by container.accountSubscriptions.signedIn.collectAsStateWithLifecycle()
     val all by container.operations.running.collectAsStateWithLifecycle()
     val running = rememberLongRunning(all)
+    val homeProblems by container.homeDownloads.problems.collectAsStateWithLifecycle()
     RefusedTapToasts(container.playbackQueue, signedIn)
     OperationResultToasts(container.operations)
     Column {
@@ -87,5 +88,6 @@ fun ShellBanners(container: AppContainer) {
         val first = update !is UpdateStatus.OutOfDate
         OperationsStrip(running, padStatusBar = first, onCancel = container.operations::cancel)
         PoliteBanner(container.polite, signedIn, padStatusBar = first && running.isEmpty())
+        HomeProblemsBanner(homeProblems, padStatusBar = first && running.isEmpty() && !container.polite.bannerUp())
     }
 }

@@ -13,6 +13,8 @@ class Politeness(
     val quiet: Boolean
         get() = (gate.slowDown.value?.untilMs ?: 0) > System.currentTimeMillis()
 
+    fun bannerUp(now: Long = System.currentTimeMillis()): Boolean = quiet || (botBackOff.until.value ?: 0) > now
+
     fun diagnostics(): Map<String, String> = buildMap {
         val slow = gate.slowDown.value
         put("polite.slowDown", slow?.let { "until ${Instant.ofEpochMilli(it.untilMs)} (${it.reason})" } ?: "none")

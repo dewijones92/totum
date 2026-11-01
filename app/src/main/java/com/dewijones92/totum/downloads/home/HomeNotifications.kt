@@ -23,6 +23,8 @@ class HomeNotifications(private val context: Context) : HomeNotices {
         context.getString(R.string.home_notice_refused, title, why)
     )
 
+    override fun problem(key: String, text: String) = post(key, text)
+
     private fun post(title: String, text: String) {
         Diag.log("home", "notice: $text")
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=

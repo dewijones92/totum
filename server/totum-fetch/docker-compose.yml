@@ -3,16 +3,15 @@ name: totum-fetch
 services:
   totum-fetch:
     build:
-      context: .
+      context: ../totum-cli
+      target: fetch
       args:
         TOTUM_VERSION: ${TOTUM_VERSION:?set TOTUM_VERSION to the release to run, e.g. 0.1.800}
     image: totum-fetch:${TOTUM_VERSION}
     container_name: totum-fetch
     env_file:
-      - /var/lib/totum-fetch/claude.env
       - /var/lib/totum-fetch/fetch.env
     environment:
-      TOTUM_ASK_MODEL: haiku
       TZ: GMT0BST,M3.5.0/1,M10.5.0
     volumes:
       - /var/lib/totum-fetch/home:/home/totum

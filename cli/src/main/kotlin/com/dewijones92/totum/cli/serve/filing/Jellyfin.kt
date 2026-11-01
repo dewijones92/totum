@@ -15,6 +15,12 @@ class Jellyfin(
     private val key: String,
     private val libraryPaths: Map<Shelf, String>,
 ) {
+    fun reachable(): Boolean = runCatching {
+        http.newCall(
+            Request.Builder().url(base.trimEnd('/') + "/System/Info/Public").build()
+        ).execute().use { it.isSuccessful }
+    }.getOrDefault(false)
+
     fun created(shelf: Shelf, relative: String): Boolean {
         val path = "${libraryPaths.getValue(shelf).trimEnd('/')}/$relative"
         val body = JsonObject(

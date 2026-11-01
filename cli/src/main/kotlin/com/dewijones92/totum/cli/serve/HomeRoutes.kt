@@ -16,6 +16,8 @@ internal class HomeRoutes(private val home: Home) {
 
     fun handles(path: String): Boolean = path in PATHS
 
+    suspend fun jobs(): HomeJobs = home.jobs()
+
     fun handle(exchange: HttpExchange, method: String, path: String) = runBlocking {
         val id = idOf(exchange)
         when {

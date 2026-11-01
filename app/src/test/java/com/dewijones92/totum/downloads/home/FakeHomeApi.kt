@@ -7,6 +7,7 @@ import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobs
 import com.dewijones92.totum.data.home.HomeJobsApi
+import com.dewijones92.totum.data.home.HomeProblem
 
 internal class FakeHomeApi : HomeJobsApi {
     val started = mutableListOf<HomeJobRequest>()
@@ -14,11 +15,12 @@ internal class FakeHomeApi : HomeJobsApi {
     var listed: List<HomeJob> = emptyList()
     var refuse: String? = null
     var freeBytes = 1L
+    var problems: List<HomeProblem> = emptyList()
     override suspend fun start(job: HomeJobRequest): HomeAnswer<String> {
         started += job
         return refuse?.let { HomeAnswer.No(it) } ?: HomeAnswer.Ok(job.item.itemId)
     }
-    override suspend fun jobs() = HomeAnswer.Ok(HomeJobs(listed, freeBytes, true))
+    override suspend fun jobs() = HomeAnswer.Ok(HomeJobs(listed, freeBytes, true, problems))
     val cancelled = mutableListOf<String>()
     override suspend fun cancel(id: String): HomeAnswer<Unit> {
         cancelled += id

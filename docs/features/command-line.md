@@ -58,6 +58,11 @@ Runs the home server's ✨ Ask service on port 8770 (`--port=N`): `POST /ask`, `
 With `TOTUM_LIBRARY_MOVIES` and `TOTUM_LIBRARY_SERIES` set it files each finished torrent into that library, and with
 `TOTUM_JELLYFIN_URL`/`TOTUM_JELLYFIN_KEY` it tells Jellyfin (ADR 111).
 
+### `totum ai-serve`
+
+The home server's AI service on port 8780 (`--port=N`): `POST /complete`, `GET /health`, `GET /usage?days=N`, Claude
+Code with `TOTUM_AI_MODEL` (Haiku). `totum serve` uses it when `TOTUM_AI_URL` is set. ADR 113.
+
 ### `totum file-check <listing> [--samples=N] [--seed=S] [--rules] [--out=report.md]`
 
 A dry run of that filing against a real library listing (`find movies series -printf "%y\t%u:%g\t%m\t%s\t%p\n"`

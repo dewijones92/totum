@@ -1,6 +1,10 @@
 package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.Command
+import com.dewijones92.totum.cli.serve.ai.AiServer
+import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
+import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
+import com.dewijones92.totum.cli.serve.ai.UsageLog
 import com.dewijones92.totum.cli.serve.filing.FileCheck
 import com.dewijones92.totum.cli.serve.filing.Filing
 import com.dewijones92.totum.cli.serve.filing.FolderLibrary
@@ -15,21 +19,33 @@ import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.JobState
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
+import com.dewijones92.totum.data.home.HomeProblem
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
 import java.net.InetSocketAddress
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 internal class AskServer(
     private val brain: Brain,
@@ -51,11 +67,25 @@ internal class AskServer(
         Diag.log("serve", "listening on $port")
     }
 
+    private fun healthJson(): String {
+        val homeJobs = home?.let { runBlocking { it.jobs() } }
+        return buildJsonObject {
+            put("ok", true)
+            put("jobs", jobs.size)
+            homeJobs?.let { h ->
+                put("homeJobs", h.jobs.size)
+                put("freeBytes", h.freeBytes)
+                put("youTubeSignedIn", h.youTubeSignedIn)
+                put("problems", AskJson.encodeToJsonElement(ListSerializer(HomeProblem.serializer()), h.problems))
+            }
+        }.toString()
+    }
+
     internal fun handle(exchange: HttpExchange) {
         val path = exchange.requestURI.path.trimEnd('/')
         val method = exchange.requestMethod
         when {
-            method == "GET" && path == "/health" -> exchange.reply(OK, """{"ok":true,"jobs":${jobs.size}}""")
+            method == "GET" && path == "/health" -> exchange.reply(OK, healthJson())
             method == "POST" && path == "/ask" -> start(exchange, "ask", AskRequest.serializer()) { brain.suggest(it) }
             method == "POST" && path == "/vet" -> start(exchange, "vet", VetRequest.serializer()) { brain.vet(it) }
             method == "GET" && path.startsWith("/job/") -> job(exchange, path.removePrefix("/job/"))
@@ -145,16 +175,23 @@ private inline fun HttpExchange.use(block: (HttpExchange) -> Unit) {
 }
 
 internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutineScope {
-    val brain = ClaudeCodeBrain(
-        claude = System.getenv("TOTUM_CLAUDE") ?: "claude",
-        model = System.getenv("TOTUM_ASK_MODEL") ?: "haiku",
+    val brain = brainFromEnv()
+    val jellyfin = jellyfinFromEnv()
+    val downloadDir = File(System.getenv("TOTUM_DOWNLOADS") ?: "${System.getProperty("user.home")}/totum-downloads")
+    val health = HomeHealth(
+        HomeHealth.Probes(
+            freeBytes = { downloadDir.apply { mkdirs() }.usableSpace },
+            ai = aiStateProbe(),
+            jellyfin = jellyfin?.let { j -> { withContext(Dispatchers.IO) { j.reachable() } } },
+        ),
     )
     val home = HomeDownloads(
         dataDir = File(System.getenv("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum"),
-        downloadDir = File(System.getenv("TOTUM_DOWNLOADS") ?: "${System.getProperty("user.home")}/totum-downloads"),
+        downloadDir = downloadDir,
         scope = this,
         rewrites = rewritesFrom(System.getenv("TOTUM_REWRITE")),
-        filer = filerFromEnv(brain),
+        filer = filerFromEnv(brain, jellyfin),
+        health = health,
     )
     AskServer(brain, this, HomeRoutes(home)).start(port)
     out("totum serve: listening on $port")
@@ -163,10 +200,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
 
 internal suspend fun fileCheck(command: Command.FileCheck, out: (String) -> Unit): Int {
     val paths = FileCheck.listing(File(command.listing))
-    val brain = ClaudeCodeBrain(
-        claude = System.getenv("TOTUM_CLAUDE") ?: "claude",
-        model = System.getenv("TOTUM_ASK_MODEL") ?: "haiku",
-    )
+    val brain = brainFromEnv()
     val check = FileCheck(paths) { request, library ->
         if (command.rulesOnly) Filing.byRules(request.name, library, request.from) else brain.file(request)
     }
@@ -180,22 +214,23 @@ internal suspend fun fileCheck(command: Command.FileCheck, out: (String) -> Unit
     return 0
 }
 
-internal fun filerFromEnv(brain: Brain, env: (String) -> String? = System::getenv): LibraryFiler? {
+internal fun jellyfinFromEnv(env: (String) -> String? = System::getenv): Jellyfin? {
+    val url = env("TOTUM_JELLYFIN_URL") ?: return null
+    val key = env("TOTUM_JELLYFIN_KEY") ?: return null
+    return Jellyfin(
+        OkHttpClient(),
+        url,
+        key,
+        mapOf(
+            Shelf.MOVIES to (env("TOTUM_JELLYFIN_MOVIES") ?: "/data/movies"),
+            Shelf.SERIES to (env("TOTUM_JELLYFIN_SERIES") ?: "/data/tvshows"),
+        ),
+    )
+}
+
+internal fun filerFromEnv(brain: Brain, jellyfin: Jellyfin?, env: (String) -> String? = System::getenv): LibraryFiler? {
     val movies = env("TOTUM_LIBRARY_MOVIES") ?: return null
     val series = env("TOTUM_LIBRARY_SERIES") ?: return null
-    val jellyfin = env("TOTUM_JELLYFIN_URL")?.let { url ->
-        env("TOTUM_JELLYFIN_KEY")?.let { key ->
-            Jellyfin(
-                OkHttpClient(),
-                url,
-                key,
-                mapOf(
-                    Shelf.MOVIES to (env("TOTUM_JELLYFIN_MOVIES") ?: "/data/movies"),
-                    Shelf.SERIES to (env("TOTUM_JELLYFIN_SERIES") ?: "/data/tvshows"),
-                ),
-            )
-        }
-    }
     val told = if (jellyfin != null) "will be told" else "not configured"
     Diag.log("filing", "filing finished torrents into $movies and $series; Jellyfin $told")
     return LibraryFiler(
@@ -204,3 +239,51 @@ internal fun filerFromEnv(brain: Brain, env: (String) -> String? = System::geten
         brain::file
     )
 }
+
+internal fun aiStateProbe(env: (String) -> String? = System::getenv): suspend () -> HomeHealth.AiState {
+    val remote = env("TOTUM_AI_URL") ?: return { HomeHealth.AiState.LOCAL }
+    val http = OkHttpClient.Builder().callTimeout(AI_HEALTH_TIMEOUT_S, TimeUnit.SECONDS).build()
+    return {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                http.newCall(Request.Builder().url(remote.trimEnd('/') + "/health").build()).execute().use { response ->
+                    val signed = AskJson.parseToJsonElement(response.body.string()).jsonObject["signedIn"]
+                        ?.jsonPrimitive?.booleanOrNull
+                    when (signed) {
+                        true -> HomeHealth.AiState.SIGNED_IN
+                        false -> HomeHealth.AiState.NOT_SIGNED_IN
+                        null -> HomeHealth.AiState.UNKNOWN
+                    }
+                }
+            }.getOrElse { HomeHealth.AiState.UNREACHABLE }
+        }
+    }
+}
+
+internal fun brainFromEnv(env: (String) -> String? = System::getenv): Brain {
+    val remote = env("TOTUM_AI_URL")
+    Diag.log(
+        "ask",
+        if (remote != null) "thinking through the AI service at $remote" else "thinking with the local claude"
+    )
+    return if (remote != null) {
+        PromptBrain(
+            RemoteCompleter(remote, OkHttpClient.Builder().readTimeout(AI_READ_TIMEOUT_S, TimeUnit.SECONDS).build())
+        )
+    } else {
+        claudeCodeBrain(claude = env("TOTUM_CLAUDE") ?: "claude", model = env("TOTUM_ASK_MODEL") ?: "haiku")
+    }
+}
+
+internal suspend fun aiServe(port: Int, out: (String) -> Unit): Int {
+    val model = System.getenv("TOTUM_AI_MODEL") ?: "haiku"
+    val usage =
+        UsageLog(File(System.getenv("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum", "ai-usage.jsonl"))
+    val completer = ClaudeCodeCompleter(System.getenv("TOTUM_CLAUDE") ?: "claude", model, record = usage::record)
+    AiServer(completer, usage, model).start(port)
+    out("totum ai-serve: $model listening on $port")
+    awaitCancellation()
+}
+
+private const val AI_READ_TIMEOUT_S = 330L
+private const val AI_HEALTH_TIMEOUT_S = 5L

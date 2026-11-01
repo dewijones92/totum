@@ -76,6 +76,7 @@ internal class HomeDownloads(
     private val rewrites: Rewrites = Rewrites(emptyList()),
     private val freeFloorBytes: Long = FREE_FLOOR_BYTES,
     private val filer: LibraryFiler? = null,
+    private val health: HomeHealth? = null,
 ) : Home {
     private val http = OkHttpClient.Builder().readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS).build()
     private val engine = ProcessYtDlpEngine()
@@ -159,7 +160,8 @@ internal class HomeDownloads(
 
     override suspend fun jobs(): HomeJobs {
         val records = manager.observeRecords().first()
-        return HomeJobs(records.map { it.item.toJob(it.state) }, free(), account.isSignedIn())
+        val jobs = records.map { it.item.toJob(it.state) }
+        return HomeJobs(jobs, free(), account.isSignedIn(), health?.problems(jobs).orEmpty())
     }
 
     override suspend fun cancel(id: String): Unit = manager.delete(MediaItemId(id))

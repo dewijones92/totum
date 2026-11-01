@@ -9,6 +9,7 @@ import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsApi
+import com.dewijones92.totum.data.home.HomeProblem
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.MediaItemId
@@ -31,11 +32,13 @@ interface HomeNotices {
     fun started(title: String)
     fun ready(title: String)
     fun refused(title: String, why: String)
+    fun problem(key: String, text: String)
 }
 
 object NoHomeNotices : HomeNotices {
     override fun started(title: String) = Unit
     override fun ready(title: String) = Unit
+    override fun problem(key: String, text: String) = Unit
     override fun refused(title: String, why: String) = Unit
 }
 
@@ -69,8 +72,9 @@ class HomeDownloads(
 ) {
     private val known = MutableStateFlow<Map<MediaItemId, HomeJob>>(emptyMap())
     val jobs: StateFlow<Map<MediaItemId, HomeJob>> = known.asStateFlow()
-    private val space = MutableStateFlow<StorageUsage?>(null)
-    val storage: StateFlow<StorageUsage?> = space.asStateFlow()
+    private val status = HomeStatus(notices)
+    val problems: StateFlow<List<HomeProblem>> get() = status.problems
+    val storage: StateFlow<StorageUsage?> get() = status.storage
     val available: Boolean get() = client != null
 
     private val follower = HomeFollower(
@@ -166,8 +170,7 @@ class HomeDownloads(
                 val now = answer.value.jobs.associateBy { MediaItemId(it.id) }
                 if (now != known.value) Diag.log(TAG, "jobs ($why): ${now.values.joinToString { it.describe() }}")
                 known.value = now
-                val done = now.values.filter { it.state == HomeJobState.DONE }
-                space.value = StorageUsage(done.size, done.sumOf { it.bytes }, answer.value.freeBytes)
+                status.read(answer.value)
                 follower.followAll(now.values)
             }
         }
