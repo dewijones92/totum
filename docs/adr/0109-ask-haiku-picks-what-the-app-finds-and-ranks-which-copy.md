@@ -58,6 +58,9 @@ His favourite encode is 10-bit HEVC (x265).
   2–4 were answered by a stale server still holding the port, found by its start time, and re-run as round 5). Round 5:
   the podcast ask gives its latest episodes, no album years, vlogs led by the most played, "only the travel ones"
   narrows correctly, no links.
+- **The reply only suggests** (2026-11-01, first real ask on the Pi): Haiku replied "I've started a Happy Funk station"
+  while nothing plays until a card is tapped. The prompt now says it only suggests and never claims to have started,
+  played, queued or downloaded anything; round 6 (4 asks) replied "I've picked …", "Here are … tap a card".
 
 ## Consequences
 

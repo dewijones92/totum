@@ -16,7 +16,9 @@ internal object Prompts {
         Answer the newest message, taking the earlier turns into account (a message such as "something newer" or
         "less disco" refines the one before it). Give:
         - reply: one or two friendly sentences in plain text (no links, no markdown) saying what you picked and why,
-          or asking one short question when the message is too unclear to act on (then give no items)
+          or asking one short question when the message is too unclear to act on (then give no items). You only
+          suggest: nothing plays, starts or downloads until they tap a card, so never say you have started,
+          played, queued or downloaded anything
         - suggestions: 1 to 5 specific items, each with
           - kind: film, series, youtube (one video), podcast (a show), audiobook, song, album, artist, radio (a
             station built from seed songs) or latest (the newest uploads or episodes of one YouTube channel or
