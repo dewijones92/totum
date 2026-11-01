@@ -11,6 +11,7 @@ internal interface Brain {
     suspend fun suggest(request: AskRequest): AskAnswer
     suspend fun vet(request: VetRequest): VetAnswer
     suspend fun file(request: FileRequest): FilePlan = throw BrainFailure("this brain does not file")
+    suspend fun refused(what: String, why: String) = Unit
 }
 
 internal open class BrainFailure(message: String, cause: Throwable? = null) : Exception(message, cause)

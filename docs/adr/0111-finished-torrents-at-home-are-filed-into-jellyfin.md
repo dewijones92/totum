@@ -43,6 +43,14 @@ release folders. Jellyfin has online metadata off, so the names are all it has.
 - **Jellyfin is told**: `POST /Library/Media/Updated` with the file's path as Jellyfin sees it (`/data/movies`,
   `/data/tvshows`), falling back to a full `/Library/Refresh`; the key is an API key named "Totum" in `fetch.env`.
 - Only torrents, only video files, and never a sound-only copy; YouTube and podcast downloads stay in `totum/`.
+- **Subtitles inside the file become `.srt` files beside it** (2026-11-01, Dewi: *"Jellyfin … only supports subtitles if
+  it's not within the actual file … extract it … to a separate SRT file in the same directory"*), before Jellyfin is
+  told, by `SidecarMaker` with ffprobe and ffmpeg, not by Haiku (it is mechanical): English text tracks (an untagged one
+  only when no track claims a language), `<name>.eng[.forced|.sdh][.N].srt`, ffmpeg's ASS `<font>` styling stripped,
+  identical tracks dropped, an existing sidecar left alone. Picture subtitles (PGS) cannot become text and are left.
+  `totum sidecars <file…>` runs the same code on files already in the library (it replaces the Pi's hand-kept
+  `~/bin/ass2srt.py`).
+- A refused plan is reported to the AI service as a failure (ADR 113), so it shows on the health dashboard.
 
 ## Consequences
 

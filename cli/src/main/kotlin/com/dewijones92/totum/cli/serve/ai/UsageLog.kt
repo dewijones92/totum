@@ -21,7 +21,11 @@ data class DayUsage(
 )
 
 @Serializable
-data class UsageSummary(val days: List<DayUsage>, val last: List<UsageRecord>)
+data class UsageSummary(
+    val days: List<DayUsage>,
+    val last: List<UsageRecord>,
+    val failures: List<UsageRecord> = emptyList()
+)
 
 internal class UsageLog(private val file: File, private val zone: ZoneId = ZoneId.of("Europe/London")) {
 
@@ -52,7 +56,8 @@ internal fun summarise(records: List<UsageRecord>, days: Int, nowMs: Long, zone:
             it.toLong()
         )
     }.map { day -> dayUsage(day, byDay[day].orEmpty()) }
-    return UsageSummary(shown, records.sortedByDescending { it.atMs }.take(LAST_SHOWN))
+    val newest = records.sortedByDescending { it.atMs }
+    return UsageSummary(shown, newest.take(LAST_SHOWN), newest.filter { !it.ok }.take(LAST_SHOWN))
 }
 
 private fun dayUsage(day: LocalDate, records: List<UsageRecord>): DayUsage {

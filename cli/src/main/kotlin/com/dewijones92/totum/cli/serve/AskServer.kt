@@ -11,6 +11,7 @@ import com.dewijones92.totum.cli.serve.filing.FolderLibrary
 import com.dewijones92.totum.cli.serve.filing.Jellyfin
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.cli.serve.filing.Shelf
+import com.dewijones92.totum.cli.serve.filing.SidecarMaker
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
@@ -236,7 +237,9 @@ internal fun filerFromEnv(brain: Brain, jellyfin: Jellyfin?, env: (String) -> St
     return LibraryFiler(
         FolderLibrary(mapOf(Shelf.MOVIES to File(movies), Shelf.SERIES to File(series))),
         jellyfin,
-        brain::file
+        brain::file,
+        refused = { why -> brain.refused("file", why) },
+        sidecars = SidecarMaker()::make,
     )
 }
 
@@ -287,3 +290,12 @@ internal suspend fun aiServe(port: Int, out: (String) -> Unit): Int {
 
 private const val AI_READ_TIMEOUT_S = 330L
 private const val AI_HEALTH_TIMEOUT_S = 5L
+
+internal fun sidecars(files: List<String>, out: (String) -> Unit): Int {
+    val maker = SidecarMaker()
+    files.map(::File).filter { it.isFile }.forEach { video ->
+        val made = maker.make(video)
+        out("${video.name}: ${made.joinToString { it.name }.ifEmpty { "no new sidecars" }}")
+    }
+    return 0
+}

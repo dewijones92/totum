@@ -48,7 +48,7 @@ class LibraryFilerTest {
 
     private fun download(bytes: String = "film") = File(incoming, "torrent-abc-1.media").apply { writeText(bytes) }
 
-    private fun filer(decide: suspend (FileRequest) -> FilePlan) = LibraryFiler(library, jellyfin, decide)
+    private fun filer(decide: suspend (FileRequest) -> FilePlan) = LibraryFiler(library, jellyfin, decide = decide)
 
     @Test
     fun `an episode moves into the season folder the brain chose and Jellyfin is told its path`() = runBlocking {
@@ -134,5 +134,24 @@ class LibraryFilerTest {
         locked.setWritable(true)
         assertTrue(outcome.toString(), outcome is LibraryFiler.Outcome.Left)
         assertTrue(source.exists())
+    }
+
+    @Test
+    fun `a refused plan is reported and subtitles are made after the move`() = runBlocking {
+        val reported = mutableListOf<String>()
+        val made = mutableListOf<String>()
+        val filer = LibraryFiler(
+            library,
+            jellyfin,
+            { FilePlan(FilePlan.Action.MOVIE, "movies", "../../etc", "x.mkv", "evil") },
+            refused = { reported += it },
+            sidecars = {
+                made += it.name
+                emptyList()
+            },
+        )
+        filer.file(download(), "Zog.2018.1080p.mkv", null)
+        assertTrue(reported.single(), "refused" in reported.single())
+        assertEquals(listOf("Zog (2018).mkv"), made)
     }
 }

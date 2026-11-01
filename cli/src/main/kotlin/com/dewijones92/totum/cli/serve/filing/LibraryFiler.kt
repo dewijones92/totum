@@ -8,6 +8,8 @@ class LibraryFiler(
     private val library: FolderLibrary,
     private val jellyfin: Jellyfin?,
     private val decide: suspend (FileRequest) -> FilePlan,
+    private val refused: suspend (String) -> Unit = {},
+    private val sidecars: ((File) -> List<File>)? = null,
 ) {
     sealed interface Outcome {
         data class Moved(val file: File, val plan: FilePlan) : Outcome
@@ -42,6 +44,7 @@ class LibraryFiler(
         return runCatching { Files.move(source.toPath(), target.toPath()).toFile() }.fold(
             onSuccess = { moved ->
                 Diag.log("filing", "filed \"$name\" -> ${moved.path} (${plan.action}: ${plan.reason})")
+                sidecars?.invoke(moved)
                 jellyfin?.created(shelf, moved.relativeTo(root).path)
                 Outcome.Moved(moved, plan)
             },
@@ -56,6 +59,7 @@ class LibraryFiler(
         val refused = asked?.let { PlanCheck.problem(it, request.name) }
         if (refused != null) {
             Diag.warn("filing", "the brain's plan for \"${request.name}\" was refused ($refused); filing by rules")
+            this.refused("plan for \"${request.name}\" refused: $refused")
         }
         return asked?.takeIf { refused == null }?.let { PlanCheck.snapped(it, library) }
             ?: Filing.byRules(request.name, library, request.from)

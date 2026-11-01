@@ -38,6 +38,7 @@ internal class AiServer(
         val path = exchange.requestURI.path.trimEnd('/')
         when {
             exchange.requestMethod == "POST" && path == "/complete" -> complete(exchange)
+            exchange.requestMethod == "POST" && path == "/report" -> report(exchange)
             exchange.requestMethod == "GET" && path == "/health" -> exchange.reply(OK, health())
             exchange.requestMethod == "GET" && path == "/usage" -> {
                 val days = exchange.requestURI.query.orEmpty().split('&')
@@ -69,6 +70,15 @@ internal class AiServer(
             }
         }
         exchange.reply(code, body)
+    }
+
+    private fun report(exchange: HttpExchange) {
+        val problem = runCatching {
+            AskJson.decodeFromString(ProblemReport.serializer(), exchange.requestBody.readBytes().decodeToString())
+        }.getOrElse { return exchange.reply(BAD_REQUEST, """{"error":"not a report"}""") }
+        Diag.log("ai", "${problem.caller} reports a problem with ${problem.what}: ${problem.problem}")
+        runBlocking { completer.report(problem) }
+        exchange.reply(OK, """{"ok":true}""")
     }
 
     private fun health(): String {

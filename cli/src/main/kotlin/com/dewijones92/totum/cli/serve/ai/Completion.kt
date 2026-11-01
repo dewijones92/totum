@@ -16,8 +16,13 @@ data class Completion(
 @Serializable
 data class Completed(val structured: JsonObject)
 
+@Serializable
+data class ProblemReport(val caller: String, val what: String, val problem: String)
+
 internal interface Completer {
     suspend fun complete(completion: Completion): JsonObject
+
+    suspend fun report(problem: ProblemReport) = Unit
 }
 
 @Serializable

@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli.serve
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.Completer
 import com.dewijones92.totum.cli.serve.ai.Completion
+import com.dewijones92.totum.cli.serve.ai.ProblemReport
 import com.dewijones92.totum.cli.serve.filing.FilePlan
 import com.dewijones92.totum.cli.serve.filing.FileRequest
 import com.dewijones92.totum.common.Diag
@@ -23,6 +24,8 @@ internal fun claudeCodeBrain(
     run: (List<String>, Long) -> ProcessResult = ::runProcess,
 ): Brain = PromptBrain(ClaudeCodeCompleter(claude, model, run))
 
+internal class AnswerDidNotFit(message: String, cause: Throwable) : BrainFailure(message, cause)
+
 internal class PromptBrain(private val completer: Completer, private val caller: String = "totum-fetch") : Brain {
 
     override suspend fun suggest(request: AskRequest): AskAnswer = ask(
@@ -42,6 +45,8 @@ internal class PromptBrain(private val completer: Completer, private val caller:
         tools = "",
         VetAnswer.serializer(),
     )
+
+    override suspend fun refused(what: String, why: String) = completer.report(ProblemReport(caller, what, why))
 
     override suspend fun file(request: FileRequest): FilePlan = ask(
         "file",
@@ -68,6 +73,10 @@ internal class PromptBrain(private val completer: Completer, private val caller:
             } catch (e: NotSignedIn) {
                 Diag.warn("ask", "$what: claude is not signed in on this machine; not retrying")
                 throw e
+            } catch (e: AnswerDidNotFit) {
+                Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS did not fit: ${e.message}")
+                completer.report(ProblemReport(caller, what, e.message.orEmpty()))
+                last = e
             } catch (e: BrainFailure) {
                 Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS failed: ${e.message}")
                 last = e
@@ -78,7 +87,7 @@ internal class PromptBrain(private val completer: Completer, private val caller:
 
     private fun <T> decoded(serializer: KSerializer<T>, structured: JsonObject): T =
         runCatching { AskJson.decodeFromJsonElement(serializer, structured) }
-            .getOrElse { throw BrainFailure("answer did not fit: ${it.message?.take(LOGGED)}", it) }
+            .getOrElse { throw AnswerDidNotFit("answer did not fit: ${it.message?.take(LOGGED)}", it) }
 
     private companion object {
         const val ATTEMPTS = 2

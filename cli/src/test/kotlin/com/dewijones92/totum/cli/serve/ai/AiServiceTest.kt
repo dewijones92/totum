@@ -120,4 +120,22 @@ class AiServiceTest {
         assertEquals(5_000L, today.medianMs)
         assertEquals(1, summary.days.first().calls)
     }
+
+    @Test
+    fun `a problem the caller found is logged as a failure with its reason`() = runBlocking {
+        remote.report(ProblemReport("totum-fetch", "file", "plan left the library"))
+        val summary = AskJson.decodeFromJsonElement(UsageSummary.serializer(), get("/usage?days=1"))
+        val failure = summary.failures.single()
+        assertEquals("totum-fetch", failure.caller)
+        assertEquals("reported: plan left the library", failure.error)
+        assertEquals(1, summary.days.single().failures)
+    }
+
+    @Test
+    fun `an answer that does not fit Totum's shape is reported back to the service`() = runBlocking {
+        signedIn = true
+        val brain = PromptBrain(remote, caller = "test")
+        runCatching { brain.vet(com.dewijones92.totum.data.ask.VetRequest(emptyList())) }
+        assertTrue(usage.read().any { !it.ok && it.error.orEmpty().startsWith("reported: answer did not fit") })
+    }
 }

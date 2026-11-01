@@ -13,22 +13,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Headphones
-import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,7 +30,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -56,15 +48,12 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.map
 import com.dewijones92.totum.data.search.toSource
-import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
-import com.dewijones92.totum.playback.cast.soundOnlyOnTheTvByName
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.cast.LocalScreenControl
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
@@ -540,78 +529,3 @@ private val HIT_THUMBNAIL_SIZE = 56.dp
 private fun SearchScreenPreview() {
     TotumTheme { SearchScreen(FakeAppContainer()) }
 }
-
-/**
- * One torrent result.
- *
- * The subtitle is seeders and size, because with twenty copies of one film that IS the decision —
- * a result with no seeders never plays however good its name looks. Tapping queues everything
- * playable inside it, which for a season pack is the whole season.
- */
-@Composable
-internal fun TorrentHitRow(
-    hit: SearchHit.Torrent,
-    onPlay: () -> Unit,
-    modifier: Modifier = Modifier,
-    onDownload: (() -> Unit)? = null,
-) {
-    val casting = LocalScreenControl.current?.castDevice?.collectAsStateWithLifecycle()?.value
-    val soundOnly = casting?.let { soundOnlyOnTheTvByName(hit.title) }
-    val progress = LocalTorrentProgress.current(hit)
-    ListItem(
-        headlineContent = { Text(hit.title) },
-        supportingContent = {
-            Column {
-                hit.subtitle?.let { Text(it) }
-                if (progress.isNotEmpty() || hit.trust.isNotEmpty()) TrustChips(progress + hit.trust)
-                soundOnly?.let {
-                    Text(
-                        stringResource(R.string.torrent_sound_only_on_tv, it),
-                        color = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.testTag(TORRENT_SOUND_ONLY_TAG),
-                    )
-                }
-            }
-        },
-        leadingContent = {
-            val poster = hit.artworkUrl
-            if (poster != null) {
-                MediaThumbnail(
-                    url = poster,
-                    contentDescription = null,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.size(TORRENT_POSTER_WIDTH, TORRENT_POSTER_HEIGHT).testTag(TORRENT_POSTER_TAG),
-                )
-            } else {
-                Box(Modifier.size(TORRENT_POSTER_WIDTH, TORRENT_POSTER_HEIGHT), contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = when (hit.category) {
-                            TorrentCategory.AUDIOBOOKS -> Icons.Outlined.Headphones
-                            TorrentCategory.ANY -> Icons.Outlined.Movie
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        },
-        trailingContent = onDownload?.let { download ->
-            {
-                IconButton(onClick = download) {
-                    Icon(
-                        Icons.Outlined.Download,
-                        contentDescription = stringResource(R.string.torrent_download_episodes)
-                    )
-                }
-            }
-        },
-        modifier = modifier.clickable(onClick = onPlay),
-    )
-}
-
-internal val LocalTorrentProgress = compositionLocalOf<(SearchHit.Torrent) -> List<String>> { { emptyList() } }
-
-internal const val TORRENT_SOUND_ONLY_TAG = "torrent-sound-only"
-internal const val TORRENT_POSTER_TAG = "torrent-poster"
-private val TORRENT_POSTER_WIDTH = 48.dp
-private val TORRENT_POSTER_HEIGHT = 72.dp

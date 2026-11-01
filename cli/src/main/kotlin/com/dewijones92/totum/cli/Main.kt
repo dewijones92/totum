@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli
 import com.dewijones92.totum.cli.serve.aiServe
 import com.dewijones92.totum.cli.serve.fileCheck
 import com.dewijones92.totum.cli.serve.serveAsk
+import com.dewijones92.totum.cli.serve.sidecars
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.ytdlp.ExtractionResult
@@ -55,6 +56,7 @@ internal class Cli(
         is Command.Serve -> serveAsk(command.port, out)
         is Command.FileCheck -> fileCheck(command, out)
         is Command.AiServe -> aiServe(command.port, out)
+        is Command.Sidecars -> sidecars(command.files, out)
     }
 
     private suspend fun play(command: Command.Play): Int {

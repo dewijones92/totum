@@ -32,6 +32,16 @@ internal class RemoteCompleter(private val base: String, private val http: OkHtt
         }
     }
 
+    override suspend fun report(problem: ProblemReport) {
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(base.trimEnd('/') + "/report")
+                .post(AskJson.encodeToString(ProblemReport.serializer(), problem).toRequestBody(JSON))
+                .build()
+            runCatching { http.newCall(request).execute().close() }
+        }
+    }
+
     internal companion object {
         const val OK = 200
         const val NOT_SIGNED_IN = 503

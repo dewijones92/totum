@@ -36,10 +36,14 @@ class HomeFilingTest {
     private val series = File(root, "media/videos/series").apply { mkdirs() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val asked = mutableListOf<Pair<String, String?>>()
-    private val filer = LibraryFiler(FolderLibrary(mapOf(Shelf.MOVIES to movies, Shelf.SERIES to series)), null) { r ->
-        asked += r.name to r.from
-        FilePlan(FilePlan.Action.MOVIE, "movies", "Toy Story 5 (2026)", "Toy Story 5 (2026).mkv", "a film")
-    }
+    private val filer = LibraryFiler(
+        FolderLibrary(mapOf(Shelf.MOVIES to movies, Shelf.SERIES to series)),
+        null,
+        decide = { r ->
+            asked += r.name to r.from
+            FilePlan(FilePlan.Action.MOVIE, "movies", "Toy Story 5 (2026)", "Toy Story 5 (2026).mkv", "a film")
+        },
+    )
 
     @After
     fun clean() {

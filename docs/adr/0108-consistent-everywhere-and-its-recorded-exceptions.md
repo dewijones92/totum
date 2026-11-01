@@ -70,7 +70,9 @@ Recorded exceptions (kept on purpose):
 
 Decided, not yet built (next consistency batch):
 
-- D1 torrent results get the full long-press menu (prepared on the Pi when long-pressed).
+- D1 torrent results get the full long-press menu (prepared on the Pi when long-pressed). Part done 2026-11-01 (report
+  0.1.822, "I see no option … to copy it back"): a result whose info hash is downloaded at home says so and offers 📥
+  Copy to the phone (`torrentAtHome`); the rest of the menu is still to do.
 - D2 intro/outro skips only for a season pack, keyed by the show's title; never a single film.
 - D3 the thin top busy bar folds into the progress strip; needs a design for background lookups, which the bar
   covers today and which must not fill the strip.

@@ -24,6 +24,8 @@ internal sealed interface Command {
 
     data class AiServe(val port: Int) : Command
 
+    data class Sidecars(val files: List<String>) : Command
+
     data class FileCheck(
         val listing: String,
         val samples: Int,
@@ -58,6 +60,7 @@ private fun command(words: List<String>, flags: Set<String>): Command {
     val name = words.firstOrNull() ?: return Command.Help()
     val rest = words.drop(1)
     PLAIN[name]?.let { return it }
+    homeServer(name, rest, flags)?.let { return it }
     return when (name) {
         "play" -> rest.play(flags, "play")
         "resolve" -> rest.asTarget()?.let { Command.Resolve(it, json = "--json" in flags) }
@@ -65,13 +68,18 @@ private fun command(words: List<String>, flags: Set<String>): Command {
         "search" -> rest.joinToString(" ").ifBlank { null }
             ?.let { Command.Search(it, limitFrom(flags)) }
             ?: Command.Help("search needs something to search for")
-        "serve" -> Command.Serve(portFrom(flags))
-        "ai-serve" -> Command.AiServe(portFrom(flags, AI_PORT))
-        "file-check" -> fileCheck(rest, flags)
         // No sub-command: `totum <url>` and `totum jazz live stream` both mean play. The
         // shortest thing you can type should be the thing you do most.
         else -> words.play(flags, name)
     }
+}
+
+private fun homeServer(name: String, rest: List<String>, flags: Set<String>): Command? = when (name) {
+    "serve" -> Command.Serve(portFrom(flags))
+    "ai-serve" -> Command.AiServe(portFrom(flags, AI_PORT))
+    "sidecars" -> Command.Sidecars(rest)
+    "file-check" -> fileCheck(rest, flags)
+    else -> null
 }
 
 private fun List<String>.play(flags: Set<String>, named: String): Command =

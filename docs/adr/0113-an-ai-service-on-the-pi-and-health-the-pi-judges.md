@@ -27,6 +27,11 @@ Pi; Matrix and a phone banner when something breaks.
   failures; `GET /usage?days=N` sums every call by day and by caller (tokens, the CLI's cost figure, the median time,
   failures) from a JSON-lines log, for the dashboard's graphs. Haiku only (`TOTUM_AI_MODEL`). Claude's sign-in
   (`CLAUDE_CODE_OAUTH_TOKEN`) lives in `/var/lib/ai-service/claude.env`, nowhere else.
+- **Every problem with Haiku lands in one log** (Dewi: *"any sort of problems or errors that we have with Haiku …
+  log … to that health dashboard … including the way Totum uses it and … other apps"*): the service records each
+  call's failure itself (not signed in, timed out, no structured answer), and `POST /report` takes a problem a caller
+  found afterwards (an answer that did not fit its shape, a refused filing plan), which Totum sends by itself.
+  `/usage` lists the latest failures with their reasons.
 - **One completion seam**: `Completer` with two adapters, `ClaudeCodeCompleter` (runs `claude -p`, used by the AI
   service and on the laptop) and `RemoteCompleter` (HTTP); Totum's prompts sit above it in `PromptBrain`.
   `totum serve` uses the AI service when `TOTUM_AI_URL` is set, so totum-fetch no longer contains Claude Code. Another

@@ -24,6 +24,19 @@ internal class ClaudeCodeCompleter(
     private val record: (UsageRecord) -> Unit = {},
 ) : Completer {
 
+    override suspend fun report(problem: ProblemReport) {
+        record(
+            UsageRecord(
+                clock(),
+                problem.caller,
+                problem.what,
+                ok = false,
+                tookMs = 0,
+                error = "reported: ${problem.problem}"
+            )
+        )
+    }
+
     override suspend fun complete(completion: Completion): JsonObject = withContext(Dispatchers.IO) {
         val args = listOf(
             claude, "-p", completion.message,
