@@ -2,7 +2,7 @@
 title: Kid lock pins the app to a bare full-screen video
 kind: adr
 status: accepted
-updated: 2026-10-22
+updated: 2026-11-01
 ---
 
 # 76. Kid lock pins the app to a bare full-screen video
@@ -33,6 +33,20 @@ plus Totum's own controls hidden, full screen.
 - Entry points: a 👶 Kid lock tile in the player, and "👶 Add to home screen, locked for a child" on any pin that can
   show a picture (not albums, artists, radios or artist songs); that shortcut plays its pin and locks
   (`totum://pin/<key>?lock=1`). What plays next is the queue's ordinary next item.
+
+## Kid mode (2026-11-01)
+
+Dewi: *"when it's pinned, I don't want it to skip silences, and I don't want to play it more than 1x speed … I want
+it to loop … I want the mode to be obvious … not permanently overlaid … no play controls … brightness slider, but the
+volume … by the keys on the side."* He chose: loop what the icon started; a tap shows the badge and brightness.
+
+- While locked (`KidMode`, `KidRules`): speed is held at 1× and silence skipping off, whatever a show's own settings
+  say, and both come back on unlock; auto-play is on and Explore off; the repeat is the playing item's queue group
+  when it has one (a playlist, channel or album the icon started) and the item itself otherwise, so nothing else from
+  the queue plays.
+- A tap shows "👶 Kid mode" and a brightness slider (the window's brightness, cleared on unlock) for 3 s; nothing
+  else is drawn over the video; volume is the side keys only. An ongoing "👶 Kid mode is on" notification.
+- Checked on totum-api35: lock by broadcast, pinned, speed and skip held, the tap badge and slider over the video.
 
 ## Consequences
 

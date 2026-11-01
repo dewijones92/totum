@@ -174,6 +174,8 @@ import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
 import com.dewijones92.totum.kidlock.KidLock
+import com.dewijones92.totum.kidlock.KidMode
+import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.KeptArtistSongs
@@ -234,6 +236,7 @@ import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
+import com.dewijones92.totum.settings.RepeatMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.shuffle.AppSourcePages
@@ -633,6 +636,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     /** The one reading of "auto-play next", shared by end-of-item advance, the stall watchdog and recovery. */
     private val autoPlayNextEnabled: () -> Boolean = { appPreferences.settings.value.autoPlayNext }
 
+    private fun repeatNow(): RepeatMode = KidRules.repeat(
+        kidLock.locked.value,
+        playbackQueue.state.value.current?.group?.id,
+        appPreferences.settings.value.repeatMode,
+    )
+
     /** What YouTube has already told this device, so a frozen number cannot keep winning. */
     override val reconciledAccountProgress: ReconciledAccountProgress by lazy {
         RoomReconciledAccountProgress(database.reconciledAccountProgressDao())
@@ -1031,16 +1040,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             events = playbackController.events,
             advance = { playbackQueue.continueInKind() },
             whenQueueEmpty = ::playRelatedNext,
-            isEnabled = autoPlayNextEnabled,
+            isEnabled = { KidRules.autoPlay(kidLock.locked.value, autoPlayNextEnabled()) },
             scope = applicationScope,
-            repeat = { appPreferences.settings.value.repeatMode },
+            repeat = ::repeatNow,
             replay = { playbackQueue.replayCurrent(positionMs = 0) },
-            fromTheTop = { playbackQueue.playFromTheTop(appPreferences.settings.value.repeatMode.reshuffles) },
-            restartGroup = { ended ->
-                playbackQueue.repeatGroupAfter(ended, appPreferences.settings.value.repeatMode.reshuffles)
-            },
+            fromTheTop = { playbackQueue.playFromTheTop(repeatNow().reshuffles) },
+            restartGroup = { ended -> playbackQueue.repeatGroupAfter(ended, repeatNow().reshuffles) },
             sleepsAfter = sleepTimer::firesAfter,
-            explore = exploreMode::afterEnded,
+            explore = { ended -> KidRules.explores(kidLock.locked.value) && exploreMode.afterEnded(ended) },
             otherKindLeft = playbackQueue::onlyOtherKindAhead,
         ).start()
     }
@@ -1186,6 +1193,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
         startQueueAutoDownloader(this)
         trail.start()
+        KidMode(kidLock, playbackController, applicationScope).start()
     }
 
     override val readyAhead: ReadyAhead by lazy {

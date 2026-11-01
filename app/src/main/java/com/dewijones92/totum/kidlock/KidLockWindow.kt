@@ -36,6 +36,7 @@ class KidLockWindow(private val activity: FragmentActivity, private val kidLock:
 
     private suspend fun holdLocked() {
         activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        KidModeNotice.show(activity)
         delay(ROTATION_SETTLES_MS)
         Diag.log(TAG, "asking Android to pin the app now the screen has turned (its confirmation closes on rotation)")
         runCatching { activity.startLockTask() }
@@ -69,6 +70,10 @@ class KidLockWindow(private val activity: FragmentActivity, private val kidLock:
 
     private fun release() {
         activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        activity.window.attributes = activity.window.attributes.apply {
+            screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        }
+        KidModeNotice.clear(activity)
         if (lockTaskState() != ActivityManager.LOCK_TASK_MODE_NONE) {
             runCatching { activity.stopLockTask() }.onFailure { Diag.warn(TAG, "could not unpin the app", it) }
         }
