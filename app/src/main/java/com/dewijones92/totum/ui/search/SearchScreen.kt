@@ -18,10 +18,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Headphones
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,6 +76,7 @@ import com.dewijones92.totum.ui.common.LocalRowFollowing
 import com.dewijones92.totum.ui.common.MediaItemActions
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.RecentChips
 import com.dewijones92.totum.ui.common.ScreenHeader
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.VideoChannelSaver
@@ -306,33 +305,7 @@ private fun SearchHistory(
             )
             TextButton(onClick = onClear) { Text(stringResource(R.string.search_clear_all)) }
         }
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(history.size) { index ->
-                val recent = history[index]
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSearch(recent) }
-                        .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.History,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Text(
-                        text = recent,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { onRemove(recent) }) {
-                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.search_remove_recent))
-                    }
-                }
-            }
-        }
+        RecentChips(history, onPick = onSearch, onRemove = onRemove, modifier = Modifier.padding(top = 8.dp))
     }
 }
 

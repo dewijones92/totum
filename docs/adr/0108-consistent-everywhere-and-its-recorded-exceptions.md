@@ -47,6 +47,8 @@ Also fixed on 2026-11-01 (the overnight consistency batch):
 - **Queuing an entry again keeps what its row knew**: its sound-only route (a torrent's audio playlist) and its
   learned facts, not only for the playing entry.
 - **One clock parser** (`ClockText` in `:lib:common`) for YouTube durations, RSS durations and chapter times.
+- **D4, recent searches are chips everywhere** (`RecentChips`): Search's list became the same chips as every filter,
+  channel, transcript and ✨ Ask box; a tap searches, ✕ or a long press forgets; Search keeps its heading and Clear all.
 - **An episode with neither guid nor enclosure is identified by its title and date**, not by its position, which
   moved whenever the show published.
 
@@ -69,7 +71,6 @@ Decided, not yet built (next consistency batch):
 - D2 intro/outro skips only for a season pack, keyed by the show's title; never a single film.
 - D3 the thin top busy bar folds into the progress strip; needs a design for background lookups, which the bar
   covers today and which must not fill the strip.
-- D4 recent searches as chips everywhere (Search's list becomes chips, long-press removes one).
 - D6 a sort sheet on every list of items (history, notifications, playlists, music pages, group pages).
 - The audit's remaining items: stored queue/history rows lose show notes and chapters (a schema bump); private page
   spinners into the strip; six empty-state looks; three search-field designs.

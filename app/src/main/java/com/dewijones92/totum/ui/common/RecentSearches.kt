@@ -1,9 +1,13 @@
 package com.dewijones92.totum.ui.common
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -11,7 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Icon
-import androidx.compose.material3.InputChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -70,33 +76,60 @@ const val RECENT_SEARCH_TAG: String = "recent-search"
 internal const val RECENT_SETTLE_MS = 2_500L
 private const val MIN_CHARS = 2
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RecentSearchChips(recents: RecentSearches?, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     val shown = recents?.recent.orEmpty()
     if (recents == null || shown.isEmpty()) return
+    RecentChips(
+        shown,
+        onPick = {
+            recents.picked(it)
+            onPick(it)
+        },
+        onRemove = recents::remove,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@Composable
+fun RecentChips(
+    shown: List<String>,
+    onPick: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
     ) {
         shown.forEach { query ->
-            InputChip(
-                selected = false,
-                onClick = {
-                    recents.picked(query)
-                    onPick(query)
-                },
-                label = { Text(query) },
-                leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null, Modifier.size(18.dp)) },
-                trailingIcon = {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .combinedClickable(onClick = { onPick(query) }, onLongClick = { onRemove(query) })
+                    .testTag(RECENT_SEARCH_TAG),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                ) {
+                    Icon(Icons.Outlined.History, contentDescription = null, Modifier.size(18.dp))
+                    Text(
+                        query,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
                     Icon(
                         Icons.Filled.Close,
                         contentDescription = stringResource(R.string.search_remove_recent),
-                        modifier = Modifier.size(18.dp).clickable { recents.remove(query) },
+                        modifier = Modifier.size(18.dp).clickable { onRemove(query) },
                     )
-                },
-                modifier = Modifier.testTag(RECENT_SEARCH_TAG),
-            )
+                }
+            }
         }
     }
 }

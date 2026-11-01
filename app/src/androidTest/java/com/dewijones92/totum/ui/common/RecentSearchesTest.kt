@@ -6,11 +6,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
 import com.dewijones92.totum.data.search.SearchHistoryStore
 import com.dewijones92.totum.data.search.fake.InMemorySearchHistoryStore
 import kotlinx.coroutines.flow.first
@@ -70,6 +72,23 @@ class RecentSearchesTest {
         place.value = "downloads"
         composeTestRule.waitForIdle()
         recentChips().assertCountEquals(0)
+    }
+
+    @Test
+    fun `a long press forgets a recent search on every kind of list`() {
+        val picked = mutableListOf<String>()
+        val shown = mutableStateOf(listOf("peep show", "tennis"))
+        composeTestRule.setContent {
+            RecentChips(shown.value, onPick = { picked += it }, onRemove = { gone -> shown.value = shown.value - gone })
+        }
+        recentChips().assertCountEquals(2)
+        recentChips()[0].performTouchInput { longClick() }
+        composeTestRule.waitForIdle()
+
+        assertEquals(listOf("tennis"), shown.value)
+        assertEquals(emptyList<String>(), picked)
+        recentChips()[0].performClick()
+        assertEquals(listOf("tennis"), picked)
     }
 }
 
