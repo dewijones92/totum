@@ -22,3 +22,4 @@ update or supersede the relevant ADR in the same change as the code; a supersede
 | 8   | [A weekly money report instead of a monthly digest](0008-a-weekly-money-report.md)                          | Accepted |
 | 9   | [A narrow mail importer for documents that arrive nowhere else](0009-a-narrow-mail-importer.md)             | Accepted |
 | 10  | [Open Banking through Enable Banking, own accounts only](0010-open-banking-through-enable-banking.md)       | Accepted |
+| 11  | [The Pi's health page may read the health report](0011-the-pi-health-page-may-read-the-health-report.md)    | Accepted |

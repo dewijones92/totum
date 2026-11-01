@@ -36,6 +36,7 @@ export interface WireOptions {
   trustedHosts?: readonly string[];
   resolveHost?: (host: string) => Promise<string[]>;
   ownerEmail: string;
+  healthReaderOrigin?: string;
   staticDir?: string;
   fakeProviders: boolean;
   manualStaleDays: number;
@@ -201,6 +202,7 @@ export function wire(o: WireOptions) {
     ...(o.trustedHosts ? { trustedHosts: o.trustedHosts } : {}),
     ...(o.resolveHost ? { resolveHost: o.resolveHost } : {}),
     ownerEmail: o.ownerEmail,
+    ...(o.healthReaderOrigin ? { healthReaderOrigin: o.healthReaderOrigin } : {}),
     clock,
     schedulerLastTickAt: () => scheduler.lastTickAt(),
     accounts,

@@ -1,7 +1,7 @@
 ---
 title: Health dashboard
 status: shipped
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # Health dashboard
@@ -17,6 +17,8 @@ See [ADR 0006](../adr/0006-a-health-dashboard-that-shouts.md).
   `judgeScheduler` in `packages/shared/src/health.ts`), never stored as a flag.
 - `/healthz` reports the scheduler's last tick for the deploy check.
 - A Matrix message when a source breaks or recovers ([Alerts](alerts.md)).
+- The Pi's health page (`health.<domain>`) shows a summary tile from `/api/health`, read by the owner's browser
+  ([ADR 0011](../adr/0011-the-pi-health-page-may-read-the-health-report.md)).
 
 Tests: `packages/shared/test/health.test.ts`, `apps/server/test/app.test.ts`, `apps/web/test/app.test.tsx`,
 `e2e/health.spec.ts`.

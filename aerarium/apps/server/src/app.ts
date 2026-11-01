@@ -45,6 +45,7 @@ export interface AppDeps {
   trustedHosts?: readonly string[];
   resolveHost?: (host: string) => Promise<string[]>;
   ownerEmail: string;
+  healthReaderOrigin?: string;
   staticDir?: string;
   clock: () => Date;
   schedulerLastTickAt: () => string | null;
@@ -116,6 +117,16 @@ export function createApp(deps: AppDeps): Hono {
     const entry = { method: c.req.method, path: c.req.path, status: c.res.status, ms };
     if (c.res.status >= 500) log.error(entry, 'dewidebug request failed');
     else if (c.req.path.startsWith('/api/')) log.info(entry, 'dewidebug request');
+  });
+
+  app.use('/api/health', async (c, next) => {
+    await next();
+    const origin = c.req.header('origin');
+    if (deps.healthReaderOrigin && origin === deps.healthReaderOrigin) {
+      c.header('Access-Control-Allow-Origin', origin);
+      c.header('Access-Control-Allow-Credentials', 'true');
+      c.header('Vary', 'Origin');
+    }
   });
 
   app.get('/healthz', (c) => {

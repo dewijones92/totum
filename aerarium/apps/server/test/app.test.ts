@@ -41,6 +41,37 @@ describe('guards', () => {
   });
 });
 
+describe('the Pi health page', () => {
+  const page = 'https://health.example.com';
+  const owner = { 'x-forwarded-email': 'me@example.com', origin: page };
+
+  it("may read the health report from the owner's browser", async () => {
+    const t = testApp({ ownerEmail: 'me@example.com', healthReaderOrigin: page });
+    const res = await t.app.request('/api/health', { headers: owner });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('access-control-allow-origin')).toBe(page);
+    expect(res.headers.get('access-control-allow-credentials')).toBe('true');
+  });
+
+  it('may read nothing else, and no other site may read the report', async () => {
+    const t = testApp({ ownerEmail: 'me@example.com', healthReaderOrigin: page });
+    const accounts = await t.app.request('/api/accounts', { headers: owner });
+    expect(accounts.headers.get('access-control-allow-origin')).toBeNull();
+    const elsewhere = await t.app.request('/api/health', {
+      headers: { ...owner, origin: 'https://evil.example.com' },
+    });
+    expect(elsewhere.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('is still refused for anyone but the owner', async () => {
+    const t = testApp({ ownerEmail: 'me@example.com', healthReaderOrigin: page });
+    const res = await t.app.request('/api/health', {
+      headers: { 'x-forwarded-email': 'someone-else@example.com', origin: page },
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('manual accounts', () => {
   it('adds one with a balance and counts it in net worth', async () => {
     const t = testApp();

@@ -60,6 +60,7 @@ const { app, scheduler, connections } = wire({
   trustedCidrs: config.TRUSTED_CIDRS,
   trustedHosts: config.TRUSTED_HOSTS,
   ownerEmail: config.OWNER_EMAIL,
+  ...(config.HEALTH_READER_ORIGIN ? { healthReaderOrigin: config.HEALTH_READER_ORIGIN } : {}),
   fakeProviders: config.FAKE_PROVIDERS === '1',
   manualStaleDays: config.MANUAL_STALE_DAYS,
   connectors: [new Trading212Connector(log)],

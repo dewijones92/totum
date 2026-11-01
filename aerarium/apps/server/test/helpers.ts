@@ -19,6 +19,7 @@ export function testApp(
     notifier?: Notifier;
     snapshotsDir?: string;
     now?: () => Date;
+    healthReaderOrigin?: string;
   } = {},
 ) {
   let current = new Date('2026-11-01T12:00:00Z');
@@ -37,6 +38,7 @@ export function testApp(
     ownerEmail: opts.ownerEmail ?? '',
     fakeProviders: opts.fakeProviders ?? false,
     manualStaleDays: 90,
+    ...(opts.healthReaderOrigin ? { healthReaderOrigin: opts.healthReaderOrigin } : {}),
     ...(opts.connectors ? { connectors: opts.connectors } : {}),
     ...(opts.enableBanking ? { enableBanking: opts.enableBanking } : {}),
     ...(opts.publicUrl ? { publicUrl: opts.publicUrl } : {}),
