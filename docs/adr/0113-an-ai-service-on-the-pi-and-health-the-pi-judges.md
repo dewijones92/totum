@@ -45,6 +45,13 @@ Pi; Matrix and a phone banner when something breaks.
   already there when the app starts are shown, not announced. The Downloads → 🏠 At home section shows the space used
   and free at home, like the phone's.
 
+- **Every call names its caller** (2026-11-01, Dewi: *"require that the incoming request has a tag, so I know if
+  it's Totum using it or something else … maybe some other useful metadata"*): `caller` must be a tag of 2–40
+  lowercase letters, digits or dashes (`totum-fetch` for Totum's Pi service) and `what` must say what the call is for,
+  or the service answers 400 with the reason and Claude is never run. A call may also carry its `version`, a
+  `requestId` (Totum sends one per attempt) and free-form `meta` (Totum sends the attempt number); all of it is logged
+  and kept with the usage record, and `/usage` lists the last 20 calls with it.
+
 ## Consequences
 
 - The dashboard (dot-files) only reads: totum-fetch's `/health`, the AI service's `/health` and `/usage`, and

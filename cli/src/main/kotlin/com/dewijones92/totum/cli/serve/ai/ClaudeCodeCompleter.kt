@@ -32,7 +32,9 @@ internal class ClaudeCodeCompleter(
                 problem.what,
                 ok = false,
                 tookMs = 0,
-                error = "reported: ${problem.problem}"
+                error = "reported: ${problem.problem}",
+                version = problem.version,
+                requestId = problem.requestId,
             )
         )
     }
@@ -56,7 +58,17 @@ internal class ClaudeCodeCompleter(
         val envelope = runCatching { envelope(result, tookMs) }
             .onFailure {
                 record(
-                    UsageRecord(started, completion.caller, completion.what, false, tookMs, error = it.message)
+                    UsageRecord(
+                        started,
+                        completion.caller,
+                        completion.what,
+                        false,
+                        tookMs,
+                        error = it.message,
+                        version = completion.version,
+                        requestId = completion.requestId,
+                        meta = completion.meta,
+                    ),
                 )
             }
             .getOrThrow()
@@ -117,6 +129,9 @@ internal class ClaudeCodeCompleter(
             )
                 .takeIf { it.isNotEmpty() }?.sum(),
             outputTokens = u("output_tokens"),
+            version = completion.version,
+            requestId = completion.requestId,
+            meta = completion.meta,
         )
     }
 

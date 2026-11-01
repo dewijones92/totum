@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve
 
+import com.dewijones92.totum.cli.BuildInfo
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.Completer
 import com.dewijones92.totum.cli.serve.ai.Completion
@@ -16,6 +17,7 @@ import com.dewijones92.totum.data.ask.tidied
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -70,13 +72,24 @@ internal class PromptBrain(private val completer: Completer, private val caller:
         var last: BrainFailure? = null
         repeat(ATTEMPTS) { attempt ->
             try {
-                return decoded(serializer, completer.complete(Completion(caller, what, system, message, schema, tools)))
+                val call = Completion(
+                    caller,
+                    what,
+                    system,
+                    message,
+                    schema,
+                    tools,
+                    version = BuildInfo.VERSION,
+                    requestId = UUID.randomUUID().toString(),
+                    meta = mapOf("attempt" to "${attempt + 1}"),
+                )
+                return decoded(serializer, completer.complete(call))
             } catch (e: NotSignedIn) {
                 Diag.warn("ask", "$what: claude is not signed in on this machine; not retrying")
                 throw e
             } catch (e: AnswerDidNotFit) {
                 Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS did not fit: ${e.message}")
-                completer.report(ProblemReport(caller, what, e.message.orEmpty()))
+                completer.report(ProblemReport(caller, what, e.message.orEmpty(), version = BuildInfo.VERSION))
                 last = e
             } catch (e: BrainFailure) {
                 Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS failed: ${e.message}")

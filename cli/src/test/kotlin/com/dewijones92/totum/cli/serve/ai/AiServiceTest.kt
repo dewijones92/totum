@@ -71,6 +71,31 @@ class AiServiceTest {
     }
 
     @Test
+    fun `a call without a proper caller tag is refused and says why`() = runBlocking {
+        listOf("", "Totum Fetch", "x").forEach { tag ->
+            try {
+                remote.complete(Completion(tag, "suggest", "s", "m", "{}"))
+                fail("\"$tag\" was accepted")
+            } catch (e: BrainFailure) {
+                assertTrue(e.message!!, "400" in e.message!! && "caller must be a tag" in e.message!!)
+            }
+        }
+        assertTrue("nothing reached Claude", usage.read().isEmpty())
+    }
+
+    @Test
+    fun `the caller's version, request id and metadata are kept with the call`() = runBlocking {
+        val brain = PromptBrain(remote, caller = "test")
+        brain.suggest(AskRequest(listOf(AskTurn("a Gruffalo film"))))
+        val record = usage.read().single()
+        assertTrue(record.version!!.isNotBlank())
+        assertTrue(record.requestId!!.length > 8)
+        assertEquals("1", record.meta["attempt"])
+        val last = AskJson.decodeFromJsonElement(UsageSummary.serializer(), get("/usage?days=1")).last.single()
+        assertEquals(record.requestId, last.requestId)
+    }
+
+    @Test
     fun `not signed in travels to the caller as not signed in`() = runBlocking {
         signedIn = false
         try {

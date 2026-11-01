@@ -11,13 +11,32 @@ data class Completion(
     val message: String,
     val schema: String,
     val tools: String = "",
+    val version: String? = null,
+    val requestId: String? = null,
+    val meta: Map<String, String> = emptyMap(),
 )
+
+fun callerProblem(caller: String, what: String): String? = when {
+    !CALLER_TAG.matches(
+        caller
+    ) -> "caller must be a tag of 2 to 40 lowercase letters, digits or dashes, got \"$caller\""
+    what.isBlank() -> "what must say what the call is for"
+    else -> null
+}
+
+private val CALLER_TAG = Regex("[a-z0-9][a-z0-9-]{1,39}")
 
 @Serializable
 data class Completed(val structured: JsonObject)
 
 @Serializable
-data class ProblemReport(val caller: String, val what: String, val problem: String)
+data class ProblemReport(
+    val caller: String,
+    val what: String,
+    val problem: String,
+    val version: String? = null,
+    val requestId: String? = null,
+)
 
 internal interface Completer {
     suspend fun complete(completion: Completion): JsonObject
@@ -37,4 +56,7 @@ data class UsageRecord(
     val inputTokens: Long? = null,
     val outputTokens: Long? = null,
     val error: String? = null,
+    val version: String? = null,
+    val requestId: String? = null,
+    val meta: Map<String, String> = emptyMap(),
 )

@@ -55,7 +55,15 @@ internal class AiServer(
         val completion = runCatching {
             AskJson.decodeFromString(Completion.serializer(), exchange.requestBody.readBytes().decodeToString())
         }.getOrElse { return exchange.reply(BAD_REQUEST, """{"error":"not a completion"}""") }
-        Diag.log("ai", "${completion.caller} asks for ${completion.what} (tools=\"${completion.tools}\")")
+        callerProblem(completion.caller, completion.what)?.let { problem ->
+            Diag.warn("ai", "refused a completion: $problem")
+            return exchange.reply(BAD_REQUEST, error(problem))
+        }
+        Diag.log(
+            "ai",
+            "${completion.caller} ${completion.version ?: "(no version)"} asks for ${completion.what} " +
+                "[request ${completion.requestId ?: "-"}] tools=\"${completion.tools}\" meta=${completion.meta}",
+        )
         val (code, body) = runBlocking {
             permits.withPermit {
                 try {
@@ -77,6 +85,10 @@ internal class AiServer(
         val problem = runCatching {
             AskJson.decodeFromString(ProblemReport.serializer(), exchange.requestBody.readBytes().decodeToString())
         }.getOrElse { return exchange.reply(BAD_REQUEST, """{"error":"not a report"}""") }
+        callerProblem(problem.caller, problem.what)?.let { why ->
+            Diag.warn("ai", "refused a report: $why")
+            return exchange.reply(BAD_REQUEST, error(why))
+        }
         Diag.log("ai", "${problem.caller} reports a problem with ${problem.what}: ${problem.problem}")
         runBlocking { completer.report(problem) }
         exchange.reply(OK, """{"ok":true}""")
