@@ -49,6 +49,12 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   goes home with the remembered sound/video choice (best video when none is remembered); a magnet is prepared by the
   home TorrServer and each playable file goes home. One rule, `SendHome`, decides; sharing to Totum itself still
   plays at once.
+- **🏠 Keep the next N at home** (2026-11-01): a queue group's ⋮ offers "Keep the next 2 / 5 at home"; the next N
+  unplayed members after what is playing (from the group's start when it is not playing) are sent home with the
+  remembered choice, and topped up as you move on (`HomeAhead`, `aheadFor`). Fetch ahead only, nothing is deleted;
+  members already at home or on the phone count towards N. The choice is kept per group id, so the 📥 New group and a
+  shuffled channel's group keep fetching their new uploads at home as `NewUploads` adds them (the "overnight prefetch"
+  idea: its worker runs every 2 h on Wi-Fi, and the phone copies on Wi-Fi as usual).
 
 ## Consequences
 

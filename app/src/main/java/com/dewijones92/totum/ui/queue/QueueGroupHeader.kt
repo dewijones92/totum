@@ -65,6 +65,8 @@ internal data class GroupHeaderActions(
     val onSelect: (() -> Unit)? = null,
     val onStartAgain: (() -> Unit)? = null,
     val onPickDownloads: (() -> Unit)? = null,
+    val homeAhead: Int? = null,
+    val onKeepAtHome: ((Int?) -> Unit)? = null,
 )
 
 @Composable
@@ -240,6 +242,7 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
                 MenuItem(R.string.queue_group_download, close) { actions.onSetDownload(true) }
             }
             actions.onPickDownloads?.let { MenuItem(R.string.queue_group_download_pick, close, it) }
+            actions.onKeepAtHome?.let { keep -> KeepAtHomeItems(actions.homeAhead, keep, close) }
             actions.onSelect?.let { MenuItem(R.string.queue_group_select, close, it) }
             actions.onStartAgain?.let { MenuItem(R.string.queue_group_start_again, close, it) }
             MenuItem(R.string.queue_remove_group, close) { confirm(removeTexts, actions.onRemove) }
@@ -248,12 +251,28 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
 }
 
 @Composable
-private fun MenuItem(label: Int, close: () -> Unit, action: () -> Unit) {
-    DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
+private fun MenuItem(label: Int, close: () -> Unit, action: () -> Unit) = MenuItem(stringResource(label), close, action)
+
+@Composable
+private fun MenuItem(label: String, close: () -> Unit, action: () -> Unit) {
+    DropdownMenuItem(text = { Text(label) }, onClick = {
         close()
         action()
     })
 }
+
+@Composable
+private fun KeepAtHomeItems(keeping: Int?, keep: (Int?) -> Unit, close: () -> Unit) {
+    if (keeping != null) {
+        MenuItem(pluralStringResource(R.plurals.queue_group_home_ahead_stop, keeping, keeping), close) { keep(null) }
+        return
+    }
+    HOME_AHEAD_CHOICES.forEach { count ->
+        MenuItem(pluralStringResource(R.plurals.queue_group_home_ahead, count, count), close) { keep(count) }
+    }
+}
+
+private val HOME_AHEAD_CHOICES = listOf(2, 5)
 
 @Composable
 internal fun QueueShuffleButton(onShuffleUpNext: () -> Unit, onShuffleGroups: (() -> Unit)?) {

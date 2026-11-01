@@ -1121,6 +1121,14 @@
     <string name="pin_kind_show">🎙️ Show</string>
     <string name="pin_kind_shuffle_all">🔀 Shuffle all</string>
     <string name="pin_kind_artist_songs">🎵 Every song</string>
+    <plurals name="queue_group_home_ahead">
+        <item quantity="one">🏠 Keep the next %1$d at home</item>
+        <item quantity="other">🏠 Keep the next %1$d at home</item>
+    </plurals>
+    <plurals name="queue_group_home_ahead_stop">
+        <item quantity="one">🏠 Stop keeping the next %1$d at home</item>
+        <item quantity="other">🏠 Stop keeping the next %1$d at home</item>
+    </plurals>
     <string name="send_home_label">🏠 Send home</string>
     <string name="send_home_sending">⏳ Sending home…</string>
     <string name="send_home_refused">❌ Not sent home: %1$s</string>

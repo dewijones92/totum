@@ -258,6 +258,9 @@ class FakeAppContainer(
         TrailNavigation(PlayTrail(), playbackQueue, CoroutineScope(SupervisorJob()))
     }
 
+    override val homeAhead: com.dewijones92.totum.downloads.home.HomeAhead by lazy {
+        com.dewijones92.totum.downloads.home.HomeAhead(null, applicationScope)
+    }
     override val homeDownloads: HomeDownloads by lazy {
         HomeDownloads(
             null,

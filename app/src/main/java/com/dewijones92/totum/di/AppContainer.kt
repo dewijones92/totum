@@ -125,11 +125,13 @@ import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.PrefsDownloadLocks
 import com.dewijones92.totum.downloads.home.DeletesAtHomeToo
+import com.dewijones92.totum.downloads.home.HomeAhead
 import com.dewijones92.totum.downloads.home.HomeDownloads
 import com.dewijones92.totum.downloads.home.HomeNotifications
 import com.dewijones92.totum.downloads.home.Pacing
 import com.dewijones92.totum.downloads.home.PhoneSide
 import com.dewijones92.totum.downloads.home.PrefsKeptAtHome
+import com.dewijones92.totum.downloads.home.chosenForHome
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.exsurgeController
@@ -544,6 +546,7 @@ interface AppContainer {
     val bookPlayer: BookPlayer
     val statsLog: StatsLog
     val groupDownloads: GroupDownloads
+    val homeAhead: HomeAhead
     val randomStarts: RandomStarts
     val albumYears: AlbumYears
 }
@@ -1192,6 +1195,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             MetadataLookups(videoPlaybackLauncher, youTubeRelated),
         )
         startQueueAutoDownloader(this)
+        startHomeAhead(this)
         trail.start()
         KidMode(kidLock, playbackController, applicationScope).start()
     }
@@ -1649,6 +1653,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             File(context.filesDir, "album-years.txt")
         )
     }
+    override val homeAhead: HomeAhead by lazy { HomeAhead(File(context.filesDir, "home-ahead.txt"), applicationScope) }
+
     override val groupDownloads: GroupDownloads by lazy {
         GroupDownloads.startedFor(
             playbackQueue,
@@ -1815,6 +1821,16 @@ private fun followSkipRequests(c: DefaultAppContainer, context: Context) = c.app
     c.randomStarts.follow(c.playbackQueue)
     keepTheQueuesPlace(c.playbackQueue, context, c.applicationScope)
     c.queueSkips.follow(c.playbackController.skipRequests)
+}
+
+private fun startHomeAhead(c: DefaultAppContainer) {
+    if (!c.homeDownloads.available) return
+    val present = combine(c.homeDownloads.jobs, c.downloadManager.observeDownloads()) { home, phone ->
+        home.keys + phone.filterValues { it is DownloadState.Downloaded || it is DownloadState.Downloading }.keys
+    }
+    c.homeAhead.start(c.playbackQueue.state, present, { c.playbackQueue.passOver(it) != null }) {
+        c.homeDownloads.start(it, chosenForHome(c.appPreferences.settings.value.downloadChoice))
+    }
 }
 
 private fun startQueueAutoDownloader(c: DefaultAppContainer) {

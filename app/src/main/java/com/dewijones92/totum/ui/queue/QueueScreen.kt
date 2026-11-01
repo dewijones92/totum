@@ -183,6 +183,8 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onSelect = { selection.selectAll(groupIdsOf(id)) },
     onStartAgain = { onStartGroupAgain(id) },
     onPickDownloads = { onPickGroupDownloads(id) },
+    homeAhead = homeAheadOf(id),
+    onKeepAtHome = onKeepAtHome?.let { keep -> { count -> keep(id, count) } },
 )
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -201,6 +203,7 @@ private fun rememberQueueActions(
     val context = LocalContext.current
     val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
+    val homeAhead by container.homeAhead.keep.collectAsStateWithLifecycle()
     val selection = rememberSelection("queue")
     val startAgain = rememberStartGroupAgain(queue, snackbar, scope)
     return QueueActions(
@@ -219,6 +222,12 @@ private fun rememberQueueActions(
             }
         },
         groupDownloading = { groupChoices[it] == GroupDownload.YES },
+        homeAheadOf = { homeAhead[it] },
+        onKeepAtHome = if (container.homeDownloads.available) {
+            { id, count -> container.homeAhead.choose(id, count, "the group's menu") }
+        } else {
+            null
+        },
         onSetGroupDownload = { id, on ->
             container.groupDownloads.choose(id, if (on) GroupDownload.YES else GroupDownload.NO, "the group's menu")
         },
@@ -278,6 +287,8 @@ private data class QueueActions(
     val onStartGroupAgain: (String) -> Unit,
     val groupIdsOf: (String) -> List<String>,
     val onPickGroupDownloads: (String) -> Unit,
+    val homeAheadOf: (String) -> Int? = { null },
+    val onKeepAtHome: ((String, Int?) -> Unit)? = null,
 )
 
 /**

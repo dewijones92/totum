@@ -44,7 +44,7 @@ class SendHome(
     private suspend fun video(shared: String): Sent {
         val url = sharedWatchUrl(shared) ?: return refused(NotSent.NO_LINK, shared)
         val item = describe(url) ?: placeholderFor(url, SOURCE) ?: return refused(NotSent.NO_VIDEO_ID, shared)
-        val chosen = choice() ?: DownloadChoice.Video(null)
+        val chosen = chosenForHome(choice())
         Diag.log("home", "shared to send home: \"${item.title}\" as ${chosen.stored}")
         home.start(PlayableItem(item, PlayHandle.Video(url)), chosen)
         return Sent.Video(item.title)
@@ -71,3 +71,5 @@ class SendHome(
         const val LOGGED = 120
     }
 }
+
+fun chosenForHome(remembered: DownloadChoice?): DownloadChoice = remembered ?: DownloadChoice.Video(null)
