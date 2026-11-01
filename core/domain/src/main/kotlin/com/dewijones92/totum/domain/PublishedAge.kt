@@ -93,10 +93,11 @@ public fun MediaItem.anchoringPublishedAt(observedAt: Instant): MediaItem =
 /** The title a queued link wears until something resolves it — see `placeholderFor` in the app. */
 public fun placeholderTitleFor(id: MediaItemId): String = "YouTube video ${id.value}"
 
-public val MediaItem.hasPlaceholderTitle: Boolean get() = title == placeholderTitleFor(id)
+public val MediaItem.hasPlaceholderTitle: Boolean
+    get() = title == placeholderTitleFor(id) || title == id.value && isYouTubeVideoId(title)
 
 public val MediaItem.titleIsKnown: Boolean
-    get() = title.isNotBlank() && !(title == id.value && isYouTubeVideoId(title)) && !hasPlaceholderTitle
+    get() = title.isNotBlank() && !hasPlaceholderTitle
 
 /**
  * This item with every fact it lacks taken from [resolved] — how a queue row learns what it is
