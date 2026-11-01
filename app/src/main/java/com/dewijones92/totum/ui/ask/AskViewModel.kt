@@ -7,13 +7,18 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskCard
+import com.dewijones92.totum.data.ask.AskChatStore
 import com.dewijones92.totum.data.ask.AskCopies
 import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskOutcome
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskService
 import com.dewijones92.totum.data.ask.AskTurn
+import com.dewijones92.totum.data.ask.InMemoryAskChats
+import com.dewijones92.totum.data.ask.SavedChat
+import com.dewijones92.totum.data.ask.SavedTurn
 import com.dewijones92.totum.data.ask.Taste
+import com.dewijones92.totum.data.ask.keeping
 import com.dewijones92.totum.data.ask.vetRequest
 import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.di.AppContainer
@@ -38,6 +43,8 @@ class AskViewModel(
     private val operations: Operations,
     private val taste: suspend () -> Taste = { Taste() },
     private val latest: suspend (String) -> List<PlayableItem> = { emptyList() },
+    private val chats: AskChatStore = InMemoryAskChats(),
+    private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     enum class Stage { ASKING, SEARCHING, VETTING, DONE, FAILED }
@@ -51,12 +58,56 @@ class AskViewModel(
         val tookMs: Long? = null,
     )
 
-    data class UiState(val available: Boolean, val turns: List<Turn> = emptyList()) {
+    data class UiState(
+        val available: Boolean,
+        val turns: List<Turn> = emptyList(),
+        val recent: List<SavedChat> = emptyList(),
+    ) {
         val busy: Boolean get() = turns.lastOrNull()?.stage?.let { it != Stage.DONE && it != Stage.FAILED } == true
     }
 
     private val state = MutableStateFlow(UiState(available = service != null))
     val uiState: StateFlow<UiState> = state.asStateFlow()
+    private var chatId = newChatId()
+
+    init {
+        val saved = chats.load()
+        saved.firstOrNull()?.let { latest -> restore(latest, saved) } ?: state.update { it.copy(recent = saved) }
+    }
+
+    fun open(id: String) {
+        if (state.value.busy) return
+        val saved = chats.load()
+        val chat = saved.firstOrNull { it.id == id } ?: return
+        restore(chat, saved)
+    }
+
+    private fun restore(chat: SavedChat, saved: List<SavedChat>) {
+        chatId = chat.id
+        Diag.log("ask", "chat \"${chat.title}\" reopened with ${chat.turns.size} turn(s)")
+        state.update {
+            it.copy(
+                turns = chat.turns.map { t -> Turn(t.request, Stage.DONE, t.reply, t.suggestions.map(::AskCard)) },
+                recent = saved.filterNot { other -> other.id == chat.id },
+            )
+        }
+        viewModelScope.launch { state.value.turns.indices.forEach { search(it) } }
+    }
+
+    fun forget(id: String) {
+        val left = chats.load().filterNot { it.id == id }
+        chats.save(left)
+        Diag.log("ask", "chat $id forgotten; ${left.size} kept")
+        state.update { it.copy(recent = left.filterNot { chat -> chat.id == chatId }) }
+    }
+
+    private fun keep() {
+        val turns = state.value.turns.filter { it.stage == Stage.DONE }
+        if (turns.isEmpty()) return
+        val chat =
+            SavedChat(chatId, now(), turns.map { SavedTurn(it.request, it.reply, it.cards.map { c -> c.suggestion }) })
+        chats.save(chats.load().keeping(chat))
+    }
 
     fun ask(text: String, from: String) {
         val request = text.trim()
@@ -134,6 +185,7 @@ class AskViewModel(
             vet(askService)
             val cards = state.value.turns.last().cards
             updateLast { it.copy(stage = Stage.DONE) }
+            keep()
             Diag.log(
                 "ask",
                 "\"$request\" done: " + cards.joinToString("; ") {
@@ -145,21 +197,24 @@ class AskViewModel(
 
     fun startOver() {
         if (state.value.busy) return
-        Diag.log("ask", "started over after ${state.value.turns.size} turn(s)")
-        state.update { it.copy(turns = emptyList()) }
+        Diag.log("ask", "new chat after ${state.value.turns.size} turn(s)")
+        chatId = newChatId()
+        state.update { it.copy(turns = emptyList(), recent = chats.load()) }
     }
 
-    private suspend fun search() {
-        val cards = state.value.turns.last().cards
+    private fun newChatId(): String = "chat-${now()}-${(0..CHAT_ID_RANGE).random()}"
+
+    private suspend fun search(turn: Int = state.value.turns.lastIndex) {
+        val cards = state.value.turns[turn].cards
         kotlinx.coroutines.coroutineScope {
             cards.mapIndexed { index, card ->
                 async {
                     if (card.suggestion.kind == AskKind.LATEST) {
                         val items = latest(card.suggestion.searchWords.ifBlank { card.suggestion.title })
-                        updateCard(index) { it.copy(items = items, searched = true) }
+                        updateCard(turn, index) { it.copy(items = items, searched = true) }
                     } else {
                         val found = copies.find(card.suggestion)
-                        updateCard(index) { it.copy(copies = found, searched = true) }
+                        updateCard(turn, index) { it.copy(copies = found, searched = true) }
                     }
                 }
             }.awaitAll()
@@ -184,7 +239,8 @@ class AskViewModel(
                     "ask",
                     "copies checked in ${vetted.elapsedMs}ms: ${vetted.value.verdicts.count { !it.ok }} rejected"
                 )
-                withCopies.forEachIndexed { item, index -> updateCard(index) { it.judged(vetted.value, item) } }
+                val last = state.value.turns.lastIndex
+                withCopies.forEachIndexed { item, index -> updateCard(last, index) { it.judged(vetted.value, item) } }
             }
         }
     }
@@ -192,12 +248,23 @@ class AskViewModel(
     private fun updateLast(change: (Turn) -> Turn) =
         state.update { s -> s.copy(turns = s.turns.dropLast(1) + change(s.turns.last())) }
 
-    private fun updateCard(index: Int, change: (AskCard) -> AskCard) = updateLast { turn ->
-        turn.copy(cards = turn.cards.mapIndexed { i, card -> if (i == index) change(card) else card })
+    private fun updateCard(turn: Int, index: Int, change: (AskCard) -> AskCard) = state.update { s ->
+        s.copy(
+            turns = s.turns.mapIndexed { t, shown ->
+                if (t != turn) {
+                    shown
+                } else {
+                    shown.copy(
+                        cards = shown.cards.mapIndexed { i, card -> if (i == index) change(card) else card }
+                    )
+                }
+            },
+        )
     }
 
     companion object {
         private const val STEPS = 3
+        private const val CHAT_ID_RANGE = 1_000_000
         private const val OWNED_TITLES = 200
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
@@ -209,6 +276,7 @@ class AskViewModel(
                     operations = container.operations,
                     taste = { tasteFor(container) },
                     latest = container.askLatest::find,
+                    chats = container.askChats,
                 )
             }
         }

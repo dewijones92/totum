@@ -20,9 +20,11 @@ import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.dailyAlarmController
+import com.dewijones92.totum.data.ask.AskChatStore
 import com.dewijones92.totum.data.ask.AskCopies
 import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskService
+import com.dewijones92.totum.data.ask.FileAskChats
 import com.dewijones92.totum.data.ask.HttpAskService
 import com.dewijones92.totum.data.audiobook.ArchiveBookSearchSource
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
@@ -549,6 +551,7 @@ interface AppContainer {
     val groupDownloads: GroupDownloads
     val homeAhead: HomeAhead
     val askLatest: AskLatest
+    val askChats: AskChatStore
     val randomStarts: RandomStarts
     val albumYears: AlbumYears
 }
@@ -1660,6 +1663,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             File(context.filesDir, "album-years.txt")
         )
     }
+    override val askChats: AskChatStore by lazy { FileAskChats(File(context.filesDir, "ask-chats.json")) }
+
     override val askLatest: AskLatest by lazy {
         AskLatest({ subscribedSources(podcastRepository, accountSubscriptions.channels).first() }, latestUploads::of)
     }

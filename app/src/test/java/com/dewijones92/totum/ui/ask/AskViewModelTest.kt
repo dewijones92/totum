@@ -7,6 +7,7 @@ import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskOutcome
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskService
+import com.dewijones92.totum.data.ask.InMemoryAskChats
 import com.dewijones92.totum.data.ask.Suggestion
 import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.Verdict
@@ -157,6 +158,32 @@ class AskViewModelTest {
             vm.ask("more 70s", "typed")
             advanceUntilIdle()
             assertEquals("Funk and a vlog", service.asked.last().turns.first().reply)
+        }
+
+    @Test
+    fun `a chat is kept, comes back when Ask opens again, and a new chat leaves it among the recent ones`() =
+        runTest(dispatcher) {
+            val chats = InMemoryAskChats()
+            service.answer = AskOutcome.Answered(AskAnswer(listOf(zog), reply = "Dragons"), 1)
+            val first =
+                AskViewModel(service, AskCopies({ listOf(torrents) }), { emptyList() }, operations, chats = chats)
+            first.ask("a dragon film", "typed")
+            advanceUntilIdle()
+            assertEquals(listOf("a dragon film"), chats.load().single().turns.map { it.request })
+
+            val reopened =
+                AskViewModel(service, AskCopies({ listOf(torrents) }), { emptyList() }, operations, chats = chats)
+            advanceUntilIdle()
+            val turn = reopened.uiState.value.turns.single()
+            assertEquals("Dragons", turn.reply)
+            assertEquals("its copies are looked up again", "Zog 2 2020", turn.cards.single().best?.title)
+
+            reopened.startOver()
+            assertTrue(reopened.uiState.value.turns.isEmpty())
+            assertEquals(listOf("a dragon film"), reopened.uiState.value.recent.map { it.title })
+            reopened.open(reopened.uiState.value.recent.single().id)
+            advanceUntilIdle()
+            assertEquals("a dragon film", reopened.uiState.value.turns.single().request)
         }
 
     @Test

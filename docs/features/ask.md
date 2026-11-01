@@ -41,7 +41,7 @@ ask: YouTube subscriptions, podcasts, followed artists and saved albums, and the
 Built and tested against a fake brain and once against Haiku on the laptop. Waiting on Dewi's choice of Claude
 account for the Pi (`claude setup-token`); until then the service answers "❌ …" and nothing else changes.
 
-Not yet: keeping recent chats across restarts (docs/todos/ask-everything.md).
+Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the others (newest 20).
 
 ## Measuring it
 

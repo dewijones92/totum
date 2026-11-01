@@ -1,7 +1,7 @@
 ---
 title: ✨ Ask about anything, as a chat that knows your taste
 kind: todo
-status: in progress
+status: done
 area: ask
 updated: 2026-11-01
 ---
@@ -28,5 +28,4 @@ Today (scout, 427eb1c5): kinds are film/series/youtube/podcast/audiobook (`AskKi
 resent by the phone as request text plus suggestion labels; taste is ~200 titles; `AskScreen` shows Song/Album/Artist
 hits as bare text.
 
-Built 2026-11-01 (ADR 109): the chat, the new kinds, taste, Haiku-decides search, the tidy rules. Still to do: recent
-chats kept across restarts.
+Built 2026-11-01 (ADR 109): the chat, the new kinds, taste, Haiku-decides search, the tidy rules. Chats kept across restarts since the same day.

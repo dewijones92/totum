@@ -11,6 +11,7 @@ complexity:
     # Cohesive parser/mapper files (e.g. a JSON-contract boundary) legitimately
     # gather many small private helpers.
     thresholdInFiles: 15
+    thresholdInClasses: 15
   LongParameterList:
     # Parameters with defaults are opt-in, builder-style; they don't add call-site burden.
     ignoreDefaultParameters: true

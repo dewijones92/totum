@@ -55,6 +55,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.MusicPage
+import com.dewijones92.totum.ui.common.RecentChips
 import com.dewijones92.totum.ui.common.RecentSearchChips
 import com.dewijones92.totum.ui.common.RecentSearches
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
@@ -96,6 +97,25 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
             if (!state.available) {
                 Text(stringResource(R.string.ask_unavailable), modifier = Modifier.padding(16.dp))
                 return@Column
+            }
+            if (state.turns.isEmpty() && state.recent.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.ask_earlier_chats),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                )
+                RecentChips(
+                    state.recent.map { it.title },
+                    onPick = { title -> state.recent.firstOrNull { it.title == title }?.let { viewModel.open(it.id) } },
+                    onRemove = { title ->
+                        state.recent.firstOrNull { it.title == title }?.let {
+                            viewModel.forget(
+                                it.id
+                            )
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
             }
             if (state.turns.isEmpty()) {
                 RecentSearchChips(

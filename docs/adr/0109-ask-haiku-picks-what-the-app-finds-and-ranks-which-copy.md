@@ -49,6 +49,9 @@ His favourite encode is 10-bit HEVC (x265).
   for them); web search when Haiku needs a fact (film years, new releases), not always. Music, radio and latest are not
   vetted. Two rules Haiku kept breaking are enforced after the call (`AskAnswer.tidied`): a year only on films, series
   and audiobooks, a podcast you already follow becomes its latest, and markdown links are stripped from the reply.
+- **Chats are kept** (2026-11-01): each finished turn saves the chat (requests, replies, suggestions; the newest 20
+  chats) to `ask-chats.json`; Ask reopens the last chat with its cards searched again (not vetted again), ➕ New chat
+  keeps it among "🕘 Earlier chats" chips (a long-press forgets one).
 - **Dry runs** (2026-11-01, local `totum serve` with Haiku, a hand-made taste): 5 rounds, 34 asks including follow-ups.
   Round 1 showed a followed podcast suggested as a show, the most-played vlogger left out of "the latest vlogs", and
   invented album years; the prompt changes fixed the vlogger, the years and the podcast needed the code rule (rounds
