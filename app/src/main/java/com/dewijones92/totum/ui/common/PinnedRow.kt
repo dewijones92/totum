@@ -103,6 +103,11 @@ private fun PinCard(pin: Pin, pins: PinActions, inRecent: Boolean) {
                 modifier = Modifier.size(CARD_WIDTH),
             )
             Text(text = pin.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                text = stringResource(pin.kindWords()),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (menu) PinMenu(pin, pins, inRecent) { menu = false }
     }

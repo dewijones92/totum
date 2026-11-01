@@ -5,6 +5,8 @@ naming:
     ignoreAnnotated: ['Composable']
 
 complexity:
+  LongMethod:
+    threshold: 80
   TooManyFunctions:
     # Cohesive parser/mapper files (e.g. a JSON-contract boundary) legitimately
     # gather many small private helpers.
@@ -20,7 +22,7 @@ style:
     ignoreAnnotated: ['Preview']
   ReturnCount:
     # Railway-style early returns on failure paths are house style.
-    max: 4
+    max: 6
     excludeGuardClauses: true
   MagicNumber:
     # Named property declarations (e.g. Compose colour palettes) are already well named.

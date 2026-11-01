@@ -68,6 +68,9 @@ Recorded exceptions (kept on purpose):
 - **Row tags are upper-case badges, facts are words**; "Show more", "Show all N" and "⬇️ Show N more" are different
   affordances (ADR 43).
 
+- A tile says what it is (2026-11-01, report 0.1.824): every Pinned and Recently tile carries its kind under the title
+  (`Pin.kindWords`), the way list rows already carry 🎤/💿/🎵 lines.
+
 Decided, not yet built (next consistency batch):
 
 - D1 torrent results get the full long-press menu (prepared on the Pi when long-pressed). Part done 2026-11-01 (report
