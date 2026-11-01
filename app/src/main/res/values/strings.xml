@@ -77,6 +77,7 @@
     <string name="queue_empty_headline">📭 Nothing queued yet</string>
     <string name="queue_empty">▶️ Tap anything to play it, and it lands here.</string>
     <string name="queue_now_playing">▶️ Now playing</string>
+    <string name="queue_now_playing_in_collapsed">📂 In %1$s, collapsed above</string>
     <string name="queue_clear_all">🧹 Clear all</string>
     <string name="queue_group_collapse_action">collapse</string>
     <string name="queue_group_expand_action">expand</string>

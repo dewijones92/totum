@@ -511,7 +511,17 @@ private fun QueueRow(
 ) {
     val media = entry.item.item
     Column {
-        if (index == nowPlaying.index) NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying.value)
+        if (index == nowPlaying.index) {
+            NowPlayingLabel(nowPlaying.progress, nowPlaying.isPlaying.value)
+            collapsedGroupOf(entry, actions.groups::isCollapsed)?.let { group ->
+                Text(
+                    text = stringResource(R.string.queue_now_playing_in_collapsed, group.title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 2.dp),
+                )
+            }
+        }
         val downloadState = downloadStateOf(media.id)
         MediaItemRow(
             item = media,
@@ -675,3 +685,6 @@ private suspend fun pulled(context: Context, container: AppContainer, groupId: S
         else -> resources.getString(R.string.queue_pull_nothing)
     }
 }
+
+internal fun collapsedGroupOf(entry: QueueEntry, isCollapsed: (String) -> Boolean): QueueGroup? =
+    entry.group?.takeIf { isCollapsed(it.id) }
