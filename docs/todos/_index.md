@@ -166,3 +166,4 @@ command).
 | [Does HDR content cast properly?](hdr-casting.md) | casting | medium | to discuss 2026-11-01 |
 | [Boost by speech: measure (and maybe lift) only detected speech](speech-gated-boost.md) | playback | medium | building 2026-11-01: both variants in Settings with feedback |
 | [A model subscription of Dewi's own for the Pi, and a weekly value check](pi-model-subscription.md) | pi/infra | medium | to discuss 2026-11-01 |
+- [✨ Ask about anything, as a chat that knows your taste](ask-everything.md) — decided 2026-11-01
