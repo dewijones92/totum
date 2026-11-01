@@ -164,3 +164,4 @@ command).
 | [In Listen mode, offer the picture](listen-mode-offers-the-picture.md) | playback | high | done 2026-10-23 (ADR 84) |
 | [Everything Totum runs on the Pi lives in this repo](totum-backend-in-this-repo.md) | pi/infra | medium | done 2026-10-23 (ADR 85) |
 | [Does HDR content cast properly?](hdr-casting.md) | casting | medium | to discuss 2026-11-01 |
+| [A model subscription of Dewi's own for the Pi, and a weekly value check](pi-model-subscription.md) | pi/infra | medium | to discuss 2026-11-01 |

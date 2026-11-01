@@ -213,6 +213,7 @@ import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.polite.PrefsVisitorIdStore
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
+import com.dewijones92.totum.queue.MetadataLookups
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.QueueSkips
@@ -1170,10 +1171,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         startDriveBackups(this)
         startSharedMetadataRepair(
             playbackQueue,
-            videoPlaybackLauncher,
             downloadManager,
             networkStatus,
-            applicationScope
+            applicationScope,
+            MetadataLookups(videoPlaybackLauncher, youTubeRelated),
         )
         startQueueAutoDownloader(this)
     }

@@ -1107,6 +1107,7 @@
     <string name="home_state_starting">🏠 Starting at home…</string>
     <string name="home_state_downloading">🏠 Downloading at home · %1$d%%</string>
     <string name="home_state_done">🏠 At home · copies to the phone on Wi-Fi</string>
+    <string name="home_state_done_kept">🏠 At home · stays there until you copy it</string>
     <string name="home_state_done_on_phone">🏠 At home · 📥 on the phone too</string>
     <string name="home_state_failed">❌ Failed at home: %1$s</string>
     <string name="home_delete">🗑️ Delete</string>

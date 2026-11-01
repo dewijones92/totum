@@ -129,6 +129,8 @@ class HomeDownloads(
 
     fun cancel(id: MediaItemId) = act("cancel", id) { client?.cancel(it) }
 
+    val copiesByItself: Boolean get() = phone.copyOnWifi()
+
     fun copyNow(id: MediaItemId) {
         val job = known.value[id]?.takeIf { it.state == HomeJobState.DONE } ?: return
         val item = job.item.toPlayable() ?: return

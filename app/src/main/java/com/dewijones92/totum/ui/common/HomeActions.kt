@@ -21,9 +21,8 @@ internal fun HomeDownloadActions(id: MediaItemId?, onDismiss: () -> Unit) {
     val job = homeJobOf(id)?.takeIf { it.state == HomeJobState.DONE } ?: return
     val local = downloadStateOf(id)
     val onPhone = local is DownloadState.Downloaded
-    val phoneHasLess = (local as? DownloadState.Downloaded)?.audioOnly == true && !job.audioOnly
     SheetAction(
-        { home.copyNow(id) }.takeIf { (!onPhone || phoneHasLess) && local !is DownloadState.Downloading },
+        { home.copyNow(id) }.takeIf { HomeRow.offers(job, local).copyNow },
         Icons.Outlined.Download,
         R.string.home_copy_now,
         onDismiss,

@@ -3,7 +3,7 @@ title: 🏠 Downloads at home (the Pi fetches; the phone copies on Wi-Fi)
 kind: feature
 status: refining
 area: downloads
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # 🏠 Downloads at home
@@ -17,7 +17,9 @@ copies it over the next time it is on Wi-Fi. ADR 110.
 - ⬇️ asks where (📱 On this phone / 🏠 At home); on mobile data 🏠 is suggested; "remember" keeps it.
 - Rows: 🏠 Downloading at home · 45% → 🏠 At home · copies to the phone on Wi-Fi → 📥 Copying from home 70% → the usual offline mark.
 - The progress strip and a notification while it runs; "🏠 Ready at home" when done.
-- Library → Downloads → 🏠 At home: every job, with Retry, Cancel and Delete.
+- Library → Downloads → 🏠 At home: every job as an ordinary item row (poster, ⋮ menu, tap to play from home), with
+  📥 Copy to the phone now, Retry, Cancel and Delete; a job that will not copy by itself (kept at home, or the
+  setting off) says "🏠 At home · stays there until you copy it".
 - Any item's menu, once it is at home: 📥 Copy to the phone now (any network), 🗑️ Delete from the phone, keep at home
   (it then stays home until copied again by hand), 🏠 Delete at home (keep on the phone). Rows say "🏠 Also at home".
 - Settings → Downloads → 🏠 Copy home downloads to the phone (on by default; off keeps everything home until asked).

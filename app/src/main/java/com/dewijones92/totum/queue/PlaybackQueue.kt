@@ -666,8 +666,17 @@ class PlaybackQueue(
 
     private fun mutate(why: String, block: (QueueSnapshot) -> QueueSnapshot) {
         touched = true
+        val earlier = _state.value.entries.mapTo(HashSet()) { it.item.item.id }
         _state.update { before -> block(before).stampedSince(before, Instant.ofEpochMilli(clock())) }
         val now = _state.value
+        val undated = now.entries.map { it.item.item }.filter { it.id !in earlier && it.saysNoDate }
+        if (undated.isNotEmpty()) {
+            Diag.log(
+                "facts",
+                "$why: ${undated.size} item(s) entered the queue with no date: " +
+                    undated.take(UNDATED_SHOWN).joinToString { "${it.id.value} (source=${it.sourceId.value})" },
+            )
+        }
         // The title is labelled, because it is the CURRENT entry and not whatever was just
         // added — reading it as "the item this operation touched" cost a wrong diagnosis on
         // 2026-07-29 (I searched Watch Later for the playing video instead of the queued one and
@@ -1210,3 +1219,5 @@ private const val RESTART_BEFORE_PREVIOUS_MS = 5_000L
 
 /** Room for a burst of starts, so a play is never dropped because nobody has collected yet. */
 private const val FRESH_START_BUFFER = 8
+
+private const val UNDATED_SHOWN = 5

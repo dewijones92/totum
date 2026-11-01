@@ -566,15 +566,20 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   When a cycle is slow, fix the tooling in the same session rather than paying it again.
 - Commit as you go — small, coherent commits at each green state.
 - **How a batch runs** (Dewi, 2026-10-14, 2026-10-15 and 2026-10-23):
-  1. **Start with a discussion.** Before a batch, list what it will contain and ask Dewi the questions only he can
-     answer (scope, defaults, trade-offs), with `AskUserQuestion`; then write each decision into its
+  1. **Start with a discussion, grounded by scouts.** First send zero or more Haiku scouts (read-only) through the code
+     each item touches, so the questions come from what the code does. Then list what the batch will contain and ask
+     Dewi the questions only he can answer (scope, defaults, trade-offs), with `AskUserQuestion`; then write each decision into its
      `docs/todos/<item>.md` and the session's task file, so it survives a context reset. Questions are for intent and
      defaults, never for facts the code can answer.
   2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs
      and ADRs in the same change, `./gradlew detekt` across all modules until clean, the full local gate, a look at
      the changed screen on the emulator, then push **only when the gate's exit code is 0**
      (`e=$?; [ $e -eq 0 ] && git push`). No soak per feature.
-  3. **The batch ends with a soak and an Opus review in parallel**: the soak (see "Before shipping a playback or
+  3. **The batch ends with a soak, an Opus review and Haiku sweeps in parallel** (Dewi, 2026-11-01). The sweeps:
+     one or two check each change for consistency across every list, way in and kind of item (tap, link,
+     notification, search, restore, queue, home; the queue rows that lost their dates were this kind of miss), and
+     one looks for use cases the batch missed. A sweep's finding is a hypothesis: check it against the code first.
+     Then the soak (see "Before shipping a playback or
      extraction change") against the release from before the batch, and a `reviewer` agent on the batch's commits,
      given the requests and the accepted decisions. Read the whole report, check each finding against the code, fix
      what holds up with a test seen red first, and push.

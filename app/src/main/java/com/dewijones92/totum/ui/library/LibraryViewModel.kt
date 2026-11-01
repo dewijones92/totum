@@ -18,6 +18,7 @@ import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.suggestCleanup
@@ -228,6 +229,10 @@ class LibraryViewModel(
     /** Plays the local file, through the queue like every other tap. */
     fun play(entry: Entry) {
         viewModelScope.launch { queue.playNow(entry.media.offline) }
+    }
+
+    fun playFromHome(item: PlayableItem) {
+        viewModelScope.launch { queue.playNow(item) }
     }
 
     fun delete(entry: Entry) {

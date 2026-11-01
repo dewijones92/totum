@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-01
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -30,6 +30,14 @@ backups keep dates and views, search kinds, posters fitted, download cards, one 
 through one chooser with an honest label, YouTube-only choice, pinned and paused films with pictures, mode toasts,
 follow marks, one nearly-finished rule; the wording vocabulary (ADR 43); one list loading look (the skeleton) and
 one list message; an emoji'd queue empty state; a selection's download uses the remembered choice.
+
+Fixed on 2026-11-01: queue rows with no date (report 0.1.814). The signed-in TV answer only asks the account's watch
+page, where the date is, when the title is unknown, so a listing that had a title but no date never learned one. The
+metadata repair (`SharedMetadataRepair`) now also fills a missing date from the watch page for the queue rows around
+what is playing (5 before, 30 after) and every download, at most twice per video a session; songs are left alone. An
+item entering the queue with no date is logged with its source (`[facts]`), so the next report names the path.
+The 🏠 At home rows became the shared item row (poster, menu, play), with 📥 Copy to the phone now, and say "stays
+there until you copy it" when they will not copy by themselves.
 
 Recorded exceptions (kept on purpose):
 

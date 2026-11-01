@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -24,6 +25,7 @@ import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SharedMetadataRepairTest {
@@ -185,5 +187,73 @@ class SharedMetadataRepairTest {
         runCurrent()
 
         assertTrue(learned.isEmpty())
+    }
+
+    private fun dated(n: Int, kind: MediaContentKind = MediaContentKind.STANDARD): PlayableItem {
+        val vid = MediaItemId("video-%05d".format(n))
+        val link = HttpUrl.of("https://www.youtube.com/watch?v=${vid.value}")
+        return PlayableItem(
+            MediaItem(
+                vid,
+                SourceId("ytfeed"),
+                "Video $n",
+                publishedAt = null,
+                duration = null,
+                mediaUrl = link,
+                contentKind = kind
+            ),
+            PlayHandle.Video(link),
+        )
+    }
+
+    @Test
+    fun `a queued video with no date learns it from its watch page, and so does its download`() = runTest {
+        val day = Instant.parse("2026-10-30T12:00:00Z")
+        val undated = dated(1)
+        val downloads = FakeDownloadManager()
+        downloads.download(undated, audioOnly = true)
+        downloads.observeRecords().stateIn(backgroundScope, SharingStarted.Eagerly, emptyList())
+        val learned = mutableListOf<MediaItem>()
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(undated)), currentIndex = 0)),
+            downloads,
+            { error("a title is known, so nothing is resolved") },
+            learned::add,
+            {},
+            backgroundScope,
+            dateOf = { if (it == undated.item.id) day else null },
+        ).start()
+        runCurrent()
+
+        assertEquals(listOf(day), learned.map { it.publishedAt })
+        assertEquals(day, downloads.observeDownloaded().first().single().item.publishedAt)
+    }
+
+    @Test
+    fun `dates are asked only near what is playing, never for songs or rows that have one`() = runTest {
+        val rows = (0 until 100).map { n ->
+            when (n) {
+                52 -> dated(n, MediaContentKind.MUSIC)
+                53 -> dated(n).let { it.copy(item = it.item.copy(publishedText = "2 days ago")) }
+                else -> dated(n)
+            }
+        }
+        val asked = mutableListOf<String>()
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) }, currentIndex = 50)),
+            FakeDownloadManager(),
+            { null },
+            {},
+            {},
+            backgroundScope,
+            dateOf = {
+                asked += it.value
+                null
+            },
+        ).start()
+        runCurrent()
+
+        val expected = ((45..80) - 52 - 53).map { "video-%05d".format(it) }
+        assertEquals(expected.toSet(), asked.toSet())
     }
 }

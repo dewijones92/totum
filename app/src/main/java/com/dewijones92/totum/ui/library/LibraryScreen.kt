@@ -290,6 +290,8 @@ private fun DownloadsScreen(
             jobs = homeJobs.values.sortedBy { it.state.ordinal },
             onCancel = container.homeDownloads::cancel,
             onRetry = container.homeDownloads::retry,
+            onCopy = container.homeDownloads::copyNow,
+            onPlay = viewModel::playFromHome,
         ),
     )
 }
