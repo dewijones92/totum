@@ -10,21 +10,20 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
 import java.io.File
 import java.io.RandomAccessFile
-import java.net.URLDecoder
 
-internal class HomeRoutes(private val home: Home) {
+internal class HomeRoutes(private val home: Home) : Routes {
 
-    fun handles(path: String): Boolean = path in PATHS
+    override fun handles(path: String): Boolean = path in PATHS
 
     suspend fun jobs(): HomeJobs = home.jobs()
 
-    fun handle(exchange: HttpExchange, method: String, path: String) = runBlocking {
+    override fun handle(exchange: HttpExchange, method: String, path: String) = runBlocking {
         val id = idOf(exchange)
         when {
             method == "GET" && path == "/jobs" ->
-                exchange.json(OK, AskJson.encodeToString(HomeJobs.serializer(), home.jobs()))
+                exchange.reply(OK, AskJson.encodeToString(HomeJobs.serializer(), home.jobs()))
             method == "POST" && path == "/jobs" -> start(exchange)
-            id == null -> exchange.json(BAD_REQUEST, """{"error":"which item? (?id=)"}""")
+            id == null -> exchange.reply(BAD_REQUEST, """{"error":"which item? (?id=)"}""")
             else -> withId(exchange, method, path, id)
         }
     }
@@ -33,37 +32,37 @@ internal class HomeRoutes(private val home: Home) {
         when {
             method == "DELETE" && path == "/jobs" -> {
                 home.cancel(id)
-                exchange.json(OK, """{"ok":true}""")
+                exchange.reply(OK, """{"ok":true}""")
             }
             method == "POST" && path == "/jobs/retry" -> {
                 home.retry(id)
-                exchange.json(OK, """{"ok":true}""")
+                exchange.reply(OK, """{"ok":true}""")
             }
             method == "GET" && path == "/files" -> {
                 val file = home.fileOf(id)
-                if (file == null) exchange.json(NOT_FOUND, """{"error":"no such file"}""") else serve(exchange, file)
+                if (file == null) exchange.reply(NOT_FOUND, """{"error":"no such file"}""") else serve(exchange, file)
             }
             method == "PUT" && path == "/account" -> account(exchange)
             method == "DELETE" && path == "/account" -> {
                 home.signOut()
-                exchange.json(OK, """{"ok":true}""")
+                exchange.reply(OK, """{"ok":true}""")
             }
-            else -> exchange.json(NOT_FOUND, """{"error":"no such route"}""")
+            else -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
         }
     }
 
     private suspend fun start(exchange: HttpExchange) {
         val text = exchange.requestBody.bufferedReader().readText()
         val request = runCatching { AskJson.decodeFromString(HomeJobRequest.serializer(), text) }.getOrNull()
-            ?: return exchange.json(BAD_REQUEST, """{"error":"unreadable job"}""")
+            ?: return exchange.reply(BAD_REQUEST, """{"error":"unreadable job"}""")
         when (val started = home.start(request)) {
             is Started.Accepted ->
-                exchange.json(
+                exchange.reply(
                     ACCEPTED,
                     """{"ok":true,"id":${AskJson.encodeToString(String.serializer(), started.id)}}"""
                 )
             is Started.Refused ->
-                exchange.json(
+                exchange.reply(
                     INSUFFICIENT_STORAGE,
                     """{"error":${AskJson.encodeToString(String.serializer(), started.why)}}"""
                 )
@@ -73,9 +72,9 @@ internal class HomeRoutes(private val home: Home) {
     private suspend fun account(exchange: HttpExchange) {
         val text = exchange.requestBody.bufferedReader().readText()
         val handover = runCatching { AskJson.decodeFromString(AccountHandover.serializer(), text) }.getOrNull()
-            ?: return exchange.json(BAD_REQUEST, """{"error":"unreadable sign-in"}""")
+            ?: return exchange.reply(BAD_REQUEST, """{"error":"unreadable sign-in"}""")
         home.signIn(handover)
-        exchange.json(OK, """{"ok":true}""")
+        exchange.reply(OK, """{"ok":true}""")
     }
 
     private fun serve(exchange: HttpExchange, file: File) {
@@ -114,16 +113,7 @@ internal class HomeRoutes(private val home: Home) {
     }
 
     private fun idOf(exchange: HttpExchange): String? =
-        exchange.requestURI.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("id=") }
-            ?.removePrefix("id=")?.let { URLDecoder.decode(it, Charsets.UTF_8) }
-            ?: ACCOUNT_ID.takeIf { exchange.requestURI.path == "/account" }
-
-    private fun HttpExchange.json(code: Int, body: String) {
-        val bytes = body.toByteArray()
-        responseHeaders.add("Content-Type", "application/json")
-        sendResponseHeaders(code, bytes.size.toLong())
-        responseBody.use { it.write(bytes) }
-    }
+        exchange.query("id") ?: ACCOUNT_ID.takeIf { exchange.requestURI.path == "/account" }
 
     private companion object {
         const val OK = 200

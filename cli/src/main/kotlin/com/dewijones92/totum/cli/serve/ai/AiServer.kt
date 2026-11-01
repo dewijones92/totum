@@ -2,6 +2,7 @@ package com.dewijones92.totum.cli.serve.ai
 
 import com.dewijones92.totum.cli.serve.BrainFailure
 import com.dewijones92.totum.cli.serve.NotSignedIn
+import com.dewijones92.totum.cli.serve.reply
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskJson
 import com.sun.net.httpserver.HttpExchange
@@ -107,13 +108,6 @@ internal class AiServer(
     }
 
     private fun error(message: String?) = buildJsonObject { put("error", message ?: "failed") }.toString()
-
-    private fun HttpExchange.reply(code: Int, body: String) {
-        val bytes = body.toByteArray()
-        responseHeaders.add("Content-Type", "application/json")
-        sendResponseHeaders(code, bytes.size.toLong())
-        responseBody.use { it.write(bytes) }
-    }
 
     private companion object {
         const val OK = 200

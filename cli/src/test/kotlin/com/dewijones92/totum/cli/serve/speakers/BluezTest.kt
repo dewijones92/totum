@@ -1,0 +1,65 @@
+package com.dewijones92.totum.cli.serve.speakers
+
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class BluezTest {
+
+    private class FakeShell(var sinks: String = "", var inputs: String = "") : Shell {
+        val ran = mutableListOf<String>()
+        var linksOnConnect = true
+        override suspend fun run(args: List<String>): String? {
+            val line = args.joinToString(" ")
+            ran += line
+            return when {
+                line == "bluetoothctl devices Paired" ->
+                    "Device 54:15:89:76:CD:A4 LG S65Q\nDevice AA:BB:CC:DD:EE:FF Pixel 7\n"
+                line == "bluetoothctl info 54:15:89:76:CD:A4" ->
+                    "Device 54:15:89:76:CD:A4 (public)\n\tAlias: Living room bar\n\tUUID: Audio Sink (0000110b)\n"
+                line.startsWith("bluetoothctl info") -> "\tAlias: Pixel 7\n\tUUID: Audio Source (0000110a)\n"
+                line.startsWith("bluetoothctl connect") -> {
+                    if (linksOnConnect) sinks = "7\tbluez_sink.54_15_89_76_CD_A4.a2dp_sink\tmodule-bluez5-device.c\n"
+                    "Connection successful"
+                }
+                line == "pactl list short sinks" -> sinks
+                line == "pactl list short sink-inputs" -> inputs
+                else -> ""
+            }
+        }
+    }
+
+    @Test
+    fun `only paired devices that take audio are speakers, named by their alias`() = runBlocking {
+        val found = BluezSpeakers(FakeShell()).find()
+        assertEquals(listOf("Living room bar"), found.map { it.speaker.label })
+        assertEquals("54158976cda4", found.single().speaker.id)
+    }
+
+    @Test
+    fun `a speaker Totum linked is unlinked when it is done, unless something else is playing on it`() = runBlocking {
+        val shell = FakeShell()
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0)
+        assertEquals("bluez_sink.54_15_89_76_CD_A4.a2dp_sink", link.connect())
+        shell.inputs = "3\t7\t12\tprotocol-native.c\ts16le 2ch 44100Hz\n"
+        link.release()
+        assertFalse(shell.ran.any { it.startsWith("bluetoothctl disconnect") })
+        shell.inputs = ""
+        link.release()
+        assertTrue(shell.ran.contains("bluetoothctl disconnect 54:15:89:76:CD:A4"))
+    }
+
+    @Test
+    fun `a speaker already linked is used and left linked, and one that never links says so`() = runBlocking {
+        val shell = FakeShell(sinks = "7\tbluez_sink.54_15_89_76_CD_A4.a2dp_sink\tx\n")
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0)
+        assertEquals("bluez_sink.54_15_89_76_CD_A4.a2dp_sink", link.connect())
+        link.release()
+        assertFalse(shell.ran.any { it.startsWith("bluetoothctl connect") || it.startsWith("bluetoothctl disconnect") })
+        val off = FakeShell().apply { linksOnConnect = false }
+        assertNull(BluezLink("54:15:89:76:CD:A4", off, pollMs = 0, tries = 2).connect())
+    }
+}

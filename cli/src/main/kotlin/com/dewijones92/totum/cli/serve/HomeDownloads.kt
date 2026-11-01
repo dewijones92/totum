@@ -2,6 +2,7 @@ package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.YoungStreamUrl
 import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
@@ -19,6 +20,7 @@ import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.auth.AccessTokenResult
@@ -45,6 +47,7 @@ import com.dewijones92.totum.video.solvingChallenges
 import com.dewijones92.totum.video.videoAndPodcastDownloads
 import com.dewijones92.totum.ytdlp.process.ProcessYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
@@ -70,7 +73,7 @@ internal interface Home {
 }
 
 internal class HomeDownloads(
-    private val dataDir: File,
+    val dataDir: File,
     private val downloadDir: File,
     scope: CoroutineScope,
     private val rewrites: Rewrites = Rewrites(emptyList()),
@@ -170,6 +173,28 @@ internal class HomeDownloads(
 
     override suspend fun fileOf(id: String): File? = manager.observeDownloaded().first()
         .firstOrNull { it.playable.item.id.value == id }?.localPath?.let(::File)?.takeIf { it.isFile }
+
+    suspend fun soundOf(item: PlayableItem): String? {
+        fileOf(item.item.id.value)?.let { file ->
+            Diag.log("speakers", "${item.item.id.value}: the copy at home, ${file.name}")
+            return file.path
+        }
+        val url = when (val handle = item.handle) {
+            is PlayHandle.Video -> resolverFor(
+                emptyList()
+            ).resolve(item, "speaker")?.let { it.audioOnlyUrl ?: it.item.mediaUrl }
+            is PlayHandle.Podcast -> handle.audioUrl ?: item.item.mediaUrl
+            is PlayHandle.LocalVideo -> null
+        }?.value?.let(rewrites::apply)
+        val wait = url?.let { YoungStreamUrl.retryDelayMs(it, System.currentTimeMillis(), errorCount = 1) }
+        Diag.log(
+            "speakers",
+            "${item.item.id.value}: ${item.handle.label} -> ${if (url == null) "no sound" else "a stream"}, " +
+                "young wait ${wait ?: 0}ms",
+        )
+        wait?.let { delay(it) }
+        return url
+    }
 
     override suspend fun signIn(handover: AccountHandover) {
         tokens.save(

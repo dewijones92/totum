@@ -16,6 +16,9 @@ services:
     volumes:
       - /var/lib/totum-fetch/home:/home/totum
       - /home/pi/ext_files/media:/media
+      - /run/user/1000/pulse/native:/run/pulse/native
+      - /home/pi/.config/pulse/cookie:/run/pulse/cookie:ro
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
     networks:
       - bin_private
     restart: unless-stopped

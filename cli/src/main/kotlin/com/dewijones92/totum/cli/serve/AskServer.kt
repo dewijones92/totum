@@ -12,6 +12,9 @@ import com.dewijones92.totum.cli.serve.filing.Jellyfin
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.cli.serve.filing.Shelf
 import com.dewijones92.totum.cli.serve.filing.SidecarMaker
+import com.dewijones92.totum.cli.serve.speakers.SpeakerDecks
+import com.dewijones92.totum.cli.serve.speakers.SpeakerRoutes
+import com.dewijones92.totum.cli.serve.speakers.SpeakerSounds
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
@@ -52,6 +55,7 @@ internal class AskServer(
     private val brain: Brain,
     private val scope: CoroutineScope,
     private val home: HomeRoutes? = null,
+    private val more: List<Routes> = emptyList(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
     concurrent: Int = CONCURRENT,
@@ -91,7 +95,8 @@ internal class AskServer(
             method == "POST" && path == "/vet" -> start(exchange, "vet", VetRequest.serializer()) { brain.vet(it) }
             method == "GET" && path.startsWith("/job/") -> job(exchange, path.removePrefix("/job/"))
             home != null && home.handles(path) -> home.handle(exchange, method, path)
-            else -> exchange.reply(NOT_FOUND, """{"error":"no such route: $method $path"}""")
+            else -> more.firstOrNull { it.handles(path) }?.handle(exchange, method, path)
+                ?: exchange.reply(NOT_FOUND, """{"error":"no such route: $method $path"}""")
         }
     }
 
@@ -146,13 +151,6 @@ internal class AskServer(
         jobs.entries.removeIf { it.value.started < cutoff }
     }
 
-    private fun HttpExchange.reply(code: Int, body: String) {
-        val bytes = body.toByteArray()
-        responseHeaders.add("Content-Type", "application/json")
-        sendResponseHeaders(code, bytes.size.toLong())
-        responseBody.use { it.write(bytes) }
-    }
-
     private companion object {
         const val OK = 200
         const val ACCEPTED = 202
@@ -194,7 +192,8 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         filer = filerFromEnv(brain, jellyfin),
         health = health,
     )
-    AskServer(brain, this, HomeRoutes(home)).start(port)
+    val speakers = SpeakerDecks(File(home.dataDir, "speakers"), this, SpeakerSounds(home::soundOf))
+    AskServer(brain, this, HomeRoutes(home), listOf(SpeakerRoutes(speakers))).start(port)
     out("totum serve: listening on $port")
     awaitCancellation()
 }

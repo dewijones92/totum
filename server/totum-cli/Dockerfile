@@ -35,7 +35,7 @@ CMD ["/opt/totum/bin/totum", "ai-serve", "--port=8780"]
 FROM cli AS fetch
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv \
+ && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv mpv bluez pulseaudio-utils \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir "yt-dlp[default]" \
@@ -47,6 +47,8 @@ ENV TOTUM_PYTHON=/opt/venv/bin/python \
     TOTUM_DOWNLOADS=/media/totum \
     TOTUM_LIBRARY_MOVIES=/media/videos/movies \
     TOTUM_LIBRARY_SERIES=/media/videos/series \
-    TOTUM_AI_URL=http://ai-service:8780
+    TOTUM_AI_URL=http://ai-service:8780 \
+    PULSE_SERVER=unix:/run/pulse/native \
+    PULSE_COOKIE=/run/pulse/cookie
 EXPOSE 8770
 CMD ["sh", "-c", "/opt/venv/bin/pip install -q -U 'yt-dlp[default]' || echo 'yt-dlp update failed; using the installed one'; exec /opt/totum/bin/totum serve --port=8770"]

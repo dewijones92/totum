@@ -1,7 +1,7 @@
 ---
 title: 🔈 A second queue on the Pi's speakers
 kind: todo
-status: decided
+status: in progress
 area: playback
 updated: 2026-11-01
 ---
@@ -20,3 +20,10 @@ Decided (AskUserQuestion, 2026-11-01):
 - **Same menus plus a speaker switch**: Play / Shuffle all / Queue can go to "📱 This phone" or "🔈 <speaker>"; the
   speaker's queue gets its own view in Queue with play/pause/skip/volume and what is playing.
 - **The sound of anything**: YouTube, music, podcasts, audiobooks and torrents, as audio.
+
+## Progress
+
+- ✅ The Pi side ([ADR 116](../adr/0116-speaker-queues-play-on-the-pi.md)): discovery, link, mpv, the queue on
+  `QueueSnapshot`, routes, container. Verified on the soundbar 2026-11-01.
+- ⏳ The phone side: the speaker switch in Queue, "where" on play/queue/shuffle all, mini player, notification,
+  diagnostics.

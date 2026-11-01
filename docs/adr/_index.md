@@ -131,3 +131,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 113 | [An AI service on the Pi, and health the Pi judges](0113-an-ai-service-on-the-pi-and-health-the-pi-judges.md) | Accepted |
 | 114 | [Back and forward through what played](0114-back-and-forward-through-what-played.md) | Accepted |
 | 115 | [The boost can listen for speech, two ways, each with feedback](0115-the-boost-can-listen-for-speech.md) | Accepted |
+| 116 | [A speaker's queue plays on the Pi, on the shared queue model](0116-speaker-queues-play-on-the-pi.md) | Accepted |
