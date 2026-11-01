@@ -78,7 +78,10 @@ Decided, not yet built (next consistency batch):
   file (play next and add to queue as the pack's group, add to playlist, choose episodes to download, mark played)
   (`TorrentMenuSheet`, `SearchViewModel.openTorrentMenu`); in search and in ✨ Ask. A result already at home says so
   and offers 📥 Copy to the phone (`torrentAtHome`).
-- D2 intro/outro skips only for a season pack, keyed by the show's title; never a single film.
+- D2 intro/outro skips only for a season pack, keyed by the show's title; never a single film: done 2026-11-01. A
+  torrent file whose title carries an episode code is keyed `show:<title>`, the show's name cut from the torrent's name
+  before its season mark with the year dropped, so two packs of one show share their skips; a torrent film has no key
+  and no skips section (`showKey`, `showTitleOf`, the episode code parser now one copy in `:core:domain`, `EpisodeCode.kt`).
 - D3 the thin top busy bar folds into the progress strip; needs a design for background lookups, which the bar
   covers today and which must not fill the strip.
 - The audit's remaining items: stored queue/history rows lose show notes and chapters (a schema bump); private page

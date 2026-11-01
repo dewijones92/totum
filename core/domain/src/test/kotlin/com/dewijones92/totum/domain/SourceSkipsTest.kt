@@ -10,6 +10,30 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class SourceSkipsTest {
 
+    private fun torrentFile(hash: String, index: Int, title: String, pack: String) = MediaItem(
+        MediaItemId("torrent:$hash:$index"),
+        TorrentIds.SOURCE,
+        title,
+        publishedAt = null,
+        duration = null,
+        author = pack,
+    )
+
+    @Test
+    fun `a season pack's episodes are keyed by the show, shared across packs, and a film has no key`() {
+        val s4 = torrentFile("aaa", 2, "S04E02", "Slow.Horses.S04.COMPLETE.720p.ATVP.WEBRip.x264-GalaxyTV")
+        val s5 = torrentFile("bbb", 1, "S05E01", "Slow Horses (2022) Season 5 S05 1080p")
+        val film = torrentFile(
+            "ccc",
+            1,
+            "Night of the Living Dead (1968) 1080p BRRip x264 -YTS",
+            "Night of the Living Dead (1968) 1080p BRRip x264 -YTS"
+        )
+        assertEquals(SourceId("show:slow horses"), s4.showKey())
+        assertEquals(s4.showKey(), s5.showKey())
+        assertNull(film.showKey())
+    }
+
     @Test
     fun `an intro skips from the start, an outro skips the same length off every episode's end`() {
         val skips = SourceSkips(introEndMs = 83_000, outroLengthMs = 45_000)

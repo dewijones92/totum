@@ -131,7 +131,8 @@ Explore mode follows related videos and leaves the queue waiting; see [ADR 56](.
 
 The Details tab also sets a show's or channel's **intro and outro** (Intro ends here / Outro starts here / Clear),
 skipped on everything from it; Explore follows a podcast into its show's next episode and can be capped. See
-[ADR 57](../adr/0057-rewind-on-resume-and-per-show-intro-outro.md) and [ADR 56](../adr/0056-player-tabs-and-explore-mode.md).
+[ADR 57](../adr/0057-rewind-on-resume-and-per-show-intro-outro.md) and [ADR 56](../adr/0056-player-tabs-and-explore-mode.md). For torrents it is offered only for a season pack's episodes, keyed by the show's name, so every pack of
+one show shares it; a torrent film has none (ADR 108 D2).
 
 ## Quick strip and About card (2026-10-16)
 

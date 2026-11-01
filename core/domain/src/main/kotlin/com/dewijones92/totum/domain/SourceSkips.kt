@@ -34,7 +34,12 @@ public fun decodeSourceSkips(encoded: String?): Map<SourceId, SourceSkips> =
         if (skip.isEmpty) null else SourceId(parts[0]) to skip
     }.toMap()
 
-public fun MediaItem.showKey(): SourceId? = when (pillar) {
+public fun MediaItem.showKey(): SourceId? = if (isTorrent) torrentShowKey() else sourceShowKey()
+
+private fun MediaItem.torrentShowKey(): SourceId? =
+    episodeCodeOf(title)?.let { showTitleOf(author ?: title) }?.let { SourceId("show:$it") }
+
+private fun MediaItem.sourceShowKey(): SourceId? = when (pillar) {
     MediaKind.VIDEO -> statedChannel()?.let { channel ->
         channel.youTubeChannelId?.let {
             SourceId("yt:$it")

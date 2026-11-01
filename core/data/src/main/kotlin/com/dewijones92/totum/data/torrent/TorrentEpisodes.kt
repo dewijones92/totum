@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.NaturalOrder
 import com.dewijones92.totum.domain.Picture
+import com.dewijones92.totum.domain.episodeCodeOf
 import com.dewijones92.totum.domain.pictureOfFileName
 
 /**
@@ -63,21 +64,7 @@ public object TorrentEpisodes {
      * nothing else on purpose. A bare `103` or `Episode 3` is ambiguous with resolutions, years
      * and group numbers, and guessing at those is how a film ends up labelled as season 10.
      */
-    public fun episodeOf(name: String): Episode? {
-        SEASON_EPISODE.find(name)?.let { match ->
-            return Episode(match.groupValues[1].toInt(), match.groupValues[2].toInt())
-        }
-        CROSS_FORM.find(name)?.let { match ->
-            return Episode(match.groupValues[1].toInt(), match.groupValues[2].toInt())
-        }
-        return null
-    }
+    public fun episodeOf(name: String): Episode? = episodeCodeOf(name)?.let { Episode(it.season, it.episode) }
 
     public data class Episode(public val season: Int, public val episode: Int)
-
-    /** `S01E03`, the overwhelmingly common form; case-insensitive because releases vary. */
-    private val SEASON_EPISODE = Regex("""[Ss](\d{1,2})[Ee](\d{1,3})""")
-
-    /** `1x03`, the older form. Bounded so a resolution like `1920x1080` cannot match. */
-    private val CROSS_FORM = Regex("""(?<!\d)(\d{1,2})[xX](\d{2})(?!\d)""")
 }
