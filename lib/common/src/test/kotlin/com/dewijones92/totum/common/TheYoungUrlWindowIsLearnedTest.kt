@@ -1,4 +1,4 @@
-package com.dewijones92.totum.playback
+package com.dewijones92.totum.common
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

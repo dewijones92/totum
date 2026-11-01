@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.ask
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.writeTextReplacing
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import java.io.File
@@ -45,10 +46,7 @@ public class FileAskChats(private val file: File) : AskChatStore {
 
     override fun save(chats: List<SavedChat>) {
         runCatching {
-            file.parentFile?.mkdirs()
-            val next = File(file.path + ".next")
-            next.writeText(AskJson.encodeToString(serializer, chats))
-            check(next.renameTo(file)) { "could not replace ${file.name}" }
+            file.writeTextReplacing(AskJson.encodeToString(serializer, chats))
         }.onFailure { Diag.warn("ask", "chats not saved: $it") }
     }
 }

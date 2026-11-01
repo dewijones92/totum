@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.writeTextReplacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,9 +73,7 @@ public class TorrentsSeen(
 
     private suspend fun write(records: List<SeenTorrent>) = withContext(Dispatchers.IO) {
         try {
-            val temp = File(file.parentFile, "${file.name}.tmp")
-            temp.writeText(JSON.encodeToString(LIST, records))
-            if (!temp.renameTo(file)) throw IOException("could not replace ${file.name}")
+            file.writeTextReplacing(JSON.encodeToString(LIST, records))
         } catch (e: IOException) {
             Diag.warn("torrent", "the torrents-seen file could not be written", e)
         }

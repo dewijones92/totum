@@ -1,19 +1,19 @@
-package com.dewijones92.totum.playback
+package com.dewijones92.totum.common
 
-internal class YoungUrlWindow {
+public class YoungUrlWindow {
     private data class Seen(val atMs: Long, val ageMs: Long)
 
     private val refusals = ArrayDeque<Seen>()
     private val acceptances = ArrayDeque<Seen>()
 
     @Synchronized
-    fun refused(ageMs: Long, nowMs: Long) = remember(refusals, Seen(nowMs, ageMs))
+    public fun refused(ageMs: Long, nowMs: Long): Unit = remember(refusals, Seen(nowMs, ageMs))
 
     @Synchronized
-    fun accepted(ageMs: Long, nowMs: Long) = remember(acceptances, Seen(nowMs, ageMs))
+    public fun accepted(ageMs: Long, nowMs: Long): Unit = remember(acceptances, Seen(nowMs, ageMs))
 
     @Synchronized
-    fun validAfterMs(nowMs: Long): Long {
+    public fun validAfterMs(nowMs: Long): Long {
         forget(nowMs)
         val atLeast = refusals.maxOfOrNull { it.ageMs }?.plus(MARGIN_MS)
         val atMost = acceptances.minOfOrNull { it.ageMs }
@@ -27,7 +27,7 @@ internal class YoungUrlWindow {
     }
 
     @Synchronized
-    fun describe(nowMs: Long): String {
+    public fun describe(nowMs: Long): String {
         val wait = validAfterMs(nowMs)
         val refused = refusals.maxOfOrNull { it.ageMs }?.let { "refused up to ${it}ms" } ?: "no refusals"
         val accepted = acceptances.minOfOrNull { it.ageMs }?.let { "accepted from ${it}ms" } ?: "no acceptances"

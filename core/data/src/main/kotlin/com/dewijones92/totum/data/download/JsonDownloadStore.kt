@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.download
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.writeTextReplacing
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
@@ -112,10 +113,7 @@ public class JsonDownloadStore(private val file: File, private val now: () -> In
     private suspend fun change(edit: (List<Row>) -> List<Row>) = lock.withLock {
         val next = edit(rows.value)
         rows.value = next
-        file.parentFile?.mkdirs()
-        val temporary = File(file.parentFile, "${file.name}.new")
-        temporary.writeText(JSON.encodeToString(ListSerializer(Row.serializer()), next))
-        if (!temporary.renameTo(file)) temporary.copyTo(file, overwrite = true).also { temporary.delete() }
+        file.writeTextReplacing(JSON.encodeToString(ListSerializer(Row.serializer()), next))
     }
 
     private fun load(): List<Row> = if (!file.exists()) {
