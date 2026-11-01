@@ -99,6 +99,7 @@ internal class AiServer(
         return buildJsonObject {
             put("ok", true)
             put("model", model)
+            put("effort", EFFORT)
             put("signedIn", signedIn?.let(::JsonPrimitive) ?: JsonPrimitive(null as String?))
             put("callsToday", day.calls)
             put("failuresToday", day.failures)

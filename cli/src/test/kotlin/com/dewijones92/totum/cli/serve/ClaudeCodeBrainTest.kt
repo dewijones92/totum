@@ -49,6 +49,7 @@ class ClaudeCodeBrainTest {
         val tools = calls.map { it[it.indexOf("--tools") + 1] }
         assertEquals(listOf("WebSearch,WebFetch", ""), tools)
         assertTrue(calls.all { it[it.indexOf("--model") + 1] == "haiku" && "--strict-mcp-config" in it })
+        assertTrue("every call is at medium effort", calls.all { it[it.indexOf("--effort") + 1] == "medium" })
     }
 
     @Test

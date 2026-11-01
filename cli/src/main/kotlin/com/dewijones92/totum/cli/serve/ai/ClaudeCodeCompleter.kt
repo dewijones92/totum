@@ -43,6 +43,7 @@ internal class ClaudeCodeCompleter(
         val args = listOf(
             claude, "-p", completion.message,
             "--model", model,
+            "--effort", EFFORT,
             "--output-format", "json",
             "--json-schema", completion.schema,
             "--system-prompt", completion.system,
@@ -148,3 +149,5 @@ internal class ClaudeCodeCompleter(
         val NOT_LOGGED_IN = Regex("(?i)not logged in|/login|invalid api key")
     }
 }
+
+internal const val EFFORT = "medium"

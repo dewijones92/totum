@@ -52,6 +52,9 @@ Pi; Matrix and a phone banner when something breaks.
   `requestId` (Totum sends one per attempt) and free-form `meta` (Totum sends the attempt number); all of it is logged
   and kept with the usage record, and `/usage` lists the last 20 calls with it.
 
+- **Medium effort, always** (2026-11-01, Dewi: *"make sure … the AI service is locked to medium reasoning"*): every
+  call runs `claude -p --model haiku --effort medium`; `/health` says `"effort":"medium"`.
+
 ## Consequences
 
 - The dashboard (dot-files) only reads: totum-fetch's `/health`, the AI service's `/health` and `/usage`, and
