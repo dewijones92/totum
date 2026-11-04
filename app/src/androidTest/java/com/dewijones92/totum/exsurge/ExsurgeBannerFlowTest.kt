@@ -85,11 +85,11 @@ class ExsurgeBannerFlowTest {
     @Test
     fun theOffBannerRepostsAfterDismissalAndSystemRearming() {
         val delete = banner()!!.deleteIntent
-        manager.cancel(ExsurgeNotifications.BANNER_ID)
+        dismissTheBanner()
         delete.send()
         waitFor(::offBanner)
         listOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED).forEach { systemAction ->
-            manager.cancel(ExsurgeNotifications.BANNER_ID)
+            dismissTheBanner()
             instrumentation.runOnMainSync { ExsurgeActionReceiver().onReceive(application, Intent(systemAction)) }
             waitFor(::offBanner)
         }
@@ -114,6 +114,11 @@ class ExsurgeBannerFlowTest {
                 exsurge.view.value.memory.state == ExsurgeState.Off && !ExsurgeBannerService.running && offBanner()
             }
         }
+    }
+
+    private fun dismissTheBanner() {
+        manager.cancel(ExsurgeNotifications.BANNER_ID)
+        waitFor { manager.activeNotifications.none { it.id == ExsurgeNotifications.BANNER_ID } }
     }
 
     private fun restartClockFromTheBanner() {

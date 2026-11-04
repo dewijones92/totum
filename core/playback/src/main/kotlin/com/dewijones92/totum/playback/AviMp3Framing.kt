@@ -125,7 +125,7 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
     override fun sampleData(data: ParsableByteArray, length: Int, sampleDataPart: Int) {
         if (!framing) return out.sampleData(data, length, sampleDataPart)
         room(length)
-        data.readBytes(pending, size, length)
+        data.takeInto(pending, size, length)
         size += length
     }
 
@@ -240,4 +240,10 @@ internal class Mp3Framer(private val out: TrackOutput) : TrackOutput {
         const val BYTE = 0xFF
         const val NOT_A_FRAME = 0
     }
+}
+
+@OptIn(UnstableApi::class)
+internal fun ParsableByteArray.takeInto(target: ByteArray, at: Int, length: Int) {
+    System.arraycopy(data, position, target, at, length)
+    skipBytes(length)
 }

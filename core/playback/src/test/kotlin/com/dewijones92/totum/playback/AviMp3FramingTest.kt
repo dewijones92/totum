@@ -35,7 +35,7 @@ class AviMp3FramingTest {
 
         override fun sampleData(data: ParsableByteArray, length: Int, sampleDataPart: Int) {
             val buffer = ByteArray(length)
-            data.readBytes(buffer, 0, length)
+            data.takeInto(buffer, 0, length)
             pending += buffer
         }
 
