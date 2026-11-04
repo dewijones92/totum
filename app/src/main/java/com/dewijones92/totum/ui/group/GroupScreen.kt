@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.group
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -77,6 +81,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
         Column(Modifier.fillMaxSize()) {
             BackHeader(group.name, onBack) {
                 ShapeControl(shape)
+                GroupBell(container, group)
                 IconButton(onClick = { loads++ }, modifier = Modifier.testTag("group-refresh")) {
                     Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.group_refresh))
                 }
@@ -164,4 +169,28 @@ private fun GroupRow(container: AppContainer, item: MediaItem, isNew: Boolean) {
             container.playbackQueue.playAll(listOf(playable))
         },
     )
+}
+
+@Composable
+private fun GroupBell(container: AppContainer, group: SourceGroup) {
+    val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val resources = LocalResources.current
+    val on = group.id.value !in settings.quietGroups
+    IconButton(
+        onClick = {
+            Diag.log("group", "\"${group.name}\" notifications ${if (on) "off" else "on"} from its page")
+            container.appPreferences.setGroupNotifications(group.id.value, !on)
+            val said = if (on) R.string.group_notifications_now_off else R.string.group_notifications_now_on
+            Toast.makeText(context, resources.getString(said, group.name), Toast.LENGTH_SHORT).show()
+        },
+        modifier = Modifier.testTag("group-bell"),
+    ) {
+        Icon(
+            if (on) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsOff,
+            contentDescription = stringResource(
+                if (on) R.string.group_notifications_on else R.string.group_notifications_off
+            ),
+        )
+    }
 }

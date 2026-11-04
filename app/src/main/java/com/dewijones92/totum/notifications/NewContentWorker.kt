@@ -31,7 +31,7 @@ public class NewContentWorker(
         Diag.log("content", "background refresh starting (every $INTERVAL_HOURS hours)")
         val check = NewContentCheck(
             refresher = container.contentRefresher,
-            notify = { NewContentNotifier(applicationContext).notify(it) },
+            notify = { NewContentNotifier(applicationContext) { container.appPreferences.settings.value }.notify(it) },
         )
         return when (check.run()) {
             is NewContentCheck.Outcome.NothingNew, is NewContentCheck.Outcome.Notified -> Result.success()

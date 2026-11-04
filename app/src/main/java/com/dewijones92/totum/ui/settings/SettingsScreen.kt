@@ -105,6 +105,18 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+                SwitchRow(
+                    label = stringResource(R.string.settings_youtube_alerts),
+                    summary = stringResource(R.string.settings_youtube_alerts_summary),
+                    checked = settings.youTubeUploadAlerts,
+                    onCheckedChange = prefs::setYouTubeUploadAlerts,
+                )
+                SwitchRow(
+                    label = stringResource(R.string.settings_podcast_alerts),
+                    summary = stringResource(R.string.settings_podcast_alerts_summary),
+                    checked = settings.podcastEpisodeAlerts,
+                    onCheckedChange = prefs::setPodcastEpisodeAlerts,
+                )
                 NavRow(
                     label = stringResource(R.string.settings_import_export),
                     onClick = { open(SettingsSubPage.IMPORT_EXPORT) },

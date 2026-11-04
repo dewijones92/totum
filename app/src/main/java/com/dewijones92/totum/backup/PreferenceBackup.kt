@@ -37,6 +37,9 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                 KEY_SILENT_TAIL to silentTailEnds.toString(),
                 KEY_INBOX_ALL to inboxAll.toString(),
                 KEY_INBOX_SOURCES to inboxSources.sorted().joinToString("\n"),
+                KEY_QUIET_GROUPS to quietGroups.sorted().joinToString("\n"),
+                KEY_YOUTUBE_ALERTS to youTubeUploadAlerts.toString(),
+                KEY_PODCAST_ALERTS to podcastEpisodeAlerts.toString(),
                 KEY_SOURCE_SKIPS to encodeSourceSkips(sourceSkips),
             )
         }
@@ -67,6 +70,9 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                     true
                 )
             }
+            values[KEY_QUIET_GROUPS]?.lines()?.filter { it.isNotBlank() }?.forEach { setGroupNotifications(it, false) }
+            values[KEY_YOUTUBE_ALERTS]?.toBooleanStrictOrNull()?.let(::setYouTubeUploadAlerts)
+            values[KEY_PODCAST_ALERTS]?.toBooleanStrictOrNull()?.let(::setPodcastEpisodeAlerts)
             values[KEY_SOURCE_SKIPS]?.let(
                 ::decodeSourceSkips
             )?.forEach { (source, skips) -> setSourceSkips(source, skips) }
@@ -88,5 +94,8 @@ private const val KEY_EXPLORE_CAP = "exploreCap"
 private const val KEY_REWIND = "rewindOnResume"
 private const val KEY_SILENT_TAIL = "silentTailEnds"
 private const val KEY_INBOX_ALL = "inboxAll"
+private const val KEY_QUIET_GROUPS = "quietGroups"
+private const val KEY_YOUTUBE_ALERTS = "youTubeUploadAlerts"
+private const val KEY_PODCAST_ALERTS = "podcastEpisodeAlerts"
 private const val KEY_INBOX_SOURCES = "inboxSources"
 private const val KEY_SOURCE_SKIPS = "sourceSkips"

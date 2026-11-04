@@ -717,6 +717,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             FileGroupNewsStore(File(context.filesDir, "group_news.json")),
             latest = latestUploads::of,
             notify = GroupNewsNotifier(context)::notify,
+            muted = { group -> group.id.value in appPreferences.settings.value.quietGroups },
         )
     }
 

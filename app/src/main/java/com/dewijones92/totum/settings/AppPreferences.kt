@@ -100,6 +100,9 @@ interface AppPreferences {
     fun setSilentTailEnds(enabled: Boolean)
     fun setInboxAll(enabled: Boolean)
     fun setInboxSource(source: SourceId, enabled: Boolean)
+    fun setGroupNotifications(group: String, enabled: Boolean)
+    fun setYouTubeUploadAlerts(enabled: Boolean)
+    fun setPodcastEpisodeAlerts(enabled: Boolean)
     fun setSourceSkips(source: SourceId, skips: SourceSkips)
     fun setRepeatMode(mode: RepeatMode)
 
@@ -172,6 +175,9 @@ interface AppPreferences {
         val silentTailEnds: Boolean = true,
         val inboxAll: Boolean = false,
         val inboxSources: Set<String> = emptySet(),
+        val quietGroups: Set<String> = emptySet(),
+        val youTubeUploadAlerts: Boolean = true,
+        val podcastEpisodeAlerts: Boolean = true,
         val sourceSkips: Map<SourceId, SourceSkips> = emptyMap(),
         val repeatMode: RepeatMode = RepeatMode.OFF,
     )
@@ -232,6 +238,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             silentTailEnds = prefs.getBoolean(KEY_SILENT_TAIL, true),
             inboxAll = prefs.getBoolean(KEY_INBOX_ALL, false),
             inboxSources = prefs.getStringSet(KEY_INBOX_SOURCES, null).orEmpty().toSet(),
+            quietGroups = prefs.getStringSet(KEY_QUIET_GROUPS, null).orEmpty().toSet(),
+            youTubeUploadAlerts = prefs.getBoolean(KEY_YOUTUBE_ALERTS, true),
+            podcastEpisodeAlerts = prefs.getBoolean(KEY_PODCAST_ALERTS, true),
             sourceSkips = decodeSourceSkips(prefs.getString(KEY_SOURCE_SKIPS, null)),
             repeatMode = prefs.getString(KEY_REPEAT, null)
                 ?.let { saved -> RepeatMode.entries.firstOrNull { it.name == saved } } ?: RepeatMode.OFF,
@@ -372,6 +381,23 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         }) { it.copy(inboxSources = now) }
     }
 
+    override fun setGroupNotifications(group: String, enabled: Boolean) {
+        val now = _settings.value.quietGroups.let { if (enabled) it - group else it + group }
+        change("quietGroups", "$group notifications -> $enabled (${now.size} quiet)", {
+            putStringSet(KEY_QUIET_GROUPS, now)
+        }) { it.copy(quietGroups = now) }
+    }
+
+    override fun setYouTubeUploadAlerts(enabled: Boolean): Unit =
+        change("youTubeUploadAlerts", enabled, { putBoolean(KEY_YOUTUBE_ALERTS, enabled) }) {
+            it.copy(youTubeUploadAlerts = enabled)
+        }
+
+    override fun setPodcastEpisodeAlerts(enabled: Boolean): Unit =
+        change("podcastEpisodeAlerts", enabled, { putBoolean(KEY_PODCAST_ALERTS, enabled) }) {
+            it.copy(podcastEpisodeAlerts = enabled)
+        }
+
     override fun setSourceSkips(source: SourceId, skips: SourceSkips) {
         val all = (_settings.value.sourceSkips + (source to skips)).filterValues { !it.isEmpty }
         change(
@@ -428,6 +454,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_SILENT_TAIL = "silent_tail_ends"
         const val KEY_INBOX_ALL = "inbox_all"
         const val KEY_INBOX_SOURCES = "inbox_sources"
+        const val KEY_QUIET_GROUPS = "quiet_groups"
+        const val KEY_YOUTUBE_ALERTS = "youtube_upload_alerts"
+        const val KEY_PODCAST_ALERTS = "podcast_episode_alerts"
         const val KEY_SOURCE_SKIPS = "source_skips"
         const val KEY_REPEAT = "repeat_mode"
     }
@@ -473,6 +502,15 @@ class InMemoryAppPreferences : AppPreferences {
     override fun setInboxAll(enabled: Boolean) = _settings.update { it.copy(inboxAll = enabled) }
     override fun setInboxSource(source: SourceId, enabled: Boolean) = _settings.update {
         it.copy(inboxSources = if (enabled) it.inboxSources + source.value else it.inboxSources - source.value)
+    }
+    override fun setGroupNotifications(group: String, enabled: Boolean) = _settings.update {
+        it.copy(quietGroups = if (enabled) it.quietGroups - group else it.quietGroups + group)
+    }
+    override fun setYouTubeUploadAlerts(enabled: Boolean) = _settings.update { it.copy(youTubeUploadAlerts = enabled) }
+    override fun setPodcastEpisodeAlerts(enabled: Boolean) = _settings.update {
+        it.copy(
+            podcastEpisodeAlerts = enabled
+        )
     }
     override fun setSourceSkips(source: SourceId, skips: SourceSkips) = _settings.update {
         it.copy(sourceSkips = (it.sourceSkips + (source to skips)).filterValues { s -> !s.isEmpty })

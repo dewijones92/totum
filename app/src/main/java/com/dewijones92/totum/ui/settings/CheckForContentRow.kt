@@ -54,7 +54,7 @@ internal fun CheckForContentRow(container: AppContainer) {
                 scope.launch {
                     val outcome = NewContentCheck(
                         refresher = container.contentRefresher,
-                        notify = { NewContentNotifier(context).notify(it) },
+                        notify = { NewContentNotifier(context) { container.appPreferences.settings.value }.notify(it) },
                     ).run()
                     result = context.describe(outcome)
                     running = false

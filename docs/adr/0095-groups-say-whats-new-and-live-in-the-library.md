@@ -78,3 +78,5 @@ and is kept even if the page closes; a reopen joins a load already running. Logg
 (kept even if the page closes); showing the N kept item(s) meanwhile`. Tests: `GroupFeedTest` (kept
 list, removed member; a second refresh joins). Checked on totum-api35: left the page mid-load,
 reopened, 60 rows shown at once under the strip.
+
+Since 2026-11-04 each group's notifications can be switched off from its page ([ADR 118](0118-every-new-content-notification-can-be-switched-off.md)).

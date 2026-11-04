@@ -63,7 +63,7 @@ alone until they need more.
 | Skip-silence: pauses over 150ms cut to 40ms, podcasts and video, picture follows the sound; Standard and Smart (speech-detecting) modes with a test player in Settings | playback | shipped | [skip-silence.md](skip-silence.md) |
 | Sleep timer | playback | shipped | — |
 | Per-source playback-speed memory | playback | shipped | — |
-| New-content notifications (background refresh, both pillars) | notifications | shipped | — |
+| New-content notifications (background refresh, both pillars; per-kind and per-group switches) | notifications | shipped | [new-content-notifications.md](new-content-notifications.md) |
 | Import / export subscriptions (OPML / NewPipe / Takeout) | subscriptions | shipped | — |
 | Local cross-pillar playlists (mix podcasts + videos) | library | shipped | [../todos/local-cross-pillar-playlists.md](../todos/local-cross-pillar-playlists.md) |
 | Play history (recently played, both pillars) | library | shipped | [play-history.md](play-history.md) |

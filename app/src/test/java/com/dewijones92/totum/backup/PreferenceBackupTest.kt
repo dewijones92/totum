@@ -32,6 +32,23 @@ class PreferenceBackupTest {
     }
 
     @Test
+    fun `quiet groups and the subscription alert switches reach a backup and come back`() {
+        val phone = InMemoryAppPreferences().apply {
+            setGroupNotifications("travel", false)
+            setGroupNotifications("music", false)
+            setGroupNotifications("music", true)
+            setYouTubeUploadAlerts(false)
+        }
+        val other = InMemoryAppPreferences()
+
+        other.asBackupSettings().restore(phone.asBackupSettings().export())
+
+        assertEquals(setOf("travel"), other.settings.value.quietGroups)
+        assertEquals(false, other.settings.value.youTubeUploadAlerts)
+        assertEquals(true, other.settings.value.podcastEpisodeAlerts)
+    }
+
+    @Test
     fun `clearing both halves forgets the show`() {
         val prefs = InMemoryAppPreferences()
         prefs.setSourceSkips(SourceId("show"), SourceSkips(introEndMs = 83_000))

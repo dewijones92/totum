@@ -489,6 +489,10 @@
     <string name="settings_quality_wifi">On Wi-Fi</string>
     <string name="settings_quality_cellular">On mobile data</string>
     <string name="settings_subscriptions_section">Subscriptions</string>
+    <string name="settings_youtube_alerts">New-upload notifications</string>
+    <string name="settings_youtube_alerts_summary">The \"YouTube subscriptions · N new\" notification. Groups have their own 🔔 on each group\'s page</string>
+    <string name="settings_podcast_alerts">New-episode notifications</string>
+    <string name="settings_podcast_alerts_summary">A notification when a podcast you follow has a new episode</string>
     <string name="settings_import_export">Import / export subscriptions</string>
     <string name="import_export_title">Import / export</string>
     <string name="import_export_import_section">Import subscriptions</string>
@@ -1068,6 +1072,10 @@
     <string name="group_name">Name</string>
     <string name="group_edit">Edit group</string>
     <string name="group_refresh">Refresh</string>
+    <string name="group_notifications_on">Notifications on for this group. Tap to turn them off</string>
+    <string name="group_notifications_off">Notifications off for this group. Tap to turn them on</string>
+    <string name="group_notifications_now_off">🔕 No more notifications from %1$s</string>
+    <string name="group_notifications_now_on">🔔 Notifications on for %1$s</string>
     <string name="group_save_name">Save</string>
     <string name="group_channels">Channels</string>
     <string name="group_find_channel">Add a subscribed channel: type its name</string>

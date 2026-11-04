@@ -10,7 +10,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.content.SourceUpdate
+import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.settings.AppPreferences
 
 /**
  * Posts the "new content" notification for whatever the background refresh
@@ -18,7 +21,10 @@ import com.dewijones92.totum.data.content.SourceUpdate
  * into a single opaque line), grouped under a summary. Both pillars flow
  * through here unchanged — a [SourceUpdate] is a [SourceUpdate].
  */
-public class NewContentNotifier(private val context: Context) {
+public class NewContentNotifier(
+    private val context: Context,
+    private val settings: () -> AppPreferences.Settings,
+) {
 
     private val manager = NotificationManagerCompat.from(context)
 
@@ -28,7 +34,8 @@ public class NewContentNotifier(private val context: Context) {
      * isn't granted or the post fails — so the caller only advances its
      * seen-state on a real delivery (else the items are found again next run).
      */
-    public fun notify(updates: List<SourceUpdate>): Boolean {
+    public fun notify(found: List<SourceUpdate>): Boolean {
+        val updates = found.wanted(settings())
         if (updates.isEmpty()) return true
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -110,5 +117,20 @@ public class NewContentNotifier(private val context: Context) {
         // from each other and the summary (unlike a hash of the source id, which can collide).
         const val SUMMARY_ID = 1
         const val NOTIFICATION_ID_BASE = 100
+    }
+}
+
+internal fun List<SourceUpdate>.wanted(settings: AppPreferences.Settings): List<SourceUpdate> = filter { update ->
+    when (update.source) {
+        is MediaSource.VideoChannel -> settings.youTubeUploadAlerts
+        is MediaSource.PodcastFeed -> settings.podcastEpisodeAlerts
+    }
+}.also { kept ->
+    if (kept.size != size) {
+        Diag.log(
+            "content",
+            "${size - kept.size} source(s) not notified: alerts off " +
+                "(youTube=${settings.youTubeUploadAlerts} podcasts=${settings.podcastEpisodeAlerts})",
+        )
     }
 }

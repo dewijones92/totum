@@ -25,13 +25,14 @@ class GroupNewsTest {
     private val uploads = mutableListOf<MediaItem>()
     private val notified = mutableListOf<String>()
     private val store = InMemoryGroupNewsStore()
+    private val quiet = mutableSetOf<String>()
     private val news =
         GroupNews(store, latest = {
             uploads.toList()
         }, notify = { _, item ->
             notified += item.id.value
             true
-        }, clock = { now })
+        }, clock = { now }, muted = { it.id.value in quiet })
 
     private fun upload(id: String, at: String) {
         uploads += MediaItem(MediaItemId(id), ben.id, id, Instant.parse(at), duration = null)
@@ -55,6 +56,25 @@ class GroupNewsTest {
         assertEquals(listOf("fresh"), notified)
         assertEquals(1, news.newCount(group.id))
     }
+
+    @Test
+    fun `a quiet group posts nothing but still counts its news, and stays quiet about it when turned back on`() =
+        runTest {
+            news.check(listOf(group))
+            quiet += group.id.value
+            upload("hushed", "2026-10-29T15:00:00Z")
+            now = Instant.parse("2026-10-29T16:00:00Z")
+            news.check(listOf(group))
+            assertEquals(emptyList<String>(), notified)
+            assertEquals(1, news.newCount(group.id))
+            quiet.clear()
+            news.check(listOf(group))
+            assertEquals(emptyList<String>(), notified)
+            upload("loud", "2026-10-29T17:00:00Z")
+            now = Instant.parse("2026-10-29T18:00:00Z")
+            news.check(listOf(group))
+            assertEquals(listOf("loud"), notified)
+        }
 
     @Test
     fun `opening the group clears the count and says since when, for the markers`() = runTest {

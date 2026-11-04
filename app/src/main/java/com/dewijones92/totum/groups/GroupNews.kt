@@ -41,6 +41,7 @@ class GroupNews(
     private val latest: suspend (MediaSource) -> List<MediaItem>?,
     private val notify: (SourceGroup, MediaItem) -> Boolean,
     private val clock: () -> Instant = Instant::now,
+    private val muted: (SourceGroup) -> Boolean = { false },
 ) {
     private val lock = Mutex()
     private val _states = MutableStateFlow<Map<String, GroupNewsState>>(emptyMap())
@@ -131,9 +132,14 @@ class GroupNews(
         }.filterValues { it.isNotEmpty() }
         val told = state.notified.toMutableList()
         val unannounced = freshItems.distinctBy { it.id }.filter { it.id.value !in told }
+        val quiet = muted(group)
         unannounced.sortedByDescending { it.publishedAt }.forEach { item ->
-            val delivered = notify(group, item)
-            Diag.log(TAG, "\"${group.name}\": new \"${item.title}\" (${item.publishedAt}) notified=$delivered")
+            val delivered = quiet || notify(group, item)
+            Diag.log(
+                TAG,
+                "\"${group.name}\": new \"${item.title}\" (${item.publishedAt}) " +
+                    if (quiet) "not notified: this group's notifications are off" else "notified=$delivered",
+            )
             if (delivered) told += item.id.value
         }
         val next = state.copy(freshBy = freshBy, notified = told.takeLast(KEEP), joined = joined)
