@@ -1,5 +1,6 @@
 package com.dewijones92.totum.dailyalarms
 
+import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -43,8 +44,10 @@ class NewAlarmSheetTest {
         composeTestRule.onNodeWithText("19:02", substring = true).assertExists()
         composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).performTextInput("Deployed to production")
         composeTestRule.onNodeWithTag(NEW_ALARM_TITLE_TAG).assertTextContains("Deployed to production")
-        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().assertIsEnabled().performClick()
+        Espresso.closeSoftKeyboard()
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().assertIsEnabled().performClick()
+        awaitOneOff(alarms)
 
         val once = alarms.view.value.oneOffs.single()
         assertEquals("Deployed to production", once.label)
@@ -60,9 +63,13 @@ class NewAlarmSheetTest {
         composeTestRule.onNodeWithText("Bins out").performClick()
         composeTestRule.onNodeWithText("+1 h").performScrollTo().performClick()
         composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).performScrollTo().performClick()
+        awaitOneOff(alarms)
 
         assertEquals("Bins out", alarms.view.value.oneOffs.single().label)
     }
+
+    private fun awaitOneOff(alarms: DailyAlarmController) =
+        composeTestRule.waitUntil(SAVE_WAIT_MS) { alarms.view.value.oneOffs.isNotEmpty() }
 
     @Test
     fun setStaysOffUntilATimeIsChosen() {
@@ -73,3 +80,5 @@ class NewAlarmSheetTest {
         composeTestRule.onNodeWithTag(NEW_ALARM_SET_TAG).assertIsNotEnabled()
     }
 }
+
+private const val SAVE_WAIT_MS = 5_000L

@@ -4,6 +4,10 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -21,6 +25,9 @@ import java.time.DayOfWeek
 class ExsurgeBannerFlowTest {
     @get:Rule
     val activity = ActivityScenarioRule(MainActivity::class.java)
+
+    @get:Rule
+    val compose = createEmptyComposeRule()
 
     private val application = ApplicationProvider.getApplicationContext<TotumApplication>()
     private val exsurge = application.container.exsurge
@@ -93,9 +100,11 @@ class ExsurgeBannerFlowTest {
     @Test
     fun theOffQuickActionsRunOnceAndReturnToOff() {
         repeat(5) {
-            action("Restart clock").actionIntent.send()
+            restartClockFromTheBanner()
             waitFor { exsurge.view.value.memory.state is ExsurgeState.Sitting }
-            assertTrue((exsurge.view.value.memory.state as ExsurgeState.Sitting).oneOff)
+            val sitting = exsurge.view.value.memory.state as ExsurgeState.Sitting
+            assertTrue(sitting.oneOff)
+            assertEquals("OK on the picker keeps the usual length", null, sitting.minutes)
             assertFalse(exsurge.view.value.settings.enabled)
             action("Summon now").actionIntent.send()
             waitFor { exsurge.view.value.memory.state is ExsurgeState.Summoned }
@@ -105,6 +114,12 @@ class ExsurgeBannerFlowTest {
                 exsurge.view.value.memory.state == ExsurgeState.Off && !ExsurgeBannerService.running && offBanner()
             }
         }
+    }
+
+    private fun restartClockFromTheBanner() {
+        action("Restart clock").actionIntent.send()
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithTag(RESTART_OK).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag(RESTART_OK).performClick()
     }
 
     private fun banner(): Notification? {
@@ -147,5 +162,6 @@ class ExsurgeBannerFlowTest {
         const val WAIT_MS = 5_000L
         const val POST_WAIT_MS = 1_000L
         const val POLL_MS = 50L
+        const val RESTART_OK = "exsurge-restart-ok"
     }
 }

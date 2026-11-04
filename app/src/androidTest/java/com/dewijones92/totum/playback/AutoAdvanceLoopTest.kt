@@ -72,6 +72,9 @@ class AutoAdvanceLoopTest {
     private val container get() = app.container
     private val controller get() = container.playbackController
     private val queue get() = container.playbackQueue
+    private val run = System.currentTimeMillis()
+
+    private fun idOf(name: String) = "$name-$run"
 
     /**
      * A real device carries a real queue — Dewi's had twenty items in it during the first run.
@@ -115,7 +118,7 @@ class AutoAdvanceLoopTest {
 
         assertEquals(
             "and when it ends, the next must start on its own",
-            "second",
+            idOf("second"),
             awaitCurrent("second")?.value,
         )
     }
@@ -176,7 +179,8 @@ class AutoAdvanceLoopTest {
      * flow conflates equal values, so waiting for an *emission* can wait forever on a player
      * that is already in the state being waited for.
      */
-    private suspend fun awaitCurrent(id: String): MediaItemId? = withTimeoutOrNull(TIMEOUT_MS) {
+    private suspend fun awaitCurrent(name: String): MediaItemId? = withTimeoutOrNull(TIMEOUT_MS) {
+        val id = idOf(name)
         var seen: MediaItemId? = null
         while (seen?.value != id) {
             delay(POLL_MS)
@@ -194,8 +198,9 @@ class AutoAdvanceLoopTest {
      * a broken advance rather than a player that was never allowed to start. Failing here says
      * which it was.
      */
-    private suspend fun awaitPlaying(id: String) {
-        assertEquals("$id must become the current item", id, awaitCurrent(id)?.value)
+    private suspend fun awaitPlaying(name: String) {
+        val id = idOf(name)
+        assertEquals("$id must become the current item", id, awaitCurrent(name)?.value)
         val playing = PlaybackWaits.awaitStateOf(controller, MediaItemId(id), TIMEOUT_MS) { it.isPlaying } != null
         assertEquals(
             "$id is loaded but not playing — on a device that usually means audio focus was " +
@@ -205,16 +210,16 @@ class AutoAdvanceLoopTest {
         )
     }
 
-    private fun item(id: String) = PlayableItem(
+    private fun item(name: String) = PlayableItem(
         item = MediaItem(
-            id = MediaItemId(id),
+            id = MediaItemId(idOf(name)),
             sourceId = SourceId("test"),
-            title = id,
+            title = name,
             publishedAt = null,
             duration = null,
             mediaUrl = null,
         ),
-        handle = PlayHandle.Podcast(silentWav(id).absolutePath),
+        handle = PlayHandle.Podcast(silentWav(name).absolutePath),
     )
 
     /**
