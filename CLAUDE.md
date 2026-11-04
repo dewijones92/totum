@@ -198,11 +198,18 @@ say why it is the way it is.
 ```bash
 ./gradlew assembleDebug          # build debug APK
 python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run before every push
-./gradlew detekt cpdCheck lint test koverVerify assembleDebugAndroidTest   # the full local gate (matches CI)
+./gradlew detekt                 # with preflight, the only checks run before a push; CI runs the rest
+./gradlew detekt cpdCheck lint test koverVerify assembleDebugAndroidTest   # the full gate, = CI's "Quality gates + build"
 ./gradlew :app:assembleDebug     # the gate does NOT rebuild app-debug.apk: run this before installing after it
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
 ./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```
+
+**Quick checks locally, the rest in CI** (Dewi, 2026-11-04: *"quick checks locally, then the rest in the CI"*).
+Before a push run only preflight, `./gradlew detekt` until clean, and the tests you wrote or changed (a bug fix's
+test seen red first); then push and **watch CI on that commit to its end** (every workflow it triggers, not just the
+release), fixing a red run with the very next push. The full gate locally duplicated CI's own job. Kept local because
+CI cannot do them: the soak (real YouTube, signed in, home network) and looking at a changed screen.
 
 The live YouTube instrumented phase runs **nightly and by hand** (`gh workflow run ci.yml --ref main`), not on push
 (2026-10-15): it leaves through the home broadband, which YouTube bot-blocked, so per-push runs were always red and
@@ -572,7 +579,7 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   (2026-10-21: a 1-line change rebuilt in 17 s and installed in 2 s; the minutes were the full gate and UI-driving
   scripts), then move the check earlier and cheaper — a laptop prototype for an unknown (the Python spike servers that
   settled the TVs' formats in seconds), a debug broadcast instead of screen taps (`DEBUG_CAST`, `DEBUG_QUEUE_PLAY_ALL`;
-  `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate only before a push.
+  `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate left to CI.
   When a cycle is slow, fix the tooling in the same session rather than paying it again.
 - Commit as you go — small, coherent commits at each green state.
 - **How a batch runs** (Dewi, 2026-10-14, 2026-10-15 and 2026-10-23):
@@ -582,9 +589,9 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
      `docs/todos/<item>.md` and the session's task file, so it survives a context reset. Questions are for intent and
      defaults, never for facts the code can answer.
   2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs
-     and ADRs in the same change, `./gradlew detekt` across all modules until clean, the full local gate, a look at
-     the changed screen on the emulator, then push **only when the gate's exit code is 0**
-     (`e=$?; [ $e -eq 0 ] && git push`). No soak per feature.
+     and ADRs in the same change, preflight and `./gradlew detekt` across all modules until clean, the changed
+     tests run, a look at the changed screen on the emulator, then push and watch CI on the commit to its end (the
+     full gate is CI's job; see Build & test). No soak per feature.
   3. **The batch ends with a soak, an Opus review and Haiku sweeps in parallel** (Dewi, 2026-11-01). The sweeps:
      one or two check each change for consistency across every list, way in and kind of item (tap, link,
      notification, search, restore, queue, home; the queue rows that lost their dates were this kind of miss), and
