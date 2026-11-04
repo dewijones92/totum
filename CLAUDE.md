@@ -297,7 +297,8 @@ successor in line, because the queue's adoption cancelled the arming); local fil
 **A soak no longer reports its plays to Dewi's YouTube account (2026-10-28):** the emulator is signed in to his real
 account, so every soak play used to land in his YouTube history and push his own videos off the page the app reads.
 `soak.py run` and `soak.py queue` hold reports for their whole run (a prefs file, removed at the end); a run killed
-half-way leaves the hold on, so delete `shared_prefs/totum_test_holds.xml` with `run-as` if one dies.
+half-way leaves the hold on, so delete `shared_prefs/totum_test_holds.xml` with `run-as` if one dies. Writing the hold force-stops the app, and from 2026-10-28 to 2026-11-04 nothing relaunched it before `queue`'s
+broadcasts, so every queue soak read "never started" on every hand-over; the hold now relaunches the app.
 
 Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
 
