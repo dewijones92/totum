@@ -247,7 +247,10 @@ private fun SetOrCancel(alarms: DailyAlarmController, choice: NewAlarmChoice, on
         Button(
             enabled = choice.ready,
             onClick = {
-                Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm new alarm sheet: Set tapped (kind=${choice.kind})")
+                Diag.log(
+                    DailyAlarmController.TAG,
+                    "dewidebug dailyalarm new alarm sheet: Set tapped (kind=${choice.kind})"
+                )
                 val message = choice.set(alarms, resources)
                 Toast.makeText(context, message.text, Toast.LENGTH_LONG).show()
                 if (message.ok) onDone()

@@ -1,6 +1,5 @@
 package com.dewijones92.totum.dailyalarms
 
-import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -10,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso
 import com.dewijones92.totum.theme.TotumTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
