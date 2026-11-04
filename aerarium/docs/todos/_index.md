@@ -1,7 +1,7 @@
 ---
 title: Aerarium backlog
 kind: index
-updated: 2026-10-31
+updated: 2026-11-04
 ---
 
 # Backlog
@@ -48,3 +48,7 @@ Later, not v1: a bank's own read-scoped token as a fallback for one the aggregat
   smart-meter bridge (electricity every ~10 s, gas every 30 min, since gas meters report half-hourly) or free
   next-day data from the national smart-meter system. If revived: Home Assistant collects, Aerarium reads with a
   read-only token and adds cost and tariff; phase 2 or later. The deal scout's next-day usage feed is unaffected.
+
+## Waiting on others
+
+- [TypeScript 7](typescript-7.md): waiting for typescript-eslint support; Renovate will not raise it again by itself.
