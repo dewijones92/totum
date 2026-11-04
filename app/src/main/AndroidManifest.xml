@@ -137,6 +137,14 @@
             android:showWhenLocked="true"
             android:theme="@style/Theme.Totum" />
         <activity
+            android:name=".exsurge.RestartClockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="com.dewijones92.totum.exsurge.restart"
+            android:showWhenLocked="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity
             android:name=".dailyalarms.QuickAlarmActivity"
             android:exported="false"
             android:excludeFromRecents="true"

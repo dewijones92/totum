@@ -346,7 +346,7 @@ private val ExsurgeEvent.move: ExsurgeMove?
         ExsurgeEvent.Go -> ExsurgeMove.GO
         ExsurgeEvent.JustWalk -> ExsurgeMove.JUST_WALK
         ExsurgeEvent.ContinueTotum -> ExsurgeMove.CONTINUE_TOTUM
-        ExsurgeEvent.RestartClock -> ExsurgeMove.RESTART_CLOCK
+        is ExsurgeEvent.RestartClock -> ExsurgeMove.RESTART_CLOCK
         ExsurgeEvent.Snooze -> ExsurgeMove.SNOOZE
         ExsurgeEvent.Skip -> ExsurgeMove.SKIP
         ExsurgeEvent.Walked -> ExsurgeMove.WALKED

@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-10-22
+updated: 2026-11-04
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -79,6 +79,12 @@ everything configurable. The backlog item, with the agreed design and the open i
   no "Et tu"). **Mid-break** it ends the break early as completed, without a vibration (Dewi, 2026-10-07: only a break whose time runs out buzzes). Dewi chose both on 2026-10-01,
   after his first report on 0.1.554 showed Restart clock being ignored at `rising#5/7` while the
   banner kept counting steps.
+  Since 2026-11-04 it opens a picker first (one small lock-screen screen, `RestartClockActivity`, from
+  both the banner and the Exsurge screen): a slider of the sitting length set to the usual one, so
+  OK restarts it as before, or slide it (say to 20 min) for **this sitting only**; the next sitting
+  is the usual length again. The banner, the countdown and the takeover's "Sitting: N min" use the
+  chosen length ([ADR 117](../adr/0117-a-restarted-clock-can-run-for-its-own-length.md)). Dewi: *"I
+  want a slider … to quickly change how much time in that particular instance"*.
 - **Summon now** outside active hours is a one-off too, so its snooze comes back rather than being
   dropped as "outside hours".
 - **Steps arrive promptly while it matters.** The step counter is batched at 60 s while sitting, to

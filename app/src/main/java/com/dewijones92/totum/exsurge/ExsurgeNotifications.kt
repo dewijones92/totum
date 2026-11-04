@@ -157,7 +157,7 @@ class ExsurgeNotifications(private val context: Context) {
 private fun BannerAction.intent(context: Context): PendingIntent = when (this) {
     BannerAction.TURN_ON -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.TURN_ON)
     BannerAction.SUMMON_NOW -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.SUMMON_NOW)
-    BannerAction.RESTART_CLOCK -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.RESTART_CLOCK)
+    BannerAction.RESTART_CLOCK -> RestartClockActivity.pending(context)
     BannerAction.GO -> TakeoverActivity.pending(context, go = true)
     BannerAction.PAUSE_HOUR -> ExsurgeActionReceiver.pending(context, ExsurgeActionReceiver.PAUSE_HOUR)
 }

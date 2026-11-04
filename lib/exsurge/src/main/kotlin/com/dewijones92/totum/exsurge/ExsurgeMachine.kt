@@ -59,9 +59,9 @@ public object ExsurgeMachine {
             is Dormant -> state.resumesAt
             is Paused -> state.until
             is Sitting -> if (state.oneOff) {
-                state.since + settings.sitting
+                state.since + state.length(settings)
             } else {
-                minOf(state.since + settings.sitting, settings.activeEndAfter(state.since, context.zone))
+                minOf(state.since + state.length(settings), settings.activeEndAfter(state.since, context.zone))
             }
             is Summoned -> {
                 val missAt = state.waveStartedAt + settings.missAfter
@@ -105,7 +105,7 @@ public object ExsurgeMachine {
                 ExsurgeEvent.TurnOff -> turnOff()
                 ExsurgeEvent.SummonNow -> summonNow()
                 ExsurgeEvent.Go, ExsurgeEvent.JustWalk, ExsurgeEvent.ContinueTotum -> go(event)
-                ExsurgeEvent.RestartClock -> restartClock()
+                is ExsurgeEvent.RestartClock -> restartClock(event.minutes)
                 ExsurgeEvent.Snooze -> snooze()
                 ExsurgeEvent.Skip -> skip()
                 ExsurgeEvent.Walked -> walked()
@@ -176,29 +176,34 @@ public object ExsurgeMachine {
                     note("active hours over after sitting ${sat.toMinutes()}m; no summons")
                     arrive()
                 }
-                sat >= settings.sitting -> {
-                    note("sat ${sat.toMinutes()}m of ${settings.sittingMinutes}m: summoning")
-                    summon(Summons(memory.nextSummonsId, at, oneOff = state.oneOff))
+                sat >= state.length(settings) -> {
+                    note("sat ${sat.toMinutes()}m of ${state.limitMinutes(settings)}m: summoning")
+                    summon(Summons(memory.nextSummonsId, at, oneOff = state.oneOff, satMinutes = state.minutes))
                     memory = memory.copy(nextSummonsId = memory.nextSummonsId + 1)
                 }
             }
         }
 
-        private fun restartClock() {
+        private fun restartClock(asked: Int?) {
+            val minutes = asked?.coerceIn(ExsurgeSettings.SITTING_RANGE)?.takeIf { it != settings.sittingMinutes }
+            note(
+                "restart clock asked for ${asked ?: "the default"}m: " +
+                    "this sitting ${minutes ?: settings.sittingMinutes}m"
+            )
             when (val state = memory.state) {
                 Off, is Sitting, is Paused, is Dormant -> {
                     note("clock restarted by hand (was ${state.label()})")
-                    sitDownNow(null)
+                    sitDownNow(null, minutes)
                 }
-                is Summoned -> abandonForSitting(state.summons, resume = false)
-                is Snoozed -> abandonForSitting(state.summons, resume = false)
-                is Rising -> abandonForSitting(state.summons, resume = true)
+                is Summoned -> abandonForSitting(state.summons, resume = false, minutes)
+                is Snoozed -> abandonForSitting(state.summons, resume = false, minutes)
+                is Rising -> abandonForSitting(state.summons, resume = true, minutes)
                 is OnBreak -> {
                     note(
                         "clock restarted mid-break: ended early with ${state.steps} steps, proven=${state.stepsProven}"
                     )
                     completeBreak(state, buzz = false)
-                    sitDownNow(OutcomeKind.COMPLETED)
+                    sitDownNow(OutcomeKind.COMPLETED, minutes)
                 }
             }
         }
@@ -261,12 +266,15 @@ public object ExsurgeMachine {
             )
         }
 
-        private fun sitDownNow(after: OutcomeKind?) {
+        private fun sitDownNow(after: OutcomeKind?, minutes: Int? = null) {
             val oneOff = !active()
             if (oneOff) {
-                note("sat down outside active hours: one summons in ${settings.sittingMinutes}m, then back to sleep")
+                note(
+                    "sat down outside active hours: one summons in ${minutes ?: settings.sittingMinutes}m, " +
+                        "then back to sleep"
+                )
             }
-            become(Sitting(at, after, oneOff = oneOff))
+            become(Sitting(at, after, oneOff = oneOff, minutes = minutes))
         }
 
         private fun settleOneOff() {
@@ -277,12 +285,12 @@ public object ExsurgeMachine {
             }
         }
 
-        private fun abandonForSitting(summons: Summons, resume: Boolean) {
+        private fun abandonForSitting(summons: Summons, resume: Boolean, minutes: Int?) {
             note("clock restarted mid-summons #${summons.id}: counted as a skip")
             emit(HideTakeover)
             if (resume) emit(ResumePlayback)
             emit(Record(outcome(summons, OutcomeKind.SKIPPED)))
-            sitDownNow(OutcomeKind.SKIPPED)
+            sitDownNow(OutcomeKind.SKIPPED, minutes)
         }
 
         private fun healEnabled() {
@@ -461,6 +469,7 @@ public fun ExsurgeState.label(): String = when (this) {
 
 private fun Summons.walkOnly(): String = if (practise) "" else "/walk"
 
+@Suppress("CyclomaticComplexMethod")
 private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.Tick -> "tick"
     ExsurgeEvent.SettingsChanged -> "settingsChanged"
@@ -469,7 +478,7 @@ private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.Go -> "go"
     ExsurgeEvent.JustWalk -> "justWalk"
     ExsurgeEvent.ContinueTotum -> "continueTotum"
-    ExsurgeEvent.RestartClock -> "restartClock"
+    is ExsurgeEvent.RestartClock -> "restartClock(${minutes ?: "usual"})"
     ExsurgeEvent.Snooze -> "snooze"
     ExsurgeEvent.Skip -> "skip"
     ExsurgeEvent.Walked -> "walked"

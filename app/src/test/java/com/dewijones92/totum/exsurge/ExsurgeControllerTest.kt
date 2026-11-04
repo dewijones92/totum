@@ -299,7 +299,7 @@ class ExsurgeControllerTest {
     @Test
     fun `restart while off survives a controller restart and returns to off after a snoozed break`() {
         val first = controller(steps = false)
-        first.dispatch(ExsurgeEvent.RestartClock, "banner")
+        first.dispatch(ExsurgeEvent.RestartClock(), "banner")
         assertEquals(ExsurgeState.Sitting(now, oneOff = true), first.view.value.memory.state)
         assertFalse(store.settings.enabled)
         assertEquals(now.plus(Duration.ofMinutes(30)), ports.wakes.last())
@@ -337,7 +337,7 @@ class ExsurgeControllerTest {
     @Test
     fun `changing settings keeps an off one-off but explicitly switching off cancels an enabled one-off`() {
         val exsurge = controller()
-        exsurge.dispatch(ExsurgeEvent.RestartClock, "banner")
+        exsurge.dispatch(ExsurgeEvent.RestartClock(), "banner")
         advance(minutes = 5)
         exsurge.updateSettings("test") { it.copy(quietOffice = true) }
         assertTrue(exsurge.view.value.memory.state is ExsurgeState.Sitting)

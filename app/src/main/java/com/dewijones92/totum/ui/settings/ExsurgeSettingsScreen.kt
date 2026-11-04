@@ -65,6 +65,7 @@ import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.ExsurgeSettings
 import com.dewijones92.totum.exsurge.ExsurgeStatusCard
 import com.dewijones92.totum.exsurge.ExsurgeView
+import com.dewijones92.totum.exsurge.RestartClockActivity
 import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.clockText
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
@@ -135,7 +136,7 @@ private fun onStatusAction(context: Context, exsurge: ExsurgeController, action:
     when (action) {
         BannerAction.TURN_ON -> exsurge.updateSettings("page") { it.copy(enabled = true) }
         BannerAction.SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "page")
-        BannerAction.RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock, "page")
+        BannerAction.RESTART_CLOCK -> context.startActivity(RestartClockActivity.intent(context, "page"))
         BannerAction.GO -> context.startActivity(TakeoverActivity.intent(context, go = true))
         BannerAction.PAUSE_HOUR -> exsurge.dispatch(ExsurgeEvent.PauseHour, "page")
     }

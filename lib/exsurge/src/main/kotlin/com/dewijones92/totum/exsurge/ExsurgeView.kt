@@ -49,10 +49,10 @@ public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContex
         is Dormant -> BannerLine.Sleeping(state.resumesAt)
         is Paused -> BannerLine.Paused(state.until)
         is Sitting -> BannerLine.Sitting(
-            summonsAt = (state.since + settings.sitting)
+            summonsAt = (state.since + state.length(settings))
                 .takeIf { state.oneOff || it.isBefore(settings.activeEndAfter(state.since, context.zone)) },
             satMinutes = Duration.between(state.since, at).toMinutes().coerceAtLeast(0),
-            limitMinutes = settings.sittingMinutes,
+            limitMinutes = state.limitMinutes(settings),
         )
         is Summoned -> BannerLine.Summoned(state.call, state.summons.snoozes)
         is Snoozed -> BannerLine.Snoozed(state.until)

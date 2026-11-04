@@ -39,6 +39,12 @@
     <string name="exsurge_action_summon_now">Summon now</string>
     <string name="exsurge_action_pause_hour">Pause 1 hour</string>
     <string name="exsurge_action_restart_clock">Restart clock</string>
+    <string name="exsurge_restart_title">Restart the clock</string>
+    <string name="exsurge_restart_body">How long until Exsurge calls you, this time only. Your usual is %1$d min.</string>
+    <string name="exsurge_restart_for">Call me in</string>
+    <string name="exsurge_restart_ok">OK</string>
+    <string name="exsurge_restart_cancel">Cancel</string>
+    <string name="exsurge_restart_done">⏱️ Clock restarted: Exsurge calls you in %1$d min</string>
 
     <string name="exsurge_takeover_title">EXSURGE!</string>
     <string name="exsurge_takeover_subtitle">🪑 Sitting: %1$d min. Up for %2$d min: walk, and practise if you like.</string>

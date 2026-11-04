@@ -32,7 +32,7 @@ class ExsurgeActionReceiver : BroadcastReceiver() {
                 FlatPhoneNudge.muteToday(context, LocalDate.now())
                 container(context).statsLog.record(StatEvent.Nudge(System.currentTimeMillis(), NudgeWhat.NOT_TODAY))
             }
-            RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock, "banner")
+            RESTART_CLOCK -> exsurge.dispatch(ExsurgeEvent.RestartClock(), "banner")
             SUMMON_NOW -> exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
             PAUSE_HOUR -> exsurge.dispatch(ExsurgeEvent.PauseHour, "banner")
             REPOST -> exsurge.refresh()

@@ -20,6 +20,7 @@ public data class Summons(
     val practise: Boolean = true,
     val oneOff: Boolean = false,
     val breakMinutes: Int? = null,
+    val satMinutes: Int? = null,
 )
 
 @Serializable
@@ -42,8 +43,13 @@ public sealed interface ExsurgeState {
     public data class Sitting(
         val since: Instant,
         val after: OutcomeKind? = null,
-        val oneOff: Boolean = false
-    ) : ExsurgeState
+        val oneOff: Boolean = false,
+        val minutes: Int? = null,
+    ) : ExsurgeState {
+        public fun limitMinutes(settings: ExsurgeSettings): Int = minutes ?: settings.sittingMinutes
+
+        public fun length(settings: ExsurgeSettings): Duration = Duration.ofMinutes(limitMinutes(settings).toLong())
+    }
 
     @Serializable
     @SerialName("summoned")
@@ -101,7 +107,7 @@ public sealed interface ExsurgeEvent {
     public data object Go : ExsurgeEvent
     public data object JustWalk : ExsurgeEvent
     public data object ContinueTotum : ExsurgeEvent
-    public data object RestartClock : ExsurgeEvent
+    public data class RestartClock(val minutes: Int? = null) : ExsurgeEvent
     public data object Snooze : ExsurgeEvent
     public data object Skip : ExsurgeEvent
     public data object Walked : ExsurgeEvent

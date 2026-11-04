@@ -195,7 +195,8 @@ fun TakeoverScreen(
 ) {
     val summoned = view.memory.state as? ExsurgeState.Summoned
     val sat = (view.memory.state as? ExsurgeState.Summoned)?.let {
-        Duration.between(it.summons.firstCalledAt, view.at).toMinutes() + view.settings.sittingMinutes
+        val limit = it.summons.satMinutes ?: view.settings.sittingMinutes
+        Duration.between(it.summons.firstCalledAt, view.at).toMinutes() + limit
     }
         ?: view.settings.sittingMinutes.toLong()
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
