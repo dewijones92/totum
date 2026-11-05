@@ -20,5 +20,11 @@ stream) — not yet pinned down.
 `ParsableByteArray` reads fail on the plain JVM (it reads `Build.FINGERPRINT`); the framer already copies bytes
 without that path (`takeInto`).
 
+**Not filed upstream**: a throwaway probe on totum-api35 (plain ExoPlayer, Media3's own `skipSilenceEnabled`, the same
+fixtures) ended at the same time on both versions (gaps.m4a 12024 → 12023 ms; gaps.mp3 12064 → 12555 ms), so the change
+only shows with our own `SilenceCuttingAudioProcessor`: something it relies on at the end of the stream changed in 1.11.
+That is ours to fix (start from the 1.11 notes: `FLAG_STRICT_DURATION` checked by renderers, `StreamMetadata`
+`positionOffsetUs`, the 500 ms PCM buffer), not a Media3 bug report.
+
 Renovate skips exactly 1.11.1 (`allowedVersions` in `renovate.json`); a later Media3 comes as a PR and its CI run
 decides. To take one: the instrumented tests green (that test especially), then the soak.
