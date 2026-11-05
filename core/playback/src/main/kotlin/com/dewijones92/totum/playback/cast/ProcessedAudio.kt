@@ -8,7 +8,7 @@ import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.inspector.MediaExtractorCompat
+import androidx.media3.exoplayer.MediaExtractorCompat
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.ChunkedDataSource

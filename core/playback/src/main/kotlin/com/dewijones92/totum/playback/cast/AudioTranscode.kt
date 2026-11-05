@@ -7,7 +7,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.inspector.MediaExtractorCompat
+import androidx.media3.exoplayer.MediaExtractorCompat
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor

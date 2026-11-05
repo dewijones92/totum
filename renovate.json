@@ -50,6 +50,7 @@
         "androidx.media3**"
       ],
       "groupName": "media3",
+      "allowedVersions": "!/^1\\.11\\.1$/",
       "automerge": false,
       "labels": [
         "dependencies",
