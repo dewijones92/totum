@@ -13,6 +13,7 @@ import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceActivity
@@ -135,8 +136,12 @@ class AllSubscriptionsViewModel(
     private fun describe(ranked: List<SourceActivity>, shows: Int, channels: Int, videos: Int) {
         val dated = ranked.count { it.latest != null }
         val top = ranked.take(TOP_LOGGED).joinToString { "\"${it.source.title}\"@${it.latest?.publishedAt ?: "none"}" }
+        val liveByStoredKind = ranked.count {
+            val kind = it.latest?.contentKind
+            kind == MediaContentKind.LIVE || kind == MediaContentKind.WAS_LIVE
+        }
         val line = "all subscriptions: shows=$shows channels=$channels videoUploadsKnown=$videos " +
-            "withADatedUpload=$dated/${ranked.size} top=[$top]"
+            "withADatedUpload=$dated/${ranked.size} latestStoredAsLiveOrWasLive=$liveByStoredKind top=[$top]"
         if (checking.value == null && line != lastDescription) {
             lastDescription = line
             Diag.log("subs", line)

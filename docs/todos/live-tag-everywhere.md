@@ -33,7 +33,12 @@ My call: the doc said Totum learns live from "resolve, the watch page, the histo
 check (every look-up of a video goes through them). The watch page and the history list carry no live flag the code
 reads, so they were not hooked.
 
+The All subscriptions page's latest-upload line was added the same day (the coordinator's call; Dewi delegated it,
+2026-11-06): `LiveBadge` on the row's latest item. It is not filtered by Not for me (ADR 128).
+
 ## Tests owed
+
+- `AllSubscriptionsListTest` (instrumented): written 2026-11-06 (registry, saved kind, ended stream, no tag), not yet run.
 
 - `LiveKindsTest` (`:core:domain`): `afterSeeing` for every pair (STANDARD takes the resolution, LIVE to WAS_LIVE only on
   WAS_LIVE, WAS_LIVE back to LIVE, SHORT/MUSIC/AUDIOBOOK never change); `fillingSilenceFrom` returns the same instance

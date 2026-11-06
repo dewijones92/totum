@@ -45,6 +45,7 @@ import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
+import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.SelectableList
@@ -189,11 +190,15 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
             val maker = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL
             val line = latestUploadLine(activity.latest, LocalNow.current)
                 ?: stringResource(R.string.all_subscriptions_no_recent)
-            Text(
-                "$maker $line",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                activity.latest?.let { LiveBadge(it.id, it.contentKind, Modifier.padding(end = 6.dp)) }
+                Text(
+                    "$maker $line",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
         }
         if (isSelecting()) SelectionCheckbox(source.id.value, source.title)
     }

@@ -3,7 +3,7 @@ title: Every subscription in one list, and every row tinted by pillar
 kind: feature
 status: shipped
 area: subscriptions
-updated: 2026-09-25
+updated: 2026-11-06
 ---
 
 # Every subscription in one list, and every row tinted by pillar
@@ -54,9 +54,17 @@ withUpload, neverUploaded, failed, decodedChars, elapsedMs)` (`decodedChars` is 
 bytes on the wire), and up to three `channel check failed <id>: <why>` lines.
 - Each row: the source's artwork, its name, and `📅 <age> · <latest title>`, tinted by pillar. Tapping
   opens the source page through the shell (`LocalOpenSource`).
+- **The latest-upload line carries the live tag** (2026-11-06): `🔴 LIVE`, `⏺️ WAS LIVE` or `🔴 STARTS 20:30` before the
+  line, through the one rule (`LiveBadge`, `liveTagOf`, [ADR 132](../adr/0132-the-live-tag-is-read-from-one-registry-and-kept-true.md)),
+  like every row. The coordinator's call; Dewi delegated it. The line is **not** filtered by 🙅 Not for me: it says what
+  your own subscription last published, which is a fact, not a suggestion
+  ([ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md)). An upload that came from a
+  channel's RSS feed and has never been looked up is stored as an ordinary video, so it learns it is live only when something
+  resolves it (the same limit as a group page); the refresher re-asks tagged rows that are on screen.
 
-Diagnostics: `[subs] all subscriptions: shows=N channels=M cachedVideos=K withADatedUpload=D/T top=[…]`,
-logged on change only.
+Diagnostics: `[subs] all subscriptions: shows=N channels=M cachedVideos=K withADatedUpload=D/T
+latestStoredAsLiveOrWasLive=L top=[…]`, logged on change only (`L` counts latest uploads whose saved kind says live; the
+registry's newer answer shows on screen and in the `[live]` lines).
 
 ## The pillar tint
 
@@ -90,6 +98,7 @@ them. `SubscriptionsResponseParser` now prefixes `https:`; the reload logs
 ## Tests
 
 `SourceActivityTest` (ranking), `AllSubscriptionsViewModelTest` (both pillars merged, the right cache
-key), `AllSubscriptionsListTest` (instrumented: both listed, tap opens), `PlayedRowIsTintedTest`
+key), `AllSubscriptionsListTest` (instrumented: both listed, tap opens, and the live tag from the registry, from the saved kind,
+for an ended stream and not on an ordinary upload; written 2026-11-06, not yet run on a device), `PlayedRowIsTintedTest`
 (pixels: each pillar's wash, and cyan on top, both themes), `SubscriptionsResponseParserTest`
 (protocol-relative avatar — red on the old parse).

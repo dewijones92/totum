@@ -44,6 +44,11 @@ ones like members-only, and "I want consistency" (ADR 108).
   5 minutes after a 2 minute start, at most 6 videos, none re-asked within 4 minutes, and the interval doubles (up to
   80 minutes) while whole cycles get no answer. A queued item that is learned LIVE or WAS_LIVE is written back through
   `adoptFacts` and `learnFacts`. Items that are not on screen or queued are never polled.
+- **The All subscriptions page** wears the tag on each row's latest-upload line (`LiveBadge` on the row's latest item,
+  through the same `liveTagFor`), so a channel whose newest upload is live, was live or starts soon says so. This is the
+  coordinator's call; Dewi delegated it, 2026-11-06. The line is not filtered by Not for me: it is a fact about your own
+  subscription, not a suggestion ([ADR 128](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md)). An
+  upload stored as STANDARD (the channel feeds) learns it is live only when something resolves it, as on a group page.
 - **A new filter**, "🔴 Live now" in the Kind row of the sort-and-filter sheet (ADR 66), reads the same tag.
 - **Every change is logged** (`[live]`: the video id, new phase, was, via what; each refresh cycle and each answer).
 

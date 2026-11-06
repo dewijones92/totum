@@ -54,6 +54,7 @@ item says; the registry beats the kind saved on the item because it is newer.
 | Media notification ("🔴 LIVE · artist") | `PlaybackContext.live`, pushed by `startActiveModes` |
 | New-uploads and group-news notifications | `LiveNoticeLabels` |
 | Sort-and-filter sheet, Kind row: "🔴 Live now" | `ItemFilters.accepts(…, liveNow)` |
+| All subscriptions: each row's latest-upload line (2026-11-06, the coordinator's call; Dewi delegated it) | `LiveBadge` on the row's latest item |
 
 - **Labels:** "🔴 LIVE", "🔴 STARTS SOON" / "🔴 STARTS 20:30", "⏺️ WAS LIVE" (grey).
 - **A stream that has ended** is `MediaContentKind.WAS_LIVE`: an ordinary video (speed and silence cutting allowed). A
