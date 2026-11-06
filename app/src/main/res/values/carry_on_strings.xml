@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="carry_on_title">▶️ Carry on</string>
+    <plurals name="carry_on_progress">
+        <item quantity="one">▶️ %1$d of %2$d minute</item>
+        <item quantity="other">▶️ %1$d of %2$d minutes</item>
+    </plurals>
+</resources>

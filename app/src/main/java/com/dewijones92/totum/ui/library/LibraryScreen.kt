@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +53,10 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.CleanupGroup
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.StorageUsage
+import com.dewijones92.totum.domain.carryOn
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.transfer
@@ -66,6 +69,7 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListThenDetail
+import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.SelectableMediaList
@@ -175,6 +179,19 @@ private fun LibraryHome(
     val failed by viewModel.failed.collectAsStateWithLifecycle()
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val alarmsView by container.dailyAlarms.view.collectAsStateWithLifecycle()
+    val carryOnModel: CarryOnViewModel = viewModel(factory = CarryOnViewModel.factory(container))
+    val played by carryOnModel.history.collectAsStateWithLifecycle()
+    val playStates = LocalPlayStates.current
+    val carryOnItems by remember(played, playStates) {
+        derivedStateOf { carryOn(played) { playStates.value[it] ?: PlayState.Unplayed } }
+    }
+    LaunchedEffect(carryOnItems.map { it.playable.item.id }) {
+        Diag.log(
+            "library",
+            "dewidebug the Carry on row shows ${carryOnItems.size} of ${played.size} played item(s): " +
+                carryOnItems.joinToString { "${it.playable.item.id.value}@${it.progress.positionMs}ms" },
+        )
+    }
     val context = LocalContext.current
     val nextAlarm = remember(alarmsView) { container.dailyAlarms.board().nextToRing }
     val resources = LocalResources.current
@@ -192,6 +209,7 @@ private fun LibraryHome(
         onOpenStarred = onOpenStarred,
         modifier = modifier,
         downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
+        carryOn = LibraryCarryOn(carryOnItems, carryOnModel::play),
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
         alarms = LibraryAlarms(alarmsDetail) {
             Diag.log("library", "dewidebug alarms tile opened the alarms page")

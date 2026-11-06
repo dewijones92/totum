@@ -151,3 +151,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 133 | [Bedtime arms the one sleep timer, and every sleep timer fades out](0133-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md) | Accepted |
 | 131 | [Share and copy link are on every item menu, and a group shares its titles](0131-share-and-copy-link-are-on-every-item-menu.md) | Accepted |
 | 132 | [Offline playable is whatever routeNow plays from the device](0132-offline-playable-is-whatever-routenow-plays-from-the-device.md) | Accepted |
+| 133 | [Carry on is play history joined to progress](0133-carry-on-is-play-history-joined-to-progress.md) | Accepted |

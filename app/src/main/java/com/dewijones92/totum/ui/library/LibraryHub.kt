@@ -53,10 +53,12 @@ internal fun LibraryHub(
     phoneAlbums: PhoneAlbums = PhoneAlbums(),
     alarms: LibraryAlarms = LibraryAlarms(),
     groups: LibraryGroups = LibraryGroups(),
+    carryOn: LibraryCarryOn = LibraryCarryOn(),
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { ScreenHeader(stringResource(R.string.destination_library)) }
+            carryOnSection(carryOn)
             item { GroupTiles(groups) }
             pinnedSection()
             recentlySection()
