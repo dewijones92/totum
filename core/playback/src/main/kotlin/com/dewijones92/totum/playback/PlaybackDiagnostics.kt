@@ -30,6 +30,8 @@ internal class PlaybackDiagnostics(
 
     private var stalledSince: Long? = null
 
+    private var lastWantsToPlayChange: String? = null
+
     /**
      * Wall clock at the last end of playback, so the GAP to the next item can be stated.
      *
@@ -266,7 +268,7 @@ internal class PlaybackDiagnostics(
         val why = when {
             isPlaying -> "playing"
             player()?.playWhenReady == true -> "not advancing (wants to play; ${notAdvancingBecause()})"
-            else -> "paused"
+            else -> "paused (${lastWantsToPlayChange ?: "no request seen this session"})"
         }
         // How long the silence lasted, said once and only after an end — a pause the user made
         // is not a handover and must not be reported as one.
@@ -279,6 +281,25 @@ internal class PlaybackDiagnostics(
                 if (gap > SLOW_HANDOVER_MS) " (SLOW handover)" else ""
         }
         Diag.log("playback", "$why at ${position()}${handover ?: ""}")
+    }
+
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        val reasonName = playWhenReadyReasonName(reason)
+        val wanted = if (playWhenReady) "PLAY wanted" else "PAUSE wanted"
+        lastWantsToPlayChange = "$wanted, reason: $reasonName"
+        Vitals.add(if (playWhenReady) "playback.playRequests" else "playback.pauseRequests")
+        Vitals.set("playback.lastPlayWhenReadyChange", "$wanted, reason: $reasonName at ${position()}")
+        Diag.log(
+            "playback",
+            "$wanted — reason: $reasonName at ${position()}, ${suppressionName(player()?.playbackSuppressionReason)} " +
+                "— ${describeItem()}",
+        )
+    }
+
+    override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+        val now = suppressionName(playbackSuppressionReason)
+        Vitals.set("playback.lastSuppression", "$now at ${position()}")
+        Diag.log("playback", "playback suppression is now: $now at ${position()} — ${describeItem()}")
     }
 
     override fun onPositionDiscontinuity(
@@ -303,13 +324,29 @@ internal class PlaybackDiagnostics(
             Player.STATE_ENDED -> "ended"
             else -> "state ${player.playbackState}"
         }
-        val suppressed = when (player.playbackSuppressionReason) {
-            Player.PLAYBACK_SUPPRESSION_REASON_NONE -> "not suppressed"
-            Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS -> "suppressed: another app holds audio focus"
-            Player.PLAYBACK_SUPPRESSION_REASON_UNSUITABLE_AUDIO_OUTPUT -> "suppressed: unsuitable audio output"
-            else -> "suppressed: reason ${player.playbackSuppressionReason}"
-        }
+        val suppressed = suppressionName(player.playbackSuppressionReason)
         return "$state, $suppressed"
+    }
+
+    private fun playWhenReadyReasonName(reason: Int): String = when (reason) {
+        Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST ->
+            "a play/pause request (the person, or the app calling setPlaying; see the requester line before it)"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "audio focus lost to another app"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY ->
+            "audio becoming noisy (headphones or speaker gone)"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE ->
+            "a remote controller (media key, notification, Bluetooth, Assistant)"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM -> "the end of the item"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_SUPPRESSED_TOO_LONG -> "playback was suppressed for too long"
+        else -> "unknown reason $reason"
+    }
+
+    private fun suppressionName(reason: Int?): String = when (reason) {
+        null -> "suppression unknown (no player)"
+        Player.PLAYBACK_SUPPRESSION_REASON_NONE -> "not suppressed"
+        Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS -> "suppressed: another app holds audio focus"
+        Player.PLAYBACK_SUPPRESSION_REASON_UNSUITABLE_AUDIO_OUTPUT -> "suppressed: unsuitable audio output"
+        else -> "suppressed: reason $reason"
     }
 
     private fun describeItem(): String {

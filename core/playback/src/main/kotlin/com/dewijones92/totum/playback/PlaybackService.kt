@@ -243,13 +243,20 @@ public class PlaybackService : MediaSessionService() {
             controller: MediaSession.ControllerInfo,
             playerCommand: Int,
         ): Int {
+            val who = when {
+                session.isMediaNotificationController(controller) -> "the notification or lock screen"
+                controller.packageName == packageName -> "the app"
+                else -> controller.packageName
+            }
             SessionSeeks.named(playerCommand)?.let { what ->
-                val who = when {
-                    session.isMediaNotificationController(controller) -> "the notification or lock screen"
-                    controller.packageName == packageName -> "the app"
-                    else -> controller.packageName
-                }
                 Diag.log("seek", "$what asked by $who at ${session.player.currentPosition}ms")
+            }
+            SessionSeeks.playPause(playerCommand)?.let { what ->
+                Diag.log(
+                    "playback",
+                    "$what asked by $who at ${session.player.currentPosition}ms " +
+                        "(playWhenReady before it: ${session.player.playWhenReady})",
+                )
             }
             return SessionResult.RESULT_SUCCESS
         }

@@ -103,6 +103,7 @@ import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
+import com.dewijones92.totum.diagnostics.installFlightRecorder
 import com.dewijones92.totum.diagnostics.runningOnAnEmulator
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
 import com.dewijones92.totum.domain.AccountProgressOutbox
@@ -1068,6 +1069,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun installCrashReporting() {
         installAndroidLogSink()
+        installFlightRecorder(context, BuildConfig.VERSION_NAME)
         crashReporter.install()
         // Turns the event trail into a timeline: transitions alone never show a download
         // stuck at 40%, which is exactly when it is the problem.
@@ -1179,6 +1181,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 backup = { driveBackup.diagnostics() + groupNews.diagnostics() },
                 screen = { screenReadiness?.diagnostics().orEmpty() },
                 groupDownloads = { groupDownloads },
+                repeat = ::repeatNow,
             ),
         )
     }

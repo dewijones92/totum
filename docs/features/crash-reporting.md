@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-10-30
+updated: 2026-11-06
 ---
 
 # Crash reporting
@@ -189,6 +189,30 @@ command reaching the media session is logged as `[seek] <what> asked by <the app
 or lock screen | a package>` (`onPlayerCommandRequest`, `SessionSeeks`), and the app's own
 `seekTo` adds `the app seeks to Nms [at <calling frame>]`. The vital `main.watch` says the stall
 watch is alive even when nothing stalled. See ADR 103.
+
+## Every pause says why, and a flight recorder (2026-11-06)
+
+Code first for Batch A; tests follow in the testing stretch. Decision and limits: ADR 120.
+
+- **Pauses.** `[playback]` lines now read `PAUSE wanted — reason: …` (Media3's reason in words: a
+  play/pause request, audio focus lost, audio becoming noisy, a remote controller, end of item, suppressed
+  too long) and `playback suppression is now: …`; the `paused` line repeats the last request. The session
+  logs `play or pause asked by <the app | the notification or lock screen | a package>`, and an in-app pause
+  logs `pause requested by the app via toggle|setPlaying(false), from <three frames>`. Vitals:
+  `playback.pauseRequests`, `playback.playRequests`, `playback.lastPlayWhenReadyChange`,
+  `playback.lastSuppression`.
+- **Casting.** `[cast] session starting | resuming | SUSPENDED | ending | ENDED | START FAILED | RESUME
+  FAILED on <device>` with the code through `CastCodes` (named when the SDK names it, else `N unknown code`).
+- **The longer lane.** Lines tagged `Exsurge`, `DailyAlarm`, `reminders`, `cast`, `home`, `ask` and
+  `speakers` live 12 hours (max 1,000 lines) in `Breadcrumbs`, apart from the 30-minute playback lane;
+  `events` in a report merges both in time order.
+- **Flight recorder.** A stall give-up, a cast session drop, or an Exsurge summons outside active hours
+  writes the trail to `files/flight-recorder/<epoch>-<kind>.json` (newest five, seven days, 200,000
+  characters each, one per kind per two minutes). Every report carries them as `flightRecorder` (at most
+  1,000,000 characters). Find a trigger in the trail as `flight recorder: saving the trail (<kind>) because
+  <detail>`.
+- **Repeat.** The state block has `playback.repeatNow` (effective, kid lock included) and
+  `settings.repeatMode` (stored).
 
 ## A note on log volume
 

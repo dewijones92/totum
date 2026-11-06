@@ -514,25 +514,28 @@ public class Media3PlaybackController(
     }
 
     override fun togglePlayPause() {
+        val asker = requestedFrom()
         withController {
             // INTENT, not motion. `isPlaying` is false while BUFFERING even with playWhenReady true, so
             // tapping pause during a spinner called play() -- the button was inert exactly when someone
             // most wants it, on a stalling stream. Same confusion the stall watchdog had: "is it moving"
             // and "is it meant to be playing" are different questions.
-            if (it.playWhenReady) pauseNow(it) else it.play()
+            if (it.playWhenReady) pauseNow(it, "toggle", asker) else it.play()
         }
     }
 
     override fun setPlaying(wanted: Boolean) {
+        val asker = requestedFrom()
         withController {
             when {
                 wanted -> it.play()
-                it.playWhenReady -> pauseNow(it)
+                it.playWhenReady -> pauseNow(it, "setPlaying(false)", asker)
             }
         }
     }
 
-    private fun pauseNow(controller: MediaController) {
+    private fun pauseNow(controller: MediaController, how: String, asker: String) {
+        Diag.log("playback", "pause requested by the app via $how, from $asker")
         controller.pause()
         saveProgress(controller) // capture where we paused straight away
     }

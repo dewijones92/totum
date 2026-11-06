@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.operations.showingEach
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.playForAScreen
+import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -34,18 +35,41 @@ object CastTarget {
 
     private val listener = object : SessionManagerListener<CastSession> {
         override fun onSessionStarted(session: CastSession, sessionId: String) = casting(session, "started")
-        override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) = casting(session, "resumed")
-        override fun onSessionEnded(session: CastSession, error: Int) = stopped("ended (error $error)")
-        override fun onSessionSuspended(session: CastSession, reason: Int) = Unit
-        override fun onSessionStarting(session: CastSession) = Unit
-        override fun onSessionStartFailed(session: CastSession, error: Int) = stopped("failed to start (error $error)")
-        override fun onSessionEnding(session: CastSession) = Unit
-        override fun onSessionResuming(session: CastSession, sessionId: String) = Unit
-        override fun onSessionResumeFailed(
-            session: CastSession,
-            error: Int
-        ) = stopped("failed to resume (error $error)")
+        override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) =
+            casting(session, "resumed (was suspended=$wasSuspended)")
+        override fun onSessionEnded(session: CastSession, error: Int) {
+            val code = CastCodes.name(error)
+            Diag.log("cast", "session ENDED on ${deviceOf(session)}: code $code")
+            if (error != CastStatusCodes.SUCCESS) Diag.saveTrail("cast-drop", "session ended with code $code")
+            stopped("ended (code $code)")
+        }
+        override fun onSessionSuspended(session: CastSession, reason: Int) {
+            val why = CastCodes.suspendedReason(reason)
+            Diag.warn("cast", "session SUSPENDED on ${deviceOf(session)}: reason $why; the TV may still be playing")
+            Diag.saveTrail("cast-drop", "session suspended, reason $why")
+        }
+        override fun onSessionStarting(session: CastSession) =
+            Diag.log("cast", "session starting on ${deviceOf(session)}")
+        override fun onSessionStartFailed(session: CastSession, error: Int) {
+            val code = CastCodes.name(error)
+            Diag.warn("cast", "session START FAILED on ${deviceOf(session)}: code $code")
+            Diag.saveTrail("cast-drop", "session failed to start with code $code")
+            stopped("failed to start (code $code)")
+        }
+        override fun onSessionEnding(session: CastSession) =
+            Diag.log("cast", "session ending on ${deviceOf(session)}: connected=${session.isConnected}")
+        override fun onSessionResuming(session: CastSession, sessionId: String) =
+            Diag.log("cast", "session resuming on ${deviceOf(session)}")
+        override fun onSessionResumeFailed(session: CastSession, error: Int) {
+            val code = CastCodes.name(error)
+            Diag.warn("cast", "session RESUME FAILED on ${deviceOf(session)}: code $code")
+            Diag.saveTrail("cast-drop", "session failed to resume with code $code")
+            stopped("failed to resume (code $code)")
+        }
     }
+
+    private fun deviceOf(session: CastSession): String =
+        "${session.castDevice?.friendlyName ?: "an unknown device"} (${session.castDevice?.modelName ?: "?"})"
 
     fun watch(context: Context) {
         runCatching {

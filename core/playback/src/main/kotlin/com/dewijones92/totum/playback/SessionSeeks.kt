@@ -15,4 +15,10 @@ internal object SessionSeeks {
         Player.COMMAND_SEEK_FORWARD -> "seek forward"
         else -> null
     }
+
+    fun playPause(command: Int): String? = when (command) {
+        Player.COMMAND_PLAY_PAUSE -> "play or pause"
+        Player.COMMAND_STOP -> "stop"
+        else -> null
+    }
 }

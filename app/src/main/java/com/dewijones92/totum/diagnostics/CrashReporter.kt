@@ -136,6 +136,7 @@ public class CrashReporter(
             put("vitals", JSONObject(Vitals.snapshot().toMap()))
 
             put("events", breadcrumbsJson())
+            put("flightRecorder", FlightRecorder.forReport(FlightRecorder.dirIn(context)))
             put("logcat", logcatTail())
         }
         return DiagnosticsStore.write(context, report)

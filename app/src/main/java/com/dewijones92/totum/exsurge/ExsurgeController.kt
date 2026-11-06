@@ -151,7 +151,21 @@ class ExsurgeController(
             )
         }
         transition.effects.forEach { execute(it) }
+        saveTheTrailIfSummonedOutOfHours(transition.effects, at, source)
         publish(at)
+    }
+
+    private fun saveTheTrailIfSummonedOutOfHours(effects: List<ExsurgeEffect>, at: Instant, source: String) {
+        val firstCall = effects.filterIsInstance<ExsurgeEffect.ShowTakeover>().any { it.call == 1 }
+        val summoned = (memory.state as? ExsurgeState.Summoned)?.summons ?: return
+        if (!firstCall || summoned.oneOff) return
+        val inHours = settings.enabled && settings.isActiveAt(at, zone())
+        if (inHours) return
+        Diag.saveTrail(
+            "exsurge-off-hours",
+            "summons #${summoned.id} at $at from=$source with enabled=${settings.enabled} and active hours " +
+                "closed (state=${memory.state.label()}, one-off=${summoned.oneOff})",
+        )
     }
 
     val breaks: List<BreakOutcome> get() = outcomes

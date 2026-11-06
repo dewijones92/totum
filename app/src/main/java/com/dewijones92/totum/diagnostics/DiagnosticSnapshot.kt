@@ -15,6 +15,7 @@ import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.settings.RepeatMode
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.OutboundSyncStatus
 
@@ -47,6 +48,7 @@ internal class DiagnosticSnapshot(
         val backup: () -> Map<String, String> = { emptyMap() },
         val screen: () -> Map<String, String> = { emptyMap() },
         val groupDownloads: () -> GroupDownloads? = { null },
+        val repeat: () -> RepeatMode = { RepeatMode.OFF },
     )
 
     fun capture(): Map<String, String> = buildMap {
@@ -94,6 +96,7 @@ internal class DiagnosticSnapshot(
         runCatching { putDownloadState(entries, currentIndex) }
         runCatching { putSettings(live.settings()) }
         runCatching { putAccountState(entries) }
+        runCatching { put("playback.repeatNow", live.repeat().name) }
         runCatching { put("network.metered", live.isMetered().toString()) }
         runCatching { putAll(live.exsurge()) }
         runCatching { putAll(live.appUpdate()) }
@@ -107,6 +110,7 @@ internal class DiagnosticSnapshot(
         put("settings.playbackMode", settings.playbackMode.name)
         put("settings.silenceMode", settings.silenceMode.name)
         put("settings.autoPlayNext", settings.autoPlayNext.toString())
+        put("settings.repeatMode", settings.repeatMode.name)
         put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
         put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
         put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())

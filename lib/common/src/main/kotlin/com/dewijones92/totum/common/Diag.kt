@@ -5,6 +5,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A rolling in-memory trail of what the app just did, sent with a crash so the failure
@@ -37,16 +38,46 @@ public object Breadcrumbs {
     /** A ceiling on memory, for a session chatty enough that 30 minutes is a lot of lines. */
     private const val MAX_ENTRIES = 5_000
 
+    private const val KEPT_RETENTION_MS = 12 * 60 * 60 * 1_000L
+
+    private const val KEPT_MAX_ENTRIES = 1_000
+
+    public val KEPT_TAGS: Set<String> =
+        setOf("Exsurge", "DailyAlarm", "reminders", "cast", "home", "ask", "speakers")
+
     private val entries = ConcurrentLinkedDeque<Entry>()
     private val count = AtomicInteger()
+    private val kept = ConcurrentLinkedDeque<Entry>()
+    private val keptCount = AtomicInteger()
+    private val sequence = AtomicLong()
 
-    public data class Entry(val atEpochMs: Long, val tag: String, val message: String)
+    public data class Entry(val atEpochMs: Long, val tag: String, val message: String, val seq: Long = 0)
 
     public fun record(tag: String, message: String) {
         val now = System.currentTimeMillis()
-        entries.addLast(Entry(now, tag, message))
-        count.incrementAndGet()
-        trim(now)
+        val entry = Entry(now, tag, message, sequence.incrementAndGet())
+        if (tag in KEPT_TAGS) {
+            kept.addLast(entry)
+            keptCount.incrementAndGet()
+            trimKept(now)
+        } else {
+            entries.addLast(entry)
+            count.incrementAndGet()
+            trim(now)
+        }
+    }
+
+    private fun trimKept(now: Long) {
+        while (keptCount.get() > KEPT_MAX_ENTRIES) dropOldestKept()
+        while (true) {
+            val oldest = kept.peekFirst() ?: return
+            if (now - oldest.atEpochMs <= KEPT_RETENTION_MS) return
+            dropOldestKept()
+        }
+    }
+
+    private fun dropOldestKept() {
+        if (kept.pollFirst() != null) keptCount.decrementAndGet() else keptCount.set(0)
     }
 
     /**
@@ -68,11 +99,14 @@ public object Breadcrumbs {
     }
 
     /** Oldest first, so a report reads top-to-bottom as a story. */
-    public fun snapshot(): List<Entry> = entries.toList()
+    public fun snapshot(): List<Entry> =
+        (entries.toList() + kept.toList()).sortedWith(compareBy({ it.atEpochMs }, { it.seq }))
 
     public fun clear() {
         entries.clear()
         count.set(0)
+        kept.clear()
+        keptCount.set(0)
     }
 
     public fun formatTime(epochMs: Long): String =
@@ -99,6 +133,18 @@ public object Diag {
 
     /** Silent by default so unit tests and pure-JVM callers need no setup. */
     public var sink: Sink = Sink { _, _, _, _ -> }
+
+    public fun interface Recorder {
+        public fun save(kind: String, detail: String, trail: List<Breadcrumbs.Entry>)
+    }
+
+    public var recorder: Recorder = Recorder { _, _, _ -> }
+
+    public fun saveTrail(kind: String, detail: String) {
+        log("diagnostics", "flight recorder: saving the trail ($kind) because $detail")
+        runCatching { recorder.save(kind, detail, Breadcrumbs.snapshot()) }
+            .onFailure { warn("diagnostics", "flight recorder could not save the trail ($kind: $detail)", it) }
+    }
 
     public fun log(tag: String, message: String) {
         Breadcrumbs.record(tag, message)

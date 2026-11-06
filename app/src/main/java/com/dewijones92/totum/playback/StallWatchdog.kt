@@ -256,6 +256,10 @@ internal class StallWatchdog(
                     "rescue(s) — $diagnosis. Giving up on this stream and moving on",
             )
             abandoned = state.itemId
+            Diag.saveTrail(
+                "stall-give-up",
+                "${state.itemId.value} at ${state.positionMs}ms after $rescues rescue(s): $diagnosis",
+            )
             if (isEnabled()) {
                 Diag.log("advance", "${state.itemId.value} exhausted rescues advance=${advance()}")
             } else {
