@@ -27,6 +27,7 @@ import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.stats.StatEvent
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +70,7 @@ class AskViewModel(
     private val state = MutableStateFlow(UiState(available = service != null))
     val uiState: StateFlow<UiState> = state.asStateFlow()
     private var chatId = newChatId()
+    private var restoreJob: Job? = null
 
     init {
         val saved = chats.load()
@@ -91,7 +93,13 @@ class AskViewModel(
                 recent = saved.filterNot { other -> other.id == chat.id },
             )
         }
-        viewModelScope.launch { state.value.turns.indices.forEach { search(it) } }
+        restoreJob?.cancel()
+        val turnCount = chat.turns.size
+        restoreJob = viewModelScope.launch {
+            Diag.log("ask", "chat ${chat.id}: searching again for $turnCount restored turn(s)")
+            repeat(turnCount) { search(it) }
+            Diag.log("ask", "chat ${chat.id}: restored turns searched")
+        }
     }
 
     fun forget(id: String) {
@@ -197,7 +205,12 @@ class AskViewModel(
 
     fun startOver() {
         if (state.value.busy) return
-        Diag.log("ask", "new chat after ${state.value.turns.size} turn(s)")
+        Diag.log(
+            "ask",
+            "new chat after ${state.value.turns.size} turn(s); restore search running=${restoreJob?.isActive == true}"
+        )
+        restoreJob?.cancel()
+        restoreJob = null
         chatId = newChatId()
         state.update { it.copy(turns = emptyList(), recent = chats.load()) }
     }
@@ -205,7 +218,10 @@ class AskViewModel(
     private fun newChatId(): String = "chat-${now()}-${(0..CHAT_ID_RANGE).random()}"
 
     private suspend fun search(turn: Int = state.value.turns.lastIndex) {
-        val cards = state.value.turns[turn].cards
+        val cards = state.value.turns.getOrNull(turn)?.cards ?: run {
+            Diag.warn("ask", "turn $turn is gone (${state.value.turns.size} turn(s) now); nothing to search")
+            return
+        }
         kotlinx.coroutines.coroutineScope {
             cards.mapIndexed { index, card ->
                 async {

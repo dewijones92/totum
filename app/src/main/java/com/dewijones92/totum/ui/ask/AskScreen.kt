@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -50,6 +53,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskCard
 import com.dewijones92.totum.data.ask.AskKind
+import com.dewijones92.totum.data.ask.SavedChat
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
@@ -105,23 +109,7 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
                 return@Column
             }
             if (state.turns.isEmpty() && state.recent.isNotEmpty()) {
-                Text(
-                    stringResource(R.string.ask_earlier_chats),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-                )
-                RecentChips(
-                    state.recent.map { it.title },
-                    onPick = { title -> state.recent.firstOrNull { it.title == title }?.let { viewModel.open(it.id) } },
-                    onRemove = { title ->
-                        state.recent.firstOrNull { it.title == title }?.let {
-                            viewModel.forget(
-                                it.id
-                            )
-                        }
-                    },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                EarlierChats(state.recent, onOpen = viewModel::open, onForget = viewModel::forget)
             }
             if (state.turns.isEmpty()) {
                 RecentSearchChips(
@@ -155,6 +143,33 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
 }
 
 @Composable
+private fun EarlierChats(chats: List<SavedChat>, onOpen: (String) -> Unit, onForget: (String) -> Unit) {
+    var showAll by rememberSaveable { mutableStateOf(false) }
+    val shown = if (showAll) chats else chats.take(EARLIER_CHATS_SHOWN)
+    LaunchedEffect(chats.size, showAll) {
+        Diag.log("ask", "earlier chats: showing ${shown.size} of ${chats.size} (expanded=$showAll)")
+    }
+    Text(
+        stringResource(R.string.ask_earlier_chats),
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+    )
+    RecentChips(
+        shown.map { it.title },
+        onPick = { title -> shown.firstOrNull { it.title == title }?.let { onOpen(it.id) } },
+        onRemove = { title -> shown.firstOrNull { it.title == title }?.let { onForget(it.id) } },
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            .heightIn(max = EARLIER_CHATS_MAX_HEIGHT.dp)
+            .verticalScroll(rememberScrollState()),
+    )
+    if (!showAll && chats.size > EARLIER_CHATS_SHOWN) {
+        TextButton(onClick = { showAll = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Text(stringResource(R.string.ask_show_all_chats, chats.size))
+        }
+    }
+}
+
+@Composable
 private fun AskHeader(state: AskViewModel.UiState, onBack: () -> Unit, onStartOver: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
@@ -165,9 +180,7 @@ private fun AskHeader(state: AskViewModel.UiState, onBack: () -> Unit, onStartOv
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f)
         )
-        if (state.turns.isNotEmpty() && !state.busy) {
-            TextButton(onClick = onStartOver) { Text(stringResource(R.string.ask_start_over)) }
-        }
+        TextButton(onClick = onStartOver, enabled = !state.busy) { Text(stringResource(R.string.ask_start_over)) }
     }
 }
 
@@ -409,6 +422,9 @@ private fun rememberSpeech(onHeard: (String) -> Unit): (() -> Unit)? {
     if (!available) return null
     return { launcher.launch(intent) }
 }
+
+private const val EARLIER_CHATS_SHOWN = 3
+private const val EARLIER_CHATS_MAX_HEIGHT = 240
 
 private val BUSY = setOf(AskViewModel.Stage.ASKING, AskViewModel.Stage.SEARCHING, AskViewModel.Stage.VETTING)
 

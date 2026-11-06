@@ -41,7 +41,9 @@ ask: YouTube subscriptions, podcasts, followed artists and saved albums, and the
 Built and tested against a fake brain and once against Haiku on the laptop. Waiting on Dewi's choice of Claude
 account for the Pi (`claude setup-token`); until then the service answers "❌ …" and nothing else changes.
 
-Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the others (newest 20).
+Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the others (newest 20), the latest 3 shown
+with "Show all" to expand in place. ➕ New chat is always in the header (disabled while Ask is busy). Reopening a
+chat searches its turns again in one job that New chat or opening another chat cancels.
 
 ## Tools
 

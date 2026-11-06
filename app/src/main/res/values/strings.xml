@@ -1211,6 +1211,7 @@
     <string name="ask_start_over">➕ New chat</string>
     <string name="ask_play_all">▶️ Play all</string>
     <string name="ask_earlier_chats">🕘 Earlier chats</string>
+    <string name="ask_show_all_chats">🕘 Show all %1$d chats</string>
     <string name="ask_queue_all">➕ Queue all</string>
     <string name="ask_start_radio">📻 Start this radio</string>
     <string name="ask_radio_seeds">🌱 Seeded from</string>
