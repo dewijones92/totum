@@ -60,7 +60,7 @@ internal fun String?.codecPreference(hardware: Boolean = false): Int {
     return if (hardware) rank else SOFTWARE_PENALTY + rank
 }
 
-enum class VideoCodecFamily(private val prefixes: List<String>) {
+enum class VideoCodecFamily(val prefixes: List<String>) {
     AVC(listOf("avc", "h264")),
     HEVC(listOf("hev", "hvc", "h265")),
     VP9(listOf("vp9", "vp09")),
@@ -76,6 +76,22 @@ enum class VideoCodecFamily(private val prefixes: List<String>) {
     }
 }
 
+/**
+ * The yt-dlp `vcodec` prefixes a download must not pick on this device: every family it cannot
+ * decode at [height], and AV1 unless the decoder is hardware (a software AV1 decode is worse
+ * than any other codec). yt-dlp's own order (tallest first, then AV1, VP9, HEVC, AVC) decides among
+ * the rest, so a hardware AV1 phone still gets AV1.
+ */
+fun VideoCodecSupport.codecsToAvoid(height: Int?): List<String> {
+    val width = height?.let { it * WIDE / TALL }
+    return VideoCodecFamily.entries.filter { family ->
+        val probe = family.prefixes.first()
+        !canDecode(probe, width, height) || family == VideoCodecFamily.AV1 && !isHardware(probe, width, height)
+    }.flatMap { it.prefixes }
+}
+
+private const val WIDE = 16
+private const val TALL = 9
 private const val FIRST = 0
 private const val SECOND = 1
 private const val THIRD = 2

@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.audioLanguagePreference
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.parsed
@@ -364,13 +365,13 @@ internal fun StreamingData.videoQualities(
             ).firstOrNull()
             when {
                 muxed != null && byAudio.compare(muxed.audioTag, bestSound) >= 0 ->
-                    muxed.url?.let { quality(height, it, audioUrl = null, audio = muxed.audioTag) }
+                    muxed.url?.let { quality(height, it, null, muxed.audioTag, muxed.videoCodec) }
                 // Nothing at this height speaks the language you asked for and there is no
                 // video-only stream to pair with the audio that does, so the height is dropped:
                 // the ladder is the ladder for the track you are listening to. Offering it anyway
                 // sends the auto-pick — which takes the tallest — back to the dub.
                 videoOnly != null && audio != null && byAudio.compare(audio.audioTag, bestSound) >= 0 ->
-                    videoOnly.url?.let { quality(height, it, audio.url, audio.audioTag) }
+                    videoOnly.url?.let { quality(height, it, audio.url, audio.audioTag, videoOnly.videoCodec) }
                 else -> null
             }
         }
@@ -389,8 +390,8 @@ private val PlayableFormat.carriesSound: Boolean
 private const val LIVE_ID = "live"
 private const val LIVE_LABEL_HEIGHT = 1080
 
-private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioTrackTag) =
-    VideoQuality("$height", "${height}p", height, url, audioUrl, audio = audio)
+private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioTrackTag, codec: String?) =
+    VideoQuality("$height", QualityLabel.of(height, codec).text, height, url, audioUrl, codec = codec, audio = audio)
 
 /** Best audio-only stream, for "Listen" mode and as the merge partner for a video-only one. */
 internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? = liveManifestUrl

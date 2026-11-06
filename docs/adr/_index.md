@@ -141,3 +141,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 123 | [Subtitles off stays off until turned on](0123-subtitles-off-stays-off.md) | Accepted |
 | 124 | [Work apps are snoozed outside work hours, by a notification listener](0124-work-apps-are-snoozed-outside-work-hours.md) | Accepted |
 | 125 | [Modes that are quietly on are one flow](0125-active-modes-are-one-flow.md) | Accepted |
+| 127 | [Downloads honour the phone's decoders, and every quality names its codec](0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md) | Accepted |

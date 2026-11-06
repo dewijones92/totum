@@ -30,6 +30,7 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
     LaunchedEffect(chooser) { chooser.asks.collect { asking = it } }
     val ask = asking ?: return
     var place by remember(ask) { mutableStateOf(ask.suggestedPlace) }
+    val known = remember(ask) { DownloadChoice.heights.associateWith { chooser.qualityFor(ask.item, it) } }
     val pick = { choice: DownloadChoice? ->
         asking = null
         chooser.choose(ask, choice, place, remember)
@@ -60,9 +61,16 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
                             onClick = { pick(DownloadChoice.Video(height)) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
+                            val known = known[height]
                             Text(
-                                height?.let { stringResource(R.string.download_choice_video_height, it) }
-                                    ?: stringResource(R.string.download_choice_video_best),
+                                when {
+                                    known != null && height != null ->
+                                        stringResource(R.string.download_choice_video_label, known.text)
+                                    known != null ->
+                                        stringResource(R.string.download_choice_video_best_label, known.text)
+                                    height != null -> stringResource(R.string.download_choice_video_height, height)
+                                    else -> stringResource(R.string.download_choice_video_best)
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }

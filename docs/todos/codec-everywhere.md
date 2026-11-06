@@ -1,7 +1,7 @@
 ---
 title: The codec beside every quality; AV1 first when the hardware decodes it
 kind: todo
-status: decided
+status: built 2026-11-06, Batch A (ADR 127); tests owed, not seen on a device
 batch: A (2026-11)
 priority: high
 updated: 2026-11-06
@@ -20,3 +20,12 @@ Progress 2026-11-06: `QualityLabel(height, family)` is in `:core:domain` ("1440p
 `VideoCodecSupport.preference` is the one ranking (the target's for a cast). The player's quality menu
 (`VideoQuality.kt`, `PlayerStreams.kt`) and the download chooser still show plain heights, and downloads still do not
 honour the device's decoders.
+
+Built 2026-11-06 (ADR 127): the player's quality menu and the cast's "beyond the TV" line use `QualityLabel`; the
+download chooser says "The video, 1080p · VP9" when the resolver still holds the ladder; yt-dlp downloads skip codecs
+the phone cannot decode and software AV1 (`VideoCodecSupport.codecsToAvoid` into `EngineDownloadStrategy`).
+
+Tests owed: selector cases in `EngineDownloadStrategyTest` (no avoid list unchanged, AV1 avoided, language and cap
+variants), `codecsToAvoid` for a hardware-AV1, a software-AV1 and a no-VP9 phone, label cases in the quality ladder
+tests (`VideoQuality.label`), `DownloadChooser.qualityFor` (cap, no ladder). Device check: a download on a phone without
+hardware AV1 never lands AV1 (read the `[download] ... yt-dlp selector` line, then the file's codec).

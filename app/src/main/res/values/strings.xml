@@ -450,6 +450,8 @@
     <string name="download_choice_sound">🎧 The sound only</string>
     <string name="download_choice_video_best">🎬 The video, best quality</string>
     <string name="download_choice_video_height">🎬 The video, %1$dp</string>
+    <string name="download_choice_video_label">🎬 The video, %1$s</string>
+    <string name="download_choice_video_best_label">🎬 The video, best quality (%1$s)</string>
     <string name="download_choice_remember">Remember for next time (press and hold ⬇️ to choose again)</string>
     <string name="download_choose_again">Choose sound or video quality</string>
     <string name="download_the_video">🎬 Download the video</string>

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.download
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.ytdlp.DownloadEvent
@@ -32,6 +33,7 @@ public class EngineDownloadStrategy(
      * one you cannot re-pick a track for.
      */
     private val preferredAudioLanguages: () -> List<String> = { emptyList() },
+    private val videoCodecsToAvoid: (maxHeight: Int?) -> List<String> = { emptyList() },
 ) : DownloadStrategy {
 
     override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
@@ -53,10 +55,15 @@ public class EngineDownloadStrategy(
             mkdirs()
         }
         try {
+            val selector = selectorFor(audioOnly, maxHeight)
+            Diag.log(
+                "download",
+                "${item.item.id.value} yt-dlp selector $selector [audioOnly=$audioOnly maxHeight=$maxHeight]",
+            )
             val request = DownloadRequest(
                 url = url,
                 targetDirectory = work,
-                formatId = selectorFor(audioOnly, maxHeight),
+                formatId = selector,
                 sponsorBlockCategories = sponsorBlockCategories,
             )
             engine.download(request).collect { event ->
@@ -102,21 +109,22 @@ public class EngineDownloadStrategy(
      */
     private fun selectorFor(audioOnly: Boolean, maxHeight: Int?): String {
         val capped = maxHeight?.takeIf { !audioOnly }
+        val codecs = if (audioOnly) "" else videoCodecsToAvoid(capped).joinToString("") { "[vcodec!^=?$it]" }
+
+        /** Best video + best audio, merged; falls back to the best single stream. */
+        val bestMerged = "bv*$codecs+ba/b"
         val base = when {
             audioOnly -> BEST_AUDIO
-            capped != null -> "bv*[height<=$capped]+ba/b[height<=$capped]/$BEST_MERGED"
-            else -> BEST_MERGED
+            capped != null -> "bv*[height<=$capped]$codecs+ba/b[height<=$capped]/$bestMerged"
+            else -> bestMerged
         }
         val wanted = preferredAudioLanguages().firstOrNull()?.takeIf { it.isNotBlank() } ?: return base
         val language = wanted.substringBefore('-')
-        val video = capped?.let { "bv*[height<=$it]" } ?: "bv*"
+        val video = capped?.let { "bv*[height<=$it]$codecs" } ?: "bv*$codecs"
         return if (audioOnly) "ba[language^=$language]/$base" else "$video+ba[language^=$language]/$base"
     }
 
     public companion object {
-        /** Best video + best audio, merged; falls back to the best single stream. */
-        private const val BEST_MERGED = "bv*+ba/b"
-
         /** Best audio-only stream, no merge needed — small and quick. */
         private const val BEST_AUDIO = "ba/b"
     }

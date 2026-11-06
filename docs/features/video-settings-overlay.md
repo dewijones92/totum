@@ -3,7 +3,7 @@ title: Quality and speed as an on-video overlay
 kind: feature
 status: shipped
 area: ui
-updated: 2026-07-27
+updated: 2026-11-06
 ---
 
 # Quality and speed live on the video
@@ -86,3 +86,9 @@ The player column padded everything by 24dp, including the video, so the picture
 inset from both edges — measured at `[63..1017]` on a 1080px screen. The column now pads
 vertically only and the text below carries its own margin, so the video is full-bleed:
 `[0..1080]`.
+
+## The codec beside each quality (2026-11-06, [ADR 127](../adr/0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md))
+
+The quality menu reads "1080p · AV1", "1440p · VP9" (`QualityLabel`, the same label the cast strip uses). The ladder
+offers one codec per height, the one the device's decoders rank first (hardware AV1, then VP9, HEVC, H.264; never
+software AV1), so the label says which one was chosen. A stream whose codec is unknown stays "720p".

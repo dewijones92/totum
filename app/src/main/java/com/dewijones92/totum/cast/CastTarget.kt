@@ -7,6 +7,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.operations.showingEach
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.playForAScreen
@@ -175,7 +176,7 @@ private class CastMoves(private val container: AppContainer, private val moving:
         val quality = container.videoPlaybackLauncher.quality.value
         val playing = quality.options.firstOrNull { it.id == quality.selectedId } ?: return null
         if (quality.listening || screen.canDecode(playing.codec, playing.height)) return null
-        return "${playing.codec} ${playing.height}p, beyond ${screen.label}"
+        return "${QualityLabel.of(playing.height, playing.codec).text}, beyond ${screen.label}"
     }
 
     private suspend fun alreadyRightForTheTv(item: MediaItemId): Boolean {

@@ -3,6 +3,7 @@ package com.dewijones92.totum.video
 import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.audioLanguagePreference
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
 import com.dewijones92.totum.ytdlp.audioTag
@@ -126,7 +127,7 @@ private fun MediaFormat.asQuality(height: Int, audio: MediaFormat?): VideoQualit
     HttpUrl.parse(url!!)?.let { video ->
         VideoQuality(
             id = "$height",
-            label = "${height}p",
+            label = QualityLabel.of(height, videoCodec).text,
             height = height,
             videoUrl = video,
             audioUrl = audio?.url?.let(HttpUrl::parse),

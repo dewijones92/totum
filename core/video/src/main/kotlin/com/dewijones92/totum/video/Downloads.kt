@@ -15,6 +15,7 @@ fun videoAndPodcastDownloads(
     resolver: VideoResolver,
     transferClient: OkHttpClient,
     sabr: SabrRoute,
+    codecs: VideoCodecSupport = resolver.codecSupport,
 ): DownloadStrategy =
     RoutedDownloadStrategy(
         // yt-dlp first, because it handles everything. Its one blind spot is anything YouTube
@@ -28,6 +29,7 @@ fun videoAndPodcastDownloads(
                 // downloading gave the English original -- and a downloaded file is precisely
                 // the one you cannot re-pick a track for.
                 preferredAudioLanguages = preferredAudioLanguages,
+                videoCodecsToAvoid = codecs::codecsToAvoid,
             ),
             secondary = PlayerBackedDownloadStrategy(
                 // The SAME resolution playback uses, so anything watchable is fetchable.

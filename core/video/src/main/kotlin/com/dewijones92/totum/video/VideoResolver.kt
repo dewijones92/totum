@@ -51,7 +51,7 @@ class VideoResolver(
     private val engine: YtDlpEngine,
     private val skipSegments: SkipSegmentSource,
     /** Keeps undecodable streams out of the quality ladder (see [VideoCodecSupport]). */
-    private val codecSupport: VideoCodecSupport = VideoCodecSupport.Permissive,
+    val codecSupport: VideoCodecSupport = VideoCodecSupport.Permissive,
     /**
      * YouTube's own player response — asked FIRST, because it is ~0.2s against extraction's
      * 13.9s, and also consulted when an extraction comes back with a degraded ladder.
@@ -814,6 +814,8 @@ class VideoResolver(
             )
         }
     }
+
+    fun knownQualities(watchUrl: HttpUrl): List<VideoQuality> = fresh(watchUrl)?.qualities.orEmpty()
 
     /** A cached entry still inside its TTL, or null. */
     private fun fresh(watchUrl: HttpUrl): Resolved? {

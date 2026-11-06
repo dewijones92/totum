@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.pillar
@@ -12,6 +13,7 @@ import com.dewijones92.totum.downloads.home.HomeDownloads
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.settings.DownloadPlace
+import com.dewijones92.totum.video.VideoQuality
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -24,6 +26,7 @@ class DownloadChooser(
     private val scope: CoroutineScope,
     private val home: HomeDownloads? = null,
     private val metered: () -> Boolean = { false },
+    private val knownQualities: (MediaItem) -> List<VideoQuality> = { emptyList() },
 ) {
     data class Ask(
         val item: MediaItem,
@@ -33,6 +36,17 @@ class DownloadChooser(
         val askWhere: Boolean = false,
         val suggestedPlace: DownloadPlace = DownloadPlace.PHONE,
     )
+
+    fun qualityFor(item: MediaItem, maxHeight: Int?): QualityLabel? {
+        val ladder = knownQualities(item)
+        val pick = ladder.firstOrNull { maxHeight == null || it.height <= maxHeight }
+        Diag.log(
+            TAG,
+            "\"${item.title}\": the chooser's quality for ${maxHeight ?: "best"} is " +
+                "${pick?.label ?: "unknown"} [ladder=${ladder.joinToString { it.label }.ifEmpty { "not held" }}]",
+        )
+        return pick?.let { QualityLabel.of(it.height, it.codec) }
+    }
 
     val homeAvailable: Boolean get() = home?.available == true
 

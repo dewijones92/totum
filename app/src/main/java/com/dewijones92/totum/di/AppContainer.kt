@@ -122,6 +122,7 @@ import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
+import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
@@ -894,7 +895,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val kidLock: KidLock = KidLock()
 
     override val downloadChooser: DownloadChooser by lazy {
-        DownloadChooser(appPreferences, downloadManager, applicationScope, homeDownloads, networkStatus::isMetered)
+        DownloadChooser(
+            appPreferences,
+            downloadManager,
+            applicationScope,
+            homeDownloads,
+            networkStatus::isMetered,
+            knownQualities = { item -> item.asPlayable().fetchUrl?.let(videoResolver::knownQualities).orEmpty() },
+        )
     }
 
     override val lockingDownloads: LockingDownloadManager by lazy {
@@ -915,6 +923,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     resolver = videoResolver,
                     transferClient = transferClient,
                     sabr = AndroidSabrRoute,
+                    codecs = phoneCodecs,
                 ),
             ),
             scope = applicationScope,
@@ -933,11 +942,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         RoomSourceGroupStore(database.sourceGroupDao())
     }
 
+    private val phoneCodecs: PlatformVideoCodecSupport by lazy { PlatformVideoCodecSupport() }
+
     override val videoResolver: VideoResolver by lazy {
         VideoResolver(
             ytDlpEngine,
             skipSegmentSource,
-            CastAwareCodecSupport(PlatformVideoCodecSupport()) { CastTarget.screen },
+            CastAwareCodecSupport(phoneCodecs) { CastTarget.screen },
             // The InnerTube player source. Its PLAIN URLs are useless — measured
             // 2026-07-31, a ranged GET of an ANDROID-client stream serves the first megabyte
             // and then 403s at every offset beyond it, whatever the range size or User-Agent.
