@@ -113,6 +113,7 @@ import com.dewijones92.totum.diagnostics.runningOnAnEmulator
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
 import com.dewijones92.totum.diagnostics.thisDevice
 import com.dewijones92.totum.domain.AccountProgressOutbox
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.LocalCopy
@@ -120,6 +121,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReconciledAccountProgress
@@ -1133,7 +1135,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             return
         }
         Diag.log("advance", "queue empty — playing related \"${next.item.title}\"")
-        playbackQueue.playNow(next, quiet = true, byYou = false)
+        playbackQueue.playNow(
+            next,
+            quiet = true,
+            byYou = false,
+            reason = PlayReason.RelatedAfterQueue(playing.item.title),
+        )
     }
 
     // Auto-advance is app-scoped for the same reason the recovery is: it must keep
@@ -1149,7 +1156,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             isEnabled = { KidRules.autoPlay(kidLock.locked.value, autoPlayNextEnabled()) },
             scope = applicationScope,
             repeat = ::repeatNow,
-            replay = { playbackQueue.replayCurrent(positionMs = 0) },
+            replay = { playbackQueue.replayCurrent(positionMs = 0, reason = PlayReason.RepeatOne) },
             fromTheTop = { playbackQueue.playFromTheTop(repeatNow().reshuffles) },
             restartGroup = { ended -> playbackQueue.repeatGroupAfter(ended, repeatNow().reshuffles) },
             sleepsAfter = sleepTimer::firesAfter,
@@ -1933,7 +1940,7 @@ private fun listeningSwitcherOf(c: DefaultAppContainer) = ListeningSwitcher(
     c.playbackQueue,
     c.playbackController,
     c.recentActions,
-    { c.pinPlayer.play(it, "music toggle") },
+    { c.pinPlayer.play(it, "music toggle", ChosenWay.SWITCH) },
     c.applicationScope,
 )
 

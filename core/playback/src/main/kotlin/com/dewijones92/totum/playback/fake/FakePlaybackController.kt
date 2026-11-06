@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.playback.CastVolume
 import com.dewijones92.totum.playback.PlaybackContext
@@ -48,6 +49,13 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
 
     override fun setPlaybackContext(context: PlaybackContext) {
         playbackContext = context
+    }
+
+    public val playReasons: MutableList<Pair<MediaItemId, PlayReason>> = mutableListOf()
+
+    override fun setPlayReason(itemId: MediaItemId, reason: PlayReason) {
+        playReasons += itemId to reason
+        _state.update { if (it?.itemId == itemId) it.copy(playReason = reason) else it }
     }
 
     public fun tapSwitchInNotification() {
@@ -199,6 +207,7 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
             chapters = item.chapters,
             subtitles = subtitles,
             subtitleLanguage = subtitleLanguage,
+            playReason = playReasons.lastOrNull { it.first == item.id }?.second,
         )
     }
 

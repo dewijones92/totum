@@ -2,7 +2,9 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayReason
 import kotlin.random.Random
 
 fun PlaybackQueue.shuffleGroup(id: String, random: Random = Random.Default) =
@@ -16,7 +18,7 @@ fun PlaybackQueue.shuffleAndPlayGroup(
     reorder("shuffle and play group ${state.value.groupLabel(id)}") { it.shufflingToPlay(id, random) }
     beforePlaying(state.value.entries.filter { it.group?.id == id })
     val start = state.value.entries.indexOfFirst { it.group?.id == id }
-    if (start >= 0) jumpTo(start)
+    if (start >= 0) jumpTo(start, reason = PlayReason.Chosen(ChosenWay.TAP))
 }
 
 fun PlaybackQueue.shuffleGroupOrder(random: Random = Random.Default) =

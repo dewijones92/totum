@@ -51,7 +51,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | built 2026-11-06, Batch A; tests to follow |
 | [The queue tidies itself](queue-tidy-up.md) | queue | medium | built 2026-11-06, Batch A |
 | [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | built 2026-11-06, Batch A (ADR 125); tests to follow |
-| [Why is this playing?](why-is-this-playing.md) | player | medium | decided 2026-11-06, Batch A |
+| [Why is this playing?](why-is-this-playing.md) | player | medium | built 2026-11-06, Batch A (tests owed) |
 | [What's new after an update](whats-new-card.md) | app | medium | built 2026-11-06, Batch A (ADR 130); first card needs a CI release carrying the notes; tests to follow |
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | built 2026-11-06, Batch A; tests and a device run to follow |
 | [Search in Settings](settings-search.md) | settings | low | built 2026-11-06, Batch A; tests to follow |

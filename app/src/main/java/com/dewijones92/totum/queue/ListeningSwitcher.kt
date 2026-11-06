@@ -1,9 +1,11 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.SwitchTarget
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.switchTarget
@@ -61,7 +63,7 @@ class ListeningSwitcher(
                 "remembered=${lastOf.mapValues { it.value.value }} -> $target",
         )
         when (target) {
-            is SwitchTarget.JumpTo -> queue.jumpTo(target.index)
+            is SwitchTarget.JumpTo -> queue.jumpTo(target.index, reason = PlayReason.Chosen(ChosenWay.SWITCH))
             is SwitchTarget.PlayRecentMusic -> {
                 val pin = recent.recent.value.firstOrNull { it.isMusic }
                     ?: return Diag.log(TAG, "no music in the queue and none in Recently: nothing to switch to")

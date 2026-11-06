@@ -1,7 +1,9 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.domain.Listening
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.word
 
 internal const val FORWARD = 1
@@ -34,7 +36,7 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
         } else if (stillToPass > 0) {
             stillToPass--
             Diag.log("queue", "skipping past index $index \"$title\" without starting it; $stillToPass more to pass")
-        } else if (playAt(index, rollBackOnRefusal = true)) {
+        } else if (playAt(index, rollBackOnRefusal = true, reason = entry.arrived(direction))) {
             val cursorNow = state.value.currentIndex
             if (cursorNow != index) {
                 Diag.log(
@@ -67,6 +69,9 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
     )
     return false
 }
+
+private fun QueueEntry.arrived(direction: Int): PlayReason =
+    if (direction == FORWARD) arrivedNext() else wentBackTo()
 
 private fun verbFor(direction: Int): String = if (direction == FORWARD) "advanced" else "went back"
 

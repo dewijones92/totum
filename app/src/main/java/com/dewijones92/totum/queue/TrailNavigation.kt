@@ -6,6 +6,8 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
+import com.dewijones92.totum.domain.ChosenWay
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -38,10 +40,10 @@ class TrailNavigation(
             val index = queue.state.value.entries.indexOfFirst { it.item.item.id == item.item.id }
             if (index >= 0) {
                 Diag.log("trail", "$way to \"${item.item.title}\", row $index of the queue")
-                queue.jumpTo(index)
+                queue.jumpTo(index, reason = PlayReason.Chosen(ChosenWay.BACK_OR_FORWARD))
             } else {
                 Diag.log("trail", "$way to \"${item.item.title}\", no longer queued; playing it now")
-                queue.playNow(item)
+                queue.playNow(item, reason = PlayReason.Chosen(ChosenWay.BACK_OR_FORWARD))
             }
         }
     }

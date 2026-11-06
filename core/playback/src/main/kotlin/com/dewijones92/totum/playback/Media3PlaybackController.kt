@@ -32,10 +32,12 @@ import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.domain.VideoCodecFamily
+import com.dewijones92.totum.domain.describe
 import com.dewijones92.totum.domain.showKey
 import com.dewijones92.totum.domain.skipTargetFor
 import com.dewijones92.totum.playback.cast.CastStatus
@@ -838,6 +840,17 @@ public class Media3PlaybackController(
         }
     }
 
+    @Volatile
+    private var playReason: Pair<String, PlayReason>? = null
+
+    override fun setPlayReason(itemId: MediaItemId, reason: PlayReason) {
+        Diag.log("playback", "dewidebug why ${itemId.value} is playing: ${reason.describe()}")
+        playReason = itemId.value to reason
+        withController {
+            if (it.currentMediaItem?.mediaId == itemId.value) _state.value = it.currentPlaybackState()
+        }
+    }
+
     private fun applySessionExtras(controller: MediaController, extras: Bundle) {
         castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
         _castDevice.value = castDeviceName
@@ -1359,6 +1372,7 @@ public class Media3PlaybackController(
             chapters = itemContext.chapters,
             showKey = itemContext.showKey,
             contentKind = itemContext.contentKind,
+            playReason = playReason?.takeIf { it.first == current.mediaId }?.second,
         )
 
     /**

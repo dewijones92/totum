@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.VideoCodecFamily
@@ -137,6 +138,8 @@ public interface PlaybackController {
     public fun showSwitchButton(to: Listening?)
 
     public fun setPlaybackContext(context: PlaybackContext)
+
+    public fun setPlayReason(itemId: MediaItemId, reason: PlayReason)
 
     /**
      * Asks the service to hold the first seconds of [url], so the next track change is not a wait.
@@ -283,6 +286,7 @@ public data class PlaybackState(
     val subtitleLanguage: String? = null,
     val showKey: SourceId? = null,
     val contentKind: MediaContentKind = MediaContentKind.STANDARD,
+    val playReason: PlayReason? = null,
 ) {
     init {
         require(positionMs >= 0) { "positionMs must not be negative" }

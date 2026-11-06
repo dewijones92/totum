@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="why_playing_title">❓ Why is this playing?</string>
+    <string name="why_unknown">❔ Totum has no record of why this one started: it began before the reason was recorded.</string>
+    <string name="why_chosen_tap">▶️ You tapped it.</string>
+    <string name="why_chosen_peek">👀 You peeked at it, so the queue kept its place.</string>
+    <string name="why_chosen_link">🔗 You opened a link to it.</string>
+    <string name="why_chosen_pin">📌 You started it from a pinned shortcut.</string>
+    <string name="why_chosen_shorts">📱 You swiped to it in the Shorts reel.</string>
+    <string name="why_chosen_ask">✨ You picked it from an Ask card.</string>
+    <string name="why_chosen_queue_row">📋 You played it from the queue.</string>
+    <string name="why_chosen_trail">⬅️ You went back or forward to it.</string>
+    <string name="why_chosen_switch">🎵 You switched between music and talk, and it was the one you left off.</string>
+    <string name="why_next_group">⏭️ Next in the %1$s group.</string>
+    <string name="why_next_queue">⏭️ Next in your queue.</string>
+    <string name="why_previous_group">⏮️ You went back to the one before it in the %1$s group.</string>
+    <string name="why_previous_queue">⏮️ You went back to the one before it in your queue.</string>
+    <string name="why_repeat_one">🔂 Repeat one is on, so it played again.</string>
+    <string name="why_repeat_group_named">🔁 Repeat group is on, so the %1$s group started again.</string>
+    <string name="why_repeat_group">🔁 Repeat group is on, so its group started again.</string>
+    <string name="why_repeat_queue">🔁 Repeat queue is on, so the queue started again from the top.</string>
+    <string name="why_explore_named">🧭 Explore picked it, related to %1$s.</string>
+    <string name="why_explore">🧭 Explore picked it, related to what was playing.</string>
+    <string name="why_related_after_queue_named">🧭 The queue ran out, so a video related to %1$s followed.</string>
+    <string name="why_related_after_queue">🧭 The queue ran out, so a related video followed.</string>
+    <string name="why_radio_named">📻 %1$s picked it.</string>
+    <string name="why_radio">📻 A radio picked it.</string>
+    <string name="why_new_upload">📥 It is a new upload from something you follow, played from your New group.</string>
+</resources>

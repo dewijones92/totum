@@ -45,9 +45,11 @@ import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.playback.PlaybackState
@@ -150,6 +152,7 @@ private fun ReelQueueBinding(
             QueueGroup(id = "shorts:${shorts.firstOrNull()?.id?.value.orEmpty()}", title = runTitle),
             byYou = false,
             endsRepeatOne = opening,
+            reason = PlayReason.Chosen(ChosenWay.SHORTS_REEL),
         )
         opening = false
     }
@@ -169,7 +172,7 @@ private fun ReelQueueBinding(
         queue.state.value.entries
             .indexOfFirst { it.item.item.id == wanted.id }
             .takeIf { it >= 0 }
-            ?.let { queue.jumpTo(it, byYou = false) }
+            ?.let { queue.jumpTo(it, byYou = false, reason = PlayReason.Chosen(ChosenWay.SHORTS_REEL)) }
     }
 
     // ...and the reverse: when something else advances the queue — a short ending in a pocket

@@ -5,6 +5,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.isYouTubeVideoId
@@ -19,7 +20,7 @@ internal fun exploreModeFor(c: AppContainer) = ExploreMode(
         relatedForExplore(c, item)?.let { c.notForMe.without(it, "explore after \"${item.title}\"") }
             ?.takeIf { it.isNotEmpty() }
     },
-    peek = { c.playbackQueue.peek(it) },
+    peek = { c.playbackQueue.peek(it, PlayReason.Explore(c.playbackQueue.nowPlaying.value?.item?.title)) },
     nowPlaying = { c.playbackQueue.nowPlaying.value },
     onTurnedOn = { c.playbackController.disarmNext("Explore turned on: a related video follows instead") },
     cap = { c.appPreferences.settings.value.exploreCap },

@@ -5,9 +5,11 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
@@ -47,18 +49,18 @@ class PinPlayer(
     private val shuffleAll: ShuffleAll? = null,
     private val artistShuffle: ArtistShuffle? = null,
 ) {
-    suspend fun play(pin: Pin, from: String): PinPlayed {
+    suspend fun play(pin: Pin, from: String, way: ChosenWay = ChosenWay.PIN): PinPlayed {
         Diag.log("pin", "play ${pin.key} \"${pin.title}\" from $from")
         val result = when (pin) {
-            is Pin.Item -> playItem(pin)
-            is Pin.Album -> playAlbum(pin)
-            is Pin.Playlist -> playPlaylist(pin)
+            is Pin.Item -> playItem(pin, way)
+            is Pin.Album -> playAlbum(pin, way)
+            is Pin.Playlist -> playPlaylist(pin, way)
             is Pin.Artist -> playArtist(pin)
             is Pin.Radio -> started(
                 radio.start(RadioSeed(pin.videoId, pin.playlistId, pin.params), pin.title),
                 "no radio"
             )
-            is Pin.Show -> playShow(pin)
+            is Pin.Show -> playShow(pin, way)
             is Pin.ShuffleAllOf -> replayShuffleAll(shuffleAll, pin)
             is Pin.ArtistSongs -> replayArtistSongs(artistShuffle, pin)
         }
@@ -66,21 +68,23 @@ class PinPlayer(
         return result
     }
 
-    private suspend fun playItem(pin: Pin.Item): PinPlayed {
+    private suspend fun playItem(pin: Pin.Item, way: ChosenWay): PinPlayed {
         val playable = pin.playable() ?: return PinPlayed.Failed("the pinned item cannot be rebuilt")
         val video = playable.offersListenAndWatch && playable.item.contentKind != MediaContentKind.MUSIC
-        return start(playable, showsPicture = video)
+        return start(playable, showsPicture = video, way = way)
     }
 
-    private suspend fun playAlbum(pin: Pin.Album): PinPlayed = when (val run = albumRun(catalogue, pin.browseId)) {
-        is PinRun.Failed -> PinPlayed.Failed(run.why)
-        is PinRun.Tracks -> playRun(if (pin.shuffled) run.items.shuffled() else run.items, run.group)
-    }
+    private suspend fun playAlbum(pin: Pin.Album, way: ChosenWay): PinPlayed =
+        when (val run = albumRun(catalogue, pin.browseId)) {
+            is PinRun.Failed -> PinPlayed.Failed(run.why)
+            is PinRun.Tracks -> playRun(if (pin.shuffled) run.items.shuffled() else run.items, run.group, way)
+        }
 
-    private suspend fun playPlaylist(pin: Pin.Playlist): PinPlayed = when (val run = playlistRun(playlists, pin)) {
-        is PinRun.Failed -> PinPlayed.Failed(run.why)
-        is PinRun.Tracks -> playRun(run.items, run.group)
-    }
+    private suspend fun playPlaylist(pin: Pin.Playlist, way: ChosenWay): PinPlayed =
+        when (val run = playlistRun(playlists, pin)) {
+            is PinRun.Failed -> PinPlayed.Failed(run.why)
+            is PinRun.Tracks -> playRun(run.items, run.group, way)
+        }
 
     private suspend fun playArtist(pin: Pin.Artist): PinPlayed {
         val seed = pin.browseId?.let { id -> (catalogue.artist(id) as? MusicResult.Success)?.value?.radio }
@@ -89,7 +93,7 @@ class PinPlayer(
         return started(radio.start(seed, pin.name), "the mix did not start")
     }
 
-    private suspend fun playShow(pin: Pin.Show): PinPlayed {
+    private suspend fun playShow(pin: Pin.Show, way: ChosenWay): PinPlayed {
         val stored = podcasts.observeEpisodes().first().filter { it.sourceId.value == pin.sourceId }
         val episodes = stored.ifEmpty { previewed(pin) }
         val newest = episodes.sortedByDescending { it.publishedAt }
@@ -100,7 +104,7 @@ class PinPlayer(
                 "newest unplayed=${newest?.title}",
         )
         val playable = newest?.toPlayableOrNull() ?: return PinPlayed.Failed("no unplayed episode")
-        return start(playable, showsPicture = false)
+        return start(playable, showsPicture = false, way = way)
     }
 
     private suspend fun previewed(pin: Pin.Show): List<MediaItem> {
@@ -108,16 +112,17 @@ class PinPlayer(
         return (podcasts.preview(url) as? PreviewResult.Loaded)?.episodes.orEmpty()
     }
 
-    private fun playRun(items: List<PlayableItem>, group: QueueGroup): PinPlayed {
+    private fun playRun(items: List<PlayableItem>, group: QueueGroup, way: ChosenWay): PinPlayed {
         if (items.isEmpty()) return PinPlayed.Failed("nothing in it to play")
-        queue.playAll(items, group)
+        queue.playAll(items, group, reason = PlayReason.Chosen(way))
         return PinPlayed.Started(showsPicture = false)
     }
 
-    private suspend fun start(playable: PlayableItem, showsPicture: Boolean): PinPlayed =
+    private suspend fun start(playable: PlayableItem, showsPicture: Boolean, way: ChosenWay): PinPlayed =
         if (queue.playNow(
                 playable,
-                quiet = true
+                quiet = true,
+                reason = PlayReason.Chosen(way),
             )
         ) {
             PinPlayed.Started(showsPicture)

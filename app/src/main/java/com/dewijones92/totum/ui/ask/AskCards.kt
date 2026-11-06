@@ -16,6 +16,8 @@ import com.dewijones92.totum.data.ask.AskCard
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ChosenWay
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.launch
@@ -35,14 +37,19 @@ internal fun LatestBody(card: AskCard, container: AppContainer) {
             pillar = playable.handle.pillar,
             onPlay = {
                 Diag.log("ask", "latest: play \"${playable.item.title}\" with the rest after it")
-                container.playbackQueue.playAll(items, group, startAt = playable.item.id)
+                container.playbackQueue.playAll(
+                    items,
+                    group,
+                    startAt = playable.item.id,
+                    reason = PlayReason.Chosen(ChosenWay.ASK_CARD),
+                )
             },
         )
     }
     Row(Modifier.padding(horizontal = 16.dp)) {
         FilledTonalButton(onClick = {
             Diag.log("ask", "latest: play all ${items.size} from \"${card.suggestion.title}\"")
-            container.playbackQueue.playAll(items, group)
+            container.playbackQueue.playAll(items, group, reason = PlayReason.Chosen(ChosenWay.ASK_CARD))
         }) { Text(stringResource(R.string.ask_play_all)) }
         OutlinedButton(onClick = {
             Diag.log("ask", "latest: queue all ${items.size} from \"${card.suggestion.title}\"")

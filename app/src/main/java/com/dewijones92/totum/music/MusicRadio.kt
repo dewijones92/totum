@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.innertube.music.RadioSeed
@@ -86,7 +87,11 @@ class MusicRadio(
             "radio",
             "\"${group.title}\" started with ${batch.songs.size} songs, continuation=${batch.continuation != null}",
         )
-        queue.playAll(batch.songs.wanted("start").map { it.toPlayable(source) }, group)
+        queue.playAll(
+            batch.songs.wanted("start").map { it.toPlayable(source) },
+            group,
+            reason = PlayReason.Radio(group.title),
+        )
         recent?.record(
             Pin.Radio(
                 seed.videoId,
@@ -141,7 +146,11 @@ class MusicRadio(
                 "radios (${batches.joinToString { it.size.toString() }}), tops up from the first, " +
                 "continuation=${continuation != null}; not added to Recently, where a pin replays one song's radio",
         )
-        queue.playAll(mixed.wanted("mix").map { it.toPlayable(MusicSources.radio(first.playlistId)) }, group)
+        queue.playAll(
+            mixed.wanted("mix").map { it.toPlayable(MusicSources.radio(first.playlistId)) },
+            group,
+            reason = PlayReason.Radio(group.title),
+        )
         return true
     }
 

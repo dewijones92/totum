@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
+import com.dewijones92.totum.domain.describe
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.playback.ActiveMode
 import com.dewijones92.totum.playback.PlaybackCacheReport
@@ -67,6 +68,7 @@ internal class DiagnosticSnapshot(
             put("playing.kind", state?.kind?.name ?: "-")
             put("playing.positionMs", state?.positionMs?.toString() ?: "-")
             put("playing.hasVideo", state?.hasVideo?.toString() ?: "-")
+            putWhyPlaying(state)
             // WHICH ROUTE, which a report could not previously answer: "it stopped" reads the same
             // whether the bytes came over SABR, HLS or a plain URL, and those have different causes
             // and different fixes. Derived from the trail rather than stored, so it cannot drift
@@ -108,6 +110,10 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.backup()) }
         runCatching { putAll(live.screen()) }
         runCatching { putAll(PlaybackCacheReport.state()) }
+    }
+
+    private fun MutableMap<String, String>.putWhyPlaying(state: PlaybackState?) {
+        put("playing.why", if (state == null) "-" else state.playReason?.describe() ?: "unrecorded")
     }
 
     private fun MutableMap<String, String>.putSettings(settings: AppPreferences.Settings) {

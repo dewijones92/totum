@@ -7,6 +7,7 @@ import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.listening
@@ -112,7 +113,7 @@ suspend fun PlaybackQueue.repeatGroupAfter(endedId: MediaItemId, reshuffle: Bool
             it.reshufflingRun(first, at, Random.Default, avoidFirst = endedId)
         }
     }
-    val played = playAt(first, rollBackOnRefusal = true)
+    val played = playAt(first, rollBackOnRefusal = true, reason = PlayReason.RepeatGroup(group?.title))
     Diag.log("queue", "repeat group: \"${group?.title}\" ended; back to its first item at $first -> played=$played")
     return played
 }
@@ -138,7 +139,7 @@ suspend fun PlaybackQueue.playFromTheTop(reshuffle: Boolean = false): Boolean {
     }
     val entries = state.value.entries
     val inKind = entries.indices.filter { keepTo.admits(entries[it].item) }
-    val played = inKind.any { playAt(it, rollBackOnRefusal = true) }
+    val played = inKind.any { playAt(it, rollBackOnRefusal = true, reason = PlayReason.RepeatQueue) }
     val kind = keepTo?.word ?: "any kind"
     Diag.log("queue", "from the top in $kind (${inKind.size} of ${entries.size}) -> played=$played")
     return played

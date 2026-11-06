@@ -18,12 +18,14 @@ import com.dewijones92.totum.data.queue.removing
 import com.dewijones92.totum.data.queue.removingAt
 import com.dewijones92.totum.data.queue.shuffledAfterCurrent
 import com.dewijones92.totum.data.queue.stampedSince
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayRoute
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.Refusal
@@ -356,6 +358,7 @@ class PlaybackQueue(
         group: QueueGroup? = null,
         quiet: Boolean = false,
         byYou: Boolean = true,
+        reason: PlayReason? = PlayReason.Chosen(ChosenWay.TAP),
     ): Boolean {
         // A repeat of the SAME item within a blink is never a real second request. A report
         // from Dewi's phone showed play-now firing seventeen times in twelve seconds, about
@@ -380,7 +383,8 @@ class PlaybackQueue(
         }
         return playAt(
             index,
-            quiet = quiet
+            quiet = quiet,
+            reason = reason,
         ).also { played -> if (played && byYou) pictureOffers.started(item, "play now") }
     }
 
@@ -401,6 +405,7 @@ class PlaybackQueue(
         byYou: Boolean = true,
         startAt: MediaItemId? = null,
         endsRepeatOne: Boolean = byYou,
+        reason: PlayReason = PlayReason.Chosen(ChosenWay.TAP),
     ) {
         if (items.isEmpty()) return
         if (group != null && endsRepeatOne && repeatOneOffForRun(group.title)) {
@@ -434,7 +439,7 @@ class PlaybackQueue(
                 // inserted after the cursor: it may be the entry the cursor is already on.
                 .also { now -> index = now.entries.indexOfFirst { it.item.item.id == start.item.id } }
         }
-        scope.launch { if (playAt(index) && byYou) pictureOffers.started(start, "play all") }
+        scope.launch { if (playAt(index, reason = reason) && byYou) pictureOffers.started(start, "play all") }
     }
 
     /**
@@ -443,20 +448,20 @@ class PlaybackQueue(
      * cursor is cleared, so the next advance restarts from the queue's beginning
      * rather than pretending the peeked item was a member.
      */
-    suspend fun peek(item: PlayableItem): Boolean {
+    suspend fun peek(item: PlayableItem, reason: PlayReason = PlayReason.Chosen(ChosenWay.PEEK)): Boolean {
         mutate("peek (the queue keeps its place)") {
             it.copy(currentIndex = NOTHING_PLAYING, anchor = it.current?.item?.item?.id ?: it.anchor)
         }
-        return play(item).also { played -> if (!played) refusals.announce(item.item) }
+        return play(item, reason = reason).also { played -> if (!played) refusals.announce(item.item) }
     }
 
     fun restorePlace(id: MediaItemId) = _state.value.takeIf { it.currentIndex < 0 && it.anchor == null }
         ?.let { mutate("the queue's place restored after a restart: after ${id.value}") { s -> s.copy(anchor = id) } }
 
     /** Plays the entry at [index]; nothing before it is discarded. */
-    fun jumpTo(index: Int, byYou: Boolean = true) {
+    fun jumpTo(index: Int, byYou: Boolean = true, reason: PlayReason = PlayReason.Chosen(ChosenWay.QUEUE_ROW)) {
         val tapped = _state.value.entries.getOrNull(index)?.item?.takeIf { byYou }
-        scope.launch { if (playAt(index)) pictureOffers.startedAt(tapped) }
+        scope.launch { if (playAt(index, reason = reason)) pictureOffers.startedAt(tapped) }
     }
 
     suspend fun playInsteadOfCurrent(entry: QueueEntry): Boolean {
@@ -483,7 +488,7 @@ class PlaybackQueue(
                 "queue",
                 "play-instead: nothing in the queue is playing or marked as playing, so \"$title\" plays where it is",
             )
-            return playAt(chosenAt)
+            return playAt(chosenAt, reason = PlayReason.Chosen(ChosenWay.QUEUE_ROW))
         }
         return playBefore(entry.item, playing.item, chosenAt, playingBefore)
     }
@@ -507,7 +512,7 @@ class PlaybackQueue(
                 "(${if (playingBefore != null) "playing" else "marked as playing, not loaded"}) " +
                 "moves to ${index + 1} and is up next",
         )
-        if (playAt(index)) return true
+        if (playAt(index, reason = PlayReason.Chosen(ChosenWay.QUEUE_ROW))) return true
         Diag.log(
             "queue",
             "play-instead: \"$title\" would not play — putting it back at $chosenAt and " +
@@ -677,7 +682,7 @@ class PlaybackQueue(
             return false
         }
         Diag.log("queue", "crossed over to index $index of ${_state.value.entries.size}; adopting it")
-        return playAt(index, quiet = true)
+        return playAt(index, quiet = true, reason = _state.value.entries[index].arrivedNext())
     }
 
     /**
@@ -696,7 +701,8 @@ class PlaybackQueue(
     internal suspend fun playAt(
         index: Int,
         rollBackOnRefusal: Boolean = false,
-        quiet: Boolean = rollBackOnRefusal
+        quiet: Boolean = rollBackOnRefusal,
+        reason: PlayReason?,
     ): Boolean {
         val entry = _state.value.entries.getOrNull(index) ?: return false
         val cursorBefore = _state.value.currentIndex
@@ -705,7 +711,7 @@ class PlaybackQueue(
         val attempt = if (quiet) null else refusals.begin(entry.item.item)
         var played = false
         try {
-            played = play(entry.item)
+            played = play(entry.item, reason = reason)
         } finally {
             attempt?.let { refusals.end(it, played) }
         }
@@ -782,7 +788,7 @@ class PlaybackQueue(
     private val modeSwitch = QueueModeSwitch(controller, {
         playingNow
     }, { playNow(it, byYou = false) }) { item, position, video ->
-        becameCurrent(item, fresh = true)
+        becameCurrent(item, fresh = true, reason = null)
         route(item, position, forceVideo = video)
     }
 
@@ -798,7 +804,7 @@ class PlaybackQueue(
      * routing is what re-resolves the URL: the queue holds the stable watch URL, never the
      * signed one that died.
      */
-    suspend fun replayCurrent(positionMs: Long): Boolean {
+    suspend fun replayCurrent(positionMs: Long, reason: PlayReason? = null): Boolean {
         val item = playingNow ?: return false
         if (decide(item).route.isFromDisk()) {
             forgetResolved(item.item.id)
@@ -807,7 +813,9 @@ class PlaybackQueue(
                 "replaying ${item.item.id.value} from the copy on disk at ${positionMs}ms — no fresh stream " +
                     "needed, so no extraction first",
             )
-            return rescueIntent.keeping(item.item.id, "replay") { play(item, positionMs, retry = true) }
+            return rescueIntent.keeping(item.item.id, "replay") {
+                play(item, positionMs, retry = true, reason = reason)
+            }
         }
         // Recovery is the only caller, and it exists to get a FRESH stream — so the cached
         // resolution has to go first. Without this the replay hits the resolver cache and asks
@@ -826,7 +834,7 @@ class PlaybackQueue(
         return rescueIntent.keeping(item.item.id, "replay") {
             runCatching { refresh(item) }
                 .onFailure { Diag.warn("playback", "could not refresh ${item.item.id.value} before replaying", it) }
-            play(item, positionMs, retry = true)
+            play(item, positionMs, retry = true, reason = reason)
         }
     }
 
@@ -866,19 +874,21 @@ class PlaybackQueue(
         retry: Boolean = false,
         streamRefused: Boolean = false,
         forceAudio: Boolean = false,
+        reason: PlayReason? = null,
     ): Boolean {
         // Recorded before routing, so a peek and a queued play are equally "playing".
-        becameCurrent(queued, fresh = !retry)
+        becameCurrent(queued, fresh = !retry, reason = reason)
         return route(queued, startPositionMs, streamRefused, forceAudio)
     }
 
     private var plays = 0L
     private var armedAtPlay: Long? = null
 
-    private fun becameCurrent(queued: PlayableItem, fresh: Boolean) {
+    private fun becameCurrent(queued: PlayableItem, fresh: Boolean, reason: PlayReason?) {
         plays++
         refusals.supersededBy(queued.item.id)
         _nowPlaying.value = queued
+        if (reason != null) controller.setPlayReason(queued.item.id, reason)
         if (fresh) {
             rescueIntent.freshPlay(queued.item.id)
             _freshStarts.tryEmit(queued.item.id)

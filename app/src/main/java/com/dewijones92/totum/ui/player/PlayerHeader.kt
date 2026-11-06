@@ -19,7 +19,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -32,6 +36,8 @@ import com.dewijones92.totum.ui.cast.CastButton
 import com.dewijones92.totum.ui.cast.ScreenButton
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
+import com.dewijones92.totum.ui.common.WHY_PLAYING_TITLE_TAG
+import com.dewijones92.totum.ui.common.WhyIsThisPlayingDialog
 import com.dewijones92.totum.ui.common.mediaDateText
 import com.dewijones92.totum.ui.common.mediaFacts
 import com.dewijones92.totum.ui.common.shownAs
@@ -53,6 +59,8 @@ import kotlin.time.Duration
 @Composable
 internal fun TitleBlock(state: PlaybackState) {
     val links = LocalPlayerLinks.current
+    var showWhy by remember { mutableStateOf(false) }
+    if (showWhy) WhyIsThisPlayingDialog(state, "full player") { showWhy = false }
     Column(modifier = Modifier.fillMaxWidth()) {
         state.artist?.let {
             Text(
@@ -65,7 +73,10 @@ internal fun TitleBlock(state: PlaybackState) {
         Text(
             text = state.title,
             style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(top = 2.dp),
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .clickable(onClickLabel = stringResource(R.string.why_playing_title)) { showWhy = true }
+                .testTag(WHY_PLAYING_TITLE_TAG),
         )
         links.album?.let {
             Text(

@@ -1,7 +1,8 @@
 package com.dewijones92.totum.ui.common
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +51,7 @@ import com.dewijones92.totum.ui.cast.CastStrip
  * Persistent now-playing bar shown above the bottom navigation whenever
  * something is queued — identical for podcast episodes and videos.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MiniPlayerBar(
     state: PlaybackState,
@@ -57,10 +63,13 @@ fun MiniPlayerBar(
 ) {
     val live = LocalLivePosition.current
     val buffering = stringResource(R.string.buffering)
+    var menuOpen by remember { mutableStateOf(false) }
+    var showWhy by remember { mutableStateOf(false) }
+    if (showWhy) WhyIsThisPlayingDialog(state, "mini player") { showWhy = false }
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onExpand),
+            .combinedClickable(onClick = onExpand, onLongClick = { menuOpen = true }),
         color = Color.Transparent,
     ) {
         Column {
@@ -75,6 +84,7 @@ fun MiniPlayerBar(
                 // rather than taking a slot of its own.
                 ArtworkWithPillarBadge(state)
                 NowPlayingText(state, starting, modifier = Modifier.weight(1f))
+                WhyIsThisPlayingMenu(menuOpen, onDismiss = { menuOpen = false }, onAsk = { showWhy = true })
                 SwitchListeningButton("mini player", Modifier.size(COMPACT_BUTTON))
                 ExploreToggle("mini player", Modifier.size(COMPACT_BUTTON))
                 if (onSkipNext != null) SkipPreviousButton(Modifier.size(COMPACT_BUTTON))

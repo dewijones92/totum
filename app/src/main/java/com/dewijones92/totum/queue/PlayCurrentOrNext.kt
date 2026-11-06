@@ -1,10 +1,16 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.ChosenWay
+import com.dewijones92.totum.domain.PlayReason
 
 suspend fun PlaybackQueue.playCurrentOrNext(why: String): Boolean {
     val snapshot = state.value
-    val played = if (snapshot.currentIndex >= 0) playAt(snapshot.currentIndex) else playNextInQueue()
+    val played = if (snapshot.currentIndex >= 0) {
+        playAt(snapshot.currentIndex, reason = PlayReason.Chosen(ChosenWay.TAP))
+    } else {
+        playNextInQueue()
+    }
     Diag.log(
         "queue",
         "$why: played=$played from " + if (snapshot.currentIndex >= 0) {

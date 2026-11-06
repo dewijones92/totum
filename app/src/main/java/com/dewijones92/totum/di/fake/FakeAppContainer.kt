@@ -54,6 +54,7 @@ import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
 import com.dewijones92.totum.data.update.ReleaseLookup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.NoReconciledAccountProgress
 import com.dewijones92.totum.domain.PlayState
@@ -377,7 +378,7 @@ class FakeAppContainer(
             playbackQueue,
             playbackController,
             recentActions,
-            { pinPlayer.play(it, "music toggle") },
+            { pinPlayer.play(it, "music toggle", ChosenWay.SWITCH) },
             applicationScope,
         )
     }

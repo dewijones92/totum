@@ -74,7 +74,7 @@ class APeekKeepsTheQueuesPlaceTest {
     fun `play next during a peek goes straight after the place the queue left`() = runTest(dispatcher) {
         val (queue, work) = queueOf(item("a", false), item("b", false), item("c", false), item("d", false))
         advanceUntilIdle()
-        queue.playAt(2)
+        queue.playAt(2, reason = null)
         advanceUntilIdle()
         queue.peek(item("peeked", false))
         advanceUntilIdle()
@@ -89,7 +89,7 @@ class APeekKeepsTheQueuesPlaceTest {
     fun `shuffling up next during a peek leaves what was already played alone`() = runTest(dispatcher) {
         val (queue, work) = queueOf(*listOf("a", "b", "c", "d", "e", "f", "g").map { item(it, false) }.toTypedArray())
         advanceUntilIdle()
-        queue.playAt(2)
+        queue.playAt(2, reason = null)
         advanceUntilIdle()
         queue.peek(item("peeked", false))
         advanceUntilIdle()
