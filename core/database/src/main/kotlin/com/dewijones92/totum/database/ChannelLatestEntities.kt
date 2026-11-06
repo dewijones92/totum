@@ -58,7 +58,7 @@ public class RoomChannelLatestStore(private val dao: ChannelLatestDao) : Channel
         title = latest?.title,
         author = latest?.author,
         thumbnailUrl = latest?.thumbnailUrl?.value,
-        mediaUrl = latest?.mediaUrl?.value,
+        mediaUrl = latest?.mediaUrl?.storedValue(),
         publishedAtEpochMs = latest?.publishedAt?.toEpochMilli(),
     )
 
@@ -73,7 +73,7 @@ public class RoomChannelLatestStore(private val dao: ChannelLatestDao) : Channel
                 duration = null,
                 author = author,
                 thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
-                mediaUrl = mediaUrl?.let(HttpUrl::parse),
+                mediaUrl = mediaUrl?.let(::scrubbedRead)?.let(HttpUrl::parse),
                 sourceUrl = channelUrl,
             )
         } else {

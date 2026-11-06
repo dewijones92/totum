@@ -24,3 +24,7 @@ is read, `typeAndHandle()` and `HttpUrl.storedValue()` strip them when a row is 
 downloads share them), and `BackupCodec` strips the whole file on `encode` and on `decode`, so restoring an old backup
 cleans it. No SQL migration and no schema bump: a stored row is cleaned the next time its table is written. A strip is
 counted and logged at 1, 2, 4, 8 … links per launch (`link` tag), never per row.
+
+Consistency sweep 2026-11-06: the scrub did not cover every table that holds a link. The channel-latest rows
+(`ChannelLatestEntities`), the cached feed items (`RoomFeedCache`) and podcast episodes (`RoomSubscriptionStore`) now
+strip `mediaUrl` on read and write through the same `scrubbedRead` and `storedValue`.

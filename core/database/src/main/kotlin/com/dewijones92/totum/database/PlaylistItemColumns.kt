@@ -106,4 +106,4 @@ internal fun PlayHandle.typeAndHandle(): Pair<String, String?> =
 
 internal fun HttpUrl.storedValue(): String = LegacyLinkToken.strip(value, "a link being stored")
 
-private fun scrubbedRead(link: String): String = LegacyLinkToken.strip(link, "stored rows being read")
+internal fun scrubbedRead(link: String): String = LegacyLinkToken.strip(link, "stored rows being read")

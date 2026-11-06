@@ -96,7 +96,7 @@ public class RoomSubscriptionStore(
         publisher = publisher,
         description = description,
         thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
-        mediaUrl = mediaUrl?.let(HttpUrl::parse),
+        mediaUrl = mediaUrl?.let(::scrubbedRead)?.let(HttpUrl::parse),
         chapters = ChapterJson.decode(chapters),
     )
 
@@ -110,7 +110,7 @@ public class RoomSubscriptionStore(
         durationSeconds = duration?.inWholeSeconds,
         description = description,
         thumbnailUrl = thumbnailUrl?.value,
-        mediaUrl = mediaUrl?.value,
+        mediaUrl = mediaUrl?.storedValue(),
         chapters = ChapterJson.encode(chapters),
     )
 }

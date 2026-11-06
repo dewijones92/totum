@@ -47,7 +47,7 @@ public class RoomFeedCache(
         duration = durationSeconds?.seconds,
         author = author,
         thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
-        mediaUrl = mediaUrl?.let(HttpUrl::parse),
+        mediaUrl = mediaUrl?.let(::scrubbedRead)?.let(HttpUrl::parse),
         viewsText = viewsText,
         membersOnly = membersOnly,
         contentKind = runCatching { MediaContentKind.valueOf(contentKind) }
@@ -64,7 +64,7 @@ public class RoomFeedCache(
         title = title,
         author = author,
         thumbnailUrl = thumbnailUrl?.value,
-        mediaUrl = mediaUrl?.value,
+        mediaUrl = mediaUrl?.storedValue(),
         publishedText = publishedText,
         viewsText = viewsText,
         durationSeconds = duration?.inWholeSeconds,
