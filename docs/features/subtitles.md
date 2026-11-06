@@ -3,7 +3,7 @@ title: Subtitles and captions
 kind: feature
 status: shipped
 area: playback
-updated: 2026-10-14
+updated: 2026-11-06
 ---
 
 # Subtitles
@@ -11,7 +11,8 @@ updated: 2026-10-14
 **Ask (Dewi):** "later lets also do subtitles/captions things".
 
 Caption tracks are extracted with the video, offered in a menu on the video overlay, and
-rendered over the picture. Off by default; auto-generated tracks are labelled as such.
+rendered over the picture. On in English by default; switching them off sticks across items and restarts until
+turned on ([ADR 123](../adr/0123-subtitles-off-stays-off.md)); auto-generated tracks are labelled as such.
 
 ## What it's built on — and what it deliberately doesn't do
 
@@ -95,11 +96,19 @@ the true tracks ("English" author-provided, plus auto-generated Dutch/French/Ger
 Portuguese/Spanish), selecting English logged `[subtitles] language -> en`, and the cue
 **"(light music)"** rendered over the video.
 
+## The choice is stored (2026-11-06)
+
+`CaptionChoice` (on or off, plus the language) lives in `AppPreferences.Settings.captions` through the `CaptionStore`
+port, so off stays off across items, gapless hand-overs and app restarts until the person turns captions on in the CC
+menu ([ADR 123](../adr/0123-subtitles-off-stays-off.md), superseding the "off is for one item" part of ADR 78). It
+rides in the Drive backup, shows in a report as `settings.captions`, and the PC screen follows it
+([ADR 81](../adr/0081-the-pc-screen-is-a-page-the-phone-serves.md)). Log lines: `[subtitles] off on <id>, and off for
+every item and every launch until turned on`, `captions saved: on|off in <language>`.
+
 ## Not done yet
 
 - **Podcast transcripts** (`podcast:transcript`). The seam is deliberately pillar-neutral
   so this is a parser plus a feed field, not a redesign.
-- **Remembering the choice** across items — currently captions default to off each time.
 - Styling options (size, background). One legible default for now.
 
 ## What the trail now says (2026-10-14)

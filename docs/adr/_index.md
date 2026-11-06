@@ -93,7 +93,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 75 | [A locked download is kept until it is unlocked](0075-a-locked-download-is-kept-until-unlocked.md) | Accepted |
 | 76 | [Kid lock pins the app to a bare full-screen video](0076-kid-lock-pins-the-app-to-a-bare-video.md) | Accepted |
 | 77 | [A download asks sound or video, and which quality](0077-a-download-asks-sound-or-video-and-quality.md) | Accepted |
-| 78 | [Captions are on in English, off is for one item, and a file's own tracks are offered](0078-captions-are-on-in-english-and-off-is-for-one-item.md) | Accepted |
+| 78 | [Captions are on in English, off is for one item, and a file's own tracks are offered](0078-captions-are-on-in-english-and-off-is-for-one-item.md) | Partly superseded by 123 |
 | 79 | [A star for anything, kept here, and a Like on YouTube for YouTube items](0079-a-star-for-anything-likes-youtube-items.md) | Accepted |
 | 80 | [Choose episodes to download, and an interrupted download starts again by itself](0080-choose-episodes-to-download-and-resume-interrupted-ones.md) | Accepted |
 | 81 | [The PC screen is a page the phone serves, found through a Pi bookmark](0081-the-pc-screen-is-a-page-the-phone-serves.md) | Accepted |
@@ -138,4 +138,5 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 120 | [A flight recorder, and a reason for every pause and cast drop](0120-a-flight-recorder-and-reasons-for-every-pause.md) | Accepted |
 | 121 | [The AI service decides each caller's tools](0121-the-ai-service-decides-each-callers-tools.md) | Accepted |
 | 122 | [A cast sends the best picture the target can show, and steps down itself](0122-a-cast-sends-the-best-rung-and-steps-down-itself.md) | Accepted |
+| 123 | [Subtitles off stays off until turned on](0123-subtitles-off-stays-off.md) | Accepted |
 | 124 | [Work apps are snoozed outside work hours, by a notification listener](0124-work-apps-are-snoozed-outside-work-hours.md) | Accepted |

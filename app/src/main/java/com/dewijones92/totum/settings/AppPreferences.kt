@@ -12,6 +12,8 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
 import com.dewijones92.totum.domain.decodeSourceSkips
 import com.dewijones92.totum.domain.encodeSourceSkips
+import com.dewijones92.totum.playback.CaptionChoice
+import com.dewijones92.totum.playback.DEFAULT_CAPTION_LANGUAGE
 import com.dewijones92.totum.playback.SilenceMode
 import com.dewijones92.totum.playback.SpeechGate
 import kotlinx.coroutines.CoroutineScope
@@ -98,6 +100,7 @@ interface AppPreferences {
     fun setExploreCap(cap: Int)
     fun setRewindOnResume(enabled: Boolean)
     fun setSilentTailEnds(enabled: Boolean)
+    fun setCaptions(choice: CaptionChoice)
     fun setInboxAll(enabled: Boolean)
     fun setInboxSource(source: SourceId, enabled: Boolean)
     fun setGroupNotifications(group: String, enabled: Boolean)
@@ -173,6 +176,7 @@ interface AppPreferences {
         val exploreCap: Int = 0,
         val rewindOnResume: Boolean = true,
         val silentTailEnds: Boolean = true,
+        val captions: CaptionChoice = CaptionChoice(),
         val inboxAll: Boolean = false,
         val inboxSources: Set<String> = emptySet(),
         val quietGroups: Set<String> = emptySet(),
@@ -236,6 +240,10 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             exploreCap = prefs.getInt(KEY_EXPLORE_CAP, 0),
             rewindOnResume = prefs.getBoolean(KEY_REWIND, true),
             silentTailEnds = prefs.getBoolean(KEY_SILENT_TAIL, true),
+            captions = CaptionChoice(
+                on = prefs.getBoolean(KEY_CAPTIONS_ON, true),
+                language = prefs.getString(KEY_CAPTION_LANGUAGE, null) ?: DEFAULT_CAPTION_LANGUAGE,
+            ),
             inboxAll = prefs.getBoolean(KEY_INBOX_ALL, false),
             inboxSources = prefs.getStringSet(KEY_INBOX_SOURCES, null).orEmpty().toSet(),
             quietGroups = prefs.getStringSet(KEY_QUIET_GROUPS, null).orEmpty().toSet(),
@@ -371,6 +379,12 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             { putBoolean(KEY_SILENT_TAIL, enabled) }
         ) { it.copy(silentTailEnds = enabled) }
 
+    override fun setCaptions(choice: CaptionChoice): Unit =
+        change("captions", "${if (choice.on) "on" else "off"} in ${choice.language}", {
+            putBoolean(KEY_CAPTIONS_ON, choice.on)
+            putString(KEY_CAPTION_LANGUAGE, choice.language)
+        }) { it.copy(captions = choice) }
+
     override fun setInboxAll(enabled: Boolean): Unit =
         change("inboxAll", enabled, { putBoolean(KEY_INBOX_ALL, enabled) }) { it.copy(inboxAll = enabled) }
 
@@ -452,6 +466,8 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_EXPLORE_CAP = "explore_cap"
         const val KEY_REWIND = "rewind_on_resume"
         const val KEY_SILENT_TAIL = "silent_tail_ends"
+        const val KEY_CAPTIONS_ON = "captions_on"
+        const val KEY_CAPTION_LANGUAGE = "caption_language"
         const val KEY_INBOX_ALL = "inbox_all"
         const val KEY_INBOX_SOURCES = "inbox_sources"
         const val KEY_QUIET_GROUPS = "quiet_groups"
@@ -499,6 +515,7 @@ class InMemoryAppPreferences : AppPreferences {
     override fun setExploreCap(cap: Int) = _settings.update { it.copy(exploreCap = cap) }
     override fun setRewindOnResume(enabled: Boolean) = _settings.update { it.copy(rewindOnResume = enabled) }
     override fun setSilentTailEnds(enabled: Boolean) = _settings.update { it.copy(silentTailEnds = enabled) }
+    override fun setCaptions(choice: CaptionChoice) = _settings.update { it.copy(captions = choice) }
     override fun setInboxAll(enabled: Boolean) = _settings.update { it.copy(inboxAll = enabled) }
     override fun setInboxSource(source: SourceId, enabled: Boolean) = _settings.update {
         it.copy(inboxSources = if (enabled) it.inboxSources + source.value else it.inboxSources - source.value)

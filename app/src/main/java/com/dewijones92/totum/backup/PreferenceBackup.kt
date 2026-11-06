@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.decodeSourceSkips
 import com.dewijones92.totum.domain.encodeSourceSkips
+import com.dewijones92.totum.playback.CaptionChoice
 import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.PlaybackMode
@@ -35,6 +36,8 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
                 KEY_EXPLORE_CAP to exploreCap.toString(),
                 KEY_REWIND to rewindOnResume.toString(),
                 KEY_SILENT_TAIL to silentTailEnds.toString(),
+                KEY_CAPTIONS_ON to captions.on.toString(),
+                KEY_CAPTION_LANGUAGE to captions.language,
                 KEY_INBOX_ALL to inboxAll.toString(),
                 KEY_INBOX_SOURCES to inboxSources.sorted().joinToString("\n"),
                 KEY_QUIET_GROUPS to quietGroups.sorted().joinToString("\n"),
@@ -63,6 +66,15 @@ internal fun AppPreferences.asBackupSettings(): BackupService.BackupSettings =
             values[KEY_EXPLORE_CAP]?.toIntOrNull()?.let(::setExploreCap)
             values[KEY_REWIND]?.toBooleanStrictOrNull()?.let(::setRewindOnResume)
             values[KEY_SILENT_TAIL]?.toBooleanStrictOrNull()?.let(::setSilentTailEnds)
+            if (values.containsKey(KEY_CAPTIONS_ON) || values.containsKey(KEY_CAPTION_LANGUAGE)) {
+                val now = settings.value.captions
+                setCaptions(
+                    CaptionChoice(
+                        on = values[KEY_CAPTIONS_ON]?.toBooleanStrictOrNull() ?: now.on,
+                        language = values[KEY_CAPTION_LANGUAGE]?.takeIf { it.isNotBlank() } ?: now.language,
+                    ),
+                )
+            }
             values[KEY_INBOX_ALL]?.toBooleanStrictOrNull()?.let(::setInboxAll)
             values[KEY_INBOX_SOURCES]?.lines()?.filter { it.isNotBlank() }?.forEach {
                 setInboxSource(
@@ -93,6 +105,8 @@ private const val KEY_EXPLORE = "exploreByDefault"
 private const val KEY_EXPLORE_CAP = "exploreCap"
 private const val KEY_REWIND = "rewindOnResume"
 private const val KEY_SILENT_TAIL = "silentTailEnds"
+private const val KEY_CAPTIONS_ON = "captionsOn"
+private const val KEY_CAPTION_LANGUAGE = "captionLanguage"
 private const val KEY_INBOX_ALL = "inboxAll"
 private const val KEY_QUIET_GROUPS = "quietGroups"
 private const val KEY_YOUTUBE_ALERTS = "youTubeUploadAlerts"

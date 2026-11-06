@@ -8,30 +8,47 @@ class CaptionPreferenceTest {
 
     @Test
     fun `captions are on in English for anything, until told otherwise`() {
-        val captions = CaptionPreference()
+        val captions = CaptionPreference(InMemoryCaptionStore())
 
-        assertEquals("en", captions.languageFor("a"))
-        assertEquals("en", captions.languageFor("b"))
+        assertEquals("en", captions.languageFor())
     }
 
     @Test
-    fun `switching captions off lasts only for the item it was switched off on`() {
-        val captions = CaptionPreference()
+    fun `switching captions off stays off for every item until they are turned on`() {
+        val captions = CaptionPreference(InMemoryCaptionStore())
 
-        captions.choose("a", null)
+        captions.choose(null)
 
-        assertNull(captions.languageFor("a"))
-        assertEquals("the next item has them back", "en", captions.languageFor("b"))
+        assertNull(captions.languageFor())
+        assertNull("the next item has them off too", captions.languageFor())
+    }
+
+    @Test
+    fun `off survives a restart, because it is read back from the store`() {
+        val store = InMemoryCaptionStore()
+        CaptionPreference(store).choose(null)
+
+        assertNull(CaptionPreference(store).languageFor())
+    }
+
+    @Test
+    fun `turning them on again brings back the last language`() {
+        val captions = CaptionPreference(InMemoryCaptionStore())
+
+        captions.choose("fr")
+        captions.choose(null)
+        captions.choose("fr")
+
+        assertEquals("fr", captions.languageFor())
     }
 
     @Test
     fun `a chosen language carries on to the next item`() {
-        val captions = CaptionPreference()
+        val captions = CaptionPreference(InMemoryCaptionStore())
 
-        captions.choose("a", null)
-        captions.choose("a", "fr")
+        captions.choose(null)
+        captions.choose("fr")
 
-        assertEquals("fr", captions.languageFor("a"))
-        assertEquals("fr", captions.languageFor("b"))
+        assertEquals("fr", captions.languageFor())
     }
 }

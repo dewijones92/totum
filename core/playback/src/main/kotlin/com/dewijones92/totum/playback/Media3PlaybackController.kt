@@ -77,6 +77,7 @@ public class Media3PlaybackController(
     private val sourceSkips: StateFlow<Map<SourceId, SourceSkips>> = MutableStateFlow(emptyMap()),
     private val silentTailEnds: StateFlow<Boolean> = MutableStateFlow(true),
     private val speechGates: StateFlow<SpeechGate> = MutableStateFlow(SpeechGate.OFF),
+    captionStore: CaptionStore = InMemoryCaptionStore(),
     private val wallClock: () -> Long = System::currentTimeMillis,
 ) : PlaybackController {
 
@@ -135,7 +136,7 @@ public class Media3PlaybackController(
     private val pendingCommands = mutableListOf<(MediaController) -> Unit>()
     private var itemContext: ItemContext = ItemContext.NONE
     private var requestedContext: ItemContext = ItemContext.NONE
-    private val captions = CaptionPreference()
+    private val captions = CaptionPreference(captionStore)
 
     @Volatile
     private var castDeviceName: String? = null
@@ -889,15 +890,15 @@ public class Media3PlaybackController(
     override fun setSubtitleLanguage(languageCode: String?) {
         withController { controller ->
             val id = controller.currentMediaItem?.mediaId
-            captions.choose(id, languageCode)
+            captions.choose(languageCode)
             applySubtitleLanguage(controller)
             _state.value = controller.currentPlaybackState()
             Diag.log(
                 "subtitles",
                 if (languageCode == null) {
-                    "off for $id only; the next item has them in ${captions.languageFor(null)}"
+                    "off on $id, and off for every item and every launch until turned on"
                 } else {
-                    "language -> $languageCode, for this and every next item"
+                    "language -> $languageCode, for this and every next item and launch"
                 },
             )
         }
@@ -918,7 +919,7 @@ public class Media3PlaybackController(
         audioOnly: Boolean = controller.currentMediaItem?.requestMetadata?.extras?.getBoolean(EXTRA_AUDIO_ONLY) == true,
         itemId: String? = controller.currentMediaItem?.mediaId,
     ) {
-        val language = captions.languageFor(itemId)
+        val language = captions.languageFor()
         val parameters = controller.trackSelectionParameters
         val textOff = language == null || audioOnly
         if (parameters.preferredTextLanguages.firstOrNull() != language ||
@@ -1315,7 +1316,7 @@ public class Media3PlaybackController(
             skipSegments = itemContext.skipSegments,
             subtitles = itemContext.subtitles,
             subtitleChoices = subtitleChoices(itemContext.subtitles, currentTracks.textTracksSeen()),
-            subtitleLanguage = captions.languageFor(current.mediaId),
+            subtitleLanguage = captions.languageFor(),
             skipSilence = tuning.skipSilence,
             volumeBoost = volumeBoost,
             chapters = itemContext.chapters,

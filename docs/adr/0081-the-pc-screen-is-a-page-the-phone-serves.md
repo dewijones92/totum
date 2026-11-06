@@ -36,7 +36,7 @@ content. He chose "the Pi bookmark finds the phone".
   session between it and the phone's player exactly as Cast does (`switchTo`). The manifest it hands over is the TV's
   (`CastStreams.urlFor`); the page loads it from its own origin, so the formats follow the screen's codecs
   (`screenProfile`). Captions follow the phone as they do on a TV: the session's track-selection parameters
-  (`CaptionPreference`, ADR 78) reach `ScreenPlayer`, which sends the language (or off) with every load and on every
+  (`CaptionPreference`, ADR 78; off stays off since ADR 123) reach `ScreenPlayer`, which sends the language (or off) with every load and on every
   change, and the page selects that text track of the stream.
 - **The UI:** a 🖥️ button beside Cast in the player's top bar and on the "📺 Casting to …" card lists the screens
   that have said hello in the last minute, and "Back to the phone".

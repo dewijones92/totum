@@ -1,13 +1,13 @@
 ---
 title: Captions are on in English, off is for one item, and a file's own tracks are offered
 kind: adr
-status: accepted
-updated: 2026-10-23
+status: superseded by 0123 on "off is for one item"; the rest stands
+updated: 2026-11-06
 ---
 
 # 78. Captions are on in English, off is for one item, and a file's own tracks are offered
 
-- Status: Accepted
+- Status: Partly superseded by [ADR 123](0123-subtitles-off-stays-off.md): off now stays off across items and restarts. The rest stands.
 - Date: 2026-10-23
 
 ## Context
@@ -24,8 +24,8 @@ its caption files, so when the player took that copy over (every gapless hand-ov
 
 ## Decision
 
-- `CaptionPreference` (core/playback): English by default; **off applies to the item it was switched off on** and the
-  next item has captions again; a language chosen in the menu carries on to every next item. Re-applied on every play
+- `CaptionPreference` (core/playback): English by default; ~~**off applies to the item it was switched off on** and the
+  next item has captions again~~ (superseded: off now stays off, ADR 123); a language chosen in the menu carries on to every next item. Re-applied on every play
   and on every media-item transition, so gapless hand-overs get it too. Session-level, not stored.
 - The menu lists `PlaybackState.subtitleChoices`: the fetched tracks, then the file's own text tracks from the player
   (`subtitleChoices`, deduplicated by base language, "English (in the file)"; one with no language is "Subtitles (in
