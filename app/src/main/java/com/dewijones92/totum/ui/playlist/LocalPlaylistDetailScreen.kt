@@ -17,14 +17,17 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,6 +43,7 @@ import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
+import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShapeControl
@@ -67,6 +71,7 @@ fun LocalPlaylistDetailScreen(
     var renaming by remember { mutableStateOf(false) }
     val listFilter = rememberListFilter("local-playlist")
     val shape = rememberListShape("local-playlist")
+    OfferUndoOfRemovals(viewModel)
 
     if (deleted) onBack()
 
@@ -139,7 +144,7 @@ private fun PlaylistBody(
                     BulkAction(
                         R.string.playlist_remove_from,
                         confirm = R.plurals.playlist_remove_confirm
-                    ) { chosen.forEach { viewModel.remove(it.item.id) } }
+                    ) { viewModel.removeAll(chosen.map { it.item.id }) }
                 )
             },
         ) {
@@ -199,6 +204,23 @@ private fun DetailHeader(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun OfferUndoOfRemovals(viewModel: LocalPlaylistDetailViewModel) {
+    val offers = LocalSnackbarOffers.current
+    val resources = LocalResources.current
+    LaunchedEffect(viewModel, offers) {
+        if (offers == null) return@LaunchedEffect
+        viewModel.removed.collect { gone ->
+            offers.offer(
+                resources.getQuantityString(R.plurals.playlist_removed_count, gone.size, gone.size),
+                resources.getString(R.string.undo),
+                "playlist",
+                SnackbarDuration.Long,
+            ) { viewModel.restore(gone) }
         }
     }
 }

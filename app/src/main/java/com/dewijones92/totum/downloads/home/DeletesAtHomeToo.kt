@@ -11,6 +11,8 @@ class DeletesAtHomeToo(
     private val home: () -> HomeDownloads,
 ) : DownloadManager by inner {
 
+    override suspend fun deleteSoon(id: MediaItemId): Unit = delete(id)
+
     override suspend fun delete(id: MediaItemId) {
         inner.delete(id)
         val kept = inner.observe(id).first() is DownloadState.Downloaded

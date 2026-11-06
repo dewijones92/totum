@@ -56,7 +56,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | built 2026-11-06, Batch A; tests and a device run to follow |
 | [Search in Settings](settings-search.md) | settings | low | built 2026-11-06, Batch A; tests to follow |
 | [Update straight from the banner](in-app-updater.md) | app | high | built 2026-11-06, Batch A (ADR 130); tests and a device run to follow |
-| [Undo after every remove](undo-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
+| [Undo after every remove](undo-everywhere.md) | app | medium | built 2026-11-06, Batch A; tests to follow |
 | [Offline at a glance](offline-playable-chip.md) | queue | medium | decided 2026-11-06, Batch A |
 | [A daily mobile-data budget](mobile-data-budget.md) | playback | medium | built 2026-11-06, Batch A |
 | [Backups are test-read weekly](backup-checked.md) | backup | medium | built 2026-11-06, Batch A |

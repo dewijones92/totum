@@ -130,7 +130,7 @@ class PodcastsViewModel(
         )
 
     fun deleteDownload(episode: MediaItem) {
-        viewModelScope.launch { downloads.delete(episode.id) }
+        viewModelScope.launch { downloads.deleteSoon(episode.id) }
     }
 
     fun subscribe(rawUrl: String, report: (Subscribing) -> Unit = { subscribing.value = it }) {

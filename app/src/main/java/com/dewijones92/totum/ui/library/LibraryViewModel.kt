@@ -237,7 +237,7 @@ class LibraryViewModel(
     }
 
     fun delete(entry: Entry) {
-        viewModelScope.launch { downloads.delete(entry.item.id) }
+        viewModelScope.launch { downloads.deleteSoon(entry.item.id) }
     }
 
     /** Stops one download that is still running, dropping its partial file. */

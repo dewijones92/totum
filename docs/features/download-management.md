@@ -248,3 +248,12 @@ old copy back and says so ("the new download failed (…); the sound copy is kep
 the failure. Before, both shared one path: the record was overwritten at the start, and a cancel or failure lost the
 copy.
 
+## Deleting a download can be undone (2026-11-06)
+
+A delete from a row, a sheet, the Library or a multi-select does not touch the file at once. `PendingDownloadDeletes`
+(`app/…/downloads/`, the outermost `DownloadManager`) hides the item from every download flow, says so on the shell's
+snackbar with Undo (a batch is one line), and removes the file 12 s later. The pending ids are kept in their own prefs, so
+an app that dies inside the window finishes the delete at the next start and nothing is left hidden for ever. Undo
+brings it back with its file; a new download of the item also cancels the pending delete. A locked download is not
+hidden: the usual "unlock it?" question is asked. The call is `DownloadManager.deleteSoon`; plain `delete` is
+unchanged for clean-up cards, failed rows and "clear failed", which are already confirmed.

@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -58,12 +60,14 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
+import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.RecentChips
 import com.dewijones92.totum.ui.common.RecentSearchChips
 import com.dewijones92.totum.ui.common.RecentSearches
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rememberRecentSearches
+import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
 import com.dewijones92.totum.ui.music.AlbumRow
 import com.dewijones92.totum.ui.music.ArtistRow
 import com.dewijones92.totum.ui.search.BookHitRow
@@ -86,6 +90,7 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
         factory = SearchViewModel.factory(container, SearchScope.EVERYTHING),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
     val recents = rememberRecentSearches("ask")
     val openSearch = LocalOpenSearch.current
     val allCopies = { card: AskCard ->
@@ -97,6 +102,15 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
         search.search(card.suggestion.searchWords)
         openSearch?.invoke()
     }
+    val forgetWithUndo = rememberRemoveWithUndo(
+        offers = LocalSnackbarOffers.current,
+        undoLabel = stringResource(R.string.undo),
+        tag = "ask",
+        duration = SnackbarDuration.Long,
+        removedMessage = { chat: SavedChat -> resources.getString(R.string.ask_chat_forgotten, chat.title) },
+        remove = { id: String -> viewModel.forget(id) },
+        restore = viewModel::unforget,
+    )
     TorrentMenuSheet(search, container)
     CompositionLocalProvider(
         LocalTorrentProgress provides rememberTorrentProgress(search),
@@ -109,7 +123,7 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
                 return@Column
             }
             if (state.turns.isEmpty() && state.recent.isNotEmpty()) {
-                EarlierChats(state.recent, onOpen = viewModel::open, onForget = viewModel::forget)
+                EarlierChats(state.recent, onOpen = viewModel::open, onForget = forgetWithUndo)
             }
             if (state.turns.isEmpty()) {
                 RecentSearchChips(

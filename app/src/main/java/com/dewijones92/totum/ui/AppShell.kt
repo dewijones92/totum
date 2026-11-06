@@ -3,8 +3,11 @@ package com.dewijones92.totum.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -16,6 +19,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,6 +50,7 @@ import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.ShellBanners
 import com.dewijones92.totum.ui.common.SteadyPlayback
+import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
 import com.dewijones92.totum.ui.music.MusicScreen
@@ -94,6 +99,8 @@ fun AppShell(
     // "Go to channel" / "Go to podcast" work from ANY row because the shell hosts the destination once.
     var shellSource by remember { mutableStateOf<MediaSource?>(null) }
     val tabs = rememberTabNavigation()
+    val snackbar = remember { SnackbarHostState() }
+    val offers = rememberSnackbarOffers(snackbar)
     val controller = container.playbackController
     val shell by rememberShellPlayback(controller)
     CountRecompositions("shell")
@@ -125,7 +132,7 @@ fun AppShell(
         shellSource = null
     }
 
-    ProvideShellLocals(container, videoBounds, openPlayer, tabs, selected, { showFullPlayer = false }) {
+    ProvideShellLocals(container, videoBounds, openPlayer, tabs, selected, offers, { showFullPlayer = false }) {
         val openSource: (MediaSource) -> Unit = remember {
             {
                     source ->
@@ -143,6 +150,7 @@ fun AppShell(
                     tabs,
                     showFullPlayer || shortsReel != null,
                     openPlayer,
+                    snackbar.takeUnless { showFullPlayer || shortsReel != null || shellSource != null },
                     { selected = it }
                 ) { shortsReel = it }
 
@@ -157,6 +165,9 @@ fun AppShell(
                 // The Shorts reel is a full-screen overlay (above the nav + mini player),
                 // so vertical swipes page between shorts without the app chrome in the way.
                 shortsReel?.let { ShortsReelScreen(container, it, onBack = { shortsReel = null }) }
+                if (showFullPlayer || shortsReel != null || shellSource != null) {
+                    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+                }
                 // Last in the Box so it draws over everything, including the full player and
                 // any overlay: "is the app doing something" is a question worth answering
                 // from whatever screen the user is on.
@@ -174,12 +185,14 @@ private fun ShellScaffold(
     tabs: TabNavigation,
     coveredByPlayer: Boolean,
     onExpand: () -> Unit,
+    snackbar: SnackbarHostState?,
     onSelect: (TopLevelDestination) -> Unit,
     onOpenShorts: (ReelStart) -> Unit,
 ) {
     CompositionLocalProvider(LocalAnimationsHidden provides coveredByPlayer) {
         Scaffold(
             topBar = { ShellBanners(container) },
+            snackbarHost = { snackbar?.let { SnackbarHost(it) } },
             bottomBar = {
                 BottomBar(
                     container,

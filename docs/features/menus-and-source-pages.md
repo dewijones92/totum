@@ -3,7 +3,7 @@ title: Menus go where they say, and every source has its picture
 kind: feature
 status: shipped
 area: ui
-updated: 2026-10-15
+updated: 2026-11-06
 ---
 
 # Menus go where they say, and every source has its picture
@@ -90,3 +90,10 @@ is the fallback. Test: `SourceLocatorTest`.
 Web addresses in descriptions and show notes are links (`LinkSpan.kt`, beside the timestamp seeks); the sign-in
 page's google.com/device is a link and its code has a copy button (long press copies too); Details' link and id
 have copy buttons; the version line copies on long press. Test: `LinkSpansTest`.
+
+## Removing from a playlist can be undone (2026-11-06)
+
+Removing items from a local playlist (one row, or several selected) offers Undo on the shell's snackbar. Undo puts them
+back **at the end** of the playlist, not where they were: the playlist store only appends, so a position-keeping undo
+needs a store change ([todo](../todos/undo-everywhere.md)). In Starred, Undo stars them again, which also re-likes a
+YouTube item on the account.

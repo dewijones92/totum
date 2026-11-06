@@ -55,3 +55,8 @@ with jq only. ADR 121.
 
 `tools/finder-eval/eval.py --serve <url> --label <name>` runs `cases.json` (16 asks, 20 copies to vet) and writes
 a scored report to `tools/finder-eval/out/`. `tools/finder-eval/fake-claude` stands in for Claude in tests.
+
+## Forgetting an earlier chat can be undone (2026-11-06)
+
+The ✕ on an earlier chat forgets it and offers Undo on the shell's snackbar (`AskViewModel.forget` returns the chat,
+`unforget` puts it back in its place by date).

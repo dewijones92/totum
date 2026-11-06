@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.queue.QueueGroup
@@ -22,9 +23,12 @@ import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stars.starredWithLikes
 import com.dewijones92.totum.ui.common.toMediaItem
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -86,20 +90,40 @@ class LocalPlaylistDetailViewModel(
     /** The playlist as a queue group, so its run is labelled and removable together. */
     private fun group() = QueueGroup(id.value, name.value)
 
-    fun remove(itemId: MediaItemId) {
-        val starredItem = items.value.firstOrNull { it.item.id == itemId }
+    private val removals = MutableSharedFlow<List<PlayableItem>>(extraBufferCapacity = REMOVALS_HELD)
+    val removed: SharedFlow<List<PlayableItem>> = removals.asSharedFlow()
+
+    fun remove(itemId: MediaItemId) = removeAll(listOf(itemId))
+
+    fun removeAll(itemIds: List<MediaItemId>) {
+        val current = items.value
+        val taken = itemIds.mapNotNull { wanted -> current.firstOrNull { it.item.id == wanted } }
         viewModelScope.launch {
-            if (stars != null && isStarred && starredItem != null) {
-                stars.setStarred(starredItem, false)
-                likes?.drop(itemId)
-            } else {
-                store.removeItem(id, itemId)
+            itemIds.forEach { itemId ->
+                val starredItem = current.firstOrNull { it.item.id == itemId }
+                if (stars != null && isStarred && starredItem != null) {
+                    stars.setStarred(starredItem, false)
+                    likes?.drop(itemId)
+                } else {
+                    store.removeItem(id, itemId)
+                }
             }
+            Diag.log("playlist", "dewidebug ${id.value}: removed ${taken.size} of ${itemIds.size}, undo offered")
+            if (taken.isNotEmpty()) removals.emit(taken)
+        }
+    }
+
+    fun restore(back: List<PlayableItem>) {
+        viewModelScope.launch {
+            back.forEach { item ->
+                if (stars != null && isStarred) stars.setStarred(item, true) else store.addItem(id, item)
+            }
+            Diag.log("playlist", "dewidebug ${id.value}: put ${back.size} removed item(s) back, at the end")
         }
     }
 
     fun deleteDownload(itemId: MediaItemId) {
-        viewModelScope.launch { downloads.delete(itemId) }
+        viewModelScope.launch { downloads.deleteSoon(itemId) }
     }
 
     fun rename(name: String) {
@@ -116,6 +140,7 @@ class LocalPlaylistDetailViewModel(
 
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
+        private const val REMOVALS_HELD = 8
 
         fun factory(container: AppContainer, id: PlaylistId): ViewModelProvider.Factory = viewModelFactory {
             initializer {

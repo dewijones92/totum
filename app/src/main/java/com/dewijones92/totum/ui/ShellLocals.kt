@@ -16,7 +16,9 @@ import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
 import com.dewijones92.totum.ui.common.LocalQueueSkip
 import com.dewijones92.totum.ui.common.LocalRecentSearches
+import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.common.QueueSkip
+import com.dewijones92.totum.ui.common.SnackbarOffers
 import com.dewijones92.totum.ui.player.LocalVideoBounds
 import com.dewijones92.totum.ui.player.VideoBounds
 import kotlinx.coroutines.launch
@@ -28,6 +30,7 @@ internal fun ProvideShellLocals(
     openPlayer: () -> Unit,
     tabs: TabNavigation,
     selected: TopLevelDestination,
+    offers: SnackbarOffers,
     closeFullPlayer: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -43,6 +46,7 @@ internal fun ProvideShellLocals(
         LocalCastingTo provides rememberCastingTo(container.playbackController),
         LocalOpenMusicPage provides remember(tabs) { tabs.pageOpener(closeFullPlayer) },
         LocalRecentSearches provides container.recentSearches,
+        LocalSnackbarOffers provides offers,
         content = content,
     )
 }

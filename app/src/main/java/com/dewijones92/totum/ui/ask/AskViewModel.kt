@@ -102,11 +102,21 @@ class AskViewModel(
         }
     }
 
-    fun forget(id: String) {
-        val left = chats.load().filterNot { it.id == id }
+    fun forget(id: String): SavedChat? {
+        val all = chats.load()
+        val gone = all.firstOrNull { it.id == id } ?: return null
+        val left = all.filterNot { it.id == id }
         chats.save(left)
         Diag.log("ask", "chat $id forgotten; ${left.size} kept")
         state.update { it.copy(recent = left.filterNot { chat -> chat.id == chatId }) }
+        return gone
+    }
+
+    fun unforget(chat: SavedChat) {
+        val all = chats.load().keeping(chat)
+        chats.save(all)
+        Diag.log("ask", "chat ${chat.id} \"${chat.title}\" put back by undo; ${all.size} kept")
+        state.update { it.copy(recent = all.filterNot { other -> other.id == chatId }) }
     }
 
     private fun keep() {

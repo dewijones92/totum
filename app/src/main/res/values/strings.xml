@@ -470,6 +470,17 @@
         <item quantity="other">%1$d selected items</item>
     </plurals>
     <string name="download_delete">🗑️ Delete from phone</string>
+    <string name="download_deleted_titled">🗑️ Deleted “%1$s” from the phone</string>
+    <plurals name="download_deleted_count">
+        <item quantity="one">🗑️ Deleted %1$d download from the phone</item>
+        <item quantity="other">🗑️ Deleted %1$d downloads from the phone</item>
+    </plurals>
+    <string name="undo">Undo</string>
+    <string name="ask_chat_forgotten">🗑️ Forgot the chat “%1$s”</string>
+    <plurals name="playlist_removed_count">
+        <item quantity="one">🗑️ Removed %1$d item from the playlist</item>
+        <item quantity="other">🗑️ Removed %1$d items from the playlist</item>
+    </plurals>
     <string name="library_downloads">Downloads</string>
     <string name="downloads_on_the_phone">On the phone</string>
 

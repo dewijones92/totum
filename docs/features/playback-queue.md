@@ -220,3 +220,12 @@ of the player ([todo](../todos/now-playing-drifts-after-quick-skips.md)).
 
 Opening the Shorts reel switches "🔁 This one" off and says so, like starting an album or a group
 (`PlaybackQueue.playAll(endsRepeatOne = …)`; the reel is still not "by you" for the listen offers). Once per opening.
+
+## Every remove can be taken back (2026-11-06)
+
+Removing a queue row offers Undo and puts the row back at the same index. The helper is the app's one
+`rememberRemoveWithUndo` (`ui/common/SnackbarOffers.kt`): it takes what to remove, how to describe it and how to put it
+back, and shows the Undo on a `SnackbarOffers`. The shell hosts one snackbar for every tab and overlay
+(`LocalSnackbarOffers`); the Queue tab and the alarms page keep their own host and pass it in, because both are tested on
+their own. The same helper serves the alarms page, Ask's earlier chats and the downloads below. A group delete keeps its
+hold to confirm.

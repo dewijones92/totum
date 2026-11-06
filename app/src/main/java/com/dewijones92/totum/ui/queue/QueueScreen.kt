@@ -89,6 +89,7 @@ import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
+import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.map
@@ -201,7 +202,7 @@ private fun rememberQueueActions(
 ): QueueActions {
     val dragSession = rememberQueueDragSession()
     val context = LocalContext.current
-    val onRemove = rememberRemoveWithUndo(queue, snackbar, scope)
+    val onRemove = rememberQueueRemoveWithUndo(queue, rememberSnackbarOffers(snackbar, scope))
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     val homeAhead by container.homeAhead.keep.collectAsStateWithLifecycle()
     val selection = rememberSelection("queue")
@@ -251,7 +252,7 @@ private fun rememberQueueActions(
             collapsedIds = collapsedGroups,
             onChange = onCollapsedChange,
         ),
-        onDeleteDownload = { id -> scope.launch { container.downloadManager.delete(id) } },
+        onDeleteDownload = { id -> scope.launch { container.downloadManager.deleteSoon(id) } },
         selection = selection,
         onStartGroupAgain = startAgain,
         groupIdsOf = { id -> queue.idsIn(id) },

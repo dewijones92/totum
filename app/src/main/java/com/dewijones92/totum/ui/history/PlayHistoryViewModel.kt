@@ -36,7 +36,7 @@ class PlayHistoryViewModel(
     }
 
     fun deleteDownload(itemId: MediaItemId) {
-        viewModelScope.launch { downloads.delete(itemId) }
+        viewModelScope.launch { downloads.deleteSoon(itemId) }
     }
 
     fun clear() {

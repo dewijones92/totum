@@ -89,6 +89,8 @@ public interface DownloadManager {
     /** Removes the local file and forgets the download. */
     public suspend fun delete(id: MediaItemId)
 
+    public suspend fun deleteSoon(id: MediaItemId): Unit = delete(id)
+
     public suspend fun noteOpened(id: MediaItemId)
 
     public suspend fun markUnreadable(id: MediaItemId, why: String)

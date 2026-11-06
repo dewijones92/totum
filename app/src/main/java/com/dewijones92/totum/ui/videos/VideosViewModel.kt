@@ -483,7 +483,7 @@ class VideosViewModel(
     }
 
     fun deleteDownload(video: MediaItem) {
-        viewModelScope.launch { downloads.delete(video.id) }
+        viewModelScope.launch { downloads.deleteSoon(video.id) }
     }
 
     companion object {

@@ -116,7 +116,7 @@ private class ContainerItemActions(
     }
 
     override fun deleteDownload(id: MediaItemId) {
-        scope.launch { container.downloadManager.delete(id) }
+        scope.launch { container.downloadManager.deleteSoon(id) }
     }
 
     override fun setPlayed(id: MediaItemId, played: Boolean) {

@@ -14,6 +14,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.ui.channel.ChannelScreen
+import com.dewijones92.totum.ui.common.DeletedDownloadsUndo
 import com.dewijones92.totum.ui.common.DownloadChoiceAsk
 import com.dewijones92.totum.ui.common.EpisodePicker
 import com.dewijones92.totum.ui.common.LockedDownloadAsk
@@ -31,6 +32,7 @@ internal fun ShellOverlays(
     onCloseSource: () -> Unit,
 ) {
     LockedDownloadAsk(container.lockingDownloads)
+    DeletedDownloadsUndo(container.pendingDownloadDeletes)
     DownloadChoiceAsk(container.downloadChooser)
     EpisodePicker(
         container.episodeDownloads,

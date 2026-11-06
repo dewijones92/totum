@@ -131,7 +131,9 @@ import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.downloads.EpisodeDownloads
+import com.dewijones92.totum.downloads.PendingDownloadDeletes
 import com.dewijones92.totum.downloads.PrefsDownloadLocks
+import com.dewijones92.totum.downloads.PrefsPendingDeletes
 import com.dewijones92.totum.downloads.home.DeletesAtHomeToo
 import com.dewijones92.totum.downloads.home.HomeAhead
 import com.dewijones92.totum.downloads.home.HomeDownloads
@@ -390,6 +392,7 @@ interface AppContainer {
     val skipSegmentSource: SkipSegmentSource
     val downloadManager: DownloadManager
     val lockingDownloads: LockingDownloadManager
+    val pendingDownloadDeletes: PendingDownloadDeletes? get() = null
     val kidLock: KidLock
     val downloadChooser: DownloadChooser
 
@@ -919,7 +922,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    override val downloadManager: DownloadManager by lazy { DeletesAtHomeToo(lockingDownloads) { homeDownloads } }
+    override val downloadManager: DownloadManager by lazy { pendingDownloadDeletes }
+
+    override val pendingDownloadDeletes: PendingDownloadDeletes by lazy {
+        PendingDownloadDeletes(
+            inner = DeletesAtHomeToo(lockingDownloads) { homeDownloads },
+            scope = applicationScope,
+            store = PrefsPendingDeletes(context),
+            isLocked = { id -> id in lockingDownloads.locks.locked.value },
+        )
+    }
 
     override val kidLock: KidLock = KidLock()
 

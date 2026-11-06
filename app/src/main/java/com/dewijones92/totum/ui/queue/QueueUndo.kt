@@ -14,6 +14,8 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.sortAfterCurrent
 import com.dewijones92.totum.queue.undoSort
 import com.dewijones92.totum.ui.common.MediaSort
+import com.dewijones92.totum.ui.common.SnackbarOffers
+import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -23,30 +25,19 @@ import kotlinx.coroutines.launch
  * an index read at composition is stale the moment anything above it moves (see [PlaybackQueue.remove]).
  */
 @Composable
-internal fun rememberRemoveWithUndo(
-    queue: PlaybackQueue,
-    snackbar: SnackbarHostState,
-    scope: CoroutineScope,
-): (QueueEntry) -> Unit {
+internal fun rememberQueueRemoveWithUndo(queue: PlaybackQueue, offers: SnackbarOffers?): (QueueEntry) -> Unit {
     val removedMessage = stringResource(R.string.queue_removed)
-    val undoLabel = stringResource(R.string.queue_undo)
-    return remember(queue, snackbar, scope) {
-        {
-                entry ->
-            val index = queue.remove(entry)
-            if (index != null) {
-                scope.launch {
-                    val result = snackbar.showSnackbar(
-                        message = removedMessage,
-                        actionLabel = undoLabel,
-                        duration = SnackbarDuration.Short,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) queue.restoreAt(index, entry)
-                }
-            }
-        }
-    }
+    return rememberRemoveWithUndo(
+        offers = offers,
+        undoLabel = stringResource(R.string.queue_undo),
+        tag = "queue",
+        removedMessage = { _: Removal -> removedMessage },
+        remove = { entry: QueueEntry -> queue.remove(entry)?.let { Removal(it, entry) } },
+        restore = { queue.restoreAt(it.index, it.entry) },
+    )
 }
+
+private data class Removal(val index: Int, val entry: QueueEntry)
 
 @Composable
 internal fun rememberSortWithUndo(

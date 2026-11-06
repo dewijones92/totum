@@ -10,7 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,13 +28,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
-import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
+import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.settings.NavRow
 import com.dewijones92.totum.workapps.WorkAppsQuietActivity
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private const val NOW_REFRESH_MS = 30_000L
 
@@ -94,22 +92,13 @@ fun DailyAlarmsScreen(
 @Composable
 private fun rememberDeleteWithUndo(alarms: DailyAlarmController, snackbar: SnackbarHostState): (DailyAlarm) -> Unit {
     val resources = LocalResources.current
-    val scope = rememberCoroutineScope()
-    return remember(alarms, snackbar, scope, resources) {
-        {
-                alarm ->
-            val removed = alarms.remove(alarm.id, "page")
-            if (removed != null) {
-                scope.launch {
-                    val result = snackbar.showSnackbar(
-                        message = resources.getString(R.string.dailyalarm_deleted, removed.label),
-                        actionLabel = resources.getString(R.string.dailyalarm_undo),
-                        duration = SnackbarDuration.Long,
-                    )
-                    Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm delete snackbar ${removed.id}: $result")
-                    if (result == SnackbarResult.ActionPerformed) alarms.restore(removed, "undo")
-                }
-            }
-        }
-    }
+    return rememberRemoveWithUndo(
+        offers = rememberSnackbarOffers(snackbar),
+        undoLabel = resources.getString(R.string.dailyalarm_undo),
+        tag = DailyAlarmController.TAG,
+        duration = SnackbarDuration.Long,
+        removedMessage = { removed: DailyAlarm -> resources.getString(R.string.dailyalarm_deleted, removed.label) },
+        remove = { alarm: DailyAlarm -> alarms.remove(alarm.id, "page") },
+        restore = { alarms.restore(it, "undo") },
+    )
 }

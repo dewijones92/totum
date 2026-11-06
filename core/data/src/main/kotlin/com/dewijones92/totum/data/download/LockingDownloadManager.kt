@@ -61,6 +61,8 @@ public class LockingDownloadManager(
         inner.delete(id)
     }
 
+    override suspend fun deleteSoon(id: MediaItemId): Unit = delete(id)
+
     override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
         val id = item.item.id
         if (lockedCopy(id)) {
