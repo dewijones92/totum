@@ -3,13 +3,12 @@
 package com.dewijones92.totum.exsurge
 
 import com.dewijones92.totum.reminders.DayOfWeekSerializer
+import com.dewijones92.totum.reminders.WeeklyWindow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 
 public const val LOQUAX_PACKAGE: String = "dev.hanzi.hanzi_practice"
@@ -80,50 +79,14 @@ public data class ExsurgeSettings(
     public val pauseLength: Duration get() = Duration.ofMinutes(pauseMinutes.toLong())
     public val midCueBeforeEnd: Duration get() = Duration.ofMinutes(midCueMinutes.toLong())
 
-    public fun isActiveAt(at: Instant, zone: ZoneId): Boolean {
-        if (endMinuteOfDay <= startMinuteOfDay) return false
-        val local = at.atZone(zone)
-        val minute = local.hour * MINUTES_PER_HOUR + local.minute
-        return local.dayOfWeek in activeDays && minute in startMinuteOfDay until endMinuteOfDay
-    }
+    public val window: WeeklyWindow
+        get() = WeeklyWindow.uniform(activeDays, startMinuteOfDay, endMinuteOfDay)
 
-    public fun nextActiveStart(after: Instant, zone: ZoneId): Instant? {
-        if (activeDays.isEmpty() || endMinuteOfDay <= startMinuteOfDay) return null
-        val today = after.atZone(zone).toLocalDate()
-        return (0..DAYS_TO_SEARCH)
-            .asSequence()
-            .map { today.plusDays(it.toLong()) }
-            .filter { it.dayOfWeek in activeDays }
-            .map { startOn(it, zone) }
-            .firstOrNull { it.isAfter(after) }
-    }
+    public fun isActiveAt(at: Instant, zone: ZoneId): Boolean = window.isInside(at, zone)
 
-    public fun activeEndAfter(at: Instant, zone: ZoneId): Instant {
-        var day = at.atZone(zone).toLocalDate()
-        var hops = 0
-        while (continuesPastMidnight(day) && hops < DAYS_TO_SEARCH) {
-            day = day.plusDays(1)
-            hops++
-        }
-        val end = endOn(day, zone)
-        return if (end.isAfter(at)) end else at
-    }
+    public fun nextActiveStart(after: Instant, zone: ZoneId): Instant? = window.nextStart(after, zone)
 
-    private fun continuesPastMidnight(day: LocalDate): Boolean =
-        endMinuteOfDay >= MINUTES_PER_DAY && startMinuteOfDay == 0 && day.plusDays(1).dayOfWeek in activeDays
-
-    private fun endOn(day: LocalDate, zone: ZoneId): Instant =
-        if (endMinuteOfDay >= MINUTES_PER_DAY) {
-            day.plusDays(1).atStartOfDay(zone).toInstant()
-        } else {
-            day.atTime(timeOf(endMinuteOfDay)).atZone(zone).toInstant()
-        }
-
-    private fun startOn(day: LocalDate, zone: ZoneId): Instant =
-        day.atTime(timeOf(startMinuteOfDay)).atZone(zone).toInstant()
-
-    private fun timeOf(minuteOfDay: Int): LocalTime =
-        LocalTime.of(minuteOfDay / MINUTES_PER_HOUR, minuteOfDay % MINUTES_PER_HOUR)
+    public fun activeEndAfter(at: Instant, zone: ZoneId): Instant = window.endAfter(at, zone)
 
     public companion object {
         public const val DESTINATION_ROUTE_VERSION: Int = 2
@@ -146,7 +109,6 @@ public data class ExsurgeSettings(
         private const val MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
         private const val LAST_MINUTE_OF_DAY = MINUTES_PER_DAY - 1
         private const val PERCENT = 100
-        private const val DAYS_TO_SEARCH = 8
     }
 }
 

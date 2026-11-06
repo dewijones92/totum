@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-11-04
+updated: 2026-11-06
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -128,7 +128,8 @@ lets it sleep again. Logged as `[reminders] … keeps the screen awake` / `… l
 ## Where it lives
 
 - `lib/exsurge/` — the pure brain: `ExsurgeMachine` (one sealed state machine), `ExsurgeSettings`
-  (active hours, validation), `StepWindow`, `ExsurgeStats` (ranks, streak), `ExsurgeCodec`.
+  (active hours, validation; `isActiveAt`, `nextActiveStart` and `activeEndAfter` answer through the shared
+  `WeeklyWindow` in `:lib:reminders`, the same per-day window the work-apps quiet hours use), `StepWindow`, `ExsurgeStats` (ranks, streak), `ExsurgeCodec`.
 - `app/…/exsurge/` — `ExsurgeController` (the hub, with `ExsurgePorts`), `AndroidExsurgePorts`
   (alarms, voice, vibration, Loquax), `ExsurgeBannerService` (health foreground service, sticky
   banner, step counter), `TakeoverActivity`, `ExsurgeNotifications`, `ExsurgeActionReceiver`,
