@@ -25,3 +25,17 @@ one "📡 Play on…" picker of targets; (3) Cast TVs and browsers as targets fe
 controls them. Sound on Pi-fed targets, decided by Dewi 2026-11-06 (option B): exactly the phone's processing. Move the plain-Kotlin processing into a JVM module shared by the phone and the Pi (no second copy); on the Pi, ffmpeg decodes to PCM and re-encodes after it. The spike measures the Pi's CPU for the speech model alongside a 4K relay. Best quality only and Totum's own step-down (cast-best-quality-only) apply here too.
 
 Whole-batch review: speaker queues and Jellyfin fold in here. Scout facts: 26 of 41 cast files are plain Kotlin (manifest, relay, rungs, probes, `ScreenLink`, `CastHttpServer`) and move to a shared JVM module in phase 1, before the cast fixes; `CastStreams` is a split; the Pi reads audio with ffmpeg (no pure demuxer); the silero weights keep one copy for both loaders; `screen.html` is static and `ScreenLink` is pure; Cast control on the Pi is delegated to pychromecast in the Pi's Python env (as playback is delegated to mpv), proposed. Dewi 2026-11-06: speakers move onto the same processed path (skip silence, boost), so the Pi has one sound engine; mpv stays the speaker's player, fed the processed stream (ADR 116 updated when built).
+
+## The phone as a remote: one queue screen with a target switch (Dewi, 2026-11-06)
+
+Extends ADR 116's speaker decisions ("a thin layer … just like a different queue … its own colour") to every target:
+- **One Queue screen**, a row of chips on top: 📱 Phone · 📺 LG TV · 🔈 Soundbar · ➕. A chip shows while that target
+  has a queue; ➕ starts one on another target. The number of queues is the number of targets in use.
+- **One queue component**: the phone's queue and the Pi's queues use the same list, drag, groups and menus; only the
+  data source differs (no second queue UI).
+- **A colour per target**: phone tangerine as today; every other device gets its own colour automatically, editable
+  in that device's menu; used on its chip, queue header, mini-player pill and notification.
+- **Play / Queue / Shuffle all go to the target being looked at**; a long press picks another.
+- **Mini player**: the phone's item plus one pill per other target ("📺 Bluey · 🔈 Vivaldi"); a tap opens that queue.
+  **Notifications**: one per active target, each with its own controls.
+- **"Send to TV" from what the phone plays** moves that item plus the rest of its group, and the phone pauses.
