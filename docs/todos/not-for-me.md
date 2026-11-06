@@ -14,8 +14,7 @@ store read by Explore, new uploads, group news and Ask; the remove half reuses t
 
 ## Built 2026-11-06
 
-See [menus](../features/menus-and-source-pages.md) and ADR 128. Readers: Explore (`exploreModeFor`), `LatestUploads`
-(new uploads and group news), Ask. Not read: group pages' own listings and the queue's "radio" top-ups.
+See [menus](../features/menus-and-source-pages.md) for which surfaces filter and which deliberately do not, and ADR 128.
 
 Tests to add: `NotForMe` (suppress, allow, contains by canonical id, `mentions` squashing, merge, encode/decode round trip,
 unreadable file); `LatestUploads.of` leaves a listed id out; the backup wrapper's export/restore; the menu action removing

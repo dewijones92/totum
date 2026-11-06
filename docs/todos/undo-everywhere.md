@@ -21,7 +21,7 @@ Whole-batch review: move `rememberRemoveWithUndo` from `ui/queue` (internal) to 
 earlier chats and (through one shell collector) download deletes (`PendingDownloadDeletes`, deferred 12 s, pending ids
 persisted). Playlist item removes offer Undo too.
 
-Open: a playlist Undo puts the item back **at the end**, because `LocalPlaylistStore.addItem` only appends. Keeping the
-place needs `removeItem` to return the slot and `addItem` to take one (Room, the in-memory store, `MultiSelectTest`'s
-wrapper). Tests to add: `PendingDownloadDeletes` (hide, undo, window end, start-up recovery, locked), the helper's
-no-host and nothing-removed branches, `AskViewModel.forget`/`unforget`, `LocalPlaylistDetailViewModel.removeAll`/`restore`.
+A playlist Undo puts the item back in its old slot (`LocalPlaylistStore.insertItem(id, item, at)`; Room shifts the later
+positions up by one). Tests to add: `PendingDownloadDeletes` (hide, undo, window end, start-up recovery, locked), the
+helper's no-host and nothing-removed branches, `AskViewModel.forget`/`unforget`,
+`LocalPlaylistDetailViewModel.removeAll`/`restore`, Room `insertItem` (androidTest).

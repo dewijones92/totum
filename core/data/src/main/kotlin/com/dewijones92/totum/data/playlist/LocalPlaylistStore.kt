@@ -31,5 +31,8 @@ public interface LocalPlaylistStore {
     /** Appends [item] to the end of the playlist (idempotent per item id). */
     public suspend fun addItem(id: PlaylistId, item: PlayableItem)
 
+    /** Puts [item] at index [at] (clamped to the list), pushing what is there and after it down; no-op if present. */
+    public suspend fun insertItem(id: PlaylistId, item: PlayableItem, at: Int)
+
     public suspend fun removeItem(id: PlaylistId, itemId: com.dewijones92.totum.domain.MediaItemId)
 }

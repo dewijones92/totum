@@ -8,6 +8,7 @@ import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
+@Suppress("TooManyFunctions")
 public interface LocalPlaylistDao {
 
     @Query(
@@ -34,6 +35,15 @@ public interface LocalPlaylistDao {
 
     @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM local_playlist_items WHERE playlistId = :id")
     public suspend fun nextPosition(id: String): Long
+
+    @Query("SELECT position FROM local_playlist_items WHERE playlistId = :id ORDER BY position")
+    public suspend fun positions(id: String): List<Long>
+
+    @Query("SELECT COUNT(*) FROM local_playlist_items WHERE playlistId = :id AND itemId = :itemId")
+    public suspend fun countOf(id: String, itemId: String): Int
+
+    @Query("UPDATE local_playlist_items SET position = position + 1 WHERE playlistId = :id AND position >= :from")
+    public suspend fun shiftFrom(id: String, from: Long)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     public suspend fun insertItem(item: LocalPlaylistItemEntity)

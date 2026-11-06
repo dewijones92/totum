@@ -63,7 +63,9 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
     var sinceMs by rememberSaveable(groupId) { mutableStateOf<Long?>(null) }
     var openedHere by rememberSaveable(groupId) { mutableStateOf(false) }
     val kept by container.groupFeed.keptLists.collectAsStateWithLifecycle()
-    val items = container.groupFeed.lastKnown(group, kept)
+    val suppressed by container.notForMe.items.collectAsStateWithLifecycle()
+    val known = container.groupFeed.lastKnown(group, kept)
+    val items = remember(known, suppressed) { known?.let { container.notForMe.without(it, "group page") } }
     var loads by remember { mutableIntStateOf(0) }
     var refreshing by remember { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf(false) }

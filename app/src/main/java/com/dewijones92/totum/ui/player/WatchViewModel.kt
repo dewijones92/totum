@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceId
@@ -28,8 +29,11 @@ import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -57,6 +61,7 @@ constructor(
     private val queue: PlaybackQueue,
     private val preferences: AppPreferences,
     private val stars: Stars? = null,
+    private val notForMe: NotForMe = NotForMe(),
 ) : ViewModel() {
 
     /** The current video's selectable qualities; switching replays from the same spot. */
@@ -149,7 +154,13 @@ constructor(
     val comments: StateFlow<CommentsState> get() = _comments.asStateFlow()
 
     private val _related = MutableStateFlow<RelatedState>(RelatedState.Loading)
-    val related: StateFlow<RelatedState> get() = _related.asStateFlow()
+    val related: StateFlow<RelatedState> = combine(_related, notForMe.items) { state, _ ->
+        if (state is RelatedState.Loaded) {
+            state.copy(videos = notForMe.without(state.videos, "the related tab"))
+        } else {
+            state
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, RelatedState.Loading)
 
     // Expanded comment threads, keyed by the parent comment id. Absent = collapsed.
     private val _replies = MutableStateFlow<Map<String, RepliesState>>(emptyMap())
@@ -359,6 +370,7 @@ constructor(
                     container.playbackQueue,
                     container.appPreferences,
                     container.stars,
+                    container.notForMe,
                 )
             }
         }

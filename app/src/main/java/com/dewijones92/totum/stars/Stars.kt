@@ -31,13 +31,17 @@ class Stars(
 
     val starred: Flow<List<PlayableItem>> = playlists.observeItems(STARRED_PLAYLIST)
 
-    suspend fun markHere(item: PlayableItem, on: Boolean) {
+    suspend fun markHere(item: PlayableItem, on: Boolean, at: Int? = null) {
         playlists.ensure(STARRED_PLAYLIST, STARRED_PLAYLIST_NAME)
-        if (on) playlists.addItem(STARRED_PLAYLIST, item) else playlists.removeItem(STARRED_PLAYLIST, item.item.id)
+        when {
+            !on -> playlists.removeItem(STARRED_PLAYLIST, item.item.id)
+            at != null -> playlists.insertItem(STARRED_PLAYLIST, item, at)
+            else -> playlists.addItem(STARRED_PLAYLIST, item)
+        }
     }
 
-    suspend fun setStarred(item: PlayableItem, on: Boolean): StarOutcome {
-        markHere(item, on)
+    suspend fun setStarred(item: PlayableItem, on: Boolean, at: Int? = null): StarOutcome {
+        markHere(item, on, at)
         val videoId = item.item.id.value.takeIf(::isYouTubeVideoId)
         val account = videoId?.let { accountLike(it, item.item.title, on) }
         Diag.log(

@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.channel.ChannelVideosResult
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.feed.NoOpFeedCache
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.GroupServices
 import com.dewijones92.totum.di.YouTubeAccountServices
@@ -64,6 +65,7 @@ class VideosViewModel(
      */
     private val subscriptionShorts: SubscriptionShorts? = null,
     private val holdFirstFetch: () -> Boolean = { false },
+    private val notForMe: NotForMe = NotForMe(),
 ) : TrackedViewModel("videos") {
 
     data class UiState(
@@ -158,7 +160,9 @@ class VideosViewModel(
     )
 
     private val feedView = combine(
-        feedState,
+        combine(feedState, notForMe.items) { feed, _ ->
+            feed.copy(videos = notForMe.without(feed.videos, "the subscriptions feed"))
+        },
         accountSubscriptions.signedIn,
         sort,
         groups.store.observeGroups(),
@@ -505,6 +509,7 @@ class VideosViewModel(
                     feedCache = container.feedCache,
                     holdFirstFetch = { container.appPreferences.settings.value.feedHiddenUntilAsked },
                     subscriptionShorts = SubscriptionShorts(container.youTubeChannel),
+                    notForMe = container.notForMe,
                 )
             }
         }

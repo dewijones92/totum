@@ -51,6 +51,15 @@ public class InMemoryLocalPlaylistStore : LocalPlaylistStore {
         }
     }
 
+    override suspend fun insertItem(id: PlaylistId, item: PlayableItem, at: Int) {
+        playlists.update { map ->
+            val entry = map[id.value] ?: return@update map
+            if (entry.items.any { it.item.id == item.item.id }) return@update map
+            val slot = at.coerceIn(0, entry.items.size)
+            map + (id.value to entry.copy(items = entry.items.take(slot) + item + entry.items.drop(slot)))
+        }
+    }
+
     override suspend fun removeItem(id: PlaylistId, itemId: MediaItemId) {
         playlists.update { map ->
             val entry = map[id.value] ?: return@update map

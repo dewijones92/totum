@@ -35,6 +35,14 @@ public class RoomLocalPlaylistStore(private val dao: LocalPlaylistDao) : LocalPl
         dao.insertItem(item.toEntity(id.value, dao.nextPosition(id.value)))
     }
 
+    override suspend fun insertItem(id: PlaylistId, item: PlayableItem, at: Int) {
+        if (dao.countOf(id.value, item.item.id.value) > 0) return
+        val positions = dao.positions(id.value)
+        val slot = positions.getOrNull(at.coerceAtLeast(0)) ?: dao.nextPosition(id.value)
+        dao.shiftFrom(id.value, slot)
+        dao.insertItem(item.toEntity(id.value, slot))
+    }
+
     override suspend fun removeItem(id: PlaylistId, itemId: MediaItemId): Unit =
         dao.deleteItem(id.value, itemId.value)
 

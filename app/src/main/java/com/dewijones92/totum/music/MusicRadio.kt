@@ -1,9 +1,12 @@
 package com.dewijones92.totum.music
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.innertube.music.MusicResult
+import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.pins.Pin
@@ -23,7 +26,11 @@ class MusicRadio(
     private val scope: CoroutineScope,
     private val recent: RecentActions? = null,
     private val file: java.io.File? = null,
+    private val notForMe: NotForMe = NotForMe(),
 ) {
+    private fun List<MusicSong>.wanted(why: String): List<MusicSong> =
+        notForMe.without(this, "radio $why") { MediaItemId(it.videoId) }
+
     private data class Station(
         val seed: RadioSeed,
         val group: QueueGroup,
@@ -79,7 +86,7 @@ class MusicRadio(
             "radio",
             "\"${group.title}\" started with ${batch.songs.size} songs, continuation=${batch.continuation != null}",
         )
-        queue.playAll(batch.songs.map { it.toPlayable(source) }, group)
+        queue.playAll(batch.songs.wanted("start").map { it.toPlayable(source) }, group)
         recent?.record(
             Pin.Radio(
                 seed.videoId,
@@ -134,7 +141,7 @@ class MusicRadio(
                 "radios (${batches.joinToString { it.size.toString() }}), tops up from the first, " +
                 "continuation=${continuation != null}; not added to Recently, where a pin replays one song's radio",
         )
-        queue.playAll(mixed.map { it.toPlayable(MusicSources.radio(first.playlistId)) }, group)
+        queue.playAll(mixed.wanted("mix").map { it.toPlayable(MusicSources.radio(first.playlistId)) }, group)
         return true
     }
 
@@ -196,7 +203,7 @@ class MusicRadio(
         }
         val fresh = batch.songs.filterNot { it.videoId in from.offered }
         val source = MusicSources.radio(from.seed.playlistId)
-        val added = queue.addToGroup(from.group, fresh.map { it.toPlayable(source) }, byYou = false)
+        val added = queue.addToGroup(from.group, fresh.wanted("top-up").map { it.toPlayable(source) }, byYou = false)
         val updated = from.copy(
             continuation = batch.continuation,
             offered = from.offered + batch.songs.map { it.videoId }

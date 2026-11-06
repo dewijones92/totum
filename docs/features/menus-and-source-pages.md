@@ -94,15 +94,22 @@ have copy buttons; the version line copies on long press. Test: `LinkSpansTest`.
 ## Removing from a playlist can be undone (2026-11-06)
 
 Removing items from a local playlist (one row, or several selected) offers Undo on the shell's snackbar. Undo puts them
-back **at the end** of the playlist, not where they were: the playlist store only appends, so a position-keeping undo
-needs a store change ([todo](../todos/undo-everywhere.md)). In Starred, Undo stars them again, which also re-likes a
+back **in their old places** (`LocalPlaylistStore.insertItem(id, item, at)`, the same idea as the queue's `restoreAt`). In Starred, Undo stars them again, which also re-likes a
 YouTube item on the account.
 
 ## 🙅 Not for me (2026-11-06)
 
 Every item's menu has **🙅 Not for me**: the item leaves the queue (Undo puts it back and allows it again) and is
-written to the not-for-me list (`NotForMe` in `:core:data`, `not-for-me.json`, part of the Drive backup). Explore's related
-list, `LatestUploads` (so the new-uploads check and group news both) and ✨ Ask read it, so it is not suggested again;
-Ask also gets the titles in its "have" list and drops a suggestion with a listed title. Settings → 🙅 Not for me lists
-the items and allows one again (with Undo). It is per item, not per channel
+written to the not-for-me list (`NotForMe` in `:core:data`, `not-for-me.json`, part of the Drive backup). The rule is
+"never *suggested* again", decided per surface:
+
+- **Filtered** (the app chooses these for you): Explore's related list, the Related tab on the watch page, the Videos
+  subscriptions feed, group pages, new uploads and group news (both via `LatestUploads`), radio and mix start and
+  top-ups, shuffle all and artist shuffle, and Ask (the AI is told the titles to avoid and a matching suggestion is
+  dropped).
+- **Deliberately not filtered** (you asked for or opened it): channel and podcast pages and their episode lists (the
+  source's own catalogue), search results, playlists, Starred, history, downloads and Library, and the queue itself.
+  Adding a listed item by hand from one of these still works.
+
+Settings > Not for me lists the items and allows one again (with Undo). It is per item, not per channel
 ([ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md)).

@@ -51,6 +51,19 @@ class LocalPlaylistStoreTest {
     }
 
     @Test
+    fun `inserting at an index puts the item back in its old place and clamps past the end`() = runTest {
+        val id = store.create("P")
+        store.addItem(id, video("v1"))
+        store.addItem(id, video("v3"))
+
+        store.insertItem(id, video("v2"), 1)
+        store.insertItem(id, video("v4"), 99)
+        store.insertItem(id, video("v2"), 0)
+
+        assertEquals(listOf("v1", "v2", "v3", "v4"), items(id).map { it.item.id.value })
+    }
+
+    @Test
     fun `adding the same item id twice is a no-op`() = runTest {
         val id = store.create("P")
         store.addItem(id, video("v1"))

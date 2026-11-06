@@ -1737,7 +1737,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val musicRadio: MusicRadio by lazy {
-        MusicRadio(musicCatalogue, playbackQueue, applicationScope, recentActions, File(context.filesDir, "radio.txt"))
+        MusicRadio(
+            musicCatalogue,
+            playbackQueue,
+            applicationScope,
+            recentActions,
+            File(context.filesDir, "radio.txt"),
+            notForMe,
+        )
     }
 
     override val pinStore: PinStore by lazy { SharedPrefsPinStore(context) }
@@ -1890,6 +1897,7 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
     c.randomStarts,
     c.newUploads,
     c.operations,
+    c.notForMe,
 )
 
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */

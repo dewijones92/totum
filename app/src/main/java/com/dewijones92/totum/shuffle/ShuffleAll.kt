@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.ChannelVideosResult
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.queue.QueueGroup
@@ -118,6 +119,7 @@ class ShuffleAll(
     private val randomStarts: RandomStarts? = null,
     private val uploads: NewUploads? = null,
     val operations: Operations = Operations(),
+    private val notForMe: NotForMe = NotForMe(),
 ) {
     suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean, startAtRandom: Boolean? = null): ShuffleOutcome {
         if (operations.isRunning(target.key)) {
@@ -146,7 +148,7 @@ class ShuffleAll(
         Diag.log(TAG, "shuffle all \"$title\": ${sources.size} source(s), shorts=$includeShorts")
         val gathered = whole.everything(sources, includeShorts) { count -> progress.report(found = count) }
         val (membersOnly, open) = gathered.items.partition { it.membersOnly }
-        val playable = open.mapNotNull { it.toPlayableOrNull() }
+        val playable = notForMe.without(open, "shuffle all \"$title\"") { it.id }.mapNotNull { it.toPlayableOrNull() }
         Diag.log(
             TAG,
             "\"$title\": ${gathered.items.size} gathered, ${playable.size} playable, " +

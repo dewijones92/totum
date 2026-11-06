@@ -4,8 +4,10 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.common.PoliteGate
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtist
@@ -112,6 +114,7 @@ class ArtistShuffle(
     private val kept: KeptArtistSongs? = null,
     private val operations: Operations? = null,
     private val scope: CoroutineScope? = null,
+    private val notForMe: NotForMe = NotForMe(),
 ) {
     private val claimed: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val refreshing: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -256,7 +259,7 @@ class ArtistShuffle(
         what: String,
     ) {
         val source = MusicSources.artist(target.listing.browseId)
-        val shuffled = songs.shuffled(random).map { it.toPlayable(source) }
+        val shuffled = wanted(songs, "all songs of \"${target.artist}\"").shuffled(random).map { it.toPlayable(source) }
         randomStarts?.assign(shuffled.map { it.item }, "all songs of \"${target.artist}\"", startAtRandom)
         Diag.log(TAG, "\"${target.artist}\": playing ${shuffled.size} shuffled now ($what)")
         queue.playAll(shuffled, group)
@@ -279,12 +282,15 @@ class ArtistShuffle(
             return Diag.log(TAG, "\"${target.artist}\": its queue group has gone, so ${songs.size} song(s) not added")
         }
         val source = MusicSources.artist(target.listing.browseId)
-        val items = songs.map { it.toPlayable(source) }
+        val items = wanted(songs, "filling in \"${target.artist}\"").map { it.toPlayable(source) }
         randomStarts?.assign(items.map { it.item }, "all songs of \"${target.artist}\" (filled in)", startAtRandom)
         val added = queue.addToGroup(group, items)
         queue.shuffleGroup(group.id, random)
         Diag.log(TAG, "\"${target.artist}\": $added more song(s) shuffled in behind what is playing")
     }
+
+    private fun wanted(songs: List<MusicSong>, why: String) =
+        notForMe.without(songs, "artist shuffle $why") { MediaItemId(it.videoId) }
 
     private fun groupOf(target: ArtistSongs) =
         QueueGroup("artist-all:${target.listing.browseId}", "${target.artist} · All songs")
@@ -339,4 +345,5 @@ fun AppContainer.artistShuffle(): ArtistShuffle =
         kept = keptArtistSongs,
         operations = operations,
         scope = applicationScope,
+        notForMe = notForMe,
     )

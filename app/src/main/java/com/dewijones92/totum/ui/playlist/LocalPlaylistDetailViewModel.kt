@@ -90,14 +90,18 @@ class LocalPlaylistDetailViewModel(
     /** The playlist as a queue group, so its run is labelled and removable together. */
     private fun group() = QueueGroup(id.value, name.value)
 
-    private val removals = MutableSharedFlow<List<PlayableItem>>(extraBufferCapacity = REMOVALS_HELD)
-    val removed: SharedFlow<List<PlayableItem>> = removals.asSharedFlow()
+    data class Removed(val index: Int, val item: PlayableItem)
+
+    private val removals = MutableSharedFlow<List<Removed>>(extraBufferCapacity = REMOVALS_HELD)
+    val removed: SharedFlow<List<Removed>> = removals.asSharedFlow()
 
     fun remove(itemId: MediaItemId) = removeAll(listOf(itemId))
 
     fun removeAll(itemIds: List<MediaItemId>) {
         val current = items.value
-        val taken = itemIds.mapNotNull { wanted -> current.firstOrNull { it.item.id == wanted } }
+        val taken = itemIds.mapNotNull { wanted ->
+            current.indexOfFirst { it.item.id == wanted }.takeIf { it >= 0 }?.let { Removed(it, current[it]) }
+        }.sortedBy { it.index }
         viewModelScope.launch {
             itemIds.forEach { itemId ->
                 val starredItem = current.firstOrNull { it.item.id == itemId }
@@ -113,12 +117,18 @@ class LocalPlaylistDetailViewModel(
         }
     }
 
-    fun restore(back: List<PlayableItem>) {
+    fun restore(back: List<Removed>) {
         viewModelScope.launch {
-            back.forEach { item ->
-                if (stars != null && isStarred) stars.setStarred(item, true) else store.addItem(id, item)
-            }
-            Diag.log("playlist", "dewidebug ${id.value}: put ${back.size} removed item(s) back, at the end")
+            back.sortedBy { it.index }.forEach { (index, item) -> putBack(item, index) }
+            Diag.log("playlist", "dewidebug ${id.value}: put ${back.size} removed item(s) back in their old places")
+        }
+    }
+
+    private suspend fun putBack(item: PlayableItem, index: Int) {
+        if (stars != null && isStarred) {
+            stars.setStarred(item, true, index)
+        } else {
+            store.insertItem(id, item, index)
         }
     }
 
