@@ -82,6 +82,7 @@ fun ShellBanners(container: AppContainer) {
     val running = rememberLongRunning(all)
     val homeProblems by container.homeDownloads.problems.collectAsStateWithLifecycle()
     RefusedTapToasts(container.playbackQueue, signedIn)
+    QueueNoticeToasts(container.playbackQueue)
     OperationResultToasts(container.operations)
     Column {
         OutOfDateBanner(container.appUpdate)

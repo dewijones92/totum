@@ -2,7 +2,7 @@
 title: Radio tops itself up; repeat and shuffle are queue features, for both pillars
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-11-06
 ---
 
 # 27. Radio tops itself up; repeat and shuffle are queue features, for both pillars
@@ -79,3 +79,16 @@ Review corrections (2026-10-22): "Queue, reshuffled each round" reshuffles only 
 (an advance can also fail because items were refused offline, and that must not scramble the order), and a round's first
 playable item in kind is never the one that just ended, even behind an item of the other kind (`ReshuffleRoundTest`,
 `SkipFinishedTest`, seen red).
+
+### Amendment (2026-11-06): starting a run switches Repeat one off, and says so
+
+Report 20261106T084701 (Pixel 4a): an album shuffle played its first track four times, because "🔂 This one" was still
+on from before. Repeat one is right for the song you are on and wrong the moment you ask for a whole album, channel,
+playlist or group. So `PlaybackQueue.playAll` (the one entry every run goes through: album, artist and channel
+shuffles, `ShuffleAll`, pins, playlists, search torrents, radio) switches "This one" to Off when it starts a run **of a
+group**, in a run **you** asked for (`byYou`, so the Shorts reel that re-binds itself does not), through
+`RepeatOneRule` (`queue/RepeatOneRule.kt`), and the queue emits a `QueueNotice.RepeatOneOff` that
+`QueueNoticeToasts` shows as "🔁 Repeat one is off for “<group>”, so it can play on". Repeat queue and repeat group
+stay as they were. Under the kid lock the rule leaves the chosen mode alone, because the lock sets repeat itself
+(`KidRules.repeat`) and saying "off" there would be false. A single tapped item (`playNow`) and a run with no group
+(history replay) are not runs and keep Repeat one. Every decision is logged under `[queue]`.

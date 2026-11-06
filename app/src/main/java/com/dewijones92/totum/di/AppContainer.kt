@@ -227,6 +227,7 @@ import com.dewijones92.totum.queue.PrefsTrailStore
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.QueueSkips
 import com.dewijones92.totum.queue.RandomStarts
+import com.dewijones92.totum.queue.RepeatOneRule
 import com.dewijones92.totum.queue.TrailNavigation
 import com.dewijones92.totum.queue.keepTheQueuesPlace
 import com.dewijones92.totum.queue.onlyOtherKindAhead
@@ -1252,6 +1253,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     if (here) "$reason here" else "$reason on YouTube"
                 }
             },
+            repeatOneOffForRun = RepeatOneRule(
+                chosen = { appPreferences.settings.value.repeatMode },
+                kidLocked = { kidLock.locked.value },
+                setMode = appPreferences::setRepeatMode,
+            )::switchOffForRunOf,
         )
     }
 

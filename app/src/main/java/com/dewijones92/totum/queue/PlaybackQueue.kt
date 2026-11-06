@@ -135,8 +135,12 @@ class PlaybackQueue(
     private val audioPreferred: () -> Boolean = { false },
     private val sourceArtwork: () -> Map<SourceId, HttpUrl> = { emptyMap() },
     internal val passOver: (PlayableItem) -> String? = { null },
+    private val repeatOneOffForRun: (String) -> Boolean = { false },
 ) {
     private val _state = MutableStateFlow(QueueSnapshot())
+
+    private val _notices = MutableSharedFlow<QueueNotice>(extraBufferCapacity = NOTICE_BUFFER)
+    val notices: SharedFlow<QueueNotice> = _notices.asSharedFlow()
 
     /** The queue and where playback is within it. */
     val state: StateFlow<QueueSnapshot> = _state.asStateFlow()
@@ -331,6 +335,9 @@ class PlaybackQueue(
         startAt: MediaItemId? = null,
     ) {
         if (items.isEmpty()) return
+        if (group != null && byYou && repeatOneOffForRun(group.title)) {
+            _notices.tryEmit(QueueNotice.RepeatOneOff(group.title))
+        }
         // Distinct within the run as well as against the queue: a caller can legitimately hand
         // over a list with repeats (a feed showing the same video twice), and re-opening the
         // shorts reel hands over the whole run again every time.
@@ -1124,5 +1131,6 @@ private const val RESTART_BEFORE_PREVIOUS_MS = 5_000L
 
 /** Room for a burst of starts, so a play is never dropped because nobody has collected yet. */
 private const val FRESH_START_BUFFER = 8
+private const val NOTICE_BUFFER = 8
 
 private const val UNDATED_SHOWN = 5
