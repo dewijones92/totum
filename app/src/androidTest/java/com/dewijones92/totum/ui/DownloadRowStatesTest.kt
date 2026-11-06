@@ -156,7 +156,7 @@ class DownloadRowStatesTest {
     fun `a failed download can be dismissed instead`() {
         showFailed("An episode", "no space")
 
-        composeTestRule.onNodeWithText("Delete", substring = true).performClick()
+        composeTestRule.onNodeWithText("Remove from list", substring = true).performClick()
 
         assertEquals(listOf(MediaItemId("item-1")), dismissed)
     }
