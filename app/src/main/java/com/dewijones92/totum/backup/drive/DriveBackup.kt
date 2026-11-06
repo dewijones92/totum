@@ -20,6 +20,12 @@ sealed interface DriveBackupStatus {
     data object Waiting : DriveBackupStatus
 }
 
+sealed interface BackupCheck {
+    data object NotSetUp : BackupCheck
+    data class Readable(val copy: BackupCopy, val where: String, val bytes: Int) : BackupCheck
+    data class Unreadable(val why: String, val where: String?) : BackupCheck
+}
+
 class DriveBackup(
     private val service: BackupService,
     private val locations: BackupLocationStore,
@@ -97,6 +103,42 @@ class DriveBackup(
             }.map { it to phoneCopies }
         }
         return (there + here).sortedByDescending { it.first.modifiedAtMs }
+    }
+
+    suspend fun checkLatest(why: String): BackupCheck = withContext(Dispatchers.IO) {
+        val location = locations.current
+            ?: return@withContext BackupCheck.NotSetUp.also { Diag.log(TAG, "backup check ($why): no Drive location") }
+        val newest = copies(location).firstOrNull()
+            ?: return@withContext BackupCheck.Unreadable("no backup copy was found", open(location).where).also {
+                Diag.warn(TAG, "backup check ($why): no copy found at ${open(location).where}")
+            }
+        val (copy, folder) = newest
+        val text = runCatching { folder.read(copy.name) }.getOrElse { error ->
+            return@withContext BackupCheck.Unreadable("${copy.name} could not be opened: $error", folder.where).also {
+                Diag.warn(TAG, "backup check ($why): ${copy.name} could not be opened from ${folder.where}: $error")
+            }
+        } ?: return@withContext BackupCheck.Unreadable("${copy.name} is empty or missing", folder.where).also {
+            Diag.warn(TAG, "backup check ($why): ${copy.name} read back as nothing from ${folder.where}")
+        }
+        when (val parsed = withContext(Dispatchers.Default) { BackupCodec.decode(text) }) {
+            is BackupReadResult.Ok -> BackupCheck.Readable(copy, folder.where, text.length).also {
+                Diag.log(
+                    TAG,
+                    "dewidebug backup check ($why): ${copy.name} from ${folder.where} reads fine [${text.length}B " +
+                        "modified=${java.time.Instant.ofEpochMilli(copy.modifiedAtMs)} " +
+                        "subscriptions=${parsed.backup.subscriptions.size}]",
+                )
+            }
+            is BackupReadResult.Unreadable -> BackupCheck.Unreadable(
+                "${copy.name} is not a readable backup (${parsed.detail})",
+                folder.where,
+            ).also { Diag.warn(TAG, "backup check ($why): ${copy.name} from ${folder.where} unreadable: $parsed") }
+            is BackupReadResult.TooNew -> BackupCheck.Unreadable(
+                "${copy.name} comes from a newer Totum (backup version ${parsed.fileVersion}, this one reads " +
+                    "${parsed.supported})",
+                folder.where,
+            ).also { Diag.warn(TAG, "backup check ($why): ${copy.name} from ${folder.where} too new: $parsed") }
+        }
     }
 
     suspend fun restore(copy: BackupCopy, from: BackupFolder): BackupService.RestoreSummary? {

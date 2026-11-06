@@ -15,6 +15,8 @@ import com.dewijones92.totum.downloads.EmbeddedSubtitleWarmer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge
 import com.dewijones92.totum.groups.GroupNewsWorker
+import com.dewijones92.totum.jobs.BackupCheckWorker
+import com.dewijones92.totum.jobs.QueueTidyWorker
 import com.dewijones92.totum.notifications.NewContentWorker
 import com.dewijones92.totum.playback.startGapless
 import com.dewijones92.totum.settings.AppPreferences
@@ -60,6 +62,8 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         NewContentWorker.schedule(this)
         NewUploadsWorker.schedule(this)
         GroupNewsWorker.schedule(this)
+        QueueTidyWorker.schedule(this)
+        BackupCheckWorker.schedule(this)
         container.applicationScope.launch { container.groupNews.warm() }
         val metered = NetworkStatus(this)::isMetered
         container.applicationScope.launch {

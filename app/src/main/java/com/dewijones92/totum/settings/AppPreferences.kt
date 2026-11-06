@@ -108,6 +108,9 @@ interface AppPreferences {
     fun setPodcastEpisodeAlerts(enabled: Boolean)
     fun setSourceSkips(source: SourceId, skips: SourceSkips)
     fun setRepeatMode(mode: RepeatMode)
+    fun setTidyQueue(enabled: Boolean)
+    fun setTidyAfterDays(days: Int)
+    fun setDataLimitMb(megabytes: Int)
 
     data class Settings(
         val wifiMaxHeight: Int = DEFAULT_WIFI_MAX_HEIGHT,
@@ -184,6 +187,9 @@ interface AppPreferences {
         val podcastEpisodeAlerts: Boolean = true,
         val sourceSkips: Map<SourceId, SourceSkips> = emptyMap(),
         val repeatMode: RepeatMode = RepeatMode.OFF,
+        val tidyQueue: Boolean = true,
+        val tidyAfterDays: Int = DEFAULT_TIDY_AFTER_DAYS,
+        val dataLimitMb: Int = 0,
     )
 
     companion object {
@@ -191,6 +197,7 @@ interface AppPreferences {
         const val UNCAPPED: Int = Int.MAX_VALUE
         const val DEFAULT_WIFI_MAX_HEIGHT: Int = 1080
         const val DEFAULT_CELLULAR_MAX_HEIGHT: Int = 480
+        const val DEFAULT_TIDY_AFTER_DAYS: Int = 14
     }
 }
 
@@ -252,6 +259,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             sourceSkips = decodeSourceSkips(prefs.getString(KEY_SOURCE_SKIPS, null)),
             repeatMode = prefs.getString(KEY_REPEAT, null)
                 ?.let { saved -> RepeatMode.entries.firstOrNull { it.name == saved } } ?: RepeatMode.OFF,
+            tidyQueue = prefs.getBoolean(KEY_TIDY_QUEUE, true),
+            tidyAfterDays = prefs.getInt(KEY_TIDY_AFTER_DAYS, AppPreferences.DEFAULT_TIDY_AFTER_DAYS),
+            dataLimitMb = prefs.getInt(KEY_DATA_LIMIT_MB, 0),
         ),
     )
     init {
@@ -385,6 +395,17 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             putString(KEY_CAPTION_LANGUAGE, choice.language)
         }) { it.copy(captions = choice) }
 
+    override fun setTidyQueue(enabled: Boolean): Unit =
+        change("tidyQueue", enabled, { putBoolean(KEY_TIDY_QUEUE, enabled) }) { it.copy(tidyQueue = enabled) }
+
+    override fun setTidyAfterDays(days: Int): Unit =
+        change("tidyAfterDays", days, { putInt(KEY_TIDY_AFTER_DAYS, days) }) { it.copy(tidyAfterDays = days) }
+
+    override fun setDataLimitMb(megabytes: Int): Unit =
+        change("dataLimitMb", megabytes, { putInt(KEY_DATA_LIMIT_MB, megabytes) }) {
+            it.copy(dataLimitMb = megabytes)
+        }
+
     override fun setInboxAll(enabled: Boolean): Unit =
         change("inboxAll", enabled, { putBoolean(KEY_INBOX_ALL, enabled) }) { it.copy(inboxAll = enabled) }
 
@@ -469,6 +490,9 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_CAPTIONS_ON = "captions_on"
         const val KEY_CAPTION_LANGUAGE = "caption_language"
         const val KEY_INBOX_ALL = "inbox_all"
+        const val KEY_TIDY_QUEUE = "tidy_queue"
+        const val KEY_TIDY_AFTER_DAYS = "tidy_after_days"
+        const val KEY_DATA_LIMIT_MB = "data_limit_mb"
         const val KEY_INBOX_SOURCES = "inbox_sources"
         const val KEY_QUIET_GROUPS = "quiet_groups"
         const val KEY_YOUTUBE_ALERTS = "youtube_upload_alerts"
@@ -533,6 +557,9 @@ class InMemoryAppPreferences : AppPreferences {
         it.copy(sourceSkips = (it.sourceSkips + (source to skips)).filterValues { s -> !s.isEmpty })
     }
     override fun setRepeatMode(mode: RepeatMode) = _settings.update { it.copy(repeatMode = mode) }
+    override fun setTidyQueue(enabled: Boolean) = _settings.update { it.copy(tidyQueue = enabled) }
+    override fun setTidyAfterDays(days: Int) = _settings.update { it.copy(tidyAfterDays = days) }
+    override fun setDataLimitMb(megabytes: Int) = _settings.update { it.copy(dataLimitMb = megabytes) }
 }
 
 fun <T> AppPreferences.setting(scope: CoroutineScope, pick: (AppPreferences.Settings) -> T): StateFlow<T> =

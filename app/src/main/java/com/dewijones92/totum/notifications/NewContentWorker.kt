@@ -1,16 +1,13 @@
 package com.dewijones92.totum.notifications
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.dewijones92.totum.TotumApplication
-import com.dewijones92.totum.common.Diag
-import java.util.concurrent.TimeUnit
+import com.dewijones92.totum.jobs.JobOutcome
+import com.dewijones92.totum.jobs.PeriodicJob
+import java.time.Duration
 
 /**
  * Periodically refreshes every subscription (both pillars) and notifies the user
@@ -25,32 +22,30 @@ public class NewContentWorker(
 
     override suspend fun doWork(): Result {
         val container = (applicationContext as TotumApplication).container
-        // Said before the work, so a run that never returns is distinguishable from one that was
-        // never scheduled — WorkManager can defer this for hours and nothing else records that
-        // it woke up at all.
-        Diag.log("content", "background refresh starting (every $INTERVAL_HOURS hours)")
-        val check = NewContentCheck(
-            refresher = container.contentRefresher,
-            notify = { NewContentNotifier(applicationContext) { container.appPreferences.settings.value }.notify(it) },
-        )
-        return when (check.run()) {
-            is NewContentCheck.Outcome.NothingNew, is NewContentCheck.Outcome.Notified -> Result.success()
+        return JOB.run(container.lastRuns) {
+            val check = NewContentCheck(
+                refresher = container.contentRefresher,
+                notify = { updates ->
+                    val notifier = NewContentNotifier(applicationContext) { container.appPreferences.settings.value }
+                    notifier.notify(updates)
+                },
+            )
             // Both leave the items unseen deliberately, so the next run finds them again.
-            is NewContentCheck.Outcome.Undelivered, is NewContentCheck.Outcome.Failed -> Result.retry()
+            when (val outcome = check.run()) {
+                is NewContentCheck.Outcome.NothingNew -> JobOutcome.Done("nothing new")
+                is NewContentCheck.Outcome.Notified -> JobOutcome.Done("${outcome.items} new item(s) notified")
+                is NewContentCheck.Outcome.Undelivered ->
+                    JobOutcome.Failed("${outcome.items} new item(s) could not be notified", retry = true)
+                is NewContentCheck.Outcome.Failed ->
+                    JobOutcome.Failed(outcome.error.message ?: outcome.error.javaClass.simpleName, retry = true)
+            }
         }
     }
 
     public companion object {
-        private const val UNIQUE_NAME = "new-content-refresh"
-        internal const val INTERVAL_HOURS = 6L
+        internal val JOB = PeriodicJob("new-content-refresh", Duration.ofHours(6), NetworkType.CONNECTED)
 
         /** Schedules the periodic refresh, keeping any already-scheduled instance. */
-        public fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<NewContentWorker>(INTERVAL_HOURS, TimeUnit.HOURS)
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .build()
-            WorkManager.getInstance(context)
-                .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
-        }
+        public fun schedule(context: Context) = JOB.schedule(context, NewContentWorker::class.java)
     }
 }

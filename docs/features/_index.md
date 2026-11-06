@@ -90,6 +90,10 @@ alone until they need more.
 | Quality + speed as an on-video overlay | ui | shipped | [video-settings-overlay.md](video-settings-overlay.md) |
 | Subtitles / captions (menu on the video, cues over the picture) | playback | shipped | [subtitles.md](subtitles.md) |
 | Audio tracks: the right language by default, and a menu to change it | playback | shipped | [audio-tracks.md](audio-tracks.md) |
+| Periodic jobs: one `PeriodicJob` helper and a persisted last run ("✅ checked 2 days ago") | platform | built 2026-11-06 (tests owed; ADR 129) | [periodic-jobs.md](periodic-jobs.md) |
+| The queue tidies itself weekly (played talk older than 14 days, failed downloads) | queue | built 2026-11-06 (tests owed) | [queue-tidy-up.md](queue-tidy-up.md) |
+| Backups are test-read weekly ("✅ Backup checked 2 days ago") | backup | built 2026-11-06 (tests owed) | [backup-checked.md](backup-checked.md) |
+| A daily mobile-data limit (video plays as sound only past it; 📶 chip) | playback | built 2026-11-06 (tests owed; counter not yet seen on a phone) | [mobile-data-budget.md](mobile-data-budget.md) |
 | Search in Settings (fuzzy, jumps to the row or opens its page) | settings | built 2026-11-06 | [settings-search.md](settings-search.md) |
 | The mini player shows every mode that is on (🔂 🔁 🔀 🧭 ⏩ 👶 🔕 ⏰); the notification shows 🔂 | player | built 2026-11-06 (tests to follow) | [active-modes.md](active-modes.md) |
 | A group page shows its last list while refreshing (kept on disk) | video | built 2026-11-06 (tests to follow) | [group-page.md](group-page.md) |

@@ -25,7 +25,13 @@ class DataSaverNotifier(private val context: Context) {
 
     private val manager = NotificationManagerCompat.from(context)
 
-    fun switchedToAudio(title: String) {
+    fun switchedToAudio(title: String) =
+        tell(title, R.string.data_saver_switched_title, R.string.data_saver_switched_text)
+
+    fun reachedLimit(title: String) =
+        tell(title, R.string.data_saver_limit_title, R.string.data_saver_limit_text)
+
+    private fun tell(title: String, titleRes: Int, textRes: Int) {
         // Inline rather than behind a helper: lint follows the check only when it can see it here,
         // and the alternative is suppressing a warning that is genuinely about a real crash.
         // POST_NOTIFICATIONS is requested at first play; if it was refused this is a silent no-op
@@ -40,11 +46,11 @@ class DataSaverNotifier(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setContentTitle(context.getString(R.string.data_saver_switched_title))
-            .setContentText(context.getString(R.string.data_saver_switched_text, title))
+            .setContentTitle(context.getString(titleRes))
+            .setContentText(context.getString(textRes, title))
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigText(context.getString(R.string.data_saver_switched_text, title)),
+                    .bigText(context.getString(textRes, title)),
             )
             .setAutoCancel(true)
             .build()

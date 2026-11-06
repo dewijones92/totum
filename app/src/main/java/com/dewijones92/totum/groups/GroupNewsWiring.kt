@@ -11,12 +11,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
@@ -26,7 +22,8 @@ import com.dewijones92.totum.common.writeTextReplacing
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceGroup
-import kotlinx.coroutines.CancellationException
+import com.dewijones92.totum.jobs.JobOutcome
+import com.dewijones92.totum.jobs.PeriodicJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -34,7 +31,7 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 class FileGroupNewsStore(private val file: File) : GroupNewsStore {
     override suspend fun load(): Map<String, GroupNewsState> = withContext(Dispatchers.IO) {
@@ -102,33 +99,21 @@ class GroupNewsNotifier(private val context: Context) {
 class GroupNewsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as TotumApplication).container
-        if (!TotumApplication.warmEngineAfterLaunch) {
-            Diag.log(TAG, "group news check skipped: running under instrumentation")
-            return Result.success()
-        }
-        try {
+        return JOB.run(container.lastRuns) {
             container.groupNews.check(container.sourceGroupStore.observeGroups().first())
-        } catch (cancelled: CancellationException) {
-            Diag.log(TAG, "group news check stopped by the system")
-            throw cancelled
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-            Diag.warn(TAG, "group news check failed", failure)
+            JobOutcome.Done()
         }
-        return Result.success()
     }
 
     companion object {
-        private const val UNIQUE_NAME = "group-news"
-        private const val INTERVAL_MINUTES = 60L
+        private val JOB = PeriodicJob(
+            "group-news",
+            Duration.ofMinutes(60),
+            NetworkType.CONNECTED,
+            skipsUnderInstrumentation = true,
+        )
 
-        fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<GroupNewsWorker>(INTERVAL_MINUTES, TimeUnit.MINUTES)
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .build()
-            WorkManager.getInstance(context)
-                .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
-            Diag.log(TAG, "group news check scheduled every $INTERVAL_MINUTES min on any network")
-        }
+        fun schedule(context: Context) = JOB.schedule(context, GroupNewsWorker::class.java)
     }
 }
 

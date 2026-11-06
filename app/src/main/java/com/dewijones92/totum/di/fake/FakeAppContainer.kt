@@ -90,7 +90,11 @@ import com.dewijones92.totum.innertube.playlists.fake.FakeYouTubePlaylists
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.related.fake.FakeYouTubeRelated
 import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptions
+import com.dewijones92.totum.jobs.InMemoryLastRunStore
+import com.dewijones92.totum.jobs.LastRuns
 import com.dewijones92.totum.kidlock.KidLock
+import com.dewijones92.totum.mobiledata.InMemoryMobileDataStore
+import com.dewijones92.totum.mobiledata.MobileDataMeter
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.KeptArtistSongs
@@ -115,6 +119,7 @@ import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.PlayTrail
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueSkips
+import com.dewijones92.totum.queue.QueueTidy
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.TrailNavigation
 import com.dewijones92.totum.settings.AppPreferences
@@ -318,6 +323,13 @@ class FakeAppContainer(
 
     override val recentActions: RecentActions = RecentActions()
     override val activeModes: StateFlow<List<ActiveMode>> = MutableStateFlow(emptyList())
+    override val lastRuns: LastRuns = LastRuns(InMemoryLastRunStore())
+    override val queueTidy: QueueTidy by lazy {
+        QueueTidy(playbackQueue, playbackProgressStore, downloadManager, { emptySet() })
+    }
+    override val mobileData: MobileDataMeter by lazy {
+        MobileDataMeter(InMemoryMobileDataStore(), applicationScope, { null }, { false }, { 0 })
+    }
     override val exploreMode: ExploreMode = ExploreMode(
         initiallyOn = false,
         related = { null },

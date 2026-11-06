@@ -183,11 +183,16 @@ import com.dewijones92.totum.innertube.related.RelatedResult
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.innertube.search.HttpYouTubeSearch
 import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
+import com.dewijones92.totum.jobs.LastRuns
+import com.dewijones92.totum.jobs.SharedPrefsLastRunStore
 import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.kidlock.KidMode
 import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.live.LiveNotifier
 import com.dewijones92.totum.live.LiveStartWatcher
+import com.dewijones92.totum.mobiledata.MobileDataMeter
+import com.dewijones92.totum.mobiledata.SharedPrefsMobileDataStore
+import com.dewijones92.totum.mobiledata.reachedLimit
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.KeptArtistSongs
@@ -236,6 +241,7 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.PrefsTrailStore
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.queue.QueueSkips
+import com.dewijones92.totum.queue.QueueTidy
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.RepeatOneRule
 import com.dewijones92.totum.queue.TrailNavigation
@@ -570,6 +576,9 @@ interface AppContainer {
     val recentActions: RecentActions
     val exploreMode: ExploreMode
     val activeModes: StateFlow<List<ActiveMode>>
+    val lastRuns: LastRuns
+    val queueTidy: QueueTidy
+    val mobileData: MobileDataMeter
     val queueSkips: QueueSkips
     val episodeDownloads: EpisodeDownloads
     val audiobookSearchSource: SearchSource
@@ -1160,6 +1169,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 )
             },
             scope = applicationScope,
+            overLimit = { mobileData.state.value.reachedLimit(appPreferences.settings.value.dataLimitMb) },
+            announceOverLimit = { id ->
+                dataSaverNotifier.reachedLimit(playbackController.state.value?.title ?: id.value)
+            },
         ).also { it.start() }
         StallWatchdog(
             states = playbackController.state,
@@ -1711,6 +1724,23 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
     override val activeModes: StateFlow<List<ActiveMode>> by lazy {
         activeModesFor(this).stateIn(applicationScope, SharingStarted.Eagerly, emptyList())
+    }
+
+    override val lastRuns: LastRuns by lazy {
+        LastRuns(SharedPrefsLastRunStore(context.getSharedPreferences("totum_periodic_jobs", Context.MODE_PRIVATE)))
+    }
+
+    override val queueTidy: QueueTidy by lazy {
+        QueueTidy(playbackQueue, playbackProgressStore, downloadManager, { lockingDownloads.locks.locked.value })
+    }
+
+    override val mobileData: MobileDataMeter by lazy {
+        MobileDataMeter(
+            store = SharedPrefsMobileDataStore(context.getSharedPreferences("totum_mobile_data", Context.MODE_PRIVATE)),
+            scope = applicationScope,
+            metered = networkStatus::isMetered,
+            limitMb = { appPreferences.settings.value.dataLimitMb },
+        ).also { it.start() }
     }
 
     override val episodeDownloads: EpisodeDownloads by lazy {

@@ -75,6 +75,7 @@ private fun ActiveMode.label(): String = when (this) {
     ActiveMode.KidLock -> stringResource(R.string.mode_kid_lock)
     ActiveMode.QuietHours -> stringResource(R.string.mode_quiet_hours)
     ActiveMode.SleepTimer -> stringResource(R.string.mode_sleep_timer)
+    ActiveMode.DataLimit -> stringResource(R.string.mode_data_limit)
 }
 
 const val ACTIVE_MODES_TAG = "active-modes"

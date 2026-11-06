@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ago_just_now">just now</string>
+    <plurals name="ago_minutes">
+        <item quantity="one">%d minute ago</item>
+        <item quantity="other">%d minutes ago</item>
+    </plurals>
+    <plurals name="ago_hours">
+        <item quantity="one">%d hour ago</item>
+        <item quantity="other">%d hours ago</item>
+    </plurals>
+    <plurals name="ago_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <string name="housekeeping_channel_name">Housekeeping</string>
+    <string name="housekeeping_channel_description">Tells you when Totum has tidied up or found a problem with your backup</string>
+
+    <string name="settings_tidy_queue">Tidy the queue each week</string>
+    <string name="settings_tidy_queue_summary">🧹 Played talk older than the age below leaves the queue, and failed downloads are cleared. Music, locked items and the group playing now are never touched.</string>
+    <string name="settings_tidy_age">Tidy played talk older than</string>
+    <plurals name="settings_tidy_age_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string name="settings_tidy_never">⏳ Not tidied yet; it runs about once a week</string>
+    <string name="settings_tidy_last_ok">✅ Queue tidied %1$s: %2$s</string>
+    <string name="settings_tidy_last_failed">❌ The last tidy-up failed: %1$s</string>
+    <string name="tidy_nothing">nothing to tidy</string>
+    <plurals name="tidy_played_left">
+        <item quantity="one">%d played item left the queue</item>
+        <item quantity="other">%d played items left the queue</item>
+    </plurals>
+    <plurals name="tidy_failed_cleared">
+        <item quantity="one">%d failed download cleared</item>
+        <item quantity="other">%d failed downloads cleared</item>
+    </plurals>
+    <string name="tidy_joined">%1$s, %2$s</string>
+    <string name="tidy_notification_title">🧹 Queue tidied</string>
+
+    <string name="drive_backup_checked">✅ Backup checked %1$s</string>
+    <string name="drive_backup_check_failed">❌ Backup could not be read: %1$s</string>
+    <string name="drive_backup_check_failed_since">%1$s (last good check %2$s)</string>
+    <string name="drive_backup_check_notification_title">❌ Backup could not be read</string>
+    <string name="drive_backup_check_notification_text">%1$s. Open Settings and back up again.</string>
+
+    <string name="settings_data_limit">Daily mobile-data limit</string>
+    <string name="settings_data_limit_summary">📶 Past the limit, video plays as sound only while you are on mobile data. Off until you choose one; 1 GB is a good start.</string>
+    <string name="settings_data_limit_today">📶 Today: %1$s of mobile data used</string>
+    <string name="settings_data_limit_today_of">📶 Today: %1$s of %2$s mobile data used</string>
+    <string name="settings_data_limit_reached">📶 Data limit reached: %1$s of %2$s used today</string>
+    <string name="settings_data_limit_off">Off</string>
+    <string name="settings_data_limit_mb">%d MB</string>
+    <string name="settings_data_limit_gb">%d GB</string>
+    <string name="settings_data_limit_suggested">%1$s (suggested)</string>
+    <string name="mode_data_limit">📶 Data limit reached</string>
+    <string name="data_saver_limit_title">📶 Daily data limit reached</string>
+    <string name="data_saver_limit_text">You have used your daily mobile-data limit, so “%1$s” is playing as audio. Change the limit in Settings to watch video on mobile data again.</string>
+</resources>

@@ -111,8 +111,8 @@ private fun MainSettings(
 ) {
     val prefs = container.appPreferences
     Column {
-        QualitySection(settings, prefs)
-        FeedAndQueueSettings(settings, prefs)
+        QualitySection(settings, prefs, container)
+        FeedAndQueueSettings(settings, prefs, container.lastRuns)
         NewUploadsSettings(container, settings)
         SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
         SpeechBoostSection(container, settings.speechGate, prefs::setSpeechGate)
@@ -172,7 +172,9 @@ private fun MainSettings(
         AnchoredRow(SettingsRow.CHECK_CONTENT) { CheckForContentRow(container) }
         AnchoredRow(SettingsRow.SEND_DIAGNOSTICS) { DiagnosticsRow(container) }
         SectionTitle(stringResource(R.string.drive_backup_section))
-        AnchoredRow(SettingsRow.DRIVE_BACKUP) { DriveBackupRow(container.driveBackup, container.operations) }
+        AnchoredRow(
+            SettingsRow.DRIVE_BACKUP
+        ) { DriveBackupRow(container.driveBackup, container.operations, container.lastRuns) }
     }
 }
 
@@ -213,7 +215,7 @@ private fun DownloadSettings(settings: AppPreferences.Settings, prefs: AppPrefer
  */
 /** The per-network quality caps: the quality auto-picked when a video starts. */
 @Composable
-private fun QualitySection(settings: AppPreferences.Settings, prefs: AppPreferences) {
+private fun QualitySection(settings: AppPreferences.Settings, prefs: AppPreferences, container: AppContainer) {
     Text(
         text = stringResource(R.string.settings_quality_section),
         style = MaterialTheme.typography.titleMedium,
@@ -233,6 +235,7 @@ private fun QualitySection(settings: AppPreferences.Settings, prefs: AppPreferen
             onSelect = prefs::setCellularMaxHeight,
         )
     }
+    AnchoredRow(SettingsRow.DATA_LIMIT) { DataLimitRow(container.mobileData, settings, prefs) }
 }
 
 /** Opens the on-device read of the same data the "send" button transmits. */

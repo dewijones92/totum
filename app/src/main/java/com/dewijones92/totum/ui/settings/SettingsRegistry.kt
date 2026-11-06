@@ -22,6 +22,12 @@ internal enum class SettingsRow(
         R.string.settings_quality_section,
         keywords = "resolution data 4g 5g cellular",
     ),
+    DATA_LIMIT(
+        R.string.settings_data_limit,
+        R.string.settings_quality_section,
+        R.string.settings_data_limit_summary,
+        "mobile data budget cellular gigabyte megabyte metered sound only",
+    ),
     FEED_HIDDEN(R.string.settings_feed_hidden, R.string.settings_feed_section, R.string.settings_feed_hidden_summary),
     REWIND(R.string.settings_rewind, R.string.settings_queue_section, R.string.settings_rewind_summary, "resume pause"),
     SILENT_TAIL(
@@ -37,6 +43,17 @@ internal enum class SettingsRow(
         R.string.settings_queue_section,
         R.string.settings_explore_cap_summary,
         "limit related",
+    ),
+    TIDY_QUEUE(
+        R.string.settings_tidy_queue,
+        R.string.settings_queue_section,
+        R.string.settings_tidy_queue_summary,
+        "clean up played old failed downloads weekly",
+    ),
+    TIDY_AGE(
+        R.string.settings_tidy_age,
+        R.string.settings_queue_section,
+        keywords = "tidy clean up days older played",
     ),
     INBOX_ALL(
         R.string.settings_inbox_all,

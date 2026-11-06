@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.dailyalarms.WorkAppsStatus
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidRules
+import com.dewijones92.totum.mobiledata.holdingBack
 import com.dewijones92.totum.workapps.WorkAppsQuiet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -35,7 +36,13 @@ internal fun activeModesFor(c: AppContainer): Flow<List<ActiveMode>> {
         ModeInputs(chosen, explore, kidLocked, speed, quiet)
     }
     val sleeping = c.sleepTimer.state.map { it != SleepTimerState.Off }.distinctUntilChanged()
-    return combine(first, sleeping) { inputs, asleep -> inputs.copy(sleepTimer = asleep) }
+    val limited = combine(
+        c.mobileData.state,
+        c.appPreferences.settings.map { it.dataLimitMb }.distinctUntilChanged(),
+    ) { used, limitMb -> used.holdingBack(limitMb) }.distinctUntilChanged()
+    return combine(first, sleeping, limited) { inputs, asleep, overLimit ->
+        inputs.copy(sleepTimer = asleep, dataLimit = overLimit)
+    }
         .map(::activeModesOf)
         .distinctUntilChanged()
 }

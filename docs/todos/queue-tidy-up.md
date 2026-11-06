@@ -1,7 +1,7 @@
 ---
 title: The queue tidies itself
 kind: todo
-status: decided
+status: built 2026-11-06 (tests to follow)
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-06
@@ -14,3 +14,5 @@ older than 14 days leaves the queue for History (never music, never 🔒 or the 
 a line says what moved, with Undo.
 
 Whole-batch review: clearing failed downloads already exists (`LibraryViewModel.clearFailed`); call it. The weekly run uses the shared periodic job.
+
+Built: see [../features/queue-tidy-up.md](../features/queue-tidy-up.md).

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.settings
 
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -17,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,18 +29,27 @@ import com.dewijones92.totum.backup.drive.BackupCopy
 import com.dewijones92.totum.backup.drive.BackupFolder
 import com.dewijones92.totum.backup.drive.DriveBackup
 import com.dewijones92.totum.backup.drive.DriveBackupStatus
+import com.dewijones92.totum.jobs.BackupCheckWorker
+import com.dewijones92.totum.jobs.LastRun
+import com.dewijones92.totum.jobs.LastRuns
+import com.dewijones92.totum.jobs.agoText
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.operations.tracking
+import com.dewijones92.totum.ui.common.LocalNow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun DriveBackupRow(drive: DriveBackup, operations: Operations? = null) {
+fun DriveBackupRow(drive: DriveBackup, operations: Operations? = null, lastRuns: LastRuns? = null) {
     val status by drive.status.collectAsStateWithLifecycle()
+    val checked by (lastRuns?.observe(BackupCheckWorker.JOB_NAME) ?: flowOf(null)).collectAsStateWithLifecycle(null)
+    val context = LocalContext.current
+    val checkedAt = LocalNow.current.toEpochMilli()
     val scope = rememberCoroutineScope()
     val backingUp = stringResource(R.string.drive_backup_working)
     val backUp: (String) -> Unit = { why ->
@@ -63,6 +74,15 @@ fun DriveBackupRow(drive: DriveBackup, operations: Operations? = null) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (status !is DriveBackupStatus.NotSetUp) {
+            checked?.let { run ->
+                Text(
+                    backupCheckText(context, run) { then -> context.agoText(then, checkedAt) },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         restored?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         FlowRow {
             if (status is DriveBackupStatus.NotSetUp) {
@@ -137,6 +157,15 @@ private fun statusText(status: DriveBackupStatus): String = when (status) {
         status.reason
     )
 }
+
+private fun backupCheckText(context: Context, run: LastRun, ago: (Long) -> String): String =
+    if (run.succeeded) {
+        context.getString(R.string.drive_backup_checked, ago(run.ranAtMs))
+    } else {
+        val failed = context.getString(R.string.drive_backup_check_failed, run.detail)
+        run.lastSucceededAtMs?.let { context.getString(R.string.drive_backup_check_failed_since, failed, ago(it)) }
+            ?: failed
+    }
 
 private fun clock(epochMs: Long, pattern: String): String =
     DateTimeFormatter.ofPattern(pattern).format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))

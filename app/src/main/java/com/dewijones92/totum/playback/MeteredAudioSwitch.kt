@@ -42,6 +42,8 @@ internal class MeteredAudioSwitch(
     private val scope: CoroutineScope,
     private val checkEveryMs: Long = CHECK_MS,
     private val holdMs: Long = HOLD_MS,
+    private val overLimit: () -> Boolean = { false },
+    private val announceOverLimit: (MediaItemId) -> Unit = {},
 ) {
     private var meteredForMs = 0L
 
@@ -81,7 +83,8 @@ internal class MeteredAudioSwitch(
         if (meteredForMs < holdMs) return
 
         val id = playingVideoId() ?: return
-        switched?.let { first ->
+        val limited = overLimit()
+        switched?.takeUnless { limited }?.let { first ->
             if (id != first && lastStoodDownFor != id) {
                 Diag.log(
                     "data",
@@ -94,9 +97,13 @@ internal class MeteredAudioSwitch(
         }
         switched = id
 
-        Diag.log("data", "${id.value} has been on mobile data ${meteredForMs}ms — switching to audio only")
+        Diag.log(
+            "data",
+            "${id.value} has been on mobile data ${meteredForMs}ms — switching to audio only " +
+                "[dailyLimitReached=$limited]",
+        )
         if (switchToAudio()) {
-            announce(id)
+            if (limited) announceOverLimit(id) else announce(id)
         } else {
             // Said out loud: a failed switch leaves video running on mobile data, which is the
             // opposite of what was intended and would otherwise be invisible.

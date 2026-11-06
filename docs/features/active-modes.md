@@ -25,6 +25,7 @@ package), lists what is on; the mini player, the playback notification and diagn
 | 👶 Kid lock | the kid lock is on | opens the player |
 | 🔕 Work apps quiet | the work-app quiet hours are snoozing now (`WorkAppsStatus.Quiet`) | opens the work-apps page |
 | ⏰ Sleep timer on | any sleep timer is armed | opens the player |
+| 📶 Data limit reached | the [daily mobile-data limit](mobile-data-budget.md) is reached and the connection is metered | opens the player |
 
 Left out on purpose: skip silences and volume boost are chosen deliberately in the quick strip and read there, and
 repeat off is the default, so neither would be a surprise. A one-off "shuffle up next" in the Queue header is an

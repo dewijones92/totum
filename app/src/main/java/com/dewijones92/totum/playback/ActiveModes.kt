@@ -42,6 +42,10 @@ sealed interface ActiveMode {
     data object SleepTimer : ActiveMode {
         override val diagName = "sleep-timer"
     }
+
+    data object DataLimit : ActiveMode {
+        override val diagName = "data-limit"
+    }
 }
 
 data class ModeInputs(
@@ -51,6 +55,7 @@ data class ModeInputs(
     val speed: Float? = null,
     val quietHours: Boolean = false,
     val sleepTimer: Boolean = false,
+    val dataLimit: Boolean = false,
 )
 
 private const val NORMAL_SPEED_TOLERANCE = 0.001f
@@ -67,6 +72,7 @@ fun activeModesOf(inputs: ModeInputs): List<ActiveMode> = buildList {
     if (inputs.kidLocked) add(ActiveMode.KidLock)
     if (inputs.quietHours) add(ActiveMode.QuietHours)
     if (inputs.sleepTimer) add(ActiveMode.SleepTimer)
+    if (inputs.dataLimit) add(ActiveMode.DataLimit)
 }
 
 fun List<ActiveMode>.describe(): String = if (isEmpty()) "none" else joinToString(" | ") { it.diagName }

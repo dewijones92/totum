@@ -49,7 +49,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Search results as tabs](search-results-tabs.md) | search | medium | built 2026-11-06, Batch A; tests to follow |
 | [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | built 2026-11-06, Batch A (ADR 123); tests to follow |
 | [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | built 2026-11-06, Batch A; tests to follow |
-| [The queue tidies itself](queue-tidy-up.md) | queue | medium | decided 2026-11-06, Batch A |
+| [The queue tidies itself](queue-tidy-up.md) | queue | medium | built 2026-11-06, Batch A |
 | [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | built 2026-11-06, Batch A (ADR 125); tests to follow |
 | [Why is this playing?](why-is-this-playing.md) | player | medium | decided 2026-11-06, Batch A |
 | [What's new after an update](whats-new-card.md) | app | medium | built 2026-11-06, Batch A (ADR 130); first card needs a CI release carrying the notes; tests to follow |
@@ -58,8 +58,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Update straight from the banner](in-app-updater.md) | app | high | built 2026-11-06, Batch A (ADR 130); tests and a device run to follow |
 | [Undo after every remove](undo-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
 | [Offline at a glance](offline-playable-chip.md) | queue | medium | decided 2026-11-06, Batch A |
-| [A daily mobile-data budget](mobile-data-budget.md) | playback | medium | decided 2026-11-06, Batch A |
-| [Backups are test-read weekly](backup-checked.md) | backup | medium | decided 2026-11-06, Batch A |
+| [A daily mobile-data budget](mobile-data-budget.md) | playback | medium | built 2026-11-06, Batch A |
+| [Backups are test-read weekly](backup-checked.md) | backup | medium | built 2026-11-06, Batch A |
 | [Share and copy link on every item](share-link-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
 | [A Carry on row in Library](carry-on-row.md) | library | medium | decided 2026-11-06, Batch A |
 | [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | decided 2026-11-06, Batch A |

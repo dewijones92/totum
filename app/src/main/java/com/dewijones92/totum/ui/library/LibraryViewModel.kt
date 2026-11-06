@@ -8,6 +8,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.RetryPlan
+import com.dewijones92.totum.data.download.clearFailed
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CleanupCandidate
@@ -273,9 +274,7 @@ class LibraryViewModel(
     }
 
     fun clearFailed() {
-        val all = failed.value.map { it.id }
-        Diag.log("download", "clear failed: ${all.size} failed download(s) forgotten")
-        viewModelScope.launch { all.forEach { downloads.delete(it) } }
+        viewModelScope.launch { downloads.clearFailed("Clear all in Downloads") }
     }
 
     companion object {

@@ -29,6 +29,8 @@ me … be able to restore from it as well."* Decisions in [ADR 53](../adr/0053-g
   up to; Totum restores the latest and keeps backing up there.
 - **Settings → Backup:** status (when it last ran and where, or why it failed), Back up now, Restore… (lists the
   copies), Turn off.
+- **Weekly check:** the newest copy is read and decoded without restoring it, and the row says "✅ Backup checked 2 days ago"
+  or "❌ Backup could not be read: …" (a failure notifies); see [backup-checked](backup-checked.md).
 - **Reports:** `backup.location`, `backup.status`, `backup.neverAsk`; every backup and restore is logged under
   `backup`.
 

@@ -14,13 +14,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.jobs.LastRuns
 import com.dewijones92.totum.settings.AppPreferences
 
 internal val EXPLORE_CAPS = listOf(0, 3, 5, 10)
 internal const val EXPLORE_CAP_TAG = "exploreCap"
 
 @Composable
-internal fun FeedAndQueueSettings(settings: AppPreferences.Settings, prefs: AppPreferences) {
+internal fun FeedAndQueueSettings(settings: AppPreferences.Settings, prefs: AppPreferences, lastRuns: LastRuns) {
     SectionTitle(stringResource(R.string.settings_feed_section))
     AnchoredRow(SettingsRow.FEED_HIDDEN) {
         SwitchRow(
@@ -64,6 +65,7 @@ internal fun FeedAndQueueSettings(settings: AppPreferences.Settings, prefs: AppP
         )
     }
     AnchoredRow(SettingsRow.EXPLORE_CAP) { ExploreCapRow(settings.exploreCap, prefs::setExploreCap) }
+    TidyQueueSettings(settings, prefs, lastRuns)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
