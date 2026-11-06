@@ -52,3 +52,6 @@ it, and `playlistItemFrom(columns)` is the single mapper back to a `PlaylistItem
 `PlayHistoryStoreTest` (order / move-to-front dedup / cap / clear). Verified
 on-device: play a video and a podcast → both appear under Library → History,
 most-recent first; tap replays; Clear all empties it.
+
+The history also feeds the Library's ▶️ Carry on row (2026-11-06): the half-watched items in it, newest first, joined to
+the play-state map ([carry-on-row.md](carry-on-row.md), ADR 137).

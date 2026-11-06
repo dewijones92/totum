@@ -8,7 +8,7 @@ updated: 2026-11-06
 
 # Offline at a glance
 
-Dewi, 2026-11-06. [ADR 132](../adr/0132-offline-playable-is-whatever-routenow-plays-from-the-device.md).
+Dewi, 2026-11-06. [ADR 136](../adr/0136-offline-playable-is-whatever-routenow-plays-from-the-device.md).
 
 ## What it does
 

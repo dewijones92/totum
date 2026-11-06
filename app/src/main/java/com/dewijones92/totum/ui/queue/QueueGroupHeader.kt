@@ -32,6 +32,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.TimeLeft
 import com.dewijones92.totum.music.RADIO_GROUP_PREFIX
 import com.dewijones92.totum.queue.GroupDestination
 import com.dewijones92.totum.ui.common.MediaSort
@@ -49,6 +50,7 @@ internal data class GroupHeaderModel(
     val draggable: Boolean,
     val playing: Boolean = false,
     val downloading: Boolean = true,
+    val timeLeft: TimeLeft? = null,
 ) {
     val endless: Boolean get() = groupId.startsWith(RADIO_GROUP_PREFIX)
 }
@@ -191,6 +193,14 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
                 modifier = Modifier.testTag(QUEUE_GROUP_ENDLESS_TAG),
             )
         }
+        model.timeLeft?.takeUnless { model.endless }?.let { left ->
+            Text(
+                text = timeLeftWords(left),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag(QUEUE_GROUP_TIME_LEFT_TAG),
+            )
+        }
         val hidden = if (model.containsNowPlaying) model.count - 1 else model.count
         if (model.collapsed && hidden > 0) {
             Text(
@@ -306,6 +316,8 @@ internal fun queueGroupHandleTag(groupId: String): String = "queue-group-handle-
 private const val DRAG_ELEVATION = 12f
 
 internal const val QUEUE_GROUP_ENDLESS_TAG = "queue-group-endless"
+
+internal const val QUEUE_GROUP_TIME_LEFT_TAG = "queue-group-time-left"
 
 internal const val QUEUE_GROUP_PLAYING_TAG = "queue-group-playing"
 internal const val QUEUE_UNGROUPED_HEADER_TAG = "queue-ungrouped-header"

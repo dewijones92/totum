@@ -3,6 +3,9 @@ package com.dewijones92.totum.playback
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 /**
@@ -17,12 +20,17 @@ public class SharedPrefsPlaybackSpeedStore(context: Context) : PlaybackSpeedStor
 
     private val prefs = context.getSharedPreferences("totum_playback_speed", Context.MODE_PRIVATE)
 
+    private val chosenSpeed = MutableStateFlow(DEFAULT_PLAYBACK_SPEED)
+
+    override val chosen: StateFlow<Float> = chosenSpeed.asStateFlow()
+
     override suspend fun speed(): Float = withContext(Dispatchers.IO) {
-        prefs.getFloat(KEY_SPEED, DEFAULT_PLAYBACK_SPEED)
+        prefs.getFloat(KEY_SPEED, DEFAULT_PLAYBACK_SPEED).also { chosenSpeed.value = it }
     }
 
     override suspend fun save(speed: Float): Unit = withContext(Dispatchers.IO) {
         prefs.edit { putFloat(KEY_SPEED, speed) }
+        chosenSpeed.value = speed
     }
 
     override suspend fun skipSilence(): Boolean = withContext(Dispatchers.IO) {

@@ -63,7 +63,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Share and copy link on every item](share-link-everywhere.md) | app | medium | built 2026-11-06, Batch A (tests owed) |
 | [A Carry on row in Library](carry-on-row.md) | library | medium | built 2026-11-06, Batch A (tests owed) |
 | [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
-| [Time left per queue group](group-time-left.md) | queue | low | decided 2026-11-06, Batch A |
+| [Time left per queue group](group-time-left.md) | queue | low | built 2026-11-06, Batch A (tests owed) |
 | [What's next, in the notification](next-in-notification.md) | player | low | built 2026-11-06, Batch A (tests owed) |
 | [Not for me](not-for-me.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
 | [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | decided 2026-11-06, Batch A |

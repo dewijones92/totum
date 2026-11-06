@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-06
 ---
 
-# 131. Share and copy link are on every item menu, and a group shares its titles
+# 134. Share and copy link are on every item menu, and a group shares its titles
 
 - Status: Accepted
 - Date: 2026-11-06

@@ -275,6 +275,8 @@ class FakeAppContainer(
         channelResolver = channelRepository,
     ),
 ) : AppContainer {
+    override val chosenSpeed: StateFlow<Float> = MutableStateFlow(1f)
+
     override val downloadChooser: DownloadChooser by lazy {
         DownloadChooser(appPreferences, downloadManager, applicationScope)
     }

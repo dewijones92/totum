@@ -8,7 +8,7 @@ updated: 2026-11-06
 
 # Share and copy link on every item
 
-Dewi, 2026-11-06. [ADR 131](../adr/0131-share-and-copy-link-are-on-every-item-menu.md).
+Dewi, 2026-11-06. [ADR 134](../adr/0134-share-and-copy-link-are-on-every-item-menu.md).
 
 ## What it does
 

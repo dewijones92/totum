@@ -4,16 +4,20 @@ import android.content.Context
 import com.dewijones92.totum.playback.AppPreferencesCaptionStore
 import com.dewijones92.totum.playback.Media3PlaybackController
 import com.dewijones92.totum.playback.PlaybackController
-import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
+import com.dewijones92.totum.playback.PlaybackSpeedStore
 import com.dewijones92.totum.playback.SharedPrefsVolumeBoostStore
 import com.dewijones92.totum.settings.setting
 import kotlinx.coroutines.launch
 
-internal fun playbackControllerOf(c: AppContainer, context: Context): PlaybackController = Media3PlaybackController(
+internal fun playbackControllerOf(
+    c: AppContainer,
+    context: Context,
+    speedStore: PlaybackSpeedStore,
+): PlaybackController = Media3PlaybackController(
     context,
     c.applicationScope,
     c.randomStarts,
-    SharedPrefsPlaybackSpeedStore(context),
+    speedStore,
     SharedPrefsVolumeBoostStore(context),
     onPlay = { item, kind ->
         c.applicationScope.launch { recordPlay(c.playHistoryStore, c.downloadManager, item, kind) }

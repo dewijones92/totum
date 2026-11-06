@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.domain.MediaContentKind
+import com.dewijones92.totum.domain.playsAtSpeed
 
 /** What the person chose for listening: kept for talk, set aside for music. */
 internal data class PlaybackChoices(val speed: Float, val skipSilence: Boolean)
@@ -15,16 +16,17 @@ internal data class ItemTuning(
 )
 
 internal fun tuningFor(kind: MediaContentKind, choices: PlaybackChoices): ItemTuning = when (kind) {
-    MediaContentKind.MUSIC, MediaContentKind.LIVE -> ItemTuning(speed = 1f, skipSilence = false, keepsChanges = false)
+    MediaContentKind.MUSIC, MediaContentKind.LIVE ->
+        ItemTuning(speed = kind.playsAtSpeed(choices.speed), skipSilence = false, keepsChanges = false)
     MediaContentKind.AUDIOBOOK -> ItemTuning(
-        choices.speed,
+        kind.playsAtSpeed(choices.speed),
         skipSilence = false,
         keepsChanges = true,
         silentTailEnds = false,
         keepsSkipSilence = false,
     )
     MediaContentKind.STANDARD, MediaContentKind.SHORT, MediaContentKind.WAS_LIVE ->
-        ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true)
+        ItemTuning(kind.playsAtSpeed(choices.speed), choices.skipSilence, keepsChanges = true)
 }
 
 internal fun skipsSilence(kind: MediaContentKind, speed: Float, skipSilence: Boolean): Boolean =

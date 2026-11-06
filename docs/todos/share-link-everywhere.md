@@ -15,7 +15,7 @@ Android's share sheet; groups have no URL, so they share their list of titles (A
 ## Built 2026-11-06
 
 Share and Copy link are in every item menu through `ItemActions`; a queue group and a torrent pack share their list of
-titles. Detail: [share-link](../features/share-link.md), [ADR 131](../adr/0131-share-and-copy-link-are-on-every-item-menu.md).
+titles. Detail: [share-link](../features/share-link.md), [ADR 134](../adr/0134-share-and-copy-link-are-on-every-item-menu.md).
 
 My call (the doc left it open): a torrent, and anything whose address is the Pi's, shares its title only, because the
 Pi's stream is private to this phone and a token is never put in a link (ADR 90).

@@ -408,6 +408,7 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.GroupHeadingRow(
                 playing = nowPlaying.isPlaying.value,
                 draggable = row.isFirstRun && layout.blockCount > 1,
                 downloading = actions.groupDownloading(group.id),
+                timeLeft = layout.timesLeft[group.id],
             ),
             actions = actions.forGroup(group.id),
             drag = drag,
@@ -470,8 +471,14 @@ private fun FilterableQueue(
                 val dragging = actions.dragSession.dragging
                 val collapsedIds = actions.groups.collapsedIds
                 val blockCount = remember(entries) { entries.blocks().size }
-                val layout = remember(entries, collapsedIds, dragging, blockCount, currentIndex) {
-                    QueueLayout(entries, queueRows(entries, collapsedIds, dragging, currentIndex), blockCount)
+                val timesLeft by rememberGroupTimesLeft(container, entries, currentIndex)
+                val layout = remember(entries, collapsedIds, dragging, blockCount, currentIndex, timesLeft) {
+                    QueueLayout(
+                        entries,
+                        queueRows(entries, collapsedIds, dragging, currentIndex),
+                        blockCount,
+                        timesLeft
+                    )
                 }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }

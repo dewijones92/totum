@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-06
 ---
 
-# 132. Offline playable is whatever routeNow plays from the device
+# 136. Offline playable is whatever routeNow plays from the device
 
 - Status: Accepted
 - Date: 2026-11-06

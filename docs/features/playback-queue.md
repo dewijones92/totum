@@ -242,3 +242,11 @@ they call the same two methods. The playing entry still adopts a better route fr
 Bulk adds (`enqueueAll`, `playNextAll`, play-all, `addToGroup`) keep their dedup and say `N already queued` once
 (`QueueNotice.SomeAlreadyQueued`). `addToGroup` and play-all say it only for a person's request (`byYou`); the new-uploads
 check and radio top-ups pass `byYou = false`, so a background check never toasts.
+
+## Offline chip, group time left and group share (2026-11-06)
+
+Under the offline summary a chip says "✈️ N playable now" (while online, "N play with no signal") and filters the queue to
+those items; "playable offline" is whatever `routeNow` would play from the device ([offline-playable-chip.md](offline-playable-chip.md),
+ADR 136). Each group header has a line "⏳ 4 h 12 min left at 2x", or "at least" when a length is unknown, counting what the
+queue would still play ([group-time-left.md](group-time-left.md), ADR 138). A group's ⋮ menu has "📤 Share the list of
+titles" ([share-link.md](share-link.md), ADR 134).

@@ -16,7 +16,7 @@ Dewi 2026-11-06. "✈️ N playable now" on the queue's offline summary and a fi
 
 The queue's offline summary has a "✈️ N playable now" chip that filters the queue; `unavailableOfflineNow`, the count and
 the filter all ask `routeNow` through `playsWithNoSignal`. Detail: [offline-playable-chip](../features/offline-playable-chip.md),
-[ADR 132](../adr/0132-offline-playable-is-whatever-routenow-plays-from-the-device.md).
+[ADR 136](../adr/0136-offline-playable-is-whatever-routenow-plays-from-the-device.md).
 
 My calls: the filter is a fourth choice (✈️ Plays offline) in the shared "On the phone" row, so every list's sheet shows
 it (equal to Downloaded outside the queue); the chip says "play with no signal" while online, since "now" would be

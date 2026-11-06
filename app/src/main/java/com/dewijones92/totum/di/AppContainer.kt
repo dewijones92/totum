@@ -231,6 +231,8 @@ import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
+import com.dewijones92.totum.playback.PlaybackSpeedStore
+import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
 import com.dewijones92.totum.playback.activeModesFor
@@ -366,6 +368,7 @@ interface AppContainer {
     val channelRepository: ChannelRepository
     val ytDlpEngine: YtDlpEngine
     val playbackController: PlaybackController
+    val chosenSpeed: StateFlow<Float>
     val podcastSearchSource: SearchSource
     val videoSearchSource: SearchSource
 
@@ -787,7 +790,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         }
     }
 
-    override val playbackController: PlaybackController by lazy { playbackControllerOf(this, context) }
+    private val playbackSpeedStore: PlaybackSpeedStore by lazy { SharedPrefsPlaybackSpeedStore(context) }
+
+    override val chosenSpeed: StateFlow<Float> get() = playbackSpeedStore.chosen
+
+    override val playbackController: PlaybackController by lazy {
+        playbackControllerOf(this, context, playbackSpeedStore)
+    }
 
     private val textFetcher by lazy { OkHttpTextFetcher(httpClient) }
     override val groupNews: GroupNews by lazy {

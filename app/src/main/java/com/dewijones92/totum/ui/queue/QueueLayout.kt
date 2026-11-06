@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.queue
 
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.domain.TimeLeft
 import com.dewijones92.totum.queue.queueGroupHeaderKey
 
 internal sealed interface QueueRowSpec {
@@ -20,7 +21,12 @@ internal sealed interface QueueRowSpec {
     data class Entry(val index: Int, override val key: String) : QueueRowSpec
 }
 
-internal data class QueueLayout(val entries: List<QueueEntry>, val rows: List<QueueRowSpec>, val blockCount: Int)
+internal data class QueueLayout(
+    val entries: List<QueueEntry>,
+    val rows: List<QueueRowSpec>,
+    val blockCount: Int,
+    val timesLeft: Map<String, TimeLeft> = emptyMap(),
+)
 
 internal fun queueRows(
     entries: List<QueueEntry>,

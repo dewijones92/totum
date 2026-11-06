@@ -1,5 +1,8 @@
 package com.dewijones92.totum.playback
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
 /** Normal playback speed; what everything plays at until the user picks otherwise. */
 public const val DEFAULT_PLAYBACK_SPEED: Float = 1.0f
 
@@ -23,6 +26,8 @@ public interface PlaybackSpeedStore {
 
     /** Records [speed] as the chosen speed. Called only from a deliberate change in the UI. */
     public suspend fun save(speed: Float)
+
+    public val chosen: StateFlow<Float> get() = MutableStateFlow(DEFAULT_PLAYBACK_SPEED)
 
     public suspend fun skipSilence(): Boolean = false
 

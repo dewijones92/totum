@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="queue_group_time_left">⏳ %1$s left</string>
+    <string name="queue_group_time_left_at">⏳ %1$s left at %2$s</string>
+    <string name="queue_group_time_left_at_least">⏳ At least %1$s left</string>
+    <string name="queue_group_time_left_at_least_at">⏳ At least %1$s left at %2$s</string>
+</resources>
