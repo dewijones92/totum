@@ -312,7 +312,12 @@ class MultiSelectTest {
         composeTestRule.setContent {
             TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { QueueScreen(container) } }
         }
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithContentDescription(
+                activity.getString(R.string.queue_reorder),
+                useUnmergedTree = true
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
 
         composeTestRule.onAllNodesWithContentDescription(
             activity.getString(R.string.queue_reorder),
