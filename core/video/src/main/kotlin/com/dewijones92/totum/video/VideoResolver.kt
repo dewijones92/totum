@@ -9,7 +9,6 @@ import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.domain.Chapter
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -20,7 +19,6 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.innertube.player.LiveCheck
 import com.dewijones92.totum.innertube.player.PlayerDetails
-import com.dewijones92.totum.innertube.player.StreamingData
 import com.dewijones92.totum.innertube.player.UpcomingLive
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
 import com.dewijones92.totum.ytdlp.ExtractionResult
@@ -84,7 +82,7 @@ class VideoResolver(
     private val now: () -> Long = System::currentTimeMillis,
     private val lookupStore: LookupStore? = null,
     private val streamStatus: suspend (HttpUrl) -> Int? = { null },
-    private val upcomingLives: UpcomingLives? = null,
+    private val liveStates: LiveStates? = null,
 ) {
     /**
      * The most recently resolved video, reused until it goes stale.
@@ -169,7 +167,9 @@ class VideoResolver(
         asked: String = "play",
         titleKnown: Boolean = false,
     ): Resolved? = resolveShared(watchUrl, sourceId, asked, titleKnown).also { resolved ->
-        if (resolved != null) watchUrl.youTubeVideoId()?.let { upcomingLives?.cleared(it, "it resolved ($asked)") }
+        if (resolved != null) {
+            watchUrl.youTubeVideoId()?.let { liveStates?.observed(it, resolved.item.contentKind, "resolve ($asked)") }
+        }
     }
 
     suspend fun liveCheck(watchUrl: HttpUrl): LiveCheck {
@@ -177,7 +177,11 @@ class VideoResolver(
         val streams = playerStreams ?: return LiveCheck.Unknown("no player-response client")
         return streams.liveCheck(id).also { check ->
             Diag.log("live", "$id live check -> $check")
-            if (check is LiveCheck.Live) upcomingLives?.cleared(id, "the check found it live")
+            when (check) {
+                is LiveCheck.Live -> liveStates?.noteLive(id, "live check via ${check.via}")
+                is LiveCheck.Ended -> liveStates?.noteEnded(id, "live check via ${check.via}")
+                is LiveCheck.StillUpcoming, is LiveCheck.Unknown -> Unit
+            }
         }
     }
 
@@ -298,7 +302,7 @@ class VideoResolver(
         if (!UpcomingLive.soundsLikeOne(said)) return
         val id = watchUrl.youTubeVideoId() ?: return
         val upcoming = UpcomingLive(startsAt = null, said = said.orEmpty().take(UPCOMING_SAID_CHARS))
-        upcomingLives?.note(id, upcoming, "yt-dlp")
+        liveStates?.noteUpcoming(id, upcoming, "yt-dlp")
     }
 
     /** The long way round: yt-dlp, ~2-4s on a phone, and what everything falls back to. */
@@ -959,8 +963,3 @@ class VideoResolver(
 
 private fun PlayerDetails.publishedInstant(): java.time.Instant? =
     publishedAt ?: PublishedAge.best(publishedOn, publishedAgo, java.time.Instant.now())
-
-private fun contentKindOf(details: PlayerDetails?, streaming: StreamingData): MediaContentKind {
-    val liveNow = details?.isLive == true && (streaming.liveManifestUrl != null || streaming.hasLiveSegments)
-    return if (liveNow) MediaContentKind.LIVE else MediaContentKind.STANDARD
-}

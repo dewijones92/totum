@@ -13,6 +13,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.content.SourceUpdate
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.live.LiveNoticeLabels
 import com.dewijones92.totum.settings.AppPreferences
 
 /**
@@ -24,6 +25,7 @@ import com.dewijones92.totum.settings.AppPreferences
 public class NewContentNotifier(
     private val context: Context,
     private val settings: () -> AppPreferences.Settings,
+    private val labels: LiveNoticeLabels,
 ) {
 
     private val manager = NotificationManagerCompat.from(context)
@@ -63,7 +65,7 @@ public class NewContentNotifier(
             )
             .setStyle(
                 NotificationCompat.InboxStyle().also { style ->
-                    update.items.take(MAX_LINES).forEach { style.addLine(it.title) }
+                    update.items.take(MAX_LINES).forEach { style.addLine(labels.titled(it)) }
                 },
             )
             .setGroup(GROUP_KEY)

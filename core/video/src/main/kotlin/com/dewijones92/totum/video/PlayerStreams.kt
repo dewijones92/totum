@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.audioLanguagePreference
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
@@ -110,7 +111,7 @@ class InnerTubePlayerStreams(
     private val now: () -> Long = System::currentTimeMillis,
     private val botBackOff: com.dewijones92.totum.common.BotBackOff? = null,
     private val live: LiveStreamManifest? = null,
-    private val upcomingLives: UpcomingLives? = null,
+    private val liveStates: LiveStates? = null,
 ) : PlayerStreams {
 
     private val accountMisses = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -277,7 +278,7 @@ class InnerTubePlayerStreams(
     }
 
     private fun PlayerResult?.asLiveCheck(videoId: String, via: String): LiveCheck? = when (this) {
-        is PlayerResult.Success -> LiveCheck.Live(via)
+        is PlayerResult.Success -> if (isLiveNow()) LiveCheck.Live(via) else LiveCheck.Ended(via)
         is PlayerResult.Unplayable -> upcoming?.let { early ->
             noteIfUpcoming(videoId, via)
             LiveCheck.StillUpcoming(early, via)
@@ -285,9 +286,12 @@ class InnerTubePlayerStreams(
         is PlayerResult.Failure, null -> null
     }
 
+    private fun PlayerResult.Success.isLiveNow(): Boolean =
+        contentKindOf(details, streaming) == MediaContentKind.LIVE
+
     private fun PlayerResult?.noteIfUpcoming(videoId: String, via: String) {
         val upcoming = (this as? PlayerResult.Unplayable)?.upcoming ?: return
-        upcomingLives?.note(videoId, upcoming, via)
+        liveStates?.noteUpcoming(videoId, upcoming, via)
     }
 
     /** The parsed anonymous response, refusals included — see [playerFor] for why they matter. */

@@ -127,5 +127,5 @@ public fun MediaItem.fillingSilenceFrom(resolved: MediaItem): MediaItem {
 private fun MediaItem.placedFrom(resolved: MediaItem): MediaItem = copy(
     album = album ?: resolved.album,
     sourceUrl = sourceUrl ?: resolved.sourceUrl,
-    contentKind = if (contentKind == MediaContentKind.STANDARD) resolved.contentKind else contentKind,
+    contentKind = contentKind.afterSeeing(resolved.contentKind),
 )

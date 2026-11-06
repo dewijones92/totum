@@ -184,7 +184,7 @@ class VideoResolverFastPathTest {
             },
         )
         assertEquals(
-            com.dewijones92.totum.domain.MediaContentKind.STANDARD,
+            com.dewijones92.totum.domain.MediaContentKind.WAS_LIVE,
             replays.resolve(url, source, asked = "play")?.item?.contentKind,
         )
     }

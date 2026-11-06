@@ -11,8 +11,9 @@ import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.queue.RefusedTap
+import com.dewijones92.totum.video.LivePhase
+import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.LiveWaitSchedule
-import com.dewijones92.totum.video.UpcomingLives
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 class LiveStartWatcher(
     private val context: Context,
     private val scope: CoroutineScope,
-    private val lives: UpcomingLives,
+    private val lives: LiveStates,
     private val check: suspend (HttpUrl) -> LiveCheck,
     private val operations: Operations,
     private val notices: LiveNotices,
@@ -32,7 +33,7 @@ class LiveStartWatcher(
 
     fun follow(refused: Flow<RefusedTap>) = scope.launch {
         refused.collect { tap ->
-            val soon = tap.videoId?.let(lives::of)
+            val soon = tap.videoId?.let(lives::of)?.takeIf { it.phase == LivePhase.UPCOMING }
             if (tap.videoId == null || soon == null) {
                 Diag.log("live", "\"${tap.title}\" was refused for another reason; not waiting for it to go live")
                 return@collect
@@ -94,7 +95,17 @@ class LiveStartWatcher(
             when (val outcome = check(watchUrl)) {
                 is LiveCheck.Live -> {
                     Diag.log("live", "$videoId: \"$title\" is live after $checks checks (via ${outcome.via})")
-                    lives.cleared(videoId, "it went live")
+                    lives.noteLive(videoId, "the wait found it live")
+                    notices.isLive(videoId, title, watchUrl)
+                    return OperationEnd.Done(1)
+                }
+                is LiveCheck.Ended -> {
+                    Diag.log(
+                        "live",
+                        "$videoId: \"$title\" is playable but not live after $checks checks (via ${outcome.via}); " +
+                            "it ended or is a recording; telling you it can be played",
+                    )
+                    lives.noteEnded(videoId, "the wait found a recording")
                     notices.isLive(videoId, title, watchUrl)
                     return OperationEnd.Done(1)
                 }

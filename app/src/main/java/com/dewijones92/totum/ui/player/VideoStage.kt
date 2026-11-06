@@ -47,6 +47,7 @@ import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.common.CountRecompositions
+import com.dewijones92.totum.ui.common.LiveBadge
 import kotlinx.coroutines.delay
 
 /**
@@ -194,15 +195,20 @@ private fun VideoControlsOverlay(
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
                 }
             } else {
-                Text(
-                    text = state.title,
-                    style = MaterialTheme.typography.titleMedium,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .fillMaxWidth(FULLSCREEN_TITLE_WIDTH)
-                        .padding(start = 16.dp, top = 12.dp)
-                        .testTag(FULLSCREEN_TITLE_TAG),
-                )
+                        .padding(start = 16.dp, top = 12.dp),
+                ) {
+                    LiveBadge(state.itemId, state.contentKind, Modifier.padding(end = 8.dp))
+                    Text(
+                        text = state.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.testTag(FULLSCREEN_TITLE_TAG),
+                    )
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.TopEnd)) {
                 if (!fullscreen) PlayerTopActions(onMore, onDark = true)

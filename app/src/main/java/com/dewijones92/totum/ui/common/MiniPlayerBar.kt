@@ -192,10 +192,14 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
 @Composable
 private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: Modifier = Modifier) {
     Column(modifier = modifier.padding(start = 12.dp)) {
-        Text(
-            text = starting?.title ?: state.title,
-            style = MaterialTheme.typography.titleSmall,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (starting == null) LiveBadge(state.itemId, state.contentKind, Modifier.padding(end = 6.dp))
+            Text(
+                text = starting?.title ?: state.title,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
         if (starting != null) {
             Text(
                 text = stringResource(R.string.starting_play),

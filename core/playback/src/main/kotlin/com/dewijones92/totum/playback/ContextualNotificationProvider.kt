@@ -29,8 +29,16 @@ internal class ContextualNotificationProvider(
 
     override fun getNotificationContentText(metadata: MediaMetadata): CharSequence? {
         val artist = super.getNotificationContentText(metadata)
-        val line = lineFor(playbackContext) ?: return artist
-        return if (artist.isNullOrBlank()) line else "$line · $artist"
+        val badges = listOfNotNull(
+            when (playbackContext.live) {
+                PlayingLive.LIVE -> context.getString(R.string.playback_notification_live)
+                PlayingLive.WAS_LIVE -> context.getString(R.string.playback_notification_was_live)
+                PlayingLive.NO -> null
+            },
+            lineFor(playbackContext),
+        )
+        if (badges.isEmpty()) return artist
+        return (badges + listOfNotNull(artist?.toString()?.takeIf { it.isNotBlank() })).joinToString(" · ")
     }
 
     private fun lineFor(shown: PlaybackContext): String? {

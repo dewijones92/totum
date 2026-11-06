@@ -37,6 +37,7 @@
     <string name="feed_history">History</string>
     <string name="feed_error">📡 Couldn\'t load this feed. Check your connection and try again.</string>
     <string name="tag_live">🔴 LIVE</string>
+    <string name="tag_was_live">⏺️ WAS LIVE</string>
     <string name="tag_starts_soon">🔴 STARTS SOON</string>
     <string name="tag_starts_at">🔴 STARTS %1$s</string>
     <string name="tag_short">📱 SHORT</string>
@@ -173,6 +174,7 @@
     <string name="filter_music">🎵 Music</string>
     <string name="filter_talk">🗣️ Talk</string>
     <string name="filter_video">📺 Videos</string>
+    <string name="filter_live">🔴 Live now</string>
     <string name="filter_today">Today</string>
     <string name="filter_week">This week</string>
     <string name="filter_month">This month</string>
@@ -305,6 +307,7 @@
     <string name="item_fact_source">🔗 From</string>
     <string name="item_kind_song">🎵 Song</string>
     <string name="item_kind_live">🔴 Live</string>
+    <string name="item_kind_was_live">⏺️ Was live</string>
     <string name="item_kind_short">📱 Short</string>
     <string name="item_kind_audiobook">🎧 Book chapter</string>
     <string name="item_kind_video">📺 Video</string>

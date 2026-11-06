@@ -24,6 +24,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.jobs.JobOutcome
 import com.dewijones92.totum.jobs.PeriodicJob
+import com.dewijones92.totum.live.LiveNoticeLabels
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -50,7 +51,7 @@ class FileGroupNewsStore(private val file: File) : GroupNewsStore {
     }
 }
 
-class GroupNewsNotifier(private val context: Context) {
+class GroupNewsNotifier(private val context: Context, private val labels: LiveNoticeLabels) {
     fun notify(group: SourceGroup, item: MediaItem): Boolean {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -79,9 +80,9 @@ class GroupNewsNotifier(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_new_content)
             .setContentTitle(context.getString(R.string.group_news_title, item.author ?: group.name))
-            .setContentText(item.title)
+            .setContentText(labels.titled(item))
             .setSubText(group.name)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(item.title))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(labels.titled(item)))
             .setContentIntent(open)
             .setAutoCancel(true)
             .setGroup("group-news:${group.id.value}")

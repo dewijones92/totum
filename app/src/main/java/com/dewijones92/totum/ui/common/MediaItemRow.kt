@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
@@ -334,37 +333,23 @@ private fun UnplayedDot(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun ItemBadges(item: MediaItem) {
+    val liveTag = liveTagFor(item.id, item.contentKind)?.let { liveTagLabel(it) to liveTagColor(it) }
     val kindLabel = when (item.contentKind) {
-        MediaContentKind.LIVE -> stringResource(R.string.tag_live) to MaterialTheme.colorScheme.error
         MediaContentKind.SHORT -> stringResource(R.string.tag_short) to MaterialTheme.colorScheme.tertiary
         MediaContentKind.AUDIOBOOK -> stringResource(R.string.tag_audiobook) to MaterialTheme.colorScheme.primary
-        MediaContentKind.STANDARD, MediaContentKind.MUSIC -> null
+        MediaContentKind.STANDARD, MediaContentKind.MUSIC, MediaContentKind.LIVE, MediaContentKind.WAS_LIVE -> null
     }
     val members = if (item.membersOnly) {
         stringResource(R.string.tag_members_only) to MaterialTheme.colorScheme.secondary
     } else {
         null
     }
-    val startsSoon = startsSoonOf(item.id)?.let { startsSoonLabel(it) to MaterialTheme.colorScheme.error }
-    val badges = listOfNotNull(startsSoon ?: kindLabel, members)
+    val badges = listOfNotNull(liveTag ?: kindLabel, members)
     if (badges.isEmpty()) return
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        badges.forEach { (label, color) -> Badge(label, color) }
+        badges.forEach { (label, color) -> TagBadge(label, color) }
     }
     Spacer(Modifier.height(2.dp))
-}
-
-@Composable
-private fun Badge(label: String, color: androidx.compose.ui.graphics.Color) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(color)
-            .padding(horizontal = 6.dp, vertical = 1.dp),
-    )
 }
 
 /** The row's own control, or nothing when there is nothing behind it (a preview, a test). */

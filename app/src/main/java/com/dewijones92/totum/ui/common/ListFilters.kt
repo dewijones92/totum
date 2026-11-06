@@ -14,6 +14,9 @@ import com.dewijones92.totum.domain.KindFilter
 import com.dewijones92.totum.domain.LengthFilter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PublishedWithin
+import com.dewijones92.totum.video.LiveTag
+import com.dewijones92.totum.video.liveTagOf
+import com.dewijones92.totum.video.videoIdOf
 
 private val ItemFiltersSaver = Saver<MutableState<ItemFilters>, List<String>>(
     save = { listOf(it.value.downloaded.name, it.value.length.name, it.value.kind.name, it.value.within.name) },
@@ -36,15 +39,18 @@ fun rememberItemFilters(place: String): MutableState<ItemFilters> =
 @Composable
 fun <T> List<T>.filteredByItems(filters: ItemFilters, item: (T) -> MediaItem): List<T> {
     val downloads = LocalDownloadStates.current
+    val liveStates = LocalLiveStates.current
     val now = LocalNow.current
-    return remember(this, filters, downloads, now) {
+    return remember(this, filters, downloads, liveStates, now) {
         derivedStateOf {
             if (!filters.isActive) {
                 this
             } else {
                 filter { entry ->
                     val media = item(entry)
-                    filters.accepts(media, downloads.value[media.id] is DownloadState.Downloaded, now)
+                    val liveNow = liveTagOf(media.contentKind, videoIdOf(media.id)?.let { liveStates.value[it] }) ==
+                        LiveTag.Live
+                    filters.accepts(media, downloads.value[media.id] is DownloadState.Downloaded, now, liveNow)
                 }
             }
         }

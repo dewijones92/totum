@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.jobs.JobOutcome
 import com.dewijones92.totum.jobs.PeriodicJob
+import com.dewijones92.totum.live.LiveNoticeLabels
 import java.time.Duration
 
 /**
@@ -26,7 +27,11 @@ public class NewContentWorker(
             val check = NewContentCheck(
                 refresher = container.contentRefresher,
                 notify = { updates ->
-                    val notifier = NewContentNotifier(applicationContext) { container.appPreferences.settings.value }
+                    val notifier = NewContentNotifier(
+                        applicationContext,
+                        { container.appPreferences.settings.value },
+                        LiveNoticeLabels(applicationContext, container.liveStates),
+                    )
                     notifier.notify(updates)
                 },
             )

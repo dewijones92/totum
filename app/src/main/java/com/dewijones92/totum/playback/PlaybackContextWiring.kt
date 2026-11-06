@@ -9,11 +9,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-internal fun contextOf(modes: List<ActiveMode>, next: NextAfter): PlaybackContext = PlaybackContext(
+internal fun contextOf(
+    modes: List<ActiveMode>,
+    next: NextAfter,
+    live: PlayingLive = PlayingLive.NO,
+): PlaybackContext = PlaybackContext(
     repeatOne = ActiveMode.RepeatOne in modes,
     nextTitle = (next.line as? NextLine.Queued)?.title,
     explorePicksNext = next.line is NextLine.ExplorePicks,
     nextAfter = next.after?.value,
+    live = live,
 )
 
 internal fun nextLineFor(c: AppContainer): Flow<NextAfter> {
@@ -35,7 +40,7 @@ internal fun nextLineFor(c: AppContainer): Flow<NextAfter> {
 
 internal fun startPlaybackContext(c: AppContainer) {
     c.applicationScope.launch {
-        combine(c.activeModes, nextLineFor(c), ::contextOf)
+        combine(c.activeModes, nextLineFor(c), playingLive(c), ::contextOf)
             .distinctUntilChanged()
             .collect { context ->
                 Diag.log("playback", "dewidebug playback context for the session: $context")

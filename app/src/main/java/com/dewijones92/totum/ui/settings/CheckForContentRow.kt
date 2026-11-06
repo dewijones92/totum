@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.live.LiveNoticeLabels
 import com.dewijones92.totum.notifications.NewContentCheck
 import com.dewijones92.totum.notifications.NewContentNotifier
 import kotlinx.coroutines.launch
@@ -54,7 +55,13 @@ internal fun CheckForContentRow(container: AppContainer) {
                 scope.launch {
                     val outcome = NewContentCheck(
                         refresher = container.contentRefresher,
-                        notify = { NewContentNotifier(context) { container.appPreferences.settings.value }.notify(it) },
+                        notify = {
+                            NewContentNotifier(
+                                context,
+                                { container.appPreferences.settings.value },
+                                LiveNoticeLabels(context, container.liveStates),
+                            ).notify(it)
+                        },
                     ).run()
                     result = context.describe(outcome)
                     running = false

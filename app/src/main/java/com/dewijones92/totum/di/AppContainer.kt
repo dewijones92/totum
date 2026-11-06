@@ -194,7 +194,9 @@ import com.dewijones92.totum.jobs.SharedPrefsLastRunStore
 import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.kidlock.KidMode
 import com.dewijones92.totum.kidlock.KidRules
+import com.dewijones92.totum.live.LiveNoticeLabels
 import com.dewijones92.totum.live.LiveNotifier
+import com.dewijones92.totum.live.LiveRefresher
 import com.dewijones92.totum.live.LiveStartWatcher
 import com.dewijones92.totum.mobiledata.MobileDataMeter
 import com.dewijones92.totum.mobiledata.SharedPrefsMobileDataStore
@@ -292,6 +294,7 @@ import com.dewijones92.totum.video.CastAwareCodecSupport
 import com.dewijones92.totum.video.EmbeddedPlayer
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
+import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
 import com.dewijones92.totum.video.ProgressOutboxDrain
@@ -299,7 +302,6 @@ import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.SignedInTvPlayer
 import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.StreamStatus
-import com.dewijones92.totum.video.UpcomingLives
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.WatchHistorySync
@@ -410,7 +412,8 @@ interface AppContainer {
     /** Free space where downloads live; null when it cannot be read. */
     fun freeDownloadSpaceBytes(): Long?
     val videoResolver: VideoResolver
-    val upcomingLives: UpcomingLives
+    val liveStates: LiveStates
+    val liveRefresher: LiveRefresher
     val videoPlaybackLauncher: VideoPlaybackLauncher
 
     /** Named groups of sources, read as one merged feed. */
@@ -661,7 +664,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
     override val operations: Operations = Operations()
-    override val upcomingLives: UpcomingLives = UpcomingLives()
+    override val liveStates: LiveStates = LiveStates()
+    override val liveRefresher: LiveRefresher by lazy {
+        LiveRefresher(
+            applicationScope,
+            liveStates,
+            queued = { playbackQueue.state.value.entries.map { it.item.item } },
+            check = videoResolver::liveCheck,
+            onLearned = { item ->
+                playbackQueue.adoptFacts(item)
+                downloadManager.learnFacts(item)
+            },
+        )
+    }
     override val keptArtistSongs: KeptArtistSongs by lazy { KeptArtistSongs(File(context.filesDir, "artist-songs")) }
 
     override val transcripts: TranscriptLoader by lazy { TranscriptLoader(textFetcher) }
@@ -775,7 +790,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         GroupNews(
             FileGroupNewsStore(File(context.filesDir, "group_news.json")),
             latest = latestUploads::of,
-            notify = GroupNewsNotifier(context)::notify,
+            notify = GroupNewsNotifier(context, LiveNoticeLabels(context, liveStates))::notify,
             muted = { group -> group.id.value in appPreferences.settings.value.quietGroups },
         )
     }
@@ -1024,7 +1039,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 preferAccount = { accountSubscriptions.signedIn.value },
                 botBackOff = polite.botBackOff,
                 live = LiveStreamManifest(LiveStreamManifest.headsOver(httpClient), LocalManifests::publish),
-                upcomingLives = upcomingLives,
+                liveStates = liveStates,
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
             resumePositionMs = { id -> randomStarts.peek(id) ?: playbackProgressStore.resumePositionMs(id) },
@@ -1034,7 +1049,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             preferredAudioLanguages = streamChoices::preferredAudioLanguages,
             lookupStore = FileLookupStore(File(context.cacheDir, "lookups")),
             streamStatus = StreamStatus(httpClient)::of,
-            upcomingLives = upcomingLives,
+            liveStates = liveStates,
         )
     }
 
@@ -1307,6 +1322,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         followSkipRequests(this, context)
         announceScreens(this, httpClient, context)
         followLiveStarts(this, context)
+        liveRefresher.start()
         screenReadiness = startScreenReady(context) { playbackController.refreshScreenPage() }
         startDriveBackups(this)
         startSharedMetadataRepair(
@@ -1961,7 +1977,7 @@ private fun followLiveStarts(c: DefaultAppContainer, context: Context) {
     LiveStartWatcher(
         context,
         c.applicationScope,
-        c.upcomingLives,
+        c.liveStates,
         check = c.videoResolver::liveCheck,
         operations = c.operations,
         notices = LiveNotifier(context),

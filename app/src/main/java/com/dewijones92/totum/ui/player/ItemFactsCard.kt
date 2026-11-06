@@ -24,7 +24,10 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.downloadStateOf
+import com.dewijones92.totum.ui.common.liveTagFor
+import com.dewijones92.totum.ui.common.liveTagLabel
 import com.dewijones92.totum.ui.common.publishedDateAndAge
+import com.dewijones92.totum.video.LiveTag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -41,6 +44,7 @@ internal fun ItemFactsCard(state: PlaybackState, pagePublished: java.time.Instan
         }
     }
     val facts = itemFacts(item, state, offline, bytes, pagePublished)
+    val liveTag = liveTagFor(state.itemId, item?.contentKind ?: state.contentKind)
     if (facts.isEmpty()) return
     Spacer(Modifier.height(24.dp))
     Surface(
@@ -51,7 +55,7 @@ internal fun ItemFactsCard(state: PlaybackState, pagePublished: java.time.Instan
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.item_facts_title), style = MaterialTheme.typography.titleMedium)
             facts.forEach { fact ->
-                val (label, value) = describe(fact)
+                val (label, value) = describe(fact, liveTag)
                 Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
                     Text(
                         text = label,
@@ -71,14 +75,14 @@ internal fun ItemFactsCard(state: PlaybackState, pagePublished: java.time.Instan
 }
 
 @Composable
-private fun describe(fact: ItemFact): Pair<String, String> = when (fact) {
+private fun describe(fact: ItemFact, liveTag: LiveTag?): Pair<String, String> = when (fact) {
     is ItemFact.Published -> stringResource(R.string.item_fact_published) to publishedValue(fact)
     is ItemFact.Length -> stringResource(R.string.item_fact_length) to formatTime(fact.ms)
     is ItemFact.Views -> stringResource(R.string.item_fact_views) to fact.text
     is ItemFact.By -> stringResource(R.string.item_fact_by) to fact.name
     is ItemFact.Publisher -> stringResource(R.string.item_fact_publisher) to fact.name
     is ItemFact.Album -> stringResource(R.string.item_fact_album) to fact.title
-    is ItemFact.Kind -> stringResource(R.string.item_fact_kind) to stringResource(kindLabel(fact))
+    is ItemFact.Kind -> stringResource(R.string.item_fact_kind) to kindValue(fact, liveTag)
     ItemFact.MembersOnly -> stringResource(R.string.item_fact_members) to stringResource(R.string.item_fact_yes)
     is ItemFact.Chapters -> stringResource(R.string.item_fact_chapters) to fact.count.toString()
     is ItemFact.Subtitles -> stringResource(R.string.item_fact_subtitles) to fact.languages.joinToString(", ")
@@ -86,6 +90,10 @@ private fun describe(fact: ItemFact): Pair<String, String> = when (fact) {
     is ItemFact.Offline -> stringResource(R.string.item_fact_offline) to offlineValue(fact)
     is ItemFact.Source -> stringResource(R.string.item_fact_source) to fact.host
 }
+
+@Composable
+private fun kindValue(fact: ItemFact.Kind, liveTag: LiveTag?): String =
+    liveTag?.let { liveTagLabel(it) } ?: stringResource(kindLabel(fact))
 
 @Composable
 private fun publishedValue(fact: ItemFact.Published): String {
@@ -105,6 +113,7 @@ private fun offlineValue(fact: ItemFact.Offline): String {
 private fun kindLabel(fact: ItemFact.Kind): Int = when (fact.kind) {
     MediaContentKind.MUSIC -> R.string.item_kind_song
     MediaContentKind.LIVE -> R.string.item_kind_live
+    MediaContentKind.WAS_LIVE -> R.string.item_kind_was_live
     MediaContentKind.SHORT -> R.string.item_kind_short
     MediaContentKind.AUDIOBOOK -> R.string.item_kind_audiobook
     MediaContentKind.STANDARD -> if (fact.isVideo) R.string.item_kind_video else R.string.item_kind_episode

@@ -15,7 +15,7 @@ public enum class LengthFilter(internal val from: Duration?, internal val until:
     OVER_60(60.minutes, null),
 }
 
-public enum class KindFilter { ANY, MUSIC, TALK, VIDEO }
+public enum class KindFilter { ANY, MUSIC, TALK, VIDEO, LIVE }
 
 public enum class PublishedWithin(internal val span: Duration?) {
     ANY(null),
@@ -40,10 +40,15 @@ public data class ItemFilters(
 
     val isActive: Boolean get() = activeCount > 0
 
-    public fun accepts(item: MediaItem, downloaded: Boolean, now: Instant): Boolean =
+    public fun accepts(
+        item: MediaItem,
+        downloaded: Boolean,
+        now: Instant,
+        liveNow: Boolean = item.contentKind == MediaContentKind.LIVE,
+    ): Boolean =
         acceptsDownload(downloaded) &&
             acceptsLength(item.duration) &&
-            acceptsKind(item) &&
+            acceptsKind(item, liveNow) &&
             acceptsAge(item.publishedAt, now)
 
     private fun acceptsDownload(onDisk: Boolean): Boolean = when (downloaded) {
@@ -58,11 +63,12 @@ public data class ItemFilters(
         return (length.from == null || duration >= length.from) && (length.until == null || duration < length.until)
     }
 
-    private fun acceptsKind(item: MediaItem): Boolean = when (kind) {
+    private fun acceptsKind(item: MediaItem, liveNow: Boolean): Boolean = when (kind) {
         KindFilter.ANY -> true
         KindFilter.MUSIC -> item.listening == Listening.MUSIC
         KindFilter.TALK -> item.listening == Listening.TALK
         KindFilter.VIDEO -> item.pillar == MediaKind.VIDEO && item.listening == Listening.TALK
+        KindFilter.LIVE -> liveNow
     }
 
     private fun acceptsAge(publishedAt: Instant?, now: Instant): Boolean {

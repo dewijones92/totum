@@ -86,6 +86,7 @@ import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.music.YouTubeMusicLibrary
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicLibrary
+import com.dewijones92.totum.innertube.player.LiveCheck
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.innertube.playlists.fake.FakeYouTubePlaylists
 import com.dewijones92.totum.innertube.related.YouTubeRelated
@@ -94,6 +95,7 @@ import com.dewijones92.totum.innertube.subscriptions.fake.FakeYouTubeSubscriptio
 import com.dewijones92.totum.jobs.InMemoryLastRunStore
 import com.dewijones92.totum.jobs.LastRuns
 import com.dewijones92.totum.kidlock.KidLock
+import com.dewijones92.totum.live.LiveRefresher
 import com.dewijones92.totum.mobiledata.InMemoryMobileDataStore
 import com.dewijones92.totum.mobiledata.MobileDataMeter
 import com.dewijones92.totum.music.AccountFollows
@@ -137,8 +139,8 @@ import com.dewijones92.totum.uploads.QueueForUploads
 import com.dewijones92.totum.uploads.UploadsState
 import com.dewijones92.totum.uploads.UploadsStore
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.ReadyAhead
-import com.dewijones92.totum.video.UpcomingLives
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.workapps.InMemoryWorkAppsStore
@@ -199,11 +201,18 @@ class FakeAppContainer(
     ),
     override val sourceGroupStore: SourceGroupStore = FakeSourceGroupStore(),
     override val groupFeed: GroupFeed = GroupFeed { emptyList() },
-    override val upcomingLives: UpcomingLives = UpcomingLives(),
+    override val liveStates: LiveStates = LiveStates(),
+    override val liveRefresher: LiveRefresher = LiveRefresher(
+        CoroutineScope(SupervisorJob()),
+        liveStates,
+        queued = { emptyList() },
+        check = { LiveCheck.Unknown("the fake container asks nobody") },
+        onLearned = {},
+    ),
     override val videoResolver: VideoResolver = VideoResolver(
         ytDlpEngine,
         skipSegmentSource,
-        upcomingLives = upcomingLives
+        liveStates = liveStates
     ),
     override val videoPlaybackLauncher: VideoPlaybackLauncher =
         VideoPlaybackLauncher(videoResolver, playbackController, FakeYouTubeWatchHistory(), playHistoryStore),

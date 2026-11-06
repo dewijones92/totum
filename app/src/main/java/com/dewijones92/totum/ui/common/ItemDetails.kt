@@ -22,10 +22,16 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.video.LiveTag
 import java.time.Instant
 import java.time.ZoneId
 
-fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault(), now: Instant = Instant.now()): List<String> {
+fun itemDetails(
+    item: MediaItem,
+    zone: ZoneId = ZoneId.systemDefault(),
+    now: Instant = Instant.now(),
+    liveTag: LiveTag? = null,
+): List<String> {
     val music = item.contentKind == MediaContentKind.MUSIC
     return listOfNotNull(
         item.author?.let { "${if (music) FactEmoji.ARTIST else FactEmoji.CHANNEL} $it" },
@@ -34,7 +40,8 @@ fun itemDetails(item: MediaItem, zone: ZoneId = ZoneId.systemDefault(), now: Ins
         publishedLine(item, now, zone),
         item.duration?.let { "⏱️ ${formatLength(it.inWholeSeconds)}" },
         item.viewsText?.let { "${FactEmoji.VIEWS} $it" },
-        "🎞️ ${kindName(item.contentKind)}" + if (item.membersOnly) " · 💎 members only" else "",
+        "🎞️ ${liveTag?.let(::liveKindName) ?: kindName(item.contentKind)}" +
+            if (item.membersOnly) " · 💎 members only" else "",
         item.chapters.takeIf { it.isNotEmpty() }?.let { "📑 ${it.size} chapters" },
         (item.mediaUrl ?: item.sourceUrl)?.let { "$LINK_PREFIX${it.value}" },
         "$ID_PREFIX${item.id.value}",
@@ -49,9 +56,16 @@ private fun publishedLine(item: MediaItem, now: Instant, zone: ZoneId): String? 
 private fun kindName(kind: MediaContentKind) = when (kind) {
     MediaContentKind.STANDARD -> "Video or episode"
     MediaContentKind.LIVE -> "Live"
+    MediaContentKind.WAS_LIVE -> "Was live"
     MediaContentKind.SHORT -> "Short"
     MediaContentKind.MUSIC -> "Song"
     MediaContentKind.AUDIOBOOK -> "Book chapter"
+}
+
+private fun liveKindName(tag: LiveTag) = when (tag) {
+    LiveTag.Live -> "Live"
+    LiveTag.WasLive -> "Was live"
+    is LiveTag.StartsSoon -> "Live, starts soon"
 }
 
 private fun formatLength(seconds: Long): String {
@@ -76,7 +90,7 @@ internal fun DetailsSection(item: MediaItem) {
         Column(Modifier.padding(horizontal = 24.dp).testTag(DETAILS_LIST_TAG)) {
             val linkColor = MaterialTheme.colorScheme.primary
             val openLink = rememberLinkOpener()
-            itemDetails(item).forEach { line ->
+            itemDetails(item, liveTag = liveTagFor(item.id, item.contentKind)).forEach { line ->
                 val style = MaterialTheme.typography.bodyMedium
                 val shown = line.withLinks(linkColor, openLink)
                 when {

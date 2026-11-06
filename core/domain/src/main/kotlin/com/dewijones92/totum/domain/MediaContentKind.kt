@@ -6,4 +6,4 @@ package com.dewijones92.totum.domain
  * covers normal videos and every podcast (they are never live/short). [AUDIOBOOK] is a book's
  * chapter: talk that keeps your speed but never skips silence (ADR 105).
  */
-public enum class MediaContentKind { STANDARD, LIVE, SHORT, MUSIC, AUDIOBOOK }
+public enum class MediaContentKind { STANDARD, LIVE, SHORT, MUSIC, AUDIOBOOK, WAS_LIVE }

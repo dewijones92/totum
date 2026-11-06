@@ -34,6 +34,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
 import com.dewijones92.totum.ui.cast.ScreenButton
+import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
 import com.dewijones92.totum.ui.common.WHY_PLAYING_TITLE_TAG
@@ -86,10 +87,10 @@ internal fun TitleBlock(state: PlaybackState) {
                 modifier = Modifier.padding(top = 2.dp).linkTo(links.onAlbum, PLAYER_ALBUM_TAG),
             )
         }
-        PillarBadge(
-            shownAs(state.itemId, state.kind, state.contentKind),
-            modifier = Modifier.padding(top = 6.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+            PillarBadge(shownAs(state.itemId, state.kind, state.contentKind))
+            LiveBadge(state.itemId, state.contentKind, Modifier.padding(start = 8.dp))
+        }
         ViewsAndDate(state)
     }
 }

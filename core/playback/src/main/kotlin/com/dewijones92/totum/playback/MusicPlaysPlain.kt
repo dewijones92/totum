@@ -23,7 +23,7 @@ internal fun tuningFor(kind: MediaContentKind, choices: PlaybackChoices): ItemTu
         silentTailEnds = false,
         keepsSkipSilence = false,
     )
-    MediaContentKind.STANDARD, MediaContentKind.SHORT ->
+    MediaContentKind.STANDARD, MediaContentKind.SHORT, MediaContentKind.WAS_LIVE ->
         ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true)
 }
 

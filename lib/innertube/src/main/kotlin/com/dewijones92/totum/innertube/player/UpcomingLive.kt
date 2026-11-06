@@ -16,6 +16,8 @@ public data class UpcomingLive(val startsAt: Instant?, val said: String) {
 public sealed interface LiveCheck {
     public data class Live(val via: String) : LiveCheck
 
+    public data class Ended(val via: String) : LiveCheck
+
     public data class StillUpcoming(val upcoming: UpcomingLive, val via: String) : LiveCheck
 
     public data class Unknown(val why: String) : LiveCheck

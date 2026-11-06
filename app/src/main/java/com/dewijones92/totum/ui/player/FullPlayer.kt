@@ -77,6 +77,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.cast.CastStrip
+import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SkipNextButton
@@ -456,13 +457,14 @@ internal fun UpNextSection(queue: QueueControls) {
                     modifier = Modifier.size(width = UP_NEXT_THUMB_WIDTH, height = UP_NEXT_THUMB_HEIGHT),
                     shape = MaterialTheme.shapes.small,
                 )
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleSmall,
+                Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(start = 12.dp),
-                )
+                ) {
+                    LiveBadge(item.id, item.contentKind, Modifier.padding(bottom = 2.dp))
+                    Text(text = item.title, style = MaterialTheme.typography.titleSmall)
+                }
                 IconButton(onClick = { queue.onRemove(index) }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.queue_remove))
                 }

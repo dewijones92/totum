@@ -143,6 +143,7 @@ private fun kindLabel(value: KindFilter): Int = when (value) {
     KindFilter.MUSIC -> R.string.filter_music
     KindFilter.TALK -> R.string.filter_talk
     KindFilter.VIDEO -> R.string.filter_video
+    KindFilter.LIVE -> R.string.filter_live
 }
 
 private fun withinLabel(value: PublishedWithin): Int = when (value) {

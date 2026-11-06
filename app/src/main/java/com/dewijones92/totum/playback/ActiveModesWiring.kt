@@ -6,6 +6,9 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.mobiledata.holdingBack
 import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.video.LiveTag
+import com.dewijones92.totum.video.liveTagOf
+import com.dewijones92.totum.video.videoIdOf
 import com.dewijones92.totum.workapps.WorkAppsQuiet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +51,19 @@ internal fun activeModesFor(c: AppContainer): Flow<List<ActiveMode>> {
         .map(::activeModesOf)
         .distinctUntilChanged()
 }
+
+internal fun playingLive(c: AppContainer): Flow<PlayingLive> = combine(
+    c.playbackController.state.map { state -> state?.let { it.itemId to it.contentKind } }.distinctUntilChanged(),
+    c.liveStates.states,
+) { playing, states ->
+    playing?.let { (id, kind) -> liveTagOf(kind, videoIdOf(id)?.let(states::get)) }
+}.map { tag ->
+    when (tag) {
+        LiveTag.Live -> PlayingLive.LIVE
+        LiveTag.WasLive -> PlayingLive.WAS_LIVE
+        is LiveTag.StartsSoon, null -> PlayingLive.NO
+    }
+}.distinctUntilChanged()
 
 internal fun startActiveModes(c: AppContainer) {
     c.applicationScope.launch {
