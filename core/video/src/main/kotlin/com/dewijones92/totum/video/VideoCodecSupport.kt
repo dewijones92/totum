@@ -76,12 +76,6 @@ enum class VideoCodecFamily(val prefixes: List<String>) {
     }
 }
 
-/**
- * The yt-dlp `vcodec` prefixes a download must not pick on this device: every family it cannot
- * decode at [height], and AV1 unless the decoder is hardware (a software AV1 decode is worse
- * than any other codec). yt-dlp's own order (tallest first, then AV1, VP9, HEVC, AVC) decides among
- * the rest, so a hardware AV1 phone still gets AV1.
- */
 fun VideoCodecSupport.codecsToAvoid(height: Int?): List<String> {
     val width = height?.let { it * WIDE / TALL }
     return VideoCodecFamily.entries.filter { family ->
