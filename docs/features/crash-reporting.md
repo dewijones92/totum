@@ -51,6 +51,9 @@ sensitivity … prioritise collecting data"*):
   playback transitions, codec rejections, download start/done/failed, sync results.
 - **The state at the moment it broke:** what was playing and its position, the whole
   queue, every setting, whether the network was metered.
+- **Side-quest state (2026-11-06):** the `bedtime.*`, `workApps.*`, `dailyAlarms.*` and `recorder.*` blocks (the recorder's
+  status, choices, whether the system taps grant is held or the taps were left on, its last result and the last start-up
+  clean-up), plus `notForMe.count` and `downloads.pendingDeletes` (counts only).
 - **The device:** model, Android version, ABIs, heap and system memory, free storage.
 - **Up to ~400KB of logcat** — where the Media3 / MediaCodec lines live, which is what
   actually diagnosed this project's playback bugs. An app can read only its OWN log, so an

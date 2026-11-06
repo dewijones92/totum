@@ -13,6 +13,7 @@ import com.dewijones92.totum.backup.drive.driveBackupFor
 import com.dewijones92.totum.backup.drive.startDriveBackups
 import com.dewijones92.totum.bedtime.Bedtime
 import com.dewijones92.totum.bedtime.SharedPrefsBedtimeStore
+import com.dewijones92.totum.bedtime.withBedtime
 import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.cast.CastTarget
@@ -22,6 +23,7 @@ import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.dailyAlarmController
+import com.dewijones92.totum.dailyalarms.withDailyAlarms
 import com.dewijones92.totum.data.ask.AskChatStore
 import com.dewijones92.totum.data.ask.AskCopies
 import com.dewijones92.totum.data.ask.AskKind
@@ -265,7 +267,9 @@ import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
+import com.dewijones92.totum.recorder.RecorderChoiceStore
 import com.dewijones92.totum.recorder.RecorderDiagnostics
+import com.dewijones92.totum.recorder.withRecorderChoices
 import com.dewijones92.totum.screens.PhoneIdentity
 import com.dewijones92.totum.screens.PhoneNow
 import com.dewijones92.totum.screens.ScreenAnnouncer
@@ -316,6 +320,7 @@ import com.dewijones92.totum.video.videoAndPodcastDownloads
 import com.dewijones92.totum.workapps.SharedPrefsWorkAppsStore
 import com.dewijones92.totum.workapps.WorkAppsNotifier
 import com.dewijones92.totum.workapps.WorkAppsQuiet
+import com.dewijones92.totum.workapps.withWorkApps
 import com.dewijones92.totum.ytdlp.InteractiveFirstEngine
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.chaquopy.ChaquopyYtDlpEngine
@@ -329,6 +334,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -954,12 +960,18 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             progress = playbackProgressStore,
             settings = appPreferences.asBackupSettings().withPins(
                 pinStore
-            ).withRecent(recentActions).withNotForMe(notForMe),
+            ).withRecent(recentActions).withNotForMe(notForMe).withBedtime(bedtime).withWorkApps(workApps)
+                .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context)),
             appVersion = BuildConfig.VERSION_NAME,
             extras = BackupService.Extras(
                 groups = sourceGroupStore,
                 history = playHistoryStore,
-                others = listOf("not-for-me" to notForMe.items),
+                others = listOf(
+                    "not-for-me" to notForMe.items,
+                    "bedtime" to bedtime.settings,
+                    "work-apps" to workApps.settings,
+                    "daily-alarms" to dailyAlarms.view.map { it.alarms }.distinctUntilChanged(),
+                ),
             ),
         )
     }

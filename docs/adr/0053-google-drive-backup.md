@@ -33,3 +33,21 @@ queue, with a prompt to set it up and a way to restore.
   next change.
 - Drive's folder support varies by provider version. The single-file mode is the fallback, and the card and the
   reports say which mode is in use.
+
+## Amendment 2026-11-06: the side quests and the recorder are backed up too
+
+The sweep found the promise ("everything except downloads and the queue") broken by features added after it. The backup's
+settings map now also carries (each through `withExtra`, one wrapper for the shape the pins and Not-for-me wrappers share):
+
+- `bedtime.v1`, the bedtime settings (restore replaces the phone's, like the other settings);
+- `workapps.v1`, the work-app quiet groups, merged: groups missing on the phone are added, a group still at its factory
+  default is replaced by the backed-up one, anything the person already changed is kept, and the switch is on if either
+  side had it on;
+- `recorder.v1`, the recorder's three choices;
+- `dailyalarms.v1`, the alarm definitions, merged by id (the phone's wins, except an alarm still at its factory
+  default; one-off alarms whose day has passed are skipped) and re-scheduled by the controller's own `update`.
+
+Not backed up, because it is transient or belongs to the moment: a group's pause in progress, bedtime's "off for tonight",
+each alarm's state for the day, the quiet groups' remembered states, the snoozed notification keys, "Show taps was switched
+on by us", the recorder's last result. The backup scheduler is signalled by changes to bedtime, work-app and alarm
+settings; a change to the recorder choices alone waits for the next change.
