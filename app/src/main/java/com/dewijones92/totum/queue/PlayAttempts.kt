@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.Refusal
+import com.dewijones92.totum.video.videoIdOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-data class RefusedTap(val title: String, val reason: Refusal?)
+data class RefusedTap(val title: String, val reason: Refusal?, val videoId: String? = null)
 
 data class Starting(val id: MediaItemId, val title: String, val sinceMs: Long)
 
@@ -55,10 +56,10 @@ internal class PlayAttempts(private val now: () -> Long = System::currentTimeMil
         last = reason
     }
 
-    fun announce(title: String) {
+    fun announce(item: MediaItem) {
         val why = last ?: "it resolved to nothing"
-        Diag.warn("queue", "told the user \"${title.take(TITLE_CHARS)}\" would not play ($why)")
-        emitted.tryEmit(RefusedTap(title, last))
+        Diag.warn("queue", "told the user \"${item.title.take(TITLE_CHARS)}\" would not play ($why)")
+        emitted.tryEmit(RefusedTap(item.title, last, videoIdOf(item.id)))
     }
 
     private companion object {

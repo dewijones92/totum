@@ -148,6 +148,7 @@ public sealed interface PlayerResult {
     public data class Unplayable(
         val reason: String,
         val details: PlayerDetails? = null,
+        val upcoming: UpcomingLive? = null,
     ) : PlayerResult
     public data class Failure(val detail: String) : PlayerResult
 }

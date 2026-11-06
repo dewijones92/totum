@@ -183,6 +183,8 @@ import com.dewijones92.totum.innertube.subscriptions.HttpYouTubeSubscriptions
 import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.kidlock.KidMode
 import com.dewijones92.totum.kidlock.KidRules
+import com.dewijones92.totum.live.LiveNotifier
+import com.dewijones92.totum.live.LiveStartWatcher
 import com.dewijones92.totum.music.AccountFollows
 import com.dewijones92.totum.music.AlbumYears
 import com.dewijones92.totum.music.KeptArtistSongs
@@ -274,6 +276,7 @@ import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.SignedInTvPlayer
 import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.StreamStatus
+import com.dewijones92.totum.video.UpcomingLives
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.WatchHistorySync
@@ -380,6 +383,7 @@ interface AppContainer {
     /** Free space where downloads live; null when it cannot be read. */
     fun freeDownloadSpaceBytes(): Long?
     val videoResolver: VideoResolver
+    val upcomingLives: UpcomingLives
     val videoPlaybackLauncher: VideoPlaybackLauncher
 
     /** Named groups of sources, read as one merged feed. */
@@ -620,6 +624,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
     override val operations: Operations = Operations()
+    override val upcomingLives: UpcomingLives = UpcomingLives()
     override val keptArtistSongs: KeptArtistSongs by lazy { KeptArtistSongs(File(context.filesDir, "artist-songs")) }
 
     override val transcripts: TranscriptLoader by lazy { TranscriptLoader(textFetcher) }
@@ -946,6 +951,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 preferAccount = { accountSubscriptions.signedIn.value },
                 botBackOff = polite.botBackOff,
                 live = LiveStreamManifest(LiveStreamManifest.headsOver(httpClient), LocalManifests::publish),
+                upcomingLives = upcomingLives,
             ),
             sabrEnabled = { appPreferences.settings.value.sabrPlayback },
             resumePositionMs = { id -> randomStarts.peek(id) ?: playbackProgressStore.resumePositionMs(id) },
@@ -955,6 +961,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             preferredAudioLanguages = streamChoices::preferredAudioLanguages,
             lookupStore = FileLookupStore(File(context.cacheDir, "lookups")),
             streamStatus = StreamStatus(httpClient)::of,
+            upcomingLives = upcomingLives,
         )
     }
 
@@ -1204,6 +1211,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
         announceScreens(this, httpClient, context)
+        followLiveStarts(this, context)
         screenReadiness = startScreenReady(context) { playbackController.refreshScreenPage() }
         startDriveBackups(this)
         startSharedMetadataRepair(
@@ -1820,6 +1828,17 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     shuffleAll = c.shuffleAll,
     artistShuffle = c.artistShuffle(),
 )
+
+private fun followLiveStarts(c: DefaultAppContainer, context: Context) {
+    LiveStartWatcher(
+        context,
+        c.applicationScope,
+        c.upcomingLives,
+        check = c.videoResolver::liveCheck,
+        operations = c.operations,
+        notices = LiveNotifier(context),
+    ).follow(c.playbackQueue.refusedTaps)
+}
 
 private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient, context: Context) {
     val json = "application/json".toMediaType()

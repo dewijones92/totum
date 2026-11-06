@@ -54,6 +54,25 @@ the newest segment and the stream's length, then a DASH manifest of the adaptive
 - Not yet: Totum's processing (boost) on live audio while casting, DVR seeking back, and anonymous yt-dlp answers for
   live (they come as HLS formats and are not mapped).
 
+## Amended 2026-11-06: a live stream that has not started
+
+Report 20261104T171409: tapping a live event before it began logged `UNPLAYABLE: This live event will begin in a few
+moments` on the signed-in TV client and every yt-dlp client, and nothing showed. A refusal like that is a state, not a
+failure, so it is now typed and waited for.
+
+- `PlayerResult.Unplayable.upcoming` (`UpcomingLive`: scheduled start when given, YouTube's words) is read from the
+  refused response; yt-dlp's refusal is recognised by its words. `UpcomingLives` (`:core:video`) holds them by video id
+  and clears one when the video resolves; rows, the refused-tap toast and the waiter read it.
+- `LiveStartWatcher` (app) turns a refused tap on an upcoming live into an operation on the progress strip (Cancel) and
+  checks through `VideoResolver.liveCheck`, which asks only the signed-in TV client and the anonymous player (the two
+  requests already gated by the polite client, ADR 51), never yt-dlp. `LiveWaitSchedule`: one check a minute before the
+  scheduled time (at most 15 min apart), else every 2 min for 5 checks, every 5 min to the 15th, then every 10 min, up to
+  6 h; a stream scheduled more than 6 h ahead is not waited for.
+- When it is live, a "🔴 … is live" notification with Play opens Totum on the watch link (the shared-link way in); giving
+  up posts "⌛ Stopped waiting for …".
+- Not verified on a device: the exact shape of the TV client's refusal (the code accepts `LIVE_STREAM_OFFLINE`, an
+  `offlineSlate`, or the wording, and logs the raw `playabilityStatus` as `dewidebug upcoming live`).
+
 ## Amended 2026-11-06: live plays at 1x, nothing cut
 
 Report 20261104T171409 (0.1.852): two lives played at the listener's 2x with skip-silence, outran the live edge and

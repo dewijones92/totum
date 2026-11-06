@@ -11,6 +11,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.net.URLDecoder
+import java.time.Instant
 import java.util.Base64
 
 /**
@@ -31,6 +32,8 @@ public object PlayerResponseParser {
     private val json = Json { ignoreUnknownKeys = true }
 
     private const val PADDING = 4
+    private const val LIVE_STREAM_OFFLINE = "LIVE_STREAM_OFFLINE"
+    private const val STATUS_LOGGED_CHARS = 600
 
     public fun parse(body: String, describedBy: WatchNextDetails? = null): PlayerResult {
         val root = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull()
@@ -48,6 +51,7 @@ public object PlayerResponseParser {
             else -> return PlayerResult.Unplayable(
                 listOfNotNull(state, status.stringAt("reason")).joinToString(": "),
                 details = root.details(describedBy),
+                upcoming = root.upcomingLive(status, state),
             )
         }
 
@@ -76,6 +80,31 @@ public object PlayerResponseParser {
             accountStartMs = root.accountStartMs(),
         )
     }
+
+    private fun JsonObject.upcomingLive(status: JsonObject, state: String): UpcomingLive? {
+        val reason = status.stringAt("reason")
+        val slate = (status["liveStreamability"] as? JsonObject)?.get("liveStreamabilityRenderer")
+            .let { it as? JsonObject }?.get("offlineSlate")
+            .let { it as? JsonObject }?.get("liveStreamOfflineSlateRenderer") as? JsonObject
+        val upcoming = state == LIVE_STREAM_OFFLINE || slate != null || UpcomingLive.soundsLikeOne(reason)
+        if (!upcoming) return null
+        val scheduled = slate?.stringAt("scheduledStartTime")?.toLongOrNull()?.let(Instant::ofEpochSecond)
+            ?: broadcastStart()
+        com.dewijones92.totum.common.Diag.log(
+            "resolve",
+            "dewidebug upcoming live: status=$state reason=\"${reason ?: "none"}\" offlineSlate=${slate != null} " +
+                "scheduled=${scheduled ?: "not given"} " +
+                "playabilityStatus=${status.toString().take(STATUS_LOGGED_CHARS)}",
+        )
+        return UpcomingLive(scheduled, listOfNotNull(state, reason).joinToString(": "))
+    }
+
+    private fun JsonObject.broadcastStart(): Instant? =
+        (
+            ((this["microformat"] as? JsonObject)?.get("playerMicroformatRenderer") as? JsonObject)
+                ?.get("liveBroadcastDetails") as? JsonObject
+            )?.stringAt("startTimestamp")
+            ?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant() }.getOrNull() }
 
     private fun JsonObject.accountStartMs(): Long? {
         val start = ((this["playerConfig"] as? JsonObject)?.get("playbackStartConfig") as? JsonObject) ?: return null

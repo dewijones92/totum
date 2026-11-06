@@ -12,21 +12,25 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Refusal
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.RefusedTap
+import com.dewijones92.totum.video.LiveWaitSchedule
+import com.dewijones92.totum.video.StartsSoon
 
 @Composable
 fun RefusedTapToasts(queue: PlaybackQueue, signedIn: Boolean) {
     val context = LocalContext.current
     val signedInNow by rememberUpdatedState(signedIn)
+    val startsSoon = LocalStartsSoon.current
     LaunchedEffect(queue) {
         queue.refusedTaps.collect { tap ->
-            val message = context.refusalMessage(tap, signedInNow)
+            val message = context.refusalMessage(tap, signedInNow, tap.videoId?.let { startsSoon.value[it] })
             Diag.log("ui", "toast: $message")
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 }
 
-internal fun Context.refusalMessage(tap: RefusedTap, signedIn: Boolean): String {
+internal fun Context.refusalMessage(tap: RefusedTap, signedIn: Boolean, startsSoon: StartsSoon? = null): String {
+    if (startsSoon != null) return startsSoonMessage(tap.title, startsSoon)
     val why = getString(
         when (tap.reason) {
             Refusal.NotOnThisDevice -> R.string.refused_offline
@@ -36,4 +40,10 @@ internal fun Context.refusalMessage(tap: RefusedTap, signedIn: Boolean): String 
         },
     )
     return getString(R.string.refused_tap, tap.title, why)
+}
+
+private fun Context.startsSoonMessage(title: String, soon: StartsSoon): String {
+    val at = soon.startsAt ?: return getString(R.string.refused_live_soon, title)
+    val tooFar = !LiveWaitSchedule.worthWaitingFor(at, System.currentTimeMillis())
+    return getString(if (tooFar) R.string.refused_live_far else R.string.refused_live_at, title, startsAtText(at))
 }

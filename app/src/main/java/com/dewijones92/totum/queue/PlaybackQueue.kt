@@ -379,7 +379,7 @@ class PlaybackQueue(
         mutate("peek (the queue keeps its place)") {
             it.copy(currentIndex = NOTHING_PLAYING, anchor = it.current?.item?.item?.id ?: it.anchor)
         }
-        return play(item)
+        return play(item).also { played -> if (!played) refusals.announce(item.item) }
     }
 
     fun restorePlace(id: MediaItemId) = _state.value.takeIf { it.currentIndex < 0 && it.anchor == null }
@@ -642,7 +642,7 @@ class PlaybackQueue(
             attempt?.let { refusals.end(it, played) }
         }
         if (played) return true
-        if (!quiet) refusals.announce(entry.item.item.title)
+        if (!quiet) refusals.announce(entry.item.item)
         // ONLY for the automatic advance, which is why the caller has to ask. An explicit tap must
         // leave the item it chose as current even when it will not play, because that is what the
         // recovery ladder acts on -- rolling THAT back stops a refused item from ever being rescued,

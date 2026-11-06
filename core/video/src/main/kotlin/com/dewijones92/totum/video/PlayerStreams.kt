@@ -7,6 +7,7 @@ import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.parsed
+import com.dewijones92.totum.innertube.player.LiveCheck
 import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -52,6 +53,8 @@ fun interface PlayerStreams {
     suspend fun playerForSabr(videoId: String): PlayerResult.Success? = playerFor(videoId)
 
     suspend fun signedInFor(videoId: String, describe: Boolean): PlayerResult.Success? = null
+
+    suspend fun liveCheck(videoId: String): LiveCheck = LiveCheck.Unknown("this player cannot check for a live start")
 }
 
 /** [PlayerStreams] over our own InnerTube client. */
@@ -106,6 +109,7 @@ class InnerTubePlayerStreams(
     private val now: () -> Long = System::currentTimeMillis,
     private val botBackOff: com.dewijones92.totum.common.BotBackOff? = null,
     private val live: LiveStreamManifest? = null,
+    private val upcomingLives: UpcomingLives? = null,
 ) : PlayerStreams {
 
     private val accountMisses = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -184,8 +188,10 @@ class InnerTubePlayerStreams(
         (anonymous as? PlayerResult.Success)?.let { return it }
         // Only now, because the signed-in call costs a token refresh and a second round trip, and
         // the overwhelming majority of videos never need it.
-        val signedIn = account?.takeUnless { askedTheAccountMomentsAgo(videoId) }
-            ?.playerFor(videoId, describe = false) as? PlayerResult.Success ?: return null
+        val accountAnswer = account?.takeUnless { askedTheAccountMomentsAgo(videoId) }
+            ?.playerFor(videoId, describe = false)
+        accountAnswer.noteIfUpcoming(videoId, "the signed-in TV client (second opinion)")
+        val signedIn = accountAnswer as? PlayerResult.Success ?: return null
         Diag.log("resolve", "$videoId needed the signed-in account (refused anonymously: ${anonymous.reasonForLog()})")
         return signedIn.describedByTheRefusal(videoId, anonymous)
     }
@@ -218,6 +224,7 @@ class InnerTubePlayerStreams(
         // The REASON, not just "gave nothing": a line that cannot tell a refusal from an expired token
         // or a dead network makes this path undebuggable from a report.
         val outcome = account.playerFor(videoId, describe)
+        outcome.noteIfUpcoming(videoId, "the signed-in TV client")
         val signedIn = outcome as? PlayerResult.Success
         Diag.log(
             "resolve",
@@ -253,6 +260,35 @@ class InnerTubePlayerStreams(
         return solved
     }
 
+    override suspend fun liveCheck(videoId: String): LiveCheck {
+        val viaAccount = account?.let {
+            runCatching { it.playerFor(videoId, describe = false) }.getOrElse { failure ->
+                Diag.warn("live", "$videoId: the signed-in check threw", failure)
+                null
+            }
+        }
+        viaAccount.asLiveCheck(videoId, "the signed-in TV client")?.let { return it }
+        val anonymous = anonymousPlayer(videoId)
+        return anonymous.asLiveCheck(videoId, "the anonymous player")
+            ?: LiveCheck.Unknown(
+                "signed-in said ${viaAccount.reasonForLog()}; anonymous said ${anonymous.reasonForLog()}",
+            )
+    }
+
+    private fun PlayerResult?.asLiveCheck(videoId: String, via: String): LiveCheck? = when (this) {
+        is PlayerResult.Success -> LiveCheck.Live(via)
+        is PlayerResult.Unplayable -> upcoming?.let { early ->
+            noteIfUpcoming(videoId, via)
+            LiveCheck.StillUpcoming(early, via)
+        }
+        is PlayerResult.Failure, null -> null
+    }
+
+    private fun PlayerResult?.noteIfUpcoming(videoId: String, via: String) {
+        val upcoming = (this as? PlayerResult.Unplayable)?.upcoming ?: return
+        upcomingLives?.note(videoId, upcoming, via)
+    }
+
     /** The parsed anonymous response, refusals included — see [playerFor] for why they matter. */
     private suspend fun anonymousPlayer(videoId: String): PlayerResult? {
         if (botBackOff?.allows("second opinion for $videoId") == false) {
@@ -270,6 +306,7 @@ class InnerTubePlayerStreams(
             is PlayerResult.Success -> parsed.playable().also { botBackOff?.served("second opinion for $videoId") }
             is PlayerResult.Unplayable -> {
                 Diag.log("resolve", "second opinion for $videoId refused: ${parsed.reason}")
+                parsed.noteIfUpcoming(videoId, "the anonymous player")
                 if (parsed.reason.contains(
                         "not a bot",
                         ignoreCase = true

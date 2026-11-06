@@ -12,6 +12,7 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live | playback | built 2026-11-06 (ADR 69 amended; tests owed) | [live-streams.md](live-streams.md) |
 | Casting with Totum's processing (DASH from the phone: original video packets, processed audio) | playback | prototype 2026-10-21 — YouTube video + boost on the LG and Chromecast Ultra, skip silences for talk, speed, TV seek/next, queue autoplay, stop/restart (ADR 68) | [casting.md](casting.md) |
 | Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |

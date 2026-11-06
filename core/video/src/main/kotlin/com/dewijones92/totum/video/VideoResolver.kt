@@ -18,8 +18,10 @@ import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.titleIsKnown
+import com.dewijones92.totum.innertube.player.LiveCheck
 import com.dewijones92.totum.innertube.player.PlayerDetails
 import com.dewijones92.totum.innertube.player.StreamingData
+import com.dewijones92.totum.innertube.player.UpcomingLive
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaMetadata
@@ -82,6 +84,7 @@ class VideoResolver(
     private val now: () -> Long = System::currentTimeMillis,
     private val lookupStore: LookupStore? = null,
     private val streamStatus: suspend (HttpUrl) -> Int? = { null },
+    private val upcomingLives: UpcomingLives? = null,
 ) {
     /**
      * The most recently resolved video, reused until it goes stale.
@@ -165,6 +168,24 @@ class VideoResolver(
         sourceId: SourceId,
         asked: String = "play",
         titleKnown: Boolean = false,
+    ): Resolved? = resolveShared(watchUrl, sourceId, asked, titleKnown).also { resolved ->
+        if (resolved != null) watchUrl.youTubeVideoId()?.let { upcomingLives?.cleared(it, "it resolved ($asked)") }
+    }
+
+    suspend fun liveCheck(watchUrl: HttpUrl): LiveCheck {
+        val id = watchUrl.youTubeVideoId() ?: return LiveCheck.Unknown("not a YouTube watch link")
+        val streams = playerStreams ?: return LiveCheck.Unknown("no player-response client")
+        return streams.liveCheck(id).also { check ->
+            Diag.log("live", "$id live check -> $check")
+            if (check is LiveCheck.Live) upcomingLives?.cleared(id, "the check found it live")
+        }
+    }
+
+    private suspend fun resolveShared(
+        watchUrl: HttpUrl,
+        sourceId: SourceId,
+        asked: String,
+        titleKnown: Boolean,
     ): Resolved? {
         // Share one extraction between concurrent askers.
         //
@@ -272,6 +293,14 @@ class VideoResolver(
         return resolved
     }
 
+    private fun noteIfUpcoming(watchUrl: HttpUrl, extraction: ExtractionResult) {
+        val said = (extraction as? ExtractionResult.Failure.Extractor)?.detail
+        if (!UpcomingLive.soundsLikeOne(said)) return
+        val id = watchUrl.youTubeVideoId() ?: return
+        val upcoming = UpcomingLive(startsAt = null, said = said.orEmpty().take(UPCOMING_SAID_CHARS))
+        upcomingLives?.note(id, upcoming, "yt-dlp")
+    }
+
     /** The long way round: yt-dlp, ~2-4s on a phone, and what everything falls back to. */
     private suspend fun byExtraction(
         watchUrl: HttpUrl,
@@ -285,6 +314,7 @@ class VideoResolver(
             segmentsAhead?.second?.cancel()
             Vitals.add("resolve.extractFailures")
             Diag.warn("resolve", "extract failed for ${watchUrl.value} ($asked): $extraction")
+            noteIfUpcoming(watchUrl, extraction)
             // Age restriction is the case worth retrying: yt-dlp has no credentials and says so
             // ("Sign in to confirm your age"), while this app holds a YouTube account that
             // YouTube will serve a rated video to. Tried for ANY extraction failure rather than
@@ -911,6 +941,7 @@ class VideoResolver(
 
         /** Enough of a watch URL to recognise the video in a log line. */
         const val ID_CHARS = 11
+        const val UPCOMING_SAID_CHARS = 200
 
         /**
          * Enough to cover flicking between a few videos without holding URLs so long that

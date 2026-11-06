@@ -129,6 +129,7 @@ import com.dewijones92.totum.uploads.UploadsState
 import com.dewijones92.totum.uploads.UploadsStore
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.ReadyAhead
+import com.dewijones92.totum.video.UpcomingLives
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -183,7 +184,12 @@ class FakeAppContainer(
     ),
     override val sourceGroupStore: SourceGroupStore = FakeSourceGroupStore(),
     override val groupFeed: GroupFeed = GroupFeed { emptyList() },
-    override val videoResolver: VideoResolver = VideoResolver(ytDlpEngine, skipSegmentSource),
+    override val upcomingLives: UpcomingLives = UpcomingLives(),
+    override val videoResolver: VideoResolver = VideoResolver(
+        ytDlpEngine,
+        skipSegmentSource,
+        upcomingLives = upcomingLives
+    ),
     override val videoPlaybackLauncher: VideoPlaybackLauncher =
         VideoPlaybackLauncher(videoResolver, playbackController, FakeYouTubeWatchHistory(), playHistoryStore),
     override val sleepTimer: SleepTimer = SleepTimer(playbackController, CoroutineScope(SupervisorJob())),

@@ -95,7 +95,7 @@ class SignedInTvPlayer(
         client: String,
         describe: suspend () -> WatchNextDetails?,
         request: suspend () -> InnerTubeResponse,
-    ): PlayerResult.Success? {
+    ): PlayerResult? {
         val response = runCatching { request() }.getOrNull()
         val success = response as? InnerTubeResponse.Success
         val parsed = success?.parsed { body ->
@@ -107,7 +107,7 @@ class SignedInTvPlayer(
             // WHAT it said, not just that it failed. Concluding "refused" from a null was the
             // mistake that made age restriction look impossible for two rounds.
             Diag.log("resolve", "$videoId as $client -> ${parsed ?: response}")
-            return null
+            return parsed as? PlayerResult.Unplayable
         }
         val playerUrl = runCatching { signatureTimestamps.playerScriptUrl() }.getOrNull() ?: run {
             Diag.warn("resolve", "$videoId resolved but no player script to solve its n parameters")

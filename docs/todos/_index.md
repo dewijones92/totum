@@ -14,7 +14,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
 | [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
-| [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | decided 2026-11-06, Batch A |
+| [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | decided 2026-11-06, Batch A phase 7 |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |

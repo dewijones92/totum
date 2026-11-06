@@ -345,7 +345,8 @@ private fun ItemBadges(item: MediaItem) {
     } else {
         null
     }
-    val badges = listOfNotNull(kindLabel, members)
+    val startsSoon = startsSoonOf(item.id)?.let { startsSoonLabel(it) to MaterialTheme.colorScheme.error }
+    val badges = listOfNotNull(startsSoon ?: kindLabel, members)
     if (badges.isEmpty()) return
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         badges.forEach { (label, color) -> Badge(label, color) }
