@@ -9,7 +9,7 @@ updated: 2026-11-06
 # 🌙 Bedtime sleep timer
 
 **Ask (Dewi, 2026-11-05):** after 22:00 the sleep timer stops at the end of the current item and fades out; the times
-configurable. Decision: [ADR 131](../adr/0131-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md); backlog:
+configurable. Decision: [ADR 133](../adr/0133-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md); backlog:
 [todos/bedtime-sleep-timer](../todos/bedtime-sleep-timer.md).
 
 ## What it does

@@ -26,7 +26,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | decided 2026-11-06, Batch A phase 6 |
 | [Trip mode](trip-mode.md) | downloads | low | decided 2026-11-06, Batch A phase 6 |
 | [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | decided 2026-11-06, Batch A phase 6 |
-| [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 131); tests owed |
+| [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133); tests owed |
 | [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | decided 2026-11-06, Batch A phase 6 |
 | [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | decided 2026-11-06, Batch A phase 6 |
 | [A post and video script for an AI subreddit](subreddit-video-draft.md) | publishing | low | decided 2026-11-06, Batch A phase 6 |

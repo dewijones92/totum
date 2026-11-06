@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-06
 ---
 
-# 131. Bedtime arms the one sleep timer, and every sleep timer fades out
+# 133. Bedtime arms the one sleep timer, and every sleep timer fades out
 
 - Status: Accepted
 - Date: 2026-11-06

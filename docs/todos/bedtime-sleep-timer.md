@@ -16,7 +16,7 @@ Whole-batch review: uses the shared `WeeklyWindow`; moved to phase 4. `SleepTime
 ## Built 2026-11-06
 
 Done as [features/bedtime-sleep-timer](../features/bedtime-sleep-timer.md), decided in
-[ADR 131](../adr/0131-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md). Dewi's batch rule: code first. The
+[ADR 133](../adr/0133-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md). Dewi's batch rule: code first. The
 bedtime logic drives the existing `SleepTimer` (`stopAfterCurrentItem`); the fade went into that same timer. Not yet seen
 on a phone: that the fade is audible through the session's player.
 
