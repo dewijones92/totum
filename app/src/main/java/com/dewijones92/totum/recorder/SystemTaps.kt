@@ -28,6 +28,18 @@ internal class SystemTaps(private val context: Context) {
         return set
     }
 
+    fun leftOn(): Boolean = prefs.contains(BEFORE)
+
+    fun restoreIfLeftOn(source: String) {
+        if (!leftOn()) return
+        Diag.log(
+            TAG,
+            "dewidebug recorder ($source): Show taps was left switched on by a recording that never finished " +
+                "(it was ${prefs.getInt(BEFORE, 0)} before); putting it back",
+        )
+        restore()
+    }
+
     fun restore() {
         if (!prefs.contains(BEFORE)) return
         val before = prefs.getInt(BEFORE, 0)

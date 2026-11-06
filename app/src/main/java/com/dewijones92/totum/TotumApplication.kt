@@ -19,6 +19,7 @@ import com.dewijones92.totum.jobs.BackupCheckWorker
 import com.dewijones92.totum.jobs.QueueTidyWorker
 import com.dewijones92.totum.notifications.NewContentWorker
 import com.dewijones92.totum.playback.startGapless
+import com.dewijones92.totum.recorder.cleanUpAfterAKilledRecording
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.stats.ListenRecorder
@@ -93,6 +94,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
             recordFinishedDownloads(container.downloadManager.observeDownloads(), container.statsLog)
         }
         container.dailyAlarms.tickAll("startup")
+        cleanUpAfterAKilledRecording(this, container.applicationScope)
         warmTheEngineSoon()
         if (warmEngineAfterLaunch) {
             EmbeddedSubtitleWarmer(

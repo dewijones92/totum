@@ -34,8 +34,9 @@
     <string name="recorder_notification_with_voice">🎙️ voice</string>
     <string name="recorder_notification_with_face">🙂 face</string>
     <string name="recorder_notification_with_taps">👆 taps</string>
+    <string name="recorder_notification_face_off">⚠️ face off: %1$s</string>
     <string name="recorder_notification_screen_only">🖥️ screen only</string>
-    <string name="recorder_saving">Saving the screen recording</string>
+    <string name="recorder_saving">⏳ Saving the screen recording</string>
     <string name="recorder_saved_title">✅ Recording saved</string>
     <string name="recorder_saved_text">📁 Movies/Totum · %1$s · %2$s</string>
     <string name="recorder_saved_share">📤 Share</string>

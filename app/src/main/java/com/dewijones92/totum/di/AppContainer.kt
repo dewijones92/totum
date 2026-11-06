@@ -265,6 +265,7 @@ import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
+import com.dewijones92.totum.recorder.RecorderDiagnostics
 import com.dewijones92.totum.screens.PhoneIdentity
 import com.dewijones92.totum.screens.PhoneNow
 import com.dewijones92.totum.screens.ScreenAnnouncer
@@ -1326,7 +1327,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 isMetered = networkStatus::isMetered,
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
-                        workApps.diagnostics + bedtime.diagnostics
+                        workApps.diagnostics + bedtime.diagnostics + RecorderDiagnostics.values(context) +
+                        listCounts()
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
@@ -1341,6 +1343,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     @Volatile
     private var screenReadiness: ScreenReadiness? = null
+
+    private fun listCounts(): Map<String, String> = mapOf(
+        "notForMe.count" to notForMe.items.value.size.toString(),
+        "downloads.pendingDeletes" to pendingDownloadDeletes.pending.value.size.toString(),
+    )
 
     private fun diagnosticState(): Map<String, String> = diagnosticSnapshot.capture()
 

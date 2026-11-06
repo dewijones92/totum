@@ -46,3 +46,8 @@ notification.
   notification, the tile and the system capture chip each finish a playable file; the face bubble preview is upright
   and mirrored in portrait and landscape and is in the video; Show taps is restored after Stop and after a killed
   process; a refused microphone, camera or overlay permission records without that part and says so.
+- Sweep fixes (2026-11-06), owed: `orphanVerdict` (empty, no duration, playable); `OrphanedRecordings` against a fake
+  resolver (published, deleted, a recording running leaves it alone, younger than a minute is not listed);
+  `SystemTaps.restoreIfLeftOn` only when a previous value is remembered; `RecorderStatus.Recording.faceLost` shown by
+  `RecorderNotifications` (instrumented); a device check that a camera taken by another app removes the bubble and
+  the notification says so, and that a killed recording is recovered or removed at the next launch.

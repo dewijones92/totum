@@ -63,3 +63,19 @@ and a pointer layer in the app's own window.
   (only ever granted by `adb`; lint's `ProtectedPermissions` is ignored on it for that reason).
 - The recorder cannot start from nothing: `startForeground` with microphone or camera types must happen from a
   visible activity, which is why the dialog always comes first and the tile opens it rather than starting directly.
+
+## Amendment 2026-11-06: findings from the use-case sweep
+
+- **A killed process cleans up at the next start.** `TotumApplication` runs `cleanUpAfterAKilledRecording` after the
+  rest of start-up (and only when no recording is running): the system's Show taps is put back when `recorder-taps`
+  still remembers a previous value (before, only the service and the dialog restored it, so it stayed on until the
+  next recording or dialog), and `OrphanedRecordings` looks in `Movies/Totum` for this app's rows still pending and added
+  over a minute ago. A row whose file has bytes and a playable duration (`MediaMetadataRetriever`) is published; any
+  other (empty, or `MediaRecorder` killed before the moov box was written) is deleted. Each decision is logged and the
+  summary is in reports (`recorder.lastCleanup`).
+- **The face bubble says when it is gone.** `FaceBubble` takes a callback; a camera that cannot open, disconnects, errors,
+  loses its permission or cannot start a preview removes the bubble (before, the white circle stayed blank), the service
+  sets `RecorderStatus.Recording.faceLost` and the ongoing notification drops "🙂 face" for "⚠️ face off: <why>". A bubble
+  that never showed (no front camera) is reported the same way from the first notification.
+- `recorder_saving` starts with an emoji (ADR 43). Reports carry a `recorder.*` block (status, choices, whether the
+  system taps grant is held and whether the taps are left on, the last result, the last clean-up).

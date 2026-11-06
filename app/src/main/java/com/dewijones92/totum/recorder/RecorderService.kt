@@ -146,14 +146,27 @@ class RecorderService : Service() {
         val capture = ScreenRecording.begin(this, projection, file.descriptor.fileDescriptor, plan.mic, handler) {
             finish("the system ended the screen capture")
         }
-        val bubble = if (plan.face) FaceBubble(this).takeIf { it.show() } else null
-        if (plan.face && bubble == null) Diag.log(TAG, "dewidebug recorder recording without the face bubble")
+        val bubble = if (plan.face) FaceBubble(this, ::faceLost).takeIf { it.show() } else null
+        val noFace = if (plan.face && bubble == null) NO_FRONT_CAMERA else null
+        if (noFace != null) Diag.log(TAG, "dewidebug recorder recording without the face bubble: $noFace")
         val shown = if (plan.taps == TapsShown.BY_SYSTEM && !taps.show()) TapsShown.IN_TOTUM else plan.taps
-        val running = plan.status(shown)
+        val running = plan.status(shown).let { if (noFace == null) it else it.copy(face = false, faceLost = noFace) }
         RecorderState.set(running)
         RecorderTileService.refresh(this)
         Diag.log(TAG, "dewidebug recorder recording file=${file.name} size=${capture.size} status=$running")
         return Live(capture, file, bubble, SystemClock.elapsedRealtime())
+    }
+
+    private fun faceLost(why: String) {
+        val running = RecorderState.status.value as? RecorderStatus.Recording
+        if (running == null) {
+            Diag.log(TAG, "dewidebug recorder face bubble lost ($why) with nothing recording; nothing to update")
+            return
+        }
+        val next = running.copy(face = false, faceLost = why)
+        RecorderState.set(next)
+        notifications.refresh(next)
+        Diag.log(TAG, "dewidebug recorder the face is off for the rest of the recording: $why status=$next")
     }
 
     private fun finish(why: String) {
@@ -175,9 +188,11 @@ class RecorderService : Service() {
             ) {
                 val bytes = withContext(Dispatchers.IO) { settle(current, wrote) }
                 if (bytes > 0) {
+                    RecorderDiagnostics.lastResult = "saved ${current.file.name} $bytes bytes after ${tookMs}ms ($why)"
                     notifications.saved(current.file.uri, current.file.name, tookMs, bytes)
                     OperationEnd.Done(1)
                 } else {
+                    RecorderDiagnostics.lastResult = "nothing kept from ${current.file.name} after ${tookMs}ms ($why)"
                     notifications.empty()
                     OperationEnd.Nothing
                 }
@@ -199,6 +214,7 @@ class RecorderService : Service() {
 
     private fun fail(why: String, failure: Throwable?, file: RecordingFile?, projection: MediaProjection?) {
         Diag.warn(TAG, "dewidebug recorder could not start: $why", failure)
+        RecorderDiagnostics.lastResult = "could not start: $why"
         file?.discard("start failed: $why")
         runCatching { projection?.stop() }
         live = null
@@ -220,6 +236,7 @@ class RecorderService : Service() {
     companion object {
         private const val TAG = "recorder"
         private const val SAVE_KEY = "recorder-save"
+        private const val NO_FRONT_CAMERA = "this phone has no front camera"
         private const val ACTION_START = "com.dewijones92.totum.recorder.START"
         private const val ACTION_STOP = "com.dewijones92.totum.recorder.STOP"
         private const val EXTRA_RESULT = "totum.recorder.result"

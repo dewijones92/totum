@@ -14,6 +14,7 @@ sealed interface RecorderStatus {
         val mic: Boolean,
         val face: Boolean,
         val taps: TapsShown,
+        val faceLost: String? = null,
     ) : RecorderStatus
 }
 

@@ -46,9 +46,20 @@ the original brief and the tests still owed: [the todo](../todos/totum-recorder.
 - **Rotation is not followed**; the recording keeps the orientation it started in.
 - Not yet run on a device or emulator: the face bubble's rotation and mirroring in particular need a look.
 
+## After a killed process
+
+At the next launch Totum puts the system's Show taps back if a recording that never finished had left it on, and
+looks in `Movies/Totum` for this app's unfinished (pending) recordings older than a minute: one with a playable video is
+published to the gallery, any other is deleted. If the face bubble's camera fails during a recording (taken by another
+app, an error, the permission gone) the bubble is removed and the notification says "⚠️ face off: ..." so the status
+never claims a face that is not there.
+
 ## Diagnostics
 
 `dewidebug` lines under the `recorder` tag: options opened and from where, permission answers, consent given or
 refused, the start plan (what was asked, what was usable, overlay and camera state, taps mode), encoder, size, dpi,
 bitrates, the face bubble's preview size, sensor orientation and rotation, system taps on and restored, stop reason
 and duration, the file's name and byte count, and why a file was discarded.
+
+Reports carry `recorder.status`, `.choices`, `.systemTapsGranted`, `.systemTapsLeftOn`, `.lastResult` and
+`.lastCleanup`; the face loss and each start-up clean-up decision are `dewidebug [recorder]` lines.

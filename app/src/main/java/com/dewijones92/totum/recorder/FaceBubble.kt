@@ -30,7 +30,7 @@ import com.dewijones92.totum.common.Diag
 import kotlin.math.abs
 import kotlin.math.max
 
-internal class FaceBubble(private val context: Context) {
+internal class FaceBubble(private val context: Context, private val onLost: (String) -> Unit) {
     private val windows = context.getSystemService(WindowManager::class.java)
     private val cameras = context.getSystemService(CameraManager::class.java)
     private val displays = context.getSystemService(DisplayManager::class.java)
@@ -99,6 +99,13 @@ internal class FaceBubble(private val context: Context) {
         return true
     }
 
+    private fun lose(why: String, detail: String) {
+        if (root == null) return
+        Diag.log(TAG, "dewidebug recorder face bubble lost: $detail; removing it and saying so")
+        hide()
+        onLost(why)
+    }
+
     fun hide() {
         runCatching { session?.close() }
         runCatching { device?.close() }
@@ -113,7 +120,7 @@ internal class FaceBubble(private val context: Context) {
         val permitted =
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         if (!permitted) {
-            Diag.log(TAG, "dewidebug recorder face bubble has no camera permission; leaving it blank")
+            lose("the camera permission is gone", "no camera permission")
             return
         }
         val characteristics = cameras.getCameraCharacteristics(id)
@@ -121,7 +128,7 @@ internal class FaceBubble(private val context: Context) {
             ?.getOutputSizes(SurfaceTexture::class.java).orEmpty().sortedBy { it.width * it.height }
         val chosen = sizes.firstOrNull { minOf(it.width, it.height) >= MIN_PREVIEW_SIDE } ?: sizes.lastOrNull()
         if (chosen == null) {
-            Diag.log(TAG, "dewidebug recorder face bubble: the front camera offers no preview size")
+            lose("the front camera offers no picture size", "the front camera offers no preview size")
             return
         }
         texture.setDefaultBufferSize(chosen.width, chosen.height)
@@ -133,27 +140,30 @@ internal class FaceBubble(private val context: Context) {
             "dewidebug recorder face bubble preview=${chosen.width}x${chosen.height} sensorOrientation=$sensor " +
                 "displayDegrees=${displayDegrees()} rotation=$rotation mirrored=true",
         )
-        cameras.openCamera(
-            id,
-            executor,
-            object : CameraDevice.StateCallback() {
-                override fun onOpened(camera: CameraDevice) {
-                    if (root == null) return camera.close()
-                    device = camera
-                    preview(camera, Surface(texture))
-                }
+        runCatching {
+            cameras.openCamera(
+                id,
+                executor,
+                object : CameraDevice.StateCallback() {
+                    override fun onOpened(camera: CameraDevice) {
+                        if (root == null) return camera.close()
+                        device = camera
+                        runCatching { preview(camera, Surface(texture)) }
+                            .onFailure { lose("the camera preview could not start", "preview failed: $it") }
+                    }
 
-                override fun onDisconnected(camera: CameraDevice) {
-                    Diag.log(TAG, "dewidebug recorder face bubble camera disconnected (another app took it?)")
-                    camera.close()
-                }
+                    override fun onDisconnected(camera: CameraDevice) {
+                        camera.close()
+                        lose("the camera was taken by another app", "camera disconnected (another app took it?)")
+                    }
 
-                override fun onError(camera: CameraDevice, error: Int) {
-                    Diag.log(TAG, "dewidebug recorder face bubble camera error=$error")
-                    camera.close()
-                }
-            },
-        )
+                    override fun onError(camera: CameraDevice, error: Int) {
+                        camera.close()
+                        lose("the camera failed (error $error)", "camera error=$error")
+                    }
+                },
+            )
+        }.onFailure { lose("the camera could not be opened", "openCamera threw: $it") }
     }
 
     private fun preview(camera: CameraDevice, surface: Surface) {
@@ -172,7 +182,7 @@ internal class FaceBubble(private val context: Context) {
                     }
 
                     override fun onConfigureFailed(failed: CameraCaptureSession) {
-                        Diag.log(TAG, "dewidebug recorder face bubble camera session could not be configured")
+                        lose("the camera preview could not start", "camera session could not be configured")
                     }
                 },
             ),

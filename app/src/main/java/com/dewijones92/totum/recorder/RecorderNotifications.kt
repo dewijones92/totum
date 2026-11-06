@@ -39,6 +39,7 @@ internal class RecorderNotifications(private val context: Context) {
             .setSmallIcon(R.drawable.ic_stat_screen)
             .setContentTitle(context.getString(R.string.recorder_notification_title))
             .setContentText(withWhat(status))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(withWhat(status)))
             .setUsesChronometer(true)
             .setShowWhen(true)
             .setWhen(status.sinceMs)
@@ -50,6 +51,15 @@ internal class RecorderNotifications(private val context: Context) {
             .setContentIntent(open(RecorderActivity.intent(context), OPEN_REQUEST))
             .addAction(0, context.getString(R.string.recorder_notification_stop), stop)
             .build()
+    }
+
+    fun refresh(status: RecorderStatus.Recording) {
+        if (!allowed()) {
+            Diag.log(TAG, "dewidebug recorder notification not refreshed: notifications are off for Totum")
+            return
+        }
+        runCatching { NotificationManagerCompat.from(context).notify(RECORDING_ID, recording(status)) }
+            .onFailure { Diag.warn(TAG, "dewidebug recorder notification refresh refused", it) }
     }
 
     fun saved(uri: Uri, name: String, durationMs: Long, bytes: Long) {
@@ -110,16 +120,17 @@ internal class RecorderNotifications(private val context: Context) {
 
     private fun post(id: Int, builder: NotificationCompat.Builder) {
         ensureChannel()
-        val manager = NotificationManagerCompat.from(context)
-        val permitted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (!permitted || !manager.areNotificationsEnabled()) {
+        if (!allowed()) {
             Diag.log(TAG, "dewidebug recorder result notification not shown: notifications are off for Totum")
             return
         }
-        runCatching { manager.notify(id, builder.build()) }
+        runCatching { NotificationManagerCompat.from(context).notify(id, builder.build()) }
             .onFailure { Diag.warn(TAG, "dewidebug recorder result notification refused", it) }
     }
+
+    private fun allowed(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED && NotificationManagerCompat.from(context).areNotificationsEnabled()
 
     private fun open(intent: Intent, request: Int): PendingIntent =
         PendingIntent.getActivity(
@@ -134,6 +145,7 @@ internal class RecorderNotifications(private val context: Context) {
             if (status.mic) add(context.getString(R.string.recorder_notification_with_voice))
             if (status.face) add(context.getString(R.string.recorder_notification_with_face))
             if (status.taps != TapsShown.OFF) add(context.getString(R.string.recorder_notification_with_taps))
+            status.faceLost?.let { add(context.getString(R.string.recorder_notification_face_off, it)) }
         }
         return parts.joinToString(" · ").ifEmpty { context.getString(R.string.recorder_notification_screen_only) }
     }
