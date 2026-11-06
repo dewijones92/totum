@@ -1,8 +1,10 @@
 package com.dewijones92.totum.ui.player
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,6 +79,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.cast.CastStrip
+import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -428,9 +431,14 @@ private fun PlayerDetails(
  */
 const val PLAYER_METADATA_TAG: String = "player-views-and-date"
 
-/** The up-next queue: a titled list, tap an entry to jump to it, X to remove it. */
+/** The up-next queue: a titled list, tap an entry to jump to it, long-press for its menu, X to remove it. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun UpNextSection(queue: QueueControls) {
+    var menuFor by remember { mutableStateOf<QueueEntry?>(null) }
+    menuFor?.let { entry ->
+        ItemActionSheet(entry.item.item, onDismiss = { menuFor = null }, pillar = entry.item.pillar)
+    }
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -448,7 +456,7 @@ internal fun UpNextSection(queue: QueueControls) {
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = UP_NEXT_ALPHA))
-                    .clickable { queue.onPlay(index) }
+                    .combinedClickable(onClick = { queue.onPlay(index) }, onLongClick = { menuFor = queued })
                     .padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
             ) {
                 MediaThumbnail(

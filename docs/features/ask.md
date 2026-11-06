@@ -56,6 +56,9 @@ with jq only. ADR 121.
 `tools/finder-eval/eval.py --serve <url> --label <name>` runs `cases.json` (16 asks, 20 copies to vet) and writes
 a scored report to `tools/finder-eval/out/`. `tools/finder-eval/fake-claude` stands in for Claude in tests.
 
+A video result's **Go to channel** opens the channel through the shell (`LocalOpenSource`); it was a no-op until
+2026-11-06.
+
 ## Forgetting an earlier chat can be undone (2026-11-06)
 
 The ✕ on an earlier chat forgets it and offers Undo on the shell's snackbar (`AskViewModel.forget` returns the chat,
@@ -65,3 +68,7 @@ The ✕ on an earlier chat forgets it and offers Undo on the shell's snackbar (`
 
 Items marked 🙅 Not for me are sent to the AI with the titles it should not suggest, and any suggestion whose label
 matches one is dropped before searching (`AskViewModel`, logged as "left out: not for me").
+
+## Tests owed (2026-11-06 consistency sweep)
+
+A video result's Go to channel opening the channel (instrumented).

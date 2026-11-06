@@ -1186,7 +1186,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             Diag.warn("advance", "no related videos to fall back on")
             return
         }
-        val next = related.videos
+        val next = notForMe.without(related.videos, "related after the queue ran out") { MediaItemId(it.videoId) }
             .firstOrNull { it.videoId != playing.item.id.value }
             ?.toMediaItem(SourceId("ytrelated"))
             ?.toPlayableOrNull()

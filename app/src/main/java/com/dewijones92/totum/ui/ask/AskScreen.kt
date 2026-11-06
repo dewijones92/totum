@@ -60,6 +60,7 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
+import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.RecentChips
@@ -248,6 +249,7 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
     val searchState by search.uiState.collectAsStateWithLifecycle()
     val actions = rememberMediaItemActions(container)
     val openMusic = LocalOpenMusicPage.current
+    val openSource = LocalOpenSource.current
     return { hit ->
         when (hit) {
             is SearchHit.Torrent -> TorrentHitRow(
@@ -260,7 +262,7 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
                 resolving = searchState.resolving == hit.watchUrl.value,
                 onPlay = { search.playVideo(hit) },
                 actions = actions,
-                onGoToChannel = {},
+                onGoToChannel = { item -> actions.goToSource(item) { source -> openSource?.invoke(source) } },
             )
             is SearchHit.Podcast -> PodcastHitRow(
                 hit = hit,

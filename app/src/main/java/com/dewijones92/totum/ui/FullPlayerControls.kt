@@ -1,29 +1,34 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.runtime.Composable
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.player.PlaybackToggles
 import com.dewijones92.totum.ui.player.QualityControl
 import com.dewijones92.totum.ui.player.QueueControls
 import com.dewijones92.totum.ui.player.WatchViewModel
+import com.dewijones92.totum.ui.queue.rememberQueueRemoveWithUndo
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 
 /**
  * The player's up-next list shows what follows the cursor, so its indices are offset from
  * the queue's own — done here once rather than inline at the call site.
  */
+@Composable
 internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): QueueControls {
+    val removeWithUndo = rememberQueueRemoveWithUndo(queue, LocalSnackbarOffers.current)
     val indexNow = { entry: QueueEntry ->
         queue.state.value.entries.indexOfFirst { it.item.item.id == entry.item.item.id }.takeIf { it >= 0 }
     }
     return QueueControls(
         upNext = upNext,
         onPlay = { i -> upNext.getOrNull(i)?.let(indexNow)?.let(queue::jumpTo) },
-        onRemove = { i -> upNext.getOrNull(i)?.let { queue.remove(it) } },
+        onRemove = { i -> upNext.getOrNull(i)?.let(removeWithUndo) },
     )
 }
 
