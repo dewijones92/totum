@@ -31,7 +31,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | built 2026-11-06, Batch A (tests owed) |
 | [✨ Ask: the restore crash, and a chat list that hides the input](ask-restore-race-and-chat-list.md) | ai | high | decided 2026-11-06, Batch A |
 | [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | decided 2026-11-06, Batch A |
-| [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | decided 2026-11-06, Batch A |
+| [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests to follow |
 | [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests and device checks to follow |
 | [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | built 2026-11-06 (tests pending), Batch A |
 | [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | decided 2026-11-06, Batch A |

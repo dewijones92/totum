@@ -1,7 +1,7 @@
 ---
 title: A Pi copy casts with its picture
 kind: todo
-status: decided
+status: built 2026-11-06 (ADR 122); tests and device checks to follow
 batch: A (2026-11)
 priority: high
 updated: 2026-11-06
@@ -14,3 +14,13 @@ returns UNKNOWN for `…/fetch/files?id=torrent…` (no extension) and `CastStre
 `video=none` with no log; the LG plays HEVC from a no-extension link. Fix: carry the picture/file name with the home
 copy (`HomeCopy` already has `audioOnly`; `playedFromHome` forces `PlayHandle.Podcast`), probe UNKNOWN rather than
 drop it, and log the no-picture reason. No test covers `mayCarryVideo` yet.
+
+## Built 2026-11-06
+
+`CastStreams.pictureVerdict` replaces `mayCarryVideo`: an address that names no file type is probed (its bytes say),
+a sound-extension address and a YouTube address that carries no picture are not, and every session line says
+`picture because …` (the probe's own "no picture … sound only" line follows when the bytes say none). Nothing in the
+cast path depends on `playedFromHome` forcing `PlayHandle.Podcast` (no `pillar` is read there); the phone's own Listen/Watch
+offer for a Pi film still reads `UNKNOWN`, which is a separate item. Carrying the file name from the Pi would need a
+server change (`/files` has no name); not done, so the phone and the Pi keep deploying in any order.
+Tests to add: `pictureVerdict` for `…/files?id=torrent…`, an `.mp3`, a YouTube address and a local file.

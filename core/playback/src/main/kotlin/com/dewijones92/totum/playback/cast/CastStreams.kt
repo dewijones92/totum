@@ -314,6 +314,7 @@ internal class CastStreams(
         val audio: String,
         val listening: Boolean,
         val ladder: List<CastRung> = emptyList(),
+        val pictureWhy: String,
     )
 
     private fun sourcesFor(item: MediaItem): Sources? {
@@ -326,11 +327,18 @@ internal class CastStreams(
             Diag.log("cast", "${item.mediaId}: $why; the receiver is given it as it is")
             return null
         }
+        val verdict = pictureVerdict(uri)
         return when {
-            separateAudio != null && !listening -> Sources(uri, separateAudio, listening, ladderIn(extras))
-            !listening && mayCarryVideo(uri) -> Sources(uri, uri, listening)
-            separateAudio != null -> Sources(null, separateAudio, listening)
-            else -> Sources(null, uri, listening)
+            separateAudio != null && !listening ->
+                Sources(uri, separateAudio, listening, ladderIn(extras), "a separate video stream with its own audio")
+            !listening && verdict.mayCarry -> Sources(uri, uri, listening, pictureWhy = verdict.why)
+            separateAudio != null -> Sources(null, separateAudio, listening, pictureWhy = "listening")
+            else -> Sources(
+                null,
+                uri,
+                listening,
+                pictureWhy = if (listening) "listening (the picture is off by choice)" else verdict.why,
+            )
         }
     }
 
@@ -398,6 +406,7 @@ internal class CastStreams(
         Diag.log(
             "cast",
             "${item.mediaId} -> $url (video=${if (sources.video != null) "passed through" else "none"}, " +
+                "picture because ${sources.pictureWhy}, " +
                 "audio=processed from ${if (sources.audio.startsWith("http")) "stream" else "disk"}, " +
                 "listening=${sources.listening}, " +
                 "silences ${if (session.audio.timeline.cutsSilences) "cut" else "kept"})",
@@ -550,12 +559,18 @@ internal class CastStreams(
                 height.toIntOrNull()?.let { CastRung(url, it, codec.ifEmpty { null }) }
             }
 
-        private fun mayCarryVideo(uri: String): Boolean {
-            if (uri.contains(YOUTUBE_STREAMS)) return false
+        private data class PictureVerdict(val mayCarry: Boolean, val why: String)
+
+        private fun pictureVerdict(uri: String): PictureVerdict {
             val picture = pictureAt(uri)
-            if (picture == Picture.NO) return false
-            val torrent = uri.contains("/stream/") && uri.contains("link=")
-            return !uri.startsWith("http") || torrent || picture == Picture.YES
+            val name = uri.substringBefore('?').substringBefore('#').substringAfterLast('/')
+            return when {
+                uri.contains(YOUTUBE_STREAMS) -> PictureVerdict(false, "a YouTube address that carries no picture")
+                !uri.startsWith("http") -> PictureVerdict(true, "a file on the phone; its bytes will say ($name)")
+                picture == Picture.NO -> PictureVerdict(false, "the file name says sound ($name)")
+                picture == Picture.YES -> PictureVerdict(true, "the file name says video ($name)")
+                else -> PictureVerdict(true, "the address names no file type ($name); its bytes will say")
+            }
         }
 
         private fun givenAsItIs(uri: String, separateAudio: String?, listening: Boolean): String? = when {
