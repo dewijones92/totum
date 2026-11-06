@@ -255,5 +255,16 @@ A delete from a row, a sheet, the Library or a multi-select does not touch the f
 snackbar with Undo (a batch is one line), and removes the file 12 s later. The pending ids are kept in their own prefs, so
 an app that dies inside the window finishes the delete at the next start and nothing is left hidden for ever. Undo
 brings it back with its file; a new download of the item also cancels the pending delete. A locked download is not
-hidden: the usual "unlock it?" question is asked. The call is `DownloadManager.deleteSoon`; plain `delete` is
+hidden: the usual "unlock it?" question is asked.
+One Undo window serves a whole batch (2026-11-06): the files of an offer go together `windowMs` after the offer is
+announced (300 ms after the last delete of the burst), not 12 s after each file's own delete, and a batch announced while
+the previous window is still open waits for it, because the snackbar queue shows them one after another. Before, a long
+burst of deletes could commit its first files before the Undo had even appeared. The start-up behaviour is unchanged: a
+delete still pending when the app stopped is committed at the next start. The call is `DownloadManager.deleteSoon`; plain `delete` is
 unchanged for clean-up cards, failed rows and "clear failed", which are already confirmed.
+
+## Tests owed (2026-11-06 consistency sweep)
+
+`PendingDownloadDeletes`: a burst of deletes spread over longer than the window commits nothing before the batch's
+offer, one commit for the whole batch, a second batch waiting for the first window, an Undo inside the window, start-up
+commit of leftovers (virtual time with the `now` parameter).

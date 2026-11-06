@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 interface PendingDeleteStore {
     fun load(): Set<MediaItemId>
@@ -52,6 +54,7 @@ class PendingDownloadDeletes(
     private val store: PendingDeleteStore,
     private val isLocked: (MediaItemId) -> Boolean,
     private val windowMs: Long = UNDO_WINDOW_MS,
+    private val now: () -> Long = System::currentTimeMillis,
 ) : DownloadManager by inner {
 
     private val hidden = MutableStateFlow(store.load())
@@ -63,6 +66,7 @@ class PendingDownloadDeletes(
     private val batchLock = Any()
     private val batch = mutableListOf<Pair<MediaItemId, String?>>()
     private var announcing: Job? = null
+    private var windowFreeAt = 0L
 
     init {
         if (hidden.value.isNotEmpty()) {
@@ -104,21 +108,33 @@ class PendingDownloadDeletes(
         }
         val title = inner.observeDownloaded().first().firstOrNull { it.playable.item.id == id }?.playable?.item?.title
         hide(id, true)
-        Diag.log("download", "dewidebug ${id.value} hidden; its file goes in ${windowMs}ms unless the delete is undone")
+        Diag.log("download", "dewidebug ${id.value} hidden, waiting for its batch's Undo offer to run its course")
         synchronized(batchLock) {
             batch += id to title
             announcing?.cancel()
-            announcing = scope.launch {
-                delay(ANNOUNCE_AFTER_MS)
-                val offer = synchronized(batchLock) {
-                    DeleteOffer(batch.map { it.first }, batch.singleOrNull()?.second).also { batch.clear() }
-                }
-                announced.emit(offer)
-            }
+            announcing = scope.launch { announceBatchAfterQuiet() }
         }
-        scope.launch {
-            delay(windowMs)
-            commit(id, "its undo window ended")
+    }
+
+    private suspend fun announceBatchAfterQuiet() {
+        delay(ANNOUNCE_AFTER_MS)
+        withContext(NonCancellable) {
+            val (offer, commitAt) = synchronized(batchLock) {
+                val offered = batch.toList().also { batch.clear() }
+                val startsAt = maxOf(now(), windowFreeAt)
+                windowFreeAt = startsAt + windowMs
+                DeleteOffer(offered.map { it.first }, offered.singleOrNull()?.second) to windowFreeAt
+            }
+            announced.emit(offer)
+            Diag.log(
+                "download",
+                "dewidebug Undo offered for ${offer.ids.size} deleted download(s); their files go together in " +
+                    "${(commitAt - now()).coerceAtLeast(0)}ms unless it is taken",
+            )
+            scope.launch {
+                delay((commitAt - now()).coerceAtLeast(0))
+                offer.ids.forEach { commit(it, "its batch's undo window ended") }
+            }
         }
     }
 
