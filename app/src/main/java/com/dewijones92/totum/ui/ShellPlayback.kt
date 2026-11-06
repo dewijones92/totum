@@ -66,11 +66,7 @@ internal fun floatingWindowState(
 internal fun FloatingVideo(hasVideo: Boolean, player: androidx.media3.common.Player?, modifier: Modifier) {
     Box(modifier = modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
         if (player != null && hasVideo) {
-            androidx.media3.ui.compose.PlayerSurface(
-                player = player,
-                surfaceType = androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW,
-                modifier = Modifier.matchParentSize(),
-            )
+            com.dewijones92.totum.ui.common.VideoSurface(player = player, modifier = Modifier.matchParentSize())
         }
     }
 }

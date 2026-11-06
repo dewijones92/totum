@@ -41,11 +41,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.compose.PlayerSurface
-import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.PlaybackController
+import com.dewijones92.totum.ui.common.VideoSurface
 import com.dewijones92.totum.ui.player.FullscreenEffect
 import kotlinx.coroutines.delay
 
@@ -90,11 +89,7 @@ fun KidLockedStage(controller: PlaybackController, kidLock: KidLock) {
             },
     ) {
         controller.player?.let { player ->
-            PlayerSurface(
-                player = player,
-                surfaceType = SURFACE_TYPE_SURFACE_VIEW,
-                modifier = Modifier.aspectRatio(state?.videoAspectRatio ?: DEFAULT_ASPECT),
-            )
+            VideoSurface(player = player, modifier = Modifier.aspectRatio(state?.videoAspectRatio ?: DEFAULT_ASPECT))
         }
         if (now < shownUntil) {
             KidModeBadge(

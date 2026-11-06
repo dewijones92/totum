@@ -48,7 +48,7 @@ internal class AviMp3Framing(private val delegate: ExtractorsFactory) : Extracto
     }
 
     private fun framed(extractor: Extractor): Extractor =
-        if (extractor.underlyingImplementation is AviExtractor) FramedAvi(extractor) else extractor
+        StampsFrameRate(if (extractor.underlyingImplementation is AviExtractor) FramedAvi(extractor) else extractor)
 }
 
 @UnstableApi

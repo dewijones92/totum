@@ -40,14 +40,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.compose.PlayerSurface
-import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.LiveBadge
+import com.dewijones92.totum.ui.common.VideoSurface
 import kotlinx.coroutines.delay
 
 /**
@@ -264,6 +263,6 @@ private fun OverlaySeekBar(
 @Composable
 private fun StagePicture(player: Player, onCastDevice: Boolean, modifier: Modifier) {
     key(onCastDevice) {
-        PlayerSurface(player = player, surfaceType = SURFACE_TYPE_SURFACE_VIEW, modifier = modifier)
+        VideoSurface(player = player, modifier = modifier)
     }
 }

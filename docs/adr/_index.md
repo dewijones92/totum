@@ -154,3 +154,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 136 | [Offline playable is whatever routeNow plays from the device](0136-offline-playable-is-whatever-routenow-plays-from-the-device.md) | Accepted |
 | 137 | [Carry on is play history joined to progress](0137-carry-on-is-play-history-joined-to-progress.md) | Accepted |
 | 138 | [A queue group says how long is left, at the speed it will play](0138-a-queue-group-says-how-long-is-left-at-the-speed-it-will-play.md) | Accepted |
+| 139 | [The decoder and the screen are told the frame rate](0139-the-decoder-and-the-screen-are-told-the-frame-rate.md) | Accepted |

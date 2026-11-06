@@ -55,6 +55,7 @@ $representations
         CODECS.find(format.mimeType!!)?.groupValues?.get(1)?.let { append(" codecs=\"$it\"") }
         format.width?.let { append(" width=\"$it\"") }
         format.height?.let { append(" height=\"$it\"") }
+        format.fps?.takeIf { it > 0 }?.let { append(" frameRate=\"$it\"") }
         append(">\n<SegmentTemplate timescale=\"$MICROS\" duration=\"$segmentUs\" startNumber=\"$first\"")
         append(" presentationTimeOffset=\"${first * segmentUs}\" media=\"${xml("$url&sq=")}${'$'}Number${'$'}\">")
         format.initRange?.let { append("<Initialization sourceURL=\"${xml(url)}\" range=\"${it.first}-${it.last}\"/>") }

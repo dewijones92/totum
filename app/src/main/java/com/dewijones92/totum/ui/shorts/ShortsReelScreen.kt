@@ -40,8 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.compose.PlayerSurface
-import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
@@ -55,6 +53,7 @@ import com.dewijones92.totum.domain.ReelStart
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.ItemActionSheet
+import com.dewijones92.totum.ui.common.VideoSurface
 import com.dewijones92.totum.ui.common.rememberField
 
 /**
@@ -213,11 +212,7 @@ private fun ShortPage(
         contentAlignment = Alignment.Center,
     ) {
         if (isCurrent && player != null && state?.hasVideo == true) {
-            PlayerSurface(
-                player = player,
-                surfaceType = SURFACE_TYPE_SURFACE_VIEW,
-                modifier = Modifier.fillMaxSize(),
-            )
+            VideoSurface(player = player, modifier = Modifier.fillMaxSize())
         }
         if (isCurrent && state?.isBuffering == true) {
             CircularProgressIndicator(color = Color.White)

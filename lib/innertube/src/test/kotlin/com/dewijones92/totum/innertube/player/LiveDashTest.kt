@@ -44,6 +44,18 @@ class LiveDashTest {
     }
 
     @Test
+    fun `a video representation states its frame rate so the decoder and the screen are told`() {
+        val sixty = formats.map { if (it.itag == 299) it.copy(fps = 60) else it }
+        val mpd = LiveDash.manifest(sixty, LiveHead(sequence = 2400, streamMs = 12_000_000))!!
+
+        assertTrue(mpd, Regex("""<Representation id="299"[^>]*frameRate="60"""").containsMatchIn(mpd))
+        assertTrue(
+            "no rate where none was given",
+            !Regex("""<Representation id="248"[^>]*frameRate""").containsMatchIn(mpd)
+        )
+    }
+
+    @Test
     fun `each container gets its own adaptation set`() {
         val mpd = LiveDash.manifest(formats, LiveHead(sequence = 2400, streamMs = 12_000_000))!!
 
