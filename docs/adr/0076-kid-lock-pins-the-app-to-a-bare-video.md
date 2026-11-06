@@ -41,7 +41,9 @@ it to loop … I want the mode to be obvious … not permanently overlaid … no
 volume … by the keys on the side."* He chose: loop what the icon started; a tap shows the badge and brightness.
 
 - While locked (`KidMode`, `KidRules`): speed is held at 1× and silence skipping off, whatever a show's own settings
-  say, and both come back on unlock; auto-play is on and Explore off; the repeat is the playing item's queue group
+  say, and both come back on unlock (applied with `setSpeedForNow` and `setSkipSilenceForNow`, which never write the
+  saved speed or skip-silence choice, so a process death while locked cannot turn 1x into the person's chosen talk
+  speed; amended 2026-11-06); auto-play is on and Explore off; the repeat is the playing item's queue group
   when it has one (a playlist, channel or album the icon started) and the item itself otherwise, so nothing else from
   the queue plays.
 - A tap shows "👶 Kid mode" and a brightness slider (the window's brightness, cleared on unlock) for 3 s; nothing

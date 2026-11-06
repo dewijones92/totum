@@ -263,7 +263,15 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         _state.update { it?.copy(positionMs = it.positionMs + SEEK_FORWARD_MS) }
     }
 
+    public val savedSpeeds: MutableList<Float> = mutableListOf()
+    public val savedSkipSilence: MutableList<Boolean> = mutableListOf()
+
     override fun setSpeed(speed: Float) {
+        savedSpeeds += speed
+        _state.update { it?.copy(speed = speed) }
+    }
+
+    override fun setSpeedForNow(speed: Float) {
         _state.update { it?.copy(speed = speed) }
     }
 
@@ -358,6 +366,11 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
     }
 
     override fun setSkipSilence(enabled: Boolean) {
+        savedSkipSilence += enabled
+        _state.update { it?.copy(skipSilence = enabled) }
+    }
+
+    override fun setSkipSilenceForNow(enabled: Boolean) {
         _state.update { it?.copy(skipSilence = enabled) }
     }
 

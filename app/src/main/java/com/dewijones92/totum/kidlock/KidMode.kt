@@ -46,17 +46,17 @@ class KidMode(
             before = (speed ?: KidRules.SPEED) to (skipSilence ?: false)
             Diag.log(
                 "kidlock",
-                "kid mode: speed 1x and no silence skipping until unlocked " +
+                "kid mode: speed 1x and no silence skipping until unlocked, none of it saved as a choice " +
                     "(was ${before?.first}x, skip=${before?.second})"
             )
         }
         if (speed != null && speed != KidRules.SPEED) {
             Diag.log("kidlock", "kid mode: speed was ${speed}x; back to 1x")
-            controller.setSpeed(KidRules.SPEED)
+            controller.setSpeedForNow(KidRules.SPEED)
         }
         if (skipSilence == true) {
             Diag.log("kidlock", "kid mode: silence skipping came on; off again")
-            controller.setSkipSilence(false)
+            controller.setSkipSilenceForNow(false)
         }
     }
 
@@ -64,7 +64,7 @@ class KidMode(
         val (speed, skip) = before ?: return
         before = null
         Diag.log("kidlock", "kid mode over: speed ${speed}x and skip=$skip again")
-        controller.setSpeed(speed)
-        controller.setSkipSilence(skip)
+        controller.setSpeedForNow(speed)
+        controller.setSkipSilenceForNow(skip)
     }
 }

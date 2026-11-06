@@ -56,5 +56,7 @@ class KidModeTest {
         runCurrent()
         assertEquals(1.5f, controller.state.value?.speed)
         assertEquals(true, controller.state.value?.skipSilence)
+        assertEquals(emptyList<Float>(), controller.savedSpeeds)
+        assertEquals(emptyList<Boolean>(), controller.savedSkipSilence)
     }
 }

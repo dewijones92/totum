@@ -121,12 +121,16 @@ public interface PlaybackController {
     /** Sets playback speed (e.g. 1.0, 1.5, 2.0); clamped to a sensible range. */
     public fun setSpeed(speed: Float)
 
+    public fun setSpeedForNow(speed: Float)
+
     public fun setCastVolume(fraction: Float)
 
     public fun setFadeLevel(level: Float)
 
     /** Toggles skipping of near-silent stretches (trims dead air, podcast-style). */
     public fun setSkipSilence(enabled: Boolean)
+
+    public fun setSkipSilenceForNow(enabled: Boolean)
 
     public fun updateSkipSegments(itemId: MediaItemId, segments: List<SkipSegment>)
 

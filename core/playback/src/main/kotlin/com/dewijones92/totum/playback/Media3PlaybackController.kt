@@ -647,12 +647,7 @@ public class Media3PlaybackController(
     }
 
     override fun setSpeed(speed: Float) {
-        val clamped = speed.coerceIn(MIN_SPEED, MAX_SPEED)
-        withController {
-            applyUserSpeed(it, clamped)
-            _state.value = it.currentPlaybackState()
-        }
-        tuning = tuning.copy(speed = clamped)
+        val clamped = applySpeed(speed)
         if (tuning.keepsChanges) {
             scope.launch { speedStore.save(clamped) }
         } else {
@@ -661,6 +656,21 @@ public class Media3PlaybackController(
                 "speed ${clamped}x for this item only; music and live do not change the saved speed",
             )
         }
+    }
+
+    override fun setSpeedForNow(speed: Float) {
+        val clamped = applySpeed(speed)
+        Diag.log("playback", "speed ${clamped}x for now only; the saved speed is left as it was")
+    }
+
+    private fun applySpeed(speed: Float): Float {
+        val clamped = speed.coerceIn(MIN_SPEED, MAX_SPEED)
+        withController {
+            applyUserSpeed(it, clamped)
+            _state.value = it.currentPlaybackState()
+        }
+        tuning = tuning.copy(speed = clamped)
+        return clamped
     }
 
     /**
@@ -1031,6 +1041,15 @@ public class Media3PlaybackController(
                 "skip-silence $enabled for this item only; a song or a book chapter does not change the saved choice",
             )
         }
+        applySkipSilence(enabled)
+    }
+
+    override fun setSkipSilenceForNow(enabled: Boolean) {
+        applySkipSilence(enabled)
+        Diag.log("playback", "skip-silence $enabled for now only; the saved choice is left as it was")
+    }
+
+    private fun applySkipSilence(enabled: Boolean) {
         tuning = tuning.copy(skipSilence = enabled)
         withController {
             sendSkipSilence(it, enabled)
