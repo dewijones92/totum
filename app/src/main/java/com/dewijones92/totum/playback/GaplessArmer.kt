@@ -52,9 +52,9 @@ internal class GaplessArmer(
     }
 
     private fun due(state: PlaybackState): Boolean {
-        if (state.onCastDevice) return !state.hasEnded
         val remaining = state.durationMs?.let { it - state.positionMs } ?: return false
-        return !state.hasEnded && remaining in 0..leadMs && settled(state, remaining)
+        if (state.hasEnded || remaining !in 0..leadMs) return false
+        return if (state.onCastDevice) state.isPlaying else settled(state, remaining)
     }
 
     private fun settled(state: PlaybackState, remaining: Long): Boolean =

@@ -45,6 +45,13 @@ internal class TimeMappedCastPlayer(
     private fun toTvMs(sourceMs: Long): Long =
         timeline()?.tvFor(sourceMs * MICROS_PER_MS)?.div(MICROS_PER_MS) ?: sourceMs
 
+    private fun sourceDurationMs(): Long? =
+        timeline()?.sourceDurationMicros()?.takeIf { it > 0 }?.div(MICROS_PER_MS)
+
+    override fun getDuration(): Long = sourceDurationMs() ?: super.getDuration()
+
+    override fun getContentDuration(): Long = sourceDurationMs() ?: super.getContentDuration()
+
     override fun getCurrentPosition(): Long = toSourceMs(super.getCurrentPosition())
 
     override fun getContentPosition(): Long = toSourceMs(super.getContentPosition())

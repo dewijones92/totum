@@ -12,6 +12,8 @@ public class CastTimeline(private val cuts: Boolean, private val sourceDurationU
 
     public val cutsSilences: Boolean get() = cuts
 
+    public fun sourceDurationMicros(): Long = sourceDurationUs()
+
     @Synchronized
     public fun anchor(tvUs: Long, sourceUs: Long) {
         anchors[tvUs] = sourceUs

@@ -2,7 +2,7 @@
 title: Casting plays a stream the phone serves, with Totum's own audio and the original video packets
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # 68. Casting plays a stream the phone serves, with Totum's own audio and the original video packets
@@ -38,8 +38,10 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   untouched (`Upstream`), its index and codecs read from the stream's own header (`StreamLayouts`, WebM and MP4); the
   audio decoded, run through the **same** `BoostingAudioProcessor` the phone uses, re-encoded to AAC and cut into
   segments on demand (`ProcessedAudio`, `AudioTranscode`, `Fmp4Aac`). Only the audio is re-encoded, never the video.
-- While casting, the gapless armer puts the next queue item behind the playing one at once, so the TV crosses over by
-  itself and its remote's next works; Totum adopts the crossover as it does locally. An item the receiver drops near its
+- While casting, the gapless armer puts the next queue item behind the playing one in its last 75 s, as it does locally
+  (it armed at once until 2026-11-06, which could restart the playing item on the TV and left the TV's remote "next"
+  working all the time; now that works only in that window), so the TV crosses over by itself; Totum adopts the
+  crossover as it does locally. An item the receiver drops near its
   end counts as ended (`RemoteEnd`); a crossover is judged ended or skipped by Totum's own clock, since the receiver
   reports the full duration either way.
 - **Skip silences** on an audio-only item runs the phone's own `SilenceCuttingAudioProcessor` (same mode and speech
@@ -61,6 +63,13 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
 
 ## Consequences
 
+- Amended 2026-11-06 (reports 20261101T174143 and 20261101T205710): **casting keeps your place and notices the end.**
+  When the receiver names nothing, Totum uses the item it last sent (`CastLoadHold.unnamed()`) to save progress,
+  to watch for the end (`RemoteEndWatch`, pure, so a Pi-driven target can feed it later) and to hand back to the phone
+  (`CastHandoff` in the service, kept current from the app's set/add calls and the TV's position). With two items on
+  the receiver and none named, Totum cannot tell which plays, so it saves and counts nothing and says so. The cast
+  player reports the source's duration, not the cut audio's, so a position and a duration are comparable. An ENDED
+  with unknown length at about 0 ms within 3 s of a start is ignored (`SpuriousEnd`).
 - Amended 2026-10-31: a downloaded file is cut for the TV on demand like a torrent stream (`VideoProbe` over a file reader); ffmpeg repackages only a file that cannot be cut, MP4 first, with its progress shown. The cast strip names the stage (`CastStage`). See docs/features/casting.md.
 
 - **Surround sound and downloads cast** (2026-10-24, report 0.1.721, "ali g not playing??"). A 5.1 track was

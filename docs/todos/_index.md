@@ -33,7 +33,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | decided 2026-11-06, Batch A |
 | [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | decided 2026-11-06, Batch A |
 | [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | decided 2026-11-06, Batch A |
-| [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | decided 2026-11-06, Batch A |
+| [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | built 2026-11-06 (tests pending), Batch A |
 | [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | decided 2026-11-06, Batch A |
 | [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | built 2026-11-06, Batch A (tests owed) |
 | [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | decided 2026-11-06, Batch A |

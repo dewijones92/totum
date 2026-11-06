@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Casting
@@ -16,8 +16,8 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 - **Audio:** decoded on the phone, through the same boost and (for talk, audio-only) the same silence skipping as local
   playback, re-encoded to AAC in 4 s segments. With skips on, Totum keeps episode time and moves on at the real end.
 - **Speed** plays on the TV at the chosen rate.
-- **Seeking** with the TV remote works; **next** on the TV remote moves Totum's queue; the TV moves to the next queue
-  item by itself at the end of one.
+- **Seeking** with the TV remote works; **next** on the TV remote moves Totum's queue (while the next item is waiting
+  on the TV, its last 75 s); the TV moves to the next queue item by itself at the end of one.
 - **Stop casting** hands back to the phone at the TV's position, picture and all.
 
 - **Downloads** cast with their picture: the video track is copied (never re-encoded) into a seekable WebM or MP4
@@ -81,6 +81,20 @@ After a replay on the TV, Media3 could lose the playing item's name and the phon
 on (report 0.1.671). The phone now shows the item it sent last, so pause, seek and stop stay in reach. Listen-mode
 casts and videos already at their best for the TV no longer replay. See ADR 68's amendment.
 
+
+## It keeps your place and notices the end (2026-11-06)
+
+Reports 20261101T174143 (finished on the TV, the app said 70%) and 20261101T205710 (TV off, the phone showed another
+show). While casting, your place is saved every five seconds and on pause or seek, an end on the TV marks the item
+played and moves the queue on, and stopping the cast resumes the item the TV was on at its place. Where the receiver
+names nothing, Totum uses the item it last sent. The next item is put in line on the TV only in the last 75 s.
+Cast progress reports the source's length, not the cut audio's. A spurious end (unknown length, about 0 ms, within 3 s
+of a start) is ignored.
+Logs: `[playback] saving <id> at …ms … under the id Totum sent`, `not saving the place: …`, `end of <id> counted (…)`,
+`end of <id> not counted again …`, `ignored an end of <id>: … (state=…)`, `[cast] <id> left the receiver at …`,
+`<a> -> <b> on the TV at …ms of …ms: it ended|skipped`, `hand-over now <id> at …ms (…)`,
+`handed <id> over at …ms, the one kept while casting|the one Totum sent|the one the player has`, `[gapless] … getting
+… in line (… cast=true)`.
 
 ## On the PC screen (2026-10-23)
 

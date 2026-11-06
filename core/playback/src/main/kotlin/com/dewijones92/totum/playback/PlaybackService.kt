@@ -103,8 +103,9 @@ public class PlaybackService : MediaSessionService() {
 
     // Last item/position handed across a local↔cast switch, so a cast disconnect
     // (which nulls the CastPlayer's queue) can still resume locally.
-    private var lastHandoffItem: MediaItem? = null
-    private var lastHandoffPositionMs: Long = 0
+    private val handoff = CastHandoff<MediaItem> { it.mediaId }
+    private val handoffTick = Handler(Looper.getMainLooper())
+    private var settingItems = false
 
     @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     override fun onCreate() {
@@ -261,6 +262,36 @@ public class PlaybackService : MediaSessionService() {
             return SessionResult.RESULT_SUCCESS
         }
 
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            settingItems = true
+            val result = try {
+                super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+            } finally {
+                settingItems = false
+            }
+            if (currentPlayer === castPlayer) {
+                mediaItems.getOrNull(startIndex.coerceAtLeast(0))?.let {
+                    handoff.started(it, startPositionMs.coerceAtLeast(0), "the app set it on the TV")
+                }
+            }
+            return result
+        }
+
+        override fun onAddMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+        ): ListenableFuture<MutableList<MediaItem>> {
+            if (!settingItems && currentPlayer === castPlayer) mediaItems.firstOrNull()?.let(handoff::armed)
+            return super.onAddMediaItems(mediaSession, controller, mediaItems)
+        }
+
         override fun onMediaButtonEvent(
             session: MediaSession,
             controllerInfo: MediaSession.ControllerInfo,
@@ -388,6 +419,7 @@ public class PlaybackService : MediaSessionService() {
             .setTrackSelector(TotumCastTrackSelector())
             .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
+        cast.addListener(watchTheTv(cast))
         screens?.observe(cast)
         remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
@@ -437,7 +469,7 @@ public class PlaybackService : MediaSessionService() {
             phone = localPlayer,
             switchTo = ::switchTo,
             current = { currentPlayer },
-            hasItem = { (currentPlayer?.currentMediaItem ?: lastHandoffItem) != null },
+            hasItem = { (currentPlayer?.currentMediaItem ?: handoff.item) != null },
             wantsAnItem = { askTheAppForAnItem() },
         ),
     ).also { pc ->
@@ -479,22 +511,22 @@ public class PlaybackService : MediaSessionService() {
         val previous = currentPlayer ?: return
         if (previous === target) return
         // On disconnect the CastPlayer has already torn its queue down, so its
-        // currentMediaItem is null — fall back to the item/position cached when the
-        // cast session started, so ending a cast resumes locally instead of dying.
-        val item = previous.currentMediaItem ?: lastHandoffItem
-        val position = previous.currentMediaItem?.let { previous.currentPosition } ?: lastHandoffPositionMs
+        // currentMediaItem is null — fall back to the item/position kept current while casting,
+        // so ending a cast resumes locally where the TV was instead of dying.
+        val item = handoff.itemFor(previous.currentMediaItem)
+        val position = previous.currentMediaItem?.let { previous.currentPosition } ?: handoff.positionMs
         item?.let {
             target.playWhenReady = previous.playWhenReady
             target.trackSelectionParameters = previous.trackSelectionParameters
             target.setMediaItem(it, position)
             target.playbackParameters = previous.playbackParameters // carry playback speed across the handoff
             target.prepare()
-            lastHandoffItem = it
-            lastHandoffPositionMs = position
+            handoff.started(it, position, "handed over")
         }
+        val source = handoff.sourceOf(previous.currentMediaItem)
         Diag.log(
             "cast",
-            "handed ${item?.mediaId} over at ${position}ms with playWhenReady=${previous.playWhenReady}, " +
+            "handed ${item?.mediaId} over at ${position}ms, $source, with playWhenReady=${previous.playWhenReady}, " +
                 "captions=${previous.trackSelectionParameters.preferredTextLanguages.ifEmpty { listOf("off") }} " +
                 "(set before the load, so the receiver starts as the phone was)",
         )
@@ -506,6 +538,8 @@ public class PlaybackService : MediaSessionService() {
         currentPlayer = target
         mediaSession?.player = target
         screens?.nowPlaying(target)
+        handoffTick.removeCallbacksAndMessages(null)
+        if (target === castPlayer) handoffTick.postDelayed(followTheTvTick, HANDOFF_TICK_MS)
         Diag.log(
             "cast",
             "player -> ${when {
@@ -515,6 +549,37 @@ public class PlaybackService : MediaSessionService() {
             }}",
         )
         if (target === player) pictureWatch.afterCast()
+    }
+
+    @UnstableApi
+    private val followTheTvTick = object : Runnable {
+        override fun run() {
+            val cast = castPlayer?.takeIf { currentPlayer === it } ?: return
+            followTheTv(cast)
+            handoffTick.postDelayed(this, HANDOFF_TICK_MS)
+        }
+    }
+
+    @UnstableApi
+    private fun followTheTv(cast: Player) {
+        val live = cast.playbackState == Player.STATE_READY || cast.playbackState == Player.STATE_BUFFERING
+        if (cast.currentMediaItem != null && live) handoff.progressed(cast.currentPosition)
+    }
+
+    @UnstableApi
+    private fun watchTheTv(cast: Player): Player.Listener = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (currentPlayer !== cast || mediaItem == null) return
+            when {
+                mediaItem.mediaId.isNotBlank() ->
+                    handoff.started(mediaItem, cast.currentPosition, "the TV moved to it (reason $reason)")
+                reason in TV_MOVED_ON -> handoff.crossed("reason $reason")
+            }
+        }
+
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (currentPlayer === cast) followTheTv(cast)
+        }
     }
 
     /** Tapping the media notification reopens the app (its launcher activity). */
@@ -565,6 +630,7 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     override fun onDestroy() {
         releaseCheck.removeCallbacksAndMessages(null)
+        handoffTick.removeCallbacksAndMessages(null)
         silentTail.stop()
         mediaSession?.release()
         player?.release()
@@ -584,6 +650,11 @@ public class PlaybackService : MediaSessionService() {
     private companion object {
         const val FOREGROUND_AFTER_STOP_MS = 2 * 60 * 60 * 1_000L
         const val RELEASE_CHECK_SLACK_MS = 1_000L
+        const val HANDOFF_TICK_MS = 5_000L
+        val TV_MOVED_ON = setOf(
+            Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+            Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
+        )
 
         /** Enough to ride out a hiccup without a long wait before playback begins. */
 

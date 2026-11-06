@@ -81,7 +81,7 @@ public class Media3PlaybackController(
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
     private val playingNow = PlayingSignal()
-    private val remoteEnd = RemoteEnd()
+    private val remoteEnd = RemoteEnd(standIn = ::standInFor)
 
     // extraBufferCapacity so an emit from the player's main-thread callback never suspends.
     private val _streamFailures = MutableSharedFlow<StreamFailure>(extraBufferCapacity = 1)
@@ -194,10 +194,7 @@ public class Media3PlaybackController(
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
-                remoteEnd.onEnded = { ended ->
-                    scope.launch { progressStore.setPlayed(ended.itemId, played = true) }
-                    _events.tryEmit(ended)
-                }
+                remoteEnd.onEnded = { ended -> announceEnd("the receiver dropped it", ended) }
                 connected.addListener(remoteEnd)
                 connected.addListener(
                     ResumeRewindListener({ controller }, resumeRewind, ::rewindOnTheService) {
@@ -214,19 +211,32 @@ public class Media3PlaybackController(
                          */
                         override fun onPlaybackStateChanged(playbackState: Int) {
                             if (playbackState != Player.STATE_ENDED) return
-                            val id = connected.currentMediaItem?.mediaId?.ifBlank { null } ?: return
-                            scope.launch { progressStore.setPlayed(MediaItemId(id), played = true) }
+                            val id = namedId(connected) ?: run {
+                                Diag.log(
+                                    "playback",
+                                    "the player reports an end, but nothing names the item " +
+                                        "(${playerFacts(connected)}); no end counted",
+                                )
+                                return
+                            }
+                            val atMs = connected.currentPosition
+                            val durationMs = connected.duration.takeIf { it > 0 }
+                            val spurious = SpuriousEnd.reason(durationMs, atMs, sinceItemStartedMs())
+                            if (spurious != null) {
+                                Diag.warn(
+                                    "playback",
+                                    "ignored an end of $id: $spurious (${playerFacts(connected)}); nothing advances",
+                                )
+                                return
+                            }
                             noteItemEnd(connected, ItemEndWatch.Reason.ENDED)
                             // The one place an end is turned into a fact. This callback fires on
                             // the TRANSITION into ENDED, so it is already the edge every watcher
                             // used to reconstruct for itself — including the second end of an
                             // item that has ended before, which is the case they got wrong.
-                            _events.tryEmit(
-                                PlaybackEvent.Ended(
-                                    itemId = MediaItemId(id),
-                                    atMs = connected.currentPosition,
-                                    durationMs = connected.duration.takeIf { it > 0 },
-                                ),
+                            announceEnd(
+                                "the player reached its end",
+                                PlaybackEvent.Ended(MediaItemId(id), atMs, durationMs),
                             )
                         }
 
@@ -1011,11 +1021,88 @@ public class Media3PlaybackController(
      * callers outside this class.
      */
     private fun saveProgress(controller: MediaController, chosen: Chosen = Chosen.NO) {
-        val id = controller.currentMediaItem?.mediaId?.ifBlank { null } ?: return
+        val own = controller.currentMediaItem?.mediaId?.ifBlank { null }
+        val id = own ?: namedId(controller)
+        if (id == null) {
+            if (controller.currentMediaItem != null && !unsavedLogged) {
+                Diag.warn(
+                    "playback",
+                    "not saving the place: the player has an item but nothing names it (${playerFacts(controller)})",
+                )
+                unsavedLogged = true
+            }
+            return
+        }
+        unsavedLogged = false
         val position = controller.currentPosition.coerceAtLeast(0)
         val duration = controller.duration.takeIf { it > 0 }
-        if (chosen != Chosen.NO) Diag.log("playback", "saving $id at ${position}ms — $chosen")
+        val standIn = own == null
+        if (chosen != Chosen.NO || (standIn && savedUnderStandIn != id)) {
+            val how = if (standIn) "under the id Totum sent, because the receiver names nothing" else "$chosen"
+            Diag.log("playback", "saving $id at ${position}ms of ${duration ?: "unknown"}ms — $how")
+        }
+        savedUnderStandIn = id.takeIf { standIn }
         scope.launch { progressStore.save(MediaItemId(id), position, duration, chosen) }
+    }
+
+    private var unsavedLogged = false
+    private var savedUnderStandIn: String? = null
+    private var itemStartedAtMs: Long? = null
+    private var crowdedLogged = false
+    private var lastAnnounced: Triple<String, Long, String>? = null
+
+    private fun sinceItemStartedMs(): Long? = itemStartedAtMs?.let { SystemClock.elapsedRealtime() - it }
+
+    private fun standInFor(player: Player): String? {
+        if (player.mediaItemCount > 1) {
+            if (!crowdedLogged) {
+                Diag.log(
+                    "cast",
+                    "the receiver names nothing and holds ${player.mediaItemCount} items, so Totum cannot say " +
+                        "which one plays; nothing is saved or counted as ended for it until one is named",
+                )
+                crowdedLogged = true
+            }
+            return null
+        }
+        crowdedLogged = false
+        return castLoad.unnamed()?.mediaId
+    }
+
+    private fun namedId(controller: MediaController): String? {
+        val item = controller.currentMediaItem ?: return null
+        item.mediaId.ifBlank { null }?.let { return it }
+        val remote = controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE
+        return if (remote && castDeviceName != null) standInFor(controller) else null
+    }
+
+    private fun playerFacts(controller: MediaController): String =
+        "state=${controller.playbackState} playWhenReady=${controller.playWhenReady} " +
+            "playing=${controller.isPlaying} loading=${controller.isLoading} items=${controller.mediaItemCount} " +
+            "position=${controller.currentPosition}ms duration=${controller.duration}ms " +
+            "remote=${controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE} " +
+            "source=${controller.currentMediaItem?.localConfiguration?.uri?.scheme} " +
+            "error=${controller.playerError?.errorCodeName}"
+
+    private fun announceEnd(how: String, ended: PlaybackEvent.Ended) {
+        val id = ended.itemId.value
+        val now = SystemClock.elapsedRealtime()
+        val before = lastAnnounced
+        if (before != null && before.first == id && now - before.second < DUPLICATE_END_MS) {
+            Diag.log(
+                "playback",
+                "end of $id ($how) not counted again: already counted ${now - before.second}ms ago (${before.third})",
+            )
+            return
+        }
+        lastAnnounced = Triple(id, now, how)
+        Diag.log(
+            "playback",
+            "end of $id counted ($how) at ${ended.atMs}ms of ${ended.durationMs ?: "unknown"}ms: " +
+                "marked played, the queue may move on",
+        )
+        scope.launch { progressStore.setPlayed(ended.itemId, played = true) }
+        _events.tryEmit(ended)
     }
 
     private fun becameCurrent(item: ItemContext) {
@@ -1024,6 +1111,7 @@ public class Media3PlaybackController(
         startLatency.played(item.id)
         skipsThisItem = 0
         ticksSinceSave = 0
+        itemStartedAtMs = SystemClock.elapsedRealtime()
         // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
         // "SponsorBlock never ran" — previously indistinguishable, both silent.
         if (item.kind == MediaKind.VIDEO) {
@@ -1225,6 +1313,7 @@ public class Media3PlaybackController(
 
         /** Room for a burst of ends without ever suspending the player's callback thread. */
         const val EVENT_BUFFER = 8
+        const val DUPLICATE_END_MS = 3_000L
     }
 }
 
