@@ -605,7 +605,9 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
        tokens stripped), or the compiled code run against the real input. Several of the 2026-11-05/06 hypotheses
        changed this way.
      - **Scouts for every item, then one for the batch as a whole:** Haiku scouts (read-only) find what each item can
-       reuse, so the plan names it; then one review reads every item together for shared seams, items to merge and
+       reuse, so the plan names it — in this repo AND on the Pi (its running services, `systemctl --user`, containers, and the
+       `dot-files` repo: on 2026-11-06 the speaker queues turned out to duplicate `hermes-audio-ctl`, which no scout had looked
+       at); then one review reads every item together for shared seams, items to merge and
        items that would copy existing code, so each seam is built once and first. Check a scout's claim before you
        repeat it.
      - **Ask Dewi only what only he can answer** (scope, defaults, trade-offs), a few at a time with a recommendation
