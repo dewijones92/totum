@@ -105,7 +105,7 @@ class HomeRoutesTest {
 
     @Test
     fun `a refused job says why with 507, and nonsense is a 400`() {
-        home.refuse = "❌ Not enough space at home (12 GB free)"
+        home.refuse = "❌ Not enough space on the Pi (12 GB free)"
         val response = call("POST", "/jobs", job)
         assertEquals(507, response.statusCode())
         assertTrue("Not enough space" in String(response.body()))

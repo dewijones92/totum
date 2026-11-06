@@ -153,7 +153,7 @@ internal class HomeDownloads(
     fun free(): Long = downloadDir.apply { mkdirs() }.usableSpace
 
     override suspend fun start(request: HomeJobRequest): Started {
-        if (free() < freeFloorBytes) return Started.Refused("❌ Not enough space at home (${free() / GB} GB free)")
+        if (free() < freeFloorBytes) return Started.Refused("❌ Not enough space on the Pi (${free() / GB} GB free)")
         val item = request.item.copy(mediaUrl = request.item.mediaUrl?.let(rewrites::apply)).toPlayable()
             ?: return Started.Refused("❌ That item can't be downloaded")
         decodersOf[item.item.id.value] = request.decoders

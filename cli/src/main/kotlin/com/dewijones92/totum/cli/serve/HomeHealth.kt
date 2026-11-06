@@ -39,14 +39,14 @@ internal class HomeHealth(
         val found = buildList {
             val free = probes.freeBytes()
             if (free < lowFreeBytes) {
-                add(HomeProblem("disk", HomeSeverity.WARNING, "⚠️ Only ${free / GB} GB free at home"))
+                add(HomeProblem("disk", HomeSeverity.WARNING, "⚠️ Only ${free / GB} GB free on the Pi"))
             }
             when (probes.ai()) {
                 AiState.UNREACHABLE -> add(
                     HomeProblem(
                         "ai",
                         HomeSeverity.BROKEN,
-                        "❌ The AI service at home is not answering; ✨ Ask is off and filing uses rules"
+                        "❌ The AI service on the Pi is not answering; ✨ Ask is off and filing uses rules"
                     ),
                 )
                 AiState.NOT_SIGNED_IN -> add(

@@ -83,10 +83,10 @@ class HomeDownloadsTest {
 
     @Test
     fun `a refusal is told, not swallowed`() = runTest {
-        api.refuse = "❌ Not enough space at home (12 GB free)"
+        api.refuse = "❌ Not enough space on the Pi (12 GB free)"
         home(this).start(video, null)
         advanceUntilIdle()
-        assertEquals(listOf("refused A film: ❌ Not enough space at home (12 GB free)"), notices.said)
+        assertEquals(listOf("refused A film: ❌ Not enough space on the Pi (12 GB free)"), notices.said)
     }
 
     @Test
@@ -281,8 +281,8 @@ class HomeDownloadsTest {
 
     @Test
     fun `a new problem at home is told once and one already there at start is shown but not announced`() = runTest {
-        val disk = HomeProblem("disk", HomeSeverity.WARNING, "⚠️ Only 12 GB free at home")
-        val ai = HomeProblem("ai", HomeSeverity.BROKEN, "❌ The AI service at home is not answering")
+        val disk = HomeProblem("disk", HomeSeverity.WARNING, "⚠️ Only 12 GB free on the Pi")
+        val ai = HomeProblem("ai", HomeSeverity.BROKEN, "❌ The AI service on the Pi is not answering")
         api.problems = listOf(disk)
         val home = home(backgroundScope)
         home.refresh("start")
@@ -290,6 +290,6 @@ class HomeDownloadsTest {
         home.refresh("later")
         home.refresh("again")
         assertEquals(listOf(disk, ai), home.problems.value)
-        assertEquals(listOf("problem ❌ The AI service at home is not answering"), notices.said)
+        assertEquals(listOf("problem ❌ The AI service on the Pi is not answering"), notices.said)
     }
 }

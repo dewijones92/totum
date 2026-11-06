@@ -43,10 +43,10 @@ class HomeJobsClientTest {
     @Test
     fun `a refusal carries the home server's own words`() = runTest {
         server.enqueue(
-            MockResponse.Builder().code(507).body("""{"error":"❌ Not enough space at home (12 GB free)"}""").build()
+            MockResponse.Builder().code(507).body("""{"error":"❌ Not enough space on the Pi (12 GB free)"}""").build()
         )
         assertEquals(
-            HomeAnswer.No("❌ Not enough space at home (12 GB free)"),
+            HomeAnswer.No("❌ Not enough space on the Pi (12 GB free)"),
             client().start(HomeJobRequest(item, true))
         )
     }
