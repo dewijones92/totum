@@ -9,6 +9,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueNotice
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun QueueNoticeToasts(queue: PlaybackQueue) {
@@ -24,4 +25,5 @@ fun QueueNoticeToasts(queue: PlaybackQueue) {
 
 internal fun Context.noticeMessage(notice: QueueNotice): String = when (notice) {
     is QueueNotice.RepeatOneOff -> getString(R.string.notice_repeat_one_off, notice.groupTitle)
+    is QueueNotice.CarriedOn -> getString(R.string.notice_carried_on, formatClock(notice.positionMs.milliseconds))
 }

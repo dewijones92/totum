@@ -3,7 +3,7 @@ title: Two-way progress sync with YouTube
 kind: feature
 status: both halves shipped; the app's plays reached YouTube as fully watched until 2026-10-23, fixed
 area: video
-updated: 2026-10-29
+updated: 2026-11-06
 ---
 
 # Two-way progress sync with YouTube
@@ -372,6 +372,43 @@ were both completely silent.
 
 **Not covered:** that YouTube itself honours what we send. That was verified by hand (above) and
 cannot be a test — it is an assertion about someone else's server.
+
+## Resuming a paused item takes the account's newer place (2026-11-06)
+
+Report 0.1.859: a video watched to about 66% in Chrome sat paused in Totum for 45 minutes at 1040s while the
+history poll logged `efnEcbHnRa0=1501s/2275s`. It resumed from 1040s (then rewound) and reported 965-1025s back to
+the account. The account's position was compared only when an item STARTED (`resumePositionMs`), never when a paused
+one played again.
+
+Now a resume after a pause of 3 s or more, and the first play after the app is reopened on a paused item, asks the
+same rule as a start (`resumeFrom`, with the player's own position as the local side). When the account is ahead by
+more than its one-percent granularity and its figure is not one already acted on (`REMOTE_IS_AHEAD`), the player
+seeks there, the figure is adopted and recorded as acted on, and a toast says
+"▶️ Carried on from 25:01, watched elsewhere". Everything else stays put: a figure already used is old news, so a
+deliberate rewind still sticks and reaches the account (`HttpYouTubeWatchHistoryTest`), a seek made while paused is
+never overridden, a finished item, a live stream and a quick pause are not asked, and an unsigned or offline device
+simply has nothing newer to offer. The history is re-read first when its copy is over five minutes old (the same
+1.5 s bounded wait as a start), so a 45-minute pause sees the browser's progress.
+
+The seam is pillar-neutral: `PlaybackProgressStore.watchedFurtherElsewhereMs` answers null by default, and only the
+account-aware store (YouTube items) has anything to say. `Media3PlaybackController` seeks and emits
+`PlaybackEvent.CarriedOn`; `PlaybackQueue` turns it into `QueueNotice.CarriedOn`, shown by the existing
+`QueueNoticeToasts`.
+
+| Line | Answers |
+|---|---|
+| `[yt-sync] resume of <id> carries on at Nms / stays put - <why> [playingAt=… paused …ms youtube=… of … alreadyUsed=…]` | which side won on a resume, and on what |
+| `[yt-sync] resume of <id> not carried on - finished here …` | why a finished item was left alone |
+| `[playback] <id> carried on to Nms from Nms: watched further elsewhere [resumed at …]` | that the seek happened |
+| `[playback] <id>: not carried on to Nms [now=… at=…]` | that the answer arrived too late to use |
+| `[playback] <id> resumed at Nms: nowhere else was it watched further` | that the account was asked and had nothing newer |
+| `[playback] connected with <id> already loaded and paused at Nms` | that a reopen is watched for |
+
+Tests still owed (code first, 2026-11-06): `AccountResumePositionsTest` cases for the resume (ahead and newer carries
+on and is recorded; a figure already acted on, behind, a finished item and a 10% floor do not; the same figure is
+never carried on to twice), seen red against the old code; `ResumeRewindTest` cases for the new callback (a long
+pause asks, a quick pause, a seek while paused, another item, a live stream and a reopen do not or do as above);
+`HttpYouTubeWatchHistoryTest:175-193` must stay green (pinned as unchanged).
 
 ## Seeking overrides a cached account figure before its first resume (2026-10-05)
 

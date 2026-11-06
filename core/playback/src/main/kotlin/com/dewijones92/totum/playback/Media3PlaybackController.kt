@@ -163,7 +163,7 @@ public class Media3PlaybackController(
     private var skipSilence = false
     private var tuning = ItemTuning(speed = 1f, skipSilence = false, keepsChanges = true)
     private val endWatch = ItemEndWatch()
-    private val resumeRewind = ResumeRewind(SystemClock::elapsedRealtime)
+    private val resumeRewind = ResumeRewind(::carryOnIfWatchedElsewhere, SystemClock::elapsedRealtime)
     private val lengthKnownStart = LengthKnownStart()
     private val startLatency = StartLatency()
     private var volumeBoost = VolumeBoost.OFF
@@ -199,6 +199,11 @@ public class Media3PlaybackController(
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
                 remoteEnd.onEnded = { ended -> announceEnd("the receiver dropped it", ended) }
                 connected.addListener(remoteEnd)
+                connected.currentMediaItem?.mediaId?.ifBlank { null }?.takeIf { !connected.playWhenReady }?.let {
+                    val at = connected.currentPosition
+                    Diag.log("playback", "connected with $it already loaded and paused at ${at}ms")
+                    resumeRewind.reopenedPausedOn(it)
+                }
                 connected.addListener(
                     ResumeRewindListener({ controller }, resumeRewind, ::rewindOnTheService) {
                         ResumeFacts(talk = tuning.keepsChanges, live = false, enabled = rewindOnResume.value)
@@ -517,6 +522,35 @@ public class Media3PlaybackController(
             SessionCommand(ACTION_REWIND_TO, Bundle.EMPTY),
             bundleOf(EXTRA_REWIND_TO_MS to positionMs)
         )
+    }
+
+    private fun carryOnIfWatchedElsewhere(itemId: String, positionMs: Long, pausedMs: Long?) {
+        val id = MediaItemId(itemId)
+        scope.launch {
+            val target = progressStore.watchedFurtherElsewhereMs(id, positionMs, pausedMs)
+            if (target == null) {
+                Diag.log("playback", "$itemId resumed at ${positionMs}ms: nowhere else was it watched further")
+                return@launch
+            }
+            withController { controller ->
+                val nowId = controller.currentMediaItem?.mediaId
+                val at = controller.currentPosition
+                if (nowId != itemId || at >= target) {
+                    Diag.log(
+                        "playback",
+                        "$itemId: not carried on to ${target}ms [now=$nowId at=${at}ms, resumed at ${positionMs}ms]",
+                    )
+                    return@withController
+                }
+                Diag.log(
+                    "playback",
+                    "$itemId carried on to ${target}ms from ${at}ms: watched further elsewhere " +
+                        "[resumed at ${positionMs}ms, ${pausedMs?.let { "paused ${it}ms" } ?: "app reopened on it"}]",
+                )
+                controller.seekTo(target)
+                _events.tryEmit(PlaybackEvent.CarriedOn(id, at, target))
+            }
+        }
     }
 
     @Volatile

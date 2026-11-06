@@ -10,6 +10,9 @@ internal class AccountPlaybackProgressStore(
 ) : PlaybackProgressStore by local {
     override suspend fun resumePositionMs(itemId: MediaItemId): Long? = account.resumePositionMs(itemId)
 
+    override suspend fun watchedFurtherElsewhereMs(itemId: MediaItemId, playingAtMs: Long, pausedMs: Long?): Long? =
+        account.watchedFurtherElsewhereMs(itemId, playingAtMs, pausedMs)
+
     override suspend fun save(itemId: MediaItemId, positionMs: Long, durationMs: Long?, chosen: Chosen) {
         if (chosen == Chosen.BY_SEEKING) account.overriddenBySeek(itemId)
         local.save(itemId, positionMs, durationMs, chosen)

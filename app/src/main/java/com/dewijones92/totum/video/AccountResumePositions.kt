@@ -134,6 +134,31 @@ class AccountResumePositions(
         return choice.positionMs
     }
 
+    suspend fun watchedFurtherElsewhereMs(itemId: MediaItemId, playingAtMs: Long, pausedMs: Long?): Long? {
+        val pausedFor = pausedMs?.let { "paused ${it}ms" } ?: "app reopened on it"
+        if (local(itemId) is PlayState.Played) {
+            Diag.log(
+                "yt-sync",
+                "resume of ${itemId.value} not carried on — finished here, whatever the account says " +
+                    "[playingAt=${playingAtMs}ms $pausedFor youtube=${known(itemId)?.positionMs ?: "none"}]",
+            )
+            return null
+        }
+        val (remote, note) = remoteFor(itemId)
+        val alreadyUsedMs = reconciled.reconciledMs(itemId)
+        val choice = resumeFrom(playingAtMs, remote?.positionMs, remote?.durationMs, alreadyUsedMs)
+        val carriedOn = choice.because == Because.REMOTE_IS_AHEAD || choice.because == Because.ONLY_REMOTE
+        Diag.log(
+            "yt-sync",
+            "resume of ${itemId.value} ${if (carriedOn) "carries on at ${choice.positionMs}ms" else "stays put"} — " +
+                "${choice.because} [playingAt=${playingAtMs}ms $pausedFor youtube=${remote?.positionMs ?: "none"} " +
+                "of ${remote?.durationMs ?: "unknown"} alreadyUsed=${alreadyUsedMs ?: "none"}]" +
+                (note?.let { " ($it)" } ?: ""),
+        )
+        act(itemId, remote, alreadyUsedMs, choice.because)
+        return choice.positionMs.takeIf { carriedOn }
+    }
+
     /**
      * Writes down the account's figure, and — when it WON — adopts it as this device's position.
      *

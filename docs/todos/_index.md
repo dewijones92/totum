@@ -36,7 +36,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | built 2026-11-06 (tests pending), Batch A |
 | [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | built 2026-11-06, Batch A (tests owed) |
 | [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | built 2026-11-06, Batch A (tests owed) |
-| [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | decided 2026-11-06, Batch A |
+| [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | built 2026-11-06 (tests owed), Batch A |
 | [Every pause and cast drop says why; a flight recorder](pause-and-cast-drop-reasons.md) | diagnostics | high | built 2026-11-06, Batch A (ADR 120); tests and device checks to follow |
 | [The PC screen knows both phones](pc-screen-two-phones.md) | casting/pi | high | decided 2026-11-06, Batch A |
 | [The AI service decides which tools a caller may use](ai-service-tool-allowlist.md) | pi/security | high | decided 2026-11-06, Batch A |

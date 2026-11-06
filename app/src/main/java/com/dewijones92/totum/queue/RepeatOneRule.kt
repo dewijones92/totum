@@ -5,6 +5,7 @@ import com.dewijones92.totum.settings.RepeatMode
 
 sealed interface QueueNotice {
     data class RepeatOneOff(val groupTitle: String) : QueueNotice
+    data class CarriedOn(val positionMs: Long) : QueueNotice
 }
 
 class RepeatOneRule(

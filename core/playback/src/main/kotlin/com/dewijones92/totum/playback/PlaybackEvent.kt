@@ -49,4 +49,10 @@ public sealed interface PlaybackEvent {
         public val fromItemId: MediaItemId,
         public val finished: Boolean,
     ) : PlaybackEvent
+
+    public data class CarriedOn(
+        override val itemId: MediaItemId,
+        public val fromMs: Long,
+        public val toMs: Long,
+    ) : PlaybackEvent
 }

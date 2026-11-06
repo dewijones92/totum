@@ -84,15 +84,25 @@ internal data class PlayerMoment(
     val focusLost: Boolean,
 )
 
-internal class ResumeRewind(private val now: () -> Long) {
+internal class ResumeRewind(
+    private val resumedInPlace: (itemId: String, positionMs: Long, pausedMs: Long?) -> Unit = { _, _, _ -> },
+    private val now: () -> Long,
+) {
     private var paused: Triple<String, Long, Long>? = null
+    private var reopenedOn: String? = null
 
     fun forget() {
         paused = null
+        reopenedOn = null
     }
 
     fun replacedBy(itemId: String) {
         if (paused?.first != itemId) paused = null
+        if (reopenedOn != itemId) reopenedOn = null
+    }
+
+    fun reopenedPausedOn(itemId: String) {
+        if (paused == null) reopenedOn = itemId
     }
 
     fun onChange(moment: PlayerMoment, endOfItem: Boolean, facts: ResumeFacts): Long? {
@@ -106,11 +116,12 @@ internal class ResumeRewind(private val now: () -> Long) {
     }
 
     private fun notePause(moment: PlayerMoment) {
+        reopenedOn = null
         if (paused == null) paused = Triple(moment.itemId, moment.positionMs, now())
     }
 
     private fun onResumed(itemId: String, positionMs: Long, facts: ResumeFacts): Long? {
-        val (pausedItem, pausedAt, since) = paused ?: return null
+        val (pausedItem, pausedAt, since) = paused ?: return null.also { resumedAfterReopen(itemId, positionMs, facts) }
         paused = null
         val pausedMs = now() - since
         val moved = when {
@@ -128,8 +139,26 @@ internal class ResumeRewind(private val now: () -> Long) {
             return null
         }
         val choice = rewoundStart(positionMs, pausedMs, facts)
-        if (pausedMs >= QUICK_PAUSE_MS) Diag.log("playback", "resumed $itemId: ${choice.why}")
+        if (pausedMs >= QUICK_PAUSE_MS) {
+            Diag.log("playback", "resumed $itemId: ${choice.why}")
+            askWhereElseItWasWatched(itemId, positionMs, pausedMs, facts)
+        }
         return choice.positionMs.takeIf { it != positionMs }
+    }
+
+    private fun resumedAfterReopen(itemId: String, positionMs: Long, facts: ResumeFacts) {
+        val opened = reopenedOn ?: return
+        reopenedOn = null
+        if (opened != itemId) return
+        askWhereElseItWasWatched(itemId, positionMs, null, facts)
+    }
+
+    private fun askWhereElseItWasWatched(itemId: String, positionMs: Long, pausedMs: Long?, facts: ResumeFacts) {
+        if (facts.live) {
+            Diag.log("playback", "resumed $itemId: not asking where else it was watched, a live stream has no place")
+            return
+        }
+        resumedInPlace(itemId, positionMs, pausedMs)
     }
 }
 

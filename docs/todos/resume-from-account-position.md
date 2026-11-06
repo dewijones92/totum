@@ -1,7 +1,7 @@
 ---
 title: Resuming a paused item takes YouTube's newer place
 kind: todo
-status: decided
+status: built 2026-11-06 (tests owed)
 batch: A (2026-11)
 priority: high
 updated: 2026-11-06
@@ -15,3 +15,13 @@ only when an item starts (`ResumeChoice.resumeFrom`). Decided: on resuming a pau
 account is ahead and newer, jump there and say so ("▶️ Carried on from 25:01, watched elsewhere"). Deliberate rewinds
 still reach the account: `HttpYouTubeWatchHistoryTest.kt:175-193` pins that and stays. `AccountProgress` has no time,
 so "newer" uses `remoteAlreadyUsedMs` and the poll's arrival.
+
+## Built (2026-11-06)
+
+`ResumeRewind` calls back when a paused item plays again unmoved after 3 s or more (and on the first play after a
+reopen on a paused item); `Media3PlaybackController` asks `PlaybackProgressStore.watchedFurtherElsewhereMs`, which
+`AccountResumePositions` answers with `resumeFrom` and the player's position as the local side, records as acted on
+when it wins, and the controller seeks and emits `PlaybackEvent.CarriedOn`; `PlaybackQueue` raises
+`QueueNotice.CarriedOn` for the existing toast. Details, log lines and the tests owed are in
+[progress-sync](../features/progress-sync.md); ADR 57 carries the decision. Not seen on a device. The reopen case rests
+on the controller reading a paused item from the connected service at connect time, which is unconfirmed.

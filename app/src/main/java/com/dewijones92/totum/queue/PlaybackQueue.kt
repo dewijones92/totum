@@ -35,6 +35,7 @@ import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.music.labelledForPlay
 import com.dewijones92.totum.playback.PlaybackController
+import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -222,6 +224,10 @@ class PlaybackQueue(
         // Persist every subsequent change. `drop(1)` skips the initial empty value
         // so an empty start can't wipe a saved queue before hydration lands.
         _state.drop(1).onEach { store.save(it) }.launchIn(scope)
+        controller.events.filterIsInstance<PlaybackEvent.CarriedOn>().onEach { event ->
+            Diag.log("queue", "${event.itemId.value} carried on from ${event.fromMs}ms to ${event.toMs}ms, saying so")
+            _notices.tryEmit(QueueNotice.CarriedOn(event.toMs))
+        }.launchIn(scope)
     }
 
     /** Adds to the end of the queue, moving it there if it is already queued. */

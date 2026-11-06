@@ -2,7 +2,7 @@
 title: Rewind on resume, and skipping each show's intro and outro
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-11-06
 ---
 
 # 57. Rewind on resume, and skipping each show's intro and outro
@@ -62,6 +62,12 @@ he sets once.
   `[seek]` lines now log every load in the 10 s after a seek (none = it played from the buffer). Tests:
   `AResumeRewindLandsOnAKeyframeTest` (red first, against a plain seek), `ARewindDoesNotFetchTheCaptionsAgainTest`.
 
+- **A resume also asks the account (2026-11-06, report 0.1.859).** After a pause of 3 s or more, or the first play after
+  the app is reopened on a paused item, the player asks `PlaybackProgressStore.watchedFurtherElsewhereMs`. For a
+  YouTube item that is `resumeFrom` again, with the player's position as the local side: if the account is ahead
+  and its figure is new, the player jumps there (replacing the rewind, which had only been right for the old place)
+  and a toast says so. A seek made while paused, a live stream and a finished item are never asked. See
+  `docs/features/progress-sync.md`.
 - A resume can land up to 20 s earlier than the saved position; the log line says by how much and why
   (`resumed`/`resuming saved … rewound`, or `no rewind (…)`).
 - A saved position touched by an account reconcile has a newer saved time, so it rewinds less.

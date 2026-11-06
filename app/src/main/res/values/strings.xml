@@ -796,6 +796,7 @@
     <string name="details_copy_id">id</string>
     <string name="version_noun">version</string>
     <string name="refused_tap">❌ Couldn\'t play “%1$s”: %2$s</string>
+    <string name="notice_carried_on">▶️ Carried on from %1$s, watched elsewhere</string>
     <string name="notice_repeat_one_off">🔁 Repeat one is off for “%1$s”, so it can play on</string>
     <string name="refused_offline">it is not downloaded and there is no network</string>
     <string name="refused_stream">its stream will not play and there is no copy on disk</string>
