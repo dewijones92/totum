@@ -14,3 +14,5 @@ shown as one line on the always-pinned alarms board. A `NotificationListenerServ
 once) snoozes their notifications until the window ends; a split-second sound can still leak, so the screen suggests
 turning those apps' sound off. Configurable per day, editable app list, a pause switch. Reuse `AlarmBoardService`,
 `DailyAlarmNotifications.board()` (BOARD_ID 7398), `NextTime.nextOccurrence`. None exists today.
+
+Whole-batch review: the window is a per-day `WeeklyWindow` extracted from `ExsurgeSettings.isActiveAt/nextActiveStart` into `:lib:reminders`, shared with the bedtime timer.

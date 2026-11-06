@@ -10,3 +10,5 @@ updated: 2026-11-06
 # A bedtime sleep timer
 
 Dewi 2026-11-05 (agreed idea): after 22:00 the sleep timer stops at the end of the current item and fades out; times configurable. Reuse the existing sleep timer.
+
+Whole-batch review: uses the shared `WeeklyWindow`; moved to phase 4. `SleepTimer` has no fade yet.

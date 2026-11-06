@@ -18,3 +18,5 @@ Decided 2026-11-05: live always plays at 1x, no silence cutting; the silent-tail
 Reuse: `MusicPlaysPlain.tuningFor`/`skipsSilence` (core/playback); `Media3PlaybackController.setSpeed` needs a kind guard
 so a live session never saves a global speed; KidMode's save/restore pattern (`KidMode.kt:46-55`). Tests:
 `MusicPlaysPlainTest.kt:21-39` loops LIVE with the user's choices and must change (seen red first). Fix the route label.
+
+Whole-batch review: no new guard — `setSpeed` already honours `tuning.keepsChanges`; give LIVE the same `ItemTuning` as MUSIC (speed 1, no skip-silence, `keepsChanges = false`) in `MusicPlaysPlain`.

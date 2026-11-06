@@ -14,3 +14,5 @@ of them Chopin album tracks, so neither the rows nor Ask can say who plays them.
 builds an item fills what is known". Decided: find the queueing paths that drop the artist (album and artist pages,
 radio, shuffle all, pins), fill it in, and repair existing rows once (from the album, the source or a lookup), with a
 test per path seen red first.
+
+Whole-batch review: the one-off repair extends `SharedMetadataRepair` (already retries titles and dates); the fill goes into the queue entry seam, not each caller.

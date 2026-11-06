@@ -13,3 +13,5 @@ Dewi 2026-11-05: show codecs with qualities; prefer AV1. Decided: a fixed rule, 
 HEVC, H.264; never software AV1 (`VideoCodecSupport.kt`). Labels read "1080p · AV1" everywhere (`VideoQuality.kt:133`,
 `PlayerStreams.kt:358`, download chooser, cast strip; `CastRung.label` is the precedent). Downloads honour the device's
 decoders (today yt-dlp's default sort can pick AV1 on a phone without hardware AV1).
+
+Whole-batch review: the ranking already exists (`codecPreference` in `VideoCodecSupport`); only the labels, one `QualityLabel(height, codec)` shared with the cast strip, and the download path are new. The ranking takes a target profile so the LG (no AV1) and Edge (AV1) differ.

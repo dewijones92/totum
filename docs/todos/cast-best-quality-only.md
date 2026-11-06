@@ -20,3 +20,5 @@ says so ("⚠️ Dropped to 1080p, Wi-Fi too slow"). Per-codec caps in `CastScre
 probes the browser's codecs (Edge plays AV1). Reuse `CastLadder.choose`; beware `CastRungs.kt:40` falls back to the
 phone's flowing URL when fewer than 2 rungs — best-only must pass the best rung's URL. Tests: `CastLadderTest`,
 `CastRungsTest`, `CastScreenTest`.
+
+Whole-batch review: `CastScreen` grows into a `TargetProfile` that the codec ranking takes; the strip uses the shared `QualityLabel`.

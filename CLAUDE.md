@@ -582,12 +582,24 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate left to CI.
   When a cycle is slow, fix the tooling in the same session rather than paying it again.
 - Commit as you go — small, coherent commits at each green state.
-- **How a batch runs** (Dewi, 2026-10-14, 2026-10-15 and 2026-10-23):
-  1. **Start with a discussion, grounded by scouts.** First send zero or more Haiku scouts (read-only) through the code
-     each item touches, so the questions come from what the code does. Then list what the batch will contain and ask
-     Dewi the questions only he can answer (scope, defaults, trade-offs), with `AskUserQuestion`; then write each decision into its
-     `docs/todos/<item>.md` and the session's task file, so it survives a context reset. Questions are for intent and
-     defaults, never for facts the code can answer.
+- **How a batch runs** (Dewi, 2026-10-14, 2026-10-15, 2026-10-23 and 2026-11-06):
+  1. **Refine the whole batch before building any of it** (Dewi, 2026-11-06: *"before we start a big batch of work, we
+     refine a big batch of work … we investigate as we go, we probe … we shift left … scouts … a holistic approach"*).
+     A batch mixes big items, little items and many of them, and no code is written until Dewi says so. Refining means:
+     - **Read every unconsidered diagnostics report** (`tools/crashlog-server/triage.sh considered` with no date, so
+       nothing older is missed) and turn each note into a finding or an item.
+     - **Investigate and probe as you go:** settle a hypothesis with evidence, not a guess. That means a quick proof of
+       concept on the real device (the LG and the webcam, a laptop server), a spike with real data (Dewi's own backup,
+       tokens stripped), or the compiled code run against the real input. Several of the 2026-11-05/06 hypotheses
+       changed this way.
+     - **Scouts for every item, then one for the batch as a whole:** Haiku scouts (read-only) find what each item can
+       reuse, so the plan names it; then one review reads every item together for shared seams, items to merge and
+       items that would copy existing code, so each seam is built once and first. Check a scout's claim before you
+       repeat it.
+     - **Ask Dewi only what only he can answer** (scope, defaults, trade-offs), a few at a time with a recommendation
+       each; never facts the code can answer.
+     - **Write it down:** one `docs/todos/<item>.md` per item with its decision, evidence and reuse; an overview doc
+       with the phases, their order and what was declined; the session's task file, so it survives a context reset.
   2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs
      and ADRs in the same change, preflight and `./gradlew detekt` across all modules until clean, the changed
      tests run, a look at the changed screen on the emulator, then push and watch CI on the commit to its end (the

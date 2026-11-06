@@ -28,3 +28,5 @@ Decided (AskUserQuestion, 2026-11-01):
   `QueueSnapshot`, routes, container. Verified on the soundbar 2026-11-01.
 - ⏳ The phone side: the speaker switch in Queue, "where" on play/queue/shuffle all, mini player, notification,
   diagnostics.
+
+Whole-batch review (2026-11-06): folded into [the Pi playing everywhere](pi-plays-everywhere.md) — the phone gets one "📡 Play on…" picker, not a separate speaker switch; `SpeakerDeck` becomes the target-agnostic queue.

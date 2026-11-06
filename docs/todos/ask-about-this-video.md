@@ -10,3 +10,5 @@ updated: 2026-11-06
 # Ask about this video
 
 Dewi 2026-11-05 (agreed idea): "what did they say about X?" answered from the transcript, each answer with a tap to jump to that moment. Shares the transcript plumbing with TL;DR; dry runs.
+
+Whole-batch review: built with TL;DR as one transcript digest; reuse `TranscriptTab.matchesOf` and its seek callback.

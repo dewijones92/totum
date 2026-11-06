@@ -12,3 +12,5 @@ updated: 2026-11-06
 Report 20261103T193146-627bd592: a group page was blank for ~13 s. `GroupFeed` keeps lists in memory only. Decided:
 persist them (the `GroupNewsWiring` temp-file-and-rename pattern), show them under "⏳ Refreshing", filtered by the
 current members (`lastKnown`).
+
+Whole-batch review: write with `File.writeTextReplacing` (`lib/common/ReplaceFile.kt`), and move `GroupNewsWiring` off its private temp-file copy at the same time.

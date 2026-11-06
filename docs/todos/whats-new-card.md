@@ -11,3 +11,5 @@ updated: 2026-11-06
 
 Dewi 2026-11-06. A one-time card after an update listing the release's changes in plain words. `LatestRelease` reads
 no `body` today; needs a last-shown-version pref and the INSTALLED version's notes.
+
+Whole-batch review: built with the in-app updater on the extended `Release`.

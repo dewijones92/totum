@@ -12,3 +12,5 @@ updated: 2026-11-06
 Found 2026-11-06: `totum ai-serve` takes `tools` from the caller unchecked (`ai/Completion.kt`, `AiServer.kt:59-66`)
 and passes them to Claude Code. Decided: a server-side allow-list per caller tag; anything else refused and logged.
 Must land before ✨ Ask sees the app.
+
+Whole-batch review: the allow-list holds a caller table for every planned AI caller (ask, vet, file, ask-state, for-you, digest, transcript, spoiler).
