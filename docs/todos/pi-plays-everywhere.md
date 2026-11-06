@@ -66,3 +66,5 @@ in 0.56 s (~107x real time) and encodes 60 s of AAC in 2.1 s (~28x); the shared 
 built from ADR 119's module, the same bytes the phone runs) takes 60 s of audio in 1.9 s (~31x real time, one core,
 two runs; identical output to the laptop's run). The whole chain is ~13x real time on one of four cores, so several
 targets at 2x speed fit; 4K video is relayed, not processed. Verdict: build phase 7 as designed.
+
+Cast arming (2026-11-06): the next item reaches the TV only in its last 75 s (cast-progress-and-end), so the TV remote's own "next" does nothing before then; when the Pi drives the TV, map the remote's next to Totum's queue.
