@@ -33,6 +33,7 @@ import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.playback.cast.CastHost
 import com.dewijones92.totum.playback.cast.CastStandIn
 import com.dewijones92.totum.playback.cast.CastStatus
+import com.dewijones92.totum.playback.cast.CastStepDownWatch
 import com.dewijones92.totum.playback.cast.CastStreams
 import com.dewijones92.totum.playback.cast.CastTv
 import com.dewijones92.totum.playback.cast.PcScreens
@@ -414,12 +415,14 @@ public class PlaybackService : MediaSessionService() {
         )
         castStreams = streams
         screens = screensFor(streams, localPlayer)
+        screens?.player?.let { screen -> screen.addListener(CastStepDownWatch(screen, streams)) }
         val remote = RemoteCastPlayer.Builder(this)
             .setMediaItemConverter(TotumCastConverter(streams))
             .setTrackSelector(TotumCastTrackSelector())
             .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
         cast.addListener(watchTheTv(cast))
+        cast.addListener(CastStepDownWatch(cast, streams))
         screens?.observe(cast)
         remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {

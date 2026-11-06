@@ -150,19 +150,38 @@
     }
   }
 
-  function codecs() {
+  async function codecs() {
     const probes = {
       AVC: 'video/mp4; codecs="avc1.640028"',
       VP9: 'video/webm; codecs="vp09.00.40.08"',
       HEVC: 'video/mp4; codecs="hvc1.1.6.L120.90"',
       AV1: 'video/mp4; codecs="av01.0.08M.08"',
     };
+    const sizes = [[3840, 2160], [2560, 1440], [1920, 1080], [1280, 720]];
     const ok = (window.MediaSource && MediaSource.isTypeSupported) ? MediaSource.isTypeSupported.bind(MediaSource) : () => false;
-    return Object.keys(probes).filter((k) => ok(probes[k])).join('+');
+    const caps = navigator.mediaCapabilities && navigator.mediaCapabilities.decodingInfo;
+    const found = [];
+    for (const [family, type] of Object.entries(probes)) {
+      if (!ok(type)) continue;
+      let tallest = 0;
+      if (caps) {
+        for (const [width, height] of sizes) {
+          try {
+            const info = await navigator.mediaCapabilities.decodingInfo({
+              type: 'media-source',
+              video: { contentType: type, width, height, bitrate: 20000000, framerate: 30 },
+            });
+            if (info.supported) { tallest = height; break; }
+          } catch (e) { lastError = 'capabilities ' + family + ': ' + e.message; }
+        }
+      }
+      found.push(tallest ? family + ':' + tallest : family);
+    }
+    return found.join('+');
   }
 
   async function hello() {
-    const reply = await api('hello', { name, id, codecs: codecs(), height: screen.height * (window.devicePixelRatio || 1) });
+    const reply = await api('hello', { name, id, codecs: await codecs(), height: screen.height * (window.devicePixelRatio || 1) });
     const body = await reply.json();
     if (!reply.ok) throw new Error(body.error || reply.status);
     id = body.id;

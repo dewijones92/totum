@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.PlaybackController
@@ -53,12 +54,21 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
             state.castStage?.let { stage -> CastStageLine(stage, state.castStagePercent, device) }
             (state.castFetchHeight ?: state.castVideoHeight)?.let { height ->
                 val best = state.castVideoHeight
+                val shown = QualityLabel(height, state.castVideoCodec.takeIf { height == best }).text
                 Text(
                     if (best != null && best > height) {
-                        stringResource(R.string.cast_strip_quality_climbing, height, device, best)
+                        stringResource(R.string.cast_strip_quality_climbing, shown, device, "${best}p")
                     } else {
-                        stringResource(R.string.cast_strip_quality, height, device)
+                        stringResource(R.string.cast_strip_quality, shown, device)
                     },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
+                )
+            }
+            state.castDroppedFrom?.let {
+                val now = state.castVideoHeight?.let { height -> QualityLabel(height, state.castVideoCodec).text }
+                Text(
+                    stringResource(R.string.cast_strip_stepped_down, now ?: stringResource(R.string.cast_strip_lower)),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
                 )

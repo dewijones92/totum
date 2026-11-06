@@ -32,7 +32,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [✨ Ask: the restore crash, and a chat list that hides the input](ask-restore-race-and-chat-list.md) | ai | high | decided 2026-11-06, Batch A |
 | [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | decided 2026-11-06, Batch A |
 | [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | decided 2026-11-06, Batch A |
-| [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | decided 2026-11-06, Batch A |
+| [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests and device checks to follow |
 | [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | built 2026-11-06 (tests pending), Batch A |
 | [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | decided 2026-11-06, Batch A |
 | [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | built 2026-11-06, Batch A (tests owed) |
@@ -42,7 +42,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [The AI service decides which tools a caller may use](ai-service-tool-allowlist.md) | pi/security | high | decided 2026-11-06, Batch A |
 | [Slack, Outlook and Teams stay quiet outside work hours](work-apps-quiet-hours.md) | side-quest | high | decided 2026-11-06, Batch A |
 | [Every download says what, from where, to where; Move to Pi moves the file](download-wording-and-moves.md) | downloads | high | decided 2026-11-06, Batch A |
-| [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | decided 2026-11-06, Batch A |
+| [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | decided 2026-11-06, Batch A; label seam + cast strip built |
 | [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | decided 2026-11-06, Batch A |
 | [Search results as tabs](search-results-tabs.md) | search | medium | decided 2026-11-06, Batch A |
 | [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | decided 2026-11-06, Batch A |

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.media3.session.MediaSession
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 
@@ -15,8 +16,9 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     @Volatile
     private var tv: CastTv? = null
     private var refusals: Map<String, String> = emptyMap()
-    private var sentHeights: Map<String, Int> = emptyMap()
+    private var sent: Map<String, QualityLabel> = emptyMap()
     private var fetchingHeights: Map<String, Int> = emptyMap()
+    private var droppedFrom: Map<String, Int> = emptyMap()
     private var problem: CastProblem? = null
     private var stage: Triple<String, CastStage, Int?>? = null
     private var screens: List<Screen> = emptyList()
@@ -26,13 +28,15 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
 
     override fun videos(
         refused: Map<String, String>,
-        sentHeights: Map<String, Int>,
+        sent: Map<String, QualityLabel>,
         fetchingHeights: Map<String, Int>,
+        droppedFrom: Map<String, Int>,
     ) {
         main.post {
             refusals = refused
-            this.sentHeights = sentHeights
+            this.sent = sent
             this.fetchingHeights = fetchingHeights
+            this.droppedFrom = droppedFrom
             publish()
         }
     }
@@ -74,8 +78,9 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         tv = now
         if (now == null) {
             refusals = emptyMap()
-            sentHeights = emptyMap()
+            sent = emptyMap()
             fetchingHeights = emptyMap()
+            droppedFrom = emptyMap()
             problem = null
             stage = null
         }
@@ -92,7 +97,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
                 putString(EXTRA_CAST_STAGE, now.name)
                 percent?.let { putInt(EXTRA_CAST_STAGE_PERCENT, it) }
             }
-            putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sentHeights.forEach(::putInt) })
+            putSentVideos()
             putBundle(EXTRA_CAST_FETCH_HEIGHT, Bundle().apply { fetchingHeights.forEach(::putInt) })
             putBundle(EXTRA_SCREENS, Bundle().apply { screens.forEach { putString(it.id, it.name) } })
             screenPage?.let { putString(EXTRA_SCREEN_PAGE, it) }
@@ -100,10 +105,22 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         session()?.setSessionExtras(extras)
     }
 
+    private fun Bundle.putSentVideos() {
+        putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sent.forEach { (id, label) -> putInt(id, label.height) } })
+        putBundle(EXTRA_CAST_SENT_CODEC, Bundle().apply { sent.forEach { (id, label) -> putFamily(id, label) } })
+        putBundle(EXTRA_CAST_DROPPED_FROM, Bundle().apply { droppedFrom.forEach(::putInt) })
+    }
+
+    private fun Bundle.putFamily(id: String, label: QualityLabel) {
+        label.family?.let { putString(id, it.name) }
+    }
+
     companion object {
         const val EXTRA_CAST_DEVICE: String = "cast_device"
         const val EXTRA_CAST_REFUSED: String = "cast_refused"
         const val EXTRA_CAST_SENT_HEIGHT: String = "cast_sent_height"
+        const val EXTRA_CAST_SENT_CODEC: String = "cast_sent_codec"
+        const val EXTRA_CAST_DROPPED_FROM: String = "cast_dropped_from"
         const val EXTRA_CAST_PROBLEM: String = "cast_problem"
         const val EXTRA_CAST_STAGE: String = "cast_stage"
         const val EXTRA_CAST_STAGE_ITEM: String = "cast_stage_item"

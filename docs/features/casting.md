@@ -23,8 +23,9 @@ plays a stream the phone serves, so Totum's queue, autoplay, boost and position 
 - **Downloads** cast with their picture: the video track is copied (never re-encoded) into a seekable WebM or MP4
   once and cached.
 
-- **Formats for the TV:** 4K VP9 on the LG, 1080p VP9 on the Chromecast Ultra, HEVC on both (measured); starting or
-  stopping a cast switches the current video to the right stream.
+- **Formats for the TV:** 4K VP9 and HEVC on the LG (H.264 only to 1080p, never AV1), 1080p on the Chromecast Ultra
+  (measured); starting or stopping a cast switches the current video to the right stream. The TV is sent only the best
+  picture it can show (ADR 122).
 - **You can see you are casting:** "📺 Casting to <device>" across the mini player and the full player, with the Cast
   button in it.
 - **Sound only, said out loud:** a video the TV cannot show gets Totum's processed sound, and the strip
@@ -68,12 +69,17 @@ a video plays locally.
 - **Casting is visible everywhere.** While a cast session is on, the Cast button sits beside 🔍 in every screen's
   header (`CastingAction` in `TitleAndActions`), so stopping a cast never needs the player open.
 
-## A ladder, not one quality (2026-10-22)
+## The best picture, and stepping down (2026-11-06, [ADR 122](../adr/0122-a-cast-sends-the-best-rung-and-steps-down-itself.md))
 
-A YouTube video reaches the TV as up to three qualities in one codec family, and the TV switches between them itself:
-no reload when the phone was playing something lower than the TV can take. The casting strip shows the quality the TV
-is fetching, and "going up to …" while it climbs. When the phone's own stream is one the TV cannot decode (AV1 on the
-Ultra), the TV gets its own formats from the first load. See ADR 68's amendments.
+Superseding the 2026-10-22 ladder: the LG picks one rung when it starts and never changes, so Totum sends only the
+best the target can show (per-codec limits in `CastScreen`; a PC screen reports its own through the browser's media
+capabilities, so Edge gets AV1 and 4K). After two stalls in 90 s Totum re-sends the item one height lower, at the same
+place, and the strip says "⚠️ Dropped to 1080p · VP9, Wi-Fi too slow". The strip's quality line reads "📺 1440p · VP9 on
+<TV name>" (`QualityLabel`). Logs: `the TV gets … only [… ceiling=…]`, `the TV stalled at …ms after playing`, `stepping
+down from … to …p`, `sending …p instead of …`.
+
+A home copy (`…/fetch/files?id=…`) is probed for a picture instead of dropped when its address names no file type; the
+session line says `picture because …` for every item.
 
 ## The player stays on the phone (2026-10-22)
 

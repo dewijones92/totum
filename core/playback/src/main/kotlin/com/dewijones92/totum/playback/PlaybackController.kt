@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.VideoCodecFamily
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -254,6 +255,8 @@ public data class PlaybackState(
     val castDeviceName: String? = null,
     val castVideoRefused: String? = null,
     val castVideoHeight: Int? = null,
+    val castVideoCodec: VideoCodecFamily? = null,
+    val castDroppedFrom: Int? = null,
     val castFetchHeight: Int? = null,
     val castProblem: CastProblem? = null,
     val castStage: CastStage? = null,

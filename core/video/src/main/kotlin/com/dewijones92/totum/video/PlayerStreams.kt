@@ -322,9 +322,7 @@ internal fun StreamingData.videoQualities(
             // asked for; otherwise pair video with the best audio, exactly as the yt-dlp path does.
             val muxed = atHeight.filter { it.carriesSound }.bestSounding(wanted)
             val videoOnly = atHeight.filterNot { it.carriesSound }.sortedWith(
-                compareBy<PlayableFormat> {
-                    it.videoCodec.codecPreference(support.isHardware(it.videoCodec, it.width, it.height))
-                }
+                compareBy<PlayableFormat> { support.preference(it.videoCodec, it.width, it.height) }
                     .thenByDescending { it.bitrate ?: 0 },
             ).firstOrNull()
             when {

@@ -2,17 +2,20 @@ package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.CastScreen
+import com.dewijones92.totum.domain.QualityLabel
 
 private const val MAX_PROBES = 6
 
 public class CastRungs(
     private val mediaId: String,
-    private val onSent: (Int) -> Unit,
+    private val onSent: (QualityLabel) -> Unit,
     private val onFetching: (Int) -> Unit,
 ) {
 
     @Volatile public var rungs: List<Pair<CastRung, StreamLayout>> = emptyList()
         private set
+
+    @Volatile private var showable: List<CastRung> = emptyList()
 
     @Volatile private var fetching = -1
 
@@ -20,33 +23,54 @@ public class CastRungs(
         current: String,
         offered: List<CastRung>,
         screen: CastScreen?,
+        ceiling: Int? = null,
         probe: (CastRung) -> StreamLayout = { rung -> StreamLayouts.probe { span -> Upstream.bytes(rung.url, span) } },
     ): Boolean {
         val started = System.currentTimeMillis()
-        val candidates = offered.distinctBy { it.url }.filter { screen?.canDecode(it.codec, it.height) ?: true }
-            .sortedByDescending { it.height }.take(MAX_PROBES)
-        val probed = candidates.mapNotNull { rung ->
-            runCatching {
-                probe(
-                    rung
-                ).let { layout -> rung.copy(codec = layout.codecs, height = layout.height ?: rung.height) to layout }
-            }
-                .onFailure { Diag.warn("cast", "$mediaId: could not read ${rung.label} for the TV; left out", it) }
-                .getOrNull()
+        showable = CastLadder.ranked(offered, screen, ceiling)
+        val readable = mutableListOf<Pair<CastRung, StreamLayout>>()
+        var probes = 0
+        for (rung in showable.take(MAX_PROBES)) {
+            val topHeight = readable.firstOrNull()?.first?.height
+            if (topHeight != null && (rung.height < topHeight || rung.codec != null)) break
+            probes++
+            probeOne(rung, screen, probe)?.let(readable::add)
         }
-        val chosen = CastLadder.choose(current, probed.map { it.first }, screen)
-        val picked = chosen.mapNotNull { rung -> probed.firstOrNull { it.first.url == rung.url } }
-        val mime = picked.firstOrNull()?.second?.mimeType
-        rungs = picked.filter { it.second.mimeType == mime }.takeIf { it.size >= 2 }.orEmpty()
-        val between = rungs.joinToString { it.first.label }.ifEmpty { "nothing (fewer than 2 readable)" }
-        val flowing = offered.firstOrNull { it.url == current }?.label ?: "not in the ladder"
+        val best = readable.sortedWith(
+            compareByDescending<Pair<CastRung, StreamLayout>> { it.first.height }
+                .thenBy { screen?.preference(it.first.codec) ?: CastScreen.rank(it.first.codec) },
+        ).firstOrNull()
+        rungs = listOfNotNull(best)
+        val flowing = offered.firstOrNull { it.url == current }?.label ?: "not in the offered list"
         Diag.log(
             "cast",
-            "$mediaId: the TV may switch between $between [phone's stream $flowing, offered ${offered.size}, " +
-                "probed ${candidates.size} in ${System.currentTimeMillis() - started}ms]"
+            "$mediaId: the TV gets ${best?.first?.label ?: "no picture from the offered ones"} only " +
+                "[phone's stream $flowing, offered ${offered.size}, showable ${showable.size}, probed $probes in " +
+                "${System.currentTimeMillis() - started}ms, ceiling=${ceiling?.let { "${it}p" } ?: "none"}]",
         )
-        rungs.maxOfOrNull { it.second.height ?: 0 }?.let(onSent)
-        return rungs.isNotEmpty()
+        best?.first?.quality?.let(onSent)
+        return best != null
+    }
+
+    private fun probeOne(
+        rung: CastRung,
+        screen: CastScreen?,
+        probe: (CastRung) -> StreamLayout,
+    ): Pair<CastRung, StreamLayout>? {
+        val layout = runCatching { probe(rung) }
+            .onFailure { Diag.warn("cast", "$mediaId: could not read ${rung.label} for the TV; left out", it) }
+            .getOrNull() ?: return null
+        val real = rung.copy(codec = layout.codecs, height = layout.height ?: rung.height)
+        if (screen != null && !screen.canDecode(real.codec, real.height)) {
+            Diag.log("cast", "$mediaId: ${rung.label} is really ${real.label}, which the TV cannot show; left out")
+            return null
+        }
+        return real to layout
+    }
+
+    public fun nextLowerHeight(): Int? {
+        val sent = rungs.firstOrNull()?.first?.height ?: return null
+        return showable.map { it.height }.filter { it < sent }.maxOrNull()
     }
 
     public fun describe(): String? = rungs.takeIf { it.isNotEmpty() }?.joinToString(" | ") { it.second.describe() }

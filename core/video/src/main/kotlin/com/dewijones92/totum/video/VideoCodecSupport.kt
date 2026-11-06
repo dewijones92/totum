@@ -25,6 +25,9 @@ public fun interface VideoCodecSupport {
      */
     public fun isHardware(codec: String?, width: Int?, height: Int?): Boolean = false
 
+    public fun preference(codec: String?, width: Int?, height: Int?): Int =
+        codec.codecPreference(isHardware(codec, width, height))
+
     public val screen: String get() = "phone"
 
     public companion object {
@@ -91,6 +94,9 @@ public class CastAwareCodecSupport(
 
     override fun isHardware(codec: String?, width: Int?, height: Int?): Boolean =
         tv()?.canDecode(codec, height) ?: phone.isHardware(codec, width, height)
+
+    override fun preference(codec: String?, width: Int?, height: Int?): Int =
+        tv()?.preference(codec) ?: phone.preference(codec, width, height)
 
     override val screen: String get() = tv()?.let { "tv:${it.model}" } ?: phone.screen
 }

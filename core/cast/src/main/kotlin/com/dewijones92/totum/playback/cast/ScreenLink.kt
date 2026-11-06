@@ -1,6 +1,8 @@
 package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.CastScreen
+import com.dewijones92.totum.domain.VideoCodecFamily
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -191,13 +193,15 @@ private fun queryOf(path: String): Map<String, String> =
         URLDecoder.decode(it.substringBefore('='), "UTF-8") to URLDecoder.decode(it.substringAfter('='), "UTF-8")
     }
 
-public fun screenProfile(screen: Screen?): com.dewijones92.totum.domain.CastScreen {
-    val families = screen?.codecs.orEmpty().split('+')
-        .mapNotNull { token -> com.dewijones92.totum.domain.VideoCodecFamily.entries.firstOrNull { it.name == token } }
-        .toSet()
-        .ifEmpty { setOf(com.dewijones92.totum.domain.VideoCodecFamily.AVC) }
+public fun screenProfile(screen: Screen?): CastScreen {
+    val reported = screen?.codecs.orEmpty().split('+').mapNotNull { token ->
+        val family = VideoCodecFamily.entries.firstOrNull { it.name == token.substringBefore(':') }
+        family?.let { it to token.substringAfter(':', "").toIntOrNull() }
+    }
+    val families = reported.map { it.first }.toSet().ifEmpty { setOf(VideoCodecFamily.AVC) }
     val height = (screen?.height ?: DEFAULT_SCREEN_HEIGHT).coerceIn(MIN_SCREEN_HEIGHT, MAX_SCREEN_HEIGHT)
-    return com.dewijones92.totum.domain.CastScreen(screen?.name ?: "a PC", families, height, known = false)
+    val perCodec = reported.mapNotNull { (family, cap) -> cap?.let { family to it } }.toMap()
+    return CastScreen(screen?.name ?: "a PC", families, height, known = false, codecHeights = perCodec)
 }
 
 private const val DEFAULT_SCREEN_HEIGHT = 1080

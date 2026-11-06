@@ -19,12 +19,12 @@ class CastRungsTest {
     )
 
     @Test
-    fun `codecs the phone did not know are read from the streams before the TV is offered any`() {
+    fun `codecs the phone did not know are read from the streams, and only the best the TV can show is offered`() {
         val offered = truth.keys.mapIndexed { i, url -> CastRung(url, truth.getValue(url).height!!, codec = null) }
         val rungs = CastRungs("x", onSent = {}, onFetching = {})
 
         rungs.choose("https://g/a", offered, ultra) { rung -> truth.getValue(rung.url) }
 
-        assertEquals(listOf("vp9" to 1080, "vp9" to 720), rungs.rungs.map { it.second.codecs to it.second.height })
+        assertEquals(listOf("vp9" to 1080), rungs.rungs.map { it.second.codecs to it.second.height })
     }
 }

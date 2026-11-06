@@ -1,15 +1,17 @@
 package com.dewijones92.totum.playback.cast
 
+import com.dewijones92.totum.domain.QualityLabel
 import java.util.concurrent.ConcurrentHashMap
 
 public class TvVideos(private val tvs: CastTvPort) {
     private val refusals = ConcurrentHashMap<String, String>()
-    private val sentHeights = ConcurrentHashMap<String, Int>()
+    private val sent = ConcurrentHashMap<String, QualityLabel>()
     private val fetchingHeights = ConcurrentHashMap<String, Int>()
+    private val droppedFrom = ConcurrentHashMap<String, Int>()
 
-    public fun sent(mediaId: String, height: Int?) {
+    public fun sent(mediaId: String, label: QualityLabel?) {
         refusals.remove(mediaId)
-        height?.let { sentHeights[mediaId] = it }
+        label?.let { sent[mediaId] = it }
         publish()
     }
 
@@ -20,22 +22,32 @@ public class TvVideos(private val tvs: CastTvPort) {
 
     public fun refused(mediaId: String, what: String) {
         refusals[mediaId] = what
-        sentHeights.remove(mediaId)
+        sent.remove(mediaId)
+        publish()
+    }
+
+    public fun steppedDown(mediaId: String, fromHeight: Int) {
+        droppedFrom[mediaId] = fromHeight
         publish()
     }
 
     public fun forget(mediaId: String) {
-        val hadRefusal = refusals.remove(mediaId) != null
-        val hadFetch = fetchingHeights.remove(mediaId) != null
-        if (sentHeights.remove(mediaId) != null || hadRefusal || hadFetch) publish()
+        val removed = listOf(
+            refusals.remove(mediaId),
+            fetchingHeights.remove(mediaId),
+            droppedFrom.remove(mediaId),
+            sent.remove(mediaId),
+        )
+        if (removed.any { it != null }) publish()
     }
 
     public fun clear() {
         refusals.clear()
-        sentHeights.clear()
+        sent.clear()
         fetchingHeights.clear()
+        droppedFrom.clear()
         publish()
     }
 
-    private fun publish() = tvs.videos(refusals.toMap(), sentHeights.toMap(), fetchingHeights.toMap())
+    private fun publish() = tvs.videos(refusals.toMap(), sent.toMap(), fetchingHeights.toMap(), droppedFrom.toMap())
 }

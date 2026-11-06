@@ -10,6 +10,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Picture
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.domain.pictureAt
 import com.dewijones92.totum.playback.BoostingAudioProcessor
@@ -58,6 +59,28 @@ internal class CastStreams(
     private val live = LiveCasts()
 
     fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
+
+    private val ceilings = ConcurrentHashMap<String, Int>()
+    private val steppingDown = ConcurrentHashMap.newKeySet<String>()
+
+    fun stepDown(mediaId: String): CastStep? {
+        val rungs = latest[mediaId]?.rungs
+        val from = rungs?.rungs?.firstOrNull()?.first
+        val lower = rungs?.nextLowerHeight()
+        if (from == null || lower == null) {
+            Diag.log(
+                "cast",
+                "$mediaId: stalled, but there is no lower picture to send " +
+                    "(sending ${from?.label ?: "no ladder picture"}); it keeps going as it is",
+            )
+            return null
+        }
+        ceilings[mediaId] = lower
+        steppingDown.add(mediaId)
+        videos.steppedDown(mediaId, from.height)
+        Diag.warn("cast", "$mediaId: stepping down from ${from.label} to ${lower}p because the TV keeps stalling")
+        return CastStep(from.quality, lower)
+    }
     private val random = SecureRandom()
     private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
 
@@ -68,10 +91,11 @@ internal class CastStreams(
         val videoUrl: String?,
         val audioSource: String,
         val ladder: List<CastRung>,
+        val ceiling: Int?,
     ) {
         val rungs = CastRungs(
             item.mediaId,
-            onSent = { height -> if (latest[item.mediaId] === this) videos.sent(item.mediaId, height) },
+            onSent = { label -> if (latest[item.mediaId] === this) videos.sent(item.mediaId, label) },
             onFetching = { height -> if (latest[item.mediaId] === this) videos.fetching(item.mediaId, height) },
         )
 
@@ -124,7 +148,7 @@ internal class CastStreams(
             try {
                 when {
                     !url.startsWith("http") -> localFile(File(url.toUri().path ?: url))
-                    url.contains(YOUTUBE_STREAMS) && rungs.choose(url, ladder, tvs.current()?.screen) -> Unit
+                    url.contains(YOUTUBE_STREAMS) && rungs.choose(url, ladder, tvs.current()?.screen, ceiling) -> Unit
                     url.contains(YOUTUBE_STREAMS) ->
                         layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
                             .takeIf { shows(it.codecs, it.height) }
@@ -180,10 +204,12 @@ internal class CastStreams(
             val screen = tvs.current()?.screen
             if (screen != null && !screen.canDecode(codecs, height)) {
                 val family = VideoCodecFamily.of(codecs)?.name ?: codecs
-                refuse("$family ${height}p", "beyond ${screen.label}")
+                refuse(height?.let { QualityLabel.of(it, codecs).text } ?: family, "beyond ${screen.label}")
                 return false
             }
-            if (latest[item.mediaId] === this) videos.sent(item.mediaId, height)
+            if (latest[item.mediaId] === this && height != null) {
+                videos.sent(item.mediaId, QualityLabel.of(height, codecs))
+            }
             return true
         }
 
@@ -360,11 +386,10 @@ internal class CastStreams(
         }
         server.start(PORT)
         val token = random.token()
-        val session = Session(token, item, sources.video, sources.audio, sources.ladder)
+        val session = sessionFor(token, item, sources)
         tvs.stage(item.mediaId, CastStage.PREPARING)
         sessions[token] = session
         latest[item.mediaId] = session
-        videos.forget(item.mediaId)
         order.addLast(token)
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
         host.hold(true)
@@ -380,11 +405,22 @@ internal class CastStreams(
         return url
     }
 
+    private fun sessionFor(token: String, item: MediaItem, sources: Sources): Session {
+        val reload = steppingDown.remove(item.mediaId)
+        if (!reload) {
+            ceilings.remove(item.mediaId)
+            videos.forget(item.mediaId)
+        }
+        return Session(token, item, sources.video, sources.audio, sources.ladder, ceilings[item.mediaId])
+    }
+
     fun stopAll() {
         reach.clear()
         live.clear()
         sessions.values.forEach { it.audio.close() }
         sessions.clear()
+        ceilings.clear()
+        steppingDown.clear()
         order.clear()
         latest.clear()
         videos.clear()

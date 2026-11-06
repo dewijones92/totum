@@ -35,6 +35,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
+import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.domain.showKey
 import com.dewijones92.totum.domain.skipTargetFor
 import com.dewijones92.totum.playback.cast.CastStatus
@@ -151,6 +152,8 @@ public class Media3PlaybackController(
 
     @Volatile
     private var castSentHeights: Map<String, Int> = emptyMap()
+    private var castSentCodecs: Map<String, VideoCodecFamily> = emptyMap()
+    private var castDroppedFrom: Map<String, Int> = emptyMap()
 
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
     private var userSpeed: Float = 1f
@@ -777,6 +780,12 @@ public class Media3PlaybackController(
         castRefused = refused?.keySet()?.associateWith { refused.getString(it).orEmpty() }.orEmpty()
         val sent = extras.getBundle(CastStatus.EXTRA_CAST_SENT_HEIGHT)
         castSentHeights = sent?.keySet()?.associateWith { sent.getInt(it) }.orEmpty()
+        val codecs = extras.getBundle(CastStatus.EXTRA_CAST_SENT_CODEC)
+        castSentCodecs = codecs?.keySet().orEmpty().mapNotNull { id ->
+            VideoCodecFamily.of(codecs?.getString(id))?.let { id to it }
+        }.toMap()
+        val dropped = extras.getBundle(CastStatus.EXTRA_CAST_DROPPED_FROM)
+        castDroppedFrom = dropped?.keySet()?.associateWith { dropped.getInt(it) }.orEmpty()
         val fetching = extras.getBundle(CastStatus.EXTRA_CAST_FETCH_HEIGHT)
         castFetchHeights = fetching?.keySet()?.associateWith { fetching.getInt(it) }.orEmpty()
         castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
@@ -795,6 +804,7 @@ public class Media3PlaybackController(
         Diag.log(
             "cast",
             "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
+                "sentCodecs=$castSentCodecs droppedFrom=$castDroppedFrom " +
                 "problem=${castProblem ?: "none"} fetching=$castFetchHeights " +
                 "stage=${castStage ?: "none"} ${castStagePercent?.let { "$it%" }.orEmpty()} " +
                 "for ${castStageItem ?: "-"} " +
@@ -1258,6 +1268,8 @@ public class Media3PlaybackController(
             castDeviceName = castDeviceName,
             castVideoRefused = castRefused[current.mediaId],
             castVideoHeight = castSentHeights[current.mediaId],
+            castVideoCodec = castSentCodecs[current.mediaId],
+            castDroppedFrom = castDroppedFrom[current.mediaId],
             castFetchHeight = castFetchHeights[current.mediaId],
             castProblem = castProblem,
             castStage = castStage.takeIf { castStageItem == current.mediaId },

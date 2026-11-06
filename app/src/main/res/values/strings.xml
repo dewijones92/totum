@@ -1034,8 +1034,10 @@
         <item quantity="one">⚠️ %d failed</item>
         <item quantity="other">⚠️ %d failed</item>
     </plurals>
-    <string name="cast_strip_quality">🎞️ %1$dp picture on %2$s</string>
-    <string name="cast_strip_quality_climbing">🎞️ %1$dp picture on %2$s, going up to %3$dp</string>
+    <string name="cast_strip_quality">📺 %1$s on %2$s</string>
+    <string name="cast_strip_quality_climbing">📺 %1$s on %2$s, going up to %3$s</string>
+    <string name="cast_strip_stepped_down">⚠️ Dropped to %1$s, Wi-Fi too slow</string>
+    <string name="cast_strip_lower">a lower picture</string>
     <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>
     <string name="cast_strip_vpn">🔒 A VPN on this phone is carrying your home network, so %1$s can\'t reach the phone. Turn the VPN off, or exclude Totum in the VPN app, then cast again.</string>
     <string name="cast_strip_sound_undecodable">🔇 This phone can\'t decode this film\'s sound, so %1$s can\'t play it. Pick another copy, one with AAC or MP3 sound.</string>

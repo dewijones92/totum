@@ -97,11 +97,7 @@ public fun MediaMetadata.videoQualities(
             // the ladder is a second picker answering the same question. See `MediaFormat.isDurable`.
             val decodable = atHeight.sortedWith(
                 compareByDescending<MediaFormat> { it.isDurable }
-                    .thenBy {
-                        it.videoCodec.codecPreference(
-                            support.isHardware(it.videoCodec, it.width, it.height),
-                        )
-                    },
+                    .thenBy { support.preference(it.videoCodec, it.width, it.height) },
             )
             // Stable sort, so among equally-good sound the codec order above survives.
             val muxed = decodable.filter { it.hasAudio }

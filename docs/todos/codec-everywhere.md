@@ -15,3 +15,8 @@ HEVC, H.264; never software AV1 (`VideoCodecSupport.kt`). Labels read "1080p · 
 decoders (today yt-dlp's default sort can pick AV1 on a phone without hardware AV1).
 
 Whole-batch review: the ranking already exists (`codecPreference` in `VideoCodecSupport`); only the labels, one `QualityLabel(height, codec)` shared with the cast strip, and the download path are new. The ranking takes a target profile so the LG (no AV1) and Edge (AV1) differ.
+
+Progress 2026-11-06: `QualityLabel(height, family)` is in `:core:domain` ("1440p · VP9") and the cast strip uses it;
+`VideoCodecSupport.preference` is the one ranking (the target's for a cast). The player's quality menu
+(`VideoQuality.kt`, `PlayerStreams.kt`) and the download chooser still show plain heights, and downloads still do not
+honour the device's decoders.

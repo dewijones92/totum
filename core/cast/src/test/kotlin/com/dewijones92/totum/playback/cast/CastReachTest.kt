@@ -13,8 +13,9 @@ class CastReachTest {
         override fun current(): CastTv? = null
         override fun videos(
             refused: Map<String, String>,
-            sentHeights: Map<String, Int>,
+            sent: Map<String, com.dewijones92.totum.domain.QualityLabel>,
             fetchingHeights: Map<String, Int>,
+            droppedFrom: Map<String, Int>,
         ) = Unit
         override fun problem(now: CastProblem?) {
             problems += now

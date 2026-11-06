@@ -137,3 +137,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 119 | [The cast and sound code lives in two JVM modules the Pi shares](0119-cast-and-sound-code-shared-with-the-pi.md) | Accepted |
 | 120 | [A flight recorder, and a reason for every pause and cast drop](0120-a-flight-recorder-and-reasons-for-every-pause.md) | Accepted |
 | 121 | [The AI service decides each caller's tools](0121-the-ai-service-decides-each-callers-tools.md) | Accepted |
+| 122 | [A cast sends the best picture the target can show, and steps down itself](0122-a-cast-sends-the-best-rung-and-steps-down-itself.md) | Accepted |

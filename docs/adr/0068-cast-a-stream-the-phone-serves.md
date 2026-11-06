@@ -70,6 +70,7 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   the receiver and none named, Totum cannot tell which plays, so it saves and counts nothing and says so. The cast
   player reports the source's duration, not the cut audio's, so a position and a duration are comparable. An ENDED
   with unknown length at about 0 ms within 3 s of a start is ignored (`SpuriousEnd`).
+- Amended 2026-11-06 ([ADR 122](0122-a-cast-sends-the-best-rung-and-steps-down-itself.md)): the TV is sent one rung, the best it can show, and Totum steps down itself after two stalls; the ladder below is superseded.
 - Amended 2026-10-31: a downloaded file is cut for the TV on demand like a torrent stream (`VideoProbe` over a file reader); ffmpeg repackages only a file that cannot be cut, MP4 first, with its progress shown. The cast strip names the stage (`CastStage`). See docs/features/casting.md.
 
 - **Surround sound and downloads cast** (2026-10-24, report 0.1.721, "ali g not playing??"). A 5.1 track was
