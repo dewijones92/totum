@@ -46,6 +46,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.dailyalarms.DailyAlarmNotifications
 import com.dewijones92.totum.dailyalarms.DailyAlarmsActivity
 import com.dewijones92.totum.dailyalarms.dayPhrase
+import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.CleanupGroup
@@ -55,6 +56,7 @@ import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.domain.transfer
 import com.dewijones92.totum.downloads.AnswerDownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.stars.STARRED_PLAYLIST
@@ -71,11 +73,13 @@ import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.filteredByItems
+import com.dewijones92.totum.ui.common.homeJobOf
 import com.dewijones92.totum.ui.common.isDownloadLocked
 import com.dewijones92.totum.ui.common.rememberItemFilters
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.transferText
 import com.dewijones92.totum.ui.group.GroupScreen
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
@@ -504,7 +508,7 @@ private fun FailedRow(entry: LibraryViewModel.Failed, onRetry: () -> Unit, onDis
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onRetry) { Text(stringResource(R.string.downloads_retry)) }
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.playlist_delete)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.downloads_remove_failed)) }
         }
     }
 }
@@ -528,9 +532,9 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
     ) {
         DownloadCardHeader(active.item) {
             Text(
-                text = fraction
-                    ?.let { stringResource(R.string.status_downloading_percent, (it * PERCENT).toInt()) }
-                    ?: stringResource(R.string.status_downloading),
+                text = transferText(
+                    active.state.transfer(fromPi = homeJobOf(active.item.id)?.state == HomeJobState.DONE)
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -552,8 +556,6 @@ private fun DownloadingRow(active: LibraryViewModel.InProgress, onCancel: () -> 
     }
 }
 
-/** Fractions are 0..1; people read percentages. */
-private const val PERCENT = 100
 private const val MIN_METER = 0.02f
 private const val FAILED_CARD_ALPHA = 0.35f
 

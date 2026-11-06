@@ -1,6 +1,9 @@
 package com.dewijones92.totum.data.home
 
 import com.dewijones92.totum.data.backup.BackupItem
+import com.dewijones92.totum.domain.Transfer
+import com.dewijones92.totum.domain.TransferPlace
+import com.dewijones92.totum.domain.percentOf
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -40,6 +43,13 @@ public data class HomeJob(
     val totalBytes: Long? = null,
     val error: String? = null,
 )
+
+public fun HomeJob.transfer(): Transfer? = when (state) {
+    HomeJobState.WAITING -> Transfer.waiting(TransferPlace.WEB, TransferPlace.PI)
+    HomeJobState.DOWNLOADING -> Transfer.running(TransferPlace.WEB, TransferPlace.PI, percentOf(bytes, totalBytes))
+    HomeJobState.FAILED -> Transfer.failed(TransferPlace.WEB, TransferPlace.PI, error)
+    HomeJobState.DONE -> null
+}
 
 @Serializable
 public enum class HomeSeverity {

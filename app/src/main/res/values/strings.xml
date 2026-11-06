@@ -180,6 +180,7 @@
     <string name="sort_smallest">🐭 Smallest first</string>
     <string name="downloads_cancel">Cancel download</string>
     <string name="downloads_retry">Try again</string>
+    <string name="downloads_remove_failed">🗑️ Remove from list</string>
     <string name="downloads_failed_section">❌ Didn\'t finish</string>
     <string name="downloads_cancel_all">Cancel all</string>
     <string name="search_section_audiobooks">🎧 Audiobooks</string>
@@ -202,8 +203,8 @@
         <item quantity="one">⏳ %1$d waiting for a free slot</item>
         <item quantity="other">⏳ %1$d waiting for a free slot</item>
     </plurals>
-    <string name="download_percent_line">⬇️ %1$d%%</string>
-    <string name="download_started_line">⬇️ %1$s so far</string>
+    <string name="download_bytes_so_far">%1$s so far</string>
+    <string name="download_bytes_of">%1$s of %2$s</string>
     <string name="downloads_section_in_progress">⬇️ In progress (%1$d)</string>
     <string name="downloads_section_failed">❌ Failed (%1$d)</string>
     <string name="downloads_section_on_the_phone">📥 On the phone (%1$d)</string>
@@ -408,8 +409,8 @@
     <string name="home_problems_title">🏠 Home server</string>
     <string name="trail_back">⬅️ Back</string>
     <string name="trail_forward">➡️ Forward</string>
-    <string name="home_storage">🏠 Using %1$s at home</string>
-    <string name="home_storage_with_free">🏠 Using %1$s at home · %2$s free</string>
+    <string name="home_storage">🏠 Using %1$s on the Pi</string>
+    <string name="home_storage_with_free">🏠 Using %1$s on the Pi · %2$s free</string>
     <string name="settings_skip_section">Skip in videos</string>
     <string name="settings_skip_supporting">SponsorBlock segments to jump while playing, downloaded copies included.</string>
     <string name="skip_sponsor">Sponsor</string>
@@ -458,7 +459,7 @@
     <string name="download_the_song">🎧 Download the song</string>
     <string name="download_the_file">⬇️ Download the whole file</string>
     <string name="download_choose">⬇️ Download (sound or video)</string>
-    <string name="downloaded_delete">Downloaded — tap to remove</string>
+    <string name="downloaded_delete">On phone — tap to delete from phone</string>
     <string name="picture_offer">🎬 “%1$s” has a picture. You are listening.</string>
     <string name="picture_offer_watch">🎬 Watch</string>
     <string name="picture_offer_keep">🎧 Keep listening</string>
@@ -467,7 +468,7 @@
         <item quantity="one">1 selected item</item>
         <item quantity="other">%1$d selected items</item>
     </plurals>
-    <string name="download_delete">Delete downloaded file</string>
+    <string name="download_delete">🗑️ Delete from phone</string>
     <string name="library_downloads">Downloads</string>
     <string name="downloads_on_the_phone">On the phone</string>
 
@@ -538,16 +539,16 @@
     <string name="download_channel_name">Downloads</string>
     <string name="download_channel_description">Progress and results for offline downloads.</string>
     <plurals name="download_progress_title">
-        <item quantity="one">⬇️ Downloading</item>
-        <item quantity="other">⬇️ Downloading %d items</item>
+        <item quantity="one">⬇️ Downloading to 📱 Phone</item>
+        <item quantity="other">⬇️ Downloading %d items to 📱 Phone</item>
     </plurals>
     <plurals name="download_done_title">
-        <item quantity="one">✅ Downloaded</item>
-        <item quantity="other">✅ Downloaded %d items</item>
+        <item quantity="one">✅ Downloaded to 📱 Phone</item>
+        <item quantity="other">✅ Downloaded %d items to 📱 Phone</item>
     </plurals>
     <plurals name="download_failed_title">
-        <item quantity="one">❌ Download failed</item>
-        <item quantity="other">❌ %d downloads failed</item>
+        <item quantity="one">❌ Download to 📱 Phone failed</item>
+        <item quantity="other">❌ %d downloads to 📱 Phone failed</item>
     </plurals>
     <string name="quality">Quality</string>
     <string name="subtitles">Subtitles</string>
@@ -747,10 +748,17 @@
     </plurals>
     <string name="buffer_ahead">📶 %1$ds buffered ahead</string>
     <string name="buffer_ahead_falling">⚠️ %1$ds buffered · falling behind</string>
-    <string name="status_downloading">⬇️ Downloading…</string>
-    <string name="status_downloading_percent">⬇️ Downloading %1$d%%</string>
-    <string name="status_copying_from_home">📥 Copying from home…</string>
-    <string name="status_copying_from_home_percent">📥 Copying from home %1$d%%</string>
+    <string name="transfer_place_web">Web</string>
+    <string name="transfer_place_phone">📱 Phone</string>
+    <string name="transfer_place_pi">🏠 Pi</string>
+    <string name="transfer_verb_download">⬇️</string>
+    <string name="transfer_verb_copy">📥</string>
+    <string name="transfer_verb_upload">📤</string>
+    <string name="transfer_route">%1$s %2$s → %3$s</string>
+    <string name="transfer_percent">%1$s · %2$d%%</string>
+    <string name="transfer_starting">%1$s · starting…</string>
+    <string name="transfer_waiting">⏳ %1$s · waiting</string>
+    <string name="transfer_failed">❌ %1$s · failed: %2$s</string>
     <string name="status_online_only">☁️ Online only</string>
     <plurals name="filter_hint_count">
         <item quantity="one">Filter %1$d item</item>
@@ -845,8 +853,8 @@
         <item quantity="other">⚠️ Remove %d items from the queue?</item>
     </plurals>
     <plurals name="download_delete_confirm">
-        <item quantity="one">⚠️ Delete the downloaded copy of %d item from this phone?</item>
-        <item quantity="other">⚠️ Delete the downloaded copies of %d items from this phone?</item>
+        <item quantity="one">⚠️ Delete the copy of %d item from this 📱 Phone (and from the 🏠 Pi, where it has one)?</item>
+        <item quantity="other">⚠️ Delete the copies of %d items from this 📱 Phone (and from the 🏠 Pi, where they have one)?</item>
     </plurals>
     <plurals name="playlist_remove_confirm">
         <item quantity="one">⚠️ Remove %d item from this playlist?</item>
@@ -1151,7 +1159,8 @@
     <string name="ops_download_batch">⬇️ Downloading %1$s</string>
     <string name="ops_task">⏳ %1$s</string>
     <string name="ops_ask">✨ Asking: %1$s</string>
-    <string name="ops_home_download">🏠 Downloading at home: %1$s</string>
+    <string name="ops_home_download">⬇️ Web → 🏠 Pi: %1$s</string>
+    <string name="ops_home_upload">📤 📱 Phone → 🏠 Pi: %1$s</string>
     <string name="pin_kind_item">▶️ Item</string>
     <string name="pin_kind_song">🎵 Song</string>
     <string name="pin_kind_video">🎬 Video</string>
@@ -1166,15 +1175,15 @@
     <string name="pin_kind_shuffle_all">🔀 Shuffle all</string>
     <string name="pin_kind_artist_songs">🎵 Every song</string>
     <plurals name="queue_group_home_ahead">
-        <item quantity="one">🏠 Keep the next %1$d at home</item>
-        <item quantity="other">🏠 Keep the next %1$d at home</item>
+        <item quantity="one">🏠 Keep the next %1$d on the Pi</item>
+        <item quantity="other">🏠 Keep the next %1$d on the Pi</item>
     </plurals>
     <plurals name="queue_group_home_ahead_stop">
-        <item quantity="one">🏠 Stop keeping the next %1$d at home</item>
-        <item quantity="other">🏠 Stop keeping the next %1$d at home</item>
+        <item quantity="one">🏠 Stop keeping the next %1$d on the Pi</item>
+        <item quantity="other">🏠 Stop keeping the next %1$d on the Pi</item>
     </plurals>
-    <string name="home_copy_to_home">🏠 Also at home (keep it here too)</string>
-    <string name="home_move_to_home">🏠 Move to home (delete it here once home has it)</string>
+    <string name="home_copy_to_home">📤 Copy to 🏠 Pi (keep it on 📱 Phone too)</string>
+    <string name="home_move_to_home">📤 Move to 🏠 Pi (delete it from 📱 Phone once it is there)</string>
     <string name="speech_boost_section">🗣️ Speech-aware boost (trying out)</string>
     <string name="speech_boost_supporting">How the volume boost (Auto or Even out) uses the speech detector. Try each and tell me with 💬; the ones you don\'t like will go.</string>
     <string name="speech_boost_off">🔊 As before</string>
@@ -1200,34 +1209,31 @@
         <item quantity="one">📤 Asked home for %1$d file: %2$s</item>
         <item quantity="other">📤 Asked home for %1$d files: %2$s</item>
     </plurals>
-    <string name="home_notice_started">🏠 Downloading at home: %1$s</string>
-    <string name="downloads_section_at_home">🏠 At home (%1$d)</string>
+    <string name="home_notice_started">⬇️ Web → 🏠 Pi: %1$s</string>
+    <string name="home_notice_uploading">📤 📱 Phone → 🏠 Pi: %1$s</string>
+    <string name="downloads_section_at_home">🏠 On the Pi (%1$d)</string>
     <string name="download_place_phone">📱 On this phone</string>
-    <string name="download_place_home">🏠 At home</string>
+    <string name="download_place_home">🏠 On the Pi</string>
     <string name="download_choice_go">⬇️ Download</string>
-    <string name="downloads_none_at_home">📭 Nothing at home. Choose 🏠 At home when you download.</string>
-    <string name="home_state_waiting">⏳ Waiting at home</string>
-    <string name="home_state_starting">🏠 Starting at home…</string>
-    <string name="home_state_downloading">🏠 Downloading at home · %1$d%%</string>
-    <string name="home_state_done">🏠 At home · copies to the phone on Wi-Fi</string>
-    <string name="home_state_done_kept">🏠 At home · stays there until you copy it</string>
-    <string name="home_state_done_on_phone">🏠 At home · 📥 on the phone too</string>
-    <string name="home_state_failed">❌ Failed at home: %1$s</string>
-    <string name="home_delete">🗑️ Delete</string>
-    <string name="home_copy_now">📥 Copy to the phone now</string>
-    <string name="home_delete_phone_only">🗑️ Delete from the phone, keep at home</string>
-    <string name="home_delete_home_only">🏠 Delete at home, keep on the phone</string>
-    <string name="home_delete_at_home">🏠 Delete at home</string>
-    <string name="torrent_at_home">🏠 At home · 📥 copy to the phone</string>
-    <string name="home_also_at_home">🏠 Also at home</string>
-    <string name="settings_copy_home">🏠 Copy home downloads to the phone</string>
-    <string name="settings_copy_home_summary">On: on Wi-Fi, by itself. Off (the default): they stay at home until you choose 📥 Copy to the phone now.</string>
-    <string name="home_notice_ready">🏠 Ready at home: %1$s</string>
-    <string name="home_notice_refused">❌ Not downloaded at home: %1$s. %2$s</string>
+    <string name="downloads_none_at_home">📭 Nothing on the Pi. Choose 🏠 On the Pi when you download.</string>
+    <string name="home_state_done">✅ On 🏠 Pi · copies to 📱 Phone on Wi-Fi</string>
+    <string name="home_state_done_kept">✅ On 🏠 Pi · stays there until you copy it to 📱 Phone</string>
+    <string name="home_state_done_on_phone">✅ On 📱 Phone and 🏠 Pi</string>
+    <string name="home_delete">🗑️ Delete from Pi</string>
+    <string name="home_copy_now">📥 Copy to 📱 Phone now</string>
+    <string name="home_delete_phone_only">🗑️ Delete from phone (keep on Pi)</string>
+    <string name="home_delete_home_only">🗑️ Delete from Pi (keep on phone)</string>
+    <string name="home_delete_at_home">🗑️ Delete from Pi</string>
+    <string name="home_delete_both">🗑️ Delete from both</string>
+    <string name="torrent_at_home">✅ On 🏠 Pi · 📥 copy to 📱 Phone</string>
+    <string name="settings_copy_home">🏠 Copy Pi downloads to the phone</string>
+    <string name="settings_copy_home_summary">On: on Wi-Fi, by itself. Off (the default): they stay on the Pi until you choose 📥 Copy to 📱 Phone now.</string>
+    <string name="home_notice_ready">✅ On 🏠 Pi: %1$s</string>
+    <string name="home_notice_refused">❌ Not sent to 🏠 Pi: %1$s. %2$s</string>
     <string name="ops_home_percent">⏳ %1$d%%</string>
     <plurals name="ops_home_done">
-        <item quantity="one">🏠 Ready at home: %2$s</item>
-        <item quantity="other">🏠 Ready at home: %2$s</item>
+        <item quantity="one">✅ On 🏠 Pi: %2$s</item>
+        <item quantity="other">✅ On 🏠 Pi: %2$s</item>
     </plurals>
     <plurals name="ops_ask_done">
         <item quantity="one">✅ %1$d pick ready to confirm: %2$s</item>
@@ -1304,7 +1310,8 @@
     </plurals>
     <string name="ops_group_show">⌄ Show them</string>
     <string name="ops_group_hide">⌃ Hide them</string>
-    <string name="ops_group_home">🏠 Downloading at home</string>
+    <string name="ops_group_home">⬇️ Web → 🏠 Pi</string>
+    <string name="ops_group_home_upload">📤 📱 Phone → 🏠 Pi</string>
     <string name="ops_group_torrents">🧲 Preparing torrents</string>
     <string name="ops_group_downloads">⬇️ Downloading</string>
     <string name="ops_group_asks">✨ Asking</string>

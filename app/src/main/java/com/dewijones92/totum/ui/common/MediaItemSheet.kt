@@ -132,7 +132,13 @@ internal fun ActionSheet(
                 onDismiss,
             )
             SheetAction(onDownloadVideo, Icons.Outlined.Download, R.string.download_video, onDismiss)
-            SheetAction(onDeleteDownload, Icons.Outlined.Delete, R.string.download_delete, onDismiss)
+            val alsoAtHome = extras.item?.id?.let { homeJobOf(it) } != null
+            SheetAction(
+                onDeleteDownload,
+                Icons.Outlined.Delete,
+                if (alsoAtHome) R.string.home_delete_both else R.string.download_delete,
+                onDismiss,
+            )
             DownloadLockAction(extras.item?.id?.takeIf { onDeleteDownload != null }, onDismiss)
             HomeDownloadActions(extras.item?.id, onDismiss)
             SheetAction(

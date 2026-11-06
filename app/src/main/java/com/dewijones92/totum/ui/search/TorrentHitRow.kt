@@ -33,12 +33,15 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.Transfer
+import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.playback.cast.soundOnlyOnTheTvByName
 import com.dewijones92.totum.ui.cast.LocalScreenControl
 import com.dewijones92.totum.ui.common.LocalDownloadStates
 import com.dewijones92.totum.ui.common.LocalHomeDownloads
 import com.dewijones92.totum.ui.common.LocalHomeJobs
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.transferText
 
 /**
  * One torrent result.
@@ -94,9 +97,9 @@ internal val LocalTorrentMenu = compositionLocalOf<((SearchHit.Torrent) -> Unit)
 @Composable
 private fun torrentHomeWords(atHome: TorrentAtHome): String = when (atHome) {
     is TorrentAtHome.Ready -> stringResource(R.string.torrent_at_home)
-    is TorrentAtHome.Downloading -> atHome.percent?.let { stringResource(R.string.home_state_downloading, it) }
-        ?: stringResource(R.string.home_state_starting)
-    TorrentAtHome.AlsoOnPhone -> stringResource(R.string.home_also_at_home)
+    is TorrentAtHome.Downloading ->
+        transferText(Transfer.running(TransferPlace.WEB, TransferPlace.PI, atHome.percent))
+    TorrentAtHome.AlsoOnPhone -> stringResource(R.string.home_state_done_on_phone)
 }
 
 internal const val TORRENT_COPY_HOME_TAG = "torrent-copy-home"

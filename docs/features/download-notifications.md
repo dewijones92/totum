@@ -3,7 +3,7 @@ title: Download notifications
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Download notifications
@@ -26,6 +26,13 @@ notification opens Library → Downloads at its section (`DownloadsRequests`, ex
 `totum.openDownloads`): running ones at ⏳ In progress, "Downloaded" at ✅ On the phone, "failed" at
 ❌ Failed. A dismissed "Downloaded" or "failed" no longer comes back on the next event: it is
 re-posted only when its list changes. ADR 104.
+
+## Where it goes, in one wording (2026-11-06)
+
+Each notification now says what moves and where, with the same words as every row and strip: a running one reads
+"⬇️ Web → 📱 Phone · 45% · 90 MB of 158.2 MB", or "📥 🏠 Pi → 📱 Phone · …" when the copy comes from the Pi (decided
+by whether the Pi has a finished job for it); the summary titles say "⬇️ Downloading 3 items to 📱 Phone" and
+"✅ Downloaded to 📱 Phone". See [downloads at home](downloads-at-home.md).
 
 ## The one design decision worth defending
 

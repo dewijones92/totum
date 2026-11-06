@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.TorrentIds
+import com.dewijones92.totum.domain.percentOf
 
 internal sealed interface TorrentAtHome {
     data class Downloading(val percent: Int?) : TorrentAtHome
@@ -29,12 +30,8 @@ internal fun torrentAtHome(
     val running = mine.firstOrNull { it.state == HomeJobState.DOWNLOADING || it.state == HomeJobState.WAITING }
     return when {
         copyable.isNotEmpty() -> TorrentAtHome.Ready(copyable)
-        running != null -> TorrentAtHome.Downloading(
-            running.totalBytes?.takeIf { it > 0 }?.let { (running.bytes * PERCENT / it).toInt() },
-        )
+        running != null -> TorrentAtHome.Downloading(percentOf(running.bytes, running.totalBytes))
         done.isNotEmpty() -> TorrentAtHome.AlsoOnPhone
         else -> null
     }
 }
-
-private const val PERCENT = 100L

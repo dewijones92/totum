@@ -31,6 +31,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.isPermanent
+import com.dewijones92.totum.domain.transfer
 
 /**
  * The one status line every row shows: which pillar the item is, whether it's held
@@ -79,7 +80,7 @@ internal fun MediaItemStatus(
         HomeStatus(home, downloadState)
         if (downloadState is DownloadState.Downloading) {
             Text(
-                text = downloadingText(downloadState, fromHome = home?.state == HomeJobState.DONE),
+                text = transferText(downloadState.transfer(fromPi = home?.state == HomeJobState.DONE)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -245,9 +246,6 @@ internal fun isDarkSurface(): Boolean = MaterialTheme.colorScheme.surface.lumina
 /** Padding that keeps the status row visually attached to the text above it. */
 internal val StatusRowSpacing = Modifier.padding(top = 3.dp)
 
-/** Fractions are 0..1; people read percentages. */
-private const val PERCENT = 100
-
 const val HOME_STATUS_TAG = "home-status"
 
 @Composable
@@ -256,20 +254,9 @@ private fun HomeStatus(home: HomeJob?, downloadState: DownloadState) {
     val alsoHere = downloadState is DownloadState.Downloaded
     if (alsoHere && home.state != HomeJobState.DONE) return
     Text(
-        text = if (alsoHere) stringResource(R.string.home_also_at_home) else homeStateText(home),
+        text = if (alsoHere) stringResource(R.string.home_state_done_on_phone) else homeStateText(home),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.testTag(HOME_STATUS_TAG),
     )
-}
-
-@Composable
-private fun downloadingText(state: DownloadState.Downloading, fromHome: Boolean): String {
-    val percent = state.fraction?.let { (it * PERCENT).toInt() }
-    return when {
-        fromHome && percent != null -> stringResource(R.string.status_copying_from_home_percent, percent)
-        fromHome -> stringResource(R.string.status_copying_from_home)
-        percent != null -> stringResource(R.string.status_downloading_percent, percent)
-        else -> stringResource(R.string.status_downloading)
-    }
 }

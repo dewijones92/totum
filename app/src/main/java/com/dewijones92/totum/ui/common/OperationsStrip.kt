@@ -123,6 +123,7 @@ private fun GroupRow(group: StripLine.Group, onCancel: (Long) -> Unit) {
 private fun groupTitle(kind: OperationKind): String = stringResource(
     when (kind) {
         OperationKind.HOME_DOWNLOAD -> R.string.ops_group_home
+        OperationKind.HOME_UPLOAD -> R.string.ops_group_home_upload
         OperationKind.PREPARE_TORRENT -> R.string.ops_group_torrents
         OperationKind.DOWNLOAD_BATCH -> R.string.ops_group_downloads
         OperationKind.ASK -> R.string.ops_group_asks
@@ -183,6 +184,7 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
     OperationKind.TASK -> stringResource(R.string.ops_task, operation.subject)
     OperationKind.ASK -> stringResource(R.string.ops_ask, operation.subject)
     OperationKind.HOME_DOWNLOAD -> stringResource(R.string.ops_home_download, operation.subject)
+    OperationKind.HOME_UPLOAD -> stringResource(R.string.ops_home_upload, operation.subject)
 }
 
 @Composable
@@ -195,7 +197,9 @@ private fun detailOf(operation: Operation): List<String> = buildList {
         when (operation.kind) {
             OperationKind.SHUFFLE_ARTIST -> add(pluralStringResource(R.plurals.ops_step_albums, steps, step, steps))
             OperationKind.DOWNLOAD_BATCH -> add(pluralStringResource(R.plurals.ops_step_downloads, steps, step, steps))
-            OperationKind.HOME_DOWNLOAD -> add(stringResource(R.string.ops_home_percent, step))
+            OperationKind.HOME_DOWNLOAD, OperationKind.HOME_UPLOAD -> add(
+                stringResource(R.string.ops_home_percent, step)
+            )
             else -> Unit
         }
     }
@@ -230,7 +234,7 @@ private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
     OperationKind.PREPARE_TORRENT -> R.plurals.ops_torrent_ready
     OperationKind.DOWNLOAD_BATCH -> if (partial) R.plurals.ops_downloaded_partial else R.plurals.ops_downloaded
     OperationKind.ASK -> R.plurals.ops_ask_done
-    OperationKind.HOME_DOWNLOAD -> R.plurals.ops_home_done
+    OperationKind.HOME_DOWNLOAD, OperationKind.HOME_UPLOAD -> R.plurals.ops_home_done
 }
 
 private const val SHOW_AFTER_MS = 1_000L

@@ -7,6 +7,7 @@ import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.data.home.transfer
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 
@@ -33,14 +34,9 @@ internal object HomeRow {
 internal fun homeStateText(job: HomeJob): String = homeStateText(job, onPhone = false)
 
 @Composable
-internal fun homeStateText(job: HomeJob, onPhone: Boolean): String = when (job.state) {
-    HomeJobState.WAITING -> stringResource(R.string.home_state_waiting)
-    HomeJobState.DOWNLOADING -> job.totalBytes?.takeIf { it > 0 }
-        ?.let { stringResource(R.string.home_state_downloading, (job.bytes * PERCENT / it).toInt()) }
-        ?: stringResource(R.string.home_state_starting)
-    HomeJobState.DONE -> stringResource(HomeRow.doneWords(onPhone, copiesItself(MediaItemId(job.id))))
-    HomeJobState.FAILED -> stringResource(R.string.home_state_failed, job.error ?: "")
-}
+internal fun homeStateText(job: HomeJob, onPhone: Boolean): String =
+    job.transfer()?.let { transferText(it) }
+        ?: stringResource(HomeRow.doneWords(onPhone, copiesItself(MediaItemId(job.id))))
 
 @Composable
 private fun copiesItself(id: MediaItemId): Boolean {
@@ -48,5 +44,3 @@ private fun copiesItself(id: MediaItemId): Boolean {
     val kept = home.kept.collectAsState().value
     return home.copiesByItself && id.value !in kept
 }
-
-private const val PERCENT = 100L

@@ -15,28 +15,34 @@ phone now, or when you turn on the setting below. ADR 110.
 
 ## What you see
 
-- ⬇️ asks where (📱 On this phone / 🏠 At home); on mobile data 🏠 is suggested; "remember" keeps it.
-- Rows: 🏠 Downloading at home · 45% → 🏠 At home · stays there until you copy it (copies on Wi-Fi when the setting is on) → 📥 Copying from home 70% → the usual offline mark.
-- The progress strip and a notification while it runs; "🏠 Ready at home" when done.
-- Library → Downloads → 🏠 At home opens with the home server's space, like the phone's: "🏠 Using 1.8 GB at home ·
+- ⬇️ asks where (📱 On this phone / 🏠 On the Pi); on mobile data 🏠 is suggested; "remember" keeps it.
+- **Every download says what moves and where**, in one wording on every surface (rows, the Library card, the strip,
+  notifications): `⬇️ Web → 📱 Phone · 45%`, `⬇️ Web → 🏠 Pi · 45%`, `📥 🏠 Pi → 📱 Phone · 45%`,
+  `📤 📱 Phone → 🏠 Pi · 45%`; waiting is `⏳ … · waiting`, failed is `❌ … · failed: why`. When it rests:
+  `✅ On 🏠 Pi · stays there until you copy it to 📱 Phone` (or `… copies to 📱 Phone on Wi-Fi`) and
+  `✅ On 📱 Phone and 🏠 Pi`. One pure `Transfer` in `:core:domain` and one mapper (`transferText` in `ui/common`).
+- The progress strip and a notification while it runs; "✅ On 🏠 Pi: title" when done.
+- Library → Downloads → 🏠 On the Pi opens with the Pi's space, like the phone's: "🏠 Using 1.8 GB on the Pi ·
   139 GB free" and a meter (Totum's finished downloads, and the disk's free space, from every job-list read).
-- Library → Downloads → 🏠 At home: every job as an ordinary item row (poster, ⋮ menu, tap to play from home), with
-  📥 Copy to the phone now, Retry, Cancel and Delete; a job that will not copy by itself (kept at home, or the
-  setting off) says "🏠 At home · stays there until you copy it".
-- Any item's menu, once it is at home: 📥 Copy to the phone now (any network), 🗑️ Delete from the phone, keep at home
-  (it then stays home until copied again by hand), 🏠 Delete at home (keep on the phone). Rows say "🏠 Also at home".
-- 🏠 Send home in any app's share sheet: a YouTube link or a magnet goes straight home, without opening Totum; a
-  toast says "🏠 Downloading at home: …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
-- A download on the phone offers 🏠 Also at home and 🏠 Move to home in its menu; a move deletes the phone copy once
-  home has it. A video that finishes at home (torrent or YouTube) is filed into Jellyfin when Haiku sees a whole film
+- Library → Downloads → 🏠 On the Pi: every job as an ordinary item row (poster, ⋮ menu, tap to play from the Pi), with
+  📥 Copy to 📱 Phone now, Retry, Cancel and 🗑️ Delete from Pi.
+- Every delete says where from. Any item's menu, once it is on the Pi: 📥 Copy to 📱 Phone now (any network),
+  🗑️ Delete from both, 🗑️ Delete from phone (keep on Pi) (it then stays there until copied again by hand),
+  🗑️ Delete from Pi (keep on phone); with no Pi copy the one row is 🗑️ Delete from phone. A bulk delete asks first and
+  says the Pi's copies go too.
+- 🏠 Send home in any app's share sheet: a YouTube link or a magnet goes straight to the Pi, without opening Totum; a
+  toast says "⬇️ Web → 🏠 Pi: …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
+- A download on the phone offers 📤 Copy to 🏠 Pi and 📤 Move to 🏠 Pi in its menu; a move deletes the phone copy once
+  the Pi has it. A video that finishes at home (torrent or YouTube) is filed into Jellyfin when Haiku sees a whole film
   or episode (ADR 111).
-- A queue group's ⋮ → 🏠 Keep the next 2 (or 5) at home: the next unplayed members go home and are topped up as you
+- A queue group's ⋮ → 🏠 Keep the next 2 (or 5) on the Pi: the next unplayed members go home and are topped up as you
   listen; on the 📥 New group or a shuffled channel this fetches new uploads at home as they arrive (`HomeAhead`).
-- Settings → Downloads → 🏠 Copy home downloads to the phone (off by default: everything stays home until asked; on copies it on Wi-Fi by itself). The queue's automatic
+- Settings → Downloads → 🏠 Copy Pi downloads to the phone (off by default: everything stays home until asked; on copies it on Wi-Fi by itself). The queue's automatic
   download skips anything already at home.
 - A finished torrent (film or episode) is filed into Jellyfin's movies or series library by Haiku, into the show's
   existing season folder, and Jellyfin is told; the app still plays, copies and deletes it there (ADR 111).
-- Deleting the download deletes both copies. Under 20 GB free at home a job is refused with the reason.
+- Deleting the download from the phone's usual delete deletes both copies. Under 20 GB free at home a job is refused
+  with the reason.
 
 ## Seams
 

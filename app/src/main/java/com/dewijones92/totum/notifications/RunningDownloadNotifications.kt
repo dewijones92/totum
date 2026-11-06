@@ -8,13 +8,18 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.Transfer
+import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
+import com.dewijones92.totum.ui.common.transferRoute
+import com.dewijones92.totum.ui.common.transferText
 
 internal class RunningDownloadNotifications(
     private val context: Context,
     private val manager: NotificationManagerCompat,
+    private val fromHome: (MediaItemId) -> Boolean,
     private val base: () -> NotificationCompat.Builder,
 ) {
     private val posted = mutableSetOf<Int>()
@@ -35,13 +40,23 @@ internal class RunningDownloadNotifications(
     }
 
     fun percentText(download: RunningDownload): String {
-        val of = download.totalBytes?.let {
-            " · ${formatBytes(
-                download.downloadedBytes
-            )} of ${formatBytes(it)}"
-        }.orEmpty()
-        return download.percent?.let { context.getString(R.string.download_percent_line, it) + of }
-            ?: context.getString(R.string.download_started_line, formatBytes(download.downloadedBytes))
+        val resources = context.resources
+        val transfer = Transfer.running(
+            if (fromHome(download.item.id)) TransferPlace.PI else TransferPlace.WEB,
+            TransferPlace.PHONE,
+            download.percent,
+        )
+        val head = when (download.percent) {
+            null -> transferRoute(resources, transfer)
+            else -> transferText(resources, transfer)
+        }
+        return "$head · ${sizeText(download)}"
+    }
+
+    private fun sizeText(download: RunningDownload): String {
+        val soFar = formatBytes(download.downloadedBytes)
+        val total = download.totalBytes ?: return context.getString(R.string.download_bytes_soFar, soFar)
+        return context.getString(R.string.download_bytes_of, soFar, formatBytes(total))
     }
 
     private fun child(download: RunningDownload): Notification = base()

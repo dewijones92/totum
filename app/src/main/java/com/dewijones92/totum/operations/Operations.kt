@@ -26,6 +26,7 @@ enum class OperationKind(val toastsResult: Boolean = true) {
     TASK(toastsResult = false),
     ASK,
     HOME_DOWNLOAD,
+    HOME_UPLOAD,
 }
 
 data class Operation(

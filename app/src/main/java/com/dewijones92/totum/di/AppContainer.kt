@@ -46,6 +46,7 @@ import com.dewijones92.totum.data.group.PodcastSourceItems
 import com.dewijones92.totum.data.group.RoutedSourceItems
 import com.dewijones92.totum.data.group.SourceGroupStore
 import com.dewijones92.totum.data.history.PlayHistoryStore
+import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
@@ -1014,7 +1015,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private val crashReporter by lazy { CrashReporter(context, stateProviders = ::diagnosticState) }
 
     override fun startDownloadNotifications() {
-        DownloadNotifier(context, downloadManager, applicationScope).start()
+        DownloadNotifier(context, downloadManager, applicationScope) { id ->
+            homeDownloads.jobs.value[id]?.state == HomeJobState.DONE
+        }.start()
     }
 
     /**

@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.download.DownloadEvent
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.percentOf
 
 /** What the shade should currently say about downloads. Rendered by [DownloadNotifier]. */
 internal data class DownloadNotice(
@@ -21,10 +22,8 @@ internal data class DownloadNotice(
 internal data class FailedDownload(val item: MediaItem, val reason: String)
 
 internal data class RunningDownload(val item: MediaItem, val downloadedBytes: Long, val totalBytes: Long?) {
-    val percent: Int? get() = totalBytes?.takeIf { it > 0 }?.let { (downloadedBytes * PERCENT_OF / it).toInt() }
+    val percent: Int? get() = percentOf(downloadedBytes, totalBytes)
 }
-
-private const val PERCENT_OF = 100L
 
 /**
  * Turns a stream of [DownloadEvent]s into what should be on screen.

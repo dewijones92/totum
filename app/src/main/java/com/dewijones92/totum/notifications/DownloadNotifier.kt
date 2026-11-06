@@ -33,10 +33,11 @@ internal class DownloadNotifier(
     private val context: Context,
     private val downloads: DownloadManager,
     private val scope: CoroutineScope,
+    fromHome: (MediaItemId) -> Boolean = { false },
 ) {
 
     private val manager = NotificationManagerCompat.from(context)
-    private val children by lazy { RunningDownloadNotifications(context, manager) { base() } }
+    private val children by lazy { RunningDownloadNotifications(context, manager, fromHome) { base() } }
     private val tracker = DownloadNoticeTracker()
 
     fun start() {
