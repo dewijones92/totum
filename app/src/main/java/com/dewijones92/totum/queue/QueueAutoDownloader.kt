@@ -71,6 +71,7 @@ class QueueAutoDownloader(
      */
     private val playingNow: () -> MediaItemId? = { null },
     private val groupAllows: (String) -> Boolean = { true },
+    private val atHome: (PlayableItem) -> Boolean = { false },
     private val groupChoicesChanged: Flow<Any?> = emptyFlow(),
     private val maxAttempts: Int = MAX_ATTEMPTS,
     /**
@@ -297,6 +298,7 @@ class QueueAutoDownloader(
         // A local file is already the point of this; nothing to fetch.
         entry.item.handle is PlayHandle.LocalVideo -> ""
         state is DownloadState.Downloaded || state is DownloadState.Downloading -> ""
+        atHome(entry.item) -> "it is finished at home; the queue plays it from there and never copies it by itself"
         // Said once per item, and worth saying: silence here would read as a broken auto-download.
         entry.group?.let { !groupAllows(it.id) } == true ->
             "its group \"${entry.group?.title}\" is not downloaded automatically until you say yes"

@@ -44,7 +44,7 @@ internal fun homeStateText(job: HomeJob, onPhone: Boolean): String = when (job.s
 
 @Composable
 private fun copiesItself(id: MediaItemId): Boolean {
-    val home = LocalHomeDownloads.current ?: return true
+    val home = LocalHomeDownloads.current ?: return false
     val kept = home.kept.collectAsState().value
     return home.copiesByItself && id.value !in kept
 }

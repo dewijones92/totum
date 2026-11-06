@@ -1,21 +1,22 @@
 ---
-title: 🏠 Downloads at home (the Pi fetches; the phone copies on Wi-Fi)
+title: 🏠 Downloads at home (the Pi fetches; the phone copies when you ask)
 kind: feature
 status: refining
 area: downloads
-updated: 2026-11-01
+updated: 2026-11-06
 ---
 
 # 🏠 Downloads at home
 
 When the phone's signal is poor, choose 🏠 At home in the ⬇️ question: the home server downloads it with the app's
-own code (torrents, podcasts, YouTube with your sign-in), you can play it from home straight away, and the phone
-copies it over the next time it is on Wi-Fi. ADR 110.
+own code (torrents, podcasts, YouTube with your sign-in), and you can play it from home straight away. Playing or
+queueing a file that is at home never copies it to the phone; the phone copies only when you choose 📥 Copy to the
+phone now, or when you turn on the setting below. ADR 110.
 
 ## What you see
 
 - ⬇️ asks where (📱 On this phone / 🏠 At home); on mobile data 🏠 is suggested; "remember" keeps it.
-- Rows: 🏠 Downloading at home · 45% → 🏠 At home · copies to the phone on Wi-Fi → 📥 Copying from home 70% → the usual offline mark.
+- Rows: 🏠 Downloading at home · 45% → 🏠 At home · stays there until you copy it (copies on Wi-Fi when the setting is on) → 📥 Copying from home 70% → the usual offline mark.
 - The progress strip and a notification while it runs; "🏠 Ready at home" when done.
 - Library → Downloads → 🏠 At home opens with the home server's space, like the phone's: "🏠 Using 1.8 GB at home ·
   139 GB free" and a meter (Totum's finished downloads, and the disk's free space, from every job-list read).
@@ -31,7 +32,8 @@ copies it over the next time it is on Wi-Fi. ADR 110.
   or episode (ADR 111).
 - A queue group's ⋮ → 🏠 Keep the next 2 (or 5) at home: the next unplayed members go home and are topped up as you
   listen; on the 📥 New group or a shuffled channel this fetches new uploads at home as they arrive (`HomeAhead`).
-- Settings → Downloads → 🏠 Copy home downloads to the phone (on by default; off keeps everything home until asked).
+- Settings → Downloads → 🏠 Copy home downloads to the phone (off by default: everything stays home until asked; on copies it on Wi-Fi by itself). The queue's automatic
+  download skips anything already at home.
 - A finished torrent (film or episode) is filed into Jellyfin's movies or series library by Haiku, into the show's
   existing season folder, and Jellyfin is told; the app still plays, copies and deletes it there (ADR 111).
 - Deleting the download deletes both copies. Under 20 GB free at home a job is refused with the reason.

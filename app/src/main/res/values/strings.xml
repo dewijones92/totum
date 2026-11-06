@@ -1189,7 +1189,7 @@
     <string name="torrent_at_home">🏠 At home · 📥 copy to the phone</string>
     <string name="home_also_at_home">🏠 Also at home</string>
     <string name="settings_copy_home">🏠 Copy home downloads to the phone</string>
-    <string name="settings_copy_home_summary">On Wi-Fi, by itself. Off: they stay at home until you choose 📥 Copy to the phone now.</string>
+    <string name="settings_copy_home_summary">On: on Wi-Fi, by itself. Off (the default): they stay at home until you choose 📥 Copy to the phone now.</string>
     <string name="home_notice_ready">🏠 Ready at home: %1$s</string>
     <string name="home_notice_refused">❌ Not downloaded at home: %1$s. %2$s</string>
     <string name="ops_home_percent">⏳ %1$d%%</string>

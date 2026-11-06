@@ -47,7 +47,7 @@ class PhoneSide(
     val youTubeTokens: suspend () -> OAuthTokens?,
     val decoders: () -> List<PhoneDecoder>,
     val unmetered: () -> Boolean,
-    val copyOnWifi: () -> Boolean = { true },
+    val copyOnWifi: () -> Boolean = { false },
     val kept: KeptAtHome = InMemoryKeptAtHome(),
     val moving: KeptAtHome = InMemoryKeptAtHome(),
 )

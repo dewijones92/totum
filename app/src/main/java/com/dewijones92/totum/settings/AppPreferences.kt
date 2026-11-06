@@ -156,7 +156,7 @@ interface AppPreferences {
         val playbackMode: PlaybackMode = PlaybackMode.AUTO,
         val downloadChoice: DownloadChoice? = null,
         val downloadPlace: DownloadPlace? = null,
-        val copyHomeOnWifi: Boolean = true,
+        val copyHomeOnWifi: Boolean = false,
         /**
          * Which items feeds show, by progress. Global rather than per-feed: "hide what I have
          * finished" is a preference about how you read, not about one subscription, and a
@@ -216,7 +216,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             autoDownloadWifiOnly = prefs.getBoolean(KEY_AUTO_DOWNLOAD_WIFI, false),
             downloadChoice = DownloadChoice.parse(prefs.getString(KEY_DOWNLOAD_CHOICE, null)),
             downloadPlace = DownloadPlace.parse(prefs.getString(KEY_DOWNLOAD_PLACE, null)),
-            copyHomeOnWifi = prefs.getBoolean(KEY_COPY_HOME_ON_WIFI, true),
+            copyHomeOnWifi = prefs.getBoolean(KEY_COPY_HOME_ON_WIFI, false),
             playbackMode = prefs.getString(KEY_PLAYBACK_MODE, null)
                 ?.let { name -> runCatching { PlaybackMode.valueOf(name) }.getOrNull() }
                 ?: PlaybackMode.AUTO,

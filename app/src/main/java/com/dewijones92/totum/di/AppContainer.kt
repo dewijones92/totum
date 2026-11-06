@@ -1877,6 +1877,7 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
         // event at all while the pass ground through a 403ing podcast ahead of it.
         playingNow = { c.playbackQueue.nowPlaying.value?.item?.id },
         groupAllows = c.groupDownloads::allows,
+        atHome = { c.homeDownloads.atHome(it) != null },
         groupChoicesChanged = c.groupDownloads.choices,
     ).start()
 }

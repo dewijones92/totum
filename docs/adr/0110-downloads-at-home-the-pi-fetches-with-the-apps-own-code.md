@@ -2,7 +2,7 @@
 title: Downloads at home — the Pi fetches with the app's own code
 kind: adr
 status: accepted
-updated: 2026-11-01
+updated: 2026-11-06
 ---
 
 # 110. Downloads at home: the Pi fetches with the app's own code
@@ -91,8 +91,12 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   copy. Downloads has a 🏠 At home section with Retry, Cancel and Delete.
 - **Playing:** `routeNow` takes a finished copy at home (`HomeCopy`) when there is none on the phone and the phone
   is online, and plays the Pi's file as a stream (the token header is the player's usual one).
-- **Copying:** on an unmetered network every finished job with no copy on the phone is downloaded through the
-  ordinary download manager, whose first route (`HomeCopyFirst`) fetches the Pi's file when it has one
-  (resumable); a sound-only copy never stands in for a video.
+- **Copying:** by hand (📥 Copy to the phone now, any network), or, when "Copy home downloads to the phone" is on
+  (**off by default since 2026-11-06**), on an unmetered network for every finished job with no copy on the phone,
+  through the ordinary download manager, whose first route (`HomeCopyFirst`) fetches the Pi's file when it has one
+  (resumable); a sound-only copy never stands in for a video. The queue's automatic download skips anything finished
+  at home, so playing or queueing a Pi file never copies it (Dewi, 2026-11-05: "if a file is on my Raspberry Pi and I
+  play it … I don't want it to be downloaded"). Until 2026-11-06 the setting was on by default and the queue
+  auto-download copied Pi files on any network.
 - **Deleting** a download on the phone deletes its copy at home too (`DeletesAtHomeToo`), unless the phone kept
   it (locked). Signing out of YouTube asks the Pi to forget the handed-over sign-in.

@@ -56,7 +56,7 @@ class HomeDownloadsTest {
 
     private fun home(scope: kotlinx.coroutines.CoroutineScope) = HomeDownloads(
         api,
-        PhoneSide({ tokens }, { listOf(PhoneDecoder("avc", 1080, true)) }, { unmetered }),
+        PhoneSide({ tokens }, { listOf(PhoneDecoder("avc", 1080, true)) }, { unmetered }, copyOnWifi = { true }),
         local,
         Operations(),
         notices,

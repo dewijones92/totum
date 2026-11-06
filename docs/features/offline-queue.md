@@ -3,7 +3,7 @@ title: Offline queue
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-10-30
+updated: 2026-11-06
 ---
 
 # Offline queue
@@ -28,6 +28,9 @@ stays a deliberate per-item choice from the row menu.
 playlist, so `audioOnly = true` fetched the whole film instead (proven on a device 2026-08-06,
 `copy=full`). Films are therefore left for a deliberate tap, and the banner counts them as
 `2 to download by hand` rather than promising a fetch that is never coming.
+
+**And never a Pi file.** An item already finished at home is skipped (logged once with the reason): the queue
+plays it from there, and copying it to the phone is only ever a choice (ADR 110).
 
 ## Three things were wrong, and only one was the machinery
 
