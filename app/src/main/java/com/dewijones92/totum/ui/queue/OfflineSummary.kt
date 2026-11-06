@@ -124,7 +124,7 @@ private fun Banner(icon: ImageVector, text: String, playable: OfflinePlayable?, 
                     modifier = Modifier.padding(start = 12.dp),
                 )
             }
-            playable?.let { PlayableChip(it) }
+            playable?.takeIf { it.count > 0 || it.onlyThose }?.let { PlayableChip(it) }
         }
     }
 }

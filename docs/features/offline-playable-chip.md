@@ -38,3 +38,7 @@ entries play with no signal (offline now=...)` with `dewidebug`.
 - `ItemFiltersTest`: `PLAYS_OFFLINE` accepts by the extra answer and defaults to `downloaded`.
 - Instrumented: the chip shows and toggles the queue filter (`QUEUE_PLAYABLE_CHIP_TAG`), and the saved filter
   round-trips `PLAYS_OFFLINE` through `rememberItemFilters`.
+
+**Hidden at zero (2026-11-06):** the chip shows only when at least one item would play with no signal, or while its
+filter is on (so it can be switched off). On a short screen "✈️ 0 play with no signal" took a row from the queue and
+said nothing (found while fixing the CI queue tests).
