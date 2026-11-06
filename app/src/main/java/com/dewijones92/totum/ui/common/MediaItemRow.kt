@@ -384,7 +384,8 @@ private fun TrailingControl(
             downloadState,
             onDownload,
             onDeleteDownload,
-            ask
+            ask,
+            alsoAtHome = homeJobOf(item.id) != null,
         )
     }
 }
@@ -396,6 +397,7 @@ private fun DownloadControl(
     onDownload: () -> Unit,
     onDeleteDownload: () -> Unit,
     onAsk: (() -> Unit)?,
+    alsoAtHome: Boolean,
     modifier: Modifier = Modifier,
 ) {
     when (state) {
@@ -424,7 +426,9 @@ private fun DownloadControl(
             IconButton(onClick = onDeleteDownload, modifier = modifier) {
                 Icon(
                     Icons.Filled.CheckCircle,
-                    contentDescription = stringResource(R.string.downloaded_delete),
+                    contentDescription = stringResource(
+                        if (alsoAtHome) R.string.downloaded_delete_both else R.string.downloaded_delete
+                    ),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }

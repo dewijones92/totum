@@ -30,6 +30,11 @@ internal fun transferRoute(resources: Resources, transfer: Transfer): String = r
     resources.getString(placeWords(transfer.to)),
 )
 
+internal fun sendingToPi(from: TransferPlace): Transfer = Transfer.running(from, TransferPlace.PI, null)
+
+internal fun transferTitled(resources: Resources, transfer: Transfer, subject: String): String =
+    resources.getString(R.string.transfer_titled, transferRoute(resources, transfer), subject)
+
 internal fun transferText(resources: Resources, transfer: Transfer): String = when (transfer.phase) {
     TransferPhase.WAITING -> resources.getString(R.string.transfer_waiting, transferRoute(resources, transfer))
     TransferPhase.RUNNING ->

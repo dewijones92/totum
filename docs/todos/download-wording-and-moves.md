@@ -33,3 +33,10 @@ cleared); `HomeUploadFrame`/`HomeUploadBody` round trip and cancel; `PhoneUpload
 deletes only after the job shows, a refusal or cancel keeps the phone copy, over-limit refused locally);
 `HomeDownloads.sendFromPhone` upload path (the existing tests place a non-existent file, so they exercise the
 fallback only); the strip observing `known` (percent steps, done, failed, job vanishing).
+
+Consistency sweep 2026-11-06: the progress strip (group titles and row titles), the Pi notices and the done/refused
+lines now read through `transferRoute`/`transferTitled` ("⬇️ Web → 🏠 Pi · title", a middle dot, never a colon); the
+leftover "at home" wording in `SendHome` and `HomeFollower` says "the Pi"; a bulk delete says "🗑️ Delete from both"
+(and its confirm says the Pi's copies go too) when any selected item has a Pi copy, and the row's downloaded tick says
+so in its description. Not touched: the "Send home" share-sheet label and the "home server" setting names, which name
+the feature and the server rather than where a file is.

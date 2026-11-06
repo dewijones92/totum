@@ -25,7 +25,7 @@ enum class NotSent(val words: String) {
     NO_HOME("no home server is set up"),
     NO_LINK("not a YouTube or magnet link"),
     NO_VIDEO_ID("no video id in the link"),
-    NO_TORRENTS("no torrent server at home"),
+    NO_TORRENTS("no torrent server on the Pi"),
     NOT_PREPARED("the torrent could not be prepared"),
     NOTHING_PLAYABLE("the torrent has nothing playable"),
 }
@@ -55,7 +55,7 @@ class SendHome(
 
     private suspend fun torrent(magnet: String): Sent {
         val server = torrents() ?: return refused(NotSent.NO_TORRENTS, magnet)
-        val prepared = operations.showing("send-home:${magnet.hashCode()}", "🏠 Preparing a shared torrent at home") {
+        val prepared = operations.showing("send-home:${magnet.hashCode()}", "🏠 Preparing a shared torrent on the Pi") {
             server.prepare(TorrentLink.Magnet(magnet))
         } ?: return refused(NotSent.NOT_PREPARED, magnet)
         val files = TorrentPlayables.queueItems(server, prepared)

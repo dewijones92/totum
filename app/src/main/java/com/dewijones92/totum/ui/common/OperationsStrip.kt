@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -34,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.operations.Ended
 import com.dewijones92.totum.operations.Operation
 import com.dewijones92.totum.operations.OperationEnd
@@ -120,16 +122,14 @@ private fun GroupRow(group: StripLine.Group, onCancel: (Long) -> Unit) {
 }
 
 @Composable
-private fun groupTitle(kind: OperationKind): String = stringResource(
-    when (kind) {
-        OperationKind.HOME_DOWNLOAD -> R.string.ops_group_home
-        OperationKind.HOME_UPLOAD -> R.string.ops_group_home_upload
-        OperationKind.PREPARE_TORRENT -> R.string.ops_group_torrents
-        OperationKind.DOWNLOAD_BATCH -> R.string.ops_group_downloads
-        OperationKind.ASK -> R.string.ops_group_asks
-        else -> R.string.ops_group_tasks
-    },
-)
+private fun groupTitle(kind: OperationKind): String = when (kind) {
+    OperationKind.HOME_DOWNLOAD -> transferRoute(LocalResources.current, sendingToPi(TransferPlace.WEB))
+    OperationKind.HOME_UPLOAD -> transferRoute(LocalResources.current, sendingToPi(TransferPlace.PHONE))
+    OperationKind.PREPARE_TORRENT -> stringResource(R.string.ops_group_torrents)
+    OperationKind.DOWNLOAD_BATCH -> stringResource(R.string.ops_group_downloads)
+    OperationKind.ASK -> stringResource(R.string.ops_group_asks)
+    else -> stringResource(R.string.ops_group_tasks)
+}
 
 @Composable
 private fun OperationRow(operation: Operation, onCancel: (Long) -> Unit) {
@@ -183,8 +183,10 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
     OperationKind.DOWNLOAD_BATCH -> stringResource(R.string.ops_download_batch, operation.subject)
     OperationKind.TASK -> stringResource(R.string.ops_task, operation.subject)
     OperationKind.ASK -> stringResource(R.string.ops_ask, operation.subject)
-    OperationKind.HOME_DOWNLOAD -> stringResource(R.string.ops_home_download, operation.subject)
-    OperationKind.HOME_UPLOAD -> stringResource(R.string.ops_home_upload, operation.subject)
+    OperationKind.HOME_DOWNLOAD ->
+        transferTitled(LocalResources.current, sendingToPi(TransferPlace.WEB), operation.subject)
+    OperationKind.HOME_UPLOAD ->
+        transferTitled(LocalResources.current, sendingToPi(TransferPlace.PHONE), operation.subject)
 }
 
 @Composable

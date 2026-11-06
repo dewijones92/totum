@@ -21,7 +21,7 @@ phone now, or when you turn on the setting below. ADR 110.
   `📤 📱 Phone → 🏠 Pi · 45%`; waiting is `⏳ … · waiting`, failed is `❌ … · failed: why`. When it rests:
   `✅ On 🏠 Pi · stays there until you copy it to 📱 Phone` (or `… copies to 📱 Phone on Wi-Fi`) and
   `✅ On 📱 Phone and 🏠 Pi`. One pure `Transfer` in `:core:domain` and one mapper (`transferText` in `ui/common`).
-- The progress strip and a notification while it runs; "✅ On 🏠 Pi: title" when done.
+- The progress strip and a notification while it runs, in the same wording (`⬇️ Web → 🏠 Pi · title`); "✅ On 🏠 Pi · title" when done.
 - Library → Downloads → 🏠 On the Pi opens with the Pi's space, like the phone's: "🏠 Using 1.8 GB on the Pi ·
   139 GB free" and a meter (Totum's finished downloads, and the disk's free space, from every job-list read).
 - Library → Downloads → 🏠 On the Pi: every job as an ordinary item row (poster, ⋮ menu, tap to play from the Pi), with
@@ -29,9 +29,9 @@ phone now, or when you turn on the setting below. ADR 110.
 - Every delete says where from. Any item's menu, once it is on the Pi: 📥 Copy to 📱 Phone now (any network),
   🗑️ Delete from both, 🗑️ Delete from phone (keep on Pi) (it then stays there until copied again by hand),
   🗑️ Delete from Pi (keep on phone); with no Pi copy the one row is 🗑️ Delete from phone. A bulk delete asks first and
-  says the Pi's copies go too.
+  is labelled 🗑️ Delete from both when any selected item has a Pi copy (the row's tick says "delete from both" too).
 - 🏠 Send home in any app's share sheet: a YouTube link or a magnet goes straight to the Pi, without opening Totum; a
-  toast says "⬇️ Web → 🏠 Pi: …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
+  toast says "⬇️ Web → 🏠 Pi · …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
 - A download on the phone offers 📤 Copy to 🏠 Pi and 📤 Move to 🏠 Pi in its menu. **The phone's file is really sent**
   (`PUT /files?id=`, ADR 126): a `📤 📱 Phone → 🏠 Pi · 45%` strip row and notification, Cancel stops it, and a move
   deletes the phone copy once the Pi's job list shows the file. Only a phone copy with no file on disk falls back to the

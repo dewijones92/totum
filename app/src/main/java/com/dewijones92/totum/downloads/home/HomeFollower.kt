@@ -72,7 +72,7 @@ internal class HomeFollower(
     private fun endOf(now: HomeJob?): OperationEnd? = when (now?.state) {
         null -> OperationEnd.Nothing
         HomeJobState.DONE -> OperationEnd.Done(1)
-        HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed at home")
+        HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed on the Pi")
         else -> null
     }
 

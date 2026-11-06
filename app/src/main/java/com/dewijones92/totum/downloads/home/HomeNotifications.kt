@@ -8,13 +8,16 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.notifications.DownloadNotifications
+import com.dewijones92.totum.ui.common.sendingToPi
+import com.dewijones92.totum.ui.common.transferTitled
 
 class HomeNotifications(private val context: Context) : HomeNotices {
 
-    override fun started(title: String) = post(title, context.getString(R.string.home_notice_started, title))
+    override fun started(title: String) = post(title, titled(TransferPlace.WEB, title))
 
     override fun ready(title: String) = post(title, context.getString(R.string.home_notice_ready, title))
 
@@ -26,7 +29,7 @@ class HomeNotifications(private val context: Context) : HomeNotices {
     override fun problem(key: String, text: String) = post(key, text)
 
     override fun uploading(title: String, percent: Int?) {
-        val text = context.getString(R.string.home_notice_uploading, title)
+        val text = titled(TransferPlace.PHONE, title)
         Diag.log("home", "notice: $text ${percent ?: "?"}%")
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -51,6 +54,9 @@ class HomeNotifications(private val context: Context) : HomeNotices {
         runCatching { NotificationManagerCompat.from(context).cancel(idOf(title)) }
             .onFailure { Diag.warn("home", "upload notice not cleared", it) }
     }
+
+    private fun titled(from: TransferPlace, title: String) =
+        transferTitled(context.resources, sendingToPi(from), title)
 
     private fun idOf(title: String) = ID_BASE + (title.hashCode() and ID_MASK)
 

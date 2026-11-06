@@ -280,12 +280,14 @@ fun mediaBulkActions(
 ): (List<MediaItem>) -> List<BulkAction> {
     val actions = LocalItemActions.current
     val downloadStates = LocalDownloadStates.current
+    val homeJobs = LocalHomeJobs.current
     val mix = LocalStartRadioMix.current
     val resources = LocalResources.current
     return { chosen ->
         val downloads = downloadStates.value
         actions?.let { a ->
             val onDisk = chosen.filter { downloads[it.id] is DownloadState.Downloaded }
+            val alsoAtHome = onDisk.any { homeJobs.value[it.id] != null }
             val missing = chosen.filter { item ->
                 when (val state = downloads[item.id]) {
                     is DownloadState.Downloading -> false
@@ -315,8 +317,8 @@ fun mediaBulkActions(
                     )
                 }.takeIf { missing.isNotEmpty() },
                 BulkAction(
-                    R.string.download_delete,
-                    confirm = R.plurals.download_delete_confirm,
+                    if (alsoAtHome) R.string.home_delete_both else R.string.download_delete,
+                    confirm = if (alsoAtHome) R.plurals.home_delete_both_confirm else R.plurals.download_delete_confirm,
                     confirmCount = onDisk.size,
                     holdToConfirm = true,
                     holdHint = R.string.hold_to_confirm,
