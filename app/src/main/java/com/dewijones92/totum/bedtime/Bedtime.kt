@@ -187,7 +187,8 @@ class Bedtime(
                     TAG,
                     "dewidebug bedtime arming the sleep timer to stop after ${state.itemId} " +
                         "(\"${state.title}\", ${state.positionMs}ms of ${state.durationMs}ms) and fade over $fade " +
-                        "(casting to ${state.castDeviceName ?: "nothing"}): $trigger; the night ends ${decision.runEnd}",
+                        "(casting to ${state.castDeviceName ?: "nothing"}): $trigger; " +
+                        "the night ends ${decision.runEnd}",
                 )
                 armedRunEnd = decision.runEnd
                 sleepTimer.stopAfterCurrentItem(BedtimeArming(decision.runEnd))

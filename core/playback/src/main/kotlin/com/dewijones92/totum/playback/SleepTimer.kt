@@ -80,7 +80,10 @@ public class SleepTimer(
     /** Stops when the last of [itemIds], the rest of an album or playlist in play order, finishes. */
     public fun stopAtEndOf(itemIds: List<MediaItemId>, title: String) {
         if (itemIds.isEmpty()) return
-        stopAfterLastOf(itemIds, null) { playing -> SleepTimerState.AtEndOf(title, itemIds.size - itemIds.indexOf(playing)) }
+        stopAfterLastOf(
+            itemIds,
+            null
+        ) { playing -> SleepTimerState.AtEndOf(title, itemIds.size - itemIds.indexOf(playing)) }
     }
 
     /** The item playback stops after, while a timer of that kind is armed. */

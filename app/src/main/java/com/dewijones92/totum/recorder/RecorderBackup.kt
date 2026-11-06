@@ -15,7 +15,9 @@ internal fun decodeChoices(text: String): RecorderChoices {
     return RecorderChoices(mic = "mic" in on, face = "face" in on, taps = "taps" in on)
 }
 
-internal fun BackupService.BackupSettings.withRecorderChoices(store: RecorderChoiceStore): BackupService.BackupSettings =
+internal fun BackupService.BackupSettings.withRecorderChoices(
+    store: RecorderChoiceStore,
+): BackupService.BackupSettings =
     withExtra(
         key = KEY,
         tag = "recorder",

@@ -79,6 +79,7 @@ data class RemovedGroup(val group: QuietGroup, val index: Int)
 
 data class RemovedApp(val groupId: String, val packageName: String, val index: Int)
 
+@Suppress("TooManyFunctions")
 class WorkAppsQuiet(
     private val store: WorkAppsStore,
     private val accessGranted: () -> Boolean,
@@ -118,8 +119,8 @@ class WorkAppsQuiet(
         val now = clock()
         val zone = zone()
         return settings.packages.filterTo(mutableSetOf()) { packageName ->
-            settings.decide(PostedNotification(packageName, ongoing = false, category = null), now, zone) is
-                QuietDecision.Snooze
+            val posted = PostedNotification(packageName, ongoing = false, category = null)
+            settings.decide(posted, now, zone) is QuietDecision.Snooze
         }
     }
 

@@ -54,12 +54,7 @@ internal class RecorderNotifications(private val context: Context) {
     }
 
     fun refresh(status: RecorderStatus.Recording) {
-        if (!allowed()) {
-            Diag.log(TAG, "dewidebug recorder notification not refreshed: notifications are off for Totum")
-            return
-        }
-        runCatching { NotificationManagerCompat.from(context).notify(RECORDING_ID, recording(status)) }
-            .onFailure { Diag.warn(TAG, "dewidebug recorder notification refresh refused", it) }
+        notify(RECORDING_ID, recording(status), "notification refresh")
     }
 
     fun saved(uri: Uri, name: String, durationMs: Long, bytes: Long) {
@@ -120,17 +115,20 @@ internal class RecorderNotifications(private val context: Context) {
 
     private fun post(id: Int, builder: NotificationCompat.Builder) {
         ensureChannel()
-        if (!allowed()) {
-            Diag.log(TAG, "dewidebug recorder result notification not shown: notifications are off for Totum")
-            return
-        }
-        runCatching { NotificationManagerCompat.from(context).notify(id, builder.build()) }
-            .onFailure { Diag.warn(TAG, "dewidebug recorder result notification refused", it) }
+        notify(id, builder.build(), "result notification")
     }
 
-    private fun allowed(): Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED && NotificationManagerCompat.from(context).areNotificationsEnabled()
+    private fun notify(id: Int, notification: Notification, what: String) {
+        val manager = NotificationManagerCompat.from(context)
+        val permitted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!permitted || !manager.areNotificationsEnabled()) {
+            Diag.log(TAG, "dewidebug recorder $what not shown: notifications are off for Totum")
+            return
+        }
+        runCatching { manager.notify(id, notification) }
+            .onFailure { Diag.warn(TAG, "dewidebug recorder $what refused", it) }
+    }
 
     private fun open(intent: Intent, request: Int): PendingIntent =
         PendingIntent.getActivity(
