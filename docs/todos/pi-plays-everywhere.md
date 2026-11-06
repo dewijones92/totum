@@ -78,3 +78,14 @@ live updates across phones (a change shows on the others within a second or two)
 item shows which phone added it. YouTube: the Pi plays with Dewi's signed-in account, so only items queued from
 Dewi's phone report watch progress to YouTube; items queued from another phone don't. Her sign-in goes through the
 same Google-gated home-server sign-in; check her account is admitted by that gate when building.
+
+## Speakers: one owner, different things at once (Dewi, 2026-11-06)
+
+- Totum's queues become the only thing that drives the Bluetooth speakers. Home Assistant's brown-noise and jazz
+  switches (`hermes-audio-ctl` on the Pi, `127.0.0.1:8099`, in dot-files) were a second player on the same speakers,
+  never considered in ADR 116; they will ask Totum to play on a speaker instead, so they show in its queue view and
+  cannot fight it for the link. That changes dot-files and the HA config (commit only these files there).
+- Each speaker plays its own queue at the same time as the other (different things in different rooms); no group
+  target and no syncing. Prove the Pi's adapter holds two A2DP streams at once without stutter (Pi 4's onboard radio
+  shares Bluetooth and Wi-Fi).
+- The leftover `totum-speaker-test` container from 2026-11-01 was removed on 2026-11-06.
