@@ -24,6 +24,7 @@
     border-radius: 12px; padding: 16px 36px; cursor: pointer; margin: 6px 0 14px; }
   #watch:disabled { opacity: .6; cursor: wait; }
   #watch[hidden] { display: none; }
+  #switch { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -34,6 +35,7 @@
     <p id="now"></p>
     <button id="watch" hidden>▶️ Watch here</button>
     <p>Or pick this screen in Totum's 🖥️ menu on the phone.</p>
+    <p><a id="switch" href="https://crashlog.333133333.xyz/screen?choose=1">🔀 Switch phone</a></p>
   </div>
 </div>
 <div id="stage"><video id="video" playsinline></video></div>

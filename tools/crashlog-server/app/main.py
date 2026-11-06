@@ -158,13 +158,24 @@ def _prune() -> None:
 
 
 SCREEN_FILE = DATA_DIR / "screen.json"
+SCREENS_FILE = DATA_DIR / "screens.json"
 SCREEN_NETWORKS = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10")]
 SCREEN_URL = re.compile(r"http://(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}/screen#key=[0-9a-z]{8,64}")
+SCREEN_INSTALL_ID = re.compile(r"[0-9a-fA-F-]{8,64}")
+SCREEN_FRESH_MINUTES = int(os.environ.get("CRASHLOG_SCREEN_FRESH_MINUTES", "75"))
+SCREEN_MAX_PHONES = 8
+SCREEN_UNNAMED = "unknown"
+SCREEN_LEGACY = "legacy"
 
 
-def remember_screen(parsed: Any) -> bool:
-    """Keep where the phone serves its PC screen page; only a home or WireGuard address is accepted."""
-    url = parsed.get("url") if isinstance(parsed, dict) else None
+def _screen_text(value: Any, limit: int) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = "".join(c for c in value if c.isprintable()).strip()
+    return cleaned[:limit] or None
+
+
+def _screen_home_address(url: Any) -> bool:
     shape = SCREEN_URL.fullmatch(url) if isinstance(url, str) else None
     if shape is None:
         return False
@@ -172,31 +183,154 @@ def remember_screen(parsed: Any) -> bool:
         host = ipaddress.ip_address(shape.group(1))
     except ValueError:
         return False
-    if not any(host in network for network in SCREEN_NETWORKS):
+    return any(host in network for network in SCREEN_NETWORKS)
+
+
+def _read_phones() -> dict[str, dict[str, Any]]:
+    """Every phone that has announced, by install id. A file from an older build, or a corrupt one, reads as empty."""
+    try:
+        known = json.loads(SCREENS_FILE.read_text()) if SCREENS_FILE.exists() else {}
+    except (OSError, ValueError):
+        print("dewidebug screen: screens.json unreadable; treating it as empty", flush=True)
+        known = {}
+    phones = known.get("phones") if isinstance(known, dict) else None
+    phones = phones if isinstance(phones, dict) else {}
+    if not phones and SCREEN_FILE.exists():
+        try:
+            single = json.loads(SCREEN_FILE.read_text())
+        except (OSError, ValueError):
+            single = None
+        if isinstance(single, dict) and isinstance(single.get("url"), str) and isinstance(single.get("at"), str):
+            phones = {
+                SCREEN_LEGACY: {"url": single["url"], "at": single["at"], "model": None, "playing": False, "title": None}
+            }
+            print("dewidebug screen: read the single-phone screen.json left by an older build", flush=True)
+    return {k: v for k, v in phones.items() if isinstance(k, str) and isinstance(v, dict)}
+
+
+def remember_screen(parsed: Any) -> bool:
+    """Keep where one phone serves its PC screen page; only a home or WireGuard address is accepted."""
+    url = parsed.get("url") if isinstance(parsed, dict) else None
+    if not _screen_home_address(url):
+        print(f"dewidebug screen: refused an announce, url shape or address not accepted ({str(url)[:80]!r})", flush=True)
         return False
-    SCREEN_FILE.write_text(json.dumps({"url": url, "at": datetime.now(timezone.utc).isoformat()}))
+    raw_id = parsed.get("installId")
+    install_id = raw_id if isinstance(raw_id, str) and SCREEN_INSTALL_ID.fullmatch(raw_id) else SCREEN_UNNAMED
+    phones = _read_phones()
+    phones.pop(SCREEN_LEGACY, None)
+    phones[install_id] = {
+        "url": url,
+        "at": datetime.now(timezone.utc).isoformat(),
+        "model": _screen_text(parsed.get("model"), 60),
+        "playing": parsed.get("playing") is True,
+        "title": _screen_text(parsed.get("title"), 120),
+    }
+    while len(phones) > SCREEN_MAX_PHONES:
+        oldest = min(phones, key=lambda k: str(phones[k].get("at")))
+        phones.pop(oldest)
+        print(f"dewidebug screen: more than {SCREEN_MAX_PHONES} phones; forgot {oldest}", flush=True)
+    SCREENS_FILE.write_text(json.dumps({"phones": phones}))
+    print(
+        f"dewidebug screen: announce from {install_id} model={phones[install_id]['model']!r} "
+        f"playing={phones[install_id]['playing']} phones={len(phones)}",
+        flush=True,
+    )
     return True
 
 
+def screen_phones(now: datetime | None = None) -> list[dict[str, Any]]:
+    """Known phones, re-checked on the way out so a file written by an older build cannot redirect anywhere.
+
+    Fresh first, then playing, then the most recently heard from. `fresh` means it announced within the window.
+    """
+    now = now or datetime.now(timezone.utc)
+    listed = []
+    for install_id, entry in _read_phones().items():
+        if not _screen_home_address(entry.get("url")):
+            continue
+        try:
+            heard = datetime.fromisoformat(str(entry.get("at")))
+        except ValueError:
+            continue
+        age_minutes = max(0.0, (now - heard).total_seconds() / 60)
+        listed.append({
+            "id": install_id,
+            "url": entry["url"],
+            "model": _screen_text(entry.get("model"), 60),
+            "title": _screen_text(entry.get("title"), 120),
+            "age_minutes": age_minutes,
+            "fresh": age_minutes <= SCREEN_FRESH_MINUTES,
+            "playing": entry.get("playing") is True,
+        })
+    listed.sort(key=lambda p: (not p["fresh"], not p["playing"], p["age_minutes"]))
+    return listed
+
+
+def screen_decision(phones: list[dict[str, Any]], choose: bool = False) -> tuple[str, Any]:
+    """`("redirect", url)`, `("choose", phones)` or `("none", None)`.
+
+    One fresh phone goes straight there; with several, straight to the one that is playing when only one is;
+    otherwise the chooser. `choose` (the phone page's "switch phone" link) always shows the chooser.
+    """
+    if not phones:
+        return "none", None
+    if not choose:
+        fresh = [p for p in phones if p["fresh"]]
+        if len(fresh) == 1:
+            return "redirect", fresh[0]["url"]
+        playing = [p for p in fresh if p["playing"]]
+        if len(playing) == 1:
+            return "redirect", playing[0]["url"]
+    return "choose", phones
+
+
 def screen_target() -> str | None:
-    """The phone's page, re-checked on the way out so a file written by an older build cannot redirect anywhere."""
-    known = json.loads(SCREEN_FILE.read_text()) if SCREEN_FILE.exists() else None
-    url = known.get("url") if isinstance(known, dict) else None
-    return url if isinstance(url, str) and SCREEN_URL.fullmatch(url) else None
+    kind, value = screen_decision(screen_phones())
+    return value if kind == "redirect" else None
 
 
-def screen_page() -> str:
-    return ("<!doctype html><meta charset=utf-8><title>Totum screen</title>"
-            "<body style='font:18px sans-serif;padding:24px'><h1>📭 No phone yet</h1>"
-            "<p>Open Totum on your phone on the same Wi-Fi, then reload this page.</p></body>")
+def _ago(minutes: float) -> str:
+    if minutes < 1:
+        return "just now"
+    if minutes < 90:
+        return f"{int(minutes)} min ago"
+    if minutes < 48 * 60:
+        return f"{int(minutes // 60)} h ago"
+    return f"{int(minutes // (24 * 60))} days ago"
+
+
+def screen_page(phones: list[dict[str, Any]] | None = None) -> str:
+    head = (
+        "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+        "<title>Totum screen</title><body style='font:18px/1.5 sans-serif;padding:24px;background:#fff;color:#1a1c20'>"
+    )
+    if not phones:
+        return (head + "<h1>📭 No phone yet</h1>"
+                "<p>Open Totum on your phone on the same Wi-Fi, then reload this page.</p></body>")
+    rows = []
+    for phone in phones:
+        name = html.escape(phone["model"] or "Phone")
+        status = "▶️ Playing" if phone["playing"] else "⏸️ Not playing"
+        title = f" · {html.escape(phone['title'])}" if phone["title"] else ""
+        seen = f"{'✅' if phone['fresh'] else '💤'} heard {_ago(phone['age_minutes'])}"
+        rows.append(
+            f"<li style='margin:14px 0'><a href=\"{html.escape(phone['url'], quote=True)}\" "
+            f"style='font-size:22px;font-weight:600;color:#e8590c'>📱 {name}</a><br>"
+            f"<span style='color:#565b64'>{status}{title} · {seen}</span></li>")
+    return head + "<h1>📱 Which phone?</h1><ul style='list-style:none;padding:0'>" + "".join(rows) + "</ul></body>"
 
 
 @app.get("/screen", response_model=None)
-def screen() -> Response:
-    target = screen_target()
-    if target is not None:
-        return RedirectResponse(target, status_code=302, headers={"Cache-Control": "no-store"})
-    return HTMLResponse(screen_page(), headers={"Cache-Control": "no-store"})
+def screen(choose: bool = Query(default=False)) -> Response:
+    phones = screen_phones()
+    kind, value = screen_decision(phones, choose)
+    print(
+        f"dewidebug screen: /screen choose={choose} phones={[(p['id'][:8], p['fresh'], p['playing']) for p in phones]} -> {kind}",
+        flush=True,
+    )
+    if kind == "redirect":
+        return RedirectResponse(value, status_code=302, headers={"Cache-Control": "no-store"})
+    return HTMLResponse(screen_page(value), headers={"Cache-Control": "no-store"})
 
 
 @app.post("/ingest")

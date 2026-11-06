@@ -19,6 +19,7 @@ container on the Pi, reached through the existing nginx at
 | Route | Purpose |
 |---|---|
 | `POST /ingest` | What the app posts to. **Unauthenticated** (see below). Returns `202` with an id |
+| `GET /screen` | The Google-gated bookmark for the PC screen (see below): redirects to the phone, or shows a chooser |
 | `GET /` | Browsable list, filterable by commit and exception |
 | `GET /report/{id}` | One report: message, stack trace, and the **event trail** rendered as a timeline |
 | `GET /report/{id}/raw` | The raw JSON as received |
@@ -31,6 +32,24 @@ container on the Pi, reached through the existing nginx at
 | `GET /api/report/{id}/findings` | A report's findings and whether it counts as **considered** |
 | `GET /api/considered?since=YYYY-MM-DD` | Every report since a date, considered or not, with its findings |
 | `GET /healthz` | Liveness |
+
+## The PC screen bookmark: one entry per phone
+
+A phone announces where it serves its PC screen page with `POST /ingest` and `{"kind":"screen","url":…,"installId":…,
+"model":…,"playing":…,"title":…}` (every 30 minutes and whenever the page, the playing flag or the title changes).
+The server keeps `screens.json` in the data directory, one entry per install id, and answers `GET /screen`:
+
+- one phone heard from in the last 75 minutes (`CRASHLOG_SCREEN_FRESH_MINUTES`) → `302` straight to its page;
+- several fresh phones, exactly one of them playing → `302` to that one;
+- otherwise (or with `/screen?choose=1`, the page's "Switch phone" link) a chooser listing every known phone with what it
+  plays and when it was heard, stale ones marked 💤;
+- nothing known → "No phone yet".
+
+Only `http://<10/8, 172.16/12, 192.168/16 or 100.64/10 address>:<port>/screen#key=…` is accepted (anything else is `400`),
+at most 8 phones are kept (oldest forgotten), and model and title are escaped on the way out. An announce with no install
+id (an older app build) is kept as one phone called `unknown`; a single-phone `screen.json` from before is read as `legacy`
+until a real announce replaces it. Every announce, refusal and `/screen` decision is logged as `dewidebug screen:`.
+Tests: `python -m unittest discover -s tests` from this directory (needs the packages in `requirements.txt`).
 
 ## Why `/ingest` is unauthenticated
 

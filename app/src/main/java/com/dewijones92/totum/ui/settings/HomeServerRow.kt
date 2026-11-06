@@ -2,7 +2,6 @@ package com.dewijones92.totum.ui.settings
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.diagnostics.thisDevice
 import kotlinx.coroutines.launch
 
 /**
@@ -154,6 +154,3 @@ private fun HomeServerDialog(
         },
     )
 }
-
-private fun thisDevice(): String =
-    "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}".trim()

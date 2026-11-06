@@ -109,6 +109,10 @@ click once to allow sound, and the 🖥️ button appears on the phone (only whi
 stream as a TV, so skip-silence, boost, SponsorBlock and the queue behave as they do when casting; the phone is the
 remote, and "📱 Back to this phone" takes it back. See [ADR 81](../adr/0081-the-pc-screen-is-a-page-the-phone-serves.md).
 
+**Two phones (2026-11-06, [ADR 93](../adr/0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md)):** the Pi keeps one
+entry per phone (install id, model, last heard, playing and title). `/screen` goes straight to the only fresh phone or
+the only one playing; otherwise a chooser lists them, and the page's "🔀 Switch phone" link opens it.
+
 **From the private area (2026-10-29, [ADR 93](../adr/0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md)):**
 private area → **📱 Dewi's Totum** → the page says what the phone is playing ("▶️ On your phone: …", or "📭 Nothing
 playing") → **▶️ Watch here** moves it to the PC with sound, or plays the queue's current item when nothing is loaded.

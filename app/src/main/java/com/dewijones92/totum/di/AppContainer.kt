@@ -102,10 +102,12 @@ import com.dewijones92.totum.diagnostics.DIAGNOSTICS_ENDPOINT
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
+import com.dewijones92.totum.diagnostics.InstallId
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
 import com.dewijones92.totum.diagnostics.runningOnAnEmulator
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
+import com.dewijones92.totum.diagnostics.thisDevice
 import com.dewijones92.totum.domain.AccountProgressOutbox
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.Listening
@@ -235,6 +237,8 @@ import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
+import com.dewijones92.totum.screens.PhoneIdentity
+import com.dewijones92.totum.screens.PhoneNow
 import com.dewijones92.totum.screens.ScreenAnnouncer
 import com.dewijones92.totum.screens.ScreenReadiness
 import com.dewijones92.totum.screens.startScreenReady
@@ -1199,7 +1203,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
-        announceScreens(this, httpClient)
+        announceScreens(this, httpClient, context)
         screenReadiness = startScreenReady(context) { playbackController.refreshScreenPage() }
         startDriveBackups(this)
         startSharedMetadataRepair(
@@ -1817,7 +1821,7 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
     artistShuffle = c.artistShuffle(),
 )
 
-private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient) {
+private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient, context: Context) {
     val json = "application/json".toMediaType()
     ScreenAnnouncer(
         c.applicationScope,
@@ -1832,6 +1836,7 @@ private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient) {
                 }
             }
         },
+        identity = { PhoneIdentity(InstallId.get(context), thisDevice()) },
         muted = {
             when {
                 runningUnderInstrumentation() -> "a test run"
@@ -1839,7 +1844,10 @@ private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient) {
                 else -> null
             }
         },
-    ).follow(c.playbackController.screens.map { it.pageUrl })
+    ).follow(
+        c.playbackController.screens.map { it.pageUrl },
+        c.playbackController.state.map { PhoneNow(it?.wantsToPlay == true, it?.title) },
+    )
 }
 
 private fun followSkipRequests(c: DefaultAppContainer, context: Context) = c.applicationScope.launch {

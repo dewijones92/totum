@@ -16,7 +16,7 @@ class ScreenAnnouncerTest {
         ScreenAnnouncer(backgroundScope, post = {
             posted += it
             true
-        }).follow(pages)
+        }, identity = { PhoneIdentity("install-1", "Pixel 7") }).follow(pages)
         runCurrent()
 
         pages.value = "http://192.168.0.42:8765/screen#key=k"
@@ -24,7 +24,11 @@ class ScreenAnnouncerTest {
         advanceTimeBy(30 * 60_000L + 1)
 
         assertEquals(2, posted.size)
-        assertEquals("""{"kind":"screen","url":"http://192.168.0.42:8765/screen#key=k"}""", posted.first())
+        assertEquals(
+            """{"kind":"screen","url":"http://192.168.0.42:8765/screen#key=k","installId":"install-1",""" +
+                """"model":"Pixel 7","playing":false}""",
+            posted.first(),
+        )
     }
 
     @Test
@@ -33,7 +37,7 @@ class ScreenAnnouncerTest {
         ScreenAnnouncer(backgroundScope, post = {
             posted += it
             true
-        }, muted = { "an emulator" })
+        }, identity = { PhoneIdentity("install-1", "Pixel 7") }, muted = { "an emulator" })
             .follow(MutableStateFlow("http://10.0.2.15:8765/screen#key=k"))
         runCurrent()
 

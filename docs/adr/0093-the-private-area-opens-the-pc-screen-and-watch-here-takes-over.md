@@ -60,6 +60,27 @@ never seen. The controller now applies the session's starting extras on connect,
 on Wi-Fi (charging) the app asks the service to re-read its address (`refreshScreenPage`), so a new address is
 announced. The cast status line now names the page address.
 
+## Amended 2026-11-06: the Pi keeps one entry per phone
+
+Dewi's bookmark opened the Pixel 4a, not the Pixel 7: the crash-log server held one `screen.json`, so the last phone to
+announce won. It now keeps `screens.json`, one entry per phone keyed by the app's install id: the page address (still
+only the exact `http://<home or WireGuard address>:<port>/screen#key=…` shape), the device model, when it was last heard
+from and whether it is playing and what. The page key is sent only inside that URL, as before.
+
+- `GET /screen` goes straight to the only phone heard from in the last 75 minutes (`CRASHLOG_SCREEN_FRESH_MINUTES`; the
+  app announces every 30 min and on every change). With several fresh phones it goes straight to the one that is playing
+  when exactly one is; otherwise a light chooser page lists every known phone with what it plays and when it was heard
+  (stale ones marked 💤). With no phone known it still says "No phone yet".
+- The phone's page carries "🔀 Switch phone", a link to `/screen?choose=1`, which always shows the chooser.
+- `ScreenAnnouncer` announces again whenever the page, the playing flag (`wantsToPlay`, so a stall does not flicker it) or
+  the title changes. An older app build that sends no install id is kept as one phone called `unknown`; a `screen.json`
+  left by the old server is read once as a phone called `legacy` until a real announce replaces it.
+- `/ingest` is still unauthenticated, so anyone who can reach it can add an entry (at most 8 are kept, oldest forgotten);
+  the address filter and HTML escaping bound what an entry can do. Signing announces with the device token waits for the
+  Pi publishing work (phase 7), which will serve the page from the Pi itself and replace this.
+- Logs: the server prints `dewidebug screen:` lines for every announce, refusal and `/screen` decision; the app logs the
+  model, install id prefix, playing and title with every announce.
+
 ## Consequences
 
 - The flow is: private area → 📱 Dewi's Totum → ▶️ Watch here; the phone becomes the remote, as with the TV.
