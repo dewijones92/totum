@@ -814,7 +814,10 @@
     <string name="live_now_text">Tap to watch.</string>
     <string name="live_play">▶️ Play</string>
     <string name="live_gave_up_title">⌛ Stopped waiting for “%1$s”</string>
-    <string name="live_gave_up_text">It had still not gone live after %1$d hours. Tap it again to ask again.</string>
+    <plurals name="live_gave_up_text">
+        <item quantity="one">It had still not gone live after %1$d hour. Tap it again to ask again.</item>
+        <item quantity="other">It had still not gone live after %1$d hours. Tap it again to ask again.</item>
+    </plurals>
     <string name="refused_no_stream_signed_out">YouTube gave no stream for it. Signing in usually fixes this: Library → Account</string>
     <string name="details_copy_link">link</string>
     <string name="hold_to_download">⏳ Hold to download</string>

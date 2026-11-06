@@ -37,7 +37,7 @@ class LiveNotifier(private val context: Context) : LiveNotices {
     override fun gaveUp(videoId: String, title: String, hours: Int): Boolean {
         val notification = baseBuilder()
             .setContentTitle(context.getString(R.string.live_gave_up_title, title))
-            .setContentText(context.getString(R.string.live_gave_up_text, hours))
+            .setContentText(context.resources.getQuantityString(R.plurals.live_gave_up_text, hours, hours))
             .build()
         return post(videoId, notification, "gave up waiting for \"$title\" after $hours h")
     }

@@ -35,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -56,7 +57,6 @@ import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.TextStyle
-import java.util.Locale
 
 @Composable
 fun WorkAppsQuietScreen(workApps: WorkAppsQuiet, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -176,7 +176,7 @@ private fun HoursSection(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    val locale = Locale.getDefault()
+    val locale = LocalConfiguration.current.locales[0]
     DayOfWeek.entries.forEach { day ->
         val name = day.getDisplayName(TextStyle.FULL, locale)
         DayRow(name, settings.window.hoursOn(day)) { hours -> update("hours $day") { it.withDay(day, hours) } }

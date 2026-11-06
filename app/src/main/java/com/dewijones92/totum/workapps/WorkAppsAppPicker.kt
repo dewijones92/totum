@@ -1,6 +1,7 @@
 package com.dewijones92.totum.workapps
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -120,6 +121,7 @@ private fun AppList(all: List<InstalledApp>?, shown: List<InstalledApp>, onPick:
     }
 }
 
+@SuppressLint("QueryPermissionsNeeded")
 private fun launchableApps(context: Context): List<InstalledApp> {
     val pm = context.packageManager
     val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
