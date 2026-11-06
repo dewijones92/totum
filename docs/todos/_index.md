@@ -91,7 +91,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Group feeds done properly: date order, new marker, notifications, a Library tile](group-feeds-done-properly.md) | video | high | built 2026-10-29 (ADRs 94, 95) |
 | [Torrent search answers fast and never gives up early](torrent-search-speed.md) | search/torrents/pi | high | decided 2026-10-24, in progress |
 | [A token per device for the home server, none in links](home-server-per-device-tokens.md) | torrents/pi/security | high | in progress |
-| [Confirm big destructive actions](confirm-big-actions.md) | queue/ui | high | done 2026-10-22 (clear queue/history, delete downloads, remove group: hold to confirm) |
+| [Confirm big destructive actions](confirm-big-actions.md) | queue/ui | high | done 2026-10-22 (clear queue/history, delete downloads, remove group: hold to confirm); history clear moved to Undo 2026-11-06 |
 | [Lock a download so it is not easily deleted](locked-downloads.md) | downloads | high | ✅ done 2026-10-22 (ADR 75) |
 | [Reset a whole group or list to the start](reset-group-progress.md) | queue/library | medium | built 2026-10-22 for queue groups (⋮ → ↩️ Start again; ☑️ Select these → Mark as unplayed for any subset) |
 | [Speed through long pauses in videos while casting](video-skip-silences-speed.md) | cast | low | requested 2026-10-22 (Dewi's 24 h batch) |

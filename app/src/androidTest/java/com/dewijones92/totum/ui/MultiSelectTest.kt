@@ -3,6 +3,8 @@ package com.dewijones92.totum.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -38,6 +40,7 @@ import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.SELECTION_ACTIONS_TAG
@@ -45,6 +48,7 @@ import com.dewijones92.totum.ui.common.SELECTION_BAR_TAG
 import com.dewijones92.totum.ui.common.SelectableList
 import com.dewijones92.totum.ui.common.mediaBulkActions
 import com.dewijones92.totum.ui.common.rememberSelection
+import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
 import com.dewijones92.totum.ui.podcasts.PodcastFeedScreen
 import com.dewijones92.totum.ui.queue.QueueScreen
@@ -221,31 +225,42 @@ class MultiSelectTest {
     }
 
     @Test
-    fun `deleting several playlists asks first and deletes only when confirmed`() {
+    fun `deleting several playlists deletes them at once and Undo puts them back with their items`() {
         val container = FakeAppContainer()
         val store = container.localPlaylistStore
-        runBlocking { listOf("Road trip", "Gym", "Sleep").forEach { store.create(it) } }
+        val host = SnackbarHostState()
+        runBlocking {
+            val road = store.create("Road trip")
+            store.create("Gym")
+            val sleep = store.create("Sleep")
+            store.addItem(road, PlayableItem(item("a", "Alpha episode"), PlayHandle.Podcast()))
+            store.addItem(sleep, PlayableItem(item("b", "Beta episode"), PlayHandle.Podcast()))
+        }
         composeTestRule.setContent {
             TotumTheme {
-                ProvidePlayStates(container, onOpenSource = {}) {
-                    LocalPlaylistsScreen(container, onBack = {}, onOpen = {})
+                CompositionLocalProvider(LocalSnackbarOffers provides rememberSnackbarOffers(host)) {
+                    ProvidePlayStates(container, onOpenSource = {}) {
+                        LocalPlaylistsScreen(container, onBack = {}, onOpen = {})
+                    }
                 }
             }
         }
         composeTestRule.waitForIdle()
         fun names() = runBlocking { store.observePlaylists().first().map { it.name } }.sorted()
+        fun itemCounts() = runBlocking { store.observePlaylists().first().associate { it.name to it.itemCount } }
 
         longPress("Road trip")
         composeTestRule.onNodeWithText("Sleep").performClick()
         composeTestRule.onNodeWithText(activity.getString(R.string.playlist_delete)).performClick()
-        composeTestRule.onNodeWithText(activity.getString(R.string.cancel)).performClick()
-        composeTestRule.waitForIdle()
-        assertEquals("cancel deletes nothing", listOf("Gym", "Road trip", "Sleep"), names())
-
-        composeTestRule.onNodeWithText(activity.getString(R.string.playlist_delete)).performClick()
-        composeTestRule.onAllNodesWithText(activity.getString(R.string.playlist_delete))[1].performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { names().size == 1 }
-        assertEquals(listOf("Gym"), names())
+        assertEquals("no confirmation is asked", listOf("Gym"), names())
+
+        composeTestRule.waitUntil(TIMEOUT_MS) { host.currentSnackbarData != null }
+        composeTestRule.runOnUiThread { host.currentSnackbarData?.performAction() }
+        composeTestRule.waitUntil(TIMEOUT_MS) { names().size == 3 }
+
+        assertEquals(listOf("Gym", "Road trip", "Sleep"), names())
+        assertEquals(mapOf("Road trip" to 1, "Gym" to 0, "Sleep" to 1), itemCounts())
     }
 
     @Test

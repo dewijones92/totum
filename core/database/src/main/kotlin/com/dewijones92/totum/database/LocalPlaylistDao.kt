@@ -18,6 +18,12 @@ public interface LocalPlaylistDao {
     )
     public fun observePlaylists(): Flow<List<PlaylistCountRow>>
 
+    @Query("SELECT * FROM local_playlists WHERE id = :id")
+    public suspend fun playlist(id: String): LocalPlaylistEntity?
+
+    @Query("SELECT * FROM local_playlist_items WHERE playlistId = :id ORDER BY position")
+    public suspend fun items(id: String): List<LocalPlaylistItemEntity>
+
     @Query("SELECT * FROM local_playlist_items WHERE playlistId = :id ORDER BY position")
     public fun observeItems(id: String): Flow<List<LocalPlaylistItemEntity>>
 

@@ -101,6 +101,20 @@ un-pin, Recently, recent searches and group membership have Undo; a torrent pack
 queue tidy-up notice has Undo; removing the playing entry leaves no row current; gapless arming follows the kid lock like the
 advance; a download-delete batch has one Undo window; the live registry survives a restart.
 
+Decisions Dewi delegated to the coordinator, 2026-11-06 ("your call on each"; each is the coordinator's call, and Dewi
+delegated it), built the same day:
+
+- **Deleting a whole playlist and clearing the History offer ↩️ Undo, not a confirm dialog or a hold** (a playlist from
+  the Playlists list, in bulk, or from its own page); the two were the last destructive actions of their kind with a
+  confirm in front of them, so they are not recorded as exceptions ([ADR 128](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md)).
+- **The All subscriptions page's latest-upload line carries the live tag** (🔴 LIVE, ⏺️ WAS LIVE, starts soon) through
+  the one `liveTagOf` rule, like every row ([ADR 132](0132-the-live-tag-is-read-from-one-registry-and-kept-true.md)). It
+  is not filtered by Not for me: it is a fact about your own subscription, not a suggestion.
+- 🙅 Not for me on the item playing now skips to the next item, and removing the playing entry keeps it playing with no row
+  marked as playing, with Undo putting it back as current (ADR 128).
+- Every sleep timer fades out over its last 20 s, and cancelling Bedtime's own timer keeps Bedtime off until that night ends
+  ([ADR 133](0133-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md)).
+
 Recorded exceptions from that pass:
 
 - **A book's menu has Share (title only), Not for me and Details, and no Star, queue, download or Copy link.** A book is a

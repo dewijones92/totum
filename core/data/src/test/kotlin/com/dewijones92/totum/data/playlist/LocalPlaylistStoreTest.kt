@@ -98,4 +98,55 @@ class LocalPlaylistStoreTest {
         assertTrue(byId.getValue("p1").handle is PlayHandle.Podcast)
         assertEquals("https://feeds.example.com/p1.mp3", byId.getValue("p1").item.mediaUrl?.value)
     }
+
+    @Test
+    fun `a deleted playlist comes back with its id, name, items and place in the list`() = runTest {
+        val first = store.create("First")
+        val middle = store.create("Middle")
+        val last = store.create("Last")
+        store.addItem(middle, video("v1"))
+        store.addItem(middle, podcast("p1"))
+        store.addItem(middle, video("v2"))
+
+        val removed = store.delete(middle)!!
+        assertEquals(listOf("First", "Last"), store.observePlaylists().first().map { it.name })
+
+        store.restore(removed)
+
+        assertEquals(listOf("First", "Middle", "Last"), store.observePlaylists().first().map { it.name })
+        assertEquals(listOf(first, middle, last), store.observePlaylists().first().map { it.id })
+        assertEquals(listOf("v1", "p1", "v2"), items(middle).map { it.item.id.value })
+        assertEquals(3, store.observePlaylists().first()[1].itemCount)
+    }
+
+    @Test
+    fun `deleting a playlist that is not there returns nothing`() = runTest {
+        assertEquals(null, store.delete(PlaylistId("nope")))
+    }
+
+    @Test
+    fun `restoring a playlist that exists again changes nothing`() = runTest {
+        val id = store.create("Mine")
+        store.addItem(id, video("v1"))
+        val removed = store.delete(id)!!
+        store.restore(removed)
+        store.addItem(id, video("v2"))
+
+        store.restore(removed)
+
+        assertEquals(listOf("v1", "v2"), items(id).map { it.item.id.value })
+        assertEquals(1, store.observePlaylists().first().size)
+    }
+
+    @Test
+    fun `several deleted playlists restore in any order and keep their places`() = runTest {
+        val ids = listOf("A", "B", "C", "D").map { store.create(it) }
+        val removedB = store.delete(ids[1])!!
+        val removedC = store.delete(ids[2])!!
+
+        store.restore(removedC)
+        store.restore(removedB)
+
+        assertEquals(listOf("A", "B", "C", "D"), store.observePlaylists().first().map { it.name })
+    }
 }

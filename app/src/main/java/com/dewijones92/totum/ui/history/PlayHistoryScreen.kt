@@ -31,9 +31,7 @@ import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShapeControl
-import com.dewijones92.totum.ui.common.destructiveTexts
 import com.dewijones92.totum.ui.common.rememberChooseDownload
-import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberListShape
 import com.dewijones92.totum.ui.common.rememberSelection
@@ -52,8 +50,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
     val selection = rememberSelection("history")
     val listFilter = rememberListFilter("history")
     val shape = rememberListShape("history")
-    val confirmClear = rememberHoldToConfirmAsk()
-    val clearTexts = destructiveTexts(R.plurals.history_clear_confirm, items.size, R.string.history_clear)
+    val clearHistory = rememberClearHistoryWithUndo(viewModel.clearing)
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -61,7 +58,7 @@ fun PlayHistoryScreen(container: AppContainer, onBack: () -> Unit, modifier: Mod
                 ShapeControl(shape)
                 FilterToggle(listFilter, items.size)
                 if (items.isNotEmpty()) {
-                    TextButton(onClick = { confirmClear(clearTexts) { viewModel.clear() } }) {
+                    TextButton(onClick = { clearHistory(items.size) }) {
                         Text(stringResource(R.string.history_clear))
                     }
                 }

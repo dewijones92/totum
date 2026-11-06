@@ -2,6 +2,8 @@ package com.dewijones92.totum.database
 
 import androidx.room.Dao
 import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
@@ -37,8 +39,17 @@ public interface PlayHistoryDao {
     @Query("SELECT * FROM play_history ORDER BY lastPlayedAtEpochMs DESC LIMIT :limit")
     public fun observe(limit: Int): Flow<List<PlayHistoryEntity>>
 
+    @Query("SELECT * FROM play_history ORDER BY lastPlayedAtEpochMs DESC")
+    public suspend fun all(): List<PlayHistoryEntity>
+
+    @Query("SELECT MIN(lastPlayedAtEpochMs) FROM play_history")
+    public suspend fun oldestPlayedAt(): Long?
+
     @Upsert
     public suspend fun upsert(entity: PlayHistoryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    public suspend fun insertIfAbsent(entity: PlayHistoryEntity)
 
     /** Drops all but the [limit] most-recent, so history stays bounded. */
     @Query(

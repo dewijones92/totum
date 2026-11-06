@@ -25,3 +25,14 @@ A playlist Undo puts the item back in its old slot (`LocalPlaylistStore.insertIt
 positions up by one). Tests to add: `PendingDownloadDeletes` (hide, undo, window end, start-up recovery, locked), the
 helper's no-host and nothing-removed branches, `AskViewModel.forget`/`unforget`,
 `LocalPlaylistDetailViewModel.removeAll`/`restore`, Room `insertItem` (androidTest).
+
+## Whole-playlist delete and History clear (2026-11-06, third pass)
+
+Decided by the coordinator; Dewi delegated it ("your call on each", 2026-11-06): both offer ↩️ Undo instead of a confirm
+dialog or a hold, through the same helper. The playlist list's bulk Delete and the playlist page's Delete go through
+`PlaylistRemovals`, the History header's Clear all through `HistoryClearing`; the stores return what they removed
+(`RemovedPlaylist`, the entries) and take it back (`restore`), and the snapshot is held in memory for the snackbar's
+window. Details and the limit (a process death inside the window loses it) are in
+[ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md). Tests: see
+[tests/_index](../tests/_index.md); owed: the playlist page's Delete → Undo on a device, and a screenshot of the snackbar.
+

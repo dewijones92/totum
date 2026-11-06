@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PlaylistId
@@ -43,6 +44,7 @@ class LocalPlaylistDetailViewModel(
     private val downloads: DownloadManager,
     private val stars: Stars? = null,
     accountLikes: YouTubePlaylists? = null,
+    val playlistRemovals: PlaylistRemovals,
 ) : ViewModel() {
 
     val isStarred: Boolean = id == STARRED_PLAYLIST
@@ -141,11 +143,9 @@ class LocalPlaylistDetailViewModel(
         if (trimmed.isNotEmpty()) viewModelScope.launch { store.rename(id, trimmed) }
     }
 
-    fun delete() {
-        viewModelScope.launch {
-            store.delete(id)
-            deleted.value = true
-        }
+    fun delete(through: (List<LocalPlaylist>) -> Unit) {
+        through(listOf(LocalPlaylist(id, name.value, items.value.size)))
+        deleted.value = true
     }
 
     companion object {
@@ -161,6 +161,7 @@ class LocalPlaylistDetailViewModel(
                     downloads = container.downloadManager,
                     stars = container.stars,
                     accountLikes = container.youTubePlaylists,
+                    playlistRemovals = PlaylistRemovals(container.localPlaylistStore, container.applicationScope),
                 )
             }
         }

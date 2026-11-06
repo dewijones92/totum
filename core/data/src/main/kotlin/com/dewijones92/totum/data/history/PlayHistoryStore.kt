@@ -17,5 +17,7 @@ public interface PlayHistoryStore {
     /** Records [item] as just-played (moving it to the front if already present). */
     public suspend fun record(item: PlayableItem)
 
-    public suspend fun clear()
+    public suspend fun clear(): List<PlayableItem>
+
+    public suspend fun restore(items: List<PlayableItem>)
 }

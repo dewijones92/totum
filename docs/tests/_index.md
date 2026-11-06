@@ -959,3 +959,12 @@ already runs the crashlog server with a SQLite index behind Google auth; that pa
 - **Explore and the queue's place (2026-10-15):** `ExploreModeTest` (unit, fakes) and `AnExcursionKeepsTheQueuesPlaceTest`
   (the real `PlaybackQueue`, offline with copies on disk); the device round trip (Explore on → related → off → Next)
   was run by hand on totum-api35, not in CI.
+- **Whole-playlist delete and History clear offer Undo (2026-11-06, ADR 128):** `LocalPlaylistStoreTest` and
+  `PlayHistoryStoreTest` (delete/clear returns what was removed; restore keeps id, items, place in the list or the
+  order, never duplicates and respects the cap), `PlaylistRemovalsTest` and `HistoryClearingTest` (`:app`, the held
+  snapshot, an Undo asked before the delete finished, nothing chosen). Written but **not yet run on a device** (the
+  emulator was not touched): `MultiSelectTest` (bulk delete needs no confirm and Undo restores the playlists with their
+  items) and `RoomUndoTest` (`:core:database`, the Room side of both restores). Still owed: the playlist's own page
+  Delete → Undo (instrumented), and the screenshot of the snackbar over each screen.
+- **The All subscriptions row wears the live tag (2026-11-06, ADR 132):** `AllSubscriptionsListTest` (instrumented, not
+  yet run on a device): from the registry, from the saved kind, an ended stream, and an ordinary upload with no tag.

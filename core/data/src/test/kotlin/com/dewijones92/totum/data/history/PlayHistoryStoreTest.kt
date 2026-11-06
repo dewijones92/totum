@@ -56,4 +56,52 @@ class PlayHistoryStoreTest {
         store.clear()
         assertTrue(ids(store).isEmpty())
     }
+
+    @Test
+    fun `clearing hands back what was there, most recent first`() = runTest {
+        val store = InMemoryPlayHistoryStore()
+        store.record(video("a"))
+        store.record(video("b"))
+
+        val cleared = store.clear()
+
+        assertEquals(listOf("b", "a"), cleared.map { it.item.id.value })
+        assertTrue(ids(store).isEmpty())
+    }
+
+    @Test
+    fun `restoring puts the cleared history back in its old order`() = runTest {
+        val store = InMemoryPlayHistoryStore()
+        listOf("a", "b", "c").forEach { store.record(video(it)) }
+
+        store.restore(store.clear())
+
+        assertEquals(listOf("c", "b", "a"), ids(store))
+    }
+
+    @Test
+    fun `what was played during the undo window stays in front and is not duplicated`() = runTest {
+        val store = InMemoryPlayHistoryStore()
+        listOf("a", "b", "c").forEach { store.record(video(it)) }
+        val cleared = store.clear()
+        store.record(video("x"))
+        store.record(video("b"))
+
+        store.restore(cleared)
+
+        assertEquals(listOf("b", "x", "c", "a"), ids(store))
+    }
+
+    @Test
+    fun `restoring never takes the history past its cap`() = runTest {
+        val store = InMemoryPlayHistoryStore(limit = 3)
+        listOf("a", "b", "c").forEach { store.record(video(it)) }
+        val cleared = store.clear()
+        store.record(video("x"))
+        store.record(video("y"))
+
+        store.restore(cleared)
+
+        assertEquals(listOf("y", "x", "c"), ids(store))
+    }
 }

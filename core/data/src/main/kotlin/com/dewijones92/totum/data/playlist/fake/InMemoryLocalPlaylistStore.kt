@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.playlist.fake
 
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
+import com.dewijones92.totum.data.playlist.RemovedPlaylist
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
@@ -13,10 +14,11 @@ import kotlinx.coroutines.flow.update
 /** In-memory [LocalPlaylistStore] for tests and previews. */
 public class InMemoryLocalPlaylistStore : LocalPlaylistStore {
 
-    private data class Entry(val name: String, val items: List<PlayableItem>)
+    private data class Entry(val name: String, val items: List<PlayableItem>, val createdAt: Long)
 
     private val playlists = MutableStateFlow<Map<String, Entry>>(emptyMap())
     private var nextId = 0
+    private var clock = 0L
 
     override fun observePlaylists(): Flow<List<LocalPlaylist>> = playlists.map { map ->
         map.entries.map { (id, e) -> LocalPlaylist(PlaylistId(id), e.name, e.items.size) }
@@ -27,20 +29,35 @@ public class InMemoryLocalPlaylistStore : LocalPlaylistStore {
 
     override suspend fun create(name: String): PlaylistId {
         val id = "pl-${nextId++}"
-        playlists.update { it + (id to Entry(name, emptyList())) }
+        playlists.update { it + (id to Entry(name, emptyList(), clock++)) }
         return PlaylistId(id)
     }
 
     override suspend fun ensure(id: PlaylistId, name: String) {
-        playlists.update { if (id.value in it) it else it + (id.value to Entry(name, emptyList())) }
+        playlists.update { if (id.value in it) it else it + (id.value to Entry(name, emptyList(), clock++)) }
     }
 
     override suspend fun rename(id: PlaylistId, name: String) {
         playlists.update { map -> map[id.value]?.let { map + (id.value to it.copy(name = name)) } ?: map }
     }
 
-    override suspend fun delete(id: PlaylistId) {
+    override suspend fun delete(id: PlaylistId): RemovedPlaylist? {
+        val entry = playlists.value[id.value] ?: return null
         playlists.update { it - id.value }
+        return RemovedPlaylist(id, entry.name, entry.createdAt, entry.items)
+    }
+
+    override suspend fun restore(removed: RemovedPlaylist) {
+        playlists.update { map ->
+            if (removed.id.value in map) return@update map
+            val older = map.entries.filter { it.value.createdAt < removed.createdAtEpochMs }
+            val newer = map.entries.filter { it.value.createdAt >= removed.createdAtEpochMs }
+            buildMap {
+                older.forEach { put(it.key, it.value) }
+                put(removed.id.value, Entry(removed.name, removed.items, removed.createdAtEpochMs))
+                newer.forEach { put(it.key, it.value) }
+            }
+        }
     }
 
     override suspend fun addItem(id: PlaylistId, item: PlayableItem) {

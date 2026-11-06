@@ -16,34 +16,46 @@ public class RoomPlayHistoryStore(
     }
 
     override suspend fun record(item: PlayableItem) {
-        val (type, handle) = item.handle.typeAndHandle()
-        dao.upsert(
-            PlayHistoryEntity(
-                itemId = item.item.id.value,
-                lastPlayedAtEpochMs = System.currentTimeMillis(),
-                title = item.item.title,
-                author = item.item.author,
-                publisher = item.item.publisher,
-                thumbnailUrl = item.item.thumbnailUrl?.value,
-                sourceId = item.item.sourceId.value,
-                contentKind = item.item.contentKind.name,
-                // The listing's own facts, or they are lost the moment the row is written -- see
-                // PlaylistItemColumns.
-                viewsText = item.item.viewsText,
-                publishedText = item.item.publishedText,
-                publishedAtEpochMs = item.item.publishedAt?.toEpochMilli(),
-                durationMs = item.item.duration?.inWholeMilliseconds,
-                sourceUrl = item.item.sourceUrl?.value,
-                membersOnly = item.item.membersOnly,
-                albumId = item.item.album?.id,
-                albumTitle = item.item.album?.title,
-                playbackType = type,
-                handle = handle,
-                mediaUrl = item.item.mediaUrl?.storedValue(),
-            ),
-        )
+        dao.upsert(entityOf(item, System.currentTimeMillis()))
         dao.trim(limit)
     }
 
-    override suspend fun clear(): Unit = dao.clear()
+    override suspend fun clear(): List<PlayableItem> {
+        val cleared = dao.all().mapNotNull(::playlistItemFrom)
+        dao.clear()
+        return cleared
+    }
+
+    override suspend fun restore(items: List<PlayableItem>) {
+        val firstPlayedAt = dao.oldestPlayedAt()?.minus(1) ?: System.currentTimeMillis()
+        items.forEachIndexed { index, item -> dao.insertIfAbsent(entityOf(item, firstPlayedAt - index)) }
+        dao.trim(limit)
+    }
+
+    private fun entityOf(item: PlayableItem, playedAt: Long): PlayHistoryEntity {
+        val (type, handle) = item.handle.typeAndHandle()
+        return PlayHistoryEntity(
+            itemId = item.item.id.value,
+            lastPlayedAtEpochMs = playedAt,
+            title = item.item.title,
+            author = item.item.author,
+            publisher = item.item.publisher,
+            thumbnailUrl = item.item.thumbnailUrl?.value,
+            sourceId = item.item.sourceId.value,
+            contentKind = item.item.contentKind.name,
+            // The listing's own facts, or they are lost the moment the row is written -- see
+            // PlaylistItemColumns.
+            viewsText = item.item.viewsText,
+            publishedText = item.item.publishedText,
+            publishedAtEpochMs = item.item.publishedAt?.toEpochMilli(),
+            durationMs = item.item.duration?.inWholeMilliseconds,
+            sourceUrl = item.item.sourceUrl?.value,
+            membersOnly = item.item.membersOnly,
+            albumId = item.item.album?.id,
+            albumTitle = item.item.album?.title,
+            playbackType = type,
+            handle = handle,
+            mediaUrl = item.item.mediaUrl?.storedValue(),
+        )
+    }
 }

@@ -19,7 +19,15 @@ public class InMemoryPlayHistoryStore(private val limit: Int = 50) : PlayHistory
         }
     }
 
-    override suspend fun clear() {
+    override suspend fun clear(): List<PlayableItem> {
+        val cleared = history.value
         history.value = emptyList()
+        return cleared
+    }
+
+    override suspend fun restore(items: List<PlayableItem>) {
+        history.update { current ->
+            (current + items.filterNot { back -> current.any { it.item.id == back.item.id } }).take(limit)
+        }
     }
 }

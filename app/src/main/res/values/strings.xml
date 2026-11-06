@@ -484,6 +484,14 @@
         <item quantity="one">🗑️ Removed %1$d item from the playlist</item>
         <item quantity="other">🗑️ Removed %1$d items from the playlist</item>
     </plurals>
+    <plurals name="playlists_deleted">
+        <item quantity="one">🗑️ Deleted the playlist “%2$s”</item>
+        <item quantity="other">🗑️ Deleted %1$d playlists</item>
+    </plurals>
+    <plurals name="history_cleared">
+        <item quantity="one">🧹 Cleared %d play history entry</item>
+        <item quantity="other">🧹 Cleared %d play history entries</item>
+    </plurals>
     <string name="library_downloads">Downloads</string>
     <string name="downloads_on_the_phone">On the phone</string>
 
@@ -789,10 +797,6 @@
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>
     </plurals>
-    <plurals name="playlist_delete_confirm">
-        <item quantity="one">Delete %1$d playlist? Its items stay wherever else they are.</item>
-        <item quantity="other">Delete %1$d playlists? Their items stay wherever else they are.</item>
-    </plurals>
     <plurals name="unsubscribe_confirm">
         <item quantity="one">Unsubscribe from %1$d source? YouTube channels are unsubscribed on your account too.</item>
         <item quantity="other">Unsubscribe from %1$d sources? YouTube channels are unsubscribed on your account too.</item>
@@ -890,10 +894,6 @@
     <plurals name="playlist_remove_confirm">
         <item quantity="one">⚠️ Remove %d item from this playlist?</item>
         <item quantity="other">⚠️ Remove %d items from this playlist?</item>
-    </plurals>
-    <plurals name="history_clear_confirm">
-        <item quantity="one">⚠️ Clear your play history? Its %d entry goes, and this cannot be undone.</item>
-        <item quantity="other">⚠️ Clear your play history? All %d entries go, and this cannot be undone.</item>
     </plurals>
     <string name="starting_play">⏳ Starting…</string>
     <string name="settings_explore">Start in Explore mode</string>

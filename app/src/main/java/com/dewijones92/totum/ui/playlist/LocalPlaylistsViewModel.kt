@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** The local-playlists list: observe, create, rename, delete. */
-class LocalPlaylistsViewModel(private val store: LocalPlaylistStore) : ViewModel() {
+class LocalPlaylistsViewModel(private val store: LocalPlaylistStore, val removals: PlaylistRemovals) : ViewModel() {
 
     val playlists: StateFlow<List<LocalPlaylist>> =
         store.observeYourPlaylists().stateIn(
@@ -35,15 +35,16 @@ class LocalPlaylistsViewModel(private val store: LocalPlaylistStore) : ViewModel
         if (trimmed.isNotEmpty()) viewModelScope.launch { store.rename(id, trimmed) }
     }
 
-    fun delete(id: PlaylistId) {
-        viewModelScope.launch { store.delete(id) }
-    }
-
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LocalPlaylistsViewModel(container.localPlaylistStore) }
+            initializer {
+                LocalPlaylistsViewModel(
+                    container.localPlaylistStore,
+                    PlaylistRemovals(container.localPlaylistStore, container.applicationScope),
+                )
+            }
         }
     }
 }

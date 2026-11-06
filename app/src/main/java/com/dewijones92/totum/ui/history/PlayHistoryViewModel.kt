@@ -19,9 +19,10 @@ import kotlinx.coroutines.launch
 
 /** Recently-played items across both pillars; tap to replay, or clear the lot. */
 class PlayHistoryViewModel(
-    private val store: PlayHistoryStore,
+    store: PlayHistoryStore,
     private val queue: PlaybackQueue,
     private val downloads: DownloadManager,
+    val clearing: HistoryClearing,
 ) : ViewModel() {
 
     val items: StateFlow<List<PlayableItem>> = store.observe()
@@ -39,10 +40,6 @@ class PlayHistoryViewModel(
         viewModelScope.launch { downloads.deleteSoon(itemId) }
     }
 
-    fun clear() {
-        viewModelScope.launch { store.clear() }
-    }
-
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
 
@@ -52,6 +49,7 @@ class PlayHistoryViewModel(
                     store = container.playHistoryStore,
                     queue = container.playbackQueue,
                     downloads = container.downloadManager,
+                    clearing = HistoryClearing(container.playHistoryStore, container.applicationScope),
                 )
             }
         }

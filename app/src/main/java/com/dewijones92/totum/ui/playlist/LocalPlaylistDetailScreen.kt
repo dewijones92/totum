@@ -72,6 +72,7 @@ fun LocalPlaylistDetailScreen(
     val listFilter = rememberListFilter("local-playlist")
     val shape = rememberListShape("local-playlist")
     OfferUndoOfRemovals(viewModel)
+    val deletePlaylist = rememberDeletePlaylistsWithUndo(viewModel.playlistRemovals)
 
     if (deleted) onBack()
 
@@ -81,7 +82,7 @@ fun LocalPlaylistDetailScreen(
                 name = name,
                 onBack = onBack,
                 onRename = { renaming = true },
-                onDelete = viewModel::delete,
+                onDelete = { viewModel.delete(deletePlaylist) },
                 fixed = viewModel.isStarred,
                 filterToggle = {
                     ShapeControl(shape)

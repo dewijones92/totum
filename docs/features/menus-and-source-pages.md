@@ -93,6 +93,15 @@ have copy buttons; the version line copies on long press. Test: `LinkSpansTest`.
 
 ## Removing from a playlist can be undone (2026-11-06)
 
+Deleting a whole playlist (from the Playlists list, in bulk, or from its own page) and clearing the play history offer
+Undo through the same helper, with no confirm or hold in front of them (the coordinator's call; Dewi delegated it,
+2026-11-06). The stores return what they removed and take it back (`LocalPlaylistStore.delete`/`restore` with a
+`RemovedPlaylist`, `PlayHistoryStore.clear`/`restore`); a playlist returns under its own id with its items in order and
+its old place in the list, the history returns in its old order behind anything played since
+([ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md), third pass). Tests:
+`PlaylistRemovalsTest`, `HistoryClearingTest`, the store tests, `MultiSelectTest` and `RoomUndoTest` (the two instrumented
+ones are written, not yet run on a device).
+
 Removing items from a local playlist (one row, or several selected) offers Undo on the shell's snackbar. Undo puts them
 back **in their old places** (`LocalPlaylistStore.insertItem(id, item, at)`, the same idea as the queue's `restoreAt`). In Starred, Undo stars them again, which also re-likes a
 YouTube item on the account.
@@ -109,7 +118,12 @@ written to the not-for-me list (`NotForMe` in `:core:data`, `not-for-me.json`, p
   dropped).
 - **Deliberately not filtered** (you asked for or opened it): channel and podcast pages and their episode lists (the
   source's own catalogue), search results, playlists, Starred, history, downloads and Library, and the queue itself.
-  Adding a listed item by hand from one of these still works.
+  Adding a listed item by hand from one of these still works. **The All subscriptions page is not filtered either**
+  (2026-11-06, the coordinator's call; Dewi delegated it): its latest-upload line is a fact about your own subscription,
+  not a suggestion, so a 🙅 item is still named there (and carries the live tag like every row).
+- **On what is playing now,** 🙅 Not for me skips to the next item (with nothing after it, playback pauses), the
+  coordinator's call; Dewi delegated it, 2026-11-06. Details under "Removing the playing entry" in
+  [playback-queue.md](playback-queue.md).
 
 Settings > Not for me lists the items and allows one again (with Undo). It is per item, not per channel
 ([ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md)).

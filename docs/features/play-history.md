@@ -3,13 +3,20 @@ title: Play history
 kind: feature
 status: shipped
 area: library
-updated: 2026-07-24
+updated: 2026-11-06
 ---
 
 # Play history
 
 A "Recently played" list across both pillars, in Library → History. Most-recent
 first, tap to replay, Clear all.
+
+**Clear all offers ↩️ Undo, not a confirm** (2026-11-06, the coordinator's call; Dewi delegated it, ADR 128). The old hold
+to confirm is gone. `PlayHistoryStore.clear()` returns the entries it removed (most recent first) and `restore(items)` puts
+them back in their old order **behind** anything played since, skipping items already present and never past the cap
+(Room gives each restored entry a timestamp just older than the oldest entry still there). The snackbar's window is long;
+Undo runs on the application scope, so it works after leaving the page. The snapshot is held in memory (`HeldRemoval`),
+so a process death inside the window loses the undo. Code: `ui/history/HistoryClearing.kt`.
 
 ## Seam
 
@@ -49,7 +56,9 @@ it, and `playlistItemFrom(columns)` is the single mapper back to a `PlaylistItem
 
 ## Tests
 
-`PlayHistoryStoreTest` (order / move-to-front dedup / cap / clear). Verified
+`PlayHistoryStoreTest` (order / move-to-front dedup / cap / clear, and clear-then-restore: order, newer plays stay on
+top, no duplicates, the cap), `HistoryClearingTest` (the Undo path through the held snapshot), `RoomUndoTest`
+(`:core:database` instrumented: the Room side of restore; written, not yet run on a device). Verified
 on-device: play a video and a podcast → both appear under Library → History,
 most-recent first; tap replays; Clear all empties it.
 

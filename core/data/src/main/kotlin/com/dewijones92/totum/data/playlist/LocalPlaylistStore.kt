@@ -26,7 +26,9 @@ public interface LocalPlaylistStore {
 
     public suspend fun rename(id: PlaylistId, name: String)
 
-    public suspend fun delete(id: PlaylistId)
+    public suspend fun delete(id: PlaylistId): RemovedPlaylist?
+
+    public suspend fun restore(removed: RemovedPlaylist)
 
     /** Appends [item] to the end of the playlist (idempotent per item id). */
     public suspend fun addItem(id: PlaylistId, item: PlayableItem)
@@ -36,3 +38,10 @@ public interface LocalPlaylistStore {
 
     public suspend fun removeItem(id: PlaylistId, itemId: com.dewijones92.totum.domain.MediaItemId)
 }
+
+public data class RemovedPlaylist(
+    public val id: PlaylistId,
+    public val name: String,
+    public val createdAtEpochMs: Long,
+    public val items: List<PlayableItem>,
+)

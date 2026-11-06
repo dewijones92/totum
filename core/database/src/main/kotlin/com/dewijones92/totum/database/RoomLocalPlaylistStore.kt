@@ -1,6 +1,7 @@
 package com.dewijones92.totum.database
 
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
+import com.dewijones92.totum.data.playlist.RemovedPlaylist
 import com.dewijones92.totum.domain.LocalPlaylist
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
@@ -29,7 +30,20 @@ public class RoomLocalPlaylistStore(private val dao: LocalPlaylistDao) : LocalPl
 
     override suspend fun rename(id: PlaylistId, name: String): Unit = dao.rename(id.value, name)
 
-    override suspend fun delete(id: PlaylistId): Unit = dao.deletePlaylist(id.value)
+    override suspend fun delete(id: PlaylistId): RemovedPlaylist? {
+        val playlist = dao.playlist(id.value) ?: return null
+        val items = dao.items(id.value).mapNotNull(::playlistItemFrom)
+        dao.deletePlaylist(id.value)
+        return RemovedPlaylist(id, playlist.name, playlist.createdAtEpochMs, items)
+    }
+
+    override suspend fun restore(removed: RemovedPlaylist) {
+        if (dao.playlist(removed.id.value) != null) return
+        dao.insertPlaylistIfAbsent(LocalPlaylistEntity(removed.id.value, removed.name, removed.createdAtEpochMs))
+        removed.items.forEachIndexed { index, item ->
+            dao.insertItem(item.toEntity(removed.id.value, index.toLong()))
+        }
+    }
 
     override suspend fun addItem(id: PlaylistId, item: PlayableItem) {
         dao.insertItem(item.toEntity(id.value, dao.nextPosition(id.value)))

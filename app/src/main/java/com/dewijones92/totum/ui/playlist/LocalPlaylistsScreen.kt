@@ -73,7 +73,7 @@ fun LocalPlaylistsScreen(
                     )
                 }
             }
-            PlaylistList(playlists, listFilter, onOpen, onDelete = viewModel::delete)
+            PlaylistList(playlists, listFilter, onOpen, onDelete = rememberDeletePlaylistsWithUndo(viewModel.removals))
         }
     }
 
@@ -158,7 +158,7 @@ private fun PlaylistList(
     playlists: List<LocalPlaylist>,
     listFilter: ListFilter,
     onOpen: (PlaylistId) -> Unit,
-    onDelete: (PlaylistId) -> Unit,
+    onDelete: (List<LocalPlaylist>) -> Unit,
 ) {
     val selection = rememberSelection("local-playlists")
     if (playlists.isEmpty()) {
@@ -180,9 +180,7 @@ private fun PlaylistList(
             { it.id.value },
             { chosen ->
                 listOf(
-                    BulkAction(R.string.playlist_delete, confirm = R.plurals.playlist_delete_confirm) {
-                        chosen.forEach { onDelete(it.id) }
-                    },
+                    BulkAction(R.string.playlist_delete) { onDelete(chosen) },
                 )
             },
         ) {

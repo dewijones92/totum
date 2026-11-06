@@ -3,7 +3,7 @@ title: Multi-select on every list
 kind: feature
 status: shipped
 area: ui
-updated: 2026-10-23
+updated: 2026-11-06
 ---
 
 # Multi-select on every list
@@ -27,7 +27,9 @@ own menu, so nothing was lost.
 - **Per list:** Queue adds Remove from queue, Move to top, Move to bottom (order kept); a local playlist
   adds Remove from playlist.
 - **Non-media lists:** local playlists — **Delete**; All subscriptions — **Unsubscribe** (both pillars;
-  YouTube channels are unsubscribed on the account). Both **ask for confirmation**.
+  YouTube channels are unsubscribed on the account). Unsubscribe **asks for confirmation**; deleting playlists does not
+  (since 2026-11-06 it deletes at once and offers ↩️ Undo, which puts every one back with its items and its place in the
+  list; the coordinator's call, Dewi delegated it, ADR 128).
 - Not selectable: the channel Playlists tab and account playlists list (no action applies to many), the
   Related strip in the player, the groups and add-to-playlist pickers.
 
@@ -104,8 +106,8 @@ wires its rows. The add-to-playlist picker now takes many items (`rememberPlayli
 ## Tests
 
 `SelectionTest` (JVM); `MultiSelectTest` (instrumented, 12): long-press/tap/toggle, Back, add-to-queue and
-play-next order, queue move-to-top and remove, select-all respects the filter, playlist delete and
-unsubscribe both confirm (cancel does nothing), holding the grip does not select, adding 12 to a slow
+play-next order, queue move-to-top and remove, select-all respects the filter, deleting playlists needs no confirm and its Undo restores them with their items, and
+unsubscribe confirms (cancel does nothing), holding the grip does not select, adding 12 to a slow
 playlist store keeps all 12, queue select-all ignores a collapsed group, bulk download hands the
 selection to the episode sheet (ADR 80), which unticks what is on the phone, and a filter that briefly matches nothing keeps the selection. `PlaybackQueueTest` covers bulk add-to-end and play-next order,
 mirroring one but not many, and an empty add not discarding the saved queue; `GoToSourceGoesThereTest`
