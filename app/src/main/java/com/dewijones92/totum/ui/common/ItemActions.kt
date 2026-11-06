@@ -54,6 +54,12 @@ internal interface ItemActions {
     fun watch(item: MediaItem) {}
 
     fun notForMe(item: MediaItem): (() -> Unit)? = null
+
+    fun share(item: MediaItem): (() -> Unit)? = null
+
+    fun copyLink(item: MediaItem): (() -> Unit)? = null
+
+    fun shareList(title: String, items: List<MediaItem>): (() -> Unit)? = null
 }
 
 /** Null only in previews and tests, where a row legitimately has nothing behind it. */

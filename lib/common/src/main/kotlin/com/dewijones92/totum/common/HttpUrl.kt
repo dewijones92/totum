@@ -13,6 +13,8 @@ import java.net.URI
 @JvmInline
 public value class HttpUrl private constructor(public val value: String) {
 
+    public val host: String? get() = runCatching { URI(value).host }.getOrNull()
+
     override fun toString(): String = value
 
     public companion object {

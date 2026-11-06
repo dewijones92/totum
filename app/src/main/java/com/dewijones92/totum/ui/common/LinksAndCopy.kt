@@ -1,6 +1,9 @@
 package com.dewijones92.totum.ui.common
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -12,12 +15,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -88,16 +93,51 @@ fun rememberLinkOpener(): (String) -> Unit {
 }
 
 @Composable
-fun rememberCopy(text: String, what: String): () -> Unit {
+fun rememberCopier(): (text: String, what: String) -> Unit {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-    val copied = stringResource(R.string.copied, what)
-    return {
-        scope.launch {
-            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(what, text)))
-            Toast.makeText(context, copied, Toast.LENGTH_SHORT).show()
-            Diag.log("ui", "copied the $what")
+    return remember(clipboard, context, resources, scope) {
+        {
+                text: String, what: String ->
+            scope.launch {
+                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(what, text)))
+                Toast.makeText(context, resources.getString(R.string.copied, what), Toast.LENGTH_SHORT).show()
+                Diag.log("ui", "copied the $what")
+            }
+            Unit
+        }
+    }
+}
+
+@Composable
+fun rememberCopy(text: String, what: String): () -> Unit {
+    val copier = rememberCopier()
+    return { copier(text, what) }
+}
+
+@Composable
+fun rememberSharer(): (message: String, subject: String) -> Unit {
+    val context = LocalContext.current
+    val resources = LocalResources.current
+    return remember(context, resources) {
+        {
+                message: String, subject: String ->
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(Intent.EXTRA_SUBJECT, subject)
+                .putExtra(Intent.EXTRA_TEXT, message)
+            val chooser = Intent.createChooser(send, resources.getString(R.string.share_chooser_title))
+            if (context !is Activity) chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(chooser)
+                Diag.log("ui", "dewidebug share sheet opened for \"$subject\" (${message.length} characters)")
+            } catch (e: ActivityNotFoundException) {
+                Diag.warn("ui", "dewidebug no app could take the share of \"$subject\"", e)
+                Toast.makeText(context, resources.getString(R.string.share_no_app), Toast.LENGTH_SHORT).show()
+            }
+            Unit
         }
     }
 }

@@ -64,6 +64,8 @@ Recorded exceptions (kept on purpose):
 - **The queue's sort sheet ticks "As listed" after a sort**: a queue sort reorders the queue (ADR 66).
 - **`canonicalItemId` only rewrites exact watch URLs**: it mirrors the v26 database migration, so widening it would
   stop restored ids matching stored rows.
+- **A group shares its list of titles, and has no Copy link** (2026-11-06, [ADR 131](0131-share-and-copy-link-are-on-every-item-menu.md)):
+  a queue group or torrent pack has no address of its own.
 - **Group and new-upload items have no duration or views**: the channel RSS feed carries neither.
 - **Row tags are upper-case badges, facts are words**; "Show more", "Show all N" and "⬇️ Show N more" are different
   affordances (ADR 43).

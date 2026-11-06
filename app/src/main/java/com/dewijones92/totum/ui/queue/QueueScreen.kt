@@ -71,6 +71,7 @@ import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
 import com.dewijones92.totum.ui.common.LocalDownloadStates
+import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalLongPressHeldElsewhere
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MediaSort
@@ -186,6 +187,7 @@ private fun QueueActions.forGroup(id: String) = GroupHeaderActions(
     onPickDownloads = { onPickGroupDownloads(id) },
     homeAhead = homeAheadOf(id),
     onKeepAtHome = onKeepAtHome?.let { keep -> { count -> keep(id, count) } },
+    onShare = onShareGroup?.let { share -> { share(id) } },
 )
 
 /** The row actions, built once per change of their inputs rather than inline in the screen body. */
@@ -207,6 +209,7 @@ private fun rememberQueueActions(
     val homeAhead by container.homeAhead.keep.collectAsStateWithLifecycle()
     val selection = rememberSelection("queue")
     val startAgain = rememberStartGroupAgain(queue, snackbar, scope)
+    val itemActions = LocalItemActions.current
     return QueueActions(
         onPlay = queue::jumpTo,
         onPlayInstead = { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } },
@@ -256,6 +259,7 @@ private fun rememberQueueActions(
         selection = selection,
         onStartGroupAgain = startAgain,
         groupIdsOf = { id -> queue.idsIn(id) },
+        onShareGroup = itemActions?.let { actions -> { id -> shareGroup(actions, queue, id) } },
         onPickGroupDownloads = { id ->
             val members = queue.state.value.entries.filter { it.group?.id == id }
             container.episodeDownloads.ask(members.firstOrNull()?.group?.title ?: id, members.map { it.item })
@@ -290,6 +294,7 @@ private data class QueueActions(
     val onPickGroupDownloads: (String) -> Unit,
     val homeAheadOf: (String) -> Int? = { null },
     val onKeepAtHome: ((String, Int?) -> Unit)? = null,
+    val onShareGroup: ((String) -> Unit)? = null,
 )
 
 /**

@@ -60,7 +60,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Offline at a glance](offline-playable-chip.md) | queue | medium | decided 2026-11-06, Batch A |
 | [A daily mobile-data budget](mobile-data-budget.md) | playback | medium | built 2026-11-06, Batch A |
 | [Backups are test-read weekly](backup-checked.md) | backup | medium | built 2026-11-06, Batch A |
-| [Share and copy link on every item](share-link-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
+| [Share and copy link on every item](share-link-everywhere.md) | app | medium | built 2026-11-06, Batch A (tests owed) |
 | [A Carry on row in Library](carry-on-row.md) | library | medium | decided 2026-11-06, Batch A |
 | [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
 | [Time left per queue group](group-time-left.md) | queue | low | decided 2026-11-06, Batch A |

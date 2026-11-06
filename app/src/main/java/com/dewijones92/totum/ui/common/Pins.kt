@@ -47,6 +47,7 @@ data class SheetExtras(
     val onGoToAlbum: (() -> Unit)? = null,
     val music: Boolean = false,
     val item: MediaItem? = null,
+    val onShareList: (() -> Unit)? = null,
 )
 
 @Composable

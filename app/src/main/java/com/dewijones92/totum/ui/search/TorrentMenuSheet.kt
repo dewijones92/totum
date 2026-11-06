@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.ui.common.ActionSheet
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalItemActions
+import com.dewijones92.totum.ui.common.SheetExtras
 
 @Composable
 internal fun TorrentMenuSheet(search: SearchViewModel, container: AppContainer) {
@@ -42,5 +43,6 @@ internal fun TorrentMenuSheet(search: SearchViewModel, container: AppContainer) 
         onSetPlayed = actions?.let { a -> { played -> chosen.items.forEach { a.setPlayed(it.item.id, played) } } },
         played = false,
         onDismiss = search::closeTorrentMenu,
+        extras = SheetExtras(onShareList = actions?.shareList(chosen.title, chosen.items.map { it.item })),
     )
 }

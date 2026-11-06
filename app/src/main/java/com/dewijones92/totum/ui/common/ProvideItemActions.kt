@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalResources
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.di.AppContainer
@@ -16,8 +17,11 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.ShareLink
 import com.dewijones92.totum.domain.canonicalItemId
+import com.dewijones92.totum.domain.messageFor
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.shareLink
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
@@ -43,8 +47,11 @@ internal fun ProvideItemActions(
     val openMusicPage = LocalOpenMusicPage.current
     val resources = LocalResources.current
     val offers = LocalSnackbarOffers.current
-    val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources) {
-        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources)
+    val copier = rememberCopier()
+    val sharer = rememberSharer()
+    val links = remember(copier, sharer) { ItemLinks(copier, sharer) }
+    val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources, links) {
+        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources, links)
     }
     val openSource: (MediaSource) -> Unit = remember(onOpenSource) {
         {
@@ -93,6 +100,7 @@ private class ContainerItemActions(
     private val openMusicPage: ((MusicPage) -> Unit)?,
     private val offers: SnackbarOffers?,
     private val resources: Resources,
+    private val links: ItemLinks,
 ) : ItemActions {
     private val credits = ArtistCredits(container.musicCatalogue, container.operations) { title ->
         resources.getString(R.string.finding_artists, title)
@@ -179,6 +187,35 @@ private class ContainerItemActions(
         }
     }
 
+    override fun share(item: MediaItem): () -> Unit = {
+        val link = item.shareLink(HomeServerAuth.homeHost())
+        Diag.log("share", "dewidebug sharing \"${item.title}\" [id=${item.id.value}]: ${link.why}")
+        links.share(link.messageFor(item.title), item.title)
+    }
+
+    override fun copyLink(item: MediaItem): (() -> Unit)? {
+        val link = item.shareLink(HomeServerAuth.homeHost())
+        if (link !is ShareLink.Link) {
+            Diag.log("share", "dewidebug no link to copy for \"${item.title}\" [id=${item.id.value}]: ${link.why}")
+            return null
+        }
+        return {
+            Diag.log("share", "dewidebug copying the link of \"${item.title}\" [id=${item.id.value}]: ${link.why}")
+            links.copy(link.url.value, resources.getString(R.string.details_copy_link))
+        }
+    }
+
+    override fun shareList(title: String, items: List<MediaItem>): (() -> Unit)? {
+        if (items.isEmpty()) return null
+        return {
+            Diag.log(
+                "share",
+                "dewidebug sharing the list \"$title\": ${items.size} titles, no link because a group has none"
+            )
+            links.share(resources.shareListMessage(title, items), title)
+        }
+    }
+
     override fun watch(item: MediaItem) {
         rows.switchMode(item, toAudio = false, audioOnMessage = "", videoOnMessage = "", from = "player")
     }
@@ -188,6 +225,8 @@ private class ContainerItemActions(
         rows.switchMode(item, toAudio = !rows.audioMode, audioOnMessage = "", videoOnMessage = "")
     }
 }
+
+internal class ItemLinks(val copy: (String, String) -> Unit, val share: (String, String) -> Unit)
 
 private fun startRadioMix(container: AppContainer, items: List<MediaItem>) {
     val seeds = items.mapNotNull { item -> item.radioVideoId()?.let { it to item.title } }

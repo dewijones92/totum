@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_item">📤 Share</string>
+    <string name="copy_link">🔗 Copy link</string>
+    <string name="share_list">📤 Share the list of titles</string>
+    <string name="share_chooser_title">📤 Share</string>
+    <string name="share_no_app">⚠️ No app on this phone can take a share</string>
+    <plurals name="share_list_more">
+        <item quantity="one">➕ and 1 more</item>
+        <item quantity="other">➕ and %1$d more</item>
+    </plurals>
+</resources>

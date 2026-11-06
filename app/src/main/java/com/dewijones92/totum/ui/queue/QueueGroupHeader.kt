@@ -67,6 +67,7 @@ internal data class GroupHeaderActions(
     val onPickDownloads: (() -> Unit)? = null,
     val homeAhead: Int? = null,
     val onKeepAtHome: ((Int?) -> Unit)? = null,
+    val onShare: (() -> Unit)? = null,
 )
 
 @Composable
@@ -243,6 +244,7 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
             }
             actions.onPickDownloads?.let { MenuItem(R.string.queue_group_download_pick, close, it) }
             actions.onKeepAtHome?.let { keep -> KeepAtHomeItems(actions.homeAhead, keep, close) }
+            actions.onShare?.let { MenuItem(R.string.share_list, close, it) }
             actions.onSelect?.let { MenuItem(R.string.queue_group_select, close, it) }
             actions.onStartAgain?.let { MenuItem(R.string.queue_group_start_again, close, it) }
             MenuItem(R.string.queue_remove_group, close) { confirm(removeTexts, actions.onRemove) }

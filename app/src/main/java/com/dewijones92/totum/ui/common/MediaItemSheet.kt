@@ -24,10 +24,12 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.Visibility
@@ -38,6 +40,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -45,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.pins.Pin
 
@@ -129,6 +133,7 @@ internal fun ActionSheet(
                 R.string.not_for_me,
                 onDismiss,
             )
+            ShareSheetActions(extras.item, extras.onShareList, onDismiss)
             PinSheetActions(pins, extras.pin, onDismiss)
             extras.item?.let { DetailsSection(it) }
             SheetAction(
@@ -172,6 +177,16 @@ internal fun ActionSheet(
             Spacer(Modifier.height(16.dp))
         }
     }
+}
+
+@Composable
+private fun ShareSheetActions(item: MediaItem?, onShareList: (() -> Unit)?, onDismiss: () -> Unit) {
+    SheetAction(onShareList, Icons.Outlined.Share, R.string.share_list, onDismiss)
+    val actions = LocalItemActions.current ?: return
+    val share = remember(item?.id, actions) { item?.let(actions::share) }
+    val copyLink = remember(item?.id, actions) { item?.let(actions::copyLink) }
+    SheetAction(share, Icons.Outlined.Share, R.string.share_item, onDismiss)
+    SheetAction(copyLink, Icons.Outlined.Link, R.string.copy_link, onDismiss)
 }
 
 @Composable

@@ -10,12 +10,19 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.ui.common.ItemActions
 import com.dewijones92.totum.ui.common.LocalSetPlayed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 internal fun PlaybackQueue.idsIn(groupId: String): List<String> =
     state.value.entries.filter { it.group?.id == groupId }.map { it.item.item.id.value }
+
+internal fun shareGroup(actions: ItemActions, queue: PlaybackQueue, id: String) {
+    val members = queue.state.value.entries.filter { it.group?.id == id }
+    val title = members.firstOrNull()?.group?.title ?: id
+    actions.shareList(title, members.map { it.item.item })?.invoke()
+}
 
 @Composable
 internal fun rememberStartGroupAgain(
