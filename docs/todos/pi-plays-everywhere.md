@@ -68,3 +68,13 @@ two runs; identical output to the laptop's run). The whole chain is ~13x real ti
 targets at 2x speed fit; 4K video is relayed, not processed. Verdict: build phase 7 as designed.
 
 Cast arming (2026-11-06): the next item reaches the TV only in its last 75 s (cast-progress-and-end), so the TV remote's own "next" does nothing before then; when the Pi drives the TV, map the remote's next to Totum's queue.
+
+## Other phones in the house (Dewi, 2026-11-06)
+
+Any phone signed in to the home server (Dewi's wife's included) sees and controls the Pi's target queues exactly as
+Dewi's phone does: see what plays, add, reorder, remove, play/pause. Each phone's own queue stays private. Built in:
+live updates across phones (a change shows on the others within a second or two); edits sent as small operations
+(add X after Y, remove Z), never a whole-queue replace, so two phones editing at once don't clobber each other; each
+item shows which phone added it. YouTube: the Pi plays with Dewi's signed-in account, so only items queued from
+Dewi's phone report watch progress to YouTube; items queued from another phone don't. Her sign-in goes through the
+same Google-gated home-server sign-in; check her account is admitted by that gate when building.
