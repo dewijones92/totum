@@ -28,12 +28,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 
 interface HomeNotices {
     fun started(title: String)
     fun ready(title: String)
     fun refused(title: String, why: String)
     fun problem(key: String, text: String)
+    fun uploading(title: String, percent: Int?) = Unit
+    fun uploadStopped(title: String) = Unit
 }
 
 object NoHomeNotices : HomeNotices {
@@ -58,7 +61,7 @@ class Pacing(
     val refreshWhen: Flow<*>? = null,
 ) {
     private companion object {
-        const val POLL_MS = 20_000L
+        const val POLL_MS = 2_000L
         const val IDLE_MS = 10 * 60_000L
     }
 }
@@ -88,13 +91,14 @@ class HomeDownloads(
         HomeReporting(operations, notices) { id -> cancel(id) },
         phone,
         scope,
-        pacing.pollMs
     )
     private val phoneDownloads = downloads
     val kept: StateFlow<Set<String>> get() = phone.kept.ids
     private val handover = SignInHandover(phone.youTubeTokens)
+    private var uploadLimitBytes = 0L
     private val wake = Channel<String>(Channel.CONFLATED)
     private val moves = HomeMoves(phone.moving) { deleteOnPhoneOnly(it) }
+    private val uploader = PhoneUploads(client, operations, notices, moves) { refresh(it) }
 
     fun watch() {
         if (client == null) return
@@ -162,8 +166,18 @@ class HomeDownloads(
             }
             if (move) moves.begin(id) else moves.copyOnly(id)
             val variant = if (copy.audioOnly) "sound" else "video"
-            Diag.log(TAG, "\"${copy.item.title}\": ${if (move) "moving" else "copying"} the phone's $variant copy home")
-            start(copy.playable, if (copy.audioOnly) DownloadChoice.Sound else DownloadChoice.Video(null))
+            val file = File(copy.localPath).takeIf { it.isFile }
+            val how = if (file != null) "by sending the file" else "by asking the Pi to fetch it from the web"
+            Diag.log(
+                TAG,
+                "\"${copy.item.title}\": ${if (move) "moving" else "copying"} the phone's $variant copy to the Pi " +
+                    "$how (file ${copy.localPath} ${if (file != null) "is there" else "is not there"})",
+            )
+            if (file != null) {
+                uploader.send(copy, file, move, uploadLimitBytes)
+            } else {
+                start(copy.playable, if (copy.audioOnly) DownloadChoice.Sound else DownloadChoice.Video(null))
+            }
         }
     }
 
@@ -192,6 +206,7 @@ class HomeDownloads(
                 if (now != known.value) Diag.log(TAG, "jobs ($why): ${now.values.joinToString { it.describe() }}")
                 known.value = now
                 read.value = now
+                uploadLimitBytes = answer.value.uploadLimitBytes
                 status.read(answer.value)
                 moves.finish(now)
                 follower.followAll(now.values)

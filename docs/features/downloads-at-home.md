@@ -32,8 +32,10 @@ phone now, or when you turn on the setting below. ADR 110.
   says the Pi's copies go too.
 - 🏠 Send home in any app's share sheet: a YouTube link or a magnet goes straight to the Pi, without opening Totum; a
   toast says "⬇️ Web → 🏠 Pi: …" or "❌ Not sent home: …" (`SendHome`, `SendHomeActivity`).
-- A download on the phone offers 📤 Copy to 🏠 Pi and 📤 Move to 🏠 Pi in its menu; a move deletes the phone copy once
-  the Pi has it. A video that finishes at home (torrent or YouTube) is filed into Jellyfin when Haiku sees a whole film
+- A download on the phone offers 📤 Copy to 🏠 Pi and 📤 Move to 🏠 Pi in its menu. **The phone's file is really sent**
+  (`PUT /files?id=`, ADR 126): a `📤 📱 Phone → 🏠 Pi · 45%` strip row and notification, Cancel stops it, and a move
+  deletes the phone copy once the Pi's job list shows the file. Only a phone copy with no file on disk falls back to the
+  Pi fetching it from the web. The Pi refuses a file above its limit (free space less 20 GB, at most 64 GB) and says why. A video that finishes at home (torrent or YouTube) is filed into Jellyfin when Haiku sees a whole film
   or episode (ADR 111).
 - A queue group's ⋮ → 🏠 Keep the next 2 (or 5) on the Pi: the next unplayed members go home and are topped up as you
   listen; on the 📥 New group or a shuffled channel this fetches new uploads at home as they arrive (`HomeAhead`).
@@ -50,7 +52,9 @@ phone now, or when you turn on the setting below. ADR 110.
   `DownloadChooser`/`EpisodeDownloads` (where), `PlaceChips`, `LocalHomeJobs`, `HomeSection`.
 - Shared: `HomeJobsClient`/`HomeJobsApi` and the wire types in `core/data/.../home/`, `HomeCopyFirst`,
   `routeNow(atHome = …)`, `PhoneCodecs`/`VideoCodecFamily`.
-- Home: `totum serve` (`HomeDownloads`, `HomeRoutes` in the CLI), `server/totum-fetch`.
+- Home: `totum serve` (`HomeDownloads`, `HomeRoutes` in the CLI, `receive` for uploads), `server/totum-fetch`.
+- One authed call shell for every Pi call: `HomePiCall`; the upload body is `HomeUploadBody`/`HomeUploadFrame`; the phone side
+  is `PhoneUploads`.
 
 ## Status
 

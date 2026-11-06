@@ -38,10 +38,7 @@ internal class HomeRoutes(private val home: Home) : Routes {
                 home.retry(id)
                 exchange.reply(OK, """{"ok":true}""")
             }
-            method == "GET" && path == "/files" -> {
-                val file = home.fileOf(id)
-                if (file == null) exchange.reply(NOT_FOUND, """{"error":"no such file"}""") else serve(exchange, file)
-            }
+            path == "/files" -> files(exchange, method, id)
             method == "PUT" && path == "/account" -> account(exchange)
             method == "DELETE" && path == "/account" -> {
                 home.signOut()
@@ -65,6 +62,32 @@ internal class HomeRoutes(private val home: Home) : Routes {
                 exchange.reply(
                     INSUFFICIENT_STORAGE,
                     """{"error":${AskJson.encodeToString(String.serializer(), started.why)}}"""
+                )
+        }
+    }
+
+    private suspend fun files(exchange: HttpExchange, method: String, id: String) {
+        when (method) {
+            "GET" -> {
+                val file = home.fileOf(id)
+                if (file == null) exchange.reply(NOT_FOUND, """{"error":"no such file"}""") else serve(exchange, file)
+            }
+            "PUT" -> upload(exchange, id)
+            else -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
+        }
+    }
+
+    private suspend fun upload(exchange: HttpExchange, id: String) {
+        val length = exchange.requestHeaders.getFirst("Content-Length")?.toLongOrNull()
+            ?: return exchange.reply(LENGTH_REQUIRED, """{"error":"❌ an upload has to say how long it is"}""")
+        val audioOnly = exchange.query("audioOnly") == "true"
+        Diag.log("home", "upload of $id: $length bytes announced, audioOnly=$audioOnly")
+        when (val received = home.receive(id, audioOnly, length, exchange.requestBody)) {
+            is Received.Stored -> exchange.reply(OK, """{"ok":true,"bytes":${received.bytes}}""")
+            is Received.Refused ->
+                exchange.reply(
+                    received.code,
+                    """{"error":${AskJson.encodeToString(String.serializer(), received.why)}}"""
                 )
         }
     }
@@ -121,6 +144,7 @@ internal class HomeRoutes(private val home: Home) : Routes {
         const val PARTIAL = 206
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
+        const val LENGTH_REQUIRED = 411
         const val RANGE_NOT_SATISFIABLE = 416
         const val INSUFFICIENT_STORAGE = 507
         const val BUFFER = 64 * 1024

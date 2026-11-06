@@ -1,7 +1,7 @@
 ---
 title: Every download says what, from where, to where; Move to Pi moves the file
 kind: todo
-status: decided
+status: built (2026-11-06), awaiting Pi deploy and the testing stretch
 batch: A (2026-11)
 priority: high
 updated: 2026-11-06
@@ -17,3 +17,19 @@ ui/common) replaces `MediaItemStatus.downloadingText`, `HomeStateText`, `Torrent
 Report 20261102T132125: "Move to Pi" asks the Pi to re-download from the web and waited two 20 s polls. Decided: a real
 upload (`PUT /files?id=`, streamed, size-capped; the Pi's bodies are read unbounded today), polling every 2 s while a
 job is busy, a real percentage.
+
+## Built (2026-11-06)
+
+ADR 126. One `Transfer` state in `:core:domain` and one `transferText` mapper; every delete names where from; `HomePiCall`
+is the one Pi call shell; `PUT /files` streams the phone's file to the Pi (capped, temp file then rename, registered as a
+finished download); the poll is 2 s while a job is busy and the strip observes the known state. Owed: the Pi's nginx
+`/fetch/` body limit, a deploy of the CLI, unit tests (below), and one on-phone move.
+
+Tests the testing stretch must add: `transferText` for every phase and place pair; `HomeJob.transfer()` and
+`percentOf`; `HomePiCall` (blank token, HTTP error with and without the Pi's `error`, unreadable answer, IO error);
+`HomeRoutes` PUT `/files` (stored, 411 without a length, 413 over the limit, 400 on a wrong id or a short body, 409
+busy); `DefaultDownloadManager.adopt` (stored, busy, sound-only over full, replaced older copy, stale `.incoming.part`
+cleared); `HomeUploadFrame`/`HomeUploadBody` round trip and cancel; `PhoneUploads` (progress to strip and notice, move
+deletes only after the job shows, a refusal or cancel keeps the phone copy, over-limit refused locally);
+`HomeDownloads.sendFromPhone` upload path (the existing tests place a non-existent file, so they exercise the
+fallback only); the strip observing `known` (percent steps, done, failed, job vanishing).

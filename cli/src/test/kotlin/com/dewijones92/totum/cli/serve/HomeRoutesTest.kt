@@ -28,6 +28,7 @@ class HomeRoutesTest {
 
     private inner class FakeHome : Home {
         var refuse: String? = null
+        var refuseUpload: Received.Refused? = null
         val started = mutableListOf<HomeJobRequest>()
         var handedOver: AccountHandover? = null
         var signedOut = false
@@ -44,6 +45,9 @@ class HomeRoutesTest {
             cancelled += id
         }
         override suspend fun retry(id: String) = Unit
+        val received = mutableListOf<Received>()
+        override suspend fun receive(id: String, audioOnly: Boolean, declaredBytes: Long, body: java.io.InputStream) =
+            (refuseUpload ?: Received.Stored(body.readBytes().size.toLong())).also { received += it }
         override suspend fun fileOf(id: String): File? = file.takeIf { id == fileId }
         override suspend fun signIn(handover: AccountHandover) {
             handedOver = handover

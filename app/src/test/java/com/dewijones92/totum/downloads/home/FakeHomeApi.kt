@@ -1,6 +1,7 @@
 package com.dewijones92.totum.downloads.home
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.home.AccountHandover
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.HomeJob
@@ -8,6 +9,7 @@ import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobs
 import com.dewijones92.totum.data.home.HomeJobsApi
 import com.dewijones92.totum.data.home.HomeProblem
+import java.io.File
 
 internal class FakeHomeApi : HomeJobsApi {
     val started = mutableListOf<HomeJobRequest>()
@@ -33,4 +35,16 @@ internal class FakeHomeApi : HomeJobsApi {
     }
     override suspend fun forgetAccount() = HomeAnswer.Ok(Unit)
     override fun fileUrl(id: String) = HttpUrl.of("https://home.test/fetch/files/$id")
+    val uploaded = mutableListOf<String>()
+    var refuseUpload: String? = null
+    override suspend fun upload(
+        item: BackupItem,
+        audioOnly: Boolean,
+        file: File,
+        onSent: (sent: Long, total: Long) -> Unit,
+    ): HomeAnswer<Unit> {
+        onSent(file.length(), file.length())
+        uploaded += item.itemId
+        return refuseUpload?.let { HomeAnswer.No(it) } ?: HomeAnswer.Ok(Unit)
+    }
 }

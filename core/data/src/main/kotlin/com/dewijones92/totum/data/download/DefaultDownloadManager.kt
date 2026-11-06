@@ -160,6 +160,10 @@ public class DefaultDownloadManager(
                     )
                     half.delete()
                 }
+            downloadDir.listFiles { file -> file.name.endsWith(INCOMING_SUFFIX) }?.forEach { half ->
+                Diag.warn("download", "a file being sent in when the process stopped left ${half.name}; cleared")
+                half.delete()
+            }
             store.observeAll().first()
                 .filterValues { it is DownloadState.Downloading }
                 .keys.forEach { id ->
@@ -393,6 +397,35 @@ public class DefaultDownloadManager(
         notes.forget(id)
     }
 
+    public fun incomingFile(id: MediaItemId): File = File(downloadDir.apply { mkdirs() }, id.incomingFileName())
+
+    public suspend fun adopt(item: PlayableItem, received: File, audioOnly: Boolean): Adopted {
+        val media = item.item
+        if (runningLock.withLock { running.containsKey(media.id) }) {
+            received.delete()
+            Diag.warn("download", "\"${media.title}\": a file arrived, but it is being fetched right now; not replaced")
+            return Adopted.BUSY
+        }
+        val existing = store.get(media.id) as? DownloadState.Downloaded
+        if (existing != null && audioOnly && !existing.audioOnly) {
+            received.delete()
+            Diag.warn("download", "\"${media.title}\": a sound-only file arrived, but the full copy here is kept")
+            return Adopted.FULLER_COPY_KEPT
+        }
+        val final = File(downloadDir, media.id.fileName())
+        existing?.let { File(it.localPath).takeIf { old -> old.path != final.path }?.delete() }
+        final.delete()
+        if (!received.renameTo(final)) received.copyTo(final, overwrite = true).also { received.delete() }
+        val state = DownloadState.Downloaded(final.path, audioOnly)
+        store.put(item, state, audioOnly)
+        _events.tryEmit(DownloadEvent(media, state))
+        notes.settled(media.id)
+        retries.succeeded(media.id)
+        Diag.log("download", "adopted a file sent in for \"${media.title}\": ${final.length()}B audioOnly=$audioOnly")
+        onDownloaded(item)
+        return Adopted.STORED
+    }
+
     override suspend fun noteOpened(id: MediaItemId) {
         if (store.noteOpened(id)) Diag.log("download", "opened ${id.value}: its download is marked opened now")
     }
@@ -427,11 +460,16 @@ public class DefaultDownloadManager(
     private fun MediaItemId.fileName(): String = "${value.hashCode().toUInt()}.media"
 
     private fun MediaItemId.upgradeFileName(): String = "${value.hashCode().toUInt()}$UPGRADE_SUFFIX"
+
+    private fun MediaItemId.incomingFileName(): String = "${value.hashCode().toUInt()}$INCOMING_SUFFIX"
 }
+
+public enum class Adopted { STORED, BUSY, FULLER_COPY_KEPT }
 
 private const val PROGRESS_WRITE_EVERY_MS = 1_000L
 private const val MAX_AT_ONCE = 4
 private const val MAX_RESUMES = 2
 private const val UPGRADE_SUFFIX = ".upgrade.media"
+private const val INCOMING_SUFFIX = ".incoming.part"
 private const val NOTES_FILE = "download-notes.txt"
 private const val NANOS_PER_MS = 1_000_000L

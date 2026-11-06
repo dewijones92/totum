@@ -11,9 +11,11 @@ import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
@@ -29,7 +31,6 @@ internal class HomeFollower(
     private val reporting: HomeReporting,
     private val phone: PhoneSide,
     private val scope: CoroutineScope,
-    private val pollMs: Long,
 ) {
     private val tracked = ConcurrentHashMap.newKeySet<String>()
     private val seenBusy = ConcurrentHashMap.newKeySet<String>()
@@ -52,17 +53,10 @@ internal class HomeFollower(
         var finished = false
         try {
             reporting.operations.track("home:${job.id}", OperationKind.HOME_DOWNLOAD, job.item.title) { progress ->
-                var end: OperationEnd? = null
-                while (end == null) {
-                    val now = known.value[MediaItemId(job.id)]
-                    progress.report(step = now?.percent() ?: 0, steps = PERCENT)
-                    end = when (now?.state) {
-                        null -> OperationEnd.Nothing
-                        HomeJobState.DONE -> OperationEnd.Done(1)
-                        HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed at home")
-                        else -> null.also { delay(pollMs) }
-                    }
-                }
+                val end = known.map { it[MediaItemId(job.id)] }
+                    .onEach { progress.report(step = it?.percent() ?: 0, steps = PERCENT) }
+                    .mapNotNull { endOf(it) }
+                    .first()
                 finished = true
                 end
             }
@@ -73,6 +67,13 @@ internal class HomeFollower(
                 reporting.cancelAtHome(MediaItemId(job.id))
             }
         }
+    }
+
+    private fun endOf(now: HomeJob?): OperationEnd? = when (now?.state) {
+        null -> OperationEnd.Nothing
+        HomeJobState.DONE -> OperationEnd.Done(1)
+        HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed at home")
+        else -> null
     }
 
     private suspend fun copyWhatIsReady() {

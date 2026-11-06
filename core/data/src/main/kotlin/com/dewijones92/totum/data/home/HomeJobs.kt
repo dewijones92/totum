@@ -69,6 +69,7 @@ public data class HomeJobs(
     val freeBytes: Long,
     val youTubeSignedIn: Boolean,
     val problems: List<HomeProblem> = emptyList(),
+    val uploadLimitBytes: Long = 0,
 )
 
 @Serializable

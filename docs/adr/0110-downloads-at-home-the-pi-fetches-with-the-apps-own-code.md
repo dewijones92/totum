@@ -83,7 +83,7 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   This widens ADR 77's "a podcast downloads at once" for the place only.
 - **`HomeDownloads`** sends the job (the item, Sound or Video and height, the phone's decoders from
   `PlatformVideoCodecSupport.snapshot()`), hands the YouTube sign-in over once before the first video, polls every
-  20 s while anything runs (10 min otherwise, and on every network change), and drives the strip
+  2 s while anything runs (ADR 126; it was 20 s) (10 min otherwise, and on every network change), and drives the strip
   ("🏠 Downloading at home: …" with a percentage) and notifications (started, ready at home, refused; tapping opens
   Downloads at 🏠 At home). A job already finished when the app started is not announced.
 - **Rows say so** through one root-provided state (`LocalHomeJobs`): "🏠 Downloading at home · 45%", "🏠 At home ·

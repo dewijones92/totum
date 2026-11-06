@@ -7,7 +7,6 @@ import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.download.DefaultDownloadManager
-import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.DownloadStrategy
 import com.dewijones92.totum.data.download.JsonDownloadStore
 import com.dewijones92.totum.data.home.AccountHandover
@@ -54,6 +53,7 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import okhttp3.OkHttpClient
 import java.io.File
+import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
@@ -62,12 +62,18 @@ internal sealed interface Started {
     data class Refused(val why: String) : Started
 }
 
+internal sealed interface Received {
+    data class Stored(val bytes: Long) : Received
+    data class Refused(val code: Int, val why: String) : Received
+}
+
 internal interface Home {
     suspend fun start(request: HomeJobRequest): Started
     suspend fun jobs(): HomeJobs
     suspend fun cancel(id: String)
     suspend fun retry(id: String)
     suspend fun fileOf(id: String): File?
+    suspend fun receive(id: String, audioOnly: Boolean, declaredBytes: Long, body: InputStream): Received
     suspend fun signIn(handover: AccountHandover)
     suspend fun signOut()
 }
@@ -100,7 +106,7 @@ internal class HomeDownloads(
 
     private val store = JsonDownloadStore(File(dataDir, "downloads.json"))
 
-    private val manager: DownloadManager = DefaultDownloadManager(
+    private val manager: DefaultDownloadManager = DefaultDownloadManager(
         downloadDir = downloadDir,
         store = store,
         strategy = object : DownloadStrategy {
@@ -164,8 +170,15 @@ internal class HomeDownloads(
     override suspend fun jobs(): HomeJobs {
         val records = manager.observeRecords().first()
         val jobs = records.map { it.item.toJob(it.state) }
-        return HomeJobs(jobs, free(), account.isSignedIn(), health?.problems(jobs).orEmpty())
+        return HomeJobs(jobs, free(), account.isSignedIn(), health?.problems(jobs).orEmpty(), uploadLimit())
     }
+
+    private fun uploadLimit(): Long = (free() - freeFloorBytes).coerceIn(0L, MAX_UPLOAD_BYTES)
+
+    private val uploads = UploadReceiver(manager, ::uploadLimit, ::free)
+
+    override suspend fun receive(id: String, audioOnly: Boolean, declaredBytes: Long, body: InputStream): Received =
+        uploads.receive(id, audioOnly, declaredBytes, body)
 
     override suspend fun cancel(id: String): Unit = manager.delete(MediaItemId(id))
 
@@ -214,6 +227,7 @@ internal class HomeDownloads(
 
     companion object {
         const val FREE_FLOOR_BYTES = 20L * 1_000_000_000L
+        const val MAX_UPLOAD_BYTES = 64L * 1_000_000_000L
         private const val GB = 1_000_000_000L
         private const val READ_TIMEOUT_S = 60L
     }

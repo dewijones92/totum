@@ -2,6 +2,10 @@ package com.dewijones92.totum.data.home
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.ask.AskJson
+import com.dewijones92.totum.data.backup.BackupItem
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -10,6 +14,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.net.URLEncoder
 
 public sealed interface HomeAnswer<out T> {
@@ -25,6 +30,12 @@ public interface HomeJobsApi {
     public suspend fun handOver(account: AccountHandover): HomeAnswer<Unit>
     public suspend fun forgetAccount(): HomeAnswer<Unit>
     public fun fileUrl(id: String): HttpUrl
+    public suspend fun upload(
+        item: BackupItem,
+        audioOnly: Boolean,
+        file: File,
+        onSent: (sent: Long, total: Long) -> Unit,
+    ): HomeAnswer<Unit>
 }
 
 @Suppress("TooManyFunctions")
@@ -60,6 +71,18 @@ public class HomeJobsClient(
         call("DELETE /account", Request.Builder().url("$base/account").delete()) { }
 
     override fun fileUrl(id: String): HttpUrl = HttpUrl.of("$base/files?id=${encoded(id)}")
+
+    override suspend fun upload(
+        item: BackupItem,
+        audioOnly: Boolean,
+        file: File,
+        onSent: (sent: Long, total: Long) -> Unit,
+    ): HomeAnswer<Unit> {
+        val job = currentCoroutineContext().job
+        val body = HomeUploadBody(item, file, stillWanted = { job.isActive }, onSent = onSent)
+        val url = "$base/files?id=${encoded(item.itemId)}&audioOnly=$audioOnly"
+        return call("PUT /files?id=${item.itemId} (${file.length()} bytes)", Request.Builder().url(url).put(body)) { }
+    }
 
     private fun post(path: String, body: String) = Request.Builder().url("$base/$path").post(body.json())
 

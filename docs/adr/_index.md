@@ -142,3 +142,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 124 | [Work apps are snoozed outside work hours, by a notification listener](0124-work-apps-are-snoozed-outside-work-hours.md) | Accepted |
 | 125 | [Modes that are quietly on are one flow](0125-active-modes-are-one-flow.md) | Accepted |
 | 127 | [Downloads honour the phone's decoders, and every quality names its codec](0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md) | Accepted |
+| 126 | [A move to the Pi sends the file, and every download says what moves where](0126-a-move-to-the-pi-sends-the-file-and-every-download-says-where.md) | Accepted |
