@@ -32,12 +32,22 @@ import kotlin.time.Duration as KDuration
 interface BedtimeStore {
     fun load(): BedtimeSettings
     fun save(settings: BedtimeSettings)
+    fun loadDeclined(): Instant?
+    fun saveDeclined(runEnd: Instant?)
 }
 
-class InMemoryBedtimeStore(private var settings: BedtimeSettings = BedtimeSettings()) : BedtimeStore {
+class InMemoryBedtimeStore(
+    private var settings: BedtimeSettings = BedtimeSettings(),
+    private var declined: Instant? = null,
+) : BedtimeStore {
     override fun load() = settings
     override fun save(settings: BedtimeSettings) {
         this.settings = settings
+    }
+
+    override fun loadDeclined() = declined
+    override fun saveDeclined(runEnd: Instant?) {
+        declined = runEnd
     }
 }
 
@@ -48,10 +58,18 @@ class SharedPrefsBedtimeStore(context: Context) : BedtimeStore {
 
     override fun save(settings: BedtimeSettings) = prefs.write(KEY, BedtimeCodec.encode(settings))
 
+    override fun loadDeclined(): Instant? =
+        prefs.read(DECLINED_KEY, null) { text -> text.takeIf { it.isNotBlank() }?.let(Instant::parse) }
+
+    override fun saveDeclined(runEnd: Instant?) = prefs.write(DECLINED_KEY, runEnd?.toString().orEmpty())
+
     private companion object {
         const val KEY = "settings"
+        const val DECLINED_KEY = "declinedRunEnd"
     }
 }
+
+data class BedtimeArming(val runEnd: Instant)
 
 class Bedtime(
     private val store: BedtimeStore,
@@ -66,7 +84,7 @@ class Bedtime(
     val settings: StateFlow<BedtimeSettings> = _settings.asStateFlow()
 
     private var armedRunEnd: Instant? = null
-    private var declinedRunEnd: Instant? = null
+    private var declinedRunEnd: Instant? = store.loadDeclined()?.takeIf { it.isAfter(clock()) }
     private val skipped = Tally()
 
     @Volatile
@@ -77,7 +95,7 @@ class Bedtime(
     val timerState: StateFlow<SleepTimerState> get() = sleepTimer.state
 
     init {
-        Diag.log(TAG, "dewidebug bedtime loaded: ${_settings.value}")
+        Diag.log(TAG, "dewidebug bedtime loaded: ${_settings.value}; turned off for the night ending $declinedRunEnd")
     }
 
     fun status(): BedtimeStatus = _settings.value.status(clock(), zone(), context())
@@ -98,14 +116,35 @@ class Bedtime(
             }
         }
         scope.launch {
-            sleepTimer.cancellations.collect {
-                val run = armedRunEnd ?: return@collect
-                declinedRunEnd = run
-                armedRunEnd = null
+            sleepTimer.cancellations.collect { cancelled ->
+                val arming = cancelled.owner as? BedtimeArming
+                if (arming == null) {
+                    Diag.log(
+                        TAG,
+                        "dewidebug bedtime: the person cancelled a sleep timer that bedtime did not arm " +
+                            "(armed by ${cancelled.owner ?: "the person"}), so bedtime carries on",
+                    )
+                    return@collect
+                }
+                declinedRunEnd = arming.runEnd
+                store.saveDeclined(arming.runEnd)
                 Diag.log(
                     TAG,
-                    "dewidebug bedtime: the person cancelled the sleep timer, so no more tonight (until $run)"
+                    "dewidebug bedtime: the person cancelled the timer bedtime armed, so no more tonight " +
+                        "(until ${arming.runEnd}; remembered across restarts)",
                 )
+            }
+        }
+        scope.launch {
+            var wasArmed = false
+            sleepTimer.state.collect { state ->
+                val run = armedRunEnd
+                val isArmed = state != SleepTimerState.Off
+                if (wasArmed && !isArmed && run != null) {
+                    armedRunEnd = null
+                    Diag.log(TAG, "dewidebug bedtime: the timer it armed for the night ending $run is gone")
+                }
+                wasArmed = isArmed
             }
         }
         scope.launch { _settings.drop(1).collect { evaluate("settings changed") } }
@@ -147,11 +186,11 @@ class Bedtime(
                 Diag.log(
                     TAG,
                     "dewidebug bedtime arming the sleep timer to stop after ${state.itemId} " +
-                        "(\"${state.title}\", ${state.positionMs}ms of ${state.durationMs}ms) and fade over $fade: " +
-                        "$trigger; the night ends ${decision.runEnd}",
+                        "(\"${state.title}\", ${state.positionMs}ms of ${state.durationMs}ms) and fade over $fade " +
+                        "(casting to ${state.castDeviceName ?: "nothing"}): $trigger; the night ends ${decision.runEnd}",
                 )
                 armedRunEnd = decision.runEnd
-                sleepTimer.stopAfterCurrentItem()
+                sleepTimer.stopAfterCurrentItem(BedtimeArming(decision.runEnd))
             }
         }
     }

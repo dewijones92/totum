@@ -41,6 +41,7 @@ import com.dewijones92.totum.reminders.DayHours
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.rememberTickingNow
 import com.dewijones92.totum.ui.settings.QuestCard
 import com.dewijones92.totum.ui.settings.SnappingSlider
 import com.dewijones92.totum.workapps.whenText
@@ -85,10 +86,11 @@ private fun StatusCard(
     update: (String, (BedtimeSettings) -> BedtimeSettings) -> Unit,
 ) {
     val timer by bedtime.timerState.collectAsStateWithLifecycle()
-    val line = remember(settings, timer) { bedtime.status() }
+    val now = rememberTickingNow()
+    val line = remember(settings, timer, now) { bedtime.status() }
     QuestCard(Icons.Outlined.Bedtime, stringResource(R.string.bedtime_status_title)) {
         Text(
-            statusText(line),
+            statusText(line, now),
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.testTag("bedtime-status"),
         )
@@ -111,8 +113,7 @@ private fun StatusCard(
 }
 
 @Composable
-private fun statusText(status: BedtimeStatus): String {
-    val now = remember(status) { Instant.now() }
+private fun statusText(status: BedtimeStatus, now: Instant): String {
     val zone = ZoneId.systemDefault()
     return when (status) {
         BedtimeStatus.Off -> stringResource(R.string.bedtime_status_off)

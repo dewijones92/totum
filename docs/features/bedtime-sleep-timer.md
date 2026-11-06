@@ -21,9 +21,12 @@ configurable. Decision: [ADR 133](../adr/0133-bedtime-arms-the-sleep-timer-and-e
 - **It fades out.** Over the last stretch of the last item, or of a countdown, the player's volume ramps to silence, then
   playback stops; the volume is back to full the moment the timer ends or is cancelled, so the next play is not silent.
   The fade applies to **every** sleep timer, not only the bedtime one, and is switched off by setting its length to 0.
-  There is no ramp on a cast, a live stream or an item with no known length; those still stop.
+  There is no ramp on a live stream or an item with no known length; those still stop. On a cast the fade moves the
+  TV's own volume (from where it was, and put back after) when the device reports one; when it does not, the line
+  `no fade: casting to <device>` is logged and playback still stops at the end of the item.
 - **Cancelling it sticks for the night.** Tap the moon button to cancel the armed timer and nothing re-arms it until
-  the next night (kept in memory, so a restart of the app forgets it).
+  the next night (remembered across a restart). Only cancelling the timer bedtime armed counts: cancelling a timer you
+  set yourself, after bedtime's own has fired or been replaced, does not turn bedtime off.
 - It ships **off**.
 
 ## The page (Settings → 🌙 Bedtime sleep timer, or the last item in the sleep timer's menu)
@@ -58,6 +61,6 @@ fires or is cancelled by the person. Reports carry `bedtime.enabled`, `.nights`,
 That a volume change made through the `MediaController` reaches the session's player and is audible as a fade (no phone
 or device run in this build), and the Bedtime page on a screen.
 
-## Tests still to write (code first, 2026-11-06)
+## Tests (code first, 2026-11-06; `BedtimeTest` covers who may decline the night)
 
 Listed in [todos/bedtime-sleep-timer](../todos/bedtime-sleep-timer.md) under "Tests owed".

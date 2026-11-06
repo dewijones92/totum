@@ -37,3 +37,8 @@ held in memory only; no auto-arm for live streams or the kid lock.
   is armed, not when kid-locked or live; arms at the start of bedtime if already playing; cancel sticks for the night
   and the next night arms again; settings change evaluates.
 - A device check of the audible fade, and of the Bedtime page.
+- Sweep fixes (2026-11-06), still owed: `SleepTimerTest` for the cast fade (ramps `setCastVolume` from the starting
+  fraction and puts it back; a cast with no `castVolume` logs and does not ramp; `cancellations` carries the owner
+  of the timer that was cancelled and null for a timer the person set); `Bedtime` hub: the declined night is written
+  to the store and a new `Bedtime` over the same store does not re-arm that night but does the next; the page's
+  status line moves at a boundary while open (an instrumented/UI check). Finding 5's test is written: `BedtimeTest`.

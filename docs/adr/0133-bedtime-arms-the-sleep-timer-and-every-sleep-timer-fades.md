@@ -34,14 +34,15 @@ you. The weekly-window maths was extracted for the work-apps feature (ADR 124) s
   window on the same day.
 - **Cancelling it sticks for the night.** `SleepTimer.cancel()` (the person's tap) now also emits on `cancellations`;
   internal ends (the item finishing, the timer firing, playback moving off) do not. If the person cancels a timer that
-  Bedtime armed, that night's end is remembered and nothing re-arms until the next night. In memory only: a process
-  death forgets it (my call; the cost is one extra arming).
+  Bedtime armed, that night's end is remembered and nothing re-arms until the next night. (Amended below: only a cancel
+  of the timer Bedtime armed counts, and it is remembered across a process death.)
 - **Every sleep timer fades, not only bedtime's.** `SleepTimer` takes a fade length (`Bedtime.fade`, default 20 s, 0 =
   off, set on the Bedtime page) and ramps `PlaybackController.setFadeLevel` (the player's own volume, a new port method
   implemented on the Media3 controller and the fake) over the last stretch: a countdown over its final seconds, an
   "after this item" or "end of album" timer over the final seconds of the last item (from its duration, position and
   speed). The level goes back to full the moment the timer ends or is cancelled, so the next play is never silent. No
-  fade on a cast, a live stream, or an item with no known length; those still stop, without a ramp. My call to apply it
+  fade on a live stream or an item with no known length; those still stop, without a ramp (a cast now fades the TV's
+  volume, amended below). My call to apply it
   to every timer rather than only bedtime's: one timer should behave one way, and a setting can switch it off.
 - **Settings** live on a "🌙 Bedtime sleep timer" page, reached from Settings and from the sleep timer's menu, stored as
   JSON (`bedtime_sleep_timer`). It ships **off**.
@@ -58,3 +59,22 @@ you. The weekly-window maths was extracted for the work-apps feature (ADR 124) s
   existing implementers are updated.
 - Unverified until a phone run: that a `MediaController.volume` change reaches the service's player (the command is
   `COMMAND_SET_VOLUME`) and is audible as a fade.
+
+## Amendment 2026-11-06: findings from the use-case sweep
+
+- **Only a cancel of the timer Bedtime armed declines the night.** Bedtime tags its timer (`SleepTimer.stopAfterCurrentItem(owner)`,
+  an opaque `BedtimeArming(runEnd)`), `cancellations` carries the owner of the timer that was cancelled, and Bedtime acts
+  only on its own. Before, `armedRunEnd` outlived the timer (it fired, was replaced, or playback moved off), so a later
+  manual cancel of any timer turned bedtime off for the whole night. `armedRunEnd` is now also cleared when the timer
+  goes away (it is a diagnostic only). A test written first failed on the old code
+  (`BedtimeTest`, "a manual cancel after bedtime's own timer fired ...").
+- **"Turned off for tonight" survives a process death.** The night's end instant is stored beside the settings
+  (`declinedRunEnd` in `bedtime_sleep_timer`) and read at start-up, dropped when already past. It is not in the Drive
+  backup. Reverses the earlier "in memory only" call.
+- **A cast still arms, and the fade moves the TV's volume.** `decide` never skipped a cast; what was silently skipped was
+  the fade. Now, when the item is on a cast device that reports a volume (`PlaybackState.castVolume`), the fade ramps
+  the device volume with the existing `setCastVolume` from where it started and puts it back when the timer ends or
+  is cancelled. Where the device offers no volume, `[sleep]` logs "no fade: casting to <device>" (once per timer) and
+  playback still stops at the end of the item. Unverified on a real TV (a stepped ramp in the TV's own volume steps).
+- The status line on the Bedtime page re-reads on a one-minute clock (`rememberTickingNow`), so it moves at the night's
+  boundaries within a minute without leaving the page.

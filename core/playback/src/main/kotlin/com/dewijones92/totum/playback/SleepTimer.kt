@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -35,8 +36,12 @@ public class SleepTimer(
     private val _state = MutableStateFlow<SleepTimerState>(SleepTimerState.Off)
     public val state: StateFlow<SleepTimerState> = _state.asStateFlow()
 
-    private val _cancellations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    public val cancellations: SharedFlow<Unit> = _cancellations
+    private val _cancellations = MutableSharedFlow<SleepTimerCancelled>(extraBufferCapacity = 1)
+    public val cancellations: SharedFlow<SleepTimerCancelled> = _cancellations
+
+    private var armedBy: Any? = null
+    private var castBase: Float? = null
+    private var noFadeLogged = false
 
     private var job: Job? = null
     private var fadedTo: Float = FULL
@@ -67,15 +72,15 @@ public class SleepTimer(
      * Ends on the first change away from this item, which covers the user skipping on: having
      * asked to stop after this one, being carried into another would be the wrong answer either way.
      */
-    public fun stopAfterCurrentItem() {
+    public fun stopAfterCurrentItem(owner: Any? = null) {
         val current = controller.state.value?.itemId ?: return
-        stopAfterLastOf(listOf(current)) { SleepTimerState.AfterCurrentItem }
+        stopAfterLastOf(listOf(current), owner) { SleepTimerState.AfterCurrentItem }
     }
 
     /** Stops when the last of [itemIds], the rest of an album or playlist in play order, finishes. */
     public fun stopAtEndOf(itemIds: List<MediaItemId>, title: String) {
         if (itemIds.isEmpty()) return
-        stopAfterLastOf(itemIds) { playing -> SleepTimerState.AtEndOf(title, itemIds.size - itemIds.indexOf(playing)) }
+        stopAfterLastOf(itemIds, null) { playing -> SleepTimerState.AtEndOf(title, itemIds.size - itemIds.indexOf(playing)) }
     }
 
     /** The item playback stops after, while a timer of that kind is armed. */
@@ -97,15 +102,21 @@ public class SleepTimer(
 
     private var stopsAfter: MediaItemId? = null
 
-    private fun stopAfterLastOf(itemIds: List<MediaItemId>, describe: (MediaItemId) -> SleepTimerState) {
+    private fun stopAfterLastOf(
+        itemIds: List<MediaItemId>,
+        owner: Any?,
+        describe: (MediaItemId) -> SleepTimerState,
+    ) {
         release()
         stopsAfter = itemIds.last()
+        armedBy = owner
         val fadeLength = fade()
         job = scope.launch {
             controller.state.collect { state ->
                 if (state == null || state.itemId !in itemIds) {
                     if (state?.isPlaying == true) controller.togglePlayPause()
                     stopsAfter = null
+                    armedBy = null
                     restoreVolume("playback moved off the items the timer was waiting on")
                     _state.value = SleepTimerState.Off
                     job?.cancel()
@@ -119,9 +130,18 @@ public class SleepTimer(
 
     private fun fadeToEndOf(state: PlaybackState, fadeLength: Duration) {
         val duration = state.durationMs?.takeIf { it > 0 && !state.live }
-        if (duration == null || state.onCastDevice) return
+        if (duration == null) {
+            noteNoFade("no fade: ${state.itemId} is live or has no known length")
+            return
+        }
         val speed = state.speed.takeIf { it > 0f } ?: 1f
         fadeTo(((duration - state.positionMs) / speed).toLong().milliseconds, fadeLength)
+    }
+
+    private fun noteNoFade(why: String) {
+        if (noFadeLogged) return
+        noFadeLogged = true
+        Diag.log("sleep", "dewidebug sleep timer $why; playback still stops")
     }
 
     private fun fadeTo(remaining: Duration, fadeLength: Duration) {
@@ -129,25 +149,46 @@ public class SleepTimer(
         val level = (remaining / fadeLength).toFloat().coerceIn(0f, FULL)
         if (level >= FULL && fadedTo >= FULL) return
         if (abs(level - fadedTo) < MIN_FADE_STEP && level > 0f) return
+        if (fadedTo >= FULL && !chooseOutput()) return
         if (fadedTo >= FULL) {
-            Diag.log("sleep", "dewidebug sleep timer fade begins: remaining=$remaining of a $fadeLength fade")
+            val on = castBase?.let { "the TV volume (from ${percent(it)}%)" } ?: "the player"
+            Diag.log("sleep", "dewidebug sleep timer fade begins on $on: remaining=$remaining of a $fadeLength fade")
         }
         if (level == 0f) Diag.log("sleep", "dewidebug sleep timer fade reached silence")
         fadedTo = level
-        controller.setFadeLevel(level)
+        castBase?.let { controller.setCastVolume(it * level) } ?: controller.setFadeLevel(level)
     }
+
+    private fun chooseOutput(): Boolean {
+        val state = controller.state.value
+        if (state?.onCastDevice != true) return true
+        val volume = state.castVolume
+        if (volume == null) {
+            noteNoFade("no fade: casting to ${state.castDeviceName ?: "a device"}, which offers no volume to ramp")
+            return false
+        }
+        castBase = volume.fraction
+        return true
+    }
+
+    private fun percent(fraction: Float): Int = (fraction * PERCENT).roundToInt()
 
     private fun restoreVolume(why: String) {
         if (fadedTo >= FULL) return
-        Diag.log("sleep", "dewidebug sleep timer volume back to full after a fade to $fadedTo: $why")
+        val base = castBase
+        val output = base?.let { "TV volume back to ${percent(it)}%" } ?: "player volume"
+        Diag.log("sleep", "dewidebug sleep timer volume back to full after a fade to $fadedTo ($output): $why")
         fadedTo = FULL
-        controller.setFadeLevel(FULL)
+        castBase = null
+        base?.let { controller.setCastVolume(it) } ?: controller.setFadeLevel(FULL)
     }
 
     private fun release() {
         job?.cancel()
         job = null
         stopsAfter = null
+        armedBy = null
+        noFadeLogged = false
         restoreVolume("the timer was released")
     }
 
@@ -159,10 +200,11 @@ public class SleepTimer(
     /** Cancels a running timer, leaving playback alone. */
     public fun cancel() {
         val wasArmed = _state.value != SleepTimerState.Off
+        val owner = armedBy
         disarm()
         if (wasArmed) {
-            Diag.log("sleep", "dewidebug sleep timer cancelled by the person")
-            _cancellations.tryEmit(Unit)
+            Diag.log("sleep", "dewidebug sleep timer cancelled by the person (armed by ${owner ?: "the person"})")
+            _cancellations.tryEmit(SleepTimerCancelled(owner))
         }
     }
 
@@ -171,8 +213,11 @@ public class SleepTimer(
         val FADE_TICK: Duration = 250.milliseconds
         const val FULL = 1f
         const val MIN_FADE_STEP = 0.02f
+        const val PERCENT = 100
     }
 }
+
+public data class SleepTimerCancelled(val owner: Any?)
 
 /** Whether a sleep timer is running, and how long is left. */
 public sealed interface SleepTimerState {
